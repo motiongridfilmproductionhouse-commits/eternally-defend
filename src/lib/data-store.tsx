@@ -1,0 +1,127 @@
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+
+export type Severity = "Critical" | "High" | "Medium" | "Low";
+export type Status = "Detected" | "In Review" | "Takedown Sent" | "Resolved";
+
+export interface Asset {
+  id: string;
+  name: string;
+  type: "Image" | "Video" | "Audio" | "Document" | "Brand";
+  platform: string;
+  registered: string;
+  status: "Protected" | "Monitoring" | "At Risk";
+}
+
+export interface Threat {
+  id: string;
+  title: string;
+  category: "Deepfake" | "Impersonation" | "Copyright" | "News Attack" | "Unauthorized Ad" | "Viral";
+  platform: string;
+  severity: Severity;
+  detected: string;
+  location: string;
+  status: Status;
+  confidence: number;
+}
+
+export interface Case {
+  id: string;
+  subject: string;
+  type: "DMCA" | "Legal" | "Platform" | "Investigation";
+  status: "Open" | "In Progress" | "Escalated" | "Closed";
+  priority: Severity;
+  opened: string;
+  assignee: string;
+}
+
+export interface Removal {
+  id: string;
+  url: string;
+  platform: string;
+  method: "DMCA" | "Platform Report" | "Legal Notice";
+  submitted: string;
+  status: "Queued" | "Sent" | "Removed" | "Rejected";
+}
+
+const seed = {
+  assets: [
+    { id: "A-001", name: "Brand Logo v3", type: "Brand", platform: "Global", registered: "2026-01-14", status: "Protected" },
+    { id: "A-002", name: "Product Launch Video", type: "Video", platform: "YouTube", registered: "2026-02-02", status: "Monitoring" },
+    { id: "A-003", name: "Founder Portrait", type: "Image", platform: "Instagram", registered: "2026-02-19", status: "At Risk" },
+    { id: "A-004", name: "Podcast Ep. 42 Audio", type: "Audio", platform: "Spotify", registered: "2026-03-08", status: "Protected" },
+    { id: "A-005", name: "Whitepaper 2026", type: "Document", platform: "Web", registered: "2026-03-22", status: "Monitoring" },
+    { id: "A-006", name: "Campaign Hero Image", type: "Image", platform: "Meta Ads", registered: "2026-04-11", status: "Protected" },
+  ] as Asset[],
+  threats: [
+    { id: "T-9821", title: "Deepfake Video Spreading", category: "Deepfake", platform: "YouTube", severity: "Critical", detected: "08:23 AM", location: "USA", status: "In Review", confidence: 92 },
+    { id: "T-9822", title: "Impersonation Account", category: "Impersonation", platform: "Instagram", severity: "High", detected: "07:44 AM", location: "India", status: "Detected", confidence: 88 },
+    { id: "T-9823", title: "False News Article", category: "News Attack", platform: "News Portal", severity: "High", detected: "06:12 AM", location: "UK", status: "Takedown Sent", confidence: 81 },
+    { id: "T-9824", title: "Unauthorized Ad Campaign", category: "Unauthorized Ad", platform: "Meta Ads", severity: "Medium", detected: "Yesterday", location: "UAE", status: "In Review", confidence: 76 },
+    { id: "T-9825", title: "Viral TikTok Clip Misuse", category: "Viral", platform: "TikTok", severity: "Medium", detected: "Yesterday", location: "India", status: "Detected", confidence: 71 },
+    { id: "T-9826", title: "Reddit Copyright Repost", category: "Copyright", platform: "Reddit", severity: "Low", detected: "2 days ago", location: "USA", status: "Resolved", confidence: 64 },
+  ] as Threat[],
+  cases: [
+    { id: "CASE-2025-0622-0012", subject: "Deepfake takedown - YouTube", type: "DMCA", status: "In Progress", priority: "Critical", opened: "2026-07-05", assignee: "Legal Team" },
+    { id: "CASE-2025-0622-0011", subject: "Impersonation account - Instagram", type: "Platform", status: "Open", priority: "High", opened: "2026-07-05", assignee: "Enforcement" },
+    { id: "CASE-2025-0622-0009", subject: "False news article - Portal24", type: "Legal", status: "Escalated", priority: "High", opened: "2026-07-04", assignee: "External Counsel" },
+    { id: "CASE-2025-0622-0007", subject: "Ad campaign misuse - Meta", type: "Investigation", status: "In Progress", priority: "Medium", opened: "2026-07-03", assignee: "Analyst" },
+  ] as Case[],
+  removals: [
+    { id: "R-4410", url: "youtube.com/watch?v=xxxx", platform: "YouTube", method: "DMCA", submitted: "08:31 AM", status: "Sent" },
+    { id: "R-4409", url: "instagram.com/p/abcd", platform: "Instagram", method: "Platform Report", submitted: "Yesterday", status: "Removed" },
+    { id: "R-4408", url: "reddit.com/r/x/comments/y", platform: "Reddit", method: "DMCA", submitted: "Yesterday", status: "Removed" },
+    { id: "R-4407", url: "tiktok.com/@user/video/1", platform: "TikTok", method: "DMCA", submitted: "2 days ago", status: "Queued" },
+    { id: "R-4406", url: "portal24.com/story/deep", platform: "News Portal", method: "Legal Notice", submitted: "2 days ago", status: "Rejected" },
+  ] as Removal[],
+};
+
+interface Ctx {
+  assets: Asset[];
+  threats: Threat[];
+  cases: Case[];
+  removals: Removal[];
+  addAsset: (a: Omit<Asset, "id" | "registered">) => void;
+  updateThreatStatus: (id: string, status: Status) => void;
+  updateCaseStatus: (id: string, status: Case["status"]) => void;
+  addRemoval: (r: Omit<Removal, "id" | "submitted" | "status">) => void;
+}
+
+const DataCtx = createContext<Ctx | null>(null);
+
+export function DataProvider({ children }: { children: ReactNode }) {
+  const [assets, setAssets] = useState(seed.assets);
+  const [threats, setThreats] = useState(seed.threats);
+  const [cases, setCases] = useState(seed.cases);
+  const [removals, setRemovals] = useState(seed.removals);
+
+  const value = useMemo<Ctx>(() => ({
+    assets, threats, cases, removals,
+    addAsset: (a) => setAssets((prev) => [
+      { ...a, id: `A-${String(prev.length + 1).padStart(3, "0")}`, registered: new Date().toISOString().slice(0, 10) },
+      ...prev,
+    ]),
+    updateThreatStatus: (id, status) => setThreats((prev) => prev.map((t) => t.id === id ? { ...t, status } : t)),
+    updateCaseStatus: (id, status) => setCases((prev) => prev.map((c) => c.id === id ? { ...c, status } : c)),
+    addRemoval: (r) => setRemovals((prev) => [
+      { ...r, id: `R-${4411 + prev.length}`, submitted: "Just now", status: "Queued" },
+      ...prev,
+    ]),
+  }), [assets, threats, cases, removals]);
+
+  return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>;
+}
+
+export function useData() {
+  const ctx = useContext(DataCtx);
+  if (!ctx) throw new Error("useData must be used inside DataProvider");
+  return ctx;
+}
+
+export function severityColor(s: Severity) {
+  switch (s) {
+    case "Critical": return "oklch(0.63 0.24 25)";
+    case "High": return "oklch(0.7 0.2 35)";
+    case "Medium": return "oklch(0.75 0.16 70)";
+    case "Low": return "oklch(0.68 0.16 155)";
+  }
+}
