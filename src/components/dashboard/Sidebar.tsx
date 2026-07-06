@@ -5,7 +5,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const nav = [
+type NavItem = { icon: typeof LayoutDashboard; label: string; to: string; badge?: string };
+const nav: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/" },
   { icon: Package, label: "Assets", to: "/assets" },
   { icon: Radar, label: "Threat Radar", to: "/threat-radar" },
@@ -15,7 +16,7 @@ const nav = [
   { icon: Briefcase, label: "Case Management", to: "/cases", badge: "2" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
   { icon: FileText, label: "Reports", to: "/reports" },
-] as const;
+];
 
 export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
