@@ -9,50 +9,288 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppThreatRadarRouteImport } from './routes/_app.threat-radar'
+import { Route as AppThreatMonitoringRouteImport } from './routes/_app.threat-monitoring'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppRemovalsRouteImport } from './routes/_app.removals'
+import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
+import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
+import { Route as AppCasesRouteImport } from './routes/_app.cases'
+import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 
-const IndexRoute = IndexRouteImport.update({
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
+} as any)
+const AppThreatRadarRoute = AppThreatRadarRouteImport.update({
+  id: '/threat-radar',
+  path: '/threat-radar',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppThreatMonitoringRoute = AppThreatMonitoringRouteImport.update({
+  id: '/threat-monitoring',
+  path: '/threat-monitoring',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRemovalsRoute = AppRemovalsRouteImport.update({
+  id: '/removals',
+  path: '/removals',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIntelligenceRoute = AppIntelligenceRouteImport.update({
+  id: '/intelligence',
+  path: '/intelligence',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEnforcementRoute = AppEnforcementRouteImport.update({
+  id: '/enforcement',
+  path: '/enforcement',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCasesRoute = AppCasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAssetsRoute = AppAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/assets': typeof AppAssetsRoute
+  '/cases': typeof AppCasesRoute
+  '/enforcement': typeof AppEnforcementRoute
+  '/intelligence': typeof AppIntelligenceRoute
+  '/notifications': typeof AppNotificationsRoute
+  '/removals': typeof AppRemovalsRoute
+  '/reports': typeof AppReportsRoute
+  '/settings': typeof AppSettingsRoute
+  '/threat-monitoring': typeof AppThreatMonitoringRoute
+  '/threat-radar': typeof AppThreatRadarRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/assets': typeof AppAssetsRoute
+  '/cases': typeof AppCasesRoute
+  '/enforcement': typeof AppEnforcementRoute
+  '/intelligence': typeof AppIntelligenceRoute
+  '/notifications': typeof AppNotificationsRoute
+  '/removals': typeof AppRemovalsRoute
+  '/reports': typeof AppReportsRoute
+  '/settings': typeof AppSettingsRoute
+  '/threat-monitoring': typeof AppThreatMonitoringRoute
+  '/threat-radar': typeof AppThreatRadarRoute
+  '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_app/assets': typeof AppAssetsRoute
+  '/_app/cases': typeof AppCasesRoute
+  '/_app/enforcement': typeof AppEnforcementRoute
+  '/_app/intelligence': typeof AppIntelligenceRoute
+  '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/removals': typeof AppRemovalsRoute
+  '/_app/reports': typeof AppReportsRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/threat-monitoring': typeof AppThreatMonitoringRoute
+  '/_app/threat-radar': typeof AppThreatRadarRoute
+  '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/assets'
+    | '/cases'
+    | '/enforcement'
+    | '/intelligence'
+    | '/notifications'
+    | '/removals'
+    | '/reports'
+    | '/settings'
+    | '/threat-monitoring'
+    | '/threat-radar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/assets'
+    | '/cases'
+    | '/enforcement'
+    | '/intelligence'
+    | '/notifications'
+    | '/removals'
+    | '/reports'
+    | '/settings'
+    | '/threat-monitoring'
+    | '/threat-radar'
+    | '/'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/_app/assets'
+    | '/_app/cases'
+    | '/_app/enforcement'
+    | '/_app/intelligence'
+    | '/_app/notifications'
+    | '/_app/removals'
+    | '/_app/reports'
+    | '/_app/settings'
+    | '/_app/threat-monitoring'
+    | '/_app/threat-radar'
+    | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/threat-radar': {
+      id: '/_app/threat-radar'
+      path: '/threat-radar'
+      fullPath: '/threat-radar'
+      preLoaderRoute: typeof AppThreatRadarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/threat-monitoring': {
+      id: '/_app/threat-monitoring'
+      path: '/threat-monitoring'
+      fullPath: '/threat-monitoring'
+      preLoaderRoute: typeof AppThreatMonitoringRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/removals': {
+      id: '/_app/removals'
+      path: '/removals'
+      fullPath: '/removals'
+      preLoaderRoute: typeof AppRemovalsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/intelligence': {
+      id: '/_app/intelligence'
+      path: '/intelligence'
+      fullPath: '/intelligence'
+      preLoaderRoute: typeof AppIntelligenceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/enforcement': {
+      id: '/_app/enforcement'
+      path: '/enforcement'
+      fullPath: '/enforcement'
+      preLoaderRoute: typeof AppEnforcementRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cases': {
+      id: '/_app/cases'
+      path: '/cases'
+      fullPath: '/cases'
+      preLoaderRoute: typeof AppCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/assets': {
+      id: '/_app/assets'
+      path: '/assets'
+      fullPath: '/assets'
+      preLoaderRoute: typeof AppAssetsRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
 
+interface AppRouteChildren {
+  AppAssetsRoute: typeof AppAssetsRoute
+  AppCasesRoute: typeof AppCasesRoute
+  AppEnforcementRoute: typeof AppEnforcementRoute
+  AppIntelligenceRoute: typeof AppIntelligenceRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
+  AppRemovalsRoute: typeof AppRemovalsRoute
+  AppReportsRoute: typeof AppReportsRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppThreatMonitoringRoute: typeof AppThreatMonitoringRoute
+  AppThreatRadarRoute: typeof AppThreatRadarRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAssetsRoute: AppAssetsRoute,
+  AppCasesRoute: AppCasesRoute,
+  AppEnforcementRoute: AppEnforcementRoute,
+  AppIntelligenceRoute: AppIntelligenceRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
+  AppRemovalsRoute: AppRemovalsRoute,
+  AppReportsRoute: AppReportsRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppThreatMonitoringRoute: AppThreatMonitoringRoute,
+  AppThreatRadarRoute: AppThreatRadarRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
