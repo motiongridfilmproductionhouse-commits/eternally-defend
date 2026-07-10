@@ -81,6 +81,7 @@ interface Ctx {
   cases: Case[];
   removals: Removal[];
   addAsset: (a: Omit<Asset, "id" | "registered">) => void;
+  addThreat: (t: Omit<Threat, "id" | "detected" | "status">) => void;
   updateThreatStatus: (id: string, status: Status) => void;
   updateCaseStatus: (id: string, status: Case["status"]) => void;
   addRemoval: (r: Omit<Removal, "id" | "submitted" | "status">) => void;
@@ -98,6 +99,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     assets, threats, cases, removals,
     addAsset: (a) => setAssets((prev) => [
       { ...a, id: `A-${String(prev.length + 1).padStart(3, "0")}`, registered: new Date().toISOString().slice(0, 10) },
+      ...prev,
+    ]),
+    addThreat: (t) => setThreats((prev) => [
+      { ...t, id: `T-${9827 + prev.length}`, detected: "Just now", status: "Detected" },
       ...prev,
     ]),
     updateThreatStatus: (id, status) => setThreats((prev) => prev.map((t) => t.id === id ? { ...t, status } : t)),

@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Package, Radar, Activity, Brain, ShieldCheck,
-  Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf,
+  Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -9,6 +9,7 @@ type NavItem = { icon: typeof LayoutDashboard; label: string; to: string; badge?
 const nav: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/" },
   { icon: Package, label: "Assets", to: "/assets" },
+  { icon: Search, label: "Web Scan", to: "/scan", badge: "LIVE" },
   { icon: Radar, label: "Threat Radar", to: "/threat-radar" },
   { icon: Activity, label: "Threat Monitoring", to: "/threat-monitoring" },
   { icon: Brain, label: "Intelligence", to: "/intelligence" },
