@@ -14,6 +14,7 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppThreatRadarRouteImport } from './routes/_app.threat-radar'
 import { Route as AppThreatMonitoringRouteImport } from './routes/_app.threat-monitoring'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppScanRouteImport } from './routes/_app.scan'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppRemovalsRouteImport } from './routes/_app.removals'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
@@ -44,6 +45,11 @@ const AppThreatMonitoringRoute = AppThreatMonitoringRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppScanRoute = AppScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReportsRoute = AppReportsRouteImport.update({
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AppNotificationsRoute
   '/removals': typeof AppRemovalsRoute
   '/reports': typeof AppReportsRoute
+  '/scan': typeof AppScanRoute
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AppNotificationsRoute
   '/removals': typeof AppRemovalsRoute
   '/reports': typeof AppReportsRoute
+  '/scan': typeof AppScanRoute
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/removals': typeof AppRemovalsRoute
   '/_app/reports': typeof AppReportsRoute
+  '/_app/scan': typeof AppScanRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/threat-monitoring': typeof AppThreatMonitoringRoute
   '/_app/threat-radar': typeof AppThreatRadarRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/removals'
     | '/reports'
+    | '/scan'
     | '/settings'
     | '/threat-monitoring'
     | '/threat-radar'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/removals'
     | '/reports'
+    | '/scan'
     | '/settings'
     | '/threat-monitoring'
     | '/threat-radar'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/_app/notifications'
     | '/_app/removals'
     | '/_app/reports'
+    | '/_app/scan'
     | '/_app/settings'
     | '/_app/threat-monitoring'
     | '/_app/threat-radar'
@@ -205,6 +217,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/scan': {
+      id: '/_app/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof AppScanRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/reports': {
@@ -267,6 +286,7 @@ interface AppRouteChildren {
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppRemovalsRoute: typeof AppRemovalsRoute
   AppReportsRoute: typeof AppReportsRoute
+  AppScanRoute: typeof AppScanRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppThreatMonitoringRoute: typeof AppThreatMonitoringRoute
   AppThreatRadarRoute: typeof AppThreatRadarRoute
@@ -281,6 +301,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotificationsRoute: AppNotificationsRoute,
   AppRemovalsRoute: AppRemovalsRoute,
   AppReportsRoute: AppReportsRoute,
+  AppScanRoute: AppScanRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppThreatMonitoringRoute: AppThreatMonitoringRoute,
   AppThreatRadarRoute: AppThreatRadarRoute,
@@ -295,13 +316,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
