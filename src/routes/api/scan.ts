@@ -247,7 +247,10 @@ async function runFirecrawl(query: string, sources: SourceKey[], limit: number) 
   }));
 
   const runs: { source: string; raw: RawHit[] }[] = [];
-  for (const r of results) if (r.status === "fulfilled") runs.push(r.value);
+  for (const r of results) {
+    if (r.status === "fulfilled") runs.push(r.value);
+    else console.error("[scan] source rejected:", r.reason instanceof Error ? r.reason.message : String(r.reason));
+  }
   return { runs };
 }
 
