@@ -237,11 +237,10 @@ async function runFirecrawl(query: string, sources: SourceKey[], limit: number) 
     console.log("[scan] searching:", s, "→", q);
     const res: unknown = await fc.search(q, { limit });
     console.log("[scan] result keys for", s, ":", res && typeof res === "object" ? Object.keys(res).join(",") : typeof res);
-    const r = res as { web?: unknown[]; news?: unknown[]; data?: unknown[] };
+    const r = res as { web?: unknown[]; news?: unknown[]; images?: unknown[] };
     const raw: RawHit[] = [
       ...(Array.isArray(r.web) ? r.web : []),
       ...(Array.isArray(r.news) ? r.news : []),
-      ...(Array.isArray(r.data) ? r.data : []),
     ] as RawHit[];
     return { source: cfg.label, raw };
   }));
