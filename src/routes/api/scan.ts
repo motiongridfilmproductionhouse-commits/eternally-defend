@@ -225,6 +225,7 @@ function recommend(cat: Category, sev: Severity): string {
 /* ---------------- Firecrawl runner ---------------- */
 async function runFirecrawl(query: string, sources: SourceKey[], limit: number) {
   const apiKey = process.env.FIRECRAWL_API_KEY;
+  console.log("[scan] key present:", !!apiKey, "sources:", sources.join(","));
   if (!apiKey) return { runs: [] as { source: string; raw: RawHit[] }[], error: "FIRECRAWL_API_KEY missing" };
 
   const { default: Firecrawl } = await import("@mendable/firecrawl-js");
@@ -233,7 +234,9 @@ async function runFirecrawl(query: string, sources: SourceKey[], limit: number) 
   const results = await Promise.allSettled(sources.map(async (s) => {
     const cfg = SOURCE_QUERY[s];
     const q = cfg.site ? `${query} site:${cfg.site}` : cfg.suffix ? `${query} ${cfg.suffix}` : query;
+    console.log("[scan] searching:", s, "→", q);
     const res: unknown = await fc.search(q, { limit });
+    console.log("[scan] result keys for", s, ":", res && typeof res === "object" ? Object.keys(res).join(",") : typeof res);
     const r = res as { web?: unknown[]; news?: unknown[]; data?: unknown[] };
     const raw: RawHit[] = [
       ...(Array.isArray(r.web) ? r.web : []),
