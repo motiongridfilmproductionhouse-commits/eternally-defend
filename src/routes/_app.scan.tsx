@@ -38,7 +38,12 @@ const SOURCES: { key: SourceKey; label: string }[] = [
 ];
 
 const PERIODS = ["Last 24 hours", "Last 7 days", "Last 30 days", "Last 90 days", "All available history"];
-const DEFAULT_SOURCES: SourceKey[] = ["web", "news", "youtube", "reddit", "x", "reviews"];
+const DEFAULT_SOURCES: SourceKey[] = ["web", "news", "youtube", "reddit", "x", "instagram", "tiktok", "reviews", "complaints", "forums", "blogs"];
+const MODES: { key: ScanMode; label: string; sub: string }[] = [
+  { key: "quick", label: "Quick", sub: "~25/platform" },
+  { key: "deep", label: "Deep", sub: "100+/platform" },
+  { key: "investigation", label: "Investigation", sub: "up to 500/platform" },
+];
 
 const sentimentColor = (s: Sentiment) =>
   s === "Negative" ? "oklch(0.63 0.24 25)" : s === "Positive" ? "oklch(0.68 0.16 155)" : "oklch(0.55 0.03 275)";
