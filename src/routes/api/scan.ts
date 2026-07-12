@@ -11,11 +11,7 @@ export type Category =
 export type ContentLabel =
   | "News report" | "Allegation" | "Opinion" | "Review" | "Satire"
   | "Unverified claim" | "Misleading content" | "Potential impersonation"
-  | "Potentially manipulated media" | "Verified fact" | "Insufficient evidence"
-  | "Potentially harmful" | "Negative commentary" | "Critical review"
-  | "Complaint" | "Neutral mention" | "Positive mention";
-
-export type ScanMode = "quick" | "deep" | "investigation";
+  | "Potentially manipulated media" | "Verified fact" | "Insufficient evidence";
 
 export interface ScanHit {
   id: string;
@@ -43,7 +39,6 @@ export interface ScanHit {
   recommendedAction: string;
   keywords: string[];
   language: string;
-  queryUsed: string;
   viral?: boolean;
 }
 
@@ -52,28 +47,15 @@ export type SourceKey =
   | "facebook" | "linkedin" | "news" | "blogs" | "forums"
   | "podcasts" | "reviews" | "complaints" | "archive";
 
-export interface PlatformStat {
-  key: SourceKey;
-  label: string;
-  target: number;
-  fetched: number;
-  unique: number;
-  queriesRun: number;
-  status: "ok" | "partial" | "failed" | "empty";
-  error?: string;
-}
-
 export interface ReputationReport {
   ok: boolean;
   error?: string;
   query: string;
   aliases: string[];
-  mode: ScanMode;
   generatedAt: string;
   period: string;
   sourcesRequested: string[];
   sourcesReturned: string[];
-  platformStats: PlatformStat[];
   hits: ScanHit[];
   totals: {
     total: number;
@@ -107,8 +89,6 @@ export interface ReputationReport {
     reddit: ScanHit[];
     facebook: ScanHit[];
     instagram: ScanHit[];
-    tiktok: ScanHit[];
-    x: ScanHit[];
     impersonation: ScanHit[];
     deepfake: ScanHit[];
     reviews: ScanHit[];
@@ -126,35 +106,14 @@ const SOURCE_QUERY: Record<SourceKey, { label: string; site?: string; suffix?: s
   x: { label: "X", site: "x.com OR twitter.com" },
   facebook: { label: "Facebook", site: "facebook.com" },
   linkedin: { label: "LinkedIn", site: "linkedin.com" },
-  news: { label: "News", suffix: "news OR press OR breaking OR reported" },
+  news: { label: "News", suffix: "news OR press OR breaking" },
   blogs: { label: "Blogs", suffix: "site:medium.com OR site:substack.com OR blog" },
-  forums: { label: "Forums", suffix: "forum OR discussion OR thread OR quora" },
-  podcasts: { label: "Podcasts", suffix: "podcast OR interview OR episode" },
-  reviews: { label: "Reviews", suffix: "review OR rating OR trustpilot OR yelp" },
-  complaints: { label: "Complaints", suffix: "complaint OR scam OR fraud OR ripoff OR pissedconsumer" },
+  forums: { label: "Forums", suffix: "forum OR discussion OR thread" },
+  podcasts: { label: "Podcasts", suffix: "podcast OR interview" },
+  reviews: { label: "Reviews", suffix: "review OR rating" },
+  complaints: { label: "Complaints", suffix: "complaint OR scam OR fraud OR ripoff" },
   archive: { label: "Archive", site: "archive.org OR web.archive.org" },
 };
-
-/* Per-mode targets and pagination knobs */
-const MODE_TARGETS: Record<ScanMode, Partial<Record<SourceKey, number>> & { default: number }> = {
-  quick: { default: 25 },
-  deep: {
-    default: 100,
-    web: 200, news: 150, youtube: 150, reddit: 200, x: 100,
-    instagram: 80, tiktok: 80, facebook: 80, linkedin: 60,
-    blogs: 120, forums: 120, reviews: 120, complaints: 120,
-    podcasts: 60, archive: 60,
-  },
-  investigation: {
-    default: 200,
-    web: 500, news: 200, youtube: 300, reddit: 300, x: 100,
-    instagram: 100, tiktok: 100, facebook: 100, linkedin: 100,
-    blogs: 200, forums: 200, reviews: 200, complaints: 200,
-    podcasts: 100, archive: 100,
-  },
-};
-
-const PAGE_SIZE = 25;
 
 const RISK_TERMS: { kw: string[]; category: Category; sev: Severity; score: number; copyright: number; reputation: number }[] = [
   { kw: ["deepfake", "ai generated", "ai-generated", "face swap", "voice clone", "synthetic video"], category: "Deepfake", sev: "Critical", score: 96, copyright: 60, reputation: 95 },
@@ -163,10 +122,10 @@ const RISK_TERMS: { kw: string[]; category: Category; sev: Severity; score: numb
   { kw: ["impersonat", "fake account", "fake profile", "romance scam"], category: "Impersonation", sev: "High", score: 84, copyright: 30, reputation: 82 },
   { kw: ["pirated", "free download", "torrent", "copyright", "unauthorized", "reupload", "re-upload", "mirror"], category: "Copyright", sev: "High", score: 78, copyright: 92, reputation: 40 },
   { kw: ["reaction", "reacts to", "compilation", "clip of"], category: "Reaction/Reupload", sev: "Medium", score: 62, copyright: 75, reputation: 25 },
-  { kw: ["scandal", "controversy", "expose", "exposed", "hoax", "misinformation", "rumor", "allegation", "allegations"], category: "News Attack", sev: "High", score: 80, copyright: 15, reputation: 90 },
+  { kw: ["scandal", "controversy", "expose", "exposed", "hoax", "misinformation", "rumor"], category: "News Attack", sev: "High", score: 80, copyright: 15, reputation: 90 },
   { kw: ["sponsored", "endorse", "endorsement", "ad campaign", "promo"], category: "Unauthorized Ad", sev: "Medium", score: 58, copyright: 55, reputation: 35 },
   { kw: ["viral", "trending", "goes viral", "explodes"], category: "Viral", sev: "Medium", score: 55, copyright: 20, reputation: 45 },
-  { kw: ["complaint", "ripoff", "scam", "fraud", "warning"], category: "Complaint", sev: "High", score: 74, copyright: 10, reputation: 78 },
+  { kw: ["complaint", "ripoff", "scam", "fraud"], category: "Complaint", sev: "High", score: 74, copyright: 10, reputation: 78 },
   { kw: ["review", "rating", "stars"], category: "Review", sev: "Low", score: 46, copyright: 5, reputation: 30 },
 ];
 
@@ -174,115 +133,6 @@ const POS = ["love", "amazing", "great", "best", "brilliant", "inspiring", "prai
 const NEG = ["hate", "worst", "terrible", "scam", "fraud", "controversy", "sued", "lawsuit", "expose", "scandal", "attack", "fake", "leaked", "toxic", "shame", "boycott", "cancelled"];
 const TRUSTED_NEWS = /(nytimes|washingtonpost|guardian|bbc|reuters|bloomberg|forbes|wsj|cnn|apnews|npr|ft\.com|economist|axios|theverge|techcrunch|wired)/i;
 
-/* ---------------- Query expansion ---------------- */
-const RISK_MODIFIERS = [
-  "", "controversy", "complaint", "allegations", "scam", "fraud",
-  "exposed", "criticism", "review", "lawsuit", "problem", "warning",
-  "reaction", "latest news", "interview",
-];
-
-function expandQueries(name: string, aliases: string[], handles: string[], mode: ScanMode): string[] {
-  const base = [name, ...aliases].filter(Boolean);
-  const set = new Set<string>();
-  const modifiers = mode === "quick"
-    ? ["", "review", "controversy"]
-    : mode === "deep"
-      ? RISK_MODIFIERS
-      : [...RISK_MODIFIERS, "leaked", "deepfake", "impersonation", "boycott", "cancelled"];
-  for (const b of base) {
-    for (const m of modifiers) set.add(m ? `"${b}" ${m}` : `"${b}"`);
-  }
-  for (const h of handles) set.add(`"${h}"`);
-  return Array.from(set);
-}
-
-/* ---------------- Firecrawl runner ---------------- */
-interface RawHit { url?: string; title?: string; description?: string; snippet?: string; author?: string; date?: string; publishedDate?: string }
-
-async function firecrawlSearch(fc: unknown, query: string, limit: number): Promise<RawHit[]> {
-  const client = fc as { search: (q: string, opts?: { limit?: number }) => Promise<unknown> };
-  try {
-    const res = await client.search(query, { limit });
-    const r = res as { web?: unknown[]; news?: unknown[]; images?: unknown[]; data?: unknown[] };
-    return [
-      ...(Array.isArray(r.web) ? r.web : []),
-      ...(Array.isArray(r.news) ? r.news : []),
-      ...(Array.isArray(r.data) ? r.data : []),
-    ] as RawHit[];
-  } catch (e) {
-    console.error("[scan] firecrawl error:", e instanceof Error ? e.message : e);
-    return [];
-  }
-}
-
-async function runSource(
-  fc: unknown,
-  source: SourceKey,
-  queries: string[],
-  target: number,
-  maxQueries: number,
-): Promise<{ raw: RawHit[]; queriesRun: number; error?: string }> {
-  const cfg = SOURCE_QUERY[source];
-  const seen = new Set<string>();
-  const out: RawHit[] = [];
-  let queriesRun = 0;
-  let noNewStreak = 0;
-  const qs = queries.slice(0, maxQueries);
-  for (const q of qs) {
-    if (out.length >= target) break;
-    if (noNewStreak >= 3) break;
-    const full = cfg.site ? `${q} site:${cfg.site}` : cfg.suffix ? `${q} ${cfg.suffix}` : q;
-    const remaining = target - out.length;
-    const pageLimit = Math.min(50, Math.max(PAGE_SIZE, remaining));
-    const raw = await firecrawlSearch(fc, full, pageLimit);
-    queriesRun++;
-    let added = 0;
-    for (const r of raw) {
-      const url = r.url;
-      if (!url || seen.has(url)) continue;
-      seen.add(url);
-      (r as RawHit & { _q?: string })._q = full;
-      out.push(r);
-      added++;
-      if (out.length >= target) break;
-    }
-    if (added === 0) noNewStreak++; else noNewStreak = 0;
-  }
-  return { raw: out, queriesRun };
-}
-
-async function runScan(
-  queries: string[],
-  sources: SourceKey[],
-  mode: ScanMode,
-): Promise<{ runs: { source: SourceKey; raw: RawHit[]; queriesRun: number; error?: string }[]; error?: string }> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
-  if (!apiKey) return { runs: [], error: "FIRECRAWL_API_KEY missing" };
-  const { default: Firecrawl } = await import("@mendable/firecrawl-js");
-  const fc = new Firecrawl({ apiKey });
-  const targets = MODE_TARGETS[mode];
-  const maxQueries = mode === "quick" ? 2 : mode === "deep" ? 8 : 14;
-
-  // controlled concurrency: 4 sources at a time
-  const CONC = 4;
-  const results: { source: SourceKey; raw: RawHit[]; queriesRun: number; error?: string }[] = [];
-  for (let i = 0; i < sources.length; i += CONC) {
-    const chunk = sources.slice(i, i + CONC);
-    const chunkRes = await Promise.allSettled(chunk.map(async (s) => {
-      const target = (targets as Record<string, number>)[s] ?? targets.default;
-      const r = await runSource(fc, s, queries, target, maxQueries);
-      return { source: s, ...r };
-    }));
-    for (let j = 0; j < chunkRes.length; j++) {
-      const r = chunkRes[j];
-      if (r.status === "fulfilled") results.push(r.value);
-      else results.push({ source: chunk[j], raw: [], queriesRun: 0, error: r.reason instanceof Error ? r.reason.message : String(r.reason) });
-    }
-  }
-  return { runs: results };
-}
-
-/* ---------------- Classification helpers ---------------- */
 function platformFromUrl(url: string): { platform: string; source: string } {
   try {
     const h = new URL(url).hostname.replace(/^www\./, "");
@@ -330,15 +180,14 @@ function classify(title: string, desc: string) {
 function labelOf(cat: Category, sent: Sentiment, source: string): ContentLabel {
   if (cat === "Deepfake") return "Potentially manipulated media";
   if (cat === "Impersonation") return "Potential impersonation";
-  if (cat === "News Attack") return sent === "Negative" ? "Potentially harmful" : "News report";
+  if (cat === "News Attack") return sent === "Negative" ? "Unverified claim" : "News report";
   if (cat === "Defamation") return "Allegation";
   if (source === "News") return "News report";
-  if (cat === "Review") return sent === "Negative" ? "Critical review" : "Review";
-  if (cat === "Complaint") return "Complaint";
+  if (cat === "Review") return "Review";
+  if (cat === "Complaint") return "Allegation";
   if (cat === "Reaction/Reupload") return "Opinion";
-  if (sent === "Negative") return "Negative commentary";
-  if (sent === "Positive") return "Positive mention";
-  return "Neutral mention";
+  if (sent === "Negative") return "Unverified claim";
+  return "Insufficient evidence";
 }
 
 function credibility(source: string, platform: string): number {
@@ -373,29 +222,50 @@ function recommend(cat: Category, sev: Severity): string {
   return sev === "Low" ? "Continue monitoring" : "Verify before acting";
 }
 
+/* ---------------- Firecrawl runner ---------------- */
+async function runFirecrawl(query: string, sources: SourceKey[], limit: number) {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  console.log("[scan] key present:", !!apiKey, "sources:", sources.join(","));
+  if (!apiKey) return { runs: [] as { source: string; raw: RawHit[] }[], error: "FIRECRAWL_API_KEY missing" };
+
+  const { default: Firecrawl } = await import("@mendable/firecrawl-js");
+  const fc = new Firecrawl({ apiKey });
+
+  const results = await Promise.allSettled(sources.map(async (s) => {
+    const cfg = SOURCE_QUERY[s];
+    const q = cfg.site ? `${query} site:${cfg.site}` : cfg.suffix ? `${query} ${cfg.suffix}` : query;
+    console.log("[scan] searching:", s, "→", q);
+    const res: unknown = await fc.search(q, { limit });
+    console.log("[scan] result keys for", s, ":", res && typeof res === "object" ? Object.keys(res).join(",") : typeof res);
+    const r = res as { web?: unknown[]; news?: unknown[]; images?: unknown[] };
+    const raw: RawHit[] = [
+      ...(Array.isArray(r.web) ? r.web : []),
+      ...(Array.isArray(r.news) ? r.news : []),
+    ] as RawHit[];
+    return { source: cfg.label, raw };
+  }));
+
+  const runs: { source: string; raw: RawHit[] }[] = [];
+  for (const r of results) {
+    if (r.status === "fulfilled") runs.push(r.value);
+    else console.error("[scan] source rejected:", r.reason instanceof Error ? r.reason.message : String(r.reason));
+  }
+  return { runs };
+}
+
+interface RawHit { url?: string; title?: string; description?: string; snippet?: string; author?: string; date?: string; publishedDate?: string }
+
 /* ---------------- Report builder ---------------- */
-function buildReport(
-  query: string,
-  aliases: string[],
-  mode: ScanMode,
-  period: string,
-  sourcesRequested: SourceKey[],
-  runs: { source: SourceKey; raw: RawHit[]; queriesRun: number; error?: string }[],
-  err?: string,
-): ReputationReport {
+function buildReport(query: string, aliases: string[], period: string, sourcesRequested: SourceKey[], runs: { source: string; raw: RawHit[] }[], err?: string): ReputationReport {
   const now = new Date().toISOString();
   const dedupe = new Map<string, ScanHit>();
   const duplicates: ScanHit[] = [];
   const sourcesReturned = new Set<string>();
-  const platformStats: PlatformStat[] = [];
-  const targets = MODE_TARGETS[mode];
   let totalRaw = 0;
   let idx = 0;
 
   for (const run of runs) {
-    const cfg = SOURCE_QUERY[run.source];
-    const target = (targets as Record<string, number>)[run.source] ?? targets.default;
-    let uniqueForSource = 0;
+    if (run.raw.length) sourcesReturned.add(run.source);
     for (const o of run.raw) {
       totalRaw++;
       const url = o.url ?? "";
@@ -418,12 +288,12 @@ function buildReport(
       const hit: ScanHit = {
         id: `hit-${idx}`,
         title, url, description, platform,
-        source: source || cfg.label,
+        source: source || run.source,
         author: o.author,
         published: o.publishedDate ?? o.date,
         discoveredAt: now, lastChecked: now,
         category: c.category,
-        contentLabel: labelOf(c.category, sent, source || cfg.label),
+        contentLabel: labelOf(c.category, sent, source || run.source),
         severity: c.sev,
         sentiment: sent,
         confidence: Math.min(97, 55 + Math.round(c.score / 4)),
@@ -437,24 +307,11 @@ function buildReport(
         recommendedAction: recommend(c.category, c.sev),
         keywords: c.keywords,
         language: "en",
-        queryUsed: (o as RawHit & { _q?: string })._q ?? "",
         viral: reach > 60000 || c.sev === "Critical",
       };
       if (dedupe.has(url)) { duplicates.push(hit); continue; }
       dedupe.set(url, hit);
-      uniqueForSource++;
     }
-    if (uniqueForSource > 0) sourcesReturned.add(cfg.label);
-    platformStats.push({
-      key: run.source,
-      label: cfg.label,
-      target,
-      fetched: run.raw.length,
-      unique: uniqueForSource,
-      queriesRun: run.queriesRun,
-      status: run.error ? "failed" : uniqueForSource === 0 ? "empty" : uniqueForSource >= target ? "ok" : "partial",
-      error: run.error,
-    });
   }
 
   const hits = Array.from(dedupe.values()).sort((a, b) => b.threatScore - a.threatScore);
@@ -468,14 +325,12 @@ function buildReport(
   const buckets = {
     critical,
     high,
-    emerging: hits.filter((h) => h.viralityScore >= 60 && h.severity !== "Critical").slice(0, 40),
+    emerging: hits.filter((h) => h.viralityScore >= 60 && h.severity !== "Critical").slice(0, 12),
     news: hits.filter((h) => h.source === "News"),
     youtube: hits.filter((h) => h.source === "YouTube"),
     reddit: hits.filter((h) => h.source === "Reddit"),
     facebook: hits.filter((h) => h.source === "Facebook"),
     instagram: hits.filter((h) => h.source === "Instagram"),
-    tiktok: hits.filter((h) => h.source === "TikTok"),
-    x: hits.filter((h) => h.source === "X"),
     impersonation: hits.filter((h) => h.category === "Impersonation"),
     deepfake: hits.filter((h) => h.category === "Deepfake"),
     reviews: hits.filter((h) => h.category === "Review" || h.source === "Reviews" || h.category === "Complaint"),
@@ -485,7 +340,7 @@ function buildReport(
   const risk = (arr: ScanHit[]) => arr.length ? Math.round(arr.reduce((a, h) => a + h.threatScore, 0) / arr.length) : 0;
   const scoreBreakdown = [
     { key: "news", label: "News Risk", value: risk(buckets.news) },
-    { key: "social", label: "Social Media Risk", value: risk([...buckets.facebook, ...buckets.instagram, ...buckets.x, ...buckets.tiktok]) },
+    { key: "social", label: "Social Media Risk", value: risk([...buckets.facebook, ...buckets.instagram, ...hits.filter(h => h.source === "X" || h.source === "TikTok")]) },
     { key: "youtube", label: "YouTube Risk", value: risk(buckets.youtube) },
     { key: "reddit", label: "Reddit Risk", value: risk(buckets.reddit) },
     { key: "impersonation", label: "Impersonation Risk", value: risk(buckets.impersonation) },
@@ -502,6 +357,7 @@ function buildReport(
     reputationScore >= 40 ? "At Risk" :
     reputationScore >= 20 ? "High Risk" : "Critical";
 
+  // Executive summary bits
   const topicCounts = new Map<Category, number>();
   for (const h of hits) topicCounts.set(h.category, (topicCounts.get(h.category) ?? 0) + 1);
   const mostDamagingTopic = [...topicCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "None";
@@ -525,10 +381,9 @@ function buildReport(
   return {
     ok: !err,
     error: err,
-    query, aliases, mode, generatedAt: now, period,
+    query, aliases, generatedAt: now, period,
     sourcesRequested: sourcesRequested.map((s) => SOURCE_QUERY[s].label),
     sourcesReturned: [...sourcesReturned],
-    platformStats,
     hits,
     totals: {
       total: totalRaw,
@@ -564,18 +419,16 @@ export const Route = createFileRoute("/api/scan")({
           const body = await request.json().catch(() => ({}));
           const query = String(body?.query ?? "").trim().slice(0, 200);
           if (!query) return Response.json({ ok: false, error: "Query required" }, { status: 400 });
-          const aliases: string[] = Array.isArray(body?.aliases) ? body.aliases.map((a: unknown) => String(a).slice(0, 60)).slice(0, 8) : [];
-          const handles: string[] = Array.isArray(body?.handles) ? body.handles.map((a: unknown) => String(a).slice(0, 60)).slice(0, 8) : [];
+          const aliases: string[] = Array.isArray(body?.aliases) ? body.aliases.map((a: unknown) => String(a).slice(0, 60)).slice(0, 6) : [];
           const period = String(body?.period ?? "Last 30 days").slice(0, 60);
-          const modeRaw = String(body?.mode ?? "deep");
-          const mode: ScanMode = modeRaw === "quick" || modeRaw === "investigation" ? modeRaw : "deep";
+          const limit = Math.min(Math.max(Number(body?.limit ?? 6), 1), 10);
           const sources: SourceKey[] = Array.isArray(body?.sources) && body.sources.length
             ? (body.sources.filter((s: unknown): s is SourceKey => typeof s === "string" && s in SOURCE_QUERY))
-            : ["web", "news", "youtube", "reddit", "x", "instagram", "tiktok", "reviews", "complaints", "forums", "blogs"];
+            : ["web", "reddit", "youtube", "news", "x", "reviews"];
 
-          const queries = expandQueries(query, aliases, handles, mode);
-          const { runs, error } = await runScan(queries, sources, mode);
-          const report = buildReport(query, aliases, mode, period, sources, runs, error);
+          const fullQuery = aliases.length ? `${query} OR ${aliases.map(a => `"${a}"`).join(" OR ")}` : query;
+          const { runs, error } = await runFirecrawl(fullQuery, sources, limit);
+          const report = buildReport(query, aliases, period, sources, runs, error);
           return Response.json(report);
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Scan failed";

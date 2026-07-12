@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import type { ReputationReport, ScanHit, SourceKey, Sentiment, ScanMode } from "@/routes/api/scan";
+import type { ReputationReport, ScanHit, SourceKey, Sentiment } from "@/routes/api/scan";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { useData, severityColor } from "@/lib/data-store";
 import {
@@ -38,12 +38,7 @@ const SOURCES: { key: SourceKey; label: string }[] = [
 ];
 
 const PERIODS = ["Last 24 hours", "Last 7 days", "Last 30 days", "Last 90 days", "All available history"];
-const DEFAULT_SOURCES: SourceKey[] = ["web", "news", "youtube", "reddit", "x", "instagram", "tiktok", "reviews", "complaints", "forums", "blogs"];
-const MODES: { key: ScanMode; label: string; sub: string }[] = [
-  { key: "quick", label: "Quick", sub: "~25/platform" },
-  { key: "deep", label: "Deep", sub: "100+/platform" },
-  { key: "investigation", label: "Investigation", sub: "up to 500/platform" },
-];
+const DEFAULT_SOURCES: SourceKey[] = ["web", "news", "youtube", "reddit", "x", "reviews"];
 
 const sentimentColor = (s: Sentiment) =>
   s === "Negative" ? "oklch(0.63 0.24 25)" : s === "Positive" ? "oklch(0.68 0.16 155)" : "oklch(0.55 0.03 275)";
@@ -73,7 +68,6 @@ function ScanPage() {
   const [industry, setIndustry] = useState("");
   const [period, setPeriod] = useState("Last 30 days");
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
-  const [mode, setMode] = useState<ScanMode>("deep");
   const [added, setAdded] = useState<Set<string>>(new Set());
 
   const m = useMutation({ mutationFn: runScan });
@@ -88,8 +82,8 @@ function ScanPage() {
     const aliasList = aliases.split(",").map(s => s.trim()).filter(Boolean);
     const handleList = handles.split(",").map(s => s.trim()).filter(Boolean);
     const context = [industry, country, site].filter(Boolean).join(" ");
-    const fullQuery = `${q.trim()}${context ? " " + context : ""}`;
-    m.mutate({ query: fullQuery, aliases: aliasList, handles: handleList, period, mode, sources: sources.length ? sources : DEFAULT_SOURCES });
+    const fullQuery = `${q.trim()}${context ? " " + context : ""}${handleList.length ? " " + handleList.join(" ") : ""}`;
+    m.mutate({ query: fullQuery, aliases: aliasList, period, sources: sources.length ? sources : DEFAULT_SOURCES, limit: 6 });
   };
 
   const promote = (h: ScanHit) => {
@@ -160,17 +154,6 @@ function ScanPage() {
                 {m.isPending ? <Loader2 className="size-4 animate-spin" /> : <ScanSearch className="size-4" />}
                 {m.isPending ? "Generating report…" : "Generate Reputation Report"}
               </button>
-            </div>
-
-            <div className="md:col-span-2 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1 text-[10px] tracking-[0.16em] font-semibold text-muted-foreground">MODE</div>
-              <div className="flex rounded-full border border-border overflow-hidden text-xs">
-                {MODES.map((mm) => (
-                  <button key={mm.key} type="button" onClick={() => setMode(mm.key)} className={`px-3 py-1.5 ${mode === mm.key ? "text-white" : "bg-card hover:bg-accent"}`} style={mode === mm.key ? { background: "var(--gradient-brand)" } : undefined}>
-                    <span className="font-semibold">{mm.label}</span> <span className="opacity-70">· {mm.sub}</span>
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="md:col-span-2 flex flex-wrap gap-1.5">
@@ -247,32 +230,6 @@ function ScanPage() {
             <KPI label="Reach" value={fmt(report.totals.totalReach)} icon={<Users className="size-4" />} tone="brand" />
           </div>
 
-          {/* Per-platform stats strip */}
-          <PageCard title="COLLECTION STATUS" sub={`${report.mode.toUpperCase()} scan · ${report.totals.unique} unique results across ${report.platformStats.length} sources`}>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-              {report.platformStats.map((p) => {
-                const pct = Math.min(100, Math.round((p.unique / Math.max(1, p.target)) * 100));
-                const color = p.status === "failed" ? "oklch(0.55 0.24 25)" : p.status === "empty" ? "oklch(0.55 0.03 275)" : p.status === "partial" ? "oklch(0.7 0.18 55)" : "oklch(0.55 0.22 155)";
-                return (
-                  <div key={p.key} className="rounded-xl border border-border p-3 bg-card">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="font-semibold">{p.label}</span>
-                      <span className="text-muted-foreground">{p.unique}/{p.target}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-2">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-                    </div>
-                    <div className="mt-1.5 text-[10px] text-muted-foreground flex justify-between">
-                      <span className="uppercase tracking-wider">{p.status}</span>
-                      <span>{p.queriesRun} quer{p.queriesRun === 1 ? "y" : "ies"}</span>
-                    </div>
-                    {p.error && <div className="mt-1 text-[10px] text-red-600 truncate" title={p.error}>{p.error}</div>}
-                  </div>
-                );
-              })}
-            </div>
-          </PageCard>
-
           {/* Buckets */}
           <Bucket title="CRITICAL THREATS" icon={<AlertTriangle className="size-4" />} hits={report.buckets.critical} onPromote={promote} added={added} />
           <Bucket title="HIGH-PRIORITY NEGATIVE CONTENT" icon={<ShieldAlert className="size-4" />} hits={report.buckets.high} onPromote={promote} added={added} />
@@ -280,8 +237,6 @@ function ScanPage() {
           <Bucket title="NEWS COVERAGE" icon={<Newspaper className="size-4" />} hits={report.buckets.news} onPromote={promote} added={added} />
           <Bucket title="YOUTUBE MONITORING" icon={<Youtube className="size-4" />} hits={report.buckets.youtube} onPromote={promote} added={added} />
           <Bucket title="REDDIT MONITORING" icon={<MessageCircle className="size-4" />} hits={report.buckets.reddit} onPromote={promote} added={added} />
-          <Bucket title="X / TWITTER MONITORING" icon={<MessageCircle className="size-4" />} hits={report.buckets.x} onPromote={promote} added={added} />
-          <Bucket title="TIKTOK MONITORING" icon={<Flame className="size-4" />} hits={report.buckets.tiktok} onPromote={promote} added={added} />
           <Bucket title="INSTAGRAM MONITORING" icon={<Instagram className="size-4" />} hits={report.buckets.instagram} onPromote={promote} added={added} />
           <Bucket title="FACEBOOK MONITORING" icon={<Facebook className="size-4" />} hits={report.buckets.facebook} onPromote={promote} added={added} />
           <Bucket title="IMPERSONATION" icon={<BadgeCheck className="size-4" />} hits={report.buckets.impersonation} onPromote={promote} added={added} />
@@ -367,7 +322,6 @@ function KPI({ label, value, icon, tone }: { label: string; value: string | numb
 function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: React.ReactNode; hits: ScanHit[]; onPromote: (h: ScanHit) => void; added: Set<string> }) {
   const [sort, setSort] = useState<"threat"|"reach"|"recent">("threat");
   const [sentimentFilter, setSentimentFilter] = useState<string>("All");
-  const [pageSize, setPageSize] = useState<number>(25);
   const filtered = useMemo(() => {
     let list = sentimentFilter === "All" ? hits : hits.filter((h) => h.sentiment === sentimentFilter);
     if (sort === "reach") list = [...list].sort((a, b) => b.reachEstimate - a.reachEstimate);
@@ -376,19 +330,14 @@ function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: 
     return list;
   }, [hits, sort, sentimentFilter]);
   if (!hits.length) return null;
-  const visible = filtered.slice(0, pageSize);
-  const hasMore = filtered.length > pageSize;
   return (
     <PageCard
       title={title}
-      sub={`Showing ${visible.length} of ${filtered.length}${filtered.length !== hits.length ? ` (filtered from ${hits.length})` : ""}`}
+      sub={`${hits.length} result${hits.length === 1 ? "" : "s"}`}
       actions={
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={sentimentFilter} onChange={(e) => { setSentimentFilter(e.target.value); setPageSize(25); }} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
+          <select value={sentimentFilter} onChange={(e) => setSentimentFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
             <option>All</option><option>Negative</option><option>Neutral</option><option>Positive</option>
-          </select>
-          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
-            <option value={25}>25</option><option value={50}>50</option><option value={100}>100</option><option value={500}>All</option>
           </select>
           <div className="flex rounded-full border border-border overflow-hidden text-xs">
             {(["threat","reach","recent"] as const).map((k) => (
@@ -402,15 +351,8 @@ function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: 
     >
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2"><span className="opacity-60">{icon}</span></div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {visible.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} />)}
+        {filtered.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} />)}
       </div>
-      {hasMore && (
-        <div className="mt-4 flex justify-center">
-          <button onClick={() => setPageSize((n) => n + 25)} className="text-xs px-4 py-2 rounded-full border border-border hover:bg-accent font-semibold">
-            Load more ({filtered.length - pageSize} remaining)
-          </button>
-        </div>
-      )}
     </PageCard>
   );
 }
