@@ -162,6 +162,17 @@ function ScanPage() {
               </button>
             </div>
 
+            <div className="md:col-span-2 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1 text-[10px] tracking-[0.16em] font-semibold text-muted-foreground">MODE</div>
+              <div className="flex rounded-full border border-border overflow-hidden text-xs">
+                {MODES.map((mm) => (
+                  <button key={mm.key} type="button" onClick={() => setMode(mm.key)} className={`px-3 py-1.5 ${mode === mm.key ? "text-white" : "bg-card hover:bg-accent"}`} style={mode === mm.key ? { background: "var(--gradient-brand)" } : undefined}>
+                    <span className="font-semibold">{mm.label}</span> <span className="opacity-70">· {mm.sub}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="md:col-span-2 flex flex-wrap gap-1.5">
               {SOURCES.map((s) => {
                 const on = sources.includes(s.key);
