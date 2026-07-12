@@ -247,6 +247,32 @@ function ScanPage() {
             <KPI label="Reach" value={fmt(report.totals.totalReach)} icon={<Users className="size-4" />} tone="brand" />
           </div>
 
+          {/* Per-platform stats strip */}
+          <PageCard title="COLLECTION STATUS" sub={`${report.mode.toUpperCase()} scan · ${report.totals.unique} unique results across ${report.platformStats.length} sources`}>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+              {report.platformStats.map((p) => {
+                const pct = Math.min(100, Math.round((p.unique / Math.max(1, p.target)) * 100));
+                const color = p.status === "failed" ? "oklch(0.55 0.24 25)" : p.status === "empty" ? "oklch(0.55 0.03 275)" : p.status === "partial" ? "oklch(0.7 0.18 55)" : "oklch(0.55 0.22 155)";
+                return (
+                  <div key={p.key} className="rounded-xl border border-border p-3 bg-card">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold">{p.label}</span>
+                      <span className="text-muted-foreground">{p.unique}/{p.target}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-2">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                    </div>
+                    <div className="mt-1.5 text-[10px] text-muted-foreground flex justify-between">
+                      <span className="uppercase tracking-wider">{p.status}</span>
+                      <span>{p.queriesRun} quer{p.queriesRun === 1 ? "y" : "ies"}</span>
+                    </div>
+                    {p.error && <div className="mt-1 text-[10px] text-red-600 truncate" title={p.error}>{p.error}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </PageCard>
+
           {/* Buckets */}
           <Bucket title="CRITICAL THREATS" icon={<AlertTriangle className="size-4" />} hits={report.buckets.critical} onPromote={promote} added={added} />
           <Bucket title="HIGH-PRIORITY NEGATIVE CONTENT" icon={<ShieldAlert className="size-4" />} hits={report.buckets.high} onPromote={promote} added={added} />
@@ -254,6 +280,8 @@ function ScanPage() {
           <Bucket title="NEWS COVERAGE" icon={<Newspaper className="size-4" />} hits={report.buckets.news} onPromote={promote} added={added} />
           <Bucket title="YOUTUBE MONITORING" icon={<Youtube className="size-4" />} hits={report.buckets.youtube} onPromote={promote} added={added} />
           <Bucket title="REDDIT MONITORING" icon={<MessageCircle className="size-4" />} hits={report.buckets.reddit} onPromote={promote} added={added} />
+          <Bucket title="X / TWITTER MONITORING" icon={<MessageCircle className="size-4" />} hits={report.buckets.x} onPromote={promote} added={added} />
+          <Bucket title="TIKTOK MONITORING" icon={<Flame className="size-4" />} hits={report.buckets.tiktok} onPromote={promote} added={added} />
           <Bucket title="INSTAGRAM MONITORING" icon={<Instagram className="size-4" />} hits={report.buckets.instagram} onPromote={promote} added={added} />
           <Bucket title="FACEBOOK MONITORING" icon={<Facebook className="size-4" />} hits={report.buckets.facebook} onPromote={promote} added={added} />
           <Bucket title="IMPERSONATION" icon={<BadgeCheck className="size-4" />} hits={report.buckets.impersonation} onPromote={promote} added={added} />
