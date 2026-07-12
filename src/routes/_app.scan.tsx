@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import type { ReputationReport, ScanHit, SourceKey, Sentiment } from "@/routes/api/scan";
+import type { ReputationReport, ScanHit, SourceKey, Sentiment, ScanMode } from "@/routes/api/scan";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { useData, severityColor } from "@/lib/data-store";
 import {
