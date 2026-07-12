@@ -367,6 +367,7 @@ function KPI({ label, value, icon, tone }: { label: string; value: string | numb
 function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: React.ReactNode; hits: ScanHit[]; onPromote: (h: ScanHit) => void; added: Set<string> }) {
   const [sort, setSort] = useState<"threat"|"reach"|"recent">("threat");
   const [sentimentFilter, setSentimentFilter] = useState<string>("All");
+  const [pageSize, setPageSize] = useState<number>(25);
   const filtered = useMemo(() => {
     let list = sentimentFilter === "All" ? hits : hits.filter((h) => h.sentiment === sentimentFilter);
     if (sort === "reach") list = [...list].sort((a, b) => b.reachEstimate - a.reachEstimate);
@@ -375,14 +376,19 @@ function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: 
     return list;
   }, [hits, sort, sentimentFilter]);
   if (!hits.length) return null;
+  const visible = filtered.slice(0, pageSize);
+  const hasMore = filtered.length > pageSize;
   return (
     <PageCard
       title={title}
-      sub={`${hits.length} result${hits.length === 1 ? "" : "s"}`}
+      sub={`Showing ${visible.length} of ${filtered.length}${filtered.length !== hits.length ? ` (filtered from ${hits.length})` : ""}`}
       actions={
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={sentimentFilter} onChange={(e) => setSentimentFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
+          <select value={sentimentFilter} onChange={(e) => { setSentimentFilter(e.target.value); setPageSize(25); }} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
             <option>All</option><option>Negative</option><option>Neutral</option><option>Positive</option>
+          </select>
+          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
+            <option value={25}>25</option><option value={50}>50</option><option value={100}>100</option><option value={500}>All</option>
           </select>
           <div className="flex rounded-full border border-border overflow-hidden text-xs">
             {(["threat","reach","recent"] as const).map((k) => (
@@ -396,8 +402,15 @@ function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: 
     >
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2"><span className="opacity-60">{icon}</span></div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filtered.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} />)}
+        {visible.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} />)}
       </div>
+      {hasMore && (
+        <div className="mt-4 flex justify-center">
+          <button onClick={() => setPageSize((n) => n + 25)} className="text-xs px-4 py-2 rounded-full border border-border hover:bg-accent font-semibold">
+            Load more ({filtered.length - pageSize} remaining)
+          </button>
+        </div>
+      )}
     </PageCard>
   );
 }
