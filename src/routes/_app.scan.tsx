@@ -73,6 +73,7 @@ function ScanPage() {
   const [industry, setIndustry] = useState("");
   const [period, setPeriod] = useState("Last 30 days");
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
+  const [mode, setMode] = useState<ScanMode>("deep");
   const [added, setAdded] = useState<Set<string>>(new Set());
 
   const m = useMutation({ mutationFn: runScan });
@@ -87,8 +88,8 @@ function ScanPage() {
     const aliasList = aliases.split(",").map(s => s.trim()).filter(Boolean);
     const handleList = handles.split(",").map(s => s.trim()).filter(Boolean);
     const context = [industry, country, site].filter(Boolean).join(" ");
-    const fullQuery = `${q.trim()}${context ? " " + context : ""}${handleList.length ? " " + handleList.join(" ") : ""}`;
-    m.mutate({ query: fullQuery, aliases: aliasList, period, sources: sources.length ? sources : DEFAULT_SOURCES, limit: 6 });
+    const fullQuery = `${q.trim()}${context ? " " + context : ""}`;
+    m.mutate({ query: fullQuery, aliases: aliasList, handles: handleList, period, mode, sources: sources.length ? sources : DEFAULT_SOURCES });
   };
 
   const promote = (h: ScanHit) => {
