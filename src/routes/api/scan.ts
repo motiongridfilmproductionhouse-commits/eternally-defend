@@ -13,6 +13,22 @@ export type ContentLabel =
   | "Unverified claim" | "Misleading content" | "Potential impersonation"
   | "Potentially manipulated media" | "Verified fact" | "Insufficient evidence";
 
+export interface MediaMeta {
+  videoId?: string;
+  thumbnail?: string;
+  thumbnailHi?: string;
+  channelTitle?: string;
+  channelId?: string;
+  channelUrl?: string;
+  duration?: string; // formatted mm:ss
+  durationSec?: number;
+  views?: number;
+  likes?: number;
+  comments?: number;
+  growthPerDay?: number;
+  engagementRate?: number; // %
+}
+
 export interface ScanHit {
   id: string;
   title: string;
@@ -40,6 +56,8 @@ export interface ScanHit {
   keywords: string[];
   language: string;
   viral?: boolean;
+  media?: MediaMeta;
+  detectionReason?: string;
 }
 
 export type SourceKey =
@@ -253,7 +271,7 @@ async function runFirecrawl(query: string, sources: SourceKey[], limit: number) 
   }
 }
 
-interface RawHit { url?: string; title?: string; description?: string; snippet?: string; author?: string; date?: string; publishedDate?: string }
+interface RawHit { url?: string; title?: string; description?: string; snippet?: string; author?: string; date?: string; publishedDate?: string; media?: MediaMeta }
 
 /* ---------------- YouTube Data API v3 ---------------- */
 const YT_RISK_TERMS = [
@@ -262,21 +280,39 @@ const YT_RISK_TERMS = [
   "response", "apology", "lawsuit", "leaked", "deepfake", "fake",
 ];
 
+interface YtThumb { url?: string; width?: number; height?: number }
 interface YtSearchItem {
   id?: { videoId?: string };
   snippet?: {
     title?: string; description?: string; publishedAt?: string;
     channelId?: string; channelTitle?: string;
-    thumbnails?: { high?: { url?: string }; default?: { url?: string } };
+    thumbnails?: { default?: YtThumb; medium?: YtThumb; high?: YtThumb; standard?: YtThumb; maxres?: YtThumb };
     liveBroadcastContent?: string;
   };
 }
 interface YtVideoItem {
   id?: string;
-  snippet?: { title?: string; description?: string; publishedAt?: string; channelId?: string; channelTitle?: string; tags?: string[]; categoryId?: string; thumbnails?: { high?: { url?: string } } };
+  snippet?: { title?: string; description?: string; publishedAt?: string; channelId?: string; channelTitle?: string; tags?: string[]; categoryId?: string; thumbnails?: { default?: YtThumb; medium?: YtThumb; high?: YtThumb; standard?: YtThumb; maxres?: YtThumb } };
   statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
   contentDetails?: { duration?: string };
   status?: { uploadStatus?: string };
+}
+
+function pickThumb(tt?: { default?: YtThumb; medium?: YtThumb; high?: YtThumb; standard?: YtThumb; maxres?: YtThumb }): { hi?: string; std?: string } {
+  const hi = tt?.maxres?.url || tt?.standard?.url || tt?.high?.url || tt?.medium?.url || tt?.default?.url;
+  const std = tt?.high?.url || tt?.medium?.url || tt?.default?.url || hi;
+  return { hi, std };
+}
+
+function parseIsoDuration(iso?: string): { sec: number; label: string } {
+  if (!iso) return { sec: 0, label: "" };
+  const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
+  if (!m) return { sec: 0, label: "" };
+  const h = Number(m[1] || 0), mi = Number(m[2] || 0), s = Number(m[3] || 0);
+  const sec = h * 3600 + mi * 60 + s;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const label = h ? `${h}:${pad(mi)}:${pad(s)}` : `${mi}:${pad(s)}`;
+  return { sec, label };
 }
 
 async function ytFetch<T>(path: string, params: Record<string, string>, key: string): Promise<T | null> {
@@ -344,14 +380,32 @@ async function runYouTube(query: string, aliases: string[], targetResults: numbe
     const views = stats?.viewCount ? Number(stats.viewCount) : 0;
     const likes = stats?.likeCount ? Number(stats.likeCount) : 0;
     const comments = stats?.commentCount ? Number(stats.commentCount) : 0;
-    const meta = `views:${views} likes:${likes} comments:${comments}`;
+    const thumbs = pickThumb(snip.thumbnails);
+    const dur = parseIsoDuration(v?.contentDetails?.duration);
+    const published = snip.publishedAt;
+    const days = published ? Math.max(1, (Date.now() - new Date(published).getTime()) / 86400000) : 1;
+    const growthPerDay = Math.round(views / days);
+    const engagementRate = views > 0 ? Number((((likes + comments) / views) * 100).toFixed(2)) : 0;
     raw.push({
       url: `https://www.youtube.com/watch?v=${id}`,
       title: snip.title ?? "",
-      description: `${snip.description ?? ""}\n${meta}`.slice(0, 500),
+      description: (snip.description ?? "").slice(0, 800),
       author: snip.channelTitle,
-      date: snip.publishedAt,
-      publishedDate: snip.publishedAt,
+      date: published,
+      publishedDate: published,
+      media: {
+        videoId: id,
+        thumbnail: thumbs.std,
+        thumbnailHi: thumbs.hi,
+        channelTitle: snip.channelTitle,
+        channelId: snip.channelId,
+        channelUrl: snip.channelId ? `https://www.youtube.com/channel/${snip.channelId}` : undefined,
+        duration: dur.label,
+        durationSec: dur.sec,
+        views, likes, comments,
+        growthPerDay,
+        engagementRate,
+      },
     });
   }
   return { raw };
@@ -373,25 +427,32 @@ function buildReport(query: string, aliases: string[], period: string, sourcesRe
       const url = o.url ?? "";
       if (!url) continue;
       const title = (o.title ?? url).slice(0, 240);
-      const description = (o.description ?? o.snippet ?? "").slice(0, 500);
+      const description = (o.description ?? o.snippet ?? "").slice(0, 800);
       const { platform, source } = platformFromUrl(url);
       const c = classify(title, description);
       const sent = sentimentOf(`${title} ${description}`);
       const cred = credibility(source, platform);
-      const reach = synthReach(platform, c.sev, idx++);
-      const engagement = Math.round(reach * (0.03 + ((idx * 53) % 60) / 1000));
-      const virality = Math.min(100, Math.round((reach / 1000) + (c.sev === "Critical" ? 25 : c.sev === "High" ? 15 : 5)));
+      const realViews = o.media?.views ?? 0;
+      const reach = realViews > 0 ? realViews : synthReach(platform, c.sev, idx++);
+      if (!realViews) idx++;
+      const engagement = o.media
+        ? (o.media.likes ?? 0) + (o.media.comments ?? 0)
+        : Math.round(reach * (0.03 + ((idx * 53) % 60) / 1000));
+      const virality = Math.min(100, Math.round((reach / 5000) + (c.sev === "Critical" ? 25 : c.sev === "High" ? 15 : 5)));
       const recency = o.publishedDate || o.date ? 70 : 60;
       const threat = Math.min(100, Math.round(
-        c.score * 0.25 + cred * 0.20 + Math.min(100, reach / 800) * 0.15 +
-        Math.min(100, engagement / 300) * 0.10 + 65 * 0.10 + recency * 0.10 +
+        c.score * 0.25 + cred * 0.20 + Math.min(100, reach / 5000) * 0.15 +
+        Math.min(100, engagement / 500) * 0.10 + 65 * 0.10 + recency * 0.10 +
         virality * 0.05 + 60 * 0.05
       ));
+      const detectionReason = c.keywords.length
+        ? `Matched risk terms: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
+        : sent === "Negative" ? "Negative sentiment detected in title/description" : "Named-entity match on query";
       const hit: ScanHit = {
         id: `hit-${idx}`,
         title, url, description, platform,
         source: source || run.source,
-        author: o.author,
+        author: o.author ?? o.media?.channelTitle,
         published: o.publishedDate ?? o.date,
         discoveredAt: now, lastChecked: now,
         category: c.category,
@@ -409,7 +470,9 @@ function buildReport(query: string, aliases: string[], period: string, sourcesRe
         recommendedAction: recommend(c.category, c.sev),
         keywords: c.keywords,
         language: "en",
-        viral: reach > 60000 || c.sev === "Critical",
+        viral: reach > 250000 || c.sev === "Critical",
+        media: o.media,
+        detectionReason,
       };
       if (dedupe.has(url)) { duplicates.push(hit); continue; }
       dedupe.set(url, hit);
