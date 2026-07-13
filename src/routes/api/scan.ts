@@ -271,7 +271,7 @@ async function runFirecrawl(query: string, sources: SourceKey[], limit: number) 
   }
 }
 
-interface RawHit { url?: string; title?: string; description?: string; snippet?: string; author?: string; date?: string; publishedDate?: string }
+interface RawHit { url?: string; title?: string; description?: string; snippet?: string; author?: string; date?: string; publishedDate?: string; media?: MediaMeta }
 
 /* ---------------- YouTube Data API v3 ---------------- */
 const YT_RISK_TERMS = [
@@ -280,21 +280,40 @@ const YT_RISK_TERMS = [
   "response", "apology", "lawsuit", "leaked", "deepfake", "fake",
 ];
 
+interface YtThumb { url?: string; width?: number; height?: number }
 interface YtSearchItem {
   id?: { videoId?: string };
   snippet?: {
     title?: string; description?: string; publishedAt?: string;
     channelId?: string; channelTitle?: string;
-    thumbnails?: { high?: { url?: string }; default?: { url?: string } };
+    thumbnails?: { default?: YtThumb; medium?: YtThumb; high?: YtThumb; standard?: YtThumb; maxres?: YtThumb };
     liveBroadcastContent?: string;
   };
 }
 interface YtVideoItem {
   id?: string;
-  snippet?: { title?: string; description?: string; publishedAt?: string; channelId?: string; channelTitle?: string; tags?: string[]; categoryId?: string; thumbnails?: { high?: { url?: string } } };
+  snippet?: { title?: string; description?: string; publishedAt?: string; channelId?: string; channelTitle?: string; tags?: string[]; categoryId?: string; thumbnails?: { default?: YtThumb; medium?: YtThumb; high?: YtThumb; standard?: YtThumb; maxres?: YtThumb } };
   statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
   contentDetails?: { duration?: string };
   status?: { uploadStatus?: string };
+}
+
+function pickThumb(t?: YtVideoItem["snippet"] extends { thumbnails?: infer X } ? X : never): { hi?: string; std?: string } {
+  const tt = t as { maxres?: YtThumb; standard?: YtThumb; high?: YtThumb; medium?: YtThumb; default?: YtThumb } | undefined;
+  const hi = tt?.maxres?.url || tt?.standard?.url || tt?.high?.url || tt?.medium?.url || tt?.default?.url;
+  const std = tt?.high?.url || tt?.medium?.url || tt?.default?.url || hi;
+  return { hi, std };
+}
+
+function parseIsoDuration(iso?: string): { sec: number; label: string } {
+  if (!iso) return { sec: 0, label: "" };
+  const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
+  if (!m) return { sec: 0, label: "" };
+  const h = Number(m[1] || 0), mi = Number(m[2] || 0), s = Number(m[3] || 0);
+  const sec = h * 3600 + mi * 60 + s;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const label = h ? `${h}:${pad(mi)}:${pad(s)}` : `${mi}:${pad(s)}`;
+  return { sec, label };
 }
 
 async function ytFetch<T>(path: string, params: Record<string, string>, key: string): Promise<T | null> {
