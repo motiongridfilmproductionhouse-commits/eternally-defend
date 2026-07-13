@@ -83,7 +83,7 @@ function ScanPage() {
     const handleList = handles.split(",").map(s => s.trim()).filter(Boolean);
     const context = [industry, country, site].filter(Boolean).join(" ");
     const fullQuery = `${q.trim()}${context ? " " + context : ""}${handleList.length ? " " + handleList.join(" ") : ""}`;
-    m.mutate({ query: fullQuery, aliases: aliasList, period, sources: sources.length ? sources : DEFAULT_SOURCES, limit: 6 });
+    m.mutate({ query: q.trim(), aliases: aliasList, period, sources: sources.length ? sources : DEFAULT_SOURCES, limit: 8, youtubeTarget: 100, context: [industry, country, site].filter(Boolean).join(" "), handles: handleList });
   };
 
   const promote = (h: ScanHit) => {
