@@ -359,71 +359,212 @@ function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: 
 
 function ResultCard({ h, added, onPromote }: { h: ScanHit; added: boolean; onPromote: () => void }) {
   const sev = severityColor(h.severity);
+  const [open, setOpen] = useState(false);
+  const [imgOk, setImgOk] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const thumb = h.media?.thumbnailHi || h.media?.thumbnail;
+  const isYouTube = h.source === "YouTube";
+  const publishedLabel = h.published ? new Date(h.published).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+  const m = h.media;
+
   return (
-    <div className="relative rounded-2xl border border-border bg-card p-4 overflow-hidden">
-      {h.viral && (
-        <div className="absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: "oklch(0.94 0.1 35)", color: "oklch(0.5 0.22 35)" }}>
-          <Flame className="size-3" /> VIRAL
+    <div className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+      {/* Thumbnail */}
+      {thumb && imgOk ? (
+        <a href={h.url} target="_blank" rel="noreferrer" className="relative block aspect-video overflow-hidden bg-muted">
+          {!loaded && <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted to-muted-foreground/10" />}
+          <img
+            src={thumb}
+            alt={h.title}
+            loading="lazy"
+            onLoad={() => setLoaded(true)}
+            onError={() => setImgOk(false)}
+            className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"}`}
+          />
+          {/* bottom gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
+          {/* play button */}
+          <div className="absolute inset-0 grid place-items-center">
+            <div className="size-14 rounded-full bg-white/25 backdrop-blur-sm grid place-items-center border border-white/40 group-hover:bg-white/40 transition">
+              <svg viewBox="0 0 24 24" className="size-6 text-white translate-x-0.5" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+            </div>
+          </div>
+          {/* top-left badges */}
+          <div className="absolute top-3 left-3 flex items-center gap-1.5">
+            {isYouTube && (
+              <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-red-600 text-white inline-flex items-center gap-1">
+                <Youtube className="size-3" /> YOUTUBE
+              </span>
+            )}
+            <span className="text-[10px] font-bold px-2 py-1 rounded-md text-white" style={{ background: sev }}>
+              {h.severity.toUpperCase()}
+            </span>
+            {h.viral && (
+              <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500 text-white inline-flex items-center gap-1">
+                <Flame className="size-3" /> VIRAL
+              </span>
+            )}
+          </div>
+          {/* duration */}
+          {m?.duration && (
+            <div className="absolute bottom-3 right-3 text-[11px] font-bold px-1.5 py-0.5 rounded bg-black/85 text-white tabular-nums">
+              {m.duration}
+            </div>
+          )}
+          {/* hover watch label */}
+          <div className="absolute bottom-3 left-3 text-[11px] font-semibold text-white opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-1">
+            <ExternalLink className="size-3" /> Watch on {isYouTube ? "YouTube" : h.platform}
+          </div>
+        </a>
+      ) : (
+        <div className="aspect-video bg-gradient-to-br from-muted to-secondary grid place-items-center relative">
+          <div className="size-12 rounded-xl grid place-items-center" style={{ background: `color-mix(in oklab, ${sev} 14%, white)`, color: sev }}>
+            <Globe className="size-5" />
+          </div>
+          <div className="absolute top-3 left-3 flex items-center gap-1.5">
+            <span className="text-[10px] font-bold px-2 py-1 rounded-md text-white" style={{ background: sev }}>{h.severity.toUpperCase()}</span>
+            {h.viral && <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500 text-white inline-flex items-center gap-1"><Flame className="size-3" /> VIRAL</span>}
+          </div>
         </div>
       )}
-      <div className="flex items-start gap-3">
-        <div className="size-10 rounded-xl grid place-items-center shrink-0" style={{ background: `color-mix(in oklab, ${sev} 14%, white)`, color: sev }}>
-          <Globe className="size-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
-            <span className="font-semibold text-foreground">{h.source}</span>
-            <span>·</span><span>{h.platform}</span>
-            {h.published && (<><span>·</span><span className="inline-flex items-center gap-1"><Clock className="size-3" />{h.published}</span></>)}
+
+      {/* Body */}
+      <div className="p-5 flex-1 flex flex-col gap-3">
+        <div>
+          <a href={h.url} target="_blank" rel="noreferrer" className="block text-base font-semibold leading-snug line-clamp-3 hover:underline">{h.title}</a>
+          <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+            {m?.channelUrl ? (
+              <a href={m.channelUrl} target="_blank" rel="noreferrer" className="font-semibold text-foreground hover:underline">{m.channelTitle ?? h.author ?? h.platform}</a>
+            ) : (
+              <span className="font-semibold text-foreground">{h.author ?? h.platform}</span>
+            )}
+            {publishedLabel && <><span>·</span><span className="inline-flex items-center gap-1"><Clock className="size-3" />{publishedLabel}</span></>}
+            <span>·</span><span>{h.source}</span>
           </div>
-          <a href={h.url} target="_blank" rel="noreferrer" className="block text-sm font-semibold leading-snug mt-0.5 line-clamp-2 hover:underline">{h.title}</a>
-          {h.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{h.description}</p>}
         </div>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 mt-3">
-        <Pill color={sev}>{h.severity}</Pill>
-        <Pill color="oklch(0.55 0.22 295)">{h.category}</Pill>
-        <Pill color={sentimentColor(h.sentiment)}>{h.sentiment}</Pill>
-        <Pill color="oklch(0.55 0.03 275)">{h.contentLabel}</Pill>
-      </div>
+        {h.description && <p className="text-xs text-muted-foreground line-clamp-2">{h.description}</p>}
 
-      <div className="grid grid-cols-4 gap-2 mt-3">
-        <Metric icon={<Radar className="size-3" />} label="Threat" value={`${h.threatScore}`} color={sev} />
-        <Metric icon={<BadgeCheck className="size-3" />} label="Credibility" value={`${h.credibilityScore}`} color="oklch(0.45 0.15 275)" />
-        <Metric icon={<Copyright className="size-3" />} label="Copyright" value={`${h.copyrightRisk}`} color="oklch(0.55 0.22 295)" />
-        <Metric icon={<Gavel className="size-3" />} label="Reputation" value={`${h.reputationRisk}`} color="oklch(0.63 0.24 25)" />
-      </div>
+        {/* Classification */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Pill color="oklch(0.55 0.22 295)">{h.category}</Pill>
+          <Pill color={sentimentColor(h.sentiment)}>{h.sentiment}</Pill>
+          <Pill color="oklch(0.55 0.03 275)">{h.contentLabel}</Pill>
+        </div>
 
-      <div className="flex items-center justify-between mt-3 text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1"><Users className="size-3" /> Reach ~{fmt(h.reachEstimate)}</span>
-        <span className="inline-flex items-center gap-1"><TrendingUp className="size-3" /> Eng {fmt(h.engagement)}</span>
-        <span>Conf {h.confidence}%</span>
-      </div>
+        {/* Threat score cards */}
+        <div className="grid grid-cols-5 gap-1.5">
+          <ScoreCard label="Threat" value={h.threatScore} accent={sev} />
+          <ScoreCard label="Reput." value={h.reputationRisk} accent="oklch(0.63 0.24 25)" />
+          <ScoreCard label="Copyright" value={h.copyrightRisk} accent="oklch(0.55 0.22 295)" />
+          <ScoreCard label="Credib." value={h.credibilityScore} accent="oklch(0.45 0.15 275)" />
+          <ScoreCard label="Confid." value={h.confidence} accent="oklch(0.45 0.18 200)" />
+        </div>
 
-      <div className="mt-3 text-[11px] rounded-lg px-3 py-2 border border-dashed border-border bg-muted/40">
-        <span className="font-semibold text-foreground">Recommended:</span> {h.recommendedAction}
-      </div>
+        {/* Engagement */}
+        {m && (m.views || m.likes || m.comments) ? (
+          <div className="grid grid-cols-4 gap-1.5 pt-1">
+            <Stat icon={<Eye className="size-3" />} label="Views" value={fmt(m.views ?? 0)} />
+            <Stat icon={<TrendingUp className="size-3" />} label="Likes" value={fmt(m.likes ?? 0)} />
+            <Stat icon={<MessageCircle className="size-3" />} label="Comments" value={fmt(m.comments ?? 0)} />
+            <Stat icon={<Flame className="size-3" />} label="Growth/day" value={fmt(m.growthPerDay ?? 0)} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-1.5 pt-1">
+            <Stat icon={<Users className="size-3" />} label="Reach" value={`~${fmt(h.reachEstimate)}`} />
+            <Stat icon={<TrendingUp className="size-3" />} label="Engagement" value={fmt(h.engagement)} />
+            <Stat icon={<Flame className="size-3" />} label="Virality" value={`${h.viralityScore}`} />
+          </div>
+        )}
 
-      <div className="flex items-center gap-2 mt-3">
-        <a href={h.url} target="_blank" rel="noreferrer" className="flex-1 text-xs px-3 py-2 rounded-lg border border-border hover:bg-accent inline-flex items-center justify-center gap-1">
-          <ExternalLink className="size-3.5" /> View evidence
-        </a>
-        <button onClick={onPromote} disabled={added} className="flex-1 text-xs px-3 py-2 rounded-lg text-white font-semibold inline-flex items-center justify-center gap-1 disabled:opacity-60" style={{ background: "var(--gradient-brand)" }}>
-          <ShieldPlus className="size-3.5" /> {added ? "Added" : "Send to Threat Radar"}
-        </button>
+        <div className="text-[11px] rounded-lg px-3 py-2 border border-dashed border-border bg-muted/40">
+          <span className="font-semibold text-foreground">Recommended:</span> {h.recommendedAction}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 mt-auto">
+          <button onClick={() => setOpen((v) => !v)} className="flex-1 text-xs px-3 py-2 rounded-lg border border-border hover:bg-accent inline-flex items-center justify-center gap-1">
+            <ExternalLink className="size-3.5" /> {open ? "Hide" : "View"} evidence
+          </button>
+          <button onClick={onPromote} disabled={added} className="flex-1 text-xs px-3 py-2 rounded-lg text-white font-semibold inline-flex items-center justify-center gap-1 disabled:opacity-60" style={{ background: "var(--gradient-brand)" }}>
+            <ShieldPlus className="size-3.5" /> {added ? "Added" : "Send to Threat Radar"}
+          </button>
+        </div>
+
+        {/* Evidence panel */}
+        {open && (
+          <div className="mt-2 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+            {thumb && imgOk && (
+              <a href={h.url} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden">
+                <img src={thumb} alt={h.title} className="w-full aspect-video object-cover" />
+              </a>
+            )}
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Title</div>
+              <div className="text-sm font-semibold">{h.title}</div>
+            </div>
+            {h.description && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Description</div>
+                <div className="text-xs whitespace-pre-wrap">{h.description}</div>
+              </div>
+            )}
+            {m && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                {m.channelTitle && <EvidenceRow label="Channel" value={m.channelUrl ? <a href={m.channelUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">{m.channelTitle}</a> : m.channelTitle} />}
+                {publishedLabel && <EvidenceRow label="Published" value={publishedLabel} />}
+                {m.duration && <EvidenceRow label="Duration" value={m.duration} />}
+                {m.views != null && <EvidenceRow label="Views" value={fmt(m.views)} />}
+                {m.likes != null && <EvidenceRow label="Likes" value={fmt(m.likes)} />}
+                {m.comments != null && <EvidenceRow label="Comments" value={fmt(m.comments)} />}
+                {m.engagementRate != null && <EvidenceRow label="Eng. rate" value={`${m.engagementRate}%`} />}
+                {m.growthPerDay != null && <EvidenceRow label="Views/day" value={fmt(m.growthPerDay)} />}
+              </div>
+            )}
+            {h.detectionReason && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Detection reason</div>
+                <div className="text-xs">{h.detectionReason}</div>
+              </div>
+            )}
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Reputation impact</div>
+              <div className="text-xs">Reputation risk {h.reputationRisk}/100 · Threat {h.threatScore}/100 · Credibility {h.credibilityScore}/100 · {h.sentiment} sentiment · Category: {h.category}.</div>
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+              <span>Evidence captured {new Date(h.discoveredAt).toLocaleString()}</span>
+              <a href={h.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline"><ExternalLink className="size-3" /> Open source</a>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function Metric({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
+function ScoreCard({ label, value, accent }: { label: string; value: number; accent: string }) {
   return (
-    <div className="rounded-lg border border-border p-2">
-      <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wider">
-        <span style={{ color }}>{icon}</span>{label}
-      </div>
-      <div className="text-sm font-bold mt-0.5" style={{ color }}>{value}</div>
+    <div className="rounded-lg border border-border p-2 text-center" style={{ background: `color-mix(in oklab, ${accent} 6%, white)` }}>
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground truncate">{label}</div>
+      <div className="text-sm font-bold tabular-nums" style={{ color: accent }}>{value}</div>
+    </div>
+  );
+}
+
+function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-background/60 border border-border px-2 py-1.5">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1">{icon}{label}</div>
+      <div className="text-xs font-bold tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function EvidenceRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-lg bg-background/60 border border-border p-2">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-xs font-semibold truncate">{value}</div>
     </div>
   );
 }
