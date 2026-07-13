@@ -523,14 +523,25 @@ export const Route = createFileRoute("/api/scan")({
           if (!query) return Response.json({ ok: false, error: "Query required" }, { status: 400 });
           const aliases: string[] = Array.isArray(body?.aliases) ? body.aliases.map((a: unknown) => String(a).slice(0, 60)).slice(0, 6) : [];
           const period = String(body?.period ?? "Last 30 days").slice(0, 60);
-          const limit = Math.min(Math.max(Number(body?.limit ?? 6), 1), 10);
+          const limit = Math.min(Math.max(Number(body?.limit ?? 8), 1), 10);
+          const ytTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 100), 25), 250);
           const sources: SourceKey[] = Array.isArray(body?.sources) && body.sources.length
             ? (body.sources.filter((s: unknown): s is SourceKey => typeof s === "string" && s in SOURCE_QUERY))
             : ["web", "reddit", "youtube", "news", "x", "reviews"];
 
           const fullQuery = aliases.length ? `${query} OR ${aliases.map(a => `"${a}"`).join(" OR ")}` : query;
-          const { runs, error } = await runFirecrawl(fullQuery, sources, limit);
-          const report = buildReport(query, aliases, period, sources, runs, error);
+          const wantYouTube = sources.includes("youtube");
+
+          const [fc, yt] = await Promise.all([
+            runFirecrawl(fullQuery, sources, limit),
+            wantYouTube ? runYouTube(query, aliases, ytTarget) : Promise.resolve({ raw: [] as RawHit[] }),
+          ]);
+
+          const runs = [...fc.runs];
+          if (yt.raw.length) runs.push({ source: "YouTube", raw: yt.raw });
+          const err = fc.error && !yt.raw.length ? fc.error : yt.error && !fc.runs.length ? yt.error : undefined;
+
+          const report = buildReport(query, aliases, period, sources, runs, err);
           return Response.json(report);
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Scan failed";
