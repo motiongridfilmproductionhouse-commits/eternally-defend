@@ -427,25 +427,32 @@ function buildReport(query: string, aliases: string[], period: string, sourcesRe
       const url = o.url ?? "";
       if (!url) continue;
       const title = (o.title ?? url).slice(0, 240);
-      const description = (o.description ?? o.snippet ?? "").slice(0, 500);
+      const description = (o.description ?? o.snippet ?? "").slice(0, 800);
       const { platform, source } = platformFromUrl(url);
       const c = classify(title, description);
       const sent = sentimentOf(`${title} ${description}`);
       const cred = credibility(source, platform);
-      const reach = synthReach(platform, c.sev, idx++);
-      const engagement = Math.round(reach * (0.03 + ((idx * 53) % 60) / 1000));
-      const virality = Math.min(100, Math.round((reach / 1000) + (c.sev === "Critical" ? 25 : c.sev === "High" ? 15 : 5)));
+      const realViews = o.media?.views ?? 0;
+      const reach = realViews > 0 ? realViews : synthReach(platform, c.sev, idx++);
+      if (!realViews) idx++;
+      const engagement = o.media
+        ? (o.media.likes ?? 0) + (o.media.comments ?? 0)
+        : Math.round(reach * (0.03 + ((idx * 53) % 60) / 1000));
+      const virality = Math.min(100, Math.round((reach / 5000) + (c.sev === "Critical" ? 25 : c.sev === "High" ? 15 : 5)));
       const recency = o.publishedDate || o.date ? 70 : 60;
       const threat = Math.min(100, Math.round(
-        c.score * 0.25 + cred * 0.20 + Math.min(100, reach / 800) * 0.15 +
-        Math.min(100, engagement / 300) * 0.10 + 65 * 0.10 + recency * 0.10 +
+        c.score * 0.25 + cred * 0.20 + Math.min(100, reach / 5000) * 0.15 +
+        Math.min(100, engagement / 500) * 0.10 + 65 * 0.10 + recency * 0.10 +
         virality * 0.05 + 60 * 0.05
       ));
+      const detectionReason = c.keywords.length
+        ? `Matched risk terms: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
+        : sent === "Negative" ? "Negative sentiment detected in title/description" : "Named-entity match on query";
       const hit: ScanHit = {
         id: `hit-${idx}`,
         title, url, description, platform,
         source: source || run.source,
-        author: o.author,
+        author: o.author ?? o.media?.channelTitle,
         published: o.publishedDate ?? o.date,
         discoveredAt: now, lastChecked: now,
         category: c.category,
@@ -463,7 +470,9 @@ function buildReport(query: string, aliases: string[], period: string, sourcesRe
         recommendedAction: recommend(c.category, c.sev),
         keywords: c.keywords,
         language: "en",
-        viral: reach > 60000 || c.sev === "Critical",
+        viral: reach > 250000 || c.sev === "Critical",
+        media: o.media,
+        detectionReason,
       };
       if (dedupe.has(url)) { duplicates.push(hit); continue; }
       dedupe.set(url, hit);
