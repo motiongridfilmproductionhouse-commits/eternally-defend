@@ -298,8 +298,7 @@ interface YtVideoItem {
   status?: { uploadStatus?: string };
 }
 
-function pickThumb(t?: YtVideoItem["snippet"] extends { thumbnails?: infer X } ? X : never): { hi?: string; std?: string } {
-  const tt = t as { maxres?: YtThumb; standard?: YtThumb; high?: YtThumb; medium?: YtThumb; default?: YtThumb } | undefined;
+function pickThumb(tt?: { default?: YtThumb; medium?: YtThumb; high?: YtThumb; standard?: YtThumb; maxres?: YtThumb }): { hi?: string; std?: string } {
   const hi = tt?.maxres?.url || tt?.standard?.url || tt?.high?.url || tt?.medium?.url || tt?.default?.url;
   const std = tt?.high?.url || tt?.medium?.url || tt?.default?.url || hi;
   return { hi, std };
