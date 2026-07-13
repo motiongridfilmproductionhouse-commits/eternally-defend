@@ -381,14 +381,32 @@ async function runYouTube(query: string, aliases: string[], targetResults: numbe
     const views = stats?.viewCount ? Number(stats.viewCount) : 0;
     const likes = stats?.likeCount ? Number(stats.likeCount) : 0;
     const comments = stats?.commentCount ? Number(stats.commentCount) : 0;
-    const meta = `views:${views} likes:${likes} comments:${comments}`;
+    const thumbs = pickThumb(snip.thumbnails);
+    const dur = parseIsoDuration(v?.contentDetails?.duration);
+    const published = snip.publishedAt;
+    const days = published ? Math.max(1, (Date.now() - new Date(published).getTime()) / 86400000) : 1;
+    const growthPerDay = Math.round(views / days);
+    const engagementRate = views > 0 ? Number((((likes + comments) / views) * 100).toFixed(2)) : 0;
     raw.push({
       url: `https://www.youtube.com/watch?v=${id}`,
       title: snip.title ?? "",
-      description: `${snip.description ?? ""}\n${meta}`.slice(0, 500),
+      description: (snip.description ?? "").slice(0, 800),
       author: snip.channelTitle,
-      date: snip.publishedAt,
-      publishedDate: snip.publishedAt,
+      date: published,
+      publishedDate: published,
+      media: {
+        videoId: id,
+        thumbnail: thumbs.std,
+        thumbnailHi: thumbs.hi,
+        channelTitle: snip.channelTitle,
+        channelId: snip.channelId,
+        channelUrl: snip.channelId ? `https://www.youtube.com/channel/${snip.channelId}` : undefined,
+        duration: dur.label,
+        durationSec: dur.sec,
+        views, likes, comments,
+        growthPerDay,
+        engagementRate,
+      },
     });
   }
   return { raw };
