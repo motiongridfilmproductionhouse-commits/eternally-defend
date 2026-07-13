@@ -534,7 +534,7 @@ export const Route = createFileRoute("/api/scan")({
 
           const [fc, yt] = await Promise.all([
             runFirecrawl(fullQuery, sources, limit),
-            wantYouTube ? runYouTube(query, aliases, ytTarget) : Promise.resolve({ raw: [] as RawHit[] }),
+            wantYouTube ? runYouTube(query, aliases, ytTarget) : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined }),
           ]);
 
           const runs = [...fc.runs];
