@@ -13,6 +13,22 @@ export type ContentLabel =
   | "Unverified claim" | "Misleading content" | "Potential impersonation"
   | "Potentially manipulated media" | "Verified fact" | "Insufficient evidence";
 
+export interface MediaMeta {
+  videoId?: string;
+  thumbnail?: string;
+  thumbnailHi?: string;
+  channelTitle?: string;
+  channelId?: string;
+  channelUrl?: string;
+  duration?: string; // formatted mm:ss
+  durationSec?: number;
+  views?: number;
+  likes?: number;
+  comments?: number;
+  growthPerDay?: number;
+  engagementRate?: number; // %
+}
+
 export interface ScanHit {
   id: string;
   title: string;
@@ -40,6 +56,8 @@ export interface ScanHit {
   keywords: string[];
   language: string;
   viral?: boolean;
+  media?: MediaMeta;
+  detectionReason?: string;
 }
 
 export type SourceKey =
