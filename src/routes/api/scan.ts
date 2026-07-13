@@ -225,35 +225,137 @@ function recommend(cat: Category, sev: Severity): string {
 /* ---------------- Firecrawl runner ---------------- */
 async function runFirecrawl(query: string, sources: SourceKey[], limit: number) {
   const apiKey = process.env.FIRECRAWL_API_KEY;
-  console.log("[scan] key present:", !!apiKey, "sources:", sources.join(","));
   if (!apiKey) return { runs: [] as { source: string; raw: RawHit[] }[], error: "FIRECRAWL_API_KEY missing" };
-
-  const { default: Firecrawl } = await import("@mendable/firecrawl-js");
-  const fc = new Firecrawl({ apiKey });
-
-  const results = await Promise.allSettled(sources.map(async (s) => {
-    const cfg = SOURCE_QUERY[s];
-    const q = cfg.site ? `${query} site:${cfg.site}` : cfg.suffix ? `${query} ${cfg.suffix}` : query;
-    console.log("[scan] searching:", s, "→", q);
-    const res: unknown = await fc.search(q, { limit });
-    console.log("[scan] result keys for", s, ":", res && typeof res === "object" ? Object.keys(res).join(",") : typeof res);
-    const r = res as { web?: unknown[]; news?: unknown[]; images?: unknown[] };
-    const raw: RawHit[] = [
-      ...(Array.isArray(r.web) ? r.web : []),
-      ...(Array.isArray(r.news) ? r.news : []),
-    ] as RawHit[];
-    return { source: cfg.label, raw };
-  }));
-
-  const runs: { source: string; raw: RawHit[] }[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled") runs.push(r.value);
-    else console.error("[scan] source rejected:", r.reason instanceof Error ? r.reason.message : String(r.reason));
+  const nonYt = sources.filter((s) => s !== "youtube");
+  if (!nonYt.length) return { runs: [] };
+  try {
+    const { default: Firecrawl } = await import("@mendable/firecrawl-js");
+    const fc = new Firecrawl({ apiKey });
+    const results = await Promise.allSettled(nonYt.map(async (s) => {
+      const cfg = SOURCE_QUERY[s];
+      const q = cfg.site ? `${query} site:${cfg.site}` : cfg.suffix ? `${query} ${cfg.suffix}` : query;
+      const res: unknown = await fc.search(q, { limit });
+      const r = res as { web?: unknown[]; news?: unknown[] };
+      const raw: RawHit[] = [
+        ...(Array.isArray(r.web) ? r.web : []),
+        ...(Array.isArray(r.news) ? r.news : []),
+      ] as RawHit[];
+      return { source: cfg.label, raw };
+    }));
+    const runs: { source: string; raw: RawHit[] }[] = [];
+    for (const r of results) {
+      if (r.status === "fulfilled") runs.push(r.value);
+      else console.error("[scan] firecrawl source rejected:", r.reason instanceof Error ? r.reason.message : String(r.reason));
+    }
+    return { runs };
+  } catch (e) {
+    return { runs: [], error: e instanceof Error ? e.message : "Firecrawl failed" };
   }
-  return { runs };
 }
 
 interface RawHit { url?: string; title?: string; description?: string; snippet?: string; author?: string; date?: string; publishedDate?: string }
+
+/* ---------------- YouTube Data API v3 ---------------- */
+const YT_RISK_TERMS = [
+  "exposed", "expose", "controversy", "scam", "fraud", "allegations", "criticism",
+  "review", "reaction", "truth", "dark side", "complaint", "investigation",
+  "response", "apology", "lawsuit", "leaked", "deepfake", "fake",
+];
+
+interface YtSearchItem {
+  id?: { videoId?: string };
+  snippet?: {
+    title?: string; description?: string; publishedAt?: string;
+    channelId?: string; channelTitle?: string;
+    thumbnails?: { high?: { url?: string }; default?: { url?: string } };
+    liveBroadcastContent?: string;
+  };
+}
+interface YtVideoItem {
+  id?: string;
+  snippet?: { title?: string; description?: string; publishedAt?: string; channelId?: string; channelTitle?: string; tags?: string[]; categoryId?: string; thumbnails?: { high?: { url?: string } } };
+  statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
+  contentDetails?: { duration?: string };
+  status?: { uploadStatus?: string };
+}
+
+async function ytFetch<T>(path: string, params: Record<string, string>, key: string): Promise<T | null> {
+  const url = new URL(`https://www.googleapis.com/youtube/v3/${path}`);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  url.searchParams.set("key", key);
+  const r = await fetch(url.toString());
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    console.error("[youtube]", path, r.status, txt.slice(0, 200));
+    return null;
+  }
+  return (await r.json()) as T;
+}
+
+async function runYouTube(query: string, aliases: string[], targetResults: number): Promise<{ raw: RawHit[]; error?: string }> {
+  const key = process.env.GOOGLE_API_KEY;
+  if (!key) return { raw: [], error: "GOOGLE_API_KEY missing" };
+  const base = [query, ...aliases].filter(Boolean);
+  const queries = new Set<string>();
+  for (const b of base) {
+    queries.add(b);
+    for (const t of YT_RISK_TERMS) queries.add(`${b} ${t}`);
+  }
+  const qList = Array.from(queries).slice(0, 18);
+  const idToItem = new Map<string, YtSearchItem>();
+
+  await Promise.allSettled(qList.map(async (q) => {
+    let pageToken: string | undefined;
+    let pagesFetched = 0;
+    while (pagesFetched < 2 && idToItem.size < targetResults * 2) {
+      const params: Record<string, string> = {
+        part: "snippet", q, type: "video", maxResults: "50", order: "relevance", safeSearch: "none",
+      };
+      if (pageToken) params.pageToken = pageToken;
+      const data = await ytFetch<{ items?: YtSearchItem[]; nextPageToken?: string }>("search", params, key);
+      if (!data?.items?.length) break;
+      for (const it of data.items) {
+        const vid = it.id?.videoId;
+        if (vid && !idToItem.has(vid)) idToItem.set(vid, it);
+      }
+      pagesFetched++;
+      if (!data.nextPageToken) break;
+      pageToken = data.nextPageToken;
+    }
+  }));
+
+  const ids = Array.from(idToItem.keys()).slice(0, Math.max(targetResults, 100));
+  const statsById = new Map<string, YtVideoItem>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const batch = ids.slice(i, i + 50).join(",");
+    const data = await ytFetch<{ items?: YtVideoItem[] }>("videos", {
+      part: "snippet,statistics,contentDetails,status", id: batch,
+    }, key);
+    for (const v of data?.items ?? []) if (v.id) statsById.set(v.id, v);
+  }
+
+  const raw: RawHit[] = [];
+  for (const id of ids) {
+    const s = idToItem.get(id);
+    const v = statsById.get(id);
+    const snip = v?.snippet ?? s?.snippet;
+    if (!snip) continue;
+    const stats = v?.statistics;
+    const views = stats?.viewCount ? Number(stats.viewCount) : 0;
+    const likes = stats?.likeCount ? Number(stats.likeCount) : 0;
+    const comments = stats?.commentCount ? Number(stats.commentCount) : 0;
+    const meta = `views:${views} likes:${likes} comments:${comments}`;
+    raw.push({
+      url: `https://www.youtube.com/watch?v=${id}`,
+      title: snip.title ?? "",
+      description: `${snip.description ?? ""}\n${meta}`.slice(0, 500),
+      author: snip.channelTitle,
+      date: snip.publishedAt,
+      publishedDate: snip.publishedAt,
+    });
+  }
+  return { raw };
+}
 
 /* ---------------- Report builder ---------------- */
 function buildReport(query: string, aliases: string[], period: string, sourcesRequested: SourceKey[], runs: { source: string; raw: RawHit[] }[], err?: string): ReputationReport {
