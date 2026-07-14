@@ -16,6 +16,8 @@ import {
   addProtectedAsset, getOnboardingState, recordEnterpriseDocument, removeEnterpriseDocument,
   removeProtectedAsset, submitAuthorization, upsertClientProfile,
 } from "@/lib/onboarding.functions";
+import { refreshOnboardingYouTubeAsset, type YTChannel } from "@/lib/youtube.functions";
+import { YouTubeChannelPicker, YouTubeAssetCard } from "@/components/onboarding/YouTubeChannelPicker";
 import {
   AUTHORIZATION_LEVELS, CLIENT_TYPES, CONSENT_KEYS, CONSENT_TEXTS, ENTERPRISE_CLIENT_TYPES,
 } from "@/lib/onboarding-versions";
@@ -158,6 +160,7 @@ export function OnboardingWizard({ initial }: { initial: State }) {
                     assets={state.assets}
                     onAdd={async (a) => { await addAsset({ data: a }); await reload(); }}
                     onRemove={async (id) => { await rmAsset({ data: { id } }); await reload(); }}
+                    onRefresh={async () => { await reload(); }}
                     onBack={goBack}
                     onNext={() => savePatch({}, 4)}
                     saving={saving}
@@ -347,15 +350,18 @@ const ASSET_KINDS = [
   { value: "copyright", label: "Copyright Asset" },
 ] as const;
 
-function Step3({ assets, onAdd, onRemove, onBack, onNext, saving }: {
+function Step3({ assets, onAdd, onRemove, onRefresh, onBack, onNext, saving }: {
   assets: State["assets"];
-  onAdd: (a: { asset_kind: any; label: string; value?: string; url?: string }) => Promise<void>;
+  onAdd: (a: { asset_kind: any; label: string; value?: string; url?: string; metadata?: Record<string, unknown> }) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
+  onRefresh: () => Promise<void>;
   onBack: () => void; onNext: () => void; saving: boolean;
 }) {
   const [kind, setKind] = useState<string>("brand");
   const [label, setLabel] = useState(""); const [value, setValue] = useState(""); const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const refreshYT = useServerFn(refreshOnboardingYouTubeAsset);
+
   const add = async () => {
     if (!label.trim()) return;
     setBusy(true);
@@ -363,6 +369,24 @@ function Step3({ assets, onAdd, onRemove, onBack, onNext, saving }: {
       setLabel(""); setValue(""); setUrl(""); }
     finally { setBusy(false); }
   };
+
+  const confirmYouTube = async (ch: YTChannel) => {
+    await onAdd({
+      asset_kind: "youtube_channel",
+      label: ch.channel_title,
+      value: ch.channel_handle ?? ch.channel_id,
+      url: ch.channel_url,
+      metadata: {
+        ...ch,
+        confirmation_status: "user_confirmed",
+        verification_status: "pending",
+        last_synced_at: new Date().toISOString(),
+        raw_provider_metadata: ch,
+      },
+    });
+    toast.success(`Added ${ch.channel_title} · ownership verification pending`);
+  };
+
   return (
     <Card>
       <CardHeader><CardTitle>Register your protected assets</CardTitle><CardDescription>Add every name, brand, account, or piece of content you want Eterna to monitor.</CardDescription></CardHeader>
@@ -371,22 +395,40 @@ function Step3({ assets, onAdd, onRemove, onBack, onNext, saving }: {
           <select className="border border-border rounded-md h-10 px-2 text-sm bg-background" value={kind} onChange={(e) => setKind(e.target.value)}>
             {ASSET_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
           </select>
-          <Input placeholder="Label" value={label} onChange={(e) => setLabel(e.target.value)} />
-          <Input placeholder="Value / handle" value={value} onChange={(e) => setValue(e.target.value)} />
-          <Input placeholder="URL (optional)" value={url} onChange={(e) => setUrl(e.target.value)} />
+          {kind !== "youtube_channel" && (
+            <>
+              <Input placeholder="Label" value={label} onChange={(e) => setLabel(e.target.value)} />
+              <Input placeholder="Value / handle" value={value} onChange={(e) => setValue(e.target.value)} />
+              <Input placeholder="URL (optional)" value={url} onChange={(e) => setUrl(e.target.value)} />
+            </>
+          )}
         </div>
-        <div className="flex justify-end"><Button size="sm" disabled={!label.trim() || busy} onClick={add}>Add asset</Button></div>
+        {kind === "youtube_channel" ? (
+          <YouTubeChannelPicker onConfirm={confirmYouTube} />
+        ) : (
+          <div className="flex justify-end"><Button size="sm" disabled={!label.trim() || busy} onClick={add}>Add asset</Button></div>
+        )}
+
         <div className="space-y-2">
           {assets.length === 0 && <div className="text-sm text-muted-foreground text-center py-6 border border-dashed rounded-xl">No assets yet — add at least one to continue.</div>}
           {assets.map((a) => (
-            <div key={a.id} className="flex items-center gap-3 border border-border rounded-xl p-3">
-              <Badge variant="secondary" className="uppercase text-[10px]">{a.asset_kind}</Badge>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate">{a.label}</div>
-                <div className="text-xs text-muted-foreground truncate">{a.value ?? a.url ?? ""}</div>
+            a.asset_kind === "youtube_channel" && (a.metadata as any)?.channel_id ? (
+              <YouTubeAssetCard
+                key={a.id}
+                asset={a as any}
+                onRefresh={async (id: string) => { await refreshYT({ data: { asset_id: id } }); await onRefresh(); }}
+                onRemove={onRemove}
+              />
+            ) : (
+              <div key={a.id} className="flex items-center gap-3 border border-border rounded-xl p-3">
+                <Badge variant="secondary" className="uppercase text-[10px]">{a.asset_kind}</Badge>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold truncate">{a.label}</div>
+                  <div className="text-xs text-muted-foreground truncate">{a.value ?? a.url ?? ""}</div>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => onRemove(a.id)}><Trash2 className="size-4" /></Button>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => onRemove(a.id)}><Trash2 className="size-4" /></Button>
-            </div>
+            )
           ))}
         </div>
         <div className="flex justify-between pt-2">
@@ -397,6 +439,7 @@ function Step3({ assets, onAdd, onRemove, onBack, onNext, saving }: {
     </Card>
   );
 }
+
 
 /* ---------- Step 4 ---------- */
 function Step4({ onBack, onNext, saving }: { onBack: () => void; onNext: (consents: Record<string, boolean>) => void; saving: boolean }) {
