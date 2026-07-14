@@ -12,16 +12,50 @@ export interface Asset {
   status: "Protected" | "Monitoring" | "At Risk";
 }
 
+export type SourceType =
+  | "YouTube Video"
+  | "News Article"
+  | "Instagram Post"
+  | "Reddit Discussion"
+  | "TikTok Video"
+  | "Facebook Page"
+  | "Unauthorized Advertisement"
+  | "Fake Profile"
+  | "Copyright Violation";
+
+export type RiskType =
+  | "Defamation"
+  | "Impersonation"
+  | "Deepfake"
+  | "Copyright"
+  | "Fraud"
+  | "Scam"
+  | "Brand Abuse"
+  | "News Attack";
+
+export type Virality = "Normal" | "Growing" | "Viral" | "Exploding";
+
 export interface Threat {
   id: string;
   title: string;
-  category: "Deepfake" | "Impersonation" | "Copyright" | "News Attack" | "Unauthorized Ad" | "Viral";
+  sourceType: SourceType;
+  riskType: RiskType;
   platform: string;
   severity: Severity;
   detected: string;
   location: string;
   status: Status;
   confidence: number;
+  threatScore: number;   // 0-100
+  reach: number;         // raw
+  sources: number;       // count
+  evidence: number;      // findings count
+  velocity: Virality;
+  firstDetected: string; // e.g. "12 Jul"
+  latestActivity: string; // e.g. "14 Jul"
+  growthPct: number;     // e.g. 187
+  narrativeClaim: string;
+  caseId?: string;
 }
 
 export interface Case {
