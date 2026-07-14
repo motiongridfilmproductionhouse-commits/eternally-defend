@@ -362,6 +362,8 @@ function ScanPage() {
           {/* DB-backed persisted results with cursor-paginated infinite scroll */}
           <PersistedResults scanId={persistedScanId} summary={persistSummary} scanStatus={report ? "completed" : "running"} />
 
+          {(() => null)()}
+
           {/* Buckets */}
 
           <Bucket title="CRITICAL THREATS" icon={<AlertTriangle className="size-4" />} hits={report.buckets.critical} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
