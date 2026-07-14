@@ -560,7 +560,7 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
           {!loaded && <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted to-muted-foreground/10" />}
           <img
             src={thumb}
-            alt={h.title}
+            alt={displayTitle}
             loading="lazy"
             onLoad={() => setLoaded(true)}
             onError={() => setImgOk(false)}
