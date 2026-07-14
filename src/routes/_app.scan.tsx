@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMutation, useServerFn } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReputationReport, ScanHit, SourceKey, Sentiment } from "@/routes/api/scan";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { useData, severityColor } from "@/lib/data-store";
+import { persistScan, listScanHits } from "@/lib/scans.functions";
 import {
   Radar, Search, ExternalLink, ShieldPlus, Loader2, Sparkles, TrendingUp,
   AlertTriangle, Flame, Users, Eye, Copyright, Gavel, Bell, FileDown,
   Youtube, MessageCircle, Newspaper, Instagram, Facebook, Globe, ShieldAlert,
-  BadgeCheck, ScanSearch, Clock,
+  BadgeCheck, ScanSearch, Clock, Database,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/_app/scan")({
   head: () => ({ meta: [
