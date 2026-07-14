@@ -416,7 +416,7 @@ function Step3({ assets, onAdd, onRemove, onRefresh, onBack, onNext, saving }: {
               <YouTubeAssetCard
                 key={a.id}
                 asset={a as any}
-                onRefresh={async (id) => { await refreshYT({ data: { asset_id: id } }); await onRefresh(); }}
+                onRefresh={async (id: string) => { await refreshYT({ data: { asset_id: id } }); await onRefresh(); }}
                 onRemove={onRemove}
               />
             ) : (
