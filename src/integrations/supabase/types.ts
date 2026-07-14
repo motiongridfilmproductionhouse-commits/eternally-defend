@@ -798,6 +798,224 @@ export type Database = {
         }
         Relationships: []
       }
+      scan_hits: {
+        Row: {
+          author: string | null
+          author_handle: string | null
+          canonical_url: string | null
+          country: string | null
+          created_at: string
+          description: string | null
+          detected_at: string
+          engagement: number | null
+          evidence_refs: Json
+          external_id: string | null
+          first_seen_at: string
+          growth_pct: number | null
+          id: string
+          is_new_since_last_scan: boolean
+          language: string | null
+          last_seen_at: string
+          metrics: Json
+          narrative_claim: string | null
+          organisation_id: string | null
+          permalink: string | null
+          previous_scan_id: string | null
+          previous_scan_seen: boolean
+          protection_profile_id: string | null
+          published_at: string | null
+          purge_after: string | null
+          reach: number | null
+          retention_class: string
+          risk_score: number | null
+          risk_type: string | null
+          scan_id: string
+          severity: string | null
+          source: string
+          source_metadata: Json
+          source_type: string | null
+          tags: string[]
+          threat_score: number | null
+          thumbnail_url: string | null
+          times_detected: number
+          title: string | null
+          updated_at: string
+          user_id: string
+          velocity: string | null
+        }
+        Insert: {
+          author?: string | null
+          author_handle?: string | null
+          canonical_url?: string | null
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          engagement?: number | null
+          evidence_refs?: Json
+          external_id?: string | null
+          first_seen_at?: string
+          growth_pct?: number | null
+          id?: string
+          is_new_since_last_scan?: boolean
+          language?: string | null
+          last_seen_at?: string
+          metrics?: Json
+          narrative_claim?: string | null
+          organisation_id?: string | null
+          permalink?: string | null
+          previous_scan_id?: string | null
+          previous_scan_seen?: boolean
+          protection_profile_id?: string | null
+          published_at?: string | null
+          purge_after?: string | null
+          reach?: number | null
+          retention_class?: string
+          risk_score?: number | null
+          risk_type?: string | null
+          scan_id: string
+          severity?: string | null
+          source: string
+          source_metadata?: Json
+          source_type?: string | null
+          tags?: string[]
+          threat_score?: number | null
+          thumbnail_url?: string | null
+          times_detected?: number
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          velocity?: string | null
+        }
+        Update: {
+          author?: string | null
+          author_handle?: string | null
+          canonical_url?: string | null
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          engagement?: number | null
+          evidence_refs?: Json
+          external_id?: string | null
+          first_seen_at?: string
+          growth_pct?: number | null
+          id?: string
+          is_new_since_last_scan?: boolean
+          language?: string | null
+          last_seen_at?: string
+          metrics?: Json
+          narrative_claim?: string | null
+          organisation_id?: string | null
+          permalink?: string | null
+          previous_scan_id?: string | null
+          previous_scan_seen?: boolean
+          protection_profile_id?: string | null
+          published_at?: string | null
+          purge_after?: string | null
+          reach?: number | null
+          retention_class?: string
+          risk_score?: number | null
+          risk_type?: string | null
+          scan_id?: string
+          severity?: string | null
+          source?: string
+          source_metadata?: Json
+          source_type?: string | null
+          tags?: string[]
+          threat_score?: number | null
+          thumbnail_url?: string | null
+          times_detected?: number
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          velocity?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scan_hits_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scans: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duplicate_hits_removed: number
+          error: string | null
+          id: string
+          name: string | null
+          new_hits: number
+          organisation_id: string | null
+          params: Json
+          period: string | null
+          period_end: string | null
+          period_start: string | null
+          protection_profile_id: string | null
+          query: string | null
+          sources: string[]
+          started_at: string | null
+          status: string
+          total_hits: number
+          unique_hits: number
+          updated_at: string
+          updated_hits: number
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duplicate_hits_removed?: number
+          error?: string | null
+          id?: string
+          name?: string | null
+          new_hits?: number
+          organisation_id?: string | null
+          params?: Json
+          period?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          protection_profile_id?: string | null
+          query?: string | null
+          sources?: string[]
+          started_at?: string | null
+          status?: string
+          total_hits?: number
+          unique_hits?: number
+          updated_at?: string
+          updated_hits?: number
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duplicate_hits_removed?: number
+          error?: string | null
+          id?: string
+          name?: string | null
+          new_hits?: number
+          organisation_id?: string | null
+          params?: Json
+          period?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          protection_profile_id?: string | null
+          query?: string | null
+          sources?: string[]
+          started_at?: string | null
+          status?: string
+          total_hits?: number
+          unique_hits?: number
+          updated_at?: string
+          updated_hits?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       speaker_segments: {
         Row: {
           confidence: number | null
