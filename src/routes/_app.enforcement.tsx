@@ -1,8 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useData } from "@/lib/data-store";
 import { PageCard, StatCard } from "@/components/dashboard/PageCard";
-import { Send, FileText, Scale, ShieldCheck } from "lucide-react";
+import { Send, FileText, Scale, ShieldCheck, ShieldAlert } from "lucide-react";
+import { useAuthorization } from "@/hooks/use-authorization";
+import { Button } from "@/components/ui/button";
+
 
 export const Route = createFileRoute("/_app/enforcement")({
   head: () => ({ meta: [{ title: "Enforcement — Eterna AI" }] }),
