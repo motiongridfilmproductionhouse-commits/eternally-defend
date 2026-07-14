@@ -413,7 +413,6 @@ function OverviewTab({ job, findings, errors }: any) {
         <div className="font-medium mb-2">Summary</div>
         <p className="text-muted-foreground">
           {findings.length} timeline finding{findings.length === 1 ? "" : "s"} across metadata and existing fact-check reviews.
-          {errors.length > 0 && ` ${errors.length} provider${errors.length === 1 ? "" : "s"} unavailable — see Technical tab.`}
         </p>
       </div>
     </div>
