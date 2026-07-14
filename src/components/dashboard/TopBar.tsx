@@ -1,5 +1,7 @@
 import { useRouterState } from "@tanstack/react-router";
 import { Search, Sparkles, Bell, MoreVertical, ChevronDown } from "lucide-react";
+import { AuthorizationBadge } from "@/components/AuthorizationBadge";
+
 
 const titles: Record<string, { title: string; sub: string }> = {
   "/": { title: "Protection Command Center", sub: "Real-time reputation protection & threat intelligence" },
@@ -33,9 +35,11 @@ export function TopBar() {
           />
         </div>
       </div>
+      <AuthorizationBadge />
       <button className="flex items-center gap-2 px-4 py-3 rounded-2xl border border-border bg-card text-sm font-semibold hover:bg-accent transition">
         <Sparkles className="size-4 text-primary" /> Quick Action <ChevronDown className="size-4 text-muted-foreground" />
       </button>
+
       <button className="relative size-11 grid place-items-center rounded-2xl border border-border bg-card">
         <Bell className="size-[18px]" />
         <span className="absolute top-1 right-1 min-w-4 h-4 px-1 text-[10px] font-bold text-white rounded-full grid place-items-center" style={{ background: "var(--gradient-brand)" }}>3</span>
