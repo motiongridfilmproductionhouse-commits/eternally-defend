@@ -95,3 +95,33 @@ export function viaProxy(url?: string | null): string | null {
   if (/(?:ytimg\.com|googleusercontent\.com|ggpht\.com)/i.test(raw)) return raw;
   return `/api/media/preview?u=${encodeURIComponent(raw)}`;
 }
+
+/**
+ * Extract a YouTube video ID from any watch/shorts/embed/youtu.be URL.
+ * Channel URLs return null (no per-video thumbnail).
+ */
+export function youtubeIdFromUrl(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url.trim());
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") return u.pathname.slice(1).split(/[/?#]/)[0] || null;
+    if (!/youtube\.com$/.test(host)) return null;
+    const v = u.searchParams.get("v");
+    if (v) return v;
+    const m = u.pathname.match(/\/(shorts|embed|live|v)\/([^/?#]+)/);
+    return m ? m[2] : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Public YouTube CDN thumbnail — no API key required, always CORS-safe.
+ * hqdefault exists for every public/unlisted video; maxresdefault is best-effort.
+ */
+export function youtubeThumbFromUrl(url?: string | null, quality: "maxres" | "hq" = "hq"): string | null {
+  const id = youtubeIdFromUrl(url);
+  if (!id) return null;
+  return `https://i.ytimg.com/vi/${id}/${quality === "maxres" ? "maxresdefault" : "hqdefault"}.jpg`;
+}

@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { persistScan, listScanHits } from "@/lib/scans.functions";
 import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
 import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
-import { cleanTitle, viaProxy, faviconUrl, hostFromUrl, readableFromSlug } from "@/lib/media-utils";
+import { cleanTitle, viaProxy, faviconUrl, hostFromUrl, readableFromSlug, youtubeThumbFromUrl, youtubeIdFromUrl } from "@/lib/media-utils";
 import {
   Radar, Search, ExternalLink, ShieldPlus, Loader2, Sparkles, TrendingUp,
   AlertTriangle, Flame, Users, Eye, Copyright, Gavel, Bell, FileDown,
@@ -536,9 +536,9 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
   const [moments, setMoments] = useState(false);
   const [imgOk, setImgOk] = useState(true);
   const [loaded, setLoaded] = useState(false);
-  const rawThumb = h.media?.thumbnailHi || h.media?.thumbnail;
-  const thumb = viaProxy(rawThumb);
   const isYouTube = h.source === "YouTube";
+  const rawThumb = h.media?.thumbnailHi || h.media?.thumbnail || (isYouTube ? youtubeThumbFromUrl(h.url, "maxres") : null);
+  const thumb = viaProxy(rawThumb) ?? (isYouTube ? youtubeThumbFromUrl(h.url, "hq") : null);
   const displayTitle = cleanTitle(h.title, readableFromSlug(h.url));
   const host = hostFromUrl(h.url);
   const favicon = faviconUrl(h.url);
@@ -565,7 +565,12 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
             alt={displayTitle}
             loading="lazy"
             onLoad={() => setLoaded(true)}
-            onError={() => setImgOk(false)}
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              const hq = isYouTube ? youtubeThumbFromUrl(h.url, "hq") : null;
+              if (hq && img.src !== hq) { img.src = hq; return; }
+              setImgOk(false);
+            }}
             className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"}`}
           />
           {/* bottom gradient */}
@@ -1091,7 +1096,8 @@ function PersistedResults({
         {displayItems.map((h) => {
           const linkUrl = h.permalink ?? h.canonical_url ?? "#";
           const displayTitle = cleanTitle(h.title, readableFromSlug(linkUrl));
-          const thumb = viaProxy(h.thumbnail_url);
+          const isYT = h.source === "YouTube";
+          const thumb = viaProxy(h.thumbnail_url) ?? (isYT ? youtubeThumbFromUrl(linkUrl, "hq") : null);
           const host = hostFromUrl(linkUrl);
           const favicon = faviconUrl(linkUrl);
           return (
