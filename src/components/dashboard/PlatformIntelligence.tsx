@@ -23,8 +23,8 @@ export function PlatformIntelligence() {
         {items.map((p) => {
           const Icon = p.icon;
           return (
-            <div key={p.name} className="border border-border rounded-xl p-3 flex items-center gap-2.5">
-              <div className="size-9 rounded-lg grid place-items-center" style={{ background: `color-mix(in oklab, ${p.color} 12%, white)`, color: p.color }}>
+            <div key={p.name} className="border border-border rounded-xl p-3 flex items-center gap-2.5 bg-card/40">
+              <div className="size-9 rounded-lg grid place-items-center" style={{ background: `color-mix(in oklab, ${p.color} 18%, transparent)`, color: p.color }}>
                 <Icon className="size-4" />
               </div>
               <div className="min-w-0">
