@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
@@ -24,6 +25,11 @@ import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -96,6 +102,7 @@ const AppAssetsRoute = AppAssetsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/auth': typeof AuthRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRoutesByTo {
+  '/auth': typeof AuthRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
@@ -127,6 +135,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/auth': typeof AuthRoute
   '/_app/assets': typeof AppAssetsRoute
   '/_app/cases': typeof AppCasesRoute
   '/_app/enforcement': typeof AppEnforcementRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/assets'
     | '/cases'
     | '/enforcement'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/api/scan'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/auth'
     | '/assets'
     | '/cases'
     | '/enforcement'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/auth'
     | '/_app/assets'
     | '/_app/cases'
     | '/_app/enforcement'
@@ -192,11 +204,19 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRoute
   ApiScanRoute: typeof ApiScanRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -332,18 +352,9 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRoute,
   ApiScanRoute: ApiScanRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
