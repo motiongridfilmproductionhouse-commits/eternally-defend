@@ -426,8 +426,17 @@ function ResultCard({ h, added, onPromote }: { h: ScanHit; added: boolean; onPro
   const [loaded, setLoaded] = useState(false);
   const thumb = h.media?.thumbnailHi || h.media?.thumbnail;
   const isYouTube = h.source === "YouTube";
-  const publishedLabel = h.published ? new Date(h.published).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+  const publishedTs = h.published ? new Date(h.published).getTime() : 0;
+  const publishedLabel = publishedTs ? new Date(publishedTs).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+  const ageDays = publishedTs ? Math.max(0, (Date.now() - publishedTs) / 86400000) : 0;
+  const ageLabel = !publishedTs ? "" : ageDays < 1 ? `${Math.max(1, Math.round(ageDays * 24))}h ago` : ageDays < 30 ? `${Math.round(ageDays)}d ago` : ageDays < 365 ? `${Math.round(ageDays / 30)}mo ago` : `${Math.round(ageDays / 365)}y ago`;
   const m = h.media;
+  const growth = m?.growthPerDay ?? 0;
+  const trend: { label: string; color: string } | null =
+    growth >= 20000 ? { label: "Exploding", color: "oklch(0.63 0.24 25)" } :
+    growth >= 5000 ? { label: "Rising", color: "oklch(0.7 0.2 35)" } :
+    growth >= 500 ? { label: "Growing", color: "oklch(0.75 0.16 70)" } :
+    publishedTs ? { label: "Steady", color: "oklch(0.68 0.16 155)" } : null;
 
   return (
     <div className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
