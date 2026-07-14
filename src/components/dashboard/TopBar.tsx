@@ -42,8 +42,8 @@ export function TopBar() {
 
       <button className="relative size-11 grid place-items-center rounded-2xl border border-border bg-card">
         <Bell className="size-[18px]" />
-        <span className="absolute top-1 right-1 min-w-4 h-4 px-1 text-[10px] font-bold text-white rounded-full grid place-items-center" style={{ background: "var(--gradient-brand)" }}>3</span>
       </button>
+
       <button className="size-11 grid place-items-center rounded-2xl border border-border bg-card">
         <MoreVertical className="size-[18px]" />
       </button>
