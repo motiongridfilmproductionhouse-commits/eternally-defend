@@ -86,7 +86,7 @@ export function StatsRow() {
       <div className="card-surface p-5 flex flex-col items-center">
         <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">REPUTATION SCORE</div>
         <div className="my-2"><ReputationRing value={reputation} /></div>
-        <div className="text-sm font-semibold" style={{ color: "oklch(0.55 0.22 295)" }}>
+        <div className="text-sm font-semibold" style={{ color: "#3B82F6" }}>
           {reputation === null ? "No data yet" : reputation >= 80 ? "Excellent" : reputation >= 60 ? "Healthy" : reputation >= 40 ? "At Risk" : "Critical"}
         </div>
         <div className="text-xs text-muted-foreground mt-1">
