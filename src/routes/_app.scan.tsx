@@ -7,6 +7,8 @@ import type { ReputationReport, ScanHit, SourceKey, Sentiment } from "@/routes/a
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { useData, severityColor } from "@/lib/data-store";
 import { persistScan, listScanHits } from "@/lib/scans.functions";
+import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
+import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
 import {
   Radar, Search, ExternalLink, ShieldPlus, Loader2, Sparkles, TrendingUp,
   AlertTriangle, Flame, Users, Eye, Copyright, Gavel, Bell, FileDown,
@@ -81,6 +83,8 @@ function ScanPage() {
   const m = useMutation({ mutationFn: runScan });
   const report = m.data;
   const persistFn = useServerFn(persistScan);
+  const analyzeFn = useServerFn(analyzeYoutubeVideo);
+  const [analyzingVideos, setAnalyzingVideos] = useState<Set<string>>(new Set());
 
   // Persist to DB once the report lands. Runs once per report identity.
   useEffect(() => {
@@ -132,12 +136,40 @@ function ScanPage() {
         if (cancelled) return;
         setPersistedScanId(res.scanId);
         setPersistSummary({ newHits: res.newHits, updatedHits: res.updatedHits, duplicatesRemoved: res.duplicatesRemoved, uniqueHits: res.uniqueHits });
+
+        // Kick off timestamp analysis for every YouTube hit (concurrency 3, fire-and-forget).
+        const ytHits = report.hits.filter((h) => h.source === "YouTube" && h.media?.videoId);
+        if (ytHits.length) {
+          const entityTerms = [report.query, ...report.aliases].filter(Boolean);
+          setAnalyzingVideos(new Set(ytHits.map((h) => h.media!.videoId!)));
+          const queue = [...ytHits];
+          const runOne = async () => {
+            while (queue.length && !cancelled) {
+              const h = queue.shift()!;
+              try {
+                await analyzeFn({ data: {
+                  videoId: h.media!.videoId!,
+                  scanId: res.scanId,
+                  entityTerms,
+                  channelId: h.media?.channelId ?? null,
+                  channelName: h.media?.channelTitle ?? null,
+                  channelUrl: h.media?.channelUrl ?? null,
+                } });
+              } catch (e) {
+                console.warn("[analyze]", h.media?.videoId, e);
+              } finally {
+                setAnalyzingVideos((s) => { const n = new Set(s); n.delete(h.media!.videoId!); return n; });
+              }
+            }
+          };
+          void Promise.all([runOne(), runOne(), runOne()]);
+        }
       } catch (e) {
         console.error("[scan] persist failed:", e);
       }
     })();
     return () => { cancelled = true; };
-  }, [report, persistFn]);
+  }, [report, persistFn, analyzeFn]);
 
   const toggleSource = (s: SourceKey) => setSources((p) => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
 
@@ -165,6 +197,11 @@ function ScanPage() {
       context: [industry, country, site].filter(Boolean).join(" "),
     });
   };
+
+  const entityTerms = useMemo(
+    () => [q, ...split(aliases), ...split(variations)].map((s) => s.trim()).filter(Boolean),
+    [q, aliases, variations],
+  );
 
   const promote = (h: ScanHit) => {
     const riskMap: Record<string, "Deepfake"|"Impersonation"|"Copyright"|"News Attack"|"Brand Abuse"> = {
@@ -330,19 +367,21 @@ function ScanPage() {
           {/* DB-backed persisted results with cursor-paginated infinite scroll */}
           <PersistedResults scanId={persistedScanId} summary={persistSummary} scanStatus={report ? "completed" : "running"} />
 
+          {(() => null)()}
+
           {/* Buckets */}
 
-          <Bucket title="CRITICAL THREATS" icon={<AlertTriangle className="size-4" />} hits={report.buckets.critical} onPromote={promote} added={added} />
-          <Bucket title="HIGH-PRIORITY NEGATIVE CONTENT" icon={<ShieldAlert className="size-4" />} hits={report.buckets.high} onPromote={promote} added={added} />
-          <Bucket title="EMERGING THREATS" icon={<TrendingUp className="size-4" />} hits={report.buckets.emerging} onPromote={promote} added={added} />
-          <Bucket title="NEWS COVERAGE" icon={<Newspaper className="size-4" />} hits={report.buckets.news} onPromote={promote} added={added} />
-          <Bucket title="YOUTUBE MONITORING" icon={<Youtube className="size-4" />} hits={report.buckets.youtube} onPromote={promote} added={added} />
-          <Bucket title="REDDIT MONITORING" icon={<MessageCircle className="size-4" />} hits={report.buckets.reddit} onPromote={promote} added={added} />
-          <Bucket title="INSTAGRAM MONITORING" icon={<Instagram className="size-4" />} hits={report.buckets.instagram} onPromote={promote} added={added} />
-          <Bucket title="FACEBOOK MONITORING" icon={<Facebook className="size-4" />} hits={report.buckets.facebook} onPromote={promote} added={added} />
-          <Bucket title="IMPERSONATION" icon={<BadgeCheck className="size-4" />} hits={report.buckets.impersonation} onPromote={promote} added={added} />
-          <Bucket title="DEEPFAKE / MANIPULATED MEDIA" icon={<ShieldAlert className="size-4" />} hits={report.buckets.deepfake} onPromote={promote} added={added} />
-          <Bucket title="REVIEWS & COMPLAINTS" icon={<Gavel className="size-4" />} hits={report.buckets.reviews} onPromote={promote} added={added} />
+          <Bucket title="CRITICAL THREATS" icon={<AlertTriangle className="size-4" />} hits={report.buckets.critical} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="HIGH-PRIORITY NEGATIVE CONTENT" icon={<ShieldAlert className="size-4" />} hits={report.buckets.high} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="EMERGING THREATS" icon={<TrendingUp className="size-4" />} hits={report.buckets.emerging} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="NEWS COVERAGE" icon={<Newspaper className="size-4" />} hits={report.buckets.news} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="YOUTUBE MONITORING" icon={<Youtube className="size-4" />} hits={report.buckets.youtube} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="REDDIT MONITORING" icon={<MessageCircle className="size-4" />} hits={report.buckets.reddit} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="INSTAGRAM MONITORING" icon={<Instagram className="size-4" />} hits={report.buckets.instagram} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="FACEBOOK MONITORING" icon={<Facebook className="size-4" />} hits={report.buckets.facebook} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="IMPERSONATION" icon={<BadgeCheck className="size-4" />} hits={report.buckets.impersonation} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="DEEPFAKE / MANIPULATED MEDIA" icon={<ShieldAlert className="size-4" />} hits={report.buckets.deepfake} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="REVIEWS & COMPLAINTS" icon={<Gavel className="size-4" />} hits={report.buckets.reviews} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
 
           <PageCard title="METHODOLOGY & LIMITATIONS" sub="How Eterna AI produced this report">
             <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
@@ -434,7 +473,7 @@ const SORT_LABEL: Record<SortKey, string> = {
 const SEV_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 const PAGE_SIZE = 24;
 
-function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: React.ReactNode; hits: ScanHit[]; onPromote: (h: ScanHit) => void; added: Set<string> }) {
+function Bucket({ title, icon, hits, onPromote, added, entityTerms, scanId, analyzingVideos }: { title: string; icon: React.ReactNode; hits: ScanHit[]; onPromote: (h: ScanHit) => void; added: Set<string>; entityTerms: string[]; scanId: string | null; analyzingVideos: Set<string> }) {
   const [sort, setSort] = useState<SortKey>("newest");
   const [sentimentFilter, setSentimentFilter] = useState<string>("All");
   const [visible, setVisible] = useState(PAGE_SIZE);
@@ -472,7 +511,7 @@ function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: 
     >
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2"><span className="opacity-60">{icon}</span></div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {shown.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} />)}
+        {shown.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} entityTerms={entityTerms} scanId={scanId} analysisPending={!!(h.media?.videoId && analyzingVideos.has(h.media.videoId))} />)}
       </div>
       {filtered.length > visible && (
         <div className="mt-4 flex justify-center">
@@ -488,9 +527,10 @@ function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: 
   );
 }
 
-function ResultCard({ h, added, onPromote }: { h: ScanHit; added: boolean; onPromote: () => void }) {
+function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending }: { h: ScanHit; added: boolean; onPromote: () => void; entityTerms: string[]; scanId: string | null; analysisPending: boolean }) {
   const sev = severityColor(h.severity);
   const [open, setOpen] = useState(false);
+  const [moments, setMoments] = useState(false);
   const [imgOk, setImgOk] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const thumb = h.media?.thumbnailHi || h.media?.thumbnail;
@@ -628,15 +668,39 @@ function ResultCard({ h, added, onPromote }: { h: ScanHit; added: boolean; onPro
           <span className="font-semibold text-foreground">Recommended:</span> {h.recommendedAction}
         </div>
 
+        {isYouTube && h.media?.videoId && (
+          <div className="flex items-center justify-between gap-2 -mt-1">
+            <ExactMomentsSummaryChips videoId={h.media.videoId} />
+            {analysisPending && <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1"><Loader2 className="size-3 animate-spin" /> analyzing…</span>}
+          </div>
+        )}
+
         {/* Actions */}
-        <div className="flex items-center gap-2 mt-auto">
+        <div className="flex items-center gap-2 mt-auto flex-wrap">
           <button onClick={() => setOpen((v) => !v)} className="flex-1 text-xs px-3 py-2 rounded-lg border border-border hover:bg-accent inline-flex items-center justify-center gap-1">
             <ExternalLink className="size-3.5" /> {open ? "Hide" : "View"} evidence
           </button>
+          {isYouTube && h.media?.videoId && (
+            <button onClick={() => setMoments((v) => !v)} className="flex-1 text-xs px-3 py-2 rounded-lg border border-border hover:bg-accent inline-flex items-center justify-center gap-1">
+              <Clock className="size-3.5" /> {moments ? "Hide" : "View"} exact moments
+            </button>
+          )}
           <button onClick={onPromote} disabled={added} className="flex-1 text-xs px-3 py-2 rounded-lg text-white font-semibold inline-flex items-center justify-center gap-1 disabled:opacity-60" style={{ background: "var(--gradient-brand)" }}>
             <ShieldPlus className="size-3.5" /> {added ? "Added" : "Send to Threat Radar"}
           </button>
         </div>
+
+        {isYouTube && h.media?.videoId && moments && (
+          <ExactMomentsPanel
+            videoId={h.media.videoId}
+            scanId={scanId}
+            channelId={h.media.channelId ?? null}
+            channelName={h.media.channelTitle ?? null}
+            channelUrl={h.media.channelUrl ?? null}
+            entityTerms={entityTerms}
+            analysisPending={analysisPending}
+          />
+        )}
 
         {/* Evidence panel */}
         {open && (

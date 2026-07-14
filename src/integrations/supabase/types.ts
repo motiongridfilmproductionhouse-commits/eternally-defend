@@ -1429,6 +1429,93 @@ export type Database = {
         }
         Relationships: []
       }
+      video_analysis_jobs: {
+        Row: {
+          analysis_state: string
+          audio_analysis_authorised: boolean
+          audio_state: string
+          caption_language: string | null
+          caption_source: string | null
+          captions_state: string
+          completed_at: string | null
+          coverage_pct: number | null
+          created_at: string
+          error: string | null
+          finding_count: number
+          id: string
+          organisation_id: string | null
+          platform: string
+          scan_hit_id: string | null
+          scan_id: string | null
+          started_at: string | null
+          transcript_segment_count: number
+          updated_at: string
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          analysis_state?: string
+          audio_analysis_authorised?: boolean
+          audio_state?: string
+          caption_language?: string | null
+          caption_source?: string | null
+          captions_state?: string
+          completed_at?: string | null
+          coverage_pct?: number | null
+          created_at?: string
+          error?: string | null
+          finding_count?: number
+          id?: string
+          organisation_id?: string | null
+          platform?: string
+          scan_hit_id?: string | null
+          scan_id?: string | null
+          started_at?: string | null
+          transcript_segment_count?: number
+          updated_at?: string
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          analysis_state?: string
+          audio_analysis_authorised?: boolean
+          audio_state?: string
+          caption_language?: string | null
+          caption_source?: string | null
+          captions_state?: string
+          completed_at?: string | null
+          coverage_pct?: number | null
+          created_at?: string
+          error?: string | null
+          finding_count?: number
+          id?: string
+          organisation_id?: string | null
+          platform?: string
+          scan_hit_id?: string | null
+          scan_id?: string | null
+          started_at?: string | null
+          transcript_segment_count?: number
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_analysis_jobs_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_analysis_jobs_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_annotations: {
         Row: {
           annotation_type: string
@@ -1504,6 +1591,393 @@ export type Database = {
             columns: ["protected_asset_id"]
             isOneToOne: false
             referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_creator_profiles: {
+        Row: {
+          channel_created_at: string | null
+          channel_handle: string | null
+          channel_id: string
+          channel_name: string | null
+          channel_url: string | null
+          country: string | null
+          created_at: string
+          credibility_score: number | null
+          critical_findings_count: number
+          description: string | null
+          estimated_total_reach: number | null
+          findings_count: number
+          first_detected_at: string | null
+          id: string
+          influence_score: number | null
+          latest_detected_at: string | null
+          monitoring_enabled: boolean
+          organisation_id: string | null
+          platform: string
+          profile_image_url: string | null
+          protection_profile_id: string | null
+          raw: Json
+          repeated_allegation_count: number
+          subscriber_count: number | null
+          threat_amplification_score: number | null
+          total_view_count: number | null
+          updated_at: string
+          user_id: string
+          video_count: number | null
+        }
+        Insert: {
+          channel_created_at?: string | null
+          channel_handle?: string | null
+          channel_id: string
+          channel_name?: string | null
+          channel_url?: string | null
+          country?: string | null
+          created_at?: string
+          credibility_score?: number | null
+          critical_findings_count?: number
+          description?: string | null
+          estimated_total_reach?: number | null
+          findings_count?: number
+          first_detected_at?: string | null
+          id?: string
+          influence_score?: number | null
+          latest_detected_at?: string | null
+          monitoring_enabled?: boolean
+          organisation_id?: string | null
+          platform?: string
+          profile_image_url?: string | null
+          protection_profile_id?: string | null
+          raw?: Json
+          repeated_allegation_count?: number
+          subscriber_count?: number | null
+          threat_amplification_score?: number | null
+          total_view_count?: number | null
+          updated_at?: string
+          user_id: string
+          video_count?: number | null
+        }
+        Update: {
+          channel_created_at?: string | null
+          channel_handle?: string | null
+          channel_id?: string
+          channel_name?: string | null
+          channel_url?: string | null
+          country?: string | null
+          created_at?: string
+          credibility_score?: number | null
+          critical_findings_count?: number
+          description?: string | null
+          estimated_total_reach?: number | null
+          findings_count?: number
+          first_detected_at?: string | null
+          id?: string
+          influence_score?: number | null
+          latest_detected_at?: string | null
+          monitoring_enabled?: boolean
+          organisation_id?: string | null
+          platform?: string
+          profile_image_url?: string | null
+          protection_profile_id?: string | null
+          raw?: Json
+          repeated_allegation_count?: number
+          subscriber_count?: number | null
+          threat_amplification_score?: number | null
+          total_view_count?: number | null
+          updated_at?: string
+          user_id?: string
+          video_count?: number | null
+        }
+        Relationships: []
+      }
+      video_creator_risk_history: {
+        Row: {
+          created_at: string
+          creator_profile_id: string
+          critical_findings_count: number
+          dominant_risk_category: string | null
+          estimated_total_reach: number | null
+          findings_count: number
+          id: string
+          influence_score: number | null
+          metrics: Json
+          reason: string | null
+          snapshot_at: string
+          threat_amplification_score: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          creator_profile_id: string
+          critical_findings_count?: number
+          dominant_risk_category?: string | null
+          estimated_total_reach?: number | null
+          findings_count?: number
+          id?: string
+          influence_score?: number | null
+          metrics?: Json
+          reason?: string | null
+          snapshot_at?: string
+          threat_amplification_score?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          creator_profile_id?: string
+          critical_findings_count?: number
+          dominant_risk_category?: string | null
+          estimated_total_reach?: number | null
+          findings_count?: number
+          id?: string
+          influence_score?: number | null
+          metrics?: Json
+          reason?: string | null
+          snapshot_at?: string
+          threat_amplification_score?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_creator_risk_history_creator_profile_id_fkey"
+            columns: ["creator_profile_id"]
+            isOneToOne: false
+            referencedRelation: "video_creator_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_timestamp_findings: {
+        Row: {
+          captured_at: string
+          channel_id: string | null
+          channel_name: string | null
+          channel_url: string | null
+          claim_summary: string | null
+          confidence: number | null
+          context_after: string | null
+          context_before: string | null
+          context_type: string
+          created_at: string
+          creator_profile_id: string | null
+          end_seconds: number
+          end_time_display: string | null
+          evidence_source: string | null
+          id: string
+          matched_entity: string | null
+          organisation_id: string | null
+          original_language: string | null
+          original_text: string
+          platform: string
+          protection_profile_id: string | null
+          raw: Json
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_notes: string | null
+          risk_category: string | null
+          scan_hit_id: string | null
+          scan_id: string | null
+          segment_id: string | null
+          severity: string | null
+          speaker_label: string | null
+          speaker_stance: string | null
+          start_seconds: number
+          start_time_display: string | null
+          translated_text: string | null
+          translation_language: string | null
+          updated_at: string
+          user_id: string
+          video_id: string
+          video_url: string | null
+          watch_exact_moment_url: string | null
+        }
+        Insert: {
+          captured_at?: string
+          channel_id?: string | null
+          channel_name?: string | null
+          channel_url?: string | null
+          claim_summary?: string | null
+          confidence?: number | null
+          context_after?: string | null
+          context_before?: string | null
+          context_type?: string
+          created_at?: string
+          creator_profile_id?: string | null
+          end_seconds: number
+          end_time_display?: string | null
+          evidence_source?: string | null
+          id?: string
+          matched_entity?: string | null
+          organisation_id?: string | null
+          original_language?: string | null
+          original_text: string
+          platform?: string
+          protection_profile_id?: string | null
+          raw?: Json
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          risk_category?: string | null
+          scan_hit_id?: string | null
+          scan_id?: string | null
+          segment_id?: string | null
+          severity?: string | null
+          speaker_label?: string | null
+          speaker_stance?: string | null
+          start_seconds: number
+          start_time_display?: string | null
+          translated_text?: string | null
+          translation_language?: string | null
+          updated_at?: string
+          user_id: string
+          video_id: string
+          video_url?: string | null
+          watch_exact_moment_url?: string | null
+        }
+        Update: {
+          captured_at?: string
+          channel_id?: string | null
+          channel_name?: string | null
+          channel_url?: string | null
+          claim_summary?: string | null
+          confidence?: number | null
+          context_after?: string | null
+          context_before?: string | null
+          context_type?: string
+          created_at?: string
+          creator_profile_id?: string | null
+          end_seconds?: number
+          end_time_display?: string | null
+          evidence_source?: string | null
+          id?: string
+          matched_entity?: string | null
+          organisation_id?: string | null
+          original_language?: string | null
+          original_text?: string
+          platform?: string
+          protection_profile_id?: string | null
+          raw?: Json
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          risk_category?: string | null
+          scan_hit_id?: string | null
+          scan_id?: string | null
+          segment_id?: string | null
+          severity?: string | null
+          speaker_label?: string | null
+          speaker_stance?: string | null
+          start_seconds?: number
+          start_time_display?: string | null
+          translated_text?: string | null
+          translation_language?: string | null
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+          video_url?: string | null
+          watch_exact_moment_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_timestamp_findings_creator_profile_id_fkey"
+            columns: ["creator_profile_id"]
+            isOneToOne: false
+            referencedRelation: "video_creator_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_timestamp_findings_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_timestamp_findings_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_timestamp_findings_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "video_transcript_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_transcript_segments: {
+        Row: {
+          confidence: number | null
+          coverage_pct: number | null
+          created_at: string
+          end_seconds: number
+          id: string
+          is_auto_generated: boolean | null
+          language: string | null
+          organisation_id: string | null
+          platform: string
+          scan_hit_id: string | null
+          source: string
+          speaker_label: string | null
+          start_seconds: number
+          text: string
+          translated_text: string | null
+          translation_language: string | null
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          coverage_pct?: number | null
+          created_at?: string
+          end_seconds: number
+          id?: string
+          is_auto_generated?: boolean | null
+          language?: string | null
+          organisation_id?: string | null
+          platform?: string
+          scan_hit_id?: string | null
+          source: string
+          speaker_label?: string | null
+          start_seconds: number
+          text: string
+          translated_text?: string | null
+          translation_language?: string | null
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          confidence?: number | null
+          coverage_pct?: number | null
+          created_at?: string
+          end_seconds?: number
+          id?: string
+          is_auto_generated?: boolean | null
+          language?: string | null
+          organisation_id?: string | null
+          platform?: string
+          scan_hit_id?: string | null
+          source?: string
+          speaker_label?: string | null
+          start_seconds?: number
+          text?: string
+          translated_text?: string | null
+          translation_language?: string | null
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_transcript_segments_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
             referencedColumns: ["id"]
           },
         ]
