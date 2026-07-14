@@ -295,7 +295,7 @@ export const addManualAccount = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({
     subjectId: z.string().uuid(),
     profile_url: z.string().trim().url(),
-    platform: z.enum([...ALL_PLATFORMS, "website"] as [Platform, ...Platform[]]).optional(),
+    platform: z.enum(["youtube","instagram","facebook","tiktok","x","linkedin","reddit","website"] as const).optional(),
     display_name: z.string().trim().max(200).optional(),
     handle: z.string().trim().max(200).optional(),
   }).parse(input))
