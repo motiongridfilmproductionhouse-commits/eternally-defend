@@ -30,8 +30,9 @@ const HitInput = z.object({
   tags: z.array(z.string()).optional(),
   metrics: z.record(z.string(), z.unknown()).optional(),
   sourceMetadata: z.record(z.string(), z.unknown()).optional(),
-  evidenceRefs: z.array(z.unknown()).optional(),
+  evidenceRefs: z.array(z.record(z.string(), z.unknown())).optional(),
 });
+
 
 export type ScanHitInput = z.infer<typeof HitInput>;
 
