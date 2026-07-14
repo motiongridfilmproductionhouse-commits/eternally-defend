@@ -254,10 +254,30 @@ async function runFirecrawl(query: string, sources: SourceKey[], limit: number) 
       const q = cfg.site ? `${query} site:${cfg.site}` : cfg.suffix ? `${query} ${cfg.suffix}` : query;
       const res: unknown = await fc.search(q, { limit });
       const r = res as { web?: unknown[]; news?: unknown[] };
-      const raw: RawHit[] = [
+      const rawItems = [
         ...(Array.isArray(r.web) ? r.web : []),
         ...(Array.isArray(r.news) ? r.news : []),
-      ] as RawHit[];
+      ] as Array<Record<string, unknown>>;
+      const raw: RawHit[] = rawItems.map((item) => {
+        const md = (item.metadata ?? {}) as Record<string, unknown>;
+        const image =
+          (typeof item.imageUrl === "string" && item.imageUrl) ||
+          (typeof item.image === "string" && item.image) ||
+          (typeof md.ogImage === "string" && md.ogImage) ||
+          (typeof md["og:image"] === "string" && (md["og:image"] as string)) ||
+          (typeof md["twitter:image"] === "string" && (md["twitter:image"] as string)) ||
+          undefined;
+        return {
+          url: (item.url as string) ?? undefined,
+          title: (item.title as string) ?? (md.title as string) ?? (md["og:title"] as string) ?? undefined,
+          description: (item.description as string) ?? (md.description as string) ?? undefined,
+          snippet: (item.snippet as string) ?? undefined,
+          author: (item.author as string) ?? (md.author as string) ?? undefined,
+          date: (item.date as string) ?? undefined,
+          publishedDate: (item.publishedDate as string) ?? (md.publishedTime as string) ?? undefined,
+          media: image ? { thumbnail: image, thumbnailHi: image } : undefined,
+        };
+      });
       return { source: cfg.label, raw };
     }));
     const runs: { source: string; raw: RawHit[] }[] = [];
