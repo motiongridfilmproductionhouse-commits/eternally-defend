@@ -217,6 +217,7 @@ const ListInput = z.object({
   source: z.string().optional(),
   severity: z.string().optional(),
   onlyNew: z.boolean().optional(),
+  hiddenFilter: z.enum(["active", "hidden", "all"]).optional().default("active"),
   limit: z.number().min(1).max(100).default(24),
   // Cursor is a compound key: publishedAt|threatScore|id from the last row of the previous page.
   cursor: z.object({
@@ -234,7 +235,7 @@ export const listScanHits = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     let q = supabase
       .from("scan_hits")
-      .select("id, scan_id, source, source_type, external_id, canonical_url, permalink, title, description, author, thumbnail_url, published_at, detected_at, reach, engagement, velocity, risk_score, threat_score, severity, growth_pct, narrative_claim, risk_type, tags, is_new_since_last_scan, times_detected, first_seen_at, last_seen_at")
+      .select("id, scan_id, source, source_type, external_id, canonical_url, permalink, title, description, author, thumbnail_url, published_at, detected_at, reach, engagement, velocity, risk_score, threat_score, severity, growth_pct, narrative_claim, risk_type, tags, is_new_since_last_scan, times_detected, first_seen_at, last_seen_at, hidden_at, hidden_reason")
       .eq("user_id", userId)
       .order("published_at", { ascending: false, nullsFirst: false })
       .order("threat_score", { ascending: false, nullsFirst: false })
@@ -245,6 +246,8 @@ export const listScanHits = createServerFn({ method: "GET" })
     if (data.source) q = q.eq("source", data.source);
     if (data.severity) q = q.eq("severity", data.severity);
     if (data.onlyNew) q = q.eq("is_new_since_last_scan", true);
+    if (data.hiddenFilter === "active") q = q.is("hidden_at", null);
+    else if (data.hiddenFilter === "hidden") q = q.not("hidden_at", "is", null);
 
     // Keyset pagination: (published_at, threat_score, id) < cursor
     if (data.cursor) {
