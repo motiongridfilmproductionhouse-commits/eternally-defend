@@ -4,8 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
-import { Plus, Search, Image as ImageIcon, Video, Music, FileText, Sparkles, Trash2, Loader2 } from "lucide-react";
+import { Plus, Search, Image as ImageIcon, Video, Music, FileText, Sparkles, Trash2, Loader2, Radar } from "lucide-react";
 import { toast } from "sonner";
+import { DiscoveryPanel } from "@/components/discovery/DiscoveryPanel";
+
 
 export const Route = createFileRoute("/_app/assets")({
   head: () => ({ meta: [{ title: "Assets — Eterna AI" }, { name: "description", content: "Register and monitor your protected digital assets." }] }),
