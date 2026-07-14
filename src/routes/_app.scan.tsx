@@ -198,6 +198,11 @@ function ScanPage() {
     });
   };
 
+  const entityTerms = useMemo(
+    () => [q, ...split(aliases), ...split(variations)].map((s) => s.trim()).filter(Boolean),
+    [q, aliases, variations],
+  );
+
   const promote = (h: ScanHit) => {
     const riskMap: Record<string, "Deepfake"|"Impersonation"|"Copyright"|"News Attack"|"Brand Abuse"> = {
       Deepfake: "Deepfake", Impersonation: "Impersonation", Copyright: "Copyright",
