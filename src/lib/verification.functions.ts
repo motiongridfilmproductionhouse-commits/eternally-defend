@@ -141,7 +141,7 @@ export const checkVerification = createServerFn({ method: "POST" })
     const nextState: State = passed ? "passed" : "failed";
     const { data: updated } = await context.supabase
       .from("account_verifications")
-      .update({ state: nextState, evidence, verified_at: passed ? now : null })
+      .update({ state: nextState, evidence: evidence as Json, verified_at: passed ? now : null })
       .eq("id", ver.id).select("*").single();
 
     if (passed) {
