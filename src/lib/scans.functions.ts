@@ -284,3 +284,43 @@ export const getScanSummary = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return scans?.[0] ?? null;
   });
+
+/** 14-day threat trends grouped by day and risk_type for the current user. */
+export const getThreatTrends = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ days: z.number().min(1).max(90).default(14) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const since = new Date(Date.now() - data.days * 86_400_000).toISOString();
+    const { data: rows, error } = await supabase
+      .from("scan_hits")
+      .select("detected_at, risk_type")
+      .eq("user_id", userId)
+      .gte("detected_at", since);
+    if (error) throw new Error(error.message);
+
+    // Bucket by yyyy-mm-dd + risk_type
+    const buckets = new Map<string, Record<string, number>>();
+    for (let i = data.days - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
+      buckets.set(d, {});
+    }
+    const typeSet = new Set<string>();
+    for (const r of rows ?? []) {
+      if (!r.detected_at) continue;
+      const key = r.detected_at.slice(0, 10);
+      const b = buckets.get(key);
+      if (!b) continue;
+      const t = (r.risk_type ?? "Other").trim() || "Other";
+      typeSet.add(t);
+      b[t] = (b[t] ?? 0) + 1;
+    }
+    const types = Array.from(typeSet);
+    const series = Array.from(buckets.entries()).map(([day, counts], i) => {
+      const row: Record<string, string | number> = { day: `D${i + 1}`, date: day };
+      for (const t of types) row[t] = counts[t] ?? 0;
+      return row;
+    });
+    return { series, types, totalHits: rows?.length ?? 0 };
+  });
+
