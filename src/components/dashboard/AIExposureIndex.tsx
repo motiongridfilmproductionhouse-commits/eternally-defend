@@ -28,25 +28,37 @@ const chart = [4,6,5,7,6,8,7,9,8,10,9,11].map((v,i)=>({i,v}));
 
 export function AIExposureIndex() {
   return (
-    <div className="card-surface p-5">
+    <div className="card-surface p-5 flex flex-col">
       <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">AI EXPOSURE INDEX</div>
-      <div className="text-xs text-muted-foreground/80 mb-3">Overall damage assessment</div>
+      <div className="text-xs text-muted-foreground/80 mb-4">Overall damage assessment</div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col items-center gap-3">
         <Ring />
-        <div className="grid grid-cols-3 gap-2 text-center text-[11px] flex-1">
-          <div><div className="text-muted-foreground mb-1">Estimated Reach</div><div className="text-sm font-bold">2.4M</div><div className="text-[10px] text-muted-foreground">Views</div></div>
-          <div><div className="text-muted-foreground mb-1">Reputation Impact</div><div className="text-sm font-bold text-rose-500">-14%</div><div className="text-[10px] text-muted-foreground">High Impact</div></div>
-          <div><div className="text-muted-foreground mb-1">Trust Loss</div><div className="text-sm font-bold text-rose-500">High</div><div className="text-[10px] text-muted-foreground">Risk</div></div>
+        <div className="text-sm font-semibold" style={{ color: "oklch(0.63 0.24 25)" }}>High Severity</div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="min-w-0">
+          <div className="text-[10px] text-muted-foreground truncate">Est. Reach</div>
+          <div className="text-sm font-bold mt-1">2.4M</div>
+          <div className="text-[10px] text-muted-foreground truncate">Views</div>
+        </div>
+        <div className="min-w-0 border-x border-border">
+          <div className="text-[10px] text-muted-foreground truncate">Rep. Impact</div>
+          <div className="text-sm font-bold text-rose-500 mt-1">-14%</div>
+          <div className="text-[10px] text-muted-foreground truncate">High</div>
+        </div>
+        <div className="min-w-0">
+          <div className="text-[10px] text-muted-foreground truncate">Trust Loss</div>
+          <div className="text-sm font-bold text-rose-500 mt-1">High</div>
+          <div className="text-[10px] text-muted-foreground truncate">Risk</div>
         </div>
       </div>
-      <div className="mt-3 flex items-center justify-between">
-        <div className="text-sm font-semibold" style={{ color: "oklch(0.63 0.24 25)" }}>High Severity</div>
-        <div className="h-8 w-28">
-          <ResponsiveContainer><AreaChart data={chart}>
-            <Area dataKey="v" stroke="oklch(0.63 0.24 25)" strokeWidth={2} fill="oklch(0.63 0.24 25 / 0.15)" />
-          </AreaChart></ResponsiveContainer>
-        </div>
+
+      <div className="mt-4 h-10 w-full">
+        <ResponsiveContainer><AreaChart data={chart}>
+          <Area dataKey="v" stroke="oklch(0.63 0.24 25)" strokeWidth={2} fill="oklch(0.63 0.24 25 / 0.15)" />
+        </AreaChart></ResponsiveContainer>
       </div>
     </div>
   );
