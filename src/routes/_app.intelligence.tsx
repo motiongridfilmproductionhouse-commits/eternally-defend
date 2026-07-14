@@ -279,7 +279,7 @@ function JobDetail({ jobId, onClose }: { jobId: string; onClose: () => void }) {
 
   return (
     <PageCard title={`ANALYSIS · ${job.target_name}`} sub={job.source_ref}
-      action={<button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">Close</button>}>
+      actions={<button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">Close</button>}>
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
         <div>
           <div className="mb-3">
