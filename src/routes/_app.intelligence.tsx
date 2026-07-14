@@ -268,6 +268,32 @@ function StageAvailabilityList({ providers }: { providers?: any }) {
   );
 }
 
+function CustomerCapabilitiesList() {
+  const rows: [string, string][] = [
+    ["Content Analysis", "Title, description & transcript review"],
+    ["Claim Extraction", "Isolate factual assertions"],
+    ["Evidence Collection", "Preserve sources & timestamps"],
+    ["Risk Assessment", "Multi-axis threat scoring"],
+    ["Reputation Analysis", "Impact on protected identity"],
+    ["Timeline Reconstruction", "Exact moments of concern"],
+    ["Creator Intelligence", "Channel history & credibility"],
+    ["Fact Verification", "Cross-check against public record"],
+  ];
+  return (
+    <ul className="space-y-1.5">
+      {rows.map(([label, sub]) => (
+        <li key={label} className="flex items-start gap-2">
+          <CheckCircle2 className="size-3.5 text-emerald-500 mt-0.5" />
+          <div>
+            <div className="text-xs">{label}</div>
+            <div className="text-[10px] text-muted-foreground">{sub}</div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function StatusPill({ status }: { status: string }) {
   const tone: Record<string, string> = {
     running: "bg-blue-500/10 text-blue-600",
@@ -289,6 +315,10 @@ function JobDetail({ jobId, onClose }: { jobId: string; onClose: () => void }) {
       return s === "running" || s === "pending" ? 1500 : false;
     },
   });
+  const { isAdmin } = useUserRoles();
+  const tabs = (isAdmin
+    ? (["overview", "timeline", "facts", "translations", "technical"] as const)
+    : (["overview", "timeline", "facts", "translations"] as const));
   const [tab, setTab] = useState<"overview" | "timeline" | "facts" | "translations" | "technical">("overview");
 
   if (q.isLoading) return <PageCard title="ANALYSIS"><div className="text-sm text-muted-foreground">Loading…</div></PageCard>;
@@ -318,7 +348,7 @@ function JobDetail({ jobId, onClose }: { jobId: string; onClose: () => void }) {
 
         <div>
           <div className="flex gap-1 text-xs mb-3 border-b border-border">
-            {(["overview", "timeline", "facts", "translations", "technical"] as const).map((t) => (
+            {tabs.map((t) => (
               <button key={t} onClick={() => setTab(t)}
                 className={`px-3 py-2 -mb-px border-b-2 capitalize ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
                 {t === "facts" ? "Fact checks" : t}
@@ -331,7 +361,7 @@ function JobDetail({ jobId, onClose }: { jobId: string; onClose: () => void }) {
           {tab === "timeline" && <TimelineTab findings={d.findings} videoId={job.source_metadata?.video_id} />}
           {tab === "facts" && <FactsTab claims={d.claims} checks={d.checks} />}
           {tab === "translations" && <TranslationsTab translations={d.translations} />}
-          {tab === "technical" && <TechnicalTab job={job} errors={d.errors} />}
+          {tab === "technical" && isAdmin && <TechnicalTab job={job} errors={d.errors} />}
         </div>
       </div>
     </PageCard>
