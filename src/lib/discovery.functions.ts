@@ -184,8 +184,9 @@ export const discoverAccounts = createServerFn({ method: "POST" })
         countryOrgMatch: false,
       });
 
-      const status = score.confidence >= 75 ? "likely_official" : "discovered";
-      return {
+      const status: Database["public"]["Enums"]["discovered_account_status"] =
+        score.confidence >= 75 ? "likely_official" : "discovered";
+      const row: Database["public"]["Tables"]["discovered_accounts"]["Insert"] = {
         user_id: context.userId,
         subject_id: subject.id,
         platform: seed.platform,
@@ -196,15 +197,17 @@ export const discoverAccounts = createServerFn({ method: "POST" })
         bio,
         follower_count: profile?.followerCount ?? null,
         platform_verified: !!profile?.platformVerified,
-        website_links: profile?.websiteLinks ?? [],
-        cross_links: [],
+        website_links: (profile?.websiteLinks ?? []) as unknown as Database["public"]["Tables"]["discovered_accounts"]["Insert"]["website_links"],
+        cross_links: [] as unknown as Database["public"]["Tables"]["discovered_accounts"]["Insert"]["cross_links"],
         confidence: score.confidence,
-        match_signals: score.signals as unknown as Database["public"]["Tables"]["discovered_accounts"]["Insert"]["match_signals"],
+        match_signals: JSON.parse(JSON.stringify(score.signals)) as Database["public"]["Tables"]["discovered_accounts"]["Insert"]["match_signals"],
         match_reasons: score.reasons,
         discovery_source: seed.source,
         status,
       };
+      return row;
     });
+
 
     // Upsert on the unique dedupe index; ignore duplicates silently.
     if (rowsToInsert.length) {
