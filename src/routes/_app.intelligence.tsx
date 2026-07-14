@@ -15,31 +15,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ReviewWorkspace, ReviewStatusBadge } from "@/components/mm/ReviewWorkspace";
 import { ScoreExplainer } from "@/components/mm/ScoreExplainer";
+import { useUserRoles } from "@/hooks/use-user-roles";
 import {
   Activity, AlertTriangle, CheckCircle2, Clock, ExternalLink, FileVideo,
   Flag, Languages, PlayCircle, Search, ShieldAlert, Sparkles, XCircle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/intelligence")({
-  head: () => ({ meta: [{ title: "Multimedia Intelligence Engine — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Evidence Analysis Center — Eterna AI" }] }),
   component: IntelligenceEnginePage,
 });
 
 const STAGE_LABELS: Record<string, string> = {
-  prepare: "Preparing media",
-  upload: "Uploading authorized file",
-  video_intelligence: "Video analysis (scenes/objects/logos)",
-  audio_extract: "Extracting audio",
-  transcription: "Generating transcript",
-  mention_detect: "Finding exact mentions",
+  prepare: "Preparing evidence",
+  upload: "Ingesting authorized content",
+  video_intelligence: "Visual scene analysis",
+  audio_extract: "Extracting audio track",
+  transcription: "Reconstructing transcript",
+  mention_detect: "Detecting exact mentions",
   vision_frames: "Analyzing visual frames",
   translation: "Translating content",
   claim_extract: "Extracting claims",
-  fact_check: "Searching fact checks",
+  fact_check: "Cross-checking public record",
   risk_score: "Calculating threat scores",
-  save_evidence: "Saving evidence",
-  threat_radar: "Sending to Threat Radar",
-  finalize: "Finalizing report",
+  save_evidence: "Preserving evidence",
+  threat_radar: "Escalating to Threat Radar",
+  finalize: "Compiling report",
 };
 
 function useSession() {
@@ -58,7 +59,7 @@ function IntelligenceEnginePage() {
   if (!ready) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
   if (!session) {
     return (
-      <PageCard title="MULTIMEDIA INTELLIGENCE ENGINE" sub="Sign in to run analyses and view saved evidence">
+      <PageCard title="EVIDENCE ANALYSIS CENTER" sub="Sign in to run analyses and view saved evidence">
         <div className="py-10 text-center">
           <ShieldAlert className="size-10 mx-auto text-muted-foreground" />
           <p className="mt-3 text-sm">Analyses are private to your account. Sign in to continue.</p>
@@ -74,11 +75,12 @@ function IntelligenceEnginePage() {
 
 function SignedInEngine() {
   const qc = useQueryClient();
+  const { isAdmin } = useUserRoles();
   const startFn = useServerFn(startMultimediaAnalysis);
   const providerFn = useServerFn(getProviderStatus);
   const listFn = useServerFn(listMultimediaJobs);
 
-  const providers = useQuery({ queryKey: ["mm-providers"], queryFn: () => providerFn() });
+  const providers = useQuery({ queryKey: ["mm-providers"], queryFn: () => providerFn(), enabled: isAdmin });
   const jobs = useQuery({ queryKey: ["mm-jobs"], queryFn: () => listFn() });
 
   const [source, setSource] = useState<"youtube" | "url" | "text">("youtube");
@@ -147,9 +149,10 @@ function SignedInEngine() {
 
   return (
     <div className="space-y-5">
-      <ProviderStatusBar providers={providers.data} />
+      {isAdmin && <ProviderStatusBar providers={providers.data} />}
 
       <PageCard title="RUN NEW ANALYSIS" sub="Analyze YouTube videos, URLs, or pasted content">
+
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
           <div className="space-y-4">
             <div className="flex gap-2 text-xs">
@@ -182,10 +185,11 @@ function SignedInEngine() {
           </div>
           <div className="bg-muted/30 border border-border rounded-xl p-4 text-xs space-y-2">
             <div className="font-semibold text-sm mb-1">What runs automatically</div>
-            <StageAvailabilityList providers={providers.data} />
+            {isAdmin ? <StageAvailabilityList providers={providers.data} /> : <CustomerCapabilitiesList />}
           </div>
         </div>
       </PageCard>
+
 
       {activeJobId && <JobDetail jobId={activeJobId} onClose={() => setActiveJobId(null)} />}
       {activeJobId && (
@@ -264,6 +268,32 @@ function StageAvailabilityList({ providers }: { providers?: any }) {
   );
 }
 
+function CustomerCapabilitiesList() {
+  const rows: [string, string][] = [
+    ["Content Analysis", "Title, description & transcript review"],
+    ["Claim Extraction", "Isolate factual assertions"],
+    ["Evidence Collection", "Preserve sources & timestamps"],
+    ["Risk Assessment", "Multi-axis threat scoring"],
+    ["Reputation Analysis", "Impact on protected identity"],
+    ["Timeline Reconstruction", "Exact moments of concern"],
+    ["Creator Intelligence", "Channel history & credibility"],
+    ["Fact Verification", "Cross-check against public record"],
+  ];
+  return (
+    <ul className="space-y-1.5">
+      {rows.map(([label, sub]) => (
+        <li key={label} className="flex items-start gap-2">
+          <CheckCircle2 className="size-3.5 text-emerald-500 mt-0.5" />
+          <div>
+            <div className="text-xs">{label}</div>
+            <div className="text-[10px] text-muted-foreground">{sub}</div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function StatusPill({ status }: { status: string }) {
   const tone: Record<string, string> = {
     running: "bg-blue-500/10 text-blue-600",
@@ -285,6 +315,10 @@ function JobDetail({ jobId, onClose }: { jobId: string; onClose: () => void }) {
       return s === "running" || s === "pending" ? 1500 : false;
     },
   });
+  const { isAdmin } = useUserRoles();
+  const tabs = (isAdmin
+    ? (["overview", "timeline", "facts", "translations", "technical"] as const)
+    : (["overview", "timeline", "facts", "translations"] as const));
   const [tab, setTab] = useState<"overview" | "timeline" | "facts" | "translations" | "technical">("overview");
 
   if (q.isLoading) return <PageCard title="ANALYSIS"><div className="text-sm text-muted-foreground">Loading…</div></PageCard>;
@@ -314,7 +348,7 @@ function JobDetail({ jobId, onClose }: { jobId: string; onClose: () => void }) {
 
         <div>
           <div className="flex gap-1 text-xs mb-3 border-b border-border">
-            {(["overview", "timeline", "facts", "translations", "technical"] as const).map((t) => (
+            {tabs.map((t) => (
               <button key={t} onClick={() => setTab(t)}
                 className={`px-3 py-2 -mb-px border-b-2 capitalize ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
                 {t === "facts" ? "Fact checks" : t}
@@ -327,7 +361,7 @@ function JobDetail({ jobId, onClose }: { jobId: string; onClose: () => void }) {
           {tab === "timeline" && <TimelineTab findings={d.findings} videoId={job.source_metadata?.video_id} />}
           {tab === "facts" && <FactsTab claims={d.claims} checks={d.checks} />}
           {tab === "translations" && <TranslationsTab translations={d.translations} />}
-          {tab === "technical" && <TechnicalTab job={job} errors={d.errors} />}
+          {tab === "technical" && isAdmin && <TechnicalTab job={job} errors={d.errors} />}
         </div>
       </div>
     </PageCard>
@@ -379,7 +413,6 @@ function OverviewTab({ job, findings, errors }: any) {
         <div className="font-medium mb-2">Summary</div>
         <p className="text-muted-foreground">
           {findings.length} timeline finding{findings.length === 1 ? "" : "s"} across metadata and existing fact-check reviews.
-          {errors.length > 0 && ` ${errors.length} provider${errors.length === 1 ? "" : "s"} unavailable — see Technical tab.`}
         </p>
       </div>
     </div>

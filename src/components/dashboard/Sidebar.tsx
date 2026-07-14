@@ -15,7 +15,7 @@ const mainNav: NavItem[] = [
   { icon: Search, label: "Web Scan", to: "/scan", badge: "LIVE" },
   { icon: Radar, label: "Threat Radar", to: "/threat-radar" },
   { icon: Activity, label: "Threat Monitoring", to: "/threat-monitoring" },
-  { icon: Brain, label: "Intelligence", to: "/intelligence" },
+  { icon: Brain, label: "Evidence Analysis Center", to: "/intelligence" },
   { icon: Network, label: "Narrative Intelligence", to: "/narrative-intelligence" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
   { icon: Briefcase, label: "Cases", to: "/cases", badge: "2" },
