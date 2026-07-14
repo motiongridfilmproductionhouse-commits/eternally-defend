@@ -536,9 +536,9 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
   const [moments, setMoments] = useState(false);
   const [imgOk, setImgOk] = useState(true);
   const [loaded, setLoaded] = useState(false);
-  const rawThumb = h.media?.thumbnailHi || h.media?.thumbnail;
-  const thumb = viaProxy(rawThumb);
   const isYouTube = h.source === "YouTube";
+  const rawThumb = h.media?.thumbnailHi || h.media?.thumbnail || (isYouTube ? youtubeThumbFromUrl(h.url, "maxres") : null);
+  const thumb = viaProxy(rawThumb) ?? (isYouTube ? youtubeThumbFromUrl(h.url, "hq") : null);
   const displayTitle = cleanTitle(h.title, readableFromSlug(h.url));
   const host = hostFromUrl(h.url);
   const favicon = faviconUrl(h.url);
@@ -1091,7 +1091,8 @@ function PersistedResults({
         {displayItems.map((h) => {
           const linkUrl = h.permalink ?? h.canonical_url ?? "#";
           const displayTitle = cleanTitle(h.title, readableFromSlug(linkUrl));
-          const thumb = viaProxy(h.thumbnail_url);
+          const isYT = h.source === "YouTube";
+          const thumb = viaProxy(h.thumbnail_url) ?? (isYT ? youtubeThumbFromUrl(linkUrl, "hq") : null);
           const host = hostFromUrl(linkUrl);
           const favicon = faviconUrl(linkUrl);
           return (
