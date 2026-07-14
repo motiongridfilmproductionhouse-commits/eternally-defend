@@ -565,7 +565,12 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
             alt={displayTitle}
             loading="lazy"
             onLoad={() => setLoaded(true)}
-            onError={() => setImgOk(false)}
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              const hq = isYouTube ? youtubeThumbFromUrl(h.url, "hq") : null;
+              if (hq && img.src !== hq) { img.src = hq; return; }
+              setImgOk(false);
+            }}
             className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"}`}
           />
           {/* bottom gradient */}
