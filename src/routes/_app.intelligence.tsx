@@ -75,11 +75,12 @@ function IntelligenceEnginePage() {
 
 function SignedInEngine() {
   const qc = useQueryClient();
+  const { isAdmin } = useUserRoles();
   const startFn = useServerFn(startMultimediaAnalysis);
   const providerFn = useServerFn(getProviderStatus);
   const listFn = useServerFn(listMultimediaJobs);
 
-  const providers = useQuery({ queryKey: ["mm-providers"], queryFn: () => providerFn() });
+  const providers = useQuery({ queryKey: ["mm-providers"], queryFn: () => providerFn(), enabled: isAdmin });
   const jobs = useQuery({ queryKey: ["mm-jobs"], queryFn: () => listFn() });
 
   const [source, setSource] = useState<"youtube" | "url" | "text">("youtube");
@@ -148,9 +149,10 @@ function SignedInEngine() {
 
   return (
     <div className="space-y-5">
-      <ProviderStatusBar providers={providers.data} />
+      {isAdmin && <ProviderStatusBar providers={providers.data} />}
 
       <PageCard title="RUN NEW ANALYSIS" sub="Analyze YouTube videos, URLs, or pasted content">
+
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
           <div className="space-y-4">
             <div className="flex gap-2 text-xs">
@@ -183,10 +185,11 @@ function SignedInEngine() {
           </div>
           <div className="bg-muted/30 border border-border rounded-xl p-4 text-xs space-y-2">
             <div className="font-semibold text-sm mb-1">What runs automatically</div>
-            <StageAvailabilityList providers={providers.data} />
+            {isAdmin ? <StageAvailabilityList providers={providers.data} /> : <CustomerCapabilitiesList />}
           </div>
         </div>
       </PageCard>
+
 
       {activeJobId && <JobDetail jobId={activeJobId} onClose={() => setActiveJobId(null)} />}
       {activeJobId && (
