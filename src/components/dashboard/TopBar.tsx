@@ -47,9 +47,9 @@ export function TopBar() {
   const status = protectionStatus(statusQuery.data);
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-4 px-8 py-5 glass-surface border-b border-border">
+    <header className="sticky top-0 z-30 flex items-center gap-4 px-8 py-5 bg-background/80 backdrop-blur border-b border-border">
       <div className="min-w-0">
-        <h1 className="text-[22px] font-display font-bold tracking-tight text-white">{meta.title}</h1>
+        <h1 className="text-[22px] font-display font-bold tracking-tight text-foreground">{meta.title}</h1>
         <p className="text-xs text-muted-foreground mt-0.5">{meta.sub}</p>
       </div>
 
@@ -58,7 +58,7 @@ export function TopBar() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             placeholder="Search assets, threats, cases, URLs…"
-            className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-input/60 border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition"
+            className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition shadow-sm"
           />
         </div>
       </div>
@@ -66,8 +66,8 @@ export function TopBar() {
       <StatusPill status={status} loading={statusQuery.isLoading} />
       <AuthorizationBadge />
 
-      <button className="relative size-10 grid place-items-center rounded-xl border border-border bg-card/60 hover:bg-card hover:border-primary/30 transition">
-        <Bell className="size-4" />
+      <button className="relative size-10 grid place-items-center rounded-xl border border-border bg-card hover:border-primary/30 transition shadow-sm">
+        <Bell className="size-4 text-foreground/70" />
         {status.level === "critical" && (
           <span className="absolute top-2 right-2 size-2 rounded-full bg-danger animate-pulse" />
         )}
