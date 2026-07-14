@@ -76,7 +76,7 @@ export const persistScan = createServerFn({ method: "POST" })
         user_id: userId,
         name: data.name ?? data.query,
         query: data.query,
-        params: data.params ?? {},
+        params: (data.params ?? {}) as never,
         sources: data.sources ?? [],
         period: data.period,
         status: data.status ?? "completed",
