@@ -13,11 +13,15 @@ import { persistScan, listScanHits } from "@/lib/scans.functions";
 import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
 import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
 import { cleanTitle, viaProxy, faviconUrl, hostFromUrl, readableFromSlug, youtubeThumbFromUrl, youtubeIdFromUrl } from "@/lib/media-utils";
+import { PersistedResultCard, type HitLike } from "@/components/scan/PersistedResultCard";
+import { DetailDrawer } from "@/components/scan/DetailDrawer";
+import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
+import { listEvidenceStatus, hideScanHit } from "@/lib/scan-actions.functions";
 import {
   Radar, Search, ExternalLink, ShieldPlus, Loader2, Sparkles, TrendingUp,
   AlertTriangle, Flame, Users, Eye, Copyright, Gavel, Bell, FileDown,
   Youtube, MessageCircle, Newspaper, Instagram, Facebook, Globe, ShieldAlert,
-  BadgeCheck, ScanSearch, Clock, Database,
+  BadgeCheck, ScanSearch, Clock, Database, EyeOff, X as XIcon,
 } from "lucide-react";
 
 
