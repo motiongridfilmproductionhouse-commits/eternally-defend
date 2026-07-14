@@ -993,7 +993,8 @@ function PersistedResults({
               </div>
             </div>
           </a>
-        ))}
+          );
+        })}
       </div>
 
       {items.length === 0 && !loading && (
