@@ -1,80 +1,102 @@
-## Scope
+# Eterna Command Center — Home Dashboard Redesign
 
-Two connected changes: reorder the scan UI around YouTube-first, and produce real evidence/authorization/platform-complaint packages from the enforcement flow.
+Rebuild `src/routes/_app.index.tsx` as a dense, SOC-style Reputation Intelligence Command Center. Reference image is used only for aesthetic/layout language (glass cards, deep navy, electric-blue accents, radial gauges, dense grid). No feature or copy is lifted from it.
 
-## 1. Scan page — YouTube-first result architecture
+All widgets are backed by **real project data** via existing server functions (`getDashboardStats`, `listPersistedResults`, `scan_hits`, `enforcement_requests`, `timestamp_findings`, `multimedia_analysis_jobs`, `client_profiles`). No mock data, no fabricated scores. Empty states render explicitly when data is absent.
 
-File: `src/routes/_app.scan.tsx` (+ helpers in `src/components/scan/`).
+## Layout (12-col grid, high density)
 
-**Default result order & platform priority.** Reorder `SOURCES` and `DEFAULT_SOURCES` to: YouTube, News, Reddit, X, Instagram, TikTok, Facebook, Blogs, Forums, Reviews, Archive. Ranking weights (used for the overall relevance sort inside each scan): YouTube 40, News 20, Reddit 15, X 10, Instagram 5, TikTok 5, others 5.
+```text
+┌───────────────────────────────────────────────────────────────┐
+│ TopIntelBar: Reputation | Threat Lvl | Protection | Scans |   │
+│              Assets | Critical | Pending | Enforcement        │
+├───────────────────┬──────────────────────┬────────────────────┤
+│ ReputationRadar   │  DangerMeter         │ ExecutiveSummary   │
+│ (SVG polar, 4     │  (large gauge:       │ (AI status +       │
+│  zones, threat    │   SAFE/WATCH/DANGER  │  key risks +       │
+│  nodes)           │   /CRITICAL)         │  recommended       │
+│                   ├──────────────────────┤  actions)          │
+│                   │ ThreatIntelOverview  │                    │
+│                   │ (6 KPIs + trends)    │                    │
+├───────────────────┴──────────────────────┴────────────────────┤
+│ LiveScannerPanel (6 scanners) │ ThreatHeatmap (platform grid) │
+├───────────────────────────────┴────────────────────────────────┤
+│ ReputationSpoilerDetector (9 categories, counts + reach)      │
+├────────────────────────────────────────────────────────────────┤
+│ TrendingThreats (top 10) │ AssetExposurePanel (most targeted) │
+├──────────────────────────┴─────────────────────────────────────┤
+│ ScanTimeline (event stream)  │  ActionCenter (6 quick actions)│
+└────────────────────────────────────────────────────────────────┘
+```
 
-**Platform tabs.** Replace the current Web/News/YouTube/Reddit/X/Instagram tabs with: `YouTube | News | Reddit | X | Instagram | TikTok | Facebook | Blogs | Forums | Reviews | Archive`. Auto-select YouTube after every successful scan (`useEffect` on new `report.query`).
+## Data wiring (all real, no mocks)
 
-**New "LATEST YOUTUBE THREATS" section** (renders above the tabs when there are YouTube hits). Client-computed buckets over `report.hits` filtered to `source === "YouTube"`:
+- **TopIntelBar** — new server fn `getCommandCenterStats` aggregates:
+  - Reputation score (avg `reputation_score` from `multimedia_analysis_jobs`)
+  - Threat level (derived from severity distribution in `scan_hits` + `timestamp_findings`)
+  - Protection status (from `client_profiles.authorization_level`)
+  - Active scans (`scans` where `status='running'`)
+  - Protected assets (count from `assets`)
+  - Critical cases, pending actions, open enforcement (`enforcement_requests` grouped by status)
+- **ReputationRadar** — plots up to 40 nodes from `scan_hits` on polar coords: angle = platform bucket, radius = `100 - threat_score` (critical → center). Colored by severity. Hover → tooltip; click → opens `DetailDrawer` (reuse existing).
+- **DangerMeter** — composite score: weighted blend of avg threat_score, total reach, velocity (new findings last 24h vs prior 24h), sentiment. Renders zone label.
+- **ThreatIntelOverview** — 6 KPI tiles with 7-day sparkline + trend arrow computed from `scan_hits.first_seen_at` buckets.
+- **LiveScannerPanel** — reads from `scans` table filtered by kind; shows current query, progress, per-source status. Reuses existing scan progress fields.
+- **ThreatHeatmap** — matrix of platforms × severity from `scan_hits` grouped by `source`.
+- **ReputationSpoilerDetector** — categorises `scan_hits` by `risk_type`/tags into the 9 categories (defamation, false claims, fake news, leaks, exposed, scandals, harassment, hate, manipulation). Uncategorised → "Other" (hidden if 0).
+- **TrendingThreats** — top 10 `scan_hits` by `threat_score * log(reach+1)` in last 14d, with View / Evidence / Take Action buttons wired to existing `DetailDrawer` + `ActionDrawer`.
+- **AssetExposurePanel** — joins `assets` with `scan_hits` where hit mentions asset (existing linkage).
+- **ScanTimeline** — merged event stream from `scan_hits.first_seen_at`, `enforcement_evidence.created_at`, `enforcement_requests.created_at`/`.submitted_at`.
+- **ActionCenter** — 6 buttons routing to existing pages (`/scan`, `/reports`, `/enforcement`, `/cases`, evidence flow, etc.). No new backend.
+- **ExecutiveSummary** — deterministic template built from the aggregated numbers above (no LLM call this pass). Clearly labeled as auto-generated.
 
-- Critical Videos — `severity === "Critical"`
-- High-Risk Videos — `threatScore >= 70`
-- Fastest Growing — top by `media.growthPerDay`
-- Most Viewed — top by `media.views`
-- New Since Last Scan — `published` within last 24h OR flagged by `persistSummary.newHits` intersect
-- Videos With Exact Evidence — hits that have any `timestamp_findings` (fetched via a small `useQuery` keyed by `scanId`)
-- Videos Eligible For Takedown — `recommendedAction` contains "takedown" OR `severity in {Critical, High}` AND has evidence
+## Visual system
 
-Each bucket is a horizontal row of `YouTubeThreatCard`s, collapsible, empty state per bucket.
+- Deep navy backdrop layer added via CSS token `--surface-command` on the dashboard root only (does not affect other pages).
+- Glass cards: `bg-background/60 backdrop-blur-md border-white/5` with subtle inner glow via existing `--shadow-elegant`.
+- Electric blue + cyan accents from existing brand tokens; severity uses existing severity colors (green/amber/orange/red) so it stays consistent with the rest of the app.
+- Framer-motion fade/slide on card mount, radar node pulse for critical severity only.
+- Fully responsive: collapses to single column below `lg`.
 
-**"OTHER SOURCES" section** below: horizontal chip strip that jumps to the corresponding tab.
+## Notifications (from screenshot)
 
-**YouTubeThreatCard fields** (new `src/components/scan/YouTubeThreatCard.tsx`): thumbnail, title, channel name + link, video link, published date, views/likes/comments, subscriber count (from `video_creator_profiles` lookup), threat score, reputation impact (derived from severity+reach), exact timestamp badge (first `timestamp_findings.start_seconds` if present) with "Watch exact moment" button (opens `youtu.be/{id}?t={sec}`), "Creator Profile" link → `/intelligence?channel=…`, "Add Evidence" (opens existing ExactMomentsPanel), "Generate PDF" (calls new evidence-package server fn — see §3), "Add To Case" (existing case picker).
+Wire the Notifications page inbox to real data:
+- Source: `enforcement_requests` state changes, new `scan_hits` at severity ≥ high, new `assets`, weekly digest row from `reports`.
+- Add `getNotifications` server fn + hook it into existing `_app.notifications.tsx` page and the topbar bell badge count.
+- Real timestamps ("2m ago" via `date-fns`), severity chips (Critical/Success/Info/Digest) driven by event type.
+- Empty state when no notifications.
 
-## 2. Enforcement submission — three real packages per finding
+## Files
 
-Route: `src/routes/_app.enforcement.tsx` + new `src/lib/enforcement-packages.functions.ts` (server fns) + `src/lib/enforcement/pdf.server.ts`.
+New:
+- `src/lib/command-center.functions.ts` — `getCommandCenterStats`, `getNotifications`
+- `src/components/command/TopIntelBar.tsx`
+- `src/components/command/ReputationRadar.tsx`
+- `src/components/command/DangerMeter.tsx`
+- `src/components/command/ThreatIntelOverview.tsx`
+- `src/components/command/LiveScannerPanel.tsx`
+- `src/components/command/ThreatHeatmap.tsx`
+- `src/components/command/ReputationSpoilerDetector.tsx`
+- `src/components/command/TrendingThreats.tsx`
+- `src/components/command/AssetExposurePanel.tsx`
+- `src/components/command/ScanTimeline.tsx`
+- `src/components/command/ActionCenter.tsx`
+- `src/components/command/ExecutiveSummary.tsx`
 
-When the user selects findings and clicks a method (DMCA / Platform Report / Legal Notice), we now build **three artifacts per finding** and attach them to the enforcement_request row:
+Edited:
+- `src/routes/_app.index.tsx` — replace current composition with command-center layout
+- `src/routes/_app.notifications.tsx` — wire to real `getNotifications`
+- `src/components/dashboard/TopBar.tsx` — bell badge from notifications count
+- `src/styles.css` — add `--surface-command`, radar/heatmap tokens
+- Fix hydration warning on `/auth` (root cause of current runtime error) as a small side-fix
 
-1. **Evidence Package (PDF)** — finding metadata, canonical URL, thumbnail, transcript/timestamp findings from `timestamp_findings` + `video_timestamp_findings`, extracted claims from `extracted_claims`, fact-check matches from `fact_check_matches`, OCR/frames from `evidence_frames` and `ocr_results`. Cryptographic content hash + captured-at timestamp on cover page.
-2. **Authorization Package (PDF)** — pulls the user's `authorization_records` (signed authorization + ID) from `authorization-vault` storage bucket, plus `client_profiles` identity block, output as a bundled cover PDF referencing the vault file.
-3. **Platform Complaint Package (PDF + JSON)** — platform-specific template (YouTube copyright/harassment, X impersonation, Reddit content policy, Meta IP report, TikTok IP/impersonation, generic DMCA for blogs/forums). Fills fields from the evidence package. JSON sidecar contains platform-ready form field values for later automation.
+## Out of scope (call out for follow-up)
 
-**Storage.** New Supabase bucket `enforcement-packages` (private). PDFs stored under `{user_id}/{enforcement_request_id}/{kind}.pdf`. Signed URLs returned to the client.
+- LLM-generated executive summary (deterministic template used first)
+- Radar drag/pan interactivity beyond hover + click
+- Push notifications / realtime subscriptions (polling only, 30s)
+- Full write-back for "Take Action" from radar nodes (reuses existing ActionDrawer flow)
 
-**DB additions** (single migration):
+## Confirm before build
 
-- Add columns to `enforcement_requests`: `evidence_pdf_path text`, `authorization_pdf_path text`, `platform_complaint_pdf_path text`, `platform_complaint_json jsonb`, `package_generated_at timestamptz`, `package_hash text`.
-- New table `enforcement_package_items` (request_id, kind, storage_path, hash, generated_at) for full audit trail if a request gets regenerated.
-
-**Server fn `generateEnforcementPackages`** (auth-protected): input `{ scanHitIds: string[], method: Method }`. For each hit: fetch related evidence, render 3 PDFs (using `pdf-lib`, which works on Cloudflare Workers), upload to storage, insert one `enforcement_requests` row per hit with the three storage paths, insert `enforcement_package_items` rows.
-
-**Enforcement UI changes.** After clicking a method:
-
-- Progress toast "Building packages 3/12…".
-- Table row for each new request shows three download buttons (Evidence / Authorization / Complaint) via signed URLs.
-- If the user has no `authorization_records` on file, block submission with a link to `/onboarding` to upload authorization.
-
-## 3. Scan-side "Generate PDF" button
-
-The per-video "Generate PDF" action on `YouTubeThreatCard` calls the same `generateEnforcementPackages` fn with `method: "DMCA"` and one hit id, but with a `dryRun: true` flag that only produces the Evidence Package (no enforcement row created). Returns signed URL, opens in a new tab.
-
-## Technical notes
-
-- PDF rendering: `pdf-lib` (Worker-compatible, no native deps). Add via `bun add pdf-lib`.
-- Content hashing: `crypto.subtle.digest("SHA-256", …)` in the server fn.
-- All new tables/columns get GRANTs + RLS scoped to `auth.uid()`.
-- No mock data; if a hit has no evidence rows, the Evidence PDF lists "No corroborating evidence yet" and the enforcement action is still allowed but flagged in the platform complaint JSON as `evidence_strength: "weak"`.
-- No changes to scan API (`/api/scan`); reordering is client-side only. Ranking weights applied during executive summary + bucket sort.
-
-## Out of scope (call out to user)
-
-- Actually transmitting the complaint to YouTube/X/Meta/etc. (no official API for most). Packages are download-ready; automated submission would require per-platform automation later.
-- Rebuilding onboarding upload UX; we reuse the existing authorization vault.
-
-## Files to touch
-
-- `src/routes/_app.scan.tsx` — reorder tabs, add YOUTUBE THREATS section, wire Generate PDF.
-- `src/components/scan/YouTubeThreatCard.tsx` — new.
-- `src/components/scan/LatestYoutubeThreats.tsx` — new (bucket layout).
-- `src/routes/_app.enforcement.tsx` — package generation flow, download buttons, authorization gate.
-- `src/lib/enforcement-packages.functions.ts` — new server fn.
-- `src/lib/enforcement/pdf.server.ts` — new PDF builders (evidence / authorization / complaint).
-- `src/lib/enforcement/platform-templates.server.ts` — new per-platform complaint templates.
-- Migration: new columns, new table, new storage bucket, RLS.
+Confirm and I'll build it in one pass. If you want the LLM-written Executive Summary in this same turn, say so and I'll add a `generateExecutiveSummary` server fn using the Lovable AI Gateway.
