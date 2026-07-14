@@ -19,6 +19,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppScanRouteImport } from './routes/_app.scan'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppRemovalsRouteImport } from './routes/_app.removals'
+import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppNarrativeIntelligenceRouteImport } from './routes/_app.narrative-intelligence'
 import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
@@ -76,6 +77,11 @@ const AppReportsRoute = AppReportsRouteImport.update({
 const AppRemovalsRoute = AppRemovalsRouteImport.update({
   id: '/removals',
   path: '/removals',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/intelligence': typeof AppIntelligenceRoute
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
+  '/onboarding': typeof AppOnboardingRoute
   '/removals': typeof AppRemovalsRoute
   '/reports': typeof AppReportsRoute
   '/scan': typeof AppScanRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/intelligence': typeof AppIntelligenceRoute
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
+  '/onboarding': typeof AppOnboardingRoute
   '/removals': typeof AppRemovalsRoute
   '/reports': typeof AppReportsRoute
   '/scan': typeof AppScanRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/_app/intelligence': typeof AppIntelligenceRoute
   '/_app/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/removals': typeof AppRemovalsRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/scan': typeof AppScanRoute
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/intelligence'
     | '/narrative-intelligence'
     | '/notifications'
+    | '/onboarding'
     | '/removals'
     | '/reports'
     | '/scan'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/intelligence'
     | '/narrative-intelligence'
     | '/notifications'
+    | '/onboarding'
     | '/removals'
     | '/reports'
     | '/scan'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/_app/intelligence'
     | '/_app/narrative-intelligence'
     | '/_app/notifications'
+    | '/_app/onboarding'
     | '/_app/removals'
     | '/_app/reports'
     | '/_app/scan'
@@ -332,6 +344,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRemovalsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
@@ -405,6 +424,7 @@ interface AppRouteChildren {
   AppIntelligenceRoute: typeof AppIntelligenceRoute
   AppNarrativeIntelligenceRoute: typeof AppNarrativeIntelligenceRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppOnboardingRoute: typeof AppOnboardingRoute
   AppRemovalsRoute: typeof AppRemovalsRoute
   AppReportsRoute: typeof AppReportsRoute
   AppScanRoute: typeof AppScanRoute
@@ -423,6 +443,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIntelligenceRoute: AppIntelligenceRoute,
   AppNarrativeIntelligenceRoute: AppNarrativeIntelligenceRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppOnboardingRoute: AppOnboardingRoute,
   AppRemovalsRoute: AppRemovalsRoute,
   AppReportsRoute: AppReportsRoute,
   AppScanRoute: AppScanRoute,

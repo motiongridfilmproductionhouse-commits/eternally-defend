@@ -49,18 +49,19 @@ export const upsertClientProfile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { ip, ua } = clientMeta();
-    const patch: Json = {
-      ...data.patch,
+    const patch = {
+      ...(data.patch as Record<string, never>),
       user_id: userId,
       onboarding_step: data.step,
       onboarding_version: ONBOARDING_VERSION,
-    };
+    } as never;
     const { data: row, error } = await supabase
       .from("client_profiles")
       .upsert(patch, { onConflict: "user_id" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
     await supabase.from("onboarding_audit_log").insert({
       user_id: userId,
       event_type: "step_saved",
