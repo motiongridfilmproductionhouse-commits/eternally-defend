@@ -16,6 +16,8 @@ import {
   addProtectedAsset, getOnboardingState, recordEnterpriseDocument, removeEnterpriseDocument,
   removeProtectedAsset, submitAuthorization, upsertClientProfile,
 } from "@/lib/onboarding.functions";
+import { refreshOnboardingYouTubeAsset, type YTChannel } from "@/lib/youtube.functions";
+import { YouTubeChannelPicker, YouTubeAssetCard } from "@/components/onboarding/YouTubeChannelPicker";
 import {
   AUTHORIZATION_LEVELS, CLIENT_TYPES, CONSENT_KEYS, CONSENT_TEXTS, ENTERPRISE_CLIENT_TYPES,
 } from "@/lib/onboarding-versions";
