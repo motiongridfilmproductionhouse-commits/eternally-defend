@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ReviewWorkspace, ReviewStatusBadge } from "@/components/mm/ReviewWorkspace";
 import { ScoreExplainer } from "@/components/mm/ScoreExplainer";
+import { useUserRoles } from "@/hooks/use-user-roles";
 import {
   Activity, AlertTriangle, CheckCircle2, Clock, ExternalLink, FileVideo,
   Flag, Languages, PlayCircle, Search, ShieldAlert, Sparkles, XCircle,
