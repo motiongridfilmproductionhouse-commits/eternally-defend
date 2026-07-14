@@ -570,6 +570,163 @@ export type Database = {
         }
         Relationships: []
       }
+      dmca_submissions: {
+        Row: {
+          copyright_basis: string
+          created_at: string
+          enforcement_request_id: string | null
+          external_reference: string | null
+          id: string
+          package_path: string | null
+          platform: string
+          protected_asset_id: string | null
+          response: Json | null
+          submission_status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          copyright_basis: string
+          created_at?: string
+          enforcement_request_id?: string | null
+          external_reference?: string | null
+          id?: string
+          package_path?: string | null
+          platform: string
+          protected_asset_id?: string | null
+          response?: Json | null
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          copyright_basis?: string
+          created_at?: string
+          enforcement_request_id?: string | null
+          external_reference?: string | null
+          id?: string
+          package_path?: string | null
+          platform?: string
+          protected_asset_id?: string | null
+          response?: Json | null
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dmca_submissions_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dmca_submissions_protected_asset_id_fkey"
+            columns: ["protected_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enforcement_actions: {
+        Row: {
+          action_type: string
+          actor_id: string
+          created_at: string
+          enforcement_request_id: string | null
+          evidence_ids: string[]
+          generated_files: Json
+          id: string
+          payload: Json
+          platform: string | null
+          submission_status: string | null
+          target_url: string | null
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          actor_id: string
+          created_at?: string
+          enforcement_request_id?: string | null
+          evidence_ids?: string[]
+          generated_files?: Json
+          id?: string
+          payload?: Json
+          platform?: string | null
+          submission_status?: string | null
+          target_url?: string | null
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          actor_id?: string
+          created_at?: string
+          enforcement_request_id?: string | null
+          evidence_ids?: string[]
+          generated_files?: Json
+          id?: string
+          payload?: Json
+          platform?: string | null
+          submission_status?: string | null
+          target_url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_actions_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enforcement_evidence: {
+        Row: {
+          created_at: string
+          enforcement_request_id: string
+          evidence_type: string
+          id: string
+          payload: Json
+          reference: string | null
+          storage_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enforcement_request_id: string
+          evidence_type: string
+          id?: string
+          payload?: Json
+          reference?: string | null
+          storage_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enforcement_request_id?: string
+          evidence_type?: string
+          id?: string
+          payload?: Json
+          reference?: string | null
+          storage_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_evidence_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enforcement_package_items: {
         Row: {
           bytes: number | null
@@ -632,6 +789,7 @@ export type Database = {
           response_notes: string | null
           scan_hit_id: string | null
           status: string
+          submission_status: string
           submitted_at: string | null
           target_url: string | null
           updated_at: string
@@ -654,6 +812,7 @@ export type Database = {
           response_notes?: string | null
           scan_hit_id?: string | null
           status?: string
+          submission_status?: string
           submitted_at?: string | null
           target_url?: string | null
           updated_at?: string
@@ -676,6 +835,7 @@ export type Database = {
           response_notes?: string | null
           scan_hit_id?: string | null
           status?: string
+          submission_status?: string
           submitted_at?: string | null
           target_url?: string | null
           updated_at?: string
@@ -684,6 +844,101 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "enforcement_requests_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enforcement_status_history: {
+        Row: {
+          created_at: string
+          enforcement_request_id: string
+          from_status: string | null
+          id: string
+          note: string | null
+          to_status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enforcement_request_id: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enforcement_request_id?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_status_history_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enforcement_targets: {
+        Row: {
+          channel_name: string | null
+          channel_url: string | null
+          created_at: string
+          enforcement_request_id: string
+          id: string
+          metadata: Json
+          platform: string
+          scan_hit_id: string | null
+          target_url: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_name?: string | null
+          channel_url?: string | null
+          created_at?: string
+          enforcement_request_id: string
+          id?: string
+          metadata?: Json
+          platform: string
+          scan_hit_id?: string | null
+          target_url: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_name?: string | null
+          channel_url?: string | null
+          created_at?: string
+          enforcement_request_id?: string
+          id?: string
+          metadata?: Json
+          platform?: string
+          scan_hit_id?: string | null
+          target_url?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_targets_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enforcement_targets_scan_hit_id_fkey"
             columns: ["scan_hit_id"]
             isOneToOne: false
             referencedRelation: "scan_hits"
@@ -979,6 +1234,66 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      legal_cases: {
+        Row: {
+          attorney: string | null
+          case_id: string | null
+          case_number: string | null
+          created_at: string
+          enforcement_request_id: string | null
+          filed_at: string | null
+          id: string
+          notes: string | null
+          package_path: string | null
+          stage: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attorney?: string | null
+          case_id?: string | null
+          case_number?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          filed_at?: string | null
+          id?: string
+          notes?: string | null
+          package_path?: string | null
+          stage?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attorney?: string | null
+          case_id?: string | null
+          case_number?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          filed_at?: string | null
+          id?: string
+          notes?: string | null
+          package_path?: string | null
+          stage?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_cases_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_cases_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       multimedia_analysis_jobs: {
         Row: {
@@ -1337,6 +1652,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      platform_reports: {
+        Row: {
+          created_at: string
+          enforcement_request_id: string | null
+          external_reference: string | null
+          form_payload: Json
+          id: string
+          platform: string
+          report_type: string
+          response: Json | null
+          submission_status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enforcement_request_id?: string | null
+          external_reference?: string | null
+          form_payload?: Json
+          id?: string
+          platform: string
+          report_type: string
+          response?: Json | null
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enforcement_request_id?: string | null
+          external_reference?: string | null
+          form_payload?: Json
+          id?: string
+          platform?: string
+          report_type?: string
+          response?: Json | null
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_reports_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       protected_asset_matches: {
         Row: {
