@@ -165,7 +165,7 @@ export const persistScan = createServerFn({ method: "POST" })
           .select(`id, source, ${col}, times_detected`)
           .eq("user_id", userId)
           .in(col, ids);
-        const existingKey = new Set((existing ?? []).map(e => `${(e as { source: string }).source}::${(e as Record<string, string>)[col]}`));
+        const existingKey = new Set(((existing ?? []) as Array<Record<string, unknown>>).map(e => `${String(e.source)}::${String(e[col])}`));
 
         // Increment times_detected on matches; mark as not-new
         const now = new Date().toISOString();
@@ -183,8 +183,9 @@ export const persistScan = createServerFn({ method: "POST" })
         });
         const { error } = await supabase
           .from("scan_hits")
-          .upsert(upsertRows, { onConflict: `user_id,source,${col}`, ignoreDuplicates: false });
+          .upsert(upsertRows as never, { onConflict: `user_id,source,${col}`, ignoreDuplicates: false });
         if (error) throw new Error(`scan_hits upsert failed: ${error.message}`);
+
       }
     }
 
