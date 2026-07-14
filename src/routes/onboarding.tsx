@@ -27,15 +27,12 @@ function OnboardingPage() {
   const fetchState = useServerFn(getOnboardingState);
   const q = useQuery({ queryKey: ["onboarding-state"], queryFn: () => fetchState() });
 
-  return (
-    <div className="min-h-screen bg-background">
-      {q.isLoading || !q.data ? (
-        <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm gap-2">
-          <Loader2 className="size-4 animate-spin" /> Loading onboarding…
-        </div>
-      ) : (
-        <OnboardingWizard initial={q.data} />
-      )}
-    </div>
-  );
+  if (q.isLoading || !q.data) {
+    return (
+      <div className="fixed inset-0 grid place-items-center bg-[#050A18] text-white/70 text-sm gap-2">
+        <div className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Loading onboarding…</div>
+      </div>
+    );
+  }
+  return <OnboardingWizard initial={q.data} />;
 }

@@ -21,7 +21,7 @@ import { YouTubeChannelPicker, YouTubeAssetCard } from "@/components/onboarding/
 import {
   AUTHORIZATION_LEVELS, CLIENT_TYPES, CONSENT_KEYS, CONSENT_TEXTS, ENTERPRISE_CLIENT_TYPES,
 } from "@/lib/onboarding-versions";
-import { CheckCircle2, Trash2, Upload, ChevronRight, ChevronLeft, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Trash2, Upload, ChevronRight, ChevronLeft, ShieldCheck, User, Star, Video, Building2, Building, Users, Check } from "lucide-react";
 
 type State = Awaited<ReturnType<typeof getOnboardingState>>;
 
@@ -75,187 +75,257 @@ export function OnboardingWizard({ initial }: { initial: State }) {
   const visibleSteps = STEP_TITLES.slice(0, totalSteps);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-[1400px] p-4 md:p-8">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] rounded-3xl overflow-hidden shadow-2xl bg-white border border-slate-200">
-          {/* LEFT — brand / steps panel */}
-          <aside className="relative overflow-hidden text-white p-8 md:p-12 flex flex-col justify-between min-h-[560px]"
-            style={{ background: "linear-gradient(135deg,#0b1f4d 0%,#153a8a 45%,#2563eb 100%)" }}>
-            <div className="absolute -right-24 -top-24 size-[420px] rounded-full border border-white/10" />
-            <div className="absolute -right-40 -bottom-40 size-[520px] rounded-full border border-white/10" />
-            <div className="absolute right-10 top-32 size-40 rounded-full bg-white/5 blur-2xl" />
+    <div className="fixed inset-0 flex flex-col lg:flex-row bg-[#050A18] overflow-hidden">
+      {/* LEFT PANEL */}
+      <aside className="relative lg:w-[45%] md:w-[40%] w-full lg:h-full h-auto overflow-hidden text-white flex flex-col justify-between p-8 md:p-12 lg:p-14"
+        style={{
+          background:
+            "linear-gradient(135deg, #071B4A 0%, #1037A6 55%, #1E5EFF 100%)",
+        }}
+      >
+        {/* radial glows */}
+        <div className="pointer-events-none absolute -top-40 -left-32 size-[520px] rounded-full opacity-60"
+          style={{ background: "radial-gradient(closest-side, rgba(96,165,250,0.35), transparent 70%)" }} />
+        <div className="pointer-events-none absolute -bottom-52 -right-40 size-[620px] rounded-full opacity-50"
+          style={{ background: "radial-gradient(closest-side, rgba(59,130,246,0.35), transparent 70%)" }} />
+        <div className="pointer-events-none absolute right-16 top-40 size-56 rounded-full bg-cyan-400/10 blur-3xl animate-pulse" />
 
-            <div className="relative z-10 flex items-center gap-2">
-              <div className="size-9 rounded-xl grid place-items-center bg-white/15 backdrop-blur">
-                <ShieldCheck className="size-5" />
-              </div>
-              <div className="font-display text-lg font-bold tracking-tight">Eterna AI</div>
-            </div>
+        {/* cyber grid */}
+        <div className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+            backgroundSize: "44px 44px",
+            maskImage: "radial-gradient(ellipse at 30% 40%, black 40%, transparent 80%)",
+          }}
+        />
 
-            <div className="relative z-10 space-y-8">
-              <div>
-                <div className="text-[11px] font-semibold tracking-[0.24em] text-white/70">ONBOARDING</div>
-                <h1 className="mt-2 font-display text-3xl md:text-4xl font-bold leading-tight">
-                  Protect what's<br />yours, effortlessly.
-                </h1>
-                <p className="mt-3 text-sm text-white/80 max-w-sm">
-                  Complete these steps to authorize monitoring, enforcement, and takedowns across every platform.
-                </p>
-              </div>
+        {/* orbital rings */}
+        <div className="pointer-events-none absolute -right-32 top-1/2 -translate-y-1/2 size-[520px] rounded-full border border-white/10" />
+        <div className="pointer-events-none absolute -right-16 top-1/2 -translate-y-1/2 size-[360px] rounded-full border border-white/15" />
+        <div className="pointer-events-none absolute right-24 top-1/2 -translate-y-1/2 size-[220px] rounded-full border border-white/10" />
 
-              <ol className="space-y-2 max-w-sm">
-                {visibleSteps.map((title, i) => {
-                  const done = i < stepIndex;
-                  const current = i === stepIndex;
-                  return (
-                    <li
-                      key={title}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-colors ${
-                        current
-                          ? "bg-white text-slate-900 border-white shadow-lg"
-                          : done
-                          ? "bg-white/10 text-white border-white/20"
-                          : "bg-white/5 text-white/70 border-white/10"
-                      }`}
-                    >
-                      <span
-                        className={`size-6 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${
-                          current ? "bg-slate-900 text-white" : done ? "bg-emerald-400 text-slate-900" : "bg-white/15 text-white"
-                        }`}
-                      >
-                        {done ? <CheckCircle2 className="size-3.5" /> : i + 1}
-                      </span>
-                      <span className="text-sm font-medium truncate">{title}</span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
+        {/* glass overlay */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/[0.06] to-transparent" />
 
-            <div className="relative z-10 text-xs text-white/60">
-              Step {step} of {totalSteps} · Your data is encrypted and legally binding.
-            </div>
-          </aside>
-
-          {/* RIGHT — form panel */}
-          <section className="p-6 md:p-10 lg:p-14 bg-white">
-            <div className="max-w-xl mx-auto">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold tracking-[0.22em] text-blue-700">
-                    STEP {step} / {totalSteps}
-                  </div>
-                  <h2 className="mt-1 font-display text-2xl font-bold text-slate-900">{STEP_TITLES[step - 1]}</h2>
-                </div>
-                {profile?.onboarding_completed && (
-                  <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">Completed</Badge>
-                )}
-              </div>
-
-              <div className="[&_.card]:shadow-none">
-                {step === 1 && <Step1 profile={profile} onNext={(v, acct) => savePatch({ client_type: v, account_type: acct }, 2)} saving={saving} />}
-                {step === 2 && <Step2 profile={profile} isEnterprise={isEnterprise} onBack={goBack} onNext={(patch) => savePatch(patch, 3)} saving={saving} />}
-                {step === 3 && (
-                  <Step3
-                    assets={state.assets}
-                    onAdd={async (a) => { await addAsset({ data: a }); await reload(); }}
-                    onRemove={async (id) => { await rmAsset({ data: { id } }); await reload(); }}
-                    onRefresh={async () => { await reload(); }}
-                    onBack={goBack}
-                    onNext={() => savePatch({}, 4)}
-                    saving={saving}
-                  />
-                )}
-                {step === 4 && <Step4 onBack={goBack} onNext={(consents) => { void consents; savePatch({}, 5); }} saving={saving} />}
-                {step === 5 && (
-                  <Step5
-                    initial={profile?.authorization_level ?? "monitoring_enforcement"}
-                    onBack={goBack}
-                    onNext={(level) => savePatch({ authorization_level: level }, 6)}
-                    saving={saving}
-                  />
-                )}
-                {step === 6 && (
-                  <Step6
-                    profile={profile}
-                    consentsPreset={CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>)}
-                    onBack={goBack}
-                    onSubmit={async ({ legal_name, signature_text }) => {
-                      setSaving(true);
-                      try {
-                        await submit({
-                          data: {
-                            consents: CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>),
-                            authorization_level: (profile?.authorization_level ?? "monitoring_enforcement") as any,
-                            legal_name, signature_text,
-                          },
-                        });
-                        await reload();
-                        await qc.invalidateQueries();
-                        setStep(7);
-                        toast.success("Authorization signed and stored.");
-                      } catch (e: any) {
-                        toast.error(e?.message ?? "Signing failed");
-                      } finally { setSaving(false); }
-                    }}
-                    saving={saving}
-                  />
-                )}
-                {step === 7 && (
-                  <Step7
-                    state={state}
-                    onBack={goBack}
-                    onFinish={() => {
-                      if (isEnterprise) setStep(8);
-                      else navigate({ to: "/" });
-                    }}
-                    finishLabel={isEnterprise ? "Continue to enterprise documents" : "Enter dashboard"}
-                  />
-                )}
-                {step === 8 && isEnterprise && (
-                  <Step8
-                    documents={state.documents}
-                    userId={profile?.user_id ?? ""}
-                    onUploaded={async ({ doc_type, filename, storage_path, mime, size_bytes }) => {
-                      await recDoc({ data: { doc_type, filename, storage_path, mime, size_bytes } });
-                      await reload();
-                    }}
-                    onRemove={async (id) => { await rmDoc({ data: { id } }); await reload(); }}
-                    onBack={goBack}
-                    onFinish={() => navigate({ to: "/" })}
-                  />
-                )}
-              </div>
-            </div>
-          </section>
+        {/* LOGO */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="size-10 rounded-xl grid place-items-center bg-white/15 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(30,94,255,0.35)]">
+            <ShieldCheck className="size-5" />
+          </div>
+          <div className="font-display text-xl font-bold tracking-tight">Eterna AI</div>
         </div>
-      </div>
+
+        {/* HERO + TIMELINE */}
+        <div className="relative z-10 space-y-10 my-10 lg:my-0">
+          <div>
+            <div className="text-[11px] font-semibold tracking-[0.28em] text-white/60">ENTERPRISE ONBOARDING</div>
+            <h1 className="mt-3 font-display text-4xl md:text-5xl font-bold leading-[1.05] tracking-tight">
+              Protect What's Yours.
+            </h1>
+            <p className="mt-3 text-lg font-medium text-white/90">Monitor. Detect. Enforce.</p>
+            <p className="mt-4 text-sm leading-relaxed text-white/70 max-w-md">
+              Protect your reputation, content, identity, brand assets and digital presence across
+              YouTube, Instagram, TikTok, X, Reddit, websites and news platforms.
+            </p>
+          </div>
+
+          <ol className="relative space-y-1 max-w-sm">
+            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-white/15" />
+            {visibleSteps.map((title, i) => {
+              const done = i < stepIndex;
+              const current = i === stepIndex;
+              return (
+                <li key={title} className="relative flex items-center gap-4 py-2.5">
+                  <span
+                    className={`relative z-10 size-8 rounded-full grid place-items-center text-[11px] font-bold shrink-0 border transition-all duration-300 ${
+                      current
+                        ? "bg-white text-[#0b1f4d] border-white shadow-[0_0_0_6px_rgba(255,255,255,0.12),0_0_24px_rgba(96,165,250,0.6)]"
+                        : done
+                        ? "bg-emerald-400 text-[#0b1f4d] border-emerald-300"
+                        : "bg-white/5 text-white/70 border-white/20 backdrop-blur"
+                    }`}
+                  >
+                    {done ? <Check className="size-4" /> : i + 1}
+                  </span>
+                  <span className={`text-sm font-medium truncate transition-colors ${
+                    current ? "text-white" : done ? "text-white/80" : "text-white/50"
+                  }`}>{title}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+
+        <div className="relative z-10 text-xs text-white/50">
+          Step {step} of {totalSteps} · Encrypted &amp; legally binding
+        </div>
+      </aside>
+
+      {/* RIGHT PANEL */}
+      <section className="dark relative flex-1 lg:h-full h-auto overflow-y-auto bg-[#050A18] text-white">
+        {/* subtle backdrop accents */}
+        <div className="pointer-events-none absolute top-0 right-0 size-[500px] rounded-full opacity-30"
+          style={{ background: "radial-gradient(closest-side, rgba(59,130,246,0.15), transparent 70%)" }} />
+        <div className="pointer-events-none absolute bottom-0 left-0 size-[400px] rounded-full opacity-20"
+          style={{ background: "radial-gradient(closest-side, rgba(37,99,235,0.15), transparent 70%)" }} />
+
+        <div className="relative min-h-full flex flex-col justify-center px-6 md:px-12 lg:px-16 py-14 md:py-20">
+          <div className="mx-auto w-full max-w-[700px]">
+            <div className="mb-8 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-semibold tracking-[0.24em] text-blue-400">
+                  STEP {step} / {totalSteps}
+                </div>
+                <h2 className="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{STEP_TITLES[step - 1]}</h2>
+              </div>
+              {profile?.onboarding_completed && (
+                <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">Completed</Badge>
+              )}
+            </div>
+
+            <div key={step} className="animate-fade-in">
+              {step === 1 && <Step1 profile={profile} onNext={(v, acct) => savePatch({ client_type: v, account_type: acct }, 2)} saving={saving} />}
+              {step === 2 && <Step2 profile={profile} isEnterprise={isEnterprise} onBack={goBack} onNext={(patch) => savePatch(patch, 3)} saving={saving} />}
+              {step === 3 && (
+                <Step3
+                  assets={state.assets}
+                  onAdd={async (a) => { await addAsset({ data: a }); await reload(); }}
+                  onRemove={async (id) => { await rmAsset({ data: { id } }); await reload(); }}
+                  onRefresh={async () => { await reload(); }}
+                  onBack={goBack}
+                  onNext={() => savePatch({}, 4)}
+                  saving={saving}
+                />
+              )}
+              {step === 4 && <Step4 onBack={goBack} onNext={(consents) => { void consents; savePatch({}, 5); }} saving={saving} />}
+              {step === 5 && (
+                <Step5
+                  initial={profile?.authorization_level ?? "monitoring_enforcement"}
+                  onBack={goBack}
+                  onNext={(level) => savePatch({ authorization_level: level }, 6)}
+                  saving={saving}
+                />
+              )}
+              {step === 6 && (
+                <Step6
+                  profile={profile}
+                  consentsPreset={CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>)}
+                  onBack={goBack}
+                  onSubmit={async ({ legal_name, signature_text }) => {
+                    setSaving(true);
+                    try {
+                      await submit({
+                        data: {
+                          consents: CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>),
+                          authorization_level: (profile?.authorization_level ?? "monitoring_enforcement") as any,
+                          legal_name, signature_text,
+                        },
+                      });
+                      await reload();
+                      await qc.invalidateQueries();
+                      setStep(7);
+                      toast.success("Authorization signed and stored.");
+                    } catch (e: any) {
+                      toast.error(e?.message ?? "Signing failed");
+                    } finally { setSaving(false); }
+                  }}
+                  saving={saving}
+                />
+              )}
+              {step === 7 && (
+                <Step7
+                  state={state}
+                  onBack={goBack}
+                  onFinish={() => {
+                    if (isEnterprise) setStep(8);
+                    else navigate({ to: "/" });
+                  }}
+                  finishLabel={isEnterprise ? "Continue to enterprise documents" : "Enter dashboard"}
+                />
+              )}
+              {step === 8 && isEnterprise && (
+                <Step8
+                  documents={state.documents}
+                  userId={profile?.user_id ?? ""}
+                  onUploaded={async ({ doc_type, filename, storage_path, mime, size_bytes }) => {
+                    await recDoc({ data: { doc_type, filename, storage_path, mime, size_bytes } });
+                    await reload();
+                  }}
+                  onRemove={async (id) => { await rmDoc({ data: { id } }); await reload(); }}
+                  onBack={goBack}
+                  onFinish={() => navigate({ to: "/" })}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
 
 
 /* ---------- Step 1 ---------- */
+const CLIENT_TYPE_META: Record<string, { icon: any; description: string }> = {
+  individual: { icon: User, description: "Protect your personal identity and reputation" },
+  celebrity: { icon: Star, description: "Monitor media, impersonation and public narratives" },
+  creator: { icon: Video, description: "Protect content, channels and sponsorship reputation" },
+  business: { icon: Building2, description: "Protect company reputation and brand assets" },
+  corporate: { icon: Building, description: "Advanced monitoring and enforcement" },
+  agency: { icon: Users, description: "Manage protection for multiple clients" },
+};
+
 function Step1({ profile, onNext, saving }: { profile: State["profile"]; onNext: (v: string, acct: string) => void; saving: boolean }) {
   const [value, setValue] = useState<string>(profile?.client_type ?? "");
   const acct = useMemo(() => CLIENT_TYPES.find((c) => c.value === value)?.account ?? "personal", [value]);
   return (
-    <Card>
-      <CardHeader><CardTitle>Who are we protecting?</CardTitle><CardDescription>Select the option that best describes you or the entity you represent.</CardDescription></CardHeader>
-      <CardContent className="space-y-4">
-        <RadioGroup value={value} onValueChange={setValue} className="grid gap-2">
-          {CLIENT_TYPES.map((t) => (
-            <label key={t.value} className={`flex items-center gap-3 border rounded-xl p-3 cursor-pointer ${value === t.value ? "border-primary bg-primary/5" : "border-border hover:bg-accent/40"}`}>
-              <RadioGroupItem value={t.value} id={t.value} />
-              <span className="font-medium text-sm">{t.label}</span>
-            </label>
-          ))}
-        </RadioGroup>
-        <div className="flex justify-end">
-          <Button disabled={!value || saving} onClick={() => onNext(value, acct)}>Continue <ChevronRight className="size-4 ml-1" /></Button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-8">
+      <p className="text-sm text-white/60 -mt-4">Select the option that best describes you or the entity you represent.</p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {CLIENT_TYPES.map((t) => {
+          const meta = CLIENT_TYPE_META[t.value];
+          const Icon = meta?.icon ?? User;
+          const active = value === t.value;
+          return (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => setValue(t.value)}
+              className={`group relative text-left rounded-2xl p-5 border transition-all duration-300 overflow-hidden ${
+                active
+                  ? "border-blue-400/60 bg-gradient-to-br from-blue-500/15 to-blue-500/5 shadow-[0_0_0_1px_rgba(59,130,246,0.4),0_10px_40px_-10px_rgba(59,130,246,0.6)]"
+                  : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.06]"
+              }`}
+            >
+              {active && (
+                <span className="absolute top-3 right-3 size-6 rounded-full bg-blue-500 grid place-items-center shadow-lg shadow-blue-500/50">
+                  <Check className="size-3.5 text-white" />
+                </span>
+              )}
+              <div className={`size-11 rounded-xl grid place-items-center mb-4 border transition-colors ${
+                active ? "bg-blue-500/20 border-blue-400/40 text-blue-300" : "bg-white/5 border-white/10 text-white/70 group-hover:text-white"
+              }`}>
+                <Icon className="size-5" />
+              </div>
+              <div className="font-semibold text-[15px] text-white">{t.label}</div>
+              <div className="text-xs text-white/55 mt-1 leading-relaxed pr-6">
+                {meta?.description}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex justify-end pt-2">
+        <Button
+          disabled={!value || saving}
+          onClick={() => onNext(value, acct)}
+          className="h-11 px-6 bg-gradient-to-r from-[#2563EB] to-[#3B82F6] hover:opacity-90 shadow-lg shadow-blue-500/25 border-0"
+        >
+          Continue <ChevronRight className="size-4 ml-1" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
