@@ -667,15 +667,39 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
           <span className="font-semibold text-foreground">Recommended:</span> {h.recommendedAction}
         </div>
 
+        {isYouTube && h.media?.videoId && (
+          <div className="flex items-center justify-between gap-2 -mt-1">
+            <ExactMomentsSummaryChips videoId={h.media.videoId} />
+            {analysisPending && <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1"><Loader2 className="size-3 animate-spin" /> analyzing…</span>}
+          </div>
+        )}
+
         {/* Actions */}
-        <div className="flex items-center gap-2 mt-auto">
+        <div className="flex items-center gap-2 mt-auto flex-wrap">
           <button onClick={() => setOpen((v) => !v)} className="flex-1 text-xs px-3 py-2 rounded-lg border border-border hover:bg-accent inline-flex items-center justify-center gap-1">
             <ExternalLink className="size-3.5" /> {open ? "Hide" : "View"} evidence
           </button>
+          {isYouTube && h.media?.videoId && (
+            <button onClick={() => setMoments((v) => !v)} className="flex-1 text-xs px-3 py-2 rounded-lg border border-border hover:bg-accent inline-flex items-center justify-center gap-1">
+              <Clock className="size-3.5" /> {moments ? "Hide" : "View"} exact moments
+            </button>
+          )}
           <button onClick={onPromote} disabled={added} className="flex-1 text-xs px-3 py-2 rounded-lg text-white font-semibold inline-flex items-center justify-center gap-1 disabled:opacity-60" style={{ background: "var(--gradient-brand)" }}>
             <ShieldPlus className="size-3.5" /> {added ? "Added" : "Send to Threat Radar"}
           </button>
         </div>
+
+        {isYouTube && h.media?.videoId && moments && (
+          <ExactMomentsPanel
+            videoId={h.media.videoId}
+            scanId={scanId}
+            channelId={h.media.channelId ?? null}
+            channelName={h.media.channelTitle ?? null}
+            channelUrl={h.media.channelUrl ?? null}
+            entityTerms={entityTerms}
+            analysisPending={analysisPending}
+          />
+        )}
 
         {/* Evidence panel */}
         {open && (
