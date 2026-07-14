@@ -99,7 +99,7 @@ export function StatsRow() {
         return (
           <div key={s.label} className="card-surface p-5 flex flex-col">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl grid place-items-center" style={{ background: `color-mix(in oklab, ${s.color} 12%, white)`, color: s.color }}>
+              <div className="size-10 rounded-xl grid place-items-center" style={{ background: `color-mix(in oklab, ${s.color} 20%, transparent)`, color: s.color }}>
                 <Icon className="size-5" />
               </div>
               <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">{s.label}</div>
