@@ -473,7 +473,7 @@ const SORT_LABEL: Record<SortKey, string> = {
 const SEV_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 const PAGE_SIZE = 24;
 
-function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: React.ReactNode; hits: ScanHit[]; onPromote: (h: ScanHit) => void; added: Set<string> }) {
+function Bucket({ title, icon, hits, onPromote, added, entityTerms, scanId, analyzingVideos }: { title: string; icon: React.ReactNode; hits: ScanHit[]; onPromote: (h: ScanHit) => void; added: Set<string>; entityTerms: string[]; scanId: string | null; analyzingVideos: Set<string> }) {
   const [sort, setSort] = useState<SortKey>("newest");
   const [sentimentFilter, setSentimentFilter] = useState<string>("All");
   const [visible, setVisible] = useState(PAGE_SIZE);
