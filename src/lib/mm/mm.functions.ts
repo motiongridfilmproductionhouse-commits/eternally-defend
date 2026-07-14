@@ -102,6 +102,23 @@ export const startMultimediaAnalysis = createServerFn({ method: "POST" })
       jobId = inserted.id as string;
     }
 
+    // Quota + cost pre-check
+    const { checkAndReserveQuota, estimateCostCents } = await import("./quota.server");
+    const est = estimateCostCents({
+      durationSeconds: data.source_metadata?.duration_seconds,
+      hasVideoIntel: false, hasStt: false, hasVision: false,
+      claimsToCheck: 8,
+    });
+    const quota = await checkAndReserveQuota(supabase, userId, est);
+    if (!quota.allowed) {
+      await supabase.from("multimedia_analysis_jobs")
+        .update({ status: "failed", canceled_reason: quota.reason, progress_message: quota.reason, finished_at: new Date().toISOString() })
+        .eq("id", jobId);
+      throw new Error(quota.reason ?? "Quota exceeded");
+    }
+    await supabase.from("multimedia_analysis_jobs")
+      .update({ estimated_cost_cents: est }).eq("id", jobId);
+
     // Fire background runner (best-effort — Cloudflare Workers don't guarantee
     // background execution after response, so we await it here for correctness).
     await runPipeline(supabase, userId, jobId, data);
@@ -438,3 +455,18 @@ export const getProviderStatus = createServerFn({ method: "GET" })
       bucket: cfg.bucket,
     };
   });
+
+export const fetchYoutubeMetadataFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ url: z.string().min(3).max(500) }).parse(raw))
+  .handler(async ({ data }) => {
+    const { extractYoutubeId, fetchYoutubeMetadata } = await import("./youtube.server");
+    const id = extractYoutubeId(data.url);
+    if (!id) throw new Error("Not a valid YouTube URL");
+    const res = await fetchYoutubeMetadata(id);
+    if (res.status !== "ok" || !res.data) {
+      return { ok: false as const, reason: res.reason ?? "metadata unavailable", video_id: id };
+    }
+    return { ok: true as const, metadata: res.data };
+  });
+

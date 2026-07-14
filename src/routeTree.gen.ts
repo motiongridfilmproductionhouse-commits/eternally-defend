@@ -24,6 +24,7 @@ import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
+import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -99,6 +100,12 @@ const AppAssetsRoute = AppAssetsRouteImport.update({
   path: '/assets',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminMultimediaHealthRoute =
+  AppAdminMultimediaHealthRouteImport.update({
+    id: '/admin/multimedia-health',
+    path: '/admin/multimedia-health',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
   '/api/scan': typeof ApiScanRoute
+  '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -131,6 +139,7 @@ export interface FileRoutesByTo {
   '/threat-radar': typeof AppThreatRadarRoute
   '/api/scan': typeof ApiScanRoute
   '/': typeof AppIndexRoute
+  '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -149,6 +158,7 @@ export interface FileRoutesById {
   '/_app/threat-radar': typeof AppThreatRadarRoute
   '/api/scan': typeof ApiScanRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/threat-monitoring'
     | '/threat-radar'
     | '/api/scan'
+    | '/admin/multimedia-health'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/threat-radar'
     | '/api/scan'
     | '/'
+    | '/admin/multimedia-health'
   id:
     | '__root__'
     | '/_app'
@@ -200,6 +212,7 @@ export interface FileRouteTypes {
     | '/_app/threat-radar'
     | '/api/scan'
     | '/_app/'
+    | '/_app/admin/multimedia-health'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -315,6 +328,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/multimedia-health': {
+      id: '/_app/admin/multimedia-health'
+      path: '/admin/multimedia-health'
+      fullPath: '/admin/multimedia-health'
+      preLoaderRoute: typeof AppAdminMultimediaHealthRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -331,6 +351,7 @@ interface AppRouteChildren {
   AppThreatMonitoringRoute: typeof AppThreatMonitoringRoute
   AppThreatRadarRoute: typeof AppThreatRadarRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminMultimediaHealthRoute: typeof AppAdminMultimediaHealthRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -346,6 +367,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppThreatMonitoringRoute: AppThreatMonitoringRoute,
   AppThreatRadarRoute: AppThreatRadarRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAdminMultimediaHealthRoute: AppAdminMultimediaHealthRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

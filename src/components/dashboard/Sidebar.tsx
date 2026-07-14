@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Package, Radar, Activity, Brain, ShieldCheck,
-  Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search,
+  Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search, HeartPulse,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -17,6 +17,7 @@ const nav: NavItem[] = [
   { icon: Briefcase, label: "Case Management", to: "/cases", badge: "2" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
   { icon: FileText, label: "Reports", to: "/reports" },
+  { icon: HeartPulse, label: "MM Health", to: "/admin/multimedia-health", badge: "ADMIN" },
 ];
 
 export function Sidebar() {
@@ -79,17 +80,6 @@ export function Sidebar() {
             </div>
           </div>
           <Link to="/settings" className="mt-3 w-full block text-center text-sm py-2 rounded-lg bg-white/70 hover:bg-white transition font-medium">View Plan</Link>
-        </div>
-
-        <div className="rounded-2xl p-3 flex items-center gap-3 border border-sidebar-border bg-white/60">
-          <div className="relative">
-            <Bell className="size-5" />
-            <span className="absolute -top-1 -right-1 size-3 rounded-full" style={{ background: "var(--gradient-brand)" }} />
-          </div>
-          <div className="flex-1">
-            <div className="text-sm font-semibold">Ask Eterna</div>
-            <div className="text-xs text-muted-foreground">AI Assistant</div>
-          </div>
         </div>
 
         <Link to="/notifications" className={`rounded-2xl p-3 flex items-center gap-3 border border-sidebar-border ${pathname === "/notifications" ? "bg-sidebar-accent" : "bg-white/60"}`}>
