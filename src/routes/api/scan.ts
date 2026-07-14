@@ -617,10 +617,13 @@ export const Route = createFileRoute("/api/scan")({
           const body = await request.json().catch(() => ({}));
           const query = String(body?.query ?? "").trim().slice(0, 200);
           if (!query) return Response.json({ ok: false, error: "Query required" }, { status: 400 });
-          const aliases: string[] = Array.isArray(body?.aliases) ? body.aliases.map((a: unknown) => String(a).slice(0, 60)).slice(0, 6) : [];
+          const aliases: string[] = Array.isArray(body?.aliases) ? body.aliases.map((a: unknown) => String(a).slice(0, 60)).slice(0, 20) : [];
+          const variations: string[] = Array.isArray(body?.variations) ? body.variations.map((a: unknown) => String(a).slice(0, 60)).slice(0, 40) : [];
+          const hashtags: string[] = Array.isArray(body?.hashtags) ? body.hashtags.map((a: unknown) => String(a).slice(0, 40)).slice(0, 20) : [];
+          const handles: string[] = Array.isArray(body?.handles) ? body.handles.map((a: unknown) => String(a).slice(0, 40)).slice(0, 20) : [];
           const period = String(body?.period ?? "Last 30 days").slice(0, 60);
           const limit = Math.min(Math.max(Number(body?.limit ?? 8), 1), 10);
-          const ytTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 100), 25), 250);
+          const ytTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 500), 25), 800);
           const sources: SourceKey[] = Array.isArray(body?.sources) && body.sources.length
             ? (body.sources.filter((s: unknown): s is SourceKey => typeof s === "string" && s in SOURCE_QUERY))
             : ["web", "reddit", "youtube", "news", "x", "reviews"];
@@ -630,7 +633,9 @@ export const Route = createFileRoute("/api/scan")({
 
           const [fc, yt] = await Promise.all([
             runFirecrawl(fullQuery, sources, limit),
-            wantYouTube ? runYouTube(query, aliases, ytTarget) : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined }),
+            wantYouTube
+              ? runYouTube(query, aliases, variations, hashtags, handles, ytTarget, period)
+              : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined, queriesUsed: 0 }),
           ]);
 
           const runs = [...fc.runs];
