@@ -77,8 +77,7 @@ function CasesPage() {
 
   const statusMut = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: CaseStatus }) => {
-      const patch: Record<string, unknown> = { status };
-      if (status === "Closed") patch.closed_at = new Date().toISOString();
+      const patch = { status, closed_at: status === "Closed" ? new Date().toISOString() : null };
       const { error } = await supabase.from("cases").update(patch).eq("id", id);
       if (error) throw error;
     },
