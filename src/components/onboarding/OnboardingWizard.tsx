@@ -73,7 +73,7 @@ export function OnboardingWizard({ initial }: { initial: State }) {
   const visibleSteps = STEP_TITLES.slice(0, totalSteps);
 
   return (
-    <div className="-mx-6 -mb-6 min-h-[calc(100vh-4rem)] bg-slate-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-[1400px] p-4 md:p-8">
         <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] rounded-3xl overflow-hidden shadow-2xl bg-white border border-slate-200">
           {/* LEFT — brand / steps panel */}
