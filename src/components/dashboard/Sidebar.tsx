@@ -38,6 +38,20 @@ const adminSystemNav: NavItem[] = [
 export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAdmin } = useUserRoles();
+  const { session } = useSession();
+  const navigate = useNavigate();
+
+  const user = session?.user;
+  const meta = (user?.user_metadata ?? {}) as { full_name?: string; name?: string; avatar_url?: string };
+  const displayName = meta.full_name || meta.name || user?.email?.split("@")[0] || "Account";
+  const email = user?.email ?? "";
+  const initial = (displayName[0] ?? "?").toUpperCase();
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth" });
+  };
+
 
   return (
     <aside className="w-64 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col p-4 gap-4">
