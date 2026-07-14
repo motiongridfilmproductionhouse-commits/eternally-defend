@@ -1088,7 +1088,7 @@ function PersistedResults({
       {error && <div className="text-xs text-red-600 mb-2">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {items.map((h) => {
+        {displayItems.map((h) => {
           const linkUrl = h.permalink ?? h.canonical_url ?? "#";
           const displayTitle = cleanTitle(h.title, readableFromSlug(linkUrl));
           const thumb = viaProxy(h.thumbnail_url);
