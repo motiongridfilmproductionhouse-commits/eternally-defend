@@ -83,6 +83,8 @@ function ScanPage() {
   const m = useMutation({ mutationFn: runScan });
   const report = m.data;
   const persistFn = useServerFn(persistScan);
+  const analyzeFn = useServerFn(analyzeYoutubeVideo);
+  const [analyzingVideos, setAnalyzingVideos] = useState<Set<string>>(new Set());
 
   // Persist to DB once the report lands. Runs once per report identity.
   useEffect(() => {
