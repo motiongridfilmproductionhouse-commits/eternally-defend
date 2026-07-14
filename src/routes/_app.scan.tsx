@@ -7,6 +7,8 @@ import type { ReputationReport, ScanHit, SourceKey, Sentiment } from "@/routes/a
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { useData, severityColor } from "@/lib/data-store";
 import { persistScan, listScanHits } from "@/lib/scans.functions";
+import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
+import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
 import {
   Radar, Search, ExternalLink, ShieldPlus, Loader2, Sparkles, TrendingUp,
   AlertTriangle, Flame, Users, Eye, Copyright, Gavel, Bell, FileDown,
