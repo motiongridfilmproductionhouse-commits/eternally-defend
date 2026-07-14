@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
@@ -30,6 +31,11 @@ import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/_app/assets': typeof AppAssetsRoute
   '/_app/cases': typeof AppCasesRoute
   '/_app/enforcement': typeof AppEnforcementRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/onboarding'
+    | '/privacy'
     | '/assets'
     | '/cases'
     | '/enforcement'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/onboarding'
+    | '/privacy'
     | '/assets'
     | '/cases'
     | '/enforcement'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/auth'
     | '/onboarding'
+    | '/privacy'
     | '/_app/assets'
     | '/_app/cases'
     | '/_app/enforcement'
@@ -269,12 +281,20 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
   OnboardingRoute: typeof OnboardingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ApiScanRoute: typeof ApiScanRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -460,6 +480,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
   OnboardingRoute: OnboardingRoute,
+  PrivacyRoute: PrivacyRoute,
   ApiScanRoute: ApiScanRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
 }
