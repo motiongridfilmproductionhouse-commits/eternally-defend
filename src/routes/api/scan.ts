@@ -473,7 +473,7 @@ async function runYouTube(
       },
     });
   }
-  return { raw, queriesUsed: qList.length };
+  return { raw, queriesUsed: qList.length, pagesScanned, apiErrors, error: lastErr };
 }
 
 
@@ -660,7 +660,7 @@ export const Route = createFileRoute("/api/scan")({
           const handles: string[] = Array.isArray(body?.handles) ? body.handles.map((a: unknown) => String(a).slice(0, 40)).slice(0, 20) : [];
           const period = String(body?.period ?? "Last 30 days").slice(0, 60);
           const limit = Math.min(Math.max(Number(body?.limit ?? 8), 1), 10);
-          const ytTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 500), 25), 800);
+          const ytTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 1000), 25), 2000);
           const sources: SourceKey[] = Array.isArray(body?.sources) && body.sources.length
             ? (body.sources.filter((s: unknown): s is SourceKey => typeof s === "string" && s in SOURCE_QUERY))
             : ["web", "reddit", "youtube", "news", "x", "reviews"];
@@ -672,7 +672,7 @@ export const Route = createFileRoute("/api/scan")({
             runFirecrawl(fullQuery, sources, limit),
             wantYouTube
               ? runYouTube(query, aliases, variations, hashtags, handles, ytTarget, period)
-              : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined, queriesUsed: 0 }),
+              : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined, queriesUsed: 0, pagesScanned: 0, apiErrors: 0 }),
           ]);
 
           const runs = [...fc.runs];

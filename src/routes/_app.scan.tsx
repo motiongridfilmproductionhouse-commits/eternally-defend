@@ -199,7 +199,7 @@ function ScanPage() {
       period,
       sources: sources.length ? sources : DEFAULT_SOURCES,
       limit: 8,
-      youtubeTarget: 500,
+      youtubeTarget: 1500,
       context: [industry, country, site].filter(Boolean).join(" "),
     });
   };
