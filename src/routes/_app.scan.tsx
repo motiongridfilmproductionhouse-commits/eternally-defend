@@ -29,26 +29,27 @@ export const Route = createFileRoute("/_app/scan")({
   component: ScanPage,
 });
 
+// Ordered by reputation-damage priority: YouTube first, then News, Reddit, social, blogs/forums/reviews/archive.
 const SOURCES: { key: SourceKey; label: string }[] = [
-  { key: "web", label: "Web" },
-  { key: "news", label: "News" },
   { key: "youtube", label: "YouTube" },
+  { key: "news", label: "News" },
   { key: "reddit", label: "Reddit" },
   { key: "x", label: "X" },
   { key: "instagram", label: "Instagram" },
   { key: "tiktok", label: "TikTok" },
   { key: "facebook", label: "Facebook" },
-  { key: "linkedin", label: "LinkedIn" },
   { key: "blogs", label: "Blogs" },
   { key: "forums", label: "Forums" },
-  { key: "podcasts", label: "Podcasts" },
   { key: "reviews", label: "Reviews" },
-  { key: "complaints", label: "Complaints" },
   { key: "archive", label: "Archive" },
+  { key: "linkedin", label: "LinkedIn" },
+  { key: "podcasts", label: "Podcasts" },
+  { key: "complaints", label: "Complaints" },
+  { key: "web", label: "Web" },
 ];
 
 const PERIODS = ["Last 24 hours", "Last 7 days", "Last 30 days", "Last 90 days", "All time"];
-const DEFAULT_SOURCES: SourceKey[] = ["web", "news", "youtube", "reddit", "x", "reviews"];
+const DEFAULT_SOURCES: SourceKey[] = ["youtube", "news", "reddit", "x", "instagram", "tiktok", "facebook", "blogs", "forums", "reviews", "archive"];
 
 const sentimentColor = (s: Sentiment) =>
   s === "Negative" ? "oklch(0.63 0.24 25)" : s === "Positive" ? "oklch(0.68 0.16 155)" : "oklch(0.55 0.03 275)";
