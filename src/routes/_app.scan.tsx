@@ -527,7 +527,7 @@ function Bucket({ title, icon, hits, onPromote, added, entityTerms, scanId, anal
   );
 }
 
-function ResultCard({ h, added, onPromote }: { h: ScanHit; added: boolean; onPromote: () => void }) {
+function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending }: { h: ScanHit; added: boolean; onPromote: () => void; entityTerms: string[]; scanId: string | null; analysisPending: boolean }) {
   const sev = severityColor(h.severity);
   const [open, setOpen] = useState(false);
   const [imgOk, setImgOk] = useState(true);
