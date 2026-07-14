@@ -510,7 +510,14 @@ function ResultCard({ h, added, onPromote }: { h: ScanHit; added: boolean; onPro
               <span className="font-semibold text-foreground">{h.author ?? h.platform}</span>
             )}
             {publishedLabel && <><span>·</span><span className="inline-flex items-center gap-1"><Clock className="size-3" />{publishedLabel}</span></>}
+            {ageLabel && <><span>·</span><span>{ageLabel}</span></>}
             <span>·</span><span>{h.source}</span>
+            {trend && (
+              <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: `color-mix(in oklab, ${trend.color} 14%, white)`, color: trend.color }}>
+                <TrendingUp className="size-3" /> {trend.label}
+              </span>
+            )}
           </div>
         </div>
 
