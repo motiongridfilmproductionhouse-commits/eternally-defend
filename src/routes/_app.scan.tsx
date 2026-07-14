@@ -136,12 +136,40 @@ function ScanPage() {
         if (cancelled) return;
         setPersistedScanId(res.scanId);
         setPersistSummary({ newHits: res.newHits, updatedHits: res.updatedHits, duplicatesRemoved: res.duplicatesRemoved, uniqueHits: res.uniqueHits });
+
+        // Kick off timestamp analysis for every YouTube hit (concurrency 3, fire-and-forget).
+        const ytHits = report.hits.filter((h) => h.source === "YouTube" && h.media?.videoId);
+        if (ytHits.length) {
+          const entityTerms = [report.query, ...report.aliases].filter(Boolean);
+          setAnalyzingVideos(new Set(ytHits.map((h) => h.media!.videoId!)));
+          const queue = [...ytHits];
+          const runOne = async () => {
+            while (queue.length && !cancelled) {
+              const h = queue.shift()!;
+              try {
+                await analyzeFn({ data: {
+                  videoId: h.media!.videoId!,
+                  scanId: res.scanId,
+                  entityTerms,
+                  channelId: h.media?.channelId ?? null,
+                  channelName: h.media?.channelTitle ?? null,
+                  channelUrl: h.media?.channelUrl ?? null,
+                } });
+              } catch (e) {
+                console.warn("[analyze]", h.media?.videoId, e);
+              } finally {
+                setAnalyzingVideos((s) => { const n = new Set(s); n.delete(h.media!.videoId!); return n; });
+              }
+            }
+          };
+          void Promise.all([runOne(), runOne(), runOne()]);
+        }
       } catch (e) {
         console.error("[scan] persist failed:", e);
       }
     })();
     return () => { cancelled = true; };
-  }, [report, persistFn]);
+  }, [report, persistFn, analyzeFn]);
 
   const toggleSource = (s: SourceKey) => setSources((p) => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
 
