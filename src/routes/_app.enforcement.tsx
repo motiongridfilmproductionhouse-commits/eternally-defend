@@ -71,7 +71,7 @@ function EnforcementPage() {
               <input type="checkbox" checked={selected.includes(t.id)} onChange={()=>toggle(t.id)} className="size-4 accent-primary" />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold truncate">{t.title}</div>
-                <div className="text-xs text-muted-foreground">{t.platform} · {t.category} · {t.severity}</div>
+                <div className="text-xs text-muted-foreground">{t.platform} · {t.riskType} · {t.severity}</div>
               </div>
               <span className="text-xs text-muted-foreground">{t.status}</span>
             </label>
