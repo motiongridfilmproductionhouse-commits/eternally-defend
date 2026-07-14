@@ -511,7 +511,7 @@ function Bucket({ title, icon, hits, onPromote, added, entityTerms, scanId, anal
     >
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2"><span className="opacity-60">{icon}</span></div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {shown.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} />)}
+        {shown.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} entityTerms={entityTerms} scanId={scanId} analysisPending={!!(h.media?.videoId && analyzingVideos.has(h.media.videoId))} />)}
       </div>
       {filtered.length > visible && (
         <div className="mt-4 flex justify-center">
