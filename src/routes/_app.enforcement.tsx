@@ -22,10 +22,12 @@ const actions = [
 function EnforcementPage() {
   const { threats, addRemoval, updateThreatStatus } = useData();
   const [selected, setSelected] = useState<string[]>([]);
+  const authz = useAuthorization();
 
   const toggle = (id: string) => setSelected((s) => s.includes(id) ? s.filter((x)=>x!==id) : [...s, id]);
 
   const enforce = (method: "DMCA" | "Platform Report" | "Legal Notice") => {
+    if (!authz.canRequestEnforcement) return;
     selected.forEach((id) => {
       const t = threats.find((x) => x.id === id);
       if (t) {
@@ -38,6 +40,16 @@ function EnforcementPage() {
 
   return (
     <div className="space-y-5">
+      {!authz.canRequestEnforcement && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3">
+          <ShieldAlert className="size-5 text-amber-700" />
+          <div className="flex-1 text-sm text-amber-900">
+            Enforcement actions are disabled. Your current authorization level does not include enforcement requests.
+          </div>
+          <Button asChild size="sm" variant="outline"><Link to="/onboarding">Update authorization</Link></Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="TAKEDOWNS SENT" value="1,247" sub="All time" accent="oklch(0.65 0.18 240)" />
         <StatCard label="SUCCESS RATE" value="94%" sub="Removed on first attempt" accent="oklch(0.68 0.16 155)" />
