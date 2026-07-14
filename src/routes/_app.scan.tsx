@@ -75,11 +75,72 @@ function ScanPage() {
   const [period, setPeriod] = useState("Last 30 days");
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
+  const [persistedScanId, setPersistedScanId] = useState<string | null>(null);
+  const [persistSummary, setPersistSummary] = useState<{ newHits: number; updatedHits: number; duplicatesRemoved: number; uniqueHits: number } | null>(null);
 
   const m = useMutation({ mutationFn: runScan });
   const report = m.data;
+  const persistFn = useServerFn(persistScan);
+
+  // Persist to DB once the report lands. Runs once per report identity.
+  useEffect(() => {
+    if (!report || !report.hits.length) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const mapped = report.hits.map((h) => ({
+          source: h.source,
+          sourceType: h.source === "YouTube" ? "youtube_video" : h.source.toLowerCase(),
+          externalId: h.media?.videoId ?? null,
+          canonicalUrl: h.url,
+          permalink: h.url,
+          title: h.title,
+          description: h.description,
+          author: h.author ?? h.media?.channelTitle ?? null,
+          thumbnailUrl: h.media?.thumbnailHi ?? h.media?.thumbnail ?? null,
+          language: h.language,
+          publishedAt: h.published ?? null,
+          reach: h.reachEstimate,
+          engagement: h.engagement,
+          velocity: h.viral ? "viral" : null,
+          riskScore: h.threatScore,
+          threatScore: h.threatScore,
+          severity: h.severity,
+          growthPct: h.media?.growthPerDay ?? null,
+          riskType: h.category,
+          tags: h.keywords,
+          metrics: {
+            views: h.media?.views ?? null,
+            likes: h.media?.likes ?? null,
+            comments: h.media?.comments ?? null,
+            growthPerDay: h.media?.growthPerDay ?? null,
+            engagementRate: h.media?.engagementRate ?? null,
+            credibilityScore: h.credibilityScore,
+            viralityScore: h.viralityScore,
+          } as Record<string, unknown>,
+          sourceMetadata: { platform: h.platform, channelId: h.media?.channelId ?? null } as Record<string, unknown>,
+          evidenceRefs: [],
+        }));
+        const res = await persistFn({ data: {
+          query: report.query,
+          params: { period: report.period, sources: report.sourcesRequested },
+          sources: report.sourcesRequested,
+          period: report.period,
+          hits: mapped,
+          totals: { total: report.totals.total, unique: report.totals.unique, duplicatesRemoved: report.totals.duplicatesRemoved },
+        } });
+        if (cancelled) return;
+        setPersistedScanId(res.scanId);
+        setPersistSummary({ newHits: res.newHits, updatedHits: res.updatedHits, duplicatesRemoved: res.duplicatesRemoved, uniqueHits: res.uniqueHits });
+      } catch (e) {
+        console.error("[scan] persist failed:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [report, persistFn]);
 
   const toggleSource = (s: SourceKey) => setSources((p) => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
+
 
   const split = (s: string) => s.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
 
