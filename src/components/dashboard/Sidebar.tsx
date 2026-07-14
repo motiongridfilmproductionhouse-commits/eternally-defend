@@ -4,26 +4,39 @@ import {
   Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search, HeartPulse, Network, PlugZap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useUserRoles } from "@/hooks/use-user-roles";
 
 type NavItem = { icon: typeof LayoutDashboard; label: string; to: string; badge?: string };
-const nav: NavItem[] = [
+
+// Regular (customer-facing) navigation.
+const regularNav: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/" },
-  { icon: Package, label: "Assets", to: "/assets" },
-  { icon: Search, label: "Web Scan", to: "/scan", badge: "LIVE" },
   { icon: Radar, label: "Threat Radar", to: "/threat-radar" },
-  { icon: Activity, label: "Threat Monitoring", to: "/threat-monitoring" },
-  { icon: Brain, label: "Intelligence", to: "/intelligence" },
-  { icon: Network, label: "Narrative Intel", to: "/narrative-intelligence" },
-  { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
-  { icon: Briefcase, label: "Case Management", to: "/cases", badge: "2" },
-  { icon: Trash2, label: "Removal Center", to: "/removals" },
+  { icon: Brain, label: "Deepfake Intelligence", to: "/intelligence" },
+  { icon: Package, label: "Evidence Center", to: "/assets" },
+  { icon: Network, label: "Narrative Intelligence", to: "/narrative-intelligence" },
   { icon: FileText, label: "Reports", to: "/reports" },
+  { icon: Briefcase, label: "Cases", to: "/cases", badge: "2" },
+];
+
+// Additional operator tools visible to admins only.
+const adminOpsNav: NavItem[] = [
+  { icon: Search, label: "Web Scan", to: "/scan", badge: "LIVE" },
+  { icon: Activity, label: "Threat Monitoring", to: "/threat-monitoring" },
+  { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
+  { icon: Trash2, label: "Removal Center", to: "/removals" },
+];
+
+// Restricted admin infrastructure — hidden entirely from non-admins.
+const adminSystemNav: NavItem[] = [
   { icon: HeartPulse, label: "MM Health", to: "/admin/multimedia-health", badge: "ADMIN" },
   { icon: PlugZap, label: "Provider Activation", to: "/admin/provider-activation", badge: "ADMIN" },
 ];
 
 export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { isAdmin } = useUserRoles();
+
   return (
     <aside className="w-64 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col p-4 gap-4">
       <Link to="/" className="flex items-center gap-3 px-2 pt-2">
@@ -36,29 +49,16 @@ export function Sidebar() {
         </div>
       </Link>
 
-      <nav className="flex flex-col gap-1 mt-2">
-        {nav.map((n) => {
-          const Icon = n.icon;
-          const active = pathname === n.to;
-          return (
-            <Link
-              key={n.label}
-              to={n.to}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/60"
-              }`}
-            >
-              <Icon className="size-[18px]" />
-              <span className="flex-1">{n.label}</span>
-              {n.badge && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">{n.badge}</span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+      <NavGroup items={regularNav} pathname={pathname} />
+
+      {isAdmin && (
+        <>
+          <SectionLabel>ADMIN · OPERATIONS</SectionLabel>
+          <NavGroup items={adminOpsNav} pathname={pathname} />
+          <SectionLabel>ADMIN · SYSTEM</SectionLabel>
+          <NavGroup items={adminSystemNav} pathname={pathname} />
+        </>
+      )}
 
       <div className="mt-2">
         <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground px-3 mb-1">PLATFORM</div>
@@ -94,11 +94,47 @@ export function Sidebar() {
           <div className="size-9 rounded-full bg-gradient-to-br from-orange-300 to-pink-400 grid place-items-center text-white text-xs font-bold">S</div>
           <div className="flex-1">
             <div className="text-sm font-semibold leading-tight">Sreehari</div>
-            <div className="text-xs text-muted-foreground">Elite Plan</div>
+            <div className="text-xs text-muted-foreground">{isAdmin ? "Admin" : "Elite Plan"}</div>
           </div>
           <ChevronDown className="size-4 text-muted-foreground" />
         </div>
       </div>
     </aside>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground px-3 mt-2">
+      {children}
+    </div>
+  );
+}
+
+function NavGroup({ items, pathname }: { items: NavItem[]; pathname: string }) {
+  return (
+    <nav className="flex flex-col gap-1">
+      {items.map((n) => {
+        const Icon = n.icon;
+        const active = pathname === n.to;
+        return (
+          <Link
+            key={n.label}
+            to={n.to}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              active
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/60"
+            }`}
+          >
+            <Icon className="size-[18px]" />
+            <span className="flex-1">{n.label}</span>
+            {n.badge && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">{n.badge}</span>
+            )}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
