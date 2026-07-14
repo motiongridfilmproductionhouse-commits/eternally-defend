@@ -8,23 +8,19 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 
 type NavItem = { icon: typeof LayoutDashboard; label: string; to: string; badge?: string };
 
-// Regular (customer-facing) navigation.
-const regularNav: NavItem[] = [
+// Main navigation — visible to all signed-in users.
+const mainNav: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/" },
-  { icon: Radar, label: "Threat Radar", to: "/threat-radar" },
-  { icon: Brain, label: "Deepfake Intelligence", to: "/intelligence" },
-  { icon: Package, label: "Evidence Center", to: "/assets" },
-  { icon: Network, label: "Narrative Intelligence", to: "/narrative-intelligence" },
-  { icon: FileText, label: "Reports", to: "/reports" },
-  { icon: Briefcase, label: "Cases", to: "/cases", badge: "2" },
-];
-
-// Additional operator tools visible to admins only.
-const adminOpsNav: NavItem[] = [
+  { icon: Package, label: "Assets", to: "/assets" },
   { icon: Search, label: "Web Scan", to: "/scan", badge: "LIVE" },
+  { icon: Radar, label: "Threat Radar", to: "/threat-radar" },
   { icon: Activity, label: "Threat Monitoring", to: "/threat-monitoring" },
+  { icon: Brain, label: "Intelligence", to: "/intelligence" },
+  { icon: Network, label: "Narrative Intelligence", to: "/narrative-intelligence" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
+  { icon: Briefcase, label: "Cases", to: "/cases", badge: "2" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
+  { icon: FileText, label: "Reports", to: "/reports" },
 ];
 
 // Restricted admin infrastructure — hidden entirely from non-admins.
@@ -49,12 +45,10 @@ export function Sidebar() {
         </div>
       </Link>
 
-      <NavGroup items={regularNav} pathname={pathname} />
+      <NavGroup items={mainNav} pathname={pathname} />
 
       {isAdmin && (
         <>
-          <SectionLabel>ADMIN · OPERATIONS</SectionLabel>
-          <NavGroup items={adminOpsNav} pathname={pathname} />
           <SectionLabel>ADMIN · SYSTEM</SectionLabel>
           <NavGroup items={adminSystemNav} pathname={pathname} />
         </>
