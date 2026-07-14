@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Package, Radar, Activity, Brain, ShieldCheck,
-  Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search, HeartPulse,
+  Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search, HeartPulse, Network, PlugZap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,11 +13,13 @@ const nav: NavItem[] = [
   { icon: Radar, label: "Threat Radar", to: "/threat-radar" },
   { icon: Activity, label: "Threat Monitoring", to: "/threat-monitoring" },
   { icon: Brain, label: "Intelligence", to: "/intelligence" },
+  { icon: Network, label: "Narrative Intel", to: "/narrative-intelligence" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
   { icon: Briefcase, label: "Case Management", to: "/cases", badge: "2" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
   { icon: FileText, label: "Reports", to: "/reports" },
   { icon: HeartPulse, label: "MM Health", to: "/admin/multimedia-health", badge: "ADMIN" },
+  { icon: PlugZap, label: "Provider Activation", to: "/admin/provider-activation", badge: "ADMIN" },
 ];
 
 export function Sidebar() {

@@ -130,7 +130,7 @@ async function runPipeline(supabase: any, userId: string, jobId: string, input: 
   const { detectLanguage, translateText } = await import("./translation.server");
   const { extractSearchableClaims } = await import("./claims.server");
   const { searchFactChecks, classifyReviews } = await import("./factcheck.server");
-  const { computeRiskScores } = await import("./risk.server");
+  const { explainRiskScores } = await import("./risk.server");
 
   const cfg = getProviderConfig();
   const stage: Record<Stage, string> = Object.fromEntries(STAGES.map((s) => [s, "pending"])) as any;
@@ -318,9 +318,9 @@ async function runPipeline(supabase: any, userId: string, jobId: string, input: 
     });
   }
 
-  // Risk scoring
+  // Risk scoring — explainable
   await markStage("risk_score", "running");
-  const risk = computeRiskScores({
+  const inputs = {
     transcriptHits: mentionCount,
     visualHits: 0, assetMatches: 0,
     factChecksFalse, factChecksReviewed,
@@ -329,7 +329,9 @@ async function runPipeline(supabase: any, userId: string, jobId: string, input: 
     reachEstimate: meta.view_count ?? 0,
     translationLowConfidence: translationLow,
     transcriptAvgConfidence: 0.75,
-  });
+  };
+  const explained = explainRiskScores(inputs);
+  const risk = explained.scores;
   const reputationScore = Math.max(0, 100 - risk.reputation);
   await markStage("risk_score", "done", "Risk scored", 90);
 
@@ -347,8 +349,53 @@ async function runPipeline(supabase: any, userId: string, jobId: string, input: 
     progress_message: "Analysis complete",
     reputation_score: reputationScore,
     risk_scores: risk,
+    confidence_by_axis: explained.explanations as any,
     finished_at: new Date().toISOString(),
   }).eq("id", jobId);
+
+  // Auto-cluster this job's findings so Narrative Intelligence stays fresh.
+  // Cluster key logic mirrors narrative.functions.ts.
+  try {
+    const { data: jobFindings } = await supabase.from("timestamp_findings")
+      .select("id, extracted_claim_id, title").eq("job_id", jobId);
+    const metaVid = meta.video_id;
+    const clusterKey = metaVid
+      ? `video:${metaVid}`
+      : input.source_ref.startsWith("http")
+        ? `url:${(() => { try { const u = new URL(input.source_ref); return `${u.host}${u.pathname}`.toLowerCase(); } catch { return input.source_ref; } })()}`
+        : `title:${(meta.title ?? input.target_name).toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 80)}`;
+    const { data: existingCluster } = await supabase.from("narrative_clusters")
+      .select("id, source_count, combined_reach, first_detected_at")
+      .eq("user_id", userId).eq("cluster_key", clusterKey).maybeSingle();
+    const nowIso = new Date().toISOString();
+    let clusterId: string;
+    if (existingCluster?.id) {
+      clusterId = existingCluster.id as string;
+      await supabase.from("narrative_clusters").update({
+        source_count: (existingCluster.source_count ?? 0) + 1,
+        combined_reach: (existingCluster.combined_reach ?? 0) + (meta.view_count ?? 0),
+        latest_detected_at: nowIso,
+        dominant_source: input.source_kind,
+      }).eq("id", clusterId);
+    } else {
+      const { data: ins } = await supabase.from("narrative_clusters").insert({
+        user_id: userId, cluster_key: clusterKey, target_name: input.target_name,
+        source_count: 1, combined_reach: meta.view_count ?? 0,
+        first_detected_at: nowIso, latest_detected_at: nowIso,
+        dominant_source: input.source_kind,
+        narrative_summary: meta.title ?? input.target_name,
+        sources: [input.source_ref] as any,
+      }).select("id").single();
+      clusterId = ins!.id as string;
+    }
+    if (jobFindings && jobFindings.length && clusterId) {
+      await supabase.from("timestamp_findings").update({ cluster_id: clusterId } as any)
+        .in("id", jobFindings.map((f: any) => f.id));
+    }
+  } catch (e) {
+    // Non-fatal — clustering is a background enrichment.
+    console.warn("[mm] clustering failed", e);
+  }
 }
 
 // -----------------------------------------------------------------------------

@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { ReviewWorkspace, ReviewStatusBadge } from "@/components/mm/ReviewWorkspace";
+import { ScoreExplainer } from "@/components/mm/ScoreExplainer";
 import {
   Activity, AlertTriangle, CheckCircle2, Clock, ExternalLink, FileVideo,
   Flag, Languages, PlayCircle, Search, ShieldAlert, Sparkles, XCircle,
@@ -348,23 +350,27 @@ function StageRow({ name, status }: { name: string; status: string }) {
 
 function OverviewTab({ job, findings, errors }: any) {
   const risk = job.risk_scores ?? {};
+  const explanations = (job.confidence_by_axis ?? {}) as Record<string, any>;
   const scores = [
-    ["Reputation risk", risk.reputation],
-    ["Defamation", risk.defamation],
-    ["Copyright", risk.copyright],
-    ["Misinformation", risk.misinformation],
-    ["Harassment", risk.harassment],
-    ["Impersonation", risk.impersonation],
-    ["Viral amplification", risk.viralAmplification],
-    ["Entity relevance", risk.entityRelevance],
-    ["Evidence confidence", risk.evidenceConfidence],
+    ["Reputation risk", "reputation", risk.reputation],
+    ["Defamation", "defamation", risk.defamation],
+    ["Copyright", "copyright", risk.copyright],
+    ["Misinformation", "misinformation", risk.misinformation],
+    ["Harassment", "harassment", risk.harassment],
+    ["Impersonation", "impersonation", risk.impersonation],
+    ["Viral amplification", "viralAmplification", risk.viralAmplification],
+    ["Entity relevance", "entityRelevance", risk.entityRelevance],
+    ["Evidence confidence", "evidenceConfidence", risk.evidenceConfidence],
   ] as const;
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-2">
-        {scores.map(([k, v]) => (
+        {scores.map(([k, axis, v]) => (
           <div key={k} className="border border-border rounded-lg p-2.5">
-            <div className="text-[10px] uppercase text-muted-foreground">{k}</div>
+            <div className="text-[10px] uppercase text-muted-foreground flex items-center justify-between gap-1">
+              <span>{k}</span>
+              <ScoreExplainer axis={axis} label={k} explanation={explanations[axis]} />
+            </div>
             <div className="text-lg font-semibold">{v ?? "—"}</div>
           </div>
         ))}
@@ -381,13 +387,7 @@ function OverviewTab({ job, findings, errors }: any) {
 }
 
 function TimelineTab({ findings, videoId }: { findings: any[]; videoId?: string }) {
-  const upd = useServerFn(updateFindingReview);
-  const qc = useQueryClient();
-  const mut = useMutation({
-    mutationFn: (v: { id: string; s: "confirmed" | "false_positive" | "sent_to_radar" }) =>
-      upd({ data: { findingId: v.id, review_status: v.s } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["mm-job"] }),
-  });
+  const [reviewing, setReviewing] = useState<any | null>(null);
   if (!findings.length) return <div className="text-sm text-muted-foreground py-6 text-center">No timeline findings yet.</div>;
   return (
     <div className="space-y-2">
@@ -398,6 +398,7 @@ function TimelineTab({ findings, videoId }: { findings: any[]; videoId?: string 
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{formatTime(f.start_seconds)}</span>
                 <SeverityBadge level={f.severity} />
+                <ReviewStatusBadge status={f.human_review_status ?? "unreviewed"} />
                 <span className="text-xs text-muted-foreground">{f.finding_type.replace(/_/g, " ")}</span>
               </div>
               <div className="mt-1 font-medium text-sm">{f.title}</div>
@@ -420,16 +421,15 @@ function TimelineTab({ findings, videoId }: { findings: any[]; videoId?: string 
                   <PlayCircle className="size-3" />Watch
                 </a>
               )}
-              <div className="flex gap-1">
-                <button onClick={() => mut.mutate({ id: f.id, s: "confirmed" })} title="Confirm" className="p-1 rounded border border-border hover:bg-accent"><CheckCircle2 className="size-3 text-emerald-500" /></button>
-                <button onClick={() => mut.mutate({ id: f.id, s: "false_positive" })} title="False positive" className="p-1 rounded border border-border hover:bg-accent"><XCircle className="size-3 text-red-500" /></button>
-                <button onClick={() => mut.mutate({ id: f.id, s: "sent_to_radar" })} title="Send to Threat Radar" className="p-1 rounded border border-border hover:bg-accent"><Flag className="size-3 text-amber-500" /></button>
-              </div>
-              {f.review_status !== "pending" && <span className="text-[10px] text-muted-foreground text-right">{f.review_status.replace(/_/g, " ")}</span>}
+              <button onClick={() => setReviewing(f)}
+                className="text-xs px-2 py-1 rounded border border-border hover:bg-accent">
+                Review
+              </button>
             </div>
           </div>
         </div>
       ))}
+      <ReviewWorkspace finding={reviewing} open={!!reviewing} onClose={() => setReviewing(null)} onSaved={() => setReviewing(null)} />
     </div>
   );
 }

@@ -20,10 +20,12 @@ import { Route as AppScanRouteImport } from './routes/_app.scan'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppRemovalsRouteImport } from './routes/_app.removals'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppNarrativeIntelligenceRouteImport } from './routes/_app.narrative-intelligence'
 import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
+import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 
 const AuthRoute = AuthRouteImport.update({
@@ -80,6 +82,12 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNarrativeIntelligenceRoute =
+  AppNarrativeIntelligenceRouteImport.update({
+    id: '/narrative-intelligence',
+    path: '/narrative-intelligence',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppIntelligenceRoute = AppIntelligenceRouteImport.update({
   id: '/intelligence',
   path: '/intelligence',
@@ -100,6 +108,12 @@ const AppAssetsRoute = AppAssetsRouteImport.update({
   path: '/assets',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminProviderActivationRoute =
+  AppAdminProviderActivationRouteImport.update({
+    id: '/admin/provider-activation',
+    path: '/admin/provider-activation',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppAdminMultimediaHealthRoute =
   AppAdminMultimediaHealthRouteImport.update({
     id: '/admin/multimedia-health',
@@ -114,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
   '/intelligence': typeof AppIntelligenceRoute
+  '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
   '/removals': typeof AppRemovalsRoute
   '/reports': typeof AppReportsRoute
@@ -123,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/threat-radar': typeof AppThreatRadarRoute
   '/api/scan': typeof ApiScanRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
+  '/admin/provider-activation': typeof AppAdminProviderActivationRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -130,6 +146,7 @@ export interface FileRoutesByTo {
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
   '/intelligence': typeof AppIntelligenceRoute
+  '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
   '/removals': typeof AppRemovalsRoute
   '/reports': typeof AppReportsRoute
@@ -140,6 +157,7 @@ export interface FileRoutesByTo {
   '/api/scan': typeof ApiScanRoute
   '/': typeof AppIndexRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
+  '/admin/provider-activation': typeof AppAdminProviderActivationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -149,6 +167,7 @@ export interface FileRoutesById {
   '/_app/cases': typeof AppCasesRoute
   '/_app/enforcement': typeof AppEnforcementRoute
   '/_app/intelligence': typeof AppIntelligenceRoute
+  '/_app/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/removals': typeof AppRemovalsRoute
   '/_app/reports': typeof AppReportsRoute
@@ -159,6 +178,7 @@ export interface FileRoutesById {
   '/api/scan': typeof ApiScanRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
+  '/_app/admin/provider-activation': typeof AppAdminProviderActivationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -169,6 +189,7 @@ export interface FileRouteTypes {
     | '/cases'
     | '/enforcement'
     | '/intelligence'
+    | '/narrative-intelligence'
     | '/notifications'
     | '/removals'
     | '/reports'
@@ -178,6 +199,7 @@ export interface FileRouteTypes {
     | '/threat-radar'
     | '/api/scan'
     | '/admin/multimedia-health'
+    | '/admin/provider-activation'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -185,6 +207,7 @@ export interface FileRouteTypes {
     | '/cases'
     | '/enforcement'
     | '/intelligence'
+    | '/narrative-intelligence'
     | '/notifications'
     | '/removals'
     | '/reports'
@@ -195,6 +218,7 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/'
     | '/admin/multimedia-health'
+    | '/admin/provider-activation'
   id:
     | '__root__'
     | '/_app'
@@ -203,6 +227,7 @@ export interface FileRouteTypes {
     | '/_app/cases'
     | '/_app/enforcement'
     | '/_app/intelligence'
+    | '/_app/narrative-intelligence'
     | '/_app/notifications'
     | '/_app/removals'
     | '/_app/reports'
@@ -213,6 +238,7 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/_app/'
     | '/_app/admin/multimedia-health'
+    | '/_app/admin/provider-activation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -300,6 +326,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/narrative-intelligence': {
+      id: '/_app/narrative-intelligence'
+      path: '/narrative-intelligence'
+      fullPath: '/narrative-intelligence'
+      preLoaderRoute: typeof AppNarrativeIntelligenceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/intelligence': {
       id: '/_app/intelligence'
       path: '/intelligence'
@@ -328,6 +361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/provider-activation': {
+      id: '/_app/admin/provider-activation'
+      path: '/admin/provider-activation'
+      fullPath: '/admin/provider-activation'
+      preLoaderRoute: typeof AppAdminProviderActivationRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/multimedia-health': {
       id: '/_app/admin/multimedia-health'
       path: '/admin/multimedia-health'
@@ -343,6 +383,7 @@ interface AppRouteChildren {
   AppCasesRoute: typeof AppCasesRoute
   AppEnforcementRoute: typeof AppEnforcementRoute
   AppIntelligenceRoute: typeof AppIntelligenceRoute
+  AppNarrativeIntelligenceRoute: typeof AppNarrativeIntelligenceRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppRemovalsRoute: typeof AppRemovalsRoute
   AppReportsRoute: typeof AppReportsRoute
@@ -352,6 +393,7 @@ interface AppRouteChildren {
   AppThreatRadarRoute: typeof AppThreatRadarRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminMultimediaHealthRoute: typeof AppAdminMultimediaHealthRoute
+  AppAdminProviderActivationRoute: typeof AppAdminProviderActivationRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -359,6 +401,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCasesRoute: AppCasesRoute,
   AppEnforcementRoute: AppEnforcementRoute,
   AppIntelligenceRoute: AppIntelligenceRoute,
+  AppNarrativeIntelligenceRoute: AppNarrativeIntelligenceRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppRemovalsRoute: AppRemovalsRoute,
   AppReportsRoute: AppReportsRoute,
@@ -368,6 +411,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppThreatRadarRoute: AppThreatRadarRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminMultimediaHealthRoute: AppAdminMultimediaHealthRoute,
+  AppAdminProviderActivationRoute: AppAdminProviderActivationRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
