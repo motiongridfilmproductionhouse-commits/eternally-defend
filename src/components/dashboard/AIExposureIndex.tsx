@@ -2,6 +2,7 @@ import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/mm/dashboard.functions";
+import { useSession } from "@/hooks/use-session";
 
 function Ring({ value }: { value: number }) {
   const clamped = Math.max(0, Math.min(10, value));
