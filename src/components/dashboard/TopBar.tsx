@@ -79,13 +79,28 @@ export function TopBar() {
       <StatusPill status={status} loading={statusQuery.isLoading} />
       <AuthorizationBadge />
 
-      <button className="relative size-10 grid place-items-center rounded-xl border border-border bg-card hover:border-primary/30 transition shadow-sm">
-        <Bell className="size-4 text-foreground/70" />
-        {status.level === "critical" && (
-          <span className="absolute top-2 right-2 size-2 rounded-full bg-danger animate-pulse" />
-        )}
-      </button>
+      <NotificationsBell />
     </header>
+  );
+}
+
+function NotificationsBell() {
+  const fetchNotes = useServerFn(getNotifications);
+  const q = useQuery({
+    queryKey: ["notifications-badge"],
+    queryFn: () => fetchNotes(),
+    refetchInterval: 60_000,
+  });
+  const unread = q.data?.unread ?? 0;
+  return (
+    <Link to="/notifications" className="relative size-10 grid place-items-center rounded-xl border border-border bg-card hover:border-primary/30 transition shadow-sm">
+      <Bell className="size-4 text-foreground/70" />
+      {unread > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[10px] font-bold grid place-items-center">
+          {unread > 99 ? "99+" : unread}
+        </span>
+      )}
+    </Link>
   );
 }
 
