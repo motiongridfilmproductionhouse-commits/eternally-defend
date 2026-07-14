@@ -14,6 +14,112 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_audit_log: {
+        Row: {
+          account_id: string
+          action: string
+          actor_id: string | null
+          created_at: string
+          from_status:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+          id: string
+          meta: Json
+          to_status:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+        }
+        Insert: {
+          account_id: string
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          from_status?:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+          id?: string
+          meta?: Json
+          to_status?:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+        }
+        Update: {
+          account_id?: string
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          from_status?:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+          id?: string
+          meta?: Json
+          to_status?:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_audit_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_verifications: {
+        Row: {
+          account_id: string
+          code: string | null
+          created_at: string
+          evidence: Json
+          expires_at: string | null
+          id: string
+          method: Database["public"]["Enums"]["verification_method"]
+          reviewer_id: string | null
+          state: Database["public"]["Enums"]["verification_state"]
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          account_id: string
+          code?: string | null
+          created_at?: string
+          evidence?: Json
+          expires_at?: string | null
+          id?: string
+          method: Database["public"]["Enums"]["verification_method"]
+          reviewer_id?: string | null
+          state?: Database["public"]["Enums"]["verification_state"]
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          code?: string | null
+          created_at?: string
+          evidence?: Json
+          expires_at?: string | null
+          id?: string
+          method?: Database["public"]["Enums"]["verification_method"]
+          reviewer_id?: string | null
+          state?: Database["public"]["Enums"]["verification_state"]
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_verifications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_usage: {
         Row: {
           cost_usd: number
@@ -240,6 +346,137 @@ export type Database = {
           updated_at?: string
           user_id?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      discovered_accounts: {
+        Row: {
+          bio: string | null
+          confidence: number
+          created_at: string
+          cross_links: Json
+          decided_at: string | null
+          discovery_source: Database["public"]["Enums"]["discovery_source"]
+          display_name: string | null
+          follower_count: number | null
+          handle: string | null
+          id: string
+          match_reasons: string[]
+          match_signals: Json
+          platform: Database["public"]["Enums"]["discovered_platform"]
+          platform_verified: boolean
+          profile_image_url: string | null
+          profile_url: string
+          status: Database["public"]["Enums"]["discovered_account_status"]
+          subject_id: string
+          updated_at: string
+          user_decision:
+            | Database["public"]["Enums"]["discovered_user_decision"]
+            | null
+          user_id: string
+          website_links: Json
+        }
+        Insert: {
+          bio?: string | null
+          confidence?: number
+          created_at?: string
+          cross_links?: Json
+          decided_at?: string | null
+          discovery_source?: Database["public"]["Enums"]["discovery_source"]
+          display_name?: string | null
+          follower_count?: number | null
+          handle?: string | null
+          id?: string
+          match_reasons?: string[]
+          match_signals?: Json
+          platform: Database["public"]["Enums"]["discovered_platform"]
+          platform_verified?: boolean
+          profile_image_url?: string | null
+          profile_url: string
+          status?: Database["public"]["Enums"]["discovered_account_status"]
+          subject_id: string
+          updated_at?: string
+          user_decision?:
+            | Database["public"]["Enums"]["discovered_user_decision"]
+            | null
+          user_id: string
+          website_links?: Json
+        }
+        Update: {
+          bio?: string | null
+          confidence?: number
+          created_at?: string
+          cross_links?: Json
+          decided_at?: string | null
+          discovery_source?: Database["public"]["Enums"]["discovery_source"]
+          display_name?: string | null
+          follower_count?: number | null
+          handle?: string | null
+          id?: string
+          match_reasons?: string[]
+          match_signals?: Json
+          platform?: Database["public"]["Enums"]["discovered_platform"]
+          platform_verified?: boolean
+          profile_image_url?: string | null
+          profile_url?: string
+          status?: Database["public"]["Enums"]["discovered_account_status"]
+          subject_id?: string
+          updated_at?: string
+          user_decision?:
+            | Database["public"]["Enums"]["discovered_user_decision"]
+            | null
+          user_id?: string
+          website_links?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovered_accounts_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "discovery_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discovery_subjects: {
+        Row: {
+          country: string | null
+          created_at: string
+          id: string
+          normalized_name: string | null
+          notes: string | null
+          org: string | null
+          query: string
+          subject_kind: Database["public"]["Enums"]["discovery_subject_kind"]
+          updated_at: string
+          user_id: string
+          website_domain: string | null
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          normalized_name?: string | null
+          notes?: string | null
+          org?: string | null
+          query: string
+          subject_kind: Database["public"]["Enums"]["discovery_subject_kind"]
+          updated_at?: string
+          user_id: string
+          website_domain?: string | null
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          normalized_name?: string | null
+          notes?: string | null
+          org?: string | null
+          query?: string
+          subject_kind?: Database["public"]["Enums"]["discovery_subject_kind"]
+          updated_at?: string
+          user_id?: string
+          website_domain?: string | null
         }
         Relationships: []
       }
@@ -925,6 +1162,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          discovered_account_id: string | null
           id: string
           kind: string
           metadata: Json
@@ -938,6 +1176,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          discovered_account_id?: string | null
           id?: string
           kind: string
           metadata?: Json
@@ -951,6 +1190,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          discovered_account_id?: string | null
           id?: string
           kind?: string
           metadata?: Json
@@ -961,7 +1201,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "protected_assets_discovered_account_id_fkey"
+            columns: ["discovered_account_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       provider_health_checks: {
         Row: {
@@ -2323,11 +2571,49 @@ export type Database = {
         | "business"
         | "corporate"
         | "agency"
+      discovered_account_status:
+        | "discovered"
+        | "likely_official"
+        | "user_confirmed"
+        | "ownership_pending"
+        | "verified"
+        | "rejected"
+      discovered_platform:
+        | "youtube"
+        | "instagram"
+        | "facebook"
+        | "tiktok"
+        | "x"
+        | "linkedin"
+        | "reddit"
+        | "website"
+      discovered_user_decision: "confirmed" | "not_mine" | "unsure"
+      discovery_source:
+        | "firecrawl_search"
+        | "website_links"
+        | "cross_link"
+        | "manual"
+      discovery_subject_kind:
+        | "person"
+        | "brand"
+        | "company"
+        | "domain"
+        | "handle"
+        | "website"
       enterprise_doc_type_enum:
         | "authorization_letter"
         | "agency_agreement"
         | "power_of_attorney"
         | "brand_protection"
+      verification_method:
+        | "oauth"
+        | "domain_dns"
+        | "domain_meta"
+        | "business_email"
+        | "bio_code"
+        | "document"
+        | "admin_review"
+      verification_state: "pending" | "passed" | "failed" | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2489,12 +2775,55 @@ export const Constants = {
         "corporate",
         "agency",
       ],
+      discovered_account_status: [
+        "discovered",
+        "likely_official",
+        "user_confirmed",
+        "ownership_pending",
+        "verified",
+        "rejected",
+      ],
+      discovered_platform: [
+        "youtube",
+        "instagram",
+        "facebook",
+        "tiktok",
+        "x",
+        "linkedin",
+        "reddit",
+        "website",
+      ],
+      discovered_user_decision: ["confirmed", "not_mine", "unsure"],
+      discovery_source: [
+        "firecrawl_search",
+        "website_links",
+        "cross_link",
+        "manual",
+      ],
+      discovery_subject_kind: [
+        "person",
+        "brand",
+        "company",
+        "domain",
+        "handle",
+        "website",
+      ],
       enterprise_doc_type_enum: [
         "authorization_letter",
         "agency_agreement",
         "power_of_attorney",
         "brand_protection",
       ],
+      verification_method: [
+        "oauth",
+        "domain_dns",
+        "domain_meta",
+        "business_email",
+        "bio_code",
+        "document",
+        "admin_review",
+      ],
+      verification_state: ["pending", "passed", "failed", "expired"],
     },
   },
 } as const

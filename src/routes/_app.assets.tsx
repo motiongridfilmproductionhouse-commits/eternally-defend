@@ -4,8 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
-import { Plus, Search, Image as ImageIcon, Video, Music, FileText, Sparkles, Trash2, Loader2 } from "lucide-react";
+import { Plus, Search, Image as ImageIcon, Video, Music, FileText, Sparkles, Trash2, Loader2, Radar } from "lucide-react";
 import { toast } from "sonner";
+import { DiscoveryPanel } from "@/components/discovery/DiscoveryPanel";
+
 
 export const Route = createFileRoute("/_app/assets")({
   head: () => ({ meta: [{ title: "Assets — Eterna AI" }, { name: "description", content: "Register and monitor your protected digital assets." }] }),
@@ -131,6 +133,23 @@ function AssetsPage() {
         <StatCard label="MONITORING" value={counts.monitoring} sub="Under watch" accent="oklch(0.75 0.16 70)" />
         <StatCard label="AT RISK" value={counts.atRisk} sub="Immediate attention" accent="oklch(0.63 0.24 25)" />
       </div>
+
+      <details className="group rounded-2xl bg-card border border-border" open>
+        <summary className="cursor-pointer list-none px-5 py-4 flex items-center gap-3">
+          <div className="size-9 rounded-lg grid place-items-center bg-primary/10 text-primary"><Radar className="size-4" /></div>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">Discover & verify official accounts</div>
+            <div className="text-xs text-muted-foreground">Auto-search social platforms for candidate accounts, confirm ownership, then verify for enforcement.</div>
+          </div>
+          <div className="text-xs text-muted-foreground group-open:hidden">Open</div>
+          <div className="text-xs text-muted-foreground hidden group-open:block">Hide</div>
+        </summary>
+        <div className="px-2 pb-4">
+          <DiscoveryPanel />
+        </div>
+      </details>
+
+
 
       <PageCard
         title="ASSET REGISTRY"
