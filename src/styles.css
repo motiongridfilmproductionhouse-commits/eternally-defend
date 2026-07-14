@@ -197,3 +197,23 @@
     filter: brightness(1.05);
   }
 }
+
+@utility dark-zone {
+  background: linear-gradient(180deg, #05070F 0%, #0A1220 100%);
+  color: #FFFFFF;
+  border-bottom-left-radius: 28px;
+  border-bottom-right-radius: 28px;
+
+  & .card-surface {
+    background: linear-gradient(180deg, #0F1A2E 0%, #0B1526 100%);
+    border-color: rgba(255, 255, 255, 0.06);
+    color: #FFFFFF;
+    box-shadow: 0 1px 0 0 rgba(255,255,255,0.04) inset, 0 12px 32px -14px rgba(0,0,0,0.6);
+  }
+  & .text-muted-foreground { color: rgba(255,255,255,0.55); }
+  & h1, & h2, & h3, & h4 { color: #FFFFFF; }
+}
+
+@utility rainbow-gradient {
+  background: linear-gradient(90deg, #FF3D8B 0%, #FF7A3D 20%, #FFD53D 40%, #4ADE80 60%, #3D9BFF 80%, #A855F7 100%);
+}
