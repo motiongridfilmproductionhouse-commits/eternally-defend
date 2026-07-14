@@ -14,6 +14,7 @@ export function DeepfakeIntelligence() {
     refetchInterval: 30_000,
   });
   const d = data?.deepfake;
+  const hasData = (d?.sampleCount ?? 0) > 0;
   const bars = [
     { label: "Face Match", value: d?.faceMatch ?? 0, color: "oklch(0.63 0.24 25)" },
     { label: "Voice Match", value: d?.voiceMatch ?? 0, color: "oklch(0.7 0.18 320)" },
@@ -30,31 +31,43 @@ export function DeepfakeIntelligence() {
       <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">DEEPFAKE INTELLIGENCE CENTER</div>
       <div className="text-xs text-muted-foreground/80 mb-4">AI analysis results</div>
 
-      <div className="grid grid-cols-[auto_1fr] gap-4 items-center">
-        <div className="size-24 rounded-xl grid place-items-center" style={{ background: "var(--gradient-soft)" }}>
-          <ScanFace className="size-14 text-primary/70" strokeWidth={1.2} />
+      {isLoading ? (
+        <div className="py-8 text-center text-xs text-muted-foreground">Loading…</div>
+      ) : !hasData ? (
+        <div className="py-8 text-center text-xs text-muted-foreground space-y-1">
+          <ScanFace className="size-8 mx-auto text-muted-foreground/60" strokeWidth={1.2} />
+          <div>No deepfake findings yet.</div>
+          <div>Deepfake detection engages when synthetic-media evidence is analysed.</div>
         </div>
-        <div className="space-y-2.5">
-          {bars.map((b) => (
-            <div key={b.label}>
-              <div className="flex justify-between text-[11px] mb-1">
-                <span className="text-muted-foreground">{b.label}</span>
-                <span className="font-bold" style={{ color: b.color }}>{b.value}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${b.value}%`, background: b.color }} />
-              </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-[auto_1fr] gap-4 items-center">
+            <div className="size-24 rounded-xl grid place-items-center" style={{ background: "var(--gradient-soft)" }}>
+              <ScanFace className="size-14 text-primary/70" strokeWidth={1.2} />
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <AlertTriangle className="size-3.5" />
-          {isLoading ? "Loading…" : `${d?.sampleCount ?? 0} samples analyzed`}
-        </div>
-        <div className="text-sm font-bold" style={{ color: riskColor }}>{d?.risk ?? "None"}</div>
-      </div>
+            <div className="space-y-2.5">
+              {bars.map((b) => (
+                <div key={b.label}>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-muted-foreground">{b.label}</span>
+                    <span className="font-bold" style={{ color: b.color }}>{b.value}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${b.value}%`, background: b.color }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <AlertTriangle className="size-3.5" />
+              {`${d?.sampleCount ?? 0} samples analyzed`}
+            </div>
+            <div className="text-sm font-bold" style={{ color: riskColor }}>{d?.risk ?? "None"}</div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
