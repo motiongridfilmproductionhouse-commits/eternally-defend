@@ -140,8 +140,8 @@ export function ThreatMap() {
             ))
           )}
           <div className="absolute bottom-3 right-3 flex flex-col gap-1">
-            <button className="size-8 grid place-items-center bg-white/90 border border-border rounded-md"><Plus className="size-3.5" /></button>
-            <button className="size-8 grid place-items-center bg-white/90 border border-border rounded-md"><Minus className="size-3.5" /></button>
+            <button className="size-8 grid place-items-center bg-card/80 hover:bg-card border border-border rounded-md text-foreground/80 hover:text-primary transition"><Plus className="size-3.5" /></button>
+            <button className="size-8 grid place-items-center bg-card/80 hover:bg-card border border-border rounded-md text-foreground/80 hover:text-primary transition"><Minus className="size-3.5" /></button>
           </div>
         </div>
       </div>
