@@ -40,9 +40,11 @@ function formatReach(n: number): string {
 
 export function AIExposureIndex() {
   const fn = useServerFn(getDashboardStats);
+  const { session } = useSession();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => fn({}),
+    enabled: !!session,
     refetchInterval: 30_000,
   });
   const e = data?.exposure;

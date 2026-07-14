@@ -2,6 +2,7 @@ import { ShieldAlert, Facebook, Youtube, Music2, Instagram, Twitter, Globe } fro
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/mm/dashboard.functions";
+import { useSession } from "@/hooks/use-session";
 
 const PLATFORM_ICON: Record<string, { icon: typeof Facebook; bg: string; fg: string }> = {
   YouTube: { icon: Youtube, bg: "bg-red-100", fg: "text-red-600" },
