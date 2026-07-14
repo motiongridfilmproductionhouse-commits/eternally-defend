@@ -327,7 +327,11 @@ function ScanPage() {
             <KPI label="Reach" value={fmt(report.totals.totalReach)} icon={<Users className="size-4" />} tone="brand" />
           </div>
 
+          {/* DB-backed persisted results with cursor-paginated infinite scroll */}
+          <PersistedResults scanId={persistedScanId} summary={persistSummary} scanStatus={report ? "completed" : "running"} />
+
           {/* Buckets */}
+
           <Bucket title="CRITICAL THREATS" icon={<AlertTriangle className="size-4" />} hits={report.buckets.critical} onPromote={promote} added={added} />
           <Bucket title="HIGH-PRIORITY NEGATIVE CONTENT" icon={<ShieldAlert className="size-4" />} hits={report.buckets.high} onPromote={promote} added={added} />
           <Bucket title="EMERGING THREATS" icon={<TrendingUp className="size-4" />} hits={report.buckets.emerging} onPromote={promote} added={added} />
