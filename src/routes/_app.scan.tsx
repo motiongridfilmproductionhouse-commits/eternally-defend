@@ -835,6 +835,8 @@ type PersistedHit = {
   times_detected: number;
   first_seen_at: string;
   last_seen_at: string;
+  hidden_at?: string | null;
+  hidden_reason?: string | null;
 };
 
 // Source priority order — YouTube always first for reputation/defamation/impersonation impact.
