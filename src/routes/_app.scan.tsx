@@ -720,12 +720,12 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
           <div className="mt-2 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
             {thumb && imgOk && (
               <a href={h.url} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden">
-                <img src={thumb} alt={h.title} className="w-full aspect-video object-cover" />
+                <img src={thumb} alt={displayTitle} className="w-full aspect-video object-cover" />
               </a>
             )}
             <div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Title</div>
-              <div className="text-sm font-semibold">{h.title}</div>
+              <div className="text-sm font-semibold">{displayTitle}</div>
             </div>
             {h.description && (
               <div>
