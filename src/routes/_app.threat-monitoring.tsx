@@ -62,7 +62,7 @@ function ThreatMonitoringPage() {
                 <tr key={t.id} className="border-b border-border/60 hover:bg-accent/30">
                   <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">{t.id}</td>
                   <td className="py-3 pr-4 font-medium">{t.title}</td>
-                  <td className="py-3 pr-4 text-muted-foreground">{t.category}</td>
+                  <td className="py-3 pr-4 text-muted-foreground">{t.riskType}</td>
                   <td className="py-3 pr-4 text-muted-foreground">{t.platform}</td>
                   <td className="py-3 pr-4"><Pill color={severityColor(t.severity)}>{t.severity}</Pill></td>
                   <td className="py-3 pr-4 text-muted-foreground">{t.detected}</td>
