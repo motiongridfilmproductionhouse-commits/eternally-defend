@@ -1,12 +1,12 @@
 import { Youtube, Instagram, Music2, MessageCircle, Newspaper, Twitter } from "lucide-react";
 
 const items = [
-  { icon: Youtube, name: "YouTube", count: 67, color: "oklch(0.63 0.24 25)" },
-  { icon: Instagram, name: "Instagram", count: 32, color: "oklch(0.65 0.22 340)" },
-  { icon: Music2, name: "TikTok", count: 18, color: "oklch(0.3 0.05 275)" },
-  { icon: MessageCircle, name: "Reddit", count: 15, color: "oklch(0.68 0.2 35)" },
-  { icon: Newspaper, name: "News Sites", count: 24, color: "oklch(0.65 0.18 240)" },
-  { icon: Twitter, name: "X (Twitter)", count: 11, color: "oklch(0.3 0.02 275)" },
+  { icon: Youtube, name: "YouTube", count: 67, color: "#FF4D4D" },
+  { icon: Instagram, name: "Instagram", count: 32, color: "#E879F9" },
+  { icon: Music2, name: "TikTok", count: 18, color: "#22D3EE" },
+  { icon: MessageCircle, name: "Reddit", count: 15, color: "#FB923C" },
+  { icon: Newspaper, name: "News Sites", count: 24, color: "#3B82F6" },
+  { icon: Twitter, name: "X (Twitter)", count: 11, color: "#93C5FD" },
 ];
 
 export function PlatformIntelligence() {
