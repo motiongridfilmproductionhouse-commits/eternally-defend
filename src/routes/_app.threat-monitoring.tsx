@@ -114,7 +114,7 @@ function ThreatMonitoringPage() {
               )}
               {list.map((t: any) => (
                 <tr key={t.id} className="border-b border-border/60 hover:bg-accent/30">
-                  <td className="py-3 pr-4 font-medium max-w-[360px] truncate">{t.title ?? "(untitled)"}</td>
+                  <td className="py-3 pr-4 font-medium max-w-[360px] truncate">{cleanTitle(t.title, readableFromSlug(t.permalink ?? t.canonical_url))}</td>
                   <td className="py-3 pr-4 text-muted-foreground">{t.risk_type ?? "—"}</td>
                   <td className="py-3 pr-4 text-muted-foreground">{t.source}</td>
                   <td className="py-3 pr-4"><Pill color={severityTone(t.severity)}>{t.severity ?? "—"}</Pill></td>
