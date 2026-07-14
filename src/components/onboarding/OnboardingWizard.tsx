@@ -21,7 +21,7 @@ import { YouTubeChannelPicker, YouTubeAssetCard } from "@/components/onboarding/
 import {
   AUTHORIZATION_LEVELS, CLIENT_TYPES, CONSENT_KEYS, CONSENT_TEXTS, ENTERPRISE_CLIENT_TYPES,
 } from "@/lib/onboarding-versions";
-import { CheckCircle2, Trash2, Upload, ChevronRight, ChevronLeft, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Trash2, Upload, ChevronRight, ChevronLeft, ShieldCheck, User, Star, Video, Building2, Building, Users, Check } from "lucide-react";
 
 type State = Awaited<ReturnType<typeof getOnboardingState>>;
 
