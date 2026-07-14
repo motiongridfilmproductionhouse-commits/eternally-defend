@@ -380,6 +380,7 @@ export type Database = {
           onboarding_step: number
           onboarding_version: string
           phone: string | null
+          sidebar_collapsed: boolean
           social_profiles: Json
           updated_at: string
           user_id: string
@@ -406,6 +407,7 @@ export type Database = {
           onboarding_step?: number
           onboarding_version?: string
           phone?: string | null
+          sidebar_collapsed?: boolean
           social_profiles?: Json
           updated_at?: string
           user_id: string
@@ -432,6 +434,7 @@ export type Database = {
           onboarding_step?: number
           onboarding_version?: string
           phone?: string | null
+          sidebar_collapsed?: boolean
           social_profiles?: Json
           updated_at?: string
           user_id?: string
@@ -1915,6 +1918,9 @@ export type Database = {
           external_id: string | null
           first_seen_at: string
           growth_pct: number | null
+          hidden_at: string | null
+          hidden_by_user_id: string | null
+          hidden_reason: string | null
           id: string
           is_new_since_last_scan: boolean
           language: string | null
@@ -1959,6 +1965,9 @@ export type Database = {
           external_id?: string | null
           first_seen_at?: string
           growth_pct?: number | null
+          hidden_at?: string | null
+          hidden_by_user_id?: string | null
+          hidden_reason?: string | null
           id?: string
           is_new_since_last_scan?: boolean
           language?: string | null
@@ -2003,6 +2012,9 @@ export type Database = {
           external_id?: string | null
           first_seen_at?: string
           growth_pct?: number | null
+          hidden_at?: string | null
+          hidden_by_user_id?: string | null
+          hidden_reason?: string | null
           id?: string
           is_new_since_last_scan?: boolean
           language?: string | null

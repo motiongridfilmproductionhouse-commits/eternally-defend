@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { supabase } from "@/integrations/supabase/client";
+import { SidebarLayoutProvider, useSidebarLayout } from "@/lib/layout-context";
 
 export const Route = createFileRoute("/_app")({
   ssr: false,
@@ -9,7 +10,6 @@ export const Route = createFileRoute("/_app")({
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
 
-    // Server-side onboarding gate — every route under /_app requires a completed profile.
     const { data: profile } = await supabase
       .from("client_profiles")
       .select("onboarding_completed")
@@ -24,8 +24,17 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   return (
+    <SidebarLayoutProvider>
+      <AppShell />
+    </SidebarLayoutProvider>
+  );
+}
+
+function AppShell() {
+  const { hidden } = useSidebarLayout();
+  return (
     <div className="min-h-screen flex bg-background">
-      <Sidebar />
+      {!hidden && <Sidebar />}
       <main className="flex-1 min-w-0 flex flex-col">
         <TopBar />
         <div className="flex-1 px-8 pt-8 pb-10 min-w-0">
@@ -35,5 +44,3 @@ function AppLayout() {
     </div>
   );
 }
-
-

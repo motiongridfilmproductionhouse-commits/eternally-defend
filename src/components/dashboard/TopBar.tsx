@@ -1,9 +1,10 @@
 import { useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Bell, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2 } from "lucide-react";
+import { Search, Bell, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2, PanelLeft, PanelLeftClose } from "lucide-react";
 import { AuthorizationBadge } from "@/components/AuthorizationBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
+import { useSidebarLayout } from "@/lib/layout-context";
 
 const titles: Record<string, { title: string; sub: string }> = {
   "/": { title: "Protection Command Center", sub: "Real-time reputation protection & threat intelligence" },
@@ -46,8 +47,18 @@ export function TopBar() {
 
   const status = protectionStatus(statusQuery.data);
 
+  const { hidden, toggleHidden } = useSidebarLayout();
+
   return (
     <header className="sticky top-0 z-30 flex items-center gap-4 px-8 py-5 bg-background/80 backdrop-blur border-b border-border">
+      <button
+        onClick={toggleHidden}
+        title={hidden ? "Show sidebar (⌘/Ctrl+B)" : "Hide sidebar (⌘/Ctrl+B)"}
+        aria-label={hidden ? "Show sidebar" : "Hide sidebar"}
+        className="size-9 grid place-items-center rounded-lg border border-border bg-card hover:border-primary/30 transition text-foreground/70"
+      >
+        {hidden ? <PanelLeft className="size-4" /> : <PanelLeftClose className="size-4" />}
+      </button>
       <div className="min-w-0">
         <h1 className="text-[22px] font-display font-bold tracking-tight text-foreground">{meta.title}</h1>
         <p className="text-xs text-muted-foreground mt-0.5">{meta.sub}</p>

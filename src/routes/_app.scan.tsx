@@ -13,11 +13,15 @@ import { persistScan, listScanHits } from "@/lib/scans.functions";
 import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
 import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
 import { cleanTitle, viaProxy, faviconUrl, hostFromUrl, readableFromSlug, youtubeThumbFromUrl, youtubeIdFromUrl } from "@/lib/media-utils";
+import { PersistedResultCard, type HitLike } from "@/components/scan/PersistedResultCard";
+import { DetailDrawer } from "@/components/scan/DetailDrawer";
+import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
+import { listEvidenceStatus, hideScanHit } from "@/lib/scan-actions.functions";
 import {
   Radar, Search, ExternalLink, ShieldPlus, Loader2, Sparkles, TrendingUp,
   AlertTriangle, Flame, Users, Eye, Copyright, Gavel, Bell, FileDown,
   Youtube, MessageCircle, Newspaper, Instagram, Facebook, Globe, ShieldAlert,
-  BadgeCheck, ScanSearch, Clock, Database,
+  BadgeCheck, ScanSearch, Clock, Database, EyeOff, X as XIcon,
 } from "lucide-react";
 
 
@@ -831,6 +835,8 @@ type PersistedHit = {
   times_detected: number;
   first_seen_at: string;
   last_seen_at: string;
+  hidden_at?: string | null;
+  hidden_reason?: string | null;
 };
 
 // Source priority order — YouTube always first for reputation/defamation/impersonation impact.
@@ -868,22 +874,29 @@ function PersistedResults({
   scanStatus: string;
 }) {
   const listFn = useServerFn(listScanHits);
+  const evidenceStatusFn = useServerFn(listEvidenceStatus);
+  const hideFn = useServerFn(hideScanHit);
   const [items, setItems] = useState<PersistedHit[]>([]);
   const [cursor, setCursor] = useState<{ publishedAt: string | null; threatScore: number | null; id: string } | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Default view: YouTube-first. Client sees "Top YouTube Findings" immediately after a scan completes.
   const [source, setSource] = useState<string>("YouTube");
   const [onlyNew, setOnlyNew] = useState(false);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [hiddenFilter, setHiddenFilter] = useState<"active" | "hidden" | "all">("active");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [detail, setDetail] = useState<PersistedHit | null>(null);
+  const [action, setAction] = useState<ActionTarget | null>(null);
+  const [evidenceMap, setEvidenceMap] = useState<Record<string, { evidenceCount: number; status: string | null }>>({});
+  const [reloadTick, setReloadTick] = useState(0);
   const sentinel = useRef<HTMLDivElement | null>(null);
   const reqSeq = useRef(0);
 
   useEffect(() => {
-    setItems([]); setCursor(null); setHasMore(true); setError(null);
-  }, [scanId, source, onlyNew]);
+    setItems([]); setCursor(null); setHasMore(true); setError(null); setSelected(new Set());
+  }, [scanId, source, onlyNew, hiddenFilter, reloadTick]);
 
   const load = async (nextCursor: typeof cursor) => {
     if (loading || !hasMore) return;
@@ -894,6 +907,7 @@ function PersistedResults({
         scanId: scanId ?? undefined,
         source: source || undefined,
         onlyNew: onlyNew || undefined,
+        hiddenFilter,
         limit: 24,
         cursor: nextCursor ?? undefined,
       } });
@@ -912,7 +926,7 @@ function PersistedResults({
     if (!scanId) return;
     load(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scanId, source, onlyNew]);
+  }, [scanId, source, onlyNew, hiddenFilter, reloadTick]);
 
   useEffect(() => {
     if (!sentinel.current) return;
@@ -925,7 +939,35 @@ function PersistedResults({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor, hasMore, loading]);
 
-  // Client-side filter + priority-first sort. YouTube always surfaces before Archive.
+  // Fetch evidence + enforcement status for currently loaded items (batched).
+  useEffect(() => {
+    if (!items.length) { setEvidenceMap({}); return; }
+    const missing = items.map((h) => h.id).filter((id) => !(id in evidenceMap));
+    if (!missing.length) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const chunks: string[][] = [];
+        for (let i = 0; i < missing.length; i += 100) chunks.push(missing.slice(i, i + 100));
+        for (const chunk of chunks) {
+          const res = await evidenceStatusFn({ data: { scanHitIds: chunk } });
+          if (cancelled) return;
+          setEvidenceMap((prev) => {
+            const next = { ...prev };
+            for (const [id, v] of Object.entries(res.byHit)) {
+              next[id] = { evidenceCount: v.evidenceCount, status: v.status };
+            }
+            return next;
+          });
+        }
+      } catch {
+        /* non-fatal */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
   const displayItems = useMemo(() => {
     const now = Date.now();
     const windowMs =
@@ -978,6 +1020,56 @@ function PersistedResults({
   const criticalCount = useMemo(() => items.filter((h) => (h.severity ?? "").toLowerCase() === "critical").length, [items]);
   const totalReach = useMemo(() => items.reduce((s, h) => s + (h.reach ?? 0), 0), [items]);
 
+  const toggleSelected = (id: string, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelected(new Set());
+
+  const bulkHide = async () => {
+    if (!selected.size) return;
+    const ids = Array.from(selected);
+    try {
+      await Promise.all(ids.map((id) => hideFn({ data: { scanHitId: id, reason: "bulk_hidden" } })));
+      toast.success(`${ids.length} finding${ids.length === 1 ? "" : "s"} hidden`);
+      clearSelection();
+      setReloadTick((t) => t + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Bulk hide failed");
+    }
+  };
+
+  const bulkAction = () => {
+    if (!selected.size) return;
+    const ids = Array.from(selected);
+    const first = items.find((h) => h.id === ids[0]);
+    if (!first) return;
+    // Only allow bulk enforcement when all selected share the same platform.
+    const allSamePlatform = ids.every((id) => {
+      const h = items.find((x) => x.id === id);
+      return h && (h.source_type || h.source) === (first.source_type || first.source);
+    });
+    if (!allSamePlatform) {
+      toast.error("Bulk action requires all selected findings to share the same platform.");
+      return;
+    }
+    setAction({
+      id: first.id,
+      title: `${ids.length} selected findings on ${first.source_type || first.source}`,
+      url: first.permalink ?? first.canonical_url ?? "",
+      source: first.source,
+      platform: first.source_type || first.source,
+      threatScore: first.threat_score,
+      evidenceCount: 0,
+      status: null,
+      author: null,
+    });
+  };
+
   if (!scanId) {
     return (
       <PageCard title="TOP YOUTUBE FINDINGS" sub="Persisting scan results…">
@@ -997,11 +1089,23 @@ function PersistedResults({
     : "Grouped in reputation-damage priority — YouTube → News → Social → Community → Archive";
 
   return (
+    <>
     <PageCard
       title={cardTitle}
       sub={cardSub}
       actions={
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex rounded-full border border-border overflow-hidden text-[11px]">
+            {(["active", "hidden", "all"] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => setHiddenFilter(k)}
+                className={`px-3 py-1.5 ${hiddenFilter === k ? "bg-foreground text-background" : "bg-card hover:bg-accent"}`}
+              >
+                {k === "active" ? "Active" : k === "hidden" ? "Hidden" : "All"}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setOnlyNew((v) => !v)}
             className={`text-xs px-3 py-1.5 rounded-full border ${onlyNew ? "text-white border-transparent" : "border-border bg-card hover:bg-accent"}`}
@@ -1012,7 +1116,6 @@ function PersistedResults({
         </div>
       }
     >
-      {/* Priority-ordered source chips — YouTube first, always. */}
       <div className="flex flex-wrap gap-1.5 mb-3">
         <button
           onClick={() => setSource("")}
@@ -1038,7 +1141,6 @@ function PersistedResults({
         })}
       </div>
 
-      {/* Quick threat-type filters + time window */}
       <div className="flex flex-wrap gap-1.5 mb-3">
         {([
           ["all", "All threats"],
@@ -1079,7 +1181,6 @@ function PersistedResults({
         })}
       </div>
 
-      {/* Priority-ordered summary header */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2 mb-4 text-[11px]">
         <SumChip label="YouTube" value={sourceCounts["YouTube"] ?? 0} icon={<Youtube className="size-3.5" />} />
         <SumChip label="News" value={sourceCounts["News"] ?? 0} icon={<Newspaper className="size-3.5" />} />
@@ -1094,64 +1195,30 @@ function PersistedResults({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {displayItems.map((h) => {
-          const linkUrl = h.permalink ?? h.canonical_url ?? "#";
-          const displayTitle = cleanTitle(h.title, readableFromSlug(linkUrl));
-          const isYT = h.source === "YouTube";
-          const thumb = viaProxy(h.thumbnail_url) ?? (isYT ? youtubeThumbFromUrl(linkUrl, "hq") : null);
-          const host = hostFromUrl(linkUrl);
-          const favicon = faviconUrl(linkUrl);
+          const ev = evidenceMap[h.id];
           return (
-          <a
-            key={h.id}
-            href={linkUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition flex flex-col"
-          >
-            {thumb ? (
-              <div className="aspect-video bg-muted overflow-hidden">
-                <img src={thumb} alt={displayTitle} loading="lazy" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-              </div>
-            ) : (
-              <div className="aspect-video bg-gradient-to-br from-muted/60 to-secondary/60 flex flex-col items-center justify-center gap-1.5">
-                {favicon ? <img src={favicon} alt="" className="size-8 rounded bg-white/80 p-1 shadow-sm" /> : <Globe className="size-5 text-muted-foreground" />}
-                <div className="text-[10px] font-semibold text-foreground/80 truncate max-w-[80%] text-center">{host ?? h.source}</div>
-                <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{h.source}</div>
-              </div>
-            )}
-            <div className="p-3 flex-1 flex flex-col">
-              <div className="flex items-center gap-1.5 mb-1">
-                {h.is_new_since_last_scan && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500 text-white">NEW</span>}
-                {h.severity && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: severityColor(h.severity as never) }}>
-                    {h.severity.toUpperCase()}
-                  </span>
-                )}
-                <span className="text-[10px] text-muted-foreground truncate">{h.source}</span>
-                {h.published_at && (
-                  <span className="text-[10px] text-muted-foreground ml-auto">
-                    {new Date(h.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                  </span>
-                )}
-              </div>
-              <div className="text-sm font-semibold line-clamp-2">{displayTitle}</div>
-              {h.description && <div className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{h.description}</div>}
-              <div className="mt-auto pt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
-                {typeof h.threat_score === "number" && <span>Threat {Math.round(h.threat_score)}</span>}
-                {typeof h.reach === "number" && h.reach > 0 && <span>Reach {fmt(h.reach)}</span>}
-                {h.times_detected > 1 && <span>Seen ×{h.times_detected}</span>}
-              </div>
-            </div>
-          </a>
+            <PersistedResultCard
+              key={h.id}
+              hit={h as unknown as HitLike}
+              selected={selected.has(h.id)}
+              onToggleSelected={toggleSelected}
+              onOpenDetail={(x) => setDetail(x as unknown as PersistedHit)}
+              onTakeAction={(t) => setAction(t)}
+              onChanged={() => { setReloadTick((t) => t + 1); setEvidenceMap((m) => { const n = { ...m }; delete n[h.id]; return n; }); }}
+              evidenceCount={ev?.evidenceCount ?? 0}
+              status={ev?.status ?? null}
+              hiddenView={hiddenFilter === "hidden" || !!h.hidden_at}
+            />
           );
         })}
       </div>
 
       {items.length === 0 && !loading && (
-        <div className="text-xs text-muted-foreground py-6 text-center">No persisted results yet.</div>
+        <div className="text-xs text-muted-foreground py-6 text-center">
+          {hiddenFilter === "hidden" ? "No hidden findings." : "No persisted results yet."}
+        </div>
       )}
 
-      {/* Sentinel */}
       <div ref={sentinel} className="h-8" />
 
       <div className="mt-2 flex items-center justify-center text-xs text-muted-foreground">
@@ -1164,6 +1231,38 @@ function PersistedResults({
         ) : null}
       </div>
     </PageCard>
+
+    {selected.size > 0 && (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 rounded-2xl border border-border bg-card shadow-2xl px-4 py-3 flex items-center gap-3">
+        <span className="text-sm font-semibold">{selected.size} finding{selected.size === 1 ? "" : "s"} selected</span>
+        <div className="h-5 w-px bg-border" />
+        <button onClick={bulkAction} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent inline-flex items-center gap-1">
+          <Gavel className="size-3.5" /> Take Action
+        </button>
+        <button onClick={bulkHide} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent inline-flex items-center gap-1 text-destructive">
+          <EyeOff className="size-3.5" /> Hide
+        </button>
+        <button onClick={clearSelection} className="text-xs px-2 py-1.5 rounded-lg hover:bg-accent inline-flex items-center gap-1" aria-label="Clear selection">
+          <XIcon className="size-3.5" />
+        </button>
+      </div>
+    )}
+
+    <DetailDrawer
+      finding={detail as never}
+      open={!!detail}
+      onOpenChange={(v) => !v && setDetail(null)}
+      evidenceCount={detail ? (evidenceMap[detail.id]?.evidenceCount ?? 0) : 0}
+      enforcementStatus={detail ? (evidenceMap[detail.id]?.status ?? null) : null}
+    />
+
+    <ActionDrawer
+      target={action}
+      open={!!action}
+      onOpenChange={(v) => !v && setAction(null)}
+      onCreated={() => setReloadTick((t) => t + 1)}
+    />
+    </>
   );
 }
 
