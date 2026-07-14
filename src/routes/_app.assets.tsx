@@ -134,6 +134,23 @@ function AssetsPage() {
         <StatCard label="AT RISK" value={counts.atRisk} sub="Immediate attention" accent="oklch(0.63 0.24 25)" />
       </div>
 
+      <details className="group rounded-2xl bg-card border border-border" open>
+        <summary className="cursor-pointer list-none px-5 py-4 flex items-center gap-3">
+          <div className="size-9 rounded-lg grid place-items-center bg-primary/10 text-primary"><Radar className="size-4" /></div>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">Discover & verify official accounts</div>
+            <div className="text-xs text-muted-foreground">Auto-search social platforms for candidate accounts, confirm ownership, then verify for enforcement.</div>
+          </div>
+          <div className="text-xs text-muted-foreground group-open:hidden">Open</div>
+          <div className="text-xs text-muted-foreground hidden group-open:block">Hide</div>
+        </summary>
+        <div className="px-2 pb-4">
+          <DiscoveryPanel />
+        </div>
+      </details>
+
+
+
       <PageCard
         title="ASSET REGISTRY"
         sub="Copyright-registered and AI-fingerprinted assets"
