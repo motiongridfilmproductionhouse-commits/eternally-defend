@@ -158,6 +158,7 @@ export function OnboardingWizard({ initial }: { initial: State }) {
                     assets={state.assets}
                     onAdd={async (a) => { await addAsset({ data: a }); await reload(); }}
                     onRemove={async (id) => { await rmAsset({ data: { id } }); await reload(); }}
+                    onRefresh={async () => { await reload(); }}
                     onBack={goBack}
                     onNext={() => savePatch({}, 4)}
                     saving={saving}
