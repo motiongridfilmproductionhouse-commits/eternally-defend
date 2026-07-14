@@ -9,6 +9,7 @@ import { useData, severityColor } from "@/lib/data-store";
 import { persistScan, listScanHits } from "@/lib/scans.functions";
 import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
 import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
+import { cleanTitle, viaProxy, faviconUrl, hostFromUrl, readableFromSlug } from "@/lib/media-utils";
 import {
   Radar, Search, ExternalLink, ShieldPlus, Loader2, Sparkles, TrendingUp,
   AlertTriangle, Flame, Users, Eye, Copyright, Gavel, Bell, FileDown,
@@ -533,8 +534,12 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
   const [moments, setMoments] = useState(false);
   const [imgOk, setImgOk] = useState(true);
   const [loaded, setLoaded] = useState(false);
-  const thumb = h.media?.thumbnailHi || h.media?.thumbnail;
+  const rawThumb = h.media?.thumbnailHi || h.media?.thumbnail;
+  const thumb = viaProxy(rawThumb);
   const isYouTube = h.source === "YouTube";
+  const displayTitle = cleanTitle(h.title, readableFromSlug(h.url));
+  const host = hostFromUrl(h.url);
+  const favicon = faviconUrl(h.url);
   const publishedTs = h.published ? new Date(h.published).getTime() : 0;
   const publishedLabel = publishedTs ? new Date(publishedTs).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
   const ageDays = publishedTs ? Math.max(0, (Date.now() - publishedTs) / 86400000) : 0;
@@ -555,7 +560,7 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
           {!loaded && <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted to-muted-foreground/10" />}
           <img
             src={thumb}
-            alt={h.title}
+            alt={displayTitle}
             loading="lazy"
             onLoad={() => setLoaded(true)}
             onError={() => setImgOk(false)}
@@ -597,21 +602,29 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
           </div>
         </a>
       ) : (
-        <div className="aspect-video bg-gradient-to-br from-muted to-secondary grid place-items-center relative">
-          <div className="size-12 rounded-xl grid place-items-center" style={{ background: `color-mix(in oklab, ${sev} 14%, white)`, color: sev }}>
-            <Globe className="size-5" />
+        <a href={h.url} target="_blank" rel="noreferrer" className="relative block aspect-video bg-gradient-to-br from-muted/60 to-secondary/60 overflow-hidden">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center">
+            {favicon ? (
+              <img src={favicon} alt="" className="size-10 rounded-md bg-white/80 p-1.5 shadow-sm" />
+            ) : (
+              <div className="size-10 rounded-md grid place-items-center bg-white/80 text-muted-foreground shadow-sm">
+                <Globe className="size-5" />
+              </div>
+            )}
+            <div className="text-[11px] font-semibold text-foreground/80 truncate max-w-full">{host ?? h.platform}</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{h.source}</div>
           </div>
           <div className="absolute top-3 left-3 flex items-center gap-1.5">
             <span className="text-[10px] font-bold px-2 py-1 rounded-md text-white" style={{ background: sev }}>{h.severity.toUpperCase()}</span>
             {h.viral && <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500 text-white inline-flex items-center gap-1"><Flame className="size-3" /> VIRAL</span>}
           </div>
-        </div>
+        </a>
       )}
 
       {/* Body */}
       <div className="p-5 flex-1 flex flex-col gap-3">
         <div>
-          <a href={h.url} target="_blank" rel="noreferrer" className="block text-base font-semibold leading-snug line-clamp-3 hover:underline">{h.title}</a>
+          <a href={h.url} target="_blank" rel="noreferrer" className="block text-base font-semibold leading-snug line-clamp-3 hover:underline">{displayTitle}</a>
           <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
             {m?.channelUrl ? (
               <a href={m.channelUrl} target="_blank" rel="noreferrer" className="font-semibold text-foreground hover:underline">{m.channelTitle ?? h.author ?? h.platform}</a>
@@ -707,12 +720,12 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
           <div className="mt-2 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
             {thumb && imgOk && (
               <a href={h.url} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden">
-                <img src={thumb} alt={h.title} className="w-full aspect-video object-cover" />
+                <img src={thumb} alt={displayTitle} className="w-full aspect-video object-cover" />
               </a>
             )}
             <div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Title</div>
-              <div className="text-sm font-semibold">{h.title}</div>
+              <div className="text-sm font-semibold">{displayTitle}</div>
             </div>
             {h.description && (
               <div>
@@ -931,17 +944,29 @@ function PersistedResults({
       {error && <div className="text-xs text-red-600 mb-2">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {items.map((h) => (
+        {items.map((h) => {
+          const linkUrl = h.permalink ?? h.canonical_url ?? "#";
+          const displayTitle = cleanTitle(h.title, readableFromSlug(linkUrl));
+          const thumb = viaProxy(h.thumbnail_url);
+          const host = hostFromUrl(linkUrl);
+          const favicon = faviconUrl(linkUrl);
+          return (
           <a
             key={h.id}
-            href={h.permalink ?? h.canonical_url ?? "#"}
+            href={linkUrl}
             target="_blank"
             rel="noreferrer"
             className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition flex flex-col"
           >
-            {h.thumbnail_url && (
+            {thumb ? (
               <div className="aspect-video bg-muted overflow-hidden">
-                <img src={h.thumbnail_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                <img src={thumb} alt={displayTitle} loading="lazy" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+              </div>
+            ) : (
+              <div className="aspect-video bg-gradient-to-br from-muted/60 to-secondary/60 flex flex-col items-center justify-center gap-1.5">
+                {favicon ? <img src={favicon} alt="" className="size-8 rounded bg-white/80 p-1 shadow-sm" /> : <Globe className="size-5 text-muted-foreground" />}
+                <div className="text-[10px] font-semibold text-foreground/80 truncate max-w-[80%] text-center">{host ?? h.source}</div>
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{h.source}</div>
               </div>
             )}
             <div className="p-3 flex-1 flex flex-col">
@@ -959,7 +984,7 @@ function PersistedResults({
                   </span>
                 )}
               </div>
-              <div className="text-sm font-semibold line-clamp-2">{h.title ?? h.canonical_url}</div>
+              <div className="text-sm font-semibold line-clamp-2">{displayTitle}</div>
               {h.description && <div className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{h.description}</div>}
               <div className="mt-auto pt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
                 {typeof h.threat_score === "number" && <span>Threat {Math.round(h.threat_score)}</span>}
@@ -968,7 +993,8 @@ function PersistedResults({
               </div>
             </div>
           </a>
-        ))}
+          );
+        })}
       </div>
 
       {items.length === 0 && !loading && (
