@@ -75,10 +75,10 @@ export function StatsRow() {
     : null;
 
   const stats: { icon: typeof Shield; label: string; value: string | number; sub: string; color: string }[] = [
-    { icon: Shield, label: "PROTECTED ASSETS", value: counts.data?.assets ?? 0, sub: "Assets registered", color: "oklch(0.6 0.24 295)" },
-    { icon: AlertTriangle, label: "ACTIVE THREATS", value: activeThreats, sub: "Findings across platforms", color: "oklch(0.63 0.24 25)" },
-    { icon: Clock, label: "CRITICAL CASES", value: counts.data?.criticalCases ?? 0, sub: "High-priority cases open", color: "oklch(0.7 0.2 35)" },
-    { icon: Send, label: "TAKEDOWNS SENT", value: counts.data?.takedowns ?? 0, sub: "Submitted requests", color: "oklch(0.65 0.18 240)" },
+    { icon: Shield, label: "PROTECTED ASSETS", value: counts.data?.assets ?? 0, sub: "Assets registered", color: "#A78BFA" },
+    { icon: AlertTriangle, label: "ACTIVE THREATS", value: activeThreats, sub: "Findings across platforms", color: "#F87171" },
+    { icon: Clock, label: "CRITICAL CASES", value: counts.data?.criticalCases ?? 0, sub: "High-priority cases open", color: "#FB923C" },
+    { icon: Send, label: "TAKEDOWNS SENT", value: counts.data?.takedowns ?? 0, sub: "Submitted requests", color: "#3B82F6" },
   ];
 
   return (
