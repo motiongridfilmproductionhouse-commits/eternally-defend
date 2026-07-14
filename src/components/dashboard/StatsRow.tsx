@@ -21,11 +21,11 @@ function ReputationRing({ value }: { value: number | null }) {
       <svg viewBox="0 0 140 140" className="size-full -rotate-90">
         <defs>
           <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="oklch(0.6 0.24 295)" />
-            <stop offset="100%" stopColor="oklch(0.7 0.2 320)" />
+            <stop offset="0%" stopColor="#1E5EFF" />
+            <stop offset="100%" stopColor="#3B82F6" />
           </linearGradient>
         </defs>
-        <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="oklch(0.94 0.02 295)" fill="none" />
+        <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="rgba(255,255,255,0.08)" fill="none" />
         <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="url(#ringGrad)" fill="none"
           strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" />
       </svg>
@@ -75,10 +75,10 @@ export function StatsRow() {
     : null;
 
   const stats: { icon: typeof Shield; label: string; value: string | number; sub: string; color: string }[] = [
-    { icon: Shield, label: "PROTECTED ASSETS", value: counts.data?.assets ?? 0, sub: "Assets registered", color: "oklch(0.6 0.24 295)" },
-    { icon: AlertTriangle, label: "ACTIVE THREATS", value: activeThreats, sub: "Findings across platforms", color: "oklch(0.63 0.24 25)" },
-    { icon: Clock, label: "CRITICAL CASES", value: counts.data?.criticalCases ?? 0, sub: "High-priority cases open", color: "oklch(0.7 0.2 35)" },
-    { icon: Send, label: "TAKEDOWNS SENT", value: counts.data?.takedowns ?? 0, sub: "Submitted requests", color: "oklch(0.65 0.18 240)" },
+    { icon: Shield, label: "PROTECTED ASSETS", value: counts.data?.assets ?? 0, sub: "Assets registered", color: "#A78BFA" },
+    { icon: AlertTriangle, label: "ACTIVE THREATS", value: activeThreats, sub: "Findings across platforms", color: "#F87171" },
+    { icon: Clock, label: "CRITICAL CASES", value: counts.data?.criticalCases ?? 0, sub: "High-priority cases open", color: "#FB923C" },
+    { icon: Send, label: "TAKEDOWNS SENT", value: counts.data?.takedowns ?? 0, sub: "Submitted requests", color: "#3B82F6" },
   ];
 
   return (
@@ -86,7 +86,7 @@ export function StatsRow() {
       <div className="card-surface p-5 flex flex-col items-center">
         <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">REPUTATION SCORE</div>
         <div className="my-2"><ReputationRing value={reputation} /></div>
-        <div className="text-sm font-semibold" style={{ color: "oklch(0.55 0.22 295)" }}>
+        <div className="text-sm font-semibold" style={{ color: "#3B82F6" }}>
           {reputation === null ? "No data yet" : reputation >= 80 ? "Excellent" : reputation >= 60 ? "Healthy" : reputation >= 40 ? "At Risk" : "Critical"}
         </div>
         <div className="text-xs text-muted-foreground mt-1">
@@ -99,7 +99,7 @@ export function StatsRow() {
         return (
           <div key={s.label} className="card-surface p-5 flex flex-col">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl grid place-items-center" style={{ background: `color-mix(in oklab, ${s.color} 12%, white)`, color: s.color }}>
+              <div className="size-10 rounded-xl grid place-items-center" style={{ background: `color-mix(in oklab, ${s.color} 20%, transparent)`, color: s.color }}>
                 <Icon className="size-5" />
               </div>
               <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">{s.label}</div>

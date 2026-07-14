@@ -1,12 +1,12 @@
 import { Youtube, Instagram, Music2, MessageCircle, Newspaper, Twitter } from "lucide-react";
 
 const items = [
-  { icon: Youtube, name: "YouTube", count: 67, color: "oklch(0.63 0.24 25)" },
-  { icon: Instagram, name: "Instagram", count: 32, color: "oklch(0.65 0.22 340)" },
-  { icon: Music2, name: "TikTok", count: 18, color: "oklch(0.3 0.05 275)" },
-  { icon: MessageCircle, name: "Reddit", count: 15, color: "oklch(0.68 0.2 35)" },
-  { icon: Newspaper, name: "News Sites", count: 24, color: "oklch(0.65 0.18 240)" },
-  { icon: Twitter, name: "X (Twitter)", count: 11, color: "oklch(0.3 0.02 275)" },
+  { icon: Youtube, name: "YouTube", count: 67, color: "#FF4D4D" },
+  { icon: Instagram, name: "Instagram", count: 32, color: "#E879F9" },
+  { icon: Music2, name: "TikTok", count: 18, color: "#22D3EE" },
+  { icon: MessageCircle, name: "Reddit", count: 15, color: "#FB923C" },
+  { icon: Newspaper, name: "News Sites", count: 24, color: "#3B82F6" },
+  { icon: Twitter, name: "X (Twitter)", count: 11, color: "#93C5FD" },
 ];
 
 export function PlatformIntelligence() {
@@ -23,8 +23,8 @@ export function PlatformIntelligence() {
         {items.map((p) => {
           const Icon = p.icon;
           return (
-            <div key={p.name} className="border border-border rounded-xl p-3 flex items-center gap-2.5">
-              <div className="size-9 rounded-lg grid place-items-center" style={{ background: `color-mix(in oklab, ${p.color} 12%, white)`, color: p.color }}>
+            <div key={p.name} className="border border-border rounded-xl p-3 flex items-center gap-2.5 bg-card/40">
+              <div className="size-9 rounded-lg grid place-items-center" style={{ background: `color-mix(in oklab, ${p.color} 18%, transparent)`, color: p.color }}>
                 <Icon className="size-4" />
               </div>
               <div className="min-w-0">
