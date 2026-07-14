@@ -21,25 +21,25 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/intelligence")({
-  head: () => ({ meta: [{ title: "Multimedia Intelligence Engine — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Evidence Analysis Center — Eterna AI" }] }),
   component: IntelligenceEnginePage,
 });
 
 const STAGE_LABELS: Record<string, string> = {
-  prepare: "Preparing media",
-  upload: "Uploading authorized file",
-  video_intelligence: "Video analysis (scenes/objects/logos)",
-  audio_extract: "Extracting audio",
-  transcription: "Generating transcript",
-  mention_detect: "Finding exact mentions",
+  prepare: "Preparing evidence",
+  upload: "Ingesting authorized content",
+  video_intelligence: "Visual scene analysis",
+  audio_extract: "Extracting audio track",
+  transcription: "Reconstructing transcript",
+  mention_detect: "Detecting exact mentions",
   vision_frames: "Analyzing visual frames",
   translation: "Translating content",
   claim_extract: "Extracting claims",
-  fact_check: "Searching fact checks",
+  fact_check: "Cross-checking public record",
   risk_score: "Calculating threat scores",
-  save_evidence: "Saving evidence",
-  threat_radar: "Sending to Threat Radar",
-  finalize: "Finalizing report",
+  save_evidence: "Preserving evidence",
+  threat_radar: "Escalating to Threat Radar",
+  finalize: "Compiling report",
 };
 
 function useSession() {
@@ -58,7 +58,7 @@ function IntelligenceEnginePage() {
   if (!ready) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
   if (!session) {
     return (
-      <PageCard title="MULTIMEDIA INTELLIGENCE ENGINE" sub="Sign in to run analyses and view saved evidence">
+      <PageCard title="EVIDENCE ANALYSIS CENTER" sub="Sign in to run analyses and view saved evidence">
         <div className="py-10 text-center">
           <ShieldAlert className="size-10 mx-auto text-muted-foreground" />
           <p className="mt-3 text-sm">Analyses are private to your account. Sign in to continue.</p>
