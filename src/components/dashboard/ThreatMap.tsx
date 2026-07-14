@@ -132,16 +132,16 @@ export function ThreatMap() {
                   <span className="absolute inset-0 -m-4 rounded-full animate-ping opacity-40" style={{ background: h.color }} />
                   <span className="relative block size-3 rounded-full ring-4" style={{ background: h.color, boxShadow: `0 0 24px ${h.color}` }} />
                 </div>
-                <div className="absolute left-5 -top-6 whitespace-nowrap bg-white border border-border rounded-lg px-2.5 py-1.5 shadow-md">
-                  <div className="text-xs font-semibold">{h.label}</div>
+                <div className="absolute left-5 -top-6 whitespace-nowrap bg-card border border-border rounded-lg px-2.5 py-1.5 shadow-md">
+                  <div className="text-xs font-semibold text-foreground">{h.label}</div>
                   <div className="text-[10px]" style={{ color: h.color }}>{h.count} Threats</div>
                 </div>
               </div>
             ))
           )}
           <div className="absolute bottom-3 right-3 flex flex-col gap-1">
-            <button className="size-8 grid place-items-center bg-white/90 border border-border rounded-md"><Plus className="size-3.5" /></button>
-            <button className="size-8 grid place-items-center bg-white/90 border border-border rounded-md"><Minus className="size-3.5" /></button>
+            <button className="size-8 grid place-items-center bg-card/80 hover:bg-card border border-border rounded-md text-foreground/80 hover:text-primary transition"><Plus className="size-3.5" /></button>
+            <button className="size-8 grid place-items-center bg-card/80 hover:bg-card border border-border rounded-md text-foreground/80 hover:text-primary transition"><Minus className="size-3.5" /></button>
           </div>
         </div>
       </div>
