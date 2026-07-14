@@ -61,11 +61,17 @@ export const runRetentionCleanup = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Admin-only when any admin exists
-    const { data: anyAdmin } = await supabase.from("user_roles").select("user_id").eq("role", "admin").limit(1);
-    if (anyAdmin && anyAdmin.length > 0) {
-      const { data: ok } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-      if (!ok) throw new Error("Forbidden: admin role required for retention operations");
+    // Admin-only (admin or super_admin) when any admin exists
+    const { data: myRoles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const isAdmin = ((myRoles ?? []) as Array<{ role: string }>).some(
+      (r) => r.role === "admin" || r.role === "super_admin",
+    );
+    if (!isAdmin) {
+      const { data: anyAdmin } = await supabase
+        .from("user_roles").select("user_id").in("role", ["admin", "super_admin"]).limit(1);
+      if (anyAdmin && anyAdmin.length > 0) {
+        throw new Error("Forbidden: admin role required for retention operations");
+      }
     }
 
     const now = Date.now();
