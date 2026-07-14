@@ -13,9 +13,11 @@ const TAG_COLOR: Record<string, string> = {
 
 export function TopActiveThreats() {
   const fn = useServerFn(getDashboardStats);
+  const { session } = useSession();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => fn({}),
+    enabled: !!session,
     refetchInterval: 30_000,
   });
   const items = data?.topThreats ?? [];

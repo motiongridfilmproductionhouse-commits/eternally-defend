@@ -14,9 +14,11 @@ const PLATFORM_ICON: Record<string, { icon: typeof Facebook; bg: string; fg: str
 
 export function UnauthorizedUsage() {
   const fn = useServerFn(getDashboardStats);
+  const { session } = useSession();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => fn({}),
+    enabled: !!session,
     refetchInterval: 30_000,
   });
   const u = data?.unauthorized;

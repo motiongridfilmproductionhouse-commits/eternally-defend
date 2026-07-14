@@ -6,9 +6,11 @@ import { useSession } from "@/hooks/use-session";
 
 export function DeepfakeIntelligence() {
   const fn = useServerFn(getDashboardStats);
+  const { session } = useSession();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => fn({}),
+    enabled: !!session,
     refetchInterval: 30_000,
   });
   const d = data?.deepfake;
