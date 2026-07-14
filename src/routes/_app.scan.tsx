@@ -170,6 +170,12 @@ function ScanPage() {
             <Field label="Industry / profession">
               <input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="e.g. musician, SaaS" className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm" />
             </Field>
+            <Field label="Name / spelling variations (Malayalam, English, nicknames)">
+              <input value={variations} onChange={(e) => setVariations(e.target.value)} placeholder="comma separated" className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm" />
+            </Field>
+            <Field label="Hashtags to track">
+              <input value={hashtags} onChange={(e) => setHashtags(e.target.value)} placeholder="#brandname, #topic" className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm" />
+            </Field>
             <Field label="Search period">
               <select value={period} onChange={(e) => setPeriod(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm">
                 {PERIODS.map(p => <option key={p}>{p}</option>)}
