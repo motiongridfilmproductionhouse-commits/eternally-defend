@@ -472,11 +472,14 @@ function buildReport(query: string, aliases: string[], period: string, sourcesRe
         ? (o.media.likes ?? 0) + (o.media.comments ?? 0)
         : Math.round(reach * (0.03 + ((idx * 53) % 60) / 1000));
       const virality = Math.min(100, Math.round((reach / 5000) + (c.sev === "Critical" ? 25 : c.sev === "High" ? 15 : 5)));
-      const recency = o.publishedDate || o.date ? 70 : 60;
+      const pubTs = o.publishedDate || o.date ? new Date(o.publishedDate || o.date!).getTime() : 0;
+      const ageDays = pubTs ? Math.max(0.1, (Date.now() - pubTs) / 86400000) : 400;
+      // Recency curve: 24h → 100, 7d → 88, 30d → 70, 90d → 50, 365d → 25
+      const recency = Math.max(10, Math.round(100 * Math.exp(-ageDays / 45)));
       const threat = Math.min(100, Math.round(
-        c.score * 0.25 + cred * 0.20 + Math.min(100, reach / 5000) * 0.15 +
-        Math.min(100, engagement / 500) * 0.10 + 65 * 0.10 + recency * 0.10 +
-        virality * 0.05 + 60 * 0.05
+        c.score * 0.22 + cred * 0.15 + Math.min(100, reach / 5000) * 0.15 +
+        Math.min(100, engagement / 500) * 0.10 + recency * 0.23 +
+        virality * 0.10 + 60 * 0.05
       ));
       const detectionReason = c.keywords.length
         ? `Matched risk terms: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
