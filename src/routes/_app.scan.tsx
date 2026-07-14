@@ -5,7 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReputationReport, ScanHit, SourceKey, Sentiment } from "@/routes/api/scan";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
-import { useData, severityColor } from "@/lib/data-store";
+import { severityColor } from "@/lib/data-store";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/hooks/use-session";
+import { toast } from "sonner";
 import { persistScan, listScanHits } from "@/lib/scans.functions";
 import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
 import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
@@ -66,7 +69,8 @@ async function runScan(payload: unknown): Promise<ReputationReport> {
 }
 
 function ScanPage() {
-  const { addThreat } = useData();
+  const { session } = useSession();
+  const userId = session?.user.id;
   const [q, setQ] = useState("");
   const [aliases, setAliases] = useState("");
   const [variations, setVariations] = useState("");
@@ -204,22 +208,18 @@ function ScanPage() {
     [q, aliases, variations],
   );
 
-  const promote = (h: ScanHit) => {
-    const riskMap: Record<string, "Deepfake"|"Impersonation"|"Copyright"|"News Attack"|"Brand Abuse"> = {
-      Deepfake: "Deepfake", Impersonation: "Impersonation", Copyright: "Copyright",
-      "News Attack": "News Attack", "Unauthorized Ad": "Brand Abuse", Viral: "Copyright",
-    };
-    const risk = riskMap[h.category] ?? "Brand Abuse";
-    addThreat({
-      title: h.title.slice(0, 80),
-      riskType: risk,
+  const promote = async (h: ScanHit) => {
+    if (!userId) { toast.error("Sign in required"); return; }
+    const { error } = await supabase.from("enforcement_requests").insert({
+      user_id: userId,
       platform: h.platform,
-      severity: h.severity,
-      location: h.source,
-      confidence: h.confidence,
-      reach: Number(h.reachEstimate) || 0,
-      threatScore: Number(h.threatScore) || h.confidence,
+      method: "DMCA",
+      target_url: h.url,
+      status: "Queued",
+      metadata: { title: h.title, category: h.category, severity: h.severity, source: h.source },
     });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Queued for takedown");
     setAdded((s) => new Set(s).add(h.url));
   };
 

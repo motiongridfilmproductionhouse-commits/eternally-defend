@@ -1,101 +1,62 @@
-# Protected Assets — Social Discovery & Ownership Verification
+## Goal
 
-Extend the Protected Assets flow so users can enter a person / brand / domain / handle, get back candidate official accounts across major platforms, confirm which are theirs, and then progressively strengthen ownership proof before any enforcement-grade action is allowed.
+Purge every mock / demo / seeded value from Eterna AI. Every page must read from the live database (`scan_hits`, `scans`, `timestamp_findings`, `video_timestamp_findings`, `video_creator_profiles`, `enforcement_requests`, `cases`, `generated_reports`, etc.) or show a professional empty state. No more "Deepfake Video Spreading", "Impersonation Account", hardcoded takedown counts, or seeded reputation scores.
 
-## 1. Data model (one migration)
+Scope is large but mechanical — most of the mock data comes from a single `src/lib/data-store.tsx` provider that fans out into 4 routes, plus a handful of dashboard widgets that hardcode numbers. Threat Radar was already migrated in the last turn and is the pattern for the rest.
 
-New tables (all RLS-scoped to `auth.uid()`, standard GRANTs to `authenticated` + `service_role`):
+## What changes
 
-- `discovery_subjects` — one row per "who/what am I protecting"
-  - `subject_kind` (person | brand | company | domain | handle | website)
-  - `query` (raw text), `normalized_name`, `website_domain`, `country`, `org`, `notes`
-- `discovered_accounts` — candidates found for a subject
-  - `subject_id`, `platform` (youtube|instagram|facebook|tiktok|x|linkedin|reddit|website)
-  - `display_name`, `handle`, `profile_url`, `profile_image_url`, `bio`, `follower_count`, `platform_verified`, `website_links jsonb`, `cross_links jsonb`
-  - `confidence` (0–100), `match_signals jsonb` (per-signal breakdown), `match_reasons text[]`
-  - `discovery_source` (firecrawl_search | website_links | cross_link | manual)
-  - `status` — enum: `discovered | likely_official | user_confirmed | ownership_pending | verified | rejected`
-  - `user_decision` (`confirmed | not_mine | unsure | null`), `decided_at`
-- `account_verifications` — one row per verification attempt
-  - `account_id`, `method` (`oauth | domain_dns | domain_meta | business_email | bio_code | document | admin_review`)
-  - `state` (`pending | passed | failed | expired`), `code` (for bio-code), `evidence jsonb`
-  - `verified_at`, `reviewer_id`, `expires_at`
-- `account_audit_log` — append-only: `account_id`, `actor_id`, `action`, `from_status`, `to_status`, `meta jsonb`
+### 1. Kill the mock store
+- Delete `src/lib/data-store.tsx` (or reduce it to shared type exports only — `Severity`, `Status`, `RiskType`, `Virality`, `severityColor`).
+- Remove `<DataProvider>` from `src/routes/__root.tsx`.
 
-Link to existing `protected_assets`: add nullable `discovered_account_id uuid` FK so a confirmed account can be promoted into the protected registry. The authorization agreement (existing `authorization_records`) is applied only to explicitly selected accounts/assets — nothing is auto-included.
+### 2. New / extended DB tables (single migration)
+- `enforcement_requests` — user_id, scan_hit_id, platform, method (DMCA / Platform Report / Legal Notice), status (Queued / Sent / Approved / Rejected), submitted_at, responded_at, response_notes, evidence_refs.
+- `cases` — user_id, subject, type (DMCA / Legal / Platform / Investigation), status (Open / In Progress / Escalated / Closed), priority, assignee, opened_at.
+- `case_findings` — join table (case_id, scan_hit_id).
+- `generated_reports` — user_id, name, kind, status, pdf_url, findings_count, created_at.
+- Full RLS: `auth.uid() = user_id`, `GRANT ... TO authenticated`, `GRANT ALL TO service_role`.
 
-## 2. Discovery engine (server function)
+(Other tables the prompt lists — `deepfake_findings`, `platform_submissions`, `creator_profiles`, `video_timestamp_findings` — already exist as `timestamp_findings`, `video_timestamp_findings`, `video_creator_profiles`, `multimedia_analysis_jobs`. I'll reuse those instead of duplicating them.)
 
-`discoverAccounts` — `createServerFn` + `requireSupabaseAuth`, inputs `{ subjectId }`.
+### 3. Route rewrites (all fed by `useQuery` + supabase browser client, RLS-scoped)
 
-- Uses **Firecrawl** (already connected) for:
-  1. `search` queries per platform, e.g. `site:youtube.com "<name>"`, `site:instagram.com "<handle>"`, plus a general `"<name>" official`
-  2. `scrape` on the user's official website (if provided) with `formats: ['links','html','branding']` to pull outbound social links and logo
-  3. `scrape` on top candidate profile pages to extract display name, bio, follower count when publicly rendered, verified badge, external website link
-- Normalizes candidates, dedupes per `(platform, handle)`, writes to `discovered_accounts` with `status='discovered'`.
-- Computes `confidence` from weighted signals (each recorded in `match_signals`):
-  - name similarity (Jaro-Winkler) 25
-  - handle similarity 15
-  - official-domain match in bio/website field 20
-  - inbound link from user's official site 20
-  - cross-link between two candidates 10
-  - platform-verified badge 5
-  - country/org/category match 5
-- Promotes to `likely_official` when confidence ≥ 75.
-- Returns candidates for the UI.
+| Route | New data source | Empty state |
+|---|---|---|
+| `/enforcement` | `enforcement_requests` + agg counts | "No enforcement actions available." |
+| `/cases` | `cases` + `case_findings` | "No active cases." |
+| `/removals` | `enforcement_requests` where method ≠ Legal | "No removal requests yet." |
+| `/threat-monitoring` | `scan_hits` grouped by status | "No findings — run a scan." |
+| `/reports` | `generated_reports` | "No reports generated yet." |
+| `/scan` | already real; strip `addThreat` mock write | — |
+| `/intelligence` | `video_timestamp_findings` + `video_creator_profiles` (already partially real — audit and remove any seeded fallbacks) | "No evidence analysed yet." |
+| `/narrative-intelligence` | `narrative_clusters` | "No narratives clustered." |
 
-Runs sequentially per platform with a small concurrency cap and stops early on Firecrawl 402 (credit exhaustion), surfacing the exact provider error.
+### 4. Dashboard widgets — verify each is DB-backed
+`StatsRow`, `ThreatMap`, `AIThreatTimeline`, `ReputationPulse`, `PlatformIntelligence`, `AIExposureIndex`, `UnauthorizedUsage`, `DeepfakeIntelligence`, `TopActiveThreats` all currently call `getDashboardStats` (real) — audit each to confirm no hardcoded fallback arrays leak through, and add "No data yet" states where they render bar rows.
 
-## 3. UI — Discovery & confirmation
+`DeepfakeIntelligence` in particular must render "Deepfake detection unavailable" when `deepfake.sampleCount === 0` instead of drawing 0-value bars.
 
-New wizard step inside `/onboarding` (and a standalone panel on `/assets` for post-onboarding additions):
+### 5. Enforcement actions
+Wire the "Takedown" buttons across `/threat-radar`, `/threat-monitoring`, and `/enforcement` to insert into `enforcement_requests` (status = "Queued") — this makes the enforcement metrics actually move.
 
-- Input: subject kind + query + optional website/country/org.
-- "Search" triggers discovery, shows a live list grouped by platform:
-  - profile image, display name + handle, follower count, platform verified badge
-  - confidence bar + expandable "why we think this is a match" (match_signals + reasons)
-  - action buttons: **Confirm official**, **Not my account**, **Unsure**, plus **Add manually**
-- Confirm → `user_decision='confirmed'`, status becomes `user_confirmed` (monitoring allowed). Never auto-jumps to `verified`.
-- Rejected candidates are hidden by default but recoverable.
+### 6. Cross-check
+- `rg -n "useData\("` returns 0.
+- `rg -n "seed|mock|demo"` in `src/` returns only comments and test-only references.
+- Every page renders correctly with zero rows.
 
-## 4. Ownership verification (gated actions)
+## Technical notes
 
-Confirmed accounts can be **monitored**. Before enforcement / takedown / copyright / impersonation actions the app requires `status='verified'` via one of:
+- All reads via `supabase` browser client under RLS (matches existing `_app.assets.tsx` and the new `_app.threat-radar.tsx` pattern).
+- Enforcement metrics: `count(*)`, `count(*) filter (status='Approved') / count(*)`, `avg(responded_at - submitted_at)`. Computed client-side over the fetched rows (bounded query with `.limit(500)`).
+- Reports UI keeps a "Generate PDF" button but only lists rows from `generated_reports`; actual PDF generation is a follow-up (out of scope for a data-purge pass).
+- Types file (`src/integrations/supabase/types.ts`) regenerates after migration approval; route code that references new tables lands *after* the migration runs.
 
-- **Platform OAuth** — when the platform has a connector (YouTube via Google, LinkedIn, TikTok, X, Reddit); we compare the OAuth identity's handle/id against the candidate. If it matches, verification passes.
-- **Domain verification** — DNS TXT record `eterna-verify=<token>` on the user's website domain, or `<meta name="eterna-verify" content="<token>">` in the page head. Check via Firecrawl scrape / DNS-over-HTTPS.
-- **Business-email verification** — send a code to an address on the confirmed domain (uses existing email/AI-gateway infra).
-- **Bio code** — generate a short token, user pastes it into the profile bio, we re-scrape the profile to confirm, then instruct removal.
-- **Authorization document upload** — into the existing `authorization-vault` storage bucket.
-- **Admin review** — flags to `ownership_pending`; internal admin (`has_role(_,'admin')`) approves via a review queue.
+## Order of operations
 
-Each attempt is written to `account_verifications`; a passing attempt flips the account to `verified` and appends to `account_audit_log`.
-
-The existing `useAuthorization()` gate is extended: enforcement UI checks that the target account is `verified`, not just that the user's authorization level is high enough. Otherwise it shows an inline "Verify ownership to enable enforcement" CTA.
-
-## 5. Server layout
-
-- `src/lib/discovery.functions.ts` — `createSubject`, `discoverAccounts`, `decideAccount` (confirm/reject/unsure), `addManualAccount`, `listSubjects`, `listAccounts`
-- `src/lib/verification.functions.ts` — `startVerification`, `checkVerification`, `submitDocument`, `adminApprove`
-- `src/lib/discovery/firecrawl.server.ts` — thin Firecrawl helpers (search per platform, scrape profile, scrape website for outbound links) — direct API mode per current `FIRECRAWL_API_KEY`
-- `src/lib/discovery/scoring.ts` — pure scoring utilities (client-safe, unit-testable)
-- No admin/service-role reads for anything user-scoped; all queries via `requireSupabaseAuth` → RLS.
-
-## 6. UI files
-
-- `src/components/discovery/DiscoveryPanel.tsx` — subject form + results list
-- `src/components/discovery/AccountCard.tsx` — one candidate row with signals & actions
-- `src/components/discovery/VerificationDialog.tsx` — picks a method and drives the flow
-- `src/routes/_app.assets.tsx` — add a "Discover accounts" button that opens the panel; confirmed accounts appear as registered assets with a "Verify ownership" action when status < verified
-- `src/routes/_app.onboarding.tsx` — inject the discovery step between "Protected Assets" and "Consent"
-
-## 7. Audit & scope of authorization
-
-- Every status transition writes to `account_audit_log` with actor, timestamps, method, and evidence hash.
-- The existing `authorization_records` signature captures the specific `account_ids` and `asset_ids` present at signing time. Newly added accounts do NOT inherit the prior signature — the user is prompted to re-sign for the new scope before enforcement can target them.
-
-## Out of scope
-
-- Real KYC / government-ID verification
-- Deep OAuth for every platform in a single pass — YouTube (Google) and one more platform ship first; others land behind a "coming soon" state that still allows bio-code / domain / document verification.
-- Automatic take­down submission (already handled by existing enforcement flow; this change only gates *who* can trigger it).
+1. Ship migration (creates `enforcement_requests`, `cases`, `case_findings`, `generated_reports`).
+2. Delete data-store, remove `<DataProvider>`, purge type imports.
+3. Rewrite `/cases`, `/enforcement`, `/removals`, `/threat-monitoring`, `/reports` in parallel.
+4. Audit dashboard widgets — patch empty states.
+5. Wire Takedown buttons to `enforcement_requests`.
+6. Verify with grep + build.
