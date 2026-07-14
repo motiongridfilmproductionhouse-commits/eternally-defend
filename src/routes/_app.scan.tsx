@@ -944,17 +944,29 @@ function PersistedResults({
       {error && <div className="text-xs text-red-600 mb-2">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {items.map((h) => (
+        {items.map((h) => {
+          const linkUrl = h.permalink ?? h.canonical_url ?? "#";
+          const displayTitle = cleanTitle(h.title, readableFromSlug(linkUrl));
+          const thumb = viaProxy(h.thumbnail_url);
+          const host = hostFromUrl(linkUrl);
+          const favicon = faviconUrl(linkUrl);
+          return (
           <a
             key={h.id}
-            href={h.permalink ?? h.canonical_url ?? "#"}
+            href={linkUrl}
             target="_blank"
             rel="noreferrer"
             className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition flex flex-col"
           >
-            {h.thumbnail_url && (
+            {thumb ? (
               <div className="aspect-video bg-muted overflow-hidden">
-                <img src={h.thumbnail_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                <img src={thumb} alt={displayTitle} loading="lazy" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+              </div>
+            ) : (
+              <div className="aspect-video bg-gradient-to-br from-muted/60 to-secondary/60 flex flex-col items-center justify-center gap-1.5">
+                {favicon ? <img src={favicon} alt="" className="size-8 rounded bg-white/80 p-1 shadow-sm" /> : <Globe className="size-5 text-muted-foreground" />}
+                <div className="text-[10px] font-semibold text-foreground/80 truncate max-w-[80%] text-center">{host ?? h.source}</div>
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{h.source}</div>
               </div>
             )}
             <div className="p-3 flex-1 flex flex-col">
@@ -972,7 +984,7 @@ function PersistedResults({
                   </span>
                 )}
               </div>
-              <div className="text-sm font-semibold line-clamp-2">{h.title ?? h.canonical_url}</div>
+              <div className="text-sm font-semibold line-clamp-2">{displayTitle}</div>
               {h.description && <div className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{h.description}</div>}
               <div className="mt-auto pt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
                 {typeof h.threat_score === "number" && <span>Threat {Math.round(h.threat_score)}</span>}
