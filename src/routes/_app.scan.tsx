@@ -29,26 +29,27 @@ export const Route = createFileRoute("/_app/scan")({
   component: ScanPage,
 });
 
+// Ordered by reputation-damage priority: YouTube first, then News, Reddit, social, blogs/forums/reviews/archive.
 const SOURCES: { key: SourceKey; label: string }[] = [
-  { key: "web", label: "Web" },
-  { key: "news", label: "News" },
   { key: "youtube", label: "YouTube" },
+  { key: "news", label: "News" },
   { key: "reddit", label: "Reddit" },
   { key: "x", label: "X" },
   { key: "instagram", label: "Instagram" },
   { key: "tiktok", label: "TikTok" },
   { key: "facebook", label: "Facebook" },
-  { key: "linkedin", label: "LinkedIn" },
   { key: "blogs", label: "Blogs" },
   { key: "forums", label: "Forums" },
-  { key: "podcasts", label: "Podcasts" },
   { key: "reviews", label: "Reviews" },
-  { key: "complaints", label: "Complaints" },
   { key: "archive", label: "Archive" },
+  { key: "linkedin", label: "LinkedIn" },
+  { key: "podcasts", label: "Podcasts" },
+  { key: "complaints", label: "Complaints" },
+  { key: "web", label: "Web" },
 ];
 
 const PERIODS = ["Last 24 hours", "Last 7 days", "Last 30 days", "Last 90 days", "All time"];
-const DEFAULT_SOURCES: SourceKey[] = ["web", "news", "youtube", "reddit", "x", "reviews"];
+const DEFAULT_SOURCES: SourceKey[] = ["youtube", "news", "reddit", "x", "instagram", "tiktok", "facebook", "blogs", "forums", "reviews", "archive"];
 
 const sentimentColor = (s: Sentiment) =>
   s === "Negative" ? "oklch(0.63 0.24 25)" : s === "Positive" ? "oklch(0.68 0.16 155)" : "oklch(0.55 0.03 275)";
@@ -372,12 +373,13 @@ function ScanPage() {
 
           {/* Buckets */}
 
+          {/* YouTube-first ordering: reputation damage typically starts on YouTube, then spreads to News, Reddit, and other social platforms. */}
+          <Bucket title="LATEST YOUTUBE THREATS" icon={<Youtube className="size-4" />} hits={report.buckets.youtube} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="CRITICAL THREATS" icon={<AlertTriangle className="size-4" />} hits={report.buckets.critical} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="HIGH-PRIORITY NEGATIVE CONTENT" icon={<ShieldAlert className="size-4" />} hits={report.buckets.high} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="EMERGING THREATS" icon={<TrendingUp className="size-4" />} hits={report.buckets.emerging} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="NEWS COVERAGE" icon={<Newspaper className="size-4" />} hits={report.buckets.news} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
-          <Bucket title="YOUTUBE MONITORING" icon={<Youtube className="size-4" />} hits={report.buckets.youtube} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
-          <Bucket title="REDDIT MONITORING" icon={<MessageCircle className="size-4" />} hits={report.buckets.reddit} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="REDDIT DISCUSSIONS" icon={<MessageCircle className="size-4" />} hits={report.buckets.reddit} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="INSTAGRAM MONITORING" icon={<Instagram className="size-4" />} hits={report.buckets.instagram} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="FACEBOOK MONITORING" icon={<Facebook className="size-4" />} hits={report.buckets.facebook} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="IMPERSONATION" icon={<BadgeCheck className="size-4" />} hits={report.buckets.impersonation} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />

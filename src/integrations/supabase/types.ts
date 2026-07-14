@@ -570,14 +570,64 @@ export type Database = {
         }
         Relationships: []
       }
+      enforcement_package_items: {
+        Row: {
+          bytes: number | null
+          enforcement_request_id: string
+          generated_at: string
+          id: string
+          kind: string
+          sha256: string | null
+          storage_bucket: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          bytes?: number | null
+          enforcement_request_id: string
+          generated_at?: string
+          id?: string
+          kind: string
+          sha256?: string | null
+          storage_bucket?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          bytes?: number | null
+          enforcement_request_id?: string
+          generated_at?: string
+          id?: string
+          kind?: string
+          sha256?: string | null
+          storage_bucket?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_package_items_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enforcement_requests: {
         Row: {
+          authorization_pdf_path: string | null
           created_at: string
+          evidence_pdf_path: string | null
           evidence_refs: Json
           id: string
           metadata: Json
           method: string
+          package_generated_at: string | null
+          package_hash: string | null
           platform: string
+          platform_complaint_json: Json | null
+          platform_complaint_pdf_path: string | null
           responded_at: string | null
           response_notes: string | null
           scan_hit_id: string | null
@@ -588,12 +638,18 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          authorization_pdf_path?: string | null
           created_at?: string
+          evidence_pdf_path?: string | null
           evidence_refs?: Json
           id?: string
           metadata?: Json
           method: string
+          package_generated_at?: string | null
+          package_hash?: string | null
           platform: string
+          platform_complaint_json?: Json | null
+          platform_complaint_pdf_path?: string | null
           responded_at?: string | null
           response_notes?: string | null
           scan_hit_id?: string | null
@@ -604,12 +660,18 @@ export type Database = {
           user_id: string
         }
         Update: {
+          authorization_pdf_path?: string | null
           created_at?: string
+          evidence_pdf_path?: string | null
           evidence_refs?: Json
           id?: string
           metadata?: Json
           method?: string
+          package_generated_at?: string | null
+          package_hash?: string | null
           platform?: string
+          platform_complaint_json?: Json | null
+          platform_complaint_pdf_path?: string | null
           responded_at?: string | null
           response_notes?: string | null
           scan_hit_id?: string | null

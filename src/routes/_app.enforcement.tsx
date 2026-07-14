@@ -1,13 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
-import { Send, FileText, Scale, ShieldAlert, Loader2 } from "lucide-react";
+import { Send, FileText, Scale, ShieldAlert, Loader2, Download } from "lucide-react";
 import { useAuthorization } from "@/hooks/use-authorization";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { generateEnforcementPackages, signPackageUrl } from "@/lib/enforcement-packages.functions";
 
 export const Route = createFileRoute("/_app/enforcement")({
   head: () => ({ meta: [{ title: "Enforcement — Eterna AI" }] }),
@@ -38,6 +40,10 @@ interface EnforcementRow {
   submitted_at: string | null;
   responded_at: string | null;
   created_at: string;
+  evidence_pdf_path: string | null;
+  authorization_pdf_path: string | null;
+  platform_complaint_pdf_path: string | null;
+  package_generated_at: string | null;
 }
 
 const ACTIONS: { method: Method; icon: typeof Send; title: string; tone: string }[] = [
@@ -51,6 +57,8 @@ function EnforcementPage() {
   const userId = session?.user.id;
   const qc = useQueryClient();
   const authz = useAuthorization();
+  const generateFn = useServerFn(generateEnforcementPackages);
+  const signFn = useServerFn(signPackageUrl);
 
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -74,7 +82,7 @@ function EnforcementPage() {
     queryFn: async (): Promise<EnforcementRow[]> => {
       const { data, error } = await supabase
         .from("enforcement_requests")
-        .select("id,scan_hit_id,platform,method,status,target_url,submitted_at,responded_at,created_at")
+        .select("id,scan_hit_id,platform,method,status,target_url,submitted_at,responded_at,created_at,evidence_pdf_path,authorization_pdf_path,platform_complaint_pdf_path,package_generated_at")
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -89,17 +97,12 @@ function EnforcementPage() {
     const submitted = requests.filter((r) => r.status !== "Queued").length;
     const approved = requests.filter((r) => r.status === "Approved").length;
     const legal = requests.filter((r) => r.method === "Legal Notice").length;
-    const responseTimes = requests
-      .filter((r) => r.submitted_at && r.responded_at)
-      .map((r) => (new Date(r.responded_at!).getTime() - new Date(r.submitted_at!).getTime()) / 3_600_000);
-    const avgHours = responseTimes.length
-      ? (responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length).toFixed(1)
-      : null;
+    const withPackages = requests.filter((r) => r.package_generated_at).length;
     return {
       total: requests.length,
       submitted,
       successRate: submitted ? Math.round((approved / submitted) * 100) : null,
-      avgResponseHours: avgHours,
+      packaged: withPackages,
       legal,
     };
   }, [requests]);
@@ -107,28 +110,29 @@ function EnforcementPage() {
   const enforceMut = useMutation({
     mutationFn: async (method: Method) => {
       if (!userId) throw new Error("Not signed in");
-      const rows = selected
-        .map((id) => hits.find((h) => h.id === id))
-        .filter((h): h is HitRow => !!h)
-        .map((h) => ({
-          user_id: userId,
-          scan_hit_id: h.id,
-          platform: h.source_type || h.source || "Web",
-          method,
-          target_url: h.permalink || h.canonical_url || null,
-          status: "Queued" as const,
-        }));
-      if (rows.length === 0) return;
-      const { error } = await supabase.from("enforcement_requests").insert(rows);
-      if (error) throw error;
+      if (selected.length === 0) return { results: [] };
+      toast.info(`Building ${selected.length * 3} package(s)…`);
+      return await generateFn({ data: { scanHitIds: selected, method, dryRun: false } });
     },
-    onSuccess: (_, method) => {
-      toast.success(`${selected.length} ${method} request(s) queued`);
+    onSuccess: (res, method) => {
+      const ok = res.results.filter((r) => !r.error).length;
+      const failed = res.results.length - ok;
+      toast.success(`${ok} ${method} package(s) built${failed ? ` · ${failed} failed` : ""}`);
       setSelected([]);
       qc.invalidateQueries({ queryKey: ["enforcement_requests", userId] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const openPackage = async (path: string | null) => {
+    if (!path) return;
+    try {
+      const { url } = await signFn({ data: { path } });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to open package");
+    }
+  };
 
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const canEnforce = authz.canRequestEnforcement && selected.length > 0 && !enforceMut.isPending;
@@ -147,13 +151,13 @@ function EnforcementPage() {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="TAKEDOWNS SENT" value={metrics.submitted} sub={metrics.total === 0 ? "No requests yet" : "All time"} accent="oklch(0.65 0.18 240)" />
+        <StatCard label="REQUESTS SUBMITTED" value={metrics.submitted} sub={metrics.total === 0 ? "No requests yet" : "All time"} accent="oklch(0.65 0.18 240)" />
         <StatCard label="SUCCESS RATE" value={metrics.successRate === null ? "—" : `${metrics.successRate}%`} sub="Approved / submitted" accent="oklch(0.68 0.16 155)" />
-        <StatCard label="AVG RESPONSE" value={metrics.avgResponseHours ? `${metrics.avgResponseHours}h` : "—"} sub="Platform response time" accent="oklch(0.55 0.22 295)" />
+        <StatCard label="PACKAGES GENERATED" value={metrics.packaged} sub="Evidence + auth + complaint" accent="oklch(0.55 0.22 295)" />
         <StatCard label="LEGAL ESCALATIONS" value={metrics.legal} sub="All time" accent="oklch(0.63 0.24 25)" />
       </div>
 
-      <PageCard title="QUICK ACTIONS" sub="Apply enforcement to selected threats">
+      <PageCard title="QUICK ACTIONS" sub="Generates Evidence, Authorization, and Platform Complaint packages for each selected finding">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {ACTIONS.map((a) => {
             const Icon = a.icon;
@@ -165,10 +169,10 @@ function EnforcementPage() {
                 className="border border-border rounded-xl p-4 text-left hover:bg-accent/40 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="size-10 rounded-xl grid place-items-center mb-3" style={{ background: `color-mix(in oklab, ${a.tone} 14%, white)`, color: a.tone }}>
-                  <Icon className="size-5" />
+                  {enforceMut.isPending ? <Loader2 className="size-5 animate-spin" /> : <Icon className="size-5" />}
                 </div>
                 <div className="font-semibold text-sm">{a.title}</div>
-                <div className="text-xs text-muted-foreground mt-1">{selected.length} selected</div>
+                <div className="text-xs text-muted-foreground mt-1">{selected.length} selected · 3 PDFs / finding</div>
               </button>
             );
           })}
@@ -216,8 +220,8 @@ function EnforcementPage() {
                   <th className="py-2.5 pr-4 font-medium">Method</th>
                   <th className="py-2.5 pr-4 font-medium">Target</th>
                   <th className="py-2.5 pr-4 font-medium">Status</th>
+                  <th className="py-2.5 pr-4 font-medium">Packages</th>
                   <th className="py-2.5 pr-4 font-medium">Created</th>
-                  <th className="py-2.5 pr-4 font-medium">Responded</th>
                 </tr>
               </thead>
               <tbody>
@@ -225,12 +229,18 @@ function EnforcementPage() {
                   <tr key={r.id} className="border-b border-border/60 hover:bg-accent/30">
                     <td className="py-3 pr-4">{r.platform}</td>
                     <td className="py-3 pr-4 text-muted-foreground">{r.method}</td>
-                    <td className="py-3 pr-4 truncate max-w-[280px]">
+                    <td className="py-3 pr-4 truncate max-w-[240px]">
                       {r.target_url ? <a href={r.target_url} target="_blank" rel="noreferrer" className="text-primary underline text-xs">{r.target_url}</a> : <span className="text-muted-foreground text-xs">—</span>}
                     </td>
                     <td className="py-3 pr-4"><Pill color={statusColor(r.status)}>{r.status}</Pill></td>
+                    <td className="py-3 pr-4">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <PackageBtn label="Evidence" path={r.evidence_pdf_path} onOpen={openPackage} />
+                        <PackageBtn label="Authorization" path={r.authorization_pdf_path} onOpen={openPackage} />
+                        <PackageBtn label="Complaint" path={r.platform_complaint_pdf_path} onOpen={openPackage} />
+                      </div>
+                    </td>
                     <td className="py-3 pr-4 text-muted-foreground text-xs">{new Date(r.created_at).toLocaleString()}</td>
-                    <td className="py-3 pr-4 text-muted-foreground text-xs">{r.responded_at ? new Date(r.responded_at).toLocaleString() : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -239,6 +249,18 @@ function EnforcementPage() {
         )}
       </PageCard>
     </div>
+  );
+}
+
+function PackageBtn({ label, path, onOpen }: { label: string; path: string | null; onOpen: (p: string | null) => void }) {
+  if (!path) return <span className="text-[10px] text-muted-foreground/60">{label}: —</span>;
+  return (
+    <button
+      onClick={() => onOpen(path)}
+      className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1"
+    >
+      <Download className="size-3" /> {label}
+    </button>
   );
 }
 
