@@ -75,7 +75,7 @@ function AuthPage() {
     <div className="min-h-screen grid md:grid-cols-2 bg-background">
       {/* Left — brand panel */}
       <div className="relative hidden md:flex flex-col justify-between p-10 text-white overflow-hidden"
-        style={{ background: "linear-gradient(135deg, oklch(0.45 0.22 295) 0%, oklch(0.55 0.24 305) 55%, oklch(0.62 0.20 315) 100%)" }}
+        style={{ background: "linear-gradient(135deg, #071B4A 0%, #1037A6 55%, #1E5EFF 100%)" }}
       >
         <div className="flex items-center gap-3">
           <div className="size-12 rounded-2xl grid place-items-center bg-white/15 backdrop-blur">
@@ -113,7 +113,7 @@ function AuthPage() {
         <div className="w-full max-w-sm space-y-6">
           <div className="md:hidden flex items-center gap-3 mb-2">
             <div className="size-10 rounded-xl grid place-items-center text-white"
-              style={{ background: "linear-gradient(135deg, oklch(0.45 0.22 295), oklch(0.62 0.20 315))" }}>
+              style={{ background: "linear-gradient(135deg, #1037A6, #1E5EFF)" }}>
               <ShieldHalf className="size-5" />
             </div>
             <div className="font-display font-bold text-lg">Eterna AI</div>
@@ -143,7 +143,7 @@ function AuthPage() {
             <Input type="password" required minLength={6} placeholder="Password" className="h-11" value={password} onChange={(e) => setPassword(e.target.value)} />
             {error && <div className="text-xs text-destructive">{error}</div>}
             <Button type="submit" disabled={loading} className="w-full h-11 text-base font-semibold"
-              style={{ background: "linear-gradient(90deg, oklch(0.45 0.22 295), oklch(0.62 0.20 315))" }}>
+              style={{ background: "linear-gradient(90deg, #2563EB, #3B82F6)" }}>
               {loading ? "…" : mode === "signin" ? "Sign in" : "Create account"}
             </Button>
           </form>
@@ -151,7 +151,7 @@ function AuthPage() {
           <p className="text-sm text-center text-muted-foreground">
             {mode === "signin" ? "New to Eterna? " : "Already have an account? "}
             <button type="button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              className="font-semibold text-primary hover:underline" style={{ color: "oklch(0.55 0.24 305)" }}>
+              className="font-semibold text-primary hover:underline" style={{ color: "#3B82F6" }}>
               {mode === "signin" ? "Create one" : "Sign in"}
             </button>
           </p>
