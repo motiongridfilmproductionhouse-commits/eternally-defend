@@ -530,6 +530,7 @@ function Bucket({ title, icon, hits, onPromote, added, entityTerms, scanId, anal
 function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending }: { h: ScanHit; added: boolean; onPromote: () => void; entityTerms: string[]; scanId: string | null; analysisPending: boolean }) {
   const sev = severityColor(h.severity);
   const [open, setOpen] = useState(false);
+  const [moments, setMoments] = useState(false);
   const [imgOk, setImgOk] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const thumb = h.media?.thumbnailHi || h.media?.thumbnail;
