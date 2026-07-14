@@ -295,9 +295,11 @@ interface RawHit { url?: string; title?: string; description?: string; snippet?:
 
 /* ---------------- YouTube Data API v3 ---------------- */
 const YT_RISK_TERMS = [
-  "exposed", "expose", "controversy", "scam", "fraud", "allegations", "criticism",
+  "exposed", "expose", "controversy", "scam", "scandal", "fraud", "allegations", "criticism",
   "review", "reaction", "truth", "dark side", "complaint", "investigation",
   "response", "apology", "lawsuit", "leaked", "deepfake", "fake",
+  "viral", "trolling", "issue", "backlash", "discussion", "interview",
+  "roast", "cringe", "drama", "rant", "hate", "boycott",
 ];
 
 interface YtThumb { url?: string; width?: number; height?: number }
@@ -359,9 +361,9 @@ function periodToPublishedAfter(period: string): string | undefined {
   return undefined;
 }
 
-const YT_MAX_TOTAL = 800;         // hard safety cap to protect quota
-const YT_MAX_PAGES_PER_QUERY = 10; // ~500 videos per sub-query
-const YT_MAX_QUERIES = 40;
+const YT_MAX_TOTAL = 2000;         // hard safety cap to protect quota
+const YT_MAX_PAGES_PER_QUERY = 20; // ~1000 videos per sub-query
+const YT_MAX_QUERIES = 80;
 
 async function runYouTube(
   query: string,
@@ -371,9 +373,9 @@ async function runYouTube(
   handles: string[],
   targetResults: number,
   period: string,
-): Promise<{ raw: RawHit[]; error?: string; queriesUsed: number }> {
+): Promise<{ raw: RawHit[]; error?: string; queriesUsed: number; pagesScanned: number; apiErrors: number }> {
   const key = process.env.GOOGLE_API_KEY;
-  if (!key) return { raw: [], error: "GOOGLE_API_KEY missing", queriesUsed: 0 };
+  if (!key) return { raw: [], error: "GOOGLE_API_KEY missing", queriesUsed: 0, pagesScanned: 0, apiErrors: 0 };
   const publishedAfter = periodToPublishedAfter(period);
 
   const nameForms = Array.from(new Set([query, ...aliases, ...variations].map((s) => s.trim()).filter(Boolean)));
@@ -388,18 +390,30 @@ async function runYouTube(
   const qList = Array.from(queries).slice(0, YT_MAX_QUERIES);
 
   const idToItem = new Map<string, YtSearchItem>();
+  let pagesScanned = 0;
+  let apiErrors = 0;
+  let lastErr: string | undefined;
 
-  await Promise.allSettled(qList.map(async (q) => {
+  // Run each sub-query with both relevance and date ordering to maximise coverage.
+  const jobs: Array<{ q: string; order: "relevance" | "date" }> = [];
+  for (const q of qList) {
+    jobs.push({ q, order: "relevance" });
+    jobs.push({ q, order: "date" });
+  }
+
+  await Promise.allSettled(jobs.map(async ({ q, order }) => {
     let pageToken: string | undefined;
     let pages = 0;
     while (pages < YT_MAX_PAGES_PER_QUERY && idToItem.size < Math.min(targetResults, YT_MAX_TOTAL)) {
       const params: Record<string, string> = {
-        part: "snippet", q, type: "video", maxResults: "50", order: "date", safeSearch: "none",
+        part: "snippet", q, type: "video", maxResults: "50", order, safeSearch: "none",
       };
       if (pageToken) params.pageToken = pageToken;
       if (publishedAfter) params.publishedAfter = publishedAfter;
       const data = await ytFetch<{ items?: YtSearchItem[]; nextPageToken?: string }>("search", params, key);
-      if (!data?.items?.length) break;
+      pagesScanned++;
+      if (!data) { apiErrors++; lastErr = "YouTube search request failed (see server logs — likely quota or key)"; break; }
+      if (!data.items?.length) break;
       for (const it of data.items) {
         const vid = it.id?.videoId;
         if (vid && !idToItem.has(vid)) idToItem.set(vid, it);
