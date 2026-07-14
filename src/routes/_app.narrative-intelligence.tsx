@@ -6,6 +6,7 @@ import { clusterFindings, listNarrativeClusters, getClusterDetail } from "@/lib/
 import { PageCard, StatCard } from "@/components/dashboard/PageCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useSession } from "@/hooks/use-session";
 import { Network, Sparkles, TrendingUp, Radio, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/_app/narrative-intelligence")({
@@ -15,9 +16,10 @@ export const Route = createFileRoute("/_app/narrative-intelligence")({
 
 function NarrativeIntelligencePage() {
   const qc = useQueryClient();
+  const { session } = useSession();
   const listFn = useServerFn(listNarrativeClusters);
   const clusterFn = useServerFn(clusterFindings);
-  const q = useQuery({ queryKey: ["narrative-clusters"], queryFn: () => listFn() });
+  const q = useQuery({ queryKey: ["narrative-clusters"], queryFn: () => listFn(), enabled: !!session });
   const mut = useMutation({
     mutationFn: () => clusterFn(),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["narrative-clusters"] }),
@@ -107,8 +109,9 @@ function ThreatDot({ score }: { score: number }) {
 }
 
 function ClusterDetail({ clusterId }: { clusterId: string }) {
+  const { session } = useSession();
   const getFn = useServerFn(getClusterDetail);
-  const q = useQuery({ queryKey: ["cluster", clusterId], queryFn: () => getFn({ data: { clusterId } }) });
+  const q = useQuery({ queryKey: ["cluster", clusterId], queryFn: () => getFn({ data: { clusterId } }), enabled: !!session });
   if (q.isLoading) return <div className="border border-border rounded-xl p-4 text-sm text-muted-foreground">Loading…</div>;
   const c: any = q.data?.cluster;
   if (!c) return null;
