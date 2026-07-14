@@ -115,7 +115,7 @@ interface Ctx {
   cases: Case[];
   removals: Removal[];
   addAsset: (a: Omit<Asset, "id" | "registered">) => void;
-  addThreat: (t: Omit<Threat, "id" | "detected" | "status">) => void;
+  addThreat: (t: Partial<Threat> & Pick<Threat, "title" | "platform" | "severity" | "location" | "confidence">) => void;
   updateThreatStatus: (id: string, status: Status) => void;
   updateCaseStatus: (id: string, status: Case["status"]) => void;
   addRemoval: (r: Omit<Removal, "id" | "submitted" | "status">) => void;
