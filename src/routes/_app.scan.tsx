@@ -602,21 +602,29 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
           </div>
         </a>
       ) : (
-        <div className="aspect-video bg-gradient-to-br from-muted to-secondary grid place-items-center relative">
-          <div className="size-12 rounded-xl grid place-items-center" style={{ background: `color-mix(in oklab, ${sev} 14%, white)`, color: sev }}>
-            <Globe className="size-5" />
+        <a href={h.url} target="_blank" rel="noreferrer" className="relative block aspect-video bg-gradient-to-br from-muted/60 to-secondary/60 overflow-hidden">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center">
+            {favicon ? (
+              <img src={favicon} alt="" className="size-10 rounded-md bg-white/80 p-1.5 shadow-sm" />
+            ) : (
+              <div className="size-10 rounded-md grid place-items-center bg-white/80 text-muted-foreground shadow-sm">
+                <Globe className="size-5" />
+              </div>
+            )}
+            <div className="text-[11px] font-semibold text-foreground/80 truncate max-w-full">{host ?? h.platform}</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{h.source}</div>
           </div>
           <div className="absolute top-3 left-3 flex items-center gap-1.5">
             <span className="text-[10px] font-bold px-2 py-1 rounded-md text-white" style={{ background: sev }}>{h.severity.toUpperCase()}</span>
             {h.viral && <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500 text-white inline-flex items-center gap-1"><Flame className="size-3" /> VIRAL</span>}
           </div>
-        </div>
+        </a>
       )}
 
       {/* Body */}
       <div className="p-5 flex-1 flex flex-col gap-3">
         <div>
-          <a href={h.url} target="_blank" rel="noreferrer" className="block text-base font-semibold leading-snug line-clamp-3 hover:underline">{h.title}</a>
+          <a href={h.url} target="_blank" rel="noreferrer" className="block text-base font-semibold leading-snug line-clamp-3 hover:underline">{displayTitle}</a>
           <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
             {m?.channelUrl ? (
               <a href={m.channelUrl} target="_blank" rel="noreferrer" className="font-semibold text-foreground hover:underline">{m.channelTitle ?? h.author ?? h.platform}</a>
