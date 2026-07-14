@@ -328,39 +328,69 @@ async function ytFetch<T>(path: string, params: Record<string, string>, key: str
   return (await r.json()) as T;
 }
 
-async function runYouTube(query: string, aliases: string[], targetResults: number): Promise<{ raw: RawHit[]; error?: string }> {
+function periodToPublishedAfter(period: string): string | undefined {
+  const p = period.toLowerCase();
+  const day = 86400000;
+  const now = Date.now();
+  if (p.includes("24")) return new Date(now - 1 * day).toISOString();
+  if (p.includes("7 day")) return new Date(now - 7 * day).toISOString();
+  if (p.includes("30 day")) return new Date(now - 30 * day).toISOString();
+  if (p.includes("90 day")) return new Date(now - 90 * day).toISOString();
+  return undefined;
+}
+
+const YT_MAX_TOTAL = 800;         // hard safety cap to protect quota
+const YT_MAX_PAGES_PER_QUERY = 10; // ~500 videos per sub-query
+const YT_MAX_QUERIES = 40;
+
+async function runYouTube(
+  query: string,
+  aliases: string[],
+  variations: string[],
+  hashtags: string[],
+  handles: string[],
+  targetResults: number,
+  period: string,
+): Promise<{ raw: RawHit[]; error?: string; queriesUsed: number }> {
   const key = process.env.GOOGLE_API_KEY;
-  if (!key) return { raw: [], error: "GOOGLE_API_KEY missing" };
-  const base = [query, ...aliases].filter(Boolean);
+  if (!key) return { raw: [], error: "GOOGLE_API_KEY missing", queriesUsed: 0 };
+  const publishedAfter = periodToPublishedAfter(period);
+
+  const nameForms = Array.from(new Set([query, ...aliases, ...variations].map((s) => s.trim()).filter(Boolean)));
   const queries = new Set<string>();
-  for (const b of base) {
+  for (const b of nameForms) {
     queries.add(b);
+    queries.add(`"${b}"`);
     for (const t of YT_RISK_TERMS) queries.add(`${b} ${t}`);
   }
-  const qList = Array.from(queries).slice(0, 18);
+  for (const h of hashtags) queries.add(h.startsWith("#") ? h : `#${h}`);
+  for (const h of handles) queries.add(h.startsWith("@") ? h : `@${h}`);
+  const qList = Array.from(queries).slice(0, YT_MAX_QUERIES);
+
   const idToItem = new Map<string, YtSearchItem>();
 
   await Promise.allSettled(qList.map(async (q) => {
     let pageToken: string | undefined;
-    let pagesFetched = 0;
-    while (pagesFetched < 2 && idToItem.size < targetResults * 2) {
+    let pages = 0;
+    while (pages < YT_MAX_PAGES_PER_QUERY && idToItem.size < Math.min(targetResults, YT_MAX_TOTAL)) {
       const params: Record<string, string> = {
-        part: "snippet", q, type: "video", maxResults: "50", order: "relevance", safeSearch: "none",
+        part: "snippet", q, type: "video", maxResults: "50", order: "date", safeSearch: "none",
       };
       if (pageToken) params.pageToken = pageToken;
+      if (publishedAfter) params.publishedAfter = publishedAfter;
       const data = await ytFetch<{ items?: YtSearchItem[]; nextPageToken?: string }>("search", params, key);
       if (!data?.items?.length) break;
       for (const it of data.items) {
         const vid = it.id?.videoId;
         if (vid && !idToItem.has(vid)) idToItem.set(vid, it);
       }
-      pagesFetched++;
+      pages++;
       if (!data.nextPageToken) break;
       pageToken = data.nextPageToken;
     }
   }));
 
-  const ids = Array.from(idToItem.keys()).slice(0, Math.max(targetResults, 100));
+  const ids = Array.from(idToItem.keys()).slice(0, Math.min(YT_MAX_TOTAL, Math.max(targetResults, ids_default(idToItem.size))));
   const statsById = new Map<string, YtVideoItem>();
   for (let i = 0; i < ids.length; i += 50) {
     const batch = ids.slice(i, i + 50).join(",");
@@ -408,8 +438,10 @@ async function runYouTube(query: string, aliases: string[], targetResults: numbe
       },
     });
   }
-  return { raw };
+  return { raw, queriesUsed: qList.length };
 }
+
+function ids_default(n: number) { return n; }
 
 /* ---------------- Report builder ---------------- */
 function buildReport(query: string, aliases: string[], period: string, sourcesRequested: SourceKey[], runs: { source: string; raw: RawHit[] }[], err?: string): ReputationReport {
