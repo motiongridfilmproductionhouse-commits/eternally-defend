@@ -1,10 +1,16 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Package, Radar, Activity, Brain, ShieldCheck,
-  Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search, HeartPulse, Network, PlugZap,
+  Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search, HeartPulse, Network, PlugZap, LogOut, User as UserIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useUserRoles } from "@/hooks/use-user-roles";
+import { useSession } from "@/hooks/use-session";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 type NavItem = { icon: typeof LayoutDashboard; label: string; to: string; badge?: string };
 
@@ -32,6 +38,20 @@ const adminSystemNav: NavItem[] = [
 export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAdmin } = useUserRoles();
+  const { session } = useSession();
+  const navigate = useNavigate();
+
+  const user = session?.user;
+  const meta = (user?.user_metadata ?? {}) as { full_name?: string; name?: string; avatar_url?: string };
+  const displayName = meta.full_name || meta.name || user?.email?.split("@")[0] || "Account";
+  const email = user?.email ?? "";
+  const initial = (displayName[0] ?? "?").toUpperCase();
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth" });
+  };
+
 
   return (
     <aside className="w-64 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col p-4 gap-4">
@@ -81,17 +101,33 @@ export function Sidebar() {
         <Link to="/notifications" className={`rounded-2xl p-3 flex items-center gap-3 border border-sidebar-border ${pathname === "/notifications" ? "bg-sidebar-accent" : "bg-white/60"}`}>
           <Bell className="size-5" />
           <div className="flex-1 text-sm font-semibold">Notifications</div>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">3</span>
         </Link>
 
-        <div className="rounded-2xl p-2.5 pr-3 flex items-center gap-3 border border-sidebar-border bg-white">
-          <div className="size-9 rounded-full bg-gradient-to-br from-orange-300 to-pink-400 grid place-items-center text-white text-xs font-bold">S</div>
-          <div className="flex-1">
-            <div className="text-sm font-semibold leading-tight">Sreehari</div>
-            <div className="text-xs text-muted-foreground">{isAdmin ? "Admin" : "Elite Plan"}</div>
-          </div>
-          <ChevronDown className="size-4 text-muted-foreground" />
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="w-full rounded-2xl p-2.5 pr-3 flex items-center gap-3 border border-sidebar-border bg-white hover:bg-accent/40 transition text-left">
+            {meta.avatar_url ? (
+              <img src={meta.avatar_url} alt={displayName} className="size-9 rounded-full object-cover" />
+            ) : (
+              <div className="size-9 rounded-full bg-gradient-to-br from-orange-300 to-pink-400 grid place-items-center text-white text-xs font-bold">{initial}</div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold leading-tight truncate">{displayName}</div>
+              <div className="text-xs text-muted-foreground truncate">{isAdmin ? "Admin" : email || "Signed in"}</div>
+            </div>
+            <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="truncate">{email || displayName}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => navigate({ to: "/settings" })}>
+              <UserIcon className="size-4 mr-2" /> Account settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={signOut} className="text-destructive focus:text-destructive">
+              <LogOut className="size-4 mr-2" /> Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
       </div>
     </aside>
   );
