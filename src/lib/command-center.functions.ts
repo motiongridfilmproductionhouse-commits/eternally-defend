@@ -68,7 +68,7 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       supabase.from("enforcement_evidence").select("id, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
       supabase.from("protected_assets").select("id, name, kind, created_at").eq("user_id", userId),
       supabase.from("cases").select("id, status, priority, created_at").eq("user_id", userId),
-      supabase.from("client_profiles").select("authorization_level, authorization_status, target_name").eq("user_id", userId).maybeSingle(),
+      supabase.from("client_profiles").select("authorization_level, authorization_status, full_name, company_name").eq("user_id", userId).maybeSingle(),
       supabase.from("multimedia_analysis_jobs").select("reputation_score").eq("user_id", userId).not("reputation_score", "is", null).order("created_at", { ascending: false }).limit(50),
     ]);
 
