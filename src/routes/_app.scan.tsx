@@ -715,3 +715,226 @@ function EvidenceRow({ label, value }: { label: string; value: React.ReactNode }
     </div>
   );
 }
+
+/* ============================================================
+   DB-backed results — cursor pagination + infinite scroll
+   ============================================================ */
+type PersistedHit = {
+  id: string;
+  scan_id: string;
+  source: string;
+  source_type: string | null;
+  external_id: string | null;
+  canonical_url: string | null;
+  permalink: string | null;
+  title: string | null;
+  description: string | null;
+  author: string | null;
+  thumbnail_url: string | null;
+  published_at: string | null;
+  detected_at: string;
+  reach: number | null;
+  engagement: number | null;
+  velocity: string | null;
+  risk_score: number | null;
+  threat_score: number | null;
+  severity: string | null;
+  growth_pct: number | null;
+  narrative_claim: string | null;
+  risk_type: string | null;
+  tags: string[];
+  is_new_since_last_scan: boolean;
+  times_detected: number;
+  first_seen_at: string;
+  last_seen_at: string;
+};
+
+function PersistedResults({
+  scanId,
+  summary,
+  scanStatus,
+}: {
+  scanId: string | null;
+  summary: { newHits: number; updatedHits: number; duplicatesRemoved: number; uniqueHits: number } | null;
+  scanStatus: string;
+}) {
+  const listFn = useServerFn(listScanHits);
+  const [items, setItems] = useState<PersistedHit[]>([]);
+  const [cursor, setCursor] = useState<{ publishedAt: string | null; threatScore: number | null; id: string } | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<string>("");
+  const [onlyNew, setOnlyNew] = useState(false);
+  const sentinel = useRef<HTMLDivElement | null>(null);
+  const reqSeq = useRef(0);
+
+  // Reset when scanId or filters change
+  useEffect(() => {
+    setItems([]); setCursor(null); setHasMore(true); setError(null);
+  }, [scanId, source, onlyNew]);
+
+  // Loader function
+  const load = async (nextCursor: typeof cursor) => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    const seq = ++reqSeq.current;
+    try {
+      const res = await listFn({ data: {
+        scanId: scanId ?? undefined,
+        source: source || undefined,
+        onlyNew: onlyNew || undefined,
+        limit: 24,
+        cursor: nextCursor ?? undefined,
+      } });
+      if (seq !== reqSeq.current) return;
+      setItems((prev) => nextCursor ? [...prev, ...(res.items as PersistedHit[])] : (res.items as PersistedHit[]));
+      setCursor(res.nextCursor);
+      setHasMore(!!res.nextCursor);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      if (seq === reqSeq.current) setLoading(false);
+    }
+  };
+
+  // Initial + filter change load
+  useEffect(() => {
+    if (!scanId) return;
+    load(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanId, source, onlyNew]);
+
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    if (!sentinel.current) return;
+    const el = sentinel.current;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !loading) load(cursor);
+    }, { rootMargin: "400px" });
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cursor, hasMore, loading]);
+
+  if (!scanId) {
+    return (
+      <PageCard title="ALL RESULTS (DATABASE)" sub="Persisting scan results…">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" /> Saving scan and hits to the database…
+        </div>
+      </PageCard>
+    );
+  }
+
+  return (
+    <PageCard
+      title="ALL RESULTS (DATABASE)"
+      sub="Sorted by newest published · secondary sort by threat score"
+      actions={
+        <div className="flex items-center gap-2 flex-wrap">
+          <select value={source} onChange={(e) => setSource(e.target.value)} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
+            <option value="">All sources</option>
+            <option value="YouTube">YouTube</option>
+            <option value="News">News</option>
+            <option value="Reddit">Reddit</option>
+            <option value="Instagram">Instagram</option>
+            <option value="Facebook">Facebook</option>
+            <option value="X">X</option>
+            <option value="TikTok">TikTok</option>
+            <option value="Web">Web</option>
+            <option value="Reviews">Reviews</option>
+          </select>
+          <button
+            onClick={() => setOnlyNew((v) => !v)}
+            className={`text-xs px-3 py-1.5 rounded-full border ${onlyNew ? "text-white border-transparent" : "border-border bg-card hover:bg-accent"}`}
+            style={onlyNew ? { background: "var(--gradient-brand)" } : undefined}
+          >
+            New since last scan
+          </button>
+        </div>
+      }
+    >
+      {/* Summary chips */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3 text-[11px]">
+        <SumChip label="Unique" value={summary?.uniqueHits ?? "…"} icon={<Database className="size-3.5" />} />
+        <SumChip label="New" value={summary?.newHits ?? "…"} icon={<Sparkles className="size-3.5" />} />
+        <SumChip label="Updated" value={summary?.updatedHits ?? "…"} icon={<TrendingUp className="size-3.5" />} />
+        <SumChip label="Duplicates removed" value={summary?.duplicatesRemoved ?? "…"} icon={<Copyright className="size-3.5" />} />
+        <SumChip label="Scan status" value={scanStatus} icon={<BadgeCheck className="size-3.5" />} />
+      </div>
+
+      {error && <div className="text-xs text-red-600 mb-2">{error}</div>}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {items.map((h) => (
+          <a
+            key={h.id}
+            href={h.permalink ?? h.canonical_url ?? "#"}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition flex flex-col"
+          >
+            {h.thumbnail_url && (
+              <div className="aspect-video bg-muted overflow-hidden">
+                <img src={h.thumbnail_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="p-3 flex-1 flex flex-col">
+              <div className="flex items-center gap-1.5 mb-1">
+                {h.is_new_since_last_scan && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500 text-white">NEW</span>}
+                {h.severity && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: severityColor(h.severity as never) }}>
+                    {h.severity.toUpperCase()}
+                  </span>
+                )}
+                <span className="text-[10px] text-muted-foreground truncate">{h.source}</span>
+                {h.published_at && (
+                  <span className="text-[10px] text-muted-foreground ml-auto">
+                    {new Date(h.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                )}
+              </div>
+              <div className="text-sm font-semibold line-clamp-2">{h.title ?? h.canonical_url}</div>
+              {h.description && <div className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{h.description}</div>}
+              <div className="mt-auto pt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
+                {typeof h.threat_score === "number" && <span>Threat {Math.round(h.threat_score)}</span>}
+                {typeof h.reach === "number" && h.reach > 0 && <span>Reach {fmt(h.reach)}</span>}
+                {h.times_detected > 1 && <span>Seen ×{h.times_detected}</span>}
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      {items.length === 0 && !loading && (
+        <div className="text-xs text-muted-foreground py-6 text-center">No persisted results yet.</div>
+      )}
+
+      {/* Sentinel */}
+      <div ref={sentinel} className="h-8" />
+
+      <div className="mt-2 flex items-center justify-center text-xs text-muted-foreground">
+        {loading ? (
+          <span className="inline-flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" /> Loading…</span>
+        ) : hasMore ? (
+          <button onClick={() => load(cursor)} className="px-4 py-2 rounded-full border border-border hover:bg-accent font-semibold">Load more</button>
+        ) : items.length > 0 ? (
+          <span>All results loaded</span>
+        ) : null}
+      </div>
+    </PageCard>
+  );
+}
+
+function SumChip({ label, value, icon }: { label: string; value: string | number; icon: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border px-2.5 py-1.5 bg-background/50 flex items-center gap-2">
+      <span className="text-muted-foreground">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground truncate">{label}</div>
+        <div className="text-xs font-semibold truncate">{value}</div>
+      </div>
+    </div>
+  );
+}
