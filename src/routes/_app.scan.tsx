@@ -37,7 +37,7 @@ const SOURCES: { key: SourceKey; label: string }[] = [
   { key: "archive", label: "Archive" },
 ];
 
-const PERIODS = ["Last 24 hours", "Last 7 days", "Last 30 days", "Last 90 days", "All available history"];
+const PERIODS = ["Last 24 hours", "Last 7 days", "Last 30 days", "Last 90 days", "All time"];
 const DEFAULT_SOURCES: SourceKey[] = ["web", "news", "youtube", "reddit", "x", "reviews"];
 
 const sentimentColor = (s: Sentiment) =>
