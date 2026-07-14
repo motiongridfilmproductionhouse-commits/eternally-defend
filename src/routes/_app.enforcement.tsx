@@ -65,7 +65,7 @@ function EnforcementPage() {
               <button
                 key={a.title}
                 onClick={() => enforce(a.title.includes("DMCA") ? "DMCA" : a.title.includes("platform") ? "Platform Report" : "Legal Notice")}
-                disabled={selected.length===0 && !a.title.includes("protected")}
+                disabled={!authz.canRequestEnforcement || (selected.length===0 && !a.title.includes("protected"))}
                 className="border border-border rounded-xl p-4 text-left hover:bg-accent/40 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="size-10 rounded-xl grid place-items-center mb-3" style={{ background: `color-mix(in oklab, ${a.tone} 14%, white)`, color: a.tone }}>
