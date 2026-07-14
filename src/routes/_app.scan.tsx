@@ -828,6 +828,31 @@ type PersistedHit = {
   last_seen_at: string;
 };
 
+// Source priority order — YouTube always first for reputation/defamation/impersonation impact.
+const SOURCE_PRIORITY: { key: string; label: string; icon: React.ReactNode }[] = [
+  { key: "YouTube", label: "YouTube", icon: <Youtube className="size-3.5" /> },
+  { key: "News", label: "News", icon: <Newspaper className="size-3.5" /> },
+  { key: "X", label: "X", icon: <MessageCircle className="size-3.5" /> },
+  { key: "Instagram", label: "Instagram", icon: <Instagram className="size-3.5" /> },
+  { key: "TikTok", label: "TikTok", icon: <Flame className="size-3.5" /> },
+  { key: "Facebook", label: "Facebook", icon: <Facebook className="size-3.5" /> },
+  { key: "Reddit", label: "Reddit", icon: <MessageCircle className="size-3.5" /> },
+  { key: "Forums", label: "Forums", icon: <MessageCircle className="size-3.5" /> },
+  { key: "Blogs", label: "Blogs", icon: <Globe className="size-3.5" /> },
+  { key: "Web", label: "Websites", icon: <Globe className="size-3.5" /> },
+  { key: "Reviews", label: "Reviews", icon: <Gavel className="size-3.5" /> },
+  { key: "Complaints", label: "Complaints", icon: <AlertTriangle className="size-3.5" /> },
+  { key: "Archive", label: "Archive", icon: <Database className="size-3.5" /> },
+];
+const SOURCE_RANK: Record<string, number> = Object.fromEntries(
+  SOURCE_PRIORITY.map((s, i) => [s.key.toLowerCase(), i]),
+);
+const rankSource = (s: string | null | undefined) =>
+  s ? (SOURCE_RANK[s.toLowerCase()] ?? 999) : 999;
+
+type TimeWindow = "all" | "24h" | "7d" | "30d";
+type QuickFilter = "all" | "critical" | "defamation" | "impersonation" | "deepfake" | "copyright";
+
 function PersistedResults({
   scanId,
   summary,
@@ -843,17 +868,18 @@ function PersistedResults({
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<string>("");
+  // Default view: YouTube-first. Client sees "Top YouTube Findings" immediately after a scan completes.
+  const [source, setSource] = useState<string>("YouTube");
   const [onlyNew, setOnlyNew] = useState(false);
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const sentinel = useRef<HTMLDivElement | null>(null);
   const reqSeq = useRef(0);
 
-  // Reset when scanId or filters change
   useEffect(() => {
     setItems([]); setCursor(null); setHasMore(true); setError(null);
   }, [scanId, source, onlyNew]);
 
-  // Loader function
   const load = async (nextCursor: typeof cursor) => {
     if (loading || !hasMore) return;
     setLoading(true);
@@ -877,14 +903,12 @@ function PersistedResults({
     }
   };
 
-  // Initial + filter change load
   useEffect(() => {
     if (!scanId) return;
     load(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanId, source, onlyNew]);
 
-  // Infinite scroll via IntersectionObserver
   useEffect(() => {
     if (!sentinel.current) return;
     const el = sentinel.current;
@@ -896,9 +920,62 @@ function PersistedResults({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor, hasMore, loading]);
 
+  // Client-side filter + priority-first sort. YouTube always surfaces before Archive.
+  const displayItems = useMemo(() => {
+    const now = Date.now();
+    const windowMs =
+      timeWindow === "24h" ? 86_400_000 :
+      timeWindow === "7d" ? 7 * 86_400_000 :
+      timeWindow === "30d" ? 30 * 86_400_000 : null;
+
+    const matchesQuick = (h: PersistedHit) => {
+      if (quickFilter === "all") return true;
+      const hay = `${h.risk_type ?? ""} ${h.narrative_claim ?? ""} ${(h.tags ?? []).join(" ")} ${h.title ?? ""}`.toLowerCase();
+      if (quickFilter === "critical") return (h.severity ?? "").toLowerCase() === "critical";
+      if (quickFilter === "defamation") return /defam|slander|libel|false accusation/.test(hay);
+      if (quickFilter === "impersonation") return /impersonat|fake account|posing/.test(hay);
+      if (quickFilter === "deepfake") return /deepfake|face[- ]?swap|synthetic|ai[- ]?generated/.test(hay);
+      if (quickFilter === "copyright") return /copyright|dmca|infring|unauthori[sz]ed/.test(hay);
+      return true;
+    };
+
+    return items
+      .filter((h) => {
+        if (windowMs && h.published_at) {
+          if (now - new Date(h.published_at).getTime() > windowMs) return false;
+        }
+        return matchesQuick(h);
+      })
+      .sort((a, b) => {
+        const ra = rankSource(a.source);
+        const rb = rankSource(b.source);
+        if (ra !== rb) return ra - rb;
+        const sa = SEV_RANK[a.severity ?? ""] ?? 0;
+        const sb = SEV_RANK[b.severity ?? ""] ?? 0;
+        if (sa !== sb) return sb - sa;
+        const ta = a.threat_score ?? 0;
+        const tb = b.threat_score ?? 0;
+        if (ta !== tb) return tb - ta;
+        const rea = a.reach ?? 0;
+        const reb = b.reach ?? 0;
+        if (rea !== reb) return reb - rea;
+        const pa = a.published_at ? new Date(a.published_at).getTime() : 0;
+        const pb = b.published_at ? new Date(b.published_at).getTime() : 0;
+        return pb - pa;
+      });
+  }, [items, timeWindow, quickFilter]);
+
+  const sourceCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const h of items) c[h.source] = (c[h.source] ?? 0) + 1;
+    return c;
+  }, [items]);
+  const criticalCount = useMemo(() => items.filter((h) => (h.severity ?? "").toLowerCase() === "critical").length, [items]);
+  const totalReach = useMemo(() => items.reduce((s, h) => s + (h.reach ?? 0), 0), [items]);
+
   if (!scanId) {
     return (
-      <PageCard title="ALL RESULTS (DATABASE)" sub="Persisting scan results…">
+      <PageCard title="TOP YOUTUBE FINDINGS" sub="Persisting scan results…">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="size-3.5 animate-spin" /> Saving scan and hits to the database…
         </div>
@@ -906,24 +983,20 @@ function PersistedResults({
     );
   }
 
+  const activeSource = source ? SOURCE_PRIORITY.find((s) => s.key === source) : null;
+  const cardTitle = activeSource
+    ? `TOP ${activeSource.label.toUpperCase()} FINDINGS`
+    : "ALL RESULTS · YOUTUBE PRIORITY";
+  const cardSub = activeSource
+    ? `Highest-risk ${activeSource.label} content first — sorted by threat, reach, then date`
+    : "Grouped in reputation-damage priority — YouTube → News → Social → Community → Archive";
+
   return (
     <PageCard
-      title="ALL RESULTS (DATABASE)"
-      sub="Sorted by newest published · secondary sort by threat score"
+      title={cardTitle}
+      sub={cardSub}
       actions={
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={source} onChange={(e) => setSource(e.target.value)} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
-            <option value="">All sources</option>
-            <option value="YouTube">YouTube</option>
-            <option value="News">News</option>
-            <option value="Reddit">Reddit</option>
-            <option value="Instagram">Instagram</option>
-            <option value="Facebook">Facebook</option>
-            <option value="X">X</option>
-            <option value="TikTok">TikTok</option>
-            <option value="Web">Web</option>
-            <option value="Reviews">Reviews</option>
-          </select>
           <button
             onClick={() => setOnlyNew((v) => !v)}
             className={`text-xs px-3 py-1.5 rounded-full border ${onlyNew ? "text-white border-transparent" : "border-border bg-card hover:bg-accent"}`}
@@ -934,19 +1007,88 @@ function PersistedResults({
         </div>
       }
     >
-      {/* Summary chips */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3 text-[11px]">
-        <SumChip label="Unique" value={summary?.uniqueHits ?? "…"} icon={<Database className="size-3.5" />} />
-        <SumChip label="New" value={summary?.newHits ?? "…"} icon={<Sparkles className="size-3.5" />} />
-        <SumChip label="Updated" value={summary?.updatedHits ?? "…"} icon={<TrendingUp className="size-3.5" />} />
-        <SumChip label="Duplicates removed" value={summary?.duplicatesRemoved ?? "…"} icon={<Copyright className="size-3.5" />} />
-        <SumChip label="Scan status" value={scanStatus} icon={<BadgeCheck className="size-3.5" />} />
+      {/* Priority-ordered source chips — YouTube first, always. */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        <button
+          onClick={() => setSource("")}
+          className={`text-[11px] px-3 py-1.5 rounded-full border inline-flex items-center gap-1.5 transition ${source === "" ? "text-white border-transparent" : "border-border bg-card hover:bg-accent"}`}
+          style={source === "" ? { background: "var(--gradient-brand)" } : undefined}
+        >
+          All sources
+        </button>
+        {SOURCE_PRIORITY.map((s) => {
+          const active = source === s.key;
+          const count = sourceCounts[s.key] ?? 0;
+          return (
+            <button
+              key={s.key}
+              onClick={() => setSource(s.key)}
+              className={`text-[11px] px-3 py-1.5 rounded-full border inline-flex items-center gap-1.5 transition ${active ? "text-white border-transparent" : "border-border bg-card hover:bg-accent"}`}
+              style={active ? { background: "var(--gradient-brand)" } : undefined}
+            >
+              {s.icon} {s.label}
+              {count > 0 && <span className={`text-[10px] font-bold ${active ? "text-white/90" : "text-muted-foreground"}`}>{count}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Quick threat-type filters + time window */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {([
+          ["all", "All threats"],
+          ["critical", "Critical only"],
+          ["defamation", "Defamation"],
+          ["impersonation", "Impersonation"],
+          ["deepfake", "Deepfake"],
+          ["copyright", "Copyright"],
+        ] as [QuickFilter, string][]).map(([k, label]) => {
+          const active = quickFilter === k;
+          return (
+            <button
+              key={k}
+              onClick={() => setQuickFilter(k)}
+              className={`text-[11px] px-3 py-1 rounded-full border transition ${active ? "bg-foreground text-background border-transparent" : "border-border bg-card hover:bg-accent"}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+        <span className="mx-1 text-muted-foreground/40">·</span>
+        {([
+          ["all", "All time"],
+          ["24h", "Last 24h"],
+          ["7d", "Last 7d"],
+          ["30d", "Last 30d"],
+        ] as [TimeWindow, string][]).map(([k, label]) => {
+          const active = timeWindow === k;
+          return (
+            <button
+              key={k}
+              onClick={() => setTimeWindow(k)}
+              className={`text-[11px] px-3 py-1 rounded-full border transition ${active ? "bg-foreground text-background border-transparent" : "border-border bg-card hover:bg-accent"}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Priority-ordered summary header */}
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2 mb-4 text-[11px]">
+        <SumChip label="YouTube" value={sourceCounts["YouTube"] ?? 0} icon={<Youtube className="size-3.5" />} />
+        <SumChip label="News" value={sourceCounts["News"] ?? 0} icon={<Newspaper className="size-3.5" />} />
+        <SumChip label="Social" value={(sourceCounts["Instagram"] ?? 0) + (sourceCounts["TikTok"] ?? 0) + (sourceCounts["Facebook"] ?? 0) + (sourceCounts["X"] ?? 0)} icon={<Instagram className="size-3.5" />} />
+        <SumChip label="Reddit" value={sourceCounts["Reddit"] ?? 0} icon={<MessageCircle className="size-3.5" />} />
+        <SumChip label="Archive" value={sourceCounts["Archive"] ?? 0} icon={<Database className="size-3.5" />} />
+        <SumChip label="Critical" value={criticalCount} icon={<AlertTriangle className="size-3.5" />} />
+        <SumChip label="Total reach" value={fmt(totalReach)} icon={<Users className="size-3.5" />} />
       </div>
 
       {error && <div className="text-xs text-red-600 mb-2">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {items.map((h) => {
+        {displayItems.map((h) => {
           const linkUrl = h.permalink ?? h.canonical_url ?? "#";
           const displayTitle = cleanTitle(h.title, readableFromSlug(linkUrl));
           const thumb = viaProxy(h.thumbnail_url);
