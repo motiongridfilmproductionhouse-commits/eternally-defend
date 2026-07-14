@@ -5,23 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_app")({
   ssr: false,
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
 
-    // Onboarding gate — allow the onboarding route and settings (for sign-out).
-    const path = location.pathname;
-    const allow = path.startsWith("/onboarding") || path.startsWith("/settings");
-    if (!allow) {
-      const { data: profile } = await supabase
-        .from("client_profiles")
-        .select("onboarding_completed")
-        .eq("user_id", data.user.id)
-        .maybeSingle();
-      if (!profile?.onboarding_completed) {
-        throw redirect({ to: "/onboarding" });
-      }
-    }
+    // Server-side onboarding gate — every route under /_app requires a completed profile.
+    const { data: profile } = await supabase
+      .from("client_profiles")
+      .select("onboarding_completed")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+    if (!profile?.onboarding_completed) throw redirect({ to: "/onboarding" });
+
     return { user: data.user };
   },
   component: AppLayout,
