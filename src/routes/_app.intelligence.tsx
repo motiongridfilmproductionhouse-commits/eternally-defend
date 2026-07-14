@@ -5,8 +5,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   startMultimediaAnalysis, getMultimediaJob, listMultimediaJobs,
-  updateFindingReview, getProviderStatus,
+  updateFindingReview, getProviderStatus, fetchYoutubeMetadataFn,
 } from "@/lib/mm/mm.functions";
+import { importCaptions } from "@/lib/mm/uploads.functions";
 import { PageCard, StatCard } from "@/components/dashboard/PageCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,19 +87,29 @@ function SignedInEngine() {
   const [aliases, setAliases] = useState("");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
+  const ytMetaFn = useServerFn(fetchYoutubeMetadataFn);
+
   const start = useMutation({
     mutationFn: async () => {
       const target_aliases = aliases.split(",").map((s) => s.trim()).filter(Boolean);
       if (source === "youtube") {
         const vid = extractYoutubeId(ytUrl);
         if (!vid) throw new Error("Please paste a valid YouTube URL");
-        // fetch minimal metadata via oEmbed (public, no auth)
-        const meta = await fetchYoutubeMeta(vid);
+        const meta = await ytMetaFn({ data: { url: ytUrl } });
+        const md = meta.ok ? meta.metadata : { video_id: vid, title: "YouTube video", thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` };
         return startFn({
           data: {
             source_kind: "youtube_meta",
             source_ref: `https://youtu.be/${vid}`,
-            source_metadata: { ...meta, video_id: vid },
+            source_metadata: {
+              video_id: vid,
+              title: md.title,
+              channel: (md as any).channel ?? undefined,
+              description: (md as any).description ?? undefined,
+              thumbnail: md.thumbnail,
+              duration_seconds: (md as any).duration_seconds ?? undefined,
+              view_count: (md as any).view_count ?? undefined,
+            },
             target_name: targetName, target_aliases,
           },
         });
@@ -175,6 +186,9 @@ function SignedInEngine() {
       </PageCard>
 
       {activeJobId && <JobDetail jobId={activeJobId} onClose={() => setActiveJobId(null)} />}
+      {activeJobId && (
+        <CaptionImportPanel jobId={activeJobId} targetName={targetName} aliases={aliases} onImported={() => qc.invalidateQueries({ queryKey: ["mm-job", activeJobId] })} />
+      )}
 
       <PageCard title="RECENT ANALYSES" sub="Your saved intelligence reports">
         {jobs.isLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : (
@@ -533,22 +547,65 @@ function extractYoutubeId(url: string): string | null {
     if (u.hostname.includes("youtu.be")) return u.pathname.slice(1).split(/[/?#]/)[0] || null;
     const v = u.searchParams.get("v");
     if (v) return v;
-    const m = u.pathname.match(/\/(shorts|embed)\/([^/?#]+)/);
+    const m = u.pathname.match(/\/(shorts|embed|live)\/([^/?#]+)/);
     return m ? m[2] : null;
   } catch { return null; }
 }
 
-async function fetchYoutubeMeta(videoId: string) {
-  try {
-    const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`);
-    if (!r.ok) return { title: "YouTube video", thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` };
-    const j = await r.json();
-    return {
-      title: j.title as string,
-      channel: j.author_name as string,
-      thumbnail: (j.thumbnail_url as string) ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-    };
-  } catch {
-    return { title: "YouTube video", thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` };
-  }
+function CaptionImportPanel({ jobId, targetName, aliases, onImported }: { jobId: string; targetName: string; aliases: string; onImported: () => void }) {
+  const importFn = useServerFn(importCaptions);
+  const [text, setText] = useState("");
+  const [filename, setFilename] = useState("");
+  const [source, setSource] = useState<"user_uploaded" | "owner_authorised" | "external" | "manual">("user_uploaded");
+  const mut = useMutation({
+    mutationFn: async () => importFn({
+      data: {
+        job_id: jobId, filename: filename || undefined, raw_text: text,
+        transcript_source: source,
+        target_name: targetName || undefined,
+        target_aliases: aliases.split(",").map((s) => s.trim()).filter(Boolean),
+      },
+    }),
+    onSuccess: () => { setText(""); setFilename(""); onImported(); },
+  });
+  const onFile = async (f: File | null) => {
+    if (!f) return;
+    setFilename(f.name);
+    setText(await f.text());
+  };
+  return (
+    <PageCard title="IMPORT CAPTIONS OR TRANSCRIPT" sub="SRT / VTT produce exact timestamped findings. Plain text is treated as a passage — no synthetic timestamps.">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4">
+        <div className="space-y-2">
+          <div className="flex gap-2 items-center text-xs">
+            <input type="file" accept=".srt,.vtt,.txt" onChange={(e) => onFile(e.target.files?.[0] ?? null)} className="text-xs" />
+            {filename && <span className="text-muted-foreground truncate">{filename}</span>}
+          </div>
+          <Textarea rows={7} placeholder="Or paste SRT / VTT / transcript here…" value={text} onChange={(e) => setText(e.target.value)} />
+          {mut.error && <div className="text-xs text-destructive">{(mut.error as Error).message}</div>}
+          {mut.data && (
+            <div className="text-xs text-emerald-600">
+              Imported {(mut.data as any).format.toUpperCase()} · {(mut.data as any).segment_count} segments · {(mut.data as any).findingsCreated} timestamped findings created.
+            </div>
+          )}
+        </div>
+        <div className="space-y-2 text-xs">
+          <label className="text-[10px] uppercase text-muted-foreground">Transcript source</label>
+          <select value={source} onChange={(e) => setSource(e.target.value as any)} className="w-full border border-border rounded px-2 py-1.5 bg-background">
+            <option value="user_uploaded">User uploaded</option>
+            <option value="owner_authorised">Owner-authorised captions</option>
+            <option value="external">External provider</option>
+            <option value="manual">Manually entered</option>
+          </select>
+          <Button size="sm" disabled={!text.trim() || mut.isPending} onClick={() => mut.mutate()} className="w-full">
+            {mut.isPending ? "Importing…" : "Import & timestamp"}
+          </Button>
+          <div className="text-[10px] text-muted-foreground">
+            Findings created from captions are marked <code>timestamp_source=captions</code>. Untimestamped text is stored but never given a synthetic time.
+          </div>
+        </div>
+      </div>
+    </PageCard>
+  );
 }
+

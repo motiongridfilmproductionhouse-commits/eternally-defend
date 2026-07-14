@@ -58,6 +58,59 @@ export type Database = {
           },
         ]
       }
+      caption_imports: {
+        Row: {
+          created_at: string
+          filename: string | null
+          format: string
+          id: string
+          job_id: string | null
+          language: string | null
+          raw_text: string
+          segment_count: number
+          segments: Json
+          transcript_source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filename?: string | null
+          format: string
+          id?: string
+          job_id?: string | null
+          language?: string | null
+          raw_text: string
+          segment_count?: number
+          segments?: Json
+          transcript_source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filename?: string | null
+          format?: string
+          id?: string
+          job_id?: string | null
+          language?: string | null
+          raw_text?: string
+          segment_count?: number
+          segments?: Json
+          transcript_source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caption_imports_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evidence_frames: {
         Row: {
           created_at: string
@@ -228,10 +281,62 @@ export type Database = {
           },
         ]
       }
+      finding_review_history: {
+        Row: {
+          action: string
+          created_at: string
+          finding_id: string
+          from_severity: string | null
+          from_status: string | null
+          id: string
+          notes: string | null
+          reviewer_id: string
+          to_severity: string | null
+          to_status: string
+        }
+        Insert: {
+          action?: string
+          created_at?: string
+          finding_id: string
+          from_severity?: string | null
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          reviewer_id: string
+          to_severity?: string | null
+          to_status: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          finding_id?: string
+          from_severity?: string | null
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          reviewer_id?: string
+          to_severity?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finding_review_history_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "timestamp_findings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       multimedia_analysis_jobs: {
         Row: {
+          actual_cost_cents: number
+          api_calls_count: number
+          canceled_reason: string | null
+          confidence_by_axis: Json | null
           cost_estimate_usd: number
           created_at: string
+          estimated_cost_cents: number
           finished_at: string | null
           id: string
           progress_message: string | null
@@ -239,6 +344,7 @@ export type Database = {
           reputation_score: number | null
           retention_expires_at: string | null
           risk_scores: Json
+          score_explanations: Json | null
           source_kind: string
           source_metadata: Json
           source_ref: string
@@ -251,8 +357,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          actual_cost_cents?: number
+          api_calls_count?: number
+          canceled_reason?: string | null
+          confidence_by_axis?: Json | null
           cost_estimate_usd?: number
           created_at?: string
+          estimated_cost_cents?: number
           finished_at?: string | null
           id?: string
           progress_message?: string | null
@@ -260,6 +371,7 @@ export type Database = {
           reputation_score?: number | null
           retention_expires_at?: string | null
           risk_scores?: Json
+          score_explanations?: Json | null
           source_kind: string
           source_metadata?: Json
           source_ref: string
@@ -272,8 +384,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          actual_cost_cents?: number
+          api_calls_count?: number
+          canceled_reason?: string | null
+          confidence_by_axis?: Json | null
           cost_estimate_usd?: number
           created_at?: string
+          estimated_cost_cents?: number
           finished_at?: string | null
           id?: string
           progress_message?: string | null
@@ -281,6 +398,7 @@ export type Database = {
           reputation_score?: number | null
           retention_expires_at?: string | null
           risk_scores?: Json
+          score_explanations?: Json | null
           source_kind?: string
           source_metadata?: Json
           source_ref?: string
@@ -337,6 +455,113 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      multimedia_uploads: {
+        Row: {
+          created_at: string
+          filename: string
+          id: string
+          job_id: string | null
+          mime_type: string
+          organization: string | null
+          permission_confirmed: boolean
+          retention_policy: string
+          retention_until: string | null
+          sha256: string
+          size_bytes: number
+          storage_path: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filename: string
+          id?: string
+          job_id?: string | null
+          mime_type: string
+          organization?: string | null
+          permission_confirmed?: boolean
+          retention_policy?: string
+          retention_until?: string | null
+          sha256: string
+          size_bytes: number
+          storage_path: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filename?: string
+          id?: string
+          job_id?: string | null
+          mime_type?: string
+          organization?: string | null
+          permission_confirmed?: boolean
+          retention_policy?: string
+          retention_until?: string | null
+          sha256?: string
+          size_bytes?: number
+          storage_path?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multimedia_uploads_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      narrative_clusters: {
+        Row: {
+          cluster_key: string
+          combined_reach: number
+          created_at: string
+          dominant_source: string | null
+          first_detected_at: string
+          id: string
+          latest_detected_at: string
+          narrative_summary: string | null
+          source_count: number
+          sources: Json
+          target_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cluster_key: string
+          combined_reach?: number
+          created_at?: string
+          dominant_source?: string | null
+          first_detected_at?: string
+          id?: string
+          latest_detected_at?: string
+          narrative_summary?: string | null
+          source_count?: number
+          sources?: Json
+          target_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cluster_key?: string
+          combined_reach?: number
+          created_at?: string
+          dominant_source?: string | null
+          first_detected_at?: string
+          id?: string
+          latest_detected_at?: string
+          narrative_summary?: string | null
+          source_count?: number
+          sources?: Json
+          target_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       ocr_results: {
         Row: {
@@ -501,6 +726,78 @@ export type Database = {
         }
         Relationships: []
       }
+      provider_health_checks: {
+        Row: {
+          checked_by: string | null
+          created_at: string
+          diagnostic: Json | null
+          error_message: string | null
+          id: string
+          latency_ms: number | null
+          mode: string
+          provider: string
+          status: string
+        }
+        Insert: {
+          checked_by?: string | null
+          created_at?: string
+          diagnostic?: Json | null
+          error_message?: string | null
+          id?: string
+          latency_ms?: number | null
+          mode: string
+          provider: string
+          status: string
+        }
+        Update: {
+          checked_by?: string | null
+          created_at?: string
+          diagnostic?: Json | null
+          error_message?: string | null
+          id?: string
+          latency_ms?: number | null
+          mode?: string
+          provider?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      quota_usage: {
+        Row: {
+          analyses_count: number
+          api_calls_count: number
+          cost_cents: number
+          created_at: string
+          id: string
+          storage_bytes: number
+          updated_at: string
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          analyses_count?: number
+          api_calls_count?: number
+          cost_cents?: number
+          created_at?: string
+          id?: string
+          storage_bytes?: number
+          updated_at?: string
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          analyses_count?: number
+          api_calls_count?: number
+          cost_cents?: number
+          created_at?: string
+          id?: string
+          storage_bytes?: number
+          updated_at?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       speaker_segments: {
         Row: {
           confidence: number | null
@@ -544,22 +841,31 @@ export type Database = {
       }
       timestamp_findings: {
         Row: {
+          cluster_id: string | null
           confidence: number | null
+          contributing_signals: Json | null
           created_at: string
           description: string | null
           detection_reason: string | null
           end_seconds: number | null
           evidence_frame_id: string | null
+          evidence_source: string | null
           extracted_claim_id: string | null
           fact_check_status: string | null
           finding_type: string
+          human_review_status: string
           id: string
           job_id: string
+          model_version: string | null
           original_language: string | null
           review_status: string
+          reviewed_at: string | null
+          reviewer_id: string | null
+          reviewer_notes: string | null
           severity: string
           speaker: string | null
           start_seconds: number
+          timestamp_source: string
           title: string
           transcript_excerpt: string | null
           transcript_segment_id: string | null
@@ -571,22 +877,31 @@ export type Database = {
           youtube_deep_link: string | null
         }
         Insert: {
+          cluster_id?: string | null
           confidence?: number | null
+          contributing_signals?: Json | null
           created_at?: string
           description?: string | null
           detection_reason?: string | null
           end_seconds?: number | null
           evidence_frame_id?: string | null
+          evidence_source?: string | null
           extracted_claim_id?: string | null
           fact_check_status?: string | null
           finding_type: string
+          human_review_status?: string
           id?: string
           job_id: string
+          model_version?: string | null
           original_language?: string | null
           review_status?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
           severity: string
           speaker?: string | null
           start_seconds: number
+          timestamp_source?: string
           title: string
           transcript_excerpt?: string | null
           transcript_segment_id?: string | null
@@ -598,22 +913,31 @@ export type Database = {
           youtube_deep_link?: string | null
         }
         Update: {
+          cluster_id?: string | null
           confidence?: number | null
+          contributing_signals?: Json | null
           created_at?: string
           description?: string | null
           detection_reason?: string | null
           end_seconds?: number | null
           evidence_frame_id?: string | null
+          evidence_source?: string | null
           extracted_claim_id?: string | null
           fact_check_status?: string | null
           finding_type?: string
+          human_review_status?: string
           id?: string
           job_id?: string
+          model_version?: string | null
           original_language?: string | null
           review_status?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
           severity?: string
           speaker?: string | null
           start_seconds?: number
+          timestamp_source?: string
           title?: string
           transcript_excerpt?: string | null
           transcript_segment_id?: string | null
@@ -625,6 +949,13 @@ export type Database = {
           youtube_deep_link?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "timestamp_findings_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "narrative_clusters"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "timestamp_findings_evidence_frame_id_fkey"
             columns: ["evidence_frame_id"]
