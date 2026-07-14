@@ -268,6 +268,96 @@ export type Database = {
           },
         ]
       }
+      case_findings: {
+        Row: {
+          case_id: string
+          created_at: string
+          id: string
+          note: string | null
+          scan_hit_id: string | null
+          user_id: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          scan_hit_id?: string | null
+          user_id: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          scan_hit_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_findings_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_findings_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cases: {
+        Row: {
+          assignee: string | null
+          closed_at: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          notes: string | null
+          opened_at: string
+          priority: string
+          status: string
+          subject: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignee?: string | null
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          opened_at?: string
+          priority?: string
+          status?: string
+          subject: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignee?: string | null
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          opened_at?: string
+          priority?: string
+          status?: string
+          subject?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       client_profiles: {
         Row: {
           account_type: Database["public"]["Enums"]["account_type_enum"] | null
@@ -479,6 +569,65 @@ export type Database = {
           website_domain?: string | null
         }
         Relationships: []
+      }
+      enforcement_requests: {
+        Row: {
+          created_at: string
+          evidence_refs: Json
+          id: string
+          metadata: Json
+          method: string
+          platform: string
+          responded_at: string | null
+          response_notes: string | null
+          scan_hit_id: string | null
+          status: string
+          submitted_at: string | null
+          target_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          evidence_refs?: Json
+          id?: string
+          metadata?: Json
+          method: string
+          platform: string
+          responded_at?: string | null
+          response_notes?: string | null
+          scan_hit_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          target_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          evidence_refs?: Json
+          id?: string
+          metadata?: Json
+          method?: string
+          platform?: string
+          responded_at?: string | null
+          response_notes?: string | null
+          scan_hit_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          target_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_requests_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       enterprise_documents: {
         Row: {
@@ -729,6 +878,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      generated_reports: {
+        Row: {
+          created_at: string
+          filters: Json
+          findings_count: number
+          id: string
+          kind: string
+          name: string
+          pdf_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          findings_count?: number
+          id?: string
+          kind?: string
+          name: string
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          findings_count?: number
+          id?: string
+          kind?: string
+          name?: string
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       multimedia_analysis_jobs: {
         Row: {
