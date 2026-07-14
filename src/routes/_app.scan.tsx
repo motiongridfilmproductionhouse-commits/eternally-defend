@@ -534,8 +534,12 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
   const [moments, setMoments] = useState(false);
   const [imgOk, setImgOk] = useState(true);
   const [loaded, setLoaded] = useState(false);
-  const thumb = h.media?.thumbnailHi || h.media?.thumbnail;
+  const rawThumb = h.media?.thumbnailHi || h.media?.thumbnail;
+  const thumb = viaProxy(rawThumb);
   const isYouTube = h.source === "YouTube";
+  const displayTitle = cleanTitle(h.title, readableFromSlug(h.url));
+  const host = hostFromUrl(h.url);
+  const favicon = faviconUrl(h.url);
   const publishedTs = h.published ? new Date(h.published).getTime() : 0;
   const publishedLabel = publishedTs ? new Date(publishedTs).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
   const ageDays = publishedTs ? Math.max(0, (Date.now() - publishedTs) / 86400000) : 0;
