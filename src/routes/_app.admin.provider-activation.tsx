@@ -7,11 +7,12 @@ import { runRetentionCleanup, getRetentionPreview } from "@/lib/mm/retention.fun
 import { PageCard } from "@/components/dashboard/PageCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AdminGuard } from "@/components/AdminGuard";
 import { CheckCircle2, XCircle, ShieldAlert, PlayCircle, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/admin/provider-activation")({
   head: () => ({ meta: [{ title: "Provider Activation — Eterna AI" }] }),
-  component: ProviderActivationPage,
+  component: () => <AdminGuard><ProviderActivationPage /></AdminGuard>,
 });
 
 interface ProviderSpec {
