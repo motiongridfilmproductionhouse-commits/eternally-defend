@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
@@ -19,7 +20,6 @@ import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppScanRouteImport } from './routes/_app.scan'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppRemovalsRouteImport } from './routes/_app.removals'
-import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppNarrativeIntelligenceRouteImport } from './routes/_app.narrative-intelligence'
 import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
@@ -30,6 +30,11 @@ import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -77,11 +82,6 @@ const AppReportsRoute = AppReportsRouteImport.update({
 const AppRemovalsRoute = AppRemovalsRouteImport.update({
   id: '/removals',
   path: '/removals',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOnboardingRoute = AppOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -136,13 +136,13 @@ const AppAdminMultimediaHealthRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/onboarding': typeof OnboardingRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
   '/intelligence': typeof AppIntelligenceRoute
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
-  '/onboarding': typeof AppOnboardingRoute
   '/removals': typeof AppRemovalsRoute
   '/reports': typeof AppReportsRoute
   '/scan': typeof AppScanRoute
@@ -156,13 +156,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/onboarding': typeof OnboardingRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
   '/intelligence': typeof AppIntelligenceRoute
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
-  '/onboarding': typeof AppOnboardingRoute
   '/removals': typeof AppRemovalsRoute
   '/reports': typeof AppReportsRoute
   '/scan': typeof AppScanRoute
@@ -179,13 +179,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/onboarding': typeof OnboardingRoute
   '/_app/assets': typeof AppAssetsRoute
   '/_app/cases': typeof AppCasesRoute
   '/_app/enforcement': typeof AppEnforcementRoute
   '/_app/intelligence': typeof AppIntelligenceRoute
   '/_app/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/_app/notifications': typeof AppNotificationsRoute
-  '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/removals': typeof AppRemovalsRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/scan': typeof AppScanRoute
@@ -203,13 +203,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/onboarding'
     | '/assets'
     | '/cases'
     | '/enforcement'
     | '/intelligence'
     | '/narrative-intelligence'
     | '/notifications'
-    | '/onboarding'
     | '/removals'
     | '/reports'
     | '/scan'
@@ -223,13 +223,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/onboarding'
     | '/assets'
     | '/cases'
     | '/enforcement'
     | '/intelligence'
     | '/narrative-intelligence'
     | '/notifications'
-    | '/onboarding'
     | '/removals'
     | '/reports'
     | '/scan'
@@ -245,13 +245,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/auth'
+    | '/onboarding'
     | '/_app/assets'
     | '/_app/cases'
     | '/_app/enforcement'
     | '/_app/intelligence'
     | '/_app/narrative-intelligence'
     | '/_app/notifications'
-    | '/_app/onboarding'
     | '/_app/removals'
     | '/_app/reports'
     | '/_app/scan'
@@ -268,12 +268,20 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
+  OnboardingRoute: typeof OnboardingRoute
   ApiScanRoute: typeof ApiScanRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -342,13 +350,6 @@ declare module '@tanstack/react-router' {
       path: '/removals'
       fullPath: '/removals'
       preLoaderRoute: typeof AppRemovalsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/onboarding': {
-      id: '/_app/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AppOnboardingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications': {
@@ -424,7 +425,6 @@ interface AppRouteChildren {
   AppIntelligenceRoute: typeof AppIntelligenceRoute
   AppNarrativeIntelligenceRoute: typeof AppNarrativeIntelligenceRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
-  AppOnboardingRoute: typeof AppOnboardingRoute
   AppRemovalsRoute: typeof AppRemovalsRoute
   AppReportsRoute: typeof AppReportsRoute
   AppScanRoute: typeof AppScanRoute
@@ -443,7 +443,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppIntelligenceRoute: AppIntelligenceRoute,
   AppNarrativeIntelligenceRoute: AppNarrativeIntelligenceRoute,
   AppNotificationsRoute: AppNotificationsRoute,
-  AppOnboardingRoute: AppOnboardingRoute,
   AppRemovalsRoute: AppRemovalsRoute,
   AppReportsRoute: AppReportsRoute,
   AppScanRoute: AppScanRoute,
@@ -460,6 +459,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
+  OnboardingRoute: OnboardingRoute,
   ApiScanRoute: ApiScanRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
 }
