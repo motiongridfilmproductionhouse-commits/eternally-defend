@@ -390,7 +390,8 @@ async function runYouTube(
     }
   }));
 
-  const ids = Array.from(idToItem.keys()).slice(0, Math.min(YT_MAX_TOTAL, Math.max(targetResults, ids_default(idToItem.size))));
+  const desiredCount = Math.min(YT_MAX_TOTAL, Math.max(targetResults, idToItem.size));
+  const ids = Array.from(idToItem.keys()).slice(0, desiredCount);
   const statsById = new Map<string, YtVideoItem>();
   for (let i = 0; i < ids.length; i += 50) {
     const batch = ids.slice(i, i + 50).join(",");
