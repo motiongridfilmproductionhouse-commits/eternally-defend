@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useData, severityColor, type Severity, type Status, type RiskType, type Virality, type Threat } from "@/lib/data-store";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
+import { severityColor, type Severity, type Status, type RiskType, type Virality } from "@/lib/data-store";
 import {
-  Youtube, Instagram, Music2, Newspaper, Facebook, MessageCircle, Megaphone, UserX, Copyright as CopyIcon,
-  Globe, TrendingUp, Flame, Activity, Eye, FileSearch, FolderPlus, FileText, Send, Radar as RadarIcon, X, MapPin,
+  Youtube, Instagram, Music2, Newspaper, Facebook, MessageCircle, Megaphone,
+  Globe, TrendingUp, Flame, Activity, Eye, FileSearch, FolderPlus, FileText, Send, X, MapPin, Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/threat-radar")({
   head: () => ({ meta: [{ title: "Threat Radar — Eterna AI" }] }),
@@ -14,6 +18,54 @@ export const Route = createFileRoute("/_app/threat-radar")({
 
 const RISK_TYPES: (RiskType | "All")[] = ["All", "Defamation", "Impersonation", "Deepfake", "Copyright", "Fraud", "Scam", "Brand Abuse", "News Attack"];
 const VIRALITIES: (Virality | "All")[] = ["All", "Normal", "Growing", "Viral", "Exploding"];
+
+interface HitRow {
+  id: string;
+  title: string | null;
+  description: string | null;
+  source: string;
+  source_type: string | null;
+  country: string | null;
+  permalink: string | null;
+  canonical_url: string | null;
+  reach: number | null;
+  threat_score: number | null;
+  risk_score: number | null;
+  severity: string | null;
+  velocity: string | null;
+  risk_type: string | null;
+  growth_pct: number | null;
+  narrative_claim: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  times_detected: number;
+  tags: string[];
+  metrics: Record<string, unknown> | null;
+  source_metadata: Record<string, unknown> | null;
+  evidence_refs: unknown[] | null;
+}
+
+interface Threat {
+  id: string;
+  title: string;
+  sourceType: string;
+  riskType: RiskType;
+  platform: string;
+  severity: Severity;
+  location: string;
+  status: Status;
+  confidence: number;
+  threatScore: number;
+  reach: number;
+  sources: number;
+  evidence: number;
+  velocity: Virality;
+  firstDetected: string;
+  latestActivity: string;
+  growthPct: number;
+  narrativeClaim: string;
+  caseId?: string;
+}
 
 function platformIcon(p: string) {
   const k = p.toLowerCase();
@@ -42,12 +94,135 @@ function formatReach(n: number) {
   return String(n);
 }
 
+function shortDate(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+}
+
+const SEV_SET: Severity[] = ["Critical", "High", "Medium", "Low"];
+const VIR_SET: Virality[] = ["Normal", "Growing", "Viral", "Exploding"];
+const RISK_SET: RiskType[] = ["Defamation", "Impersonation", "Deepfake", "Copyright", "Fraud", "Scam", "Brand Abuse", "News Attack"];
+const STATUS_SET: Status[] = ["Detected", "In Review", "Takedown Sent", "Resolved"];
+
+function normSeverity(s: string | null, threatScore: number): Severity {
+  const t = (s ?? "").toLowerCase();
+  if (t === "critical") return "Critical";
+  if (t === "high") return "High";
+  if (t === "medium") return "Medium";
+  if (t === "low") return "Low";
+  if (threatScore >= 85) return "Critical";
+  if (threatScore >= 70) return "High";
+  if (threatScore >= 40) return "Medium";
+  return "Low";
+}
+
+function normVirality(v: string | null, growth: number): Virality {
+  const t = (v ?? "").toLowerCase();
+  if (VIR_SET.map((x) => x.toLowerCase()).includes(t)) {
+    return (t.charAt(0).toUpperCase() + t.slice(1)) as Virality;
+  }
+  if (growth >= 100) return "Exploding";
+  if (growth >= 40) return "Viral";
+  if (growth >= 10) return "Growing";
+  return "Normal";
+}
+
+function normRiskType(r: string | null): RiskType {
+  const match = RISK_SET.find((x) => x.toLowerCase() === (r ?? "").toLowerCase());
+  return match ?? "News Attack";
+}
+
+function normStatus(row: HitRow): Status {
+  const s = (row.metrics as Record<string, unknown> | null)?.["radar_status"] as string | undefined;
+  const match = STATUS_SET.find((x) => x === s);
+  return match ?? "Detected";
+}
+
+function platformOf(row: HitRow): string {
+  const src = (row.source ?? "").toLowerCase();
+  const meta = (row.source_metadata ?? {}) as Record<string, unknown>;
+  const explicit = (meta.platform as string | undefined) ?? row.source_type ?? row.source;
+  if (src.includes("youtube")) return "YouTube";
+  if (src.includes("instagram")) return "Instagram";
+  if (src.includes("tiktok")) return "TikTok";
+  if (src.includes("facebook") || src.includes("meta")) return "Facebook";
+  if (src.includes("reddit")) return "Reddit";
+  if (src.includes("news")) return "News Portal";
+  return explicit || "Web";
+}
+
+function toThreat(row: HitRow): Threat {
+  const threatScore = Math.round(Number(row.threat_score ?? row.risk_score ?? 0));
+  const reach = Number(row.reach ?? 0);
+  const growth = Number(row.growth_pct ?? 0);
+  const evidenceCount = Array.isArray(row.evidence_refs) ? row.evidence_refs.length : 0;
+  const metricSources = Number((row.metrics as Record<string, unknown> | null)?.["sources"] ?? 0);
+  const meta = (row.source_metadata ?? {}) as Record<string, unknown>;
+
+  return {
+    id: row.id,
+    title: row.title || row.narrative_claim || row.canonical_url || row.permalink || "Untitled finding",
+    sourceType: row.source_type || row.source,
+    riskType: normRiskType(row.risk_type),
+    platform: platformOf(row),
+    severity: normSeverity(row.severity, threatScore),
+    location: row.country || (meta.country as string | undefined) || "Global",
+    status: normStatus(row),
+    confidence: Math.round(Number(row.risk_score ?? row.threat_score ?? 0)),
+    threatScore,
+    reach,
+    sources: Math.max(1, metricSources || row.times_detected || 1),
+    evidence: Math.max(evidenceCount, 1),
+    velocity: normVirality(row.velocity, growth),
+    firstDetected: shortDate(row.first_seen_at),
+    latestActivity: shortDate(row.last_seen_at),
+    growthPct: Math.round(growth),
+    narrativeClaim: row.narrative_claim || row.description || "No narrative claim extracted yet.",
+    caseId: (row.metrics as Record<string, unknown> | null)?.["case_id"] as string | undefined,
+  };
+}
+
 function ThreatRadarPage() {
-  const { threats, updateThreatStatus } = useData();
+  const { session, ready } = useSession();
+  const userId = session?.user.id;
+  const qc = useQueryClient();
+
   const [risk, setRisk] = useState<(typeof RISK_TYPES)[number]>("All");
   const [sev, setSev] = useState<Severity | "All">("All");
   const [vir, setVir] = useState<(typeof VIRALITIES)[number]>("All");
   const [selected, setSelected] = useState<Threat | null>(null);
+
+  const hitsQuery = useQuery({
+    queryKey: ["threat_radar_hits", userId],
+    enabled: ready && !!userId,
+    queryFn: async (): Promise<HitRow[]> => {
+      const { data, error } = await supabase
+        .from("scan_hits")
+        .select("id,title,description,source,source_type,country,permalink,canonical_url,reach,threat_score,risk_score,severity,velocity,risk_type,growth_pct,narrative_claim,first_seen_at,last_seen_at,times_detected,tags,metrics,source_metadata,evidence_refs")
+        .order("threat_score", { ascending: false, nullsFirst: false })
+        .order("last_seen_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as HitRow[];
+    },
+  });
+
+  const statusMut = useMutation({
+    mutationFn: async ({ id, status, current }: { id: string; status: Status; current: Record<string, unknown> | null }) => {
+      const nextMetrics = { ...(current ?? {}), radar_status: status };
+      const { error } = await supabase.from("scan_hits").update({ metrics: nextMetrics }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Status updated");
+      qc.invalidateQueries({ queryKey: ["threat_radar_hits", userId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const rows = hitsQuery.data ?? [];
+  const threats = useMemo(() => rows.map(toThreat), [rows]);
+  const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
   const list = threats.filter(
     (t) =>
@@ -74,6 +249,13 @@ function ThreatRadarPage() {
   }, [threats]);
   const geoMax = Math.max(1, ...geoBreakdown.map(([, n]) => n));
 
+  const handleStatus = (t: Threat, s: Status) => {
+    const row = rowById.get(t.id);
+    statusMut.mutate({ id: t.id, status: s, current: row?.metrics ?? null });
+  };
+
+  const loading = !ready || hitsQuery.isLoading;
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -98,7 +280,7 @@ function ThreatRadarPage() {
               </button>
             ))}
             <select value={sev} onChange={(e) => setSev(e.target.value as Severity | "All")} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
-              {["All", "Critical", "High", "Medium", "Low"].map((s) => (<option key={s}>{s}</option>))}
+              {(["All", ...SEV_SET] as const).map((s) => (<option key={s}>{s}</option>))}
             </select>
             <select value={vir} onChange={(e) => setVir(e.target.value as Virality | "All")} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
               {VIRALITIES.map((s) => (<option key={s}>{s}</option>))}
@@ -106,31 +288,48 @@ function ThreatRadarPage() {
           </div>
         }
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {list.map((t) => (
-            <ThreatCard key={t.id} t={t} onOpen={() => setSelected(t)} onStatus={(s) => updateThreatStatus(t.id, s)} />
-          ))}
-          {list.length === 0 && (
-            <div className="col-span-full text-center text-sm text-muted-foreground py-8">No threats match these filters.</div>
-          )}
-        </div>
+        {loading ? (
+          <div className="py-12 flex items-center justify-center text-muted-foreground text-sm gap-2">
+            <Loader2 className="size-4 animate-spin" /> Loading live radar…
+          </div>
+        ) : hitsQuery.error ? (
+          <div className="py-12 text-center text-sm text-destructive">Failed to load threats: {(hitsQuery.error as Error).message}</div>
+        ) : threats.length === 0 ? (
+          <div className="py-12 text-center text-sm text-muted-foreground space-y-2">
+            <div>No threats detected yet.</div>
+            <div>
+              Run a scan from the <Link to="/scan" className="text-primary font-semibold">Web Scan</Link> page — findings will appear here in real time.
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {list.map((t) => (
+              <ThreatCard key={t.id} t={t} onOpen={() => setSelected(t)} onStatus={(s) => handleStatus(t, s)} />
+            ))}
+            {list.length === 0 && (
+              <div className="col-span-full text-center text-sm text-muted-foreground py-8">No threats match these filters.</div>
+            )}
+          </div>
+        )}
       </PageCard>
 
-      <PageCard title="THREAT RADAR MAP" sub="Findings by region">
-        <div className="space-y-2">
-          {geoBreakdown.map(([loc, count]) => (
-            <div key={loc} className="flex items-center gap-3">
-              <div className="w-24 text-sm font-semibold flex items-center gap-1.5">
-                <MapPin className="size-3.5 text-muted-foreground" /> {loc}
+      {geoBreakdown.length > 0 && (
+        <PageCard title="THREAT RADAR MAP" sub="Findings by region">
+          <div className="space-y-2">
+            {geoBreakdown.map(([loc, count]) => (
+              <div key={loc} className="flex items-center gap-3">
+                <div className="w-24 text-sm font-semibold flex items-center gap-1.5">
+                  <MapPin className="size-3.5 text-muted-foreground" /> {loc}
+                </div>
+                <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${(count / geoMax) * 100}%`, background: "var(--gradient-brand)" }} />
+                </div>
+                <div className="w-24 text-right text-xs text-muted-foreground">{count} findings</div>
               </div>
-              <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
-                <div className="h-full rounded-full" style={{ width: `${(count / geoMax) * 100}%`, background: "var(--gradient-brand)" }} />
-              </div>
-              <div className="w-24 text-right text-xs text-muted-foreground">{count} findings</div>
-            </div>
-          ))}
-        </div>
-      </PageCard>
+            ))}
+          </div>
+        </PageCard>
+      )}
 
       {selected && <DetailPanel t={selected} onClose={() => setSelected(null)} />}
     </div>
@@ -200,7 +399,7 @@ function ThreatCard({ t, onOpen, onStatus }: { t: Threat; onOpen: () => void; on
           onChange={(e) => onStatus(e.target.value as Status)}
           className="text-[11px] px-2 py-1 rounded-md border border-border bg-card"
         >
-          {["Detected", "In Review", "Takedown Sent", "Resolved"].map((s) => (<option key={s}>{s}</option>))}
+          {STATUS_SET.map((s) => (<option key={s}>{s}</option>))}
         </select>
       </div>
 
@@ -293,6 +492,3 @@ function DetailPanel({ t, onClose }: { t: Threat; onClose: () => void }) {
     </div>
   );
 }
-
-// Icon reference to satisfy tree-shaking hints (used indirectly)
-void RadarIcon; void UserX; void CopyIcon;
