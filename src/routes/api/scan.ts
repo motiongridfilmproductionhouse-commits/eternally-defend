@@ -680,6 +680,17 @@ export const Route = createFileRoute("/api/scan")({
           const err = fc.error && !yt.raw.length ? fc.error : yt.error && !fc.runs.length ? yt.error : undefined;
 
           const report = buildReport(query, aliases, period, sources, runs, err);
+          // Attach YouTube diagnostics so the UI can show live counters and quota issues.
+          (report as unknown as Record<string, unknown>).diagnostics = {
+            youtube: {
+              queriesRun: yt.queriesUsed,
+              pagesScanned: yt.pagesScanned,
+              videosFound: yt.raw.length,
+              apiErrors: yt.apiErrors,
+              error: yt.error ?? null,
+              target: ytTarget,
+            },
+          };
           return Response.json(report);
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Scan failed";
