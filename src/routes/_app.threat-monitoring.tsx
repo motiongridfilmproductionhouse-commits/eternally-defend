@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { listScanHits, getThreatTrends } from "@/lib/scans.functions";
+import { cleanTitle, readableFromSlug } from "@/lib/media-utils";
 
 export const Route = createFileRoute("/_app/threat-monitoring")({
   head: () => ({ meta: [{ title: "Threat Monitoring — Eterna AI" }] }),
