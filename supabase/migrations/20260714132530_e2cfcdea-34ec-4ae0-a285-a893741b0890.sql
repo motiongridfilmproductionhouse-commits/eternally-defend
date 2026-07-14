@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS scan_hits_dedupe_external_id_key ON public.scan_hits (user_id, source, external_id) WHERE external_id IS NOT NULL; CREATE UNIQUE INDEX IF NOT EXISTS scan_hits_dedupe_canonical_url_key ON public.scan_hits (user_id, source, canonical_url) WHERE external_id IS NULL AND canonical_url IS NOT NULL;
