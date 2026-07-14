@@ -58,6 +58,57 @@ export type Database = {
           },
         ]
       }
+      authorization_records: {
+        Row: {
+          active: boolean
+          authorization_level: Database["public"]["Enums"]["authorization_level_enum"]
+          consent_version: string
+          consents: Json
+          created_at: string
+          id: string
+          ip_address: string | null
+          legal_name: string
+          onboarding_version: string
+          signature_hash: string
+          signature_text: string
+          signed_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          authorization_level: Database["public"]["Enums"]["authorization_level_enum"]
+          consent_version: string
+          consents: Json
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          legal_name: string
+          onboarding_version: string
+          signature_hash: string
+          signature_text: string
+          signed_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          authorization_level?: Database["public"]["Enums"]["authorization_level_enum"]
+          consent_version?: string
+          consents?: Json
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          legal_name?: string
+          onboarding_version?: string
+          signature_hash?: string
+          signature_text?: string
+          signed_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       caption_imports: {
         Row: {
           created_at: string
@@ -110,6 +161,120 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_profiles: {
+        Row: {
+          account_type: Database["public"]["Enums"]["account_type_enum"] | null
+          authorization_level:
+            | Database["public"]["Enums"]["authorization_level_enum"]
+            | null
+          authorization_status: Database["public"]["Enums"]["authorization_status_enum"]
+          business_reg_number: string | null
+          client_type: Database["public"]["Enums"]["client_type_enum"] | null
+          company_email: string | null
+          company_name: string | null
+          contact_person: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          gov_id_ref: string | null
+          official_socials: Json
+          onboarding_completed: boolean
+          onboarding_step: number
+          onboarding_version: string
+          phone: string | null
+          social_profiles: Json
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          account_type?: Database["public"]["Enums"]["account_type_enum"] | null
+          authorization_level?:
+            | Database["public"]["Enums"]["authorization_level_enum"]
+            | null
+          authorization_status?: Database["public"]["Enums"]["authorization_status_enum"]
+          business_reg_number?: string | null
+          client_type?: Database["public"]["Enums"]["client_type_enum"] | null
+          company_email?: string | null
+          company_name?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          gov_id_ref?: string | null
+          official_socials?: Json
+          onboarding_completed?: boolean
+          onboarding_step?: number
+          onboarding_version?: string
+          phone?: string | null
+          social_profiles?: Json
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          account_type?: Database["public"]["Enums"]["account_type_enum"] | null
+          authorization_level?:
+            | Database["public"]["Enums"]["authorization_level_enum"]
+            | null
+          authorization_status?: Database["public"]["Enums"]["authorization_status_enum"]
+          business_reg_number?: string | null
+          client_type?: Database["public"]["Enums"]["client_type_enum"] | null
+          company_email?: string | null
+          company_name?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          gov_id_ref?: string | null
+          official_socials?: Json
+          onboarding_completed?: boolean
+          onboarding_step?: number
+          onboarding_version?: string
+          phone?: string | null
+          social_profiles?: Json
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      enterprise_documents: {
+        Row: {
+          doc_type: Database["public"]["Enums"]["enterprise_doc_type_enum"]
+          filename: string
+          id: string
+          mime: string | null
+          size_bytes: number | null
+          storage_path: string
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          doc_type: Database["public"]["Enums"]["enterprise_doc_type_enum"]
+          filename: string
+          id?: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          doc_type?: Database["public"]["Enums"]["enterprise_doc_type_enum"]
+          filename?: string
+          id?: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       evidence_frames: {
         Row: {
@@ -613,6 +778,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      onboarding_assets: {
+        Row: {
+          asset_kind: Database["public"]["Enums"]["asset_kind_enum"]
+          created_at: string
+          id: string
+          label: string
+          metadata: Json
+          storage_path: string | null
+          updated_at: string
+          url: string | null
+          user_id: string
+          value: string | null
+        }
+        Insert: {
+          asset_kind: Database["public"]["Enums"]["asset_kind_enum"]
+          created_at?: string
+          id?: string
+          label: string
+          metadata?: Json
+          storage_path?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id: string
+          value?: string | null
+        }
+        Update: {
+          asset_kind?: Database["public"]["Enums"]["asset_kind_enum"]
+          created_at?: string
+          id?: string
+          label?: string
+          metadata?: Json
+          storage_path?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
+      onboarding_audit_log: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          ip_address: string | null
+          payload: Json
+          step: number | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json
+          step?: number | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json
+          step?: number | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       protected_asset_matches: {
         Row: {
@@ -2056,7 +2293,41 @@ export type Database = {
       }
     }
     Enums: {
+      account_type_enum: "personal" | "business"
       app_role: "admin" | "analyst" | "user" | "super_admin"
+      asset_kind_enum:
+        | "name"
+        | "brand"
+        | "company"
+        | "product"
+        | "social_account"
+        | "youtube_channel"
+        | "website"
+        | "logo"
+        | "image"
+        | "video"
+        | "copyright"
+      authorization_level_enum:
+        | "monitoring"
+        | "monitoring_evidence"
+        | "monitoring_enforcement"
+        | "full_protection"
+      authorization_status_enum:
+        | "pending"
+        | "authorized"
+        | "enterprise_authorized"
+      client_type_enum:
+        | "individual"
+        | "celebrity"
+        | "creator"
+        | "business"
+        | "corporate"
+        | "agency"
+      enterprise_doc_type_enum:
+        | "authorization_letter"
+        | "agency_agreement"
+        | "power_of_attorney"
+        | "brand_protection"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2184,7 +2455,46 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_type_enum: ["personal", "business"],
       app_role: ["admin", "analyst", "user", "super_admin"],
+      asset_kind_enum: [
+        "name",
+        "brand",
+        "company",
+        "product",
+        "social_account",
+        "youtube_channel",
+        "website",
+        "logo",
+        "image",
+        "video",
+        "copyright",
+      ],
+      authorization_level_enum: [
+        "monitoring",
+        "monitoring_evidence",
+        "monitoring_enforcement",
+        "full_protection",
+      ],
+      authorization_status_enum: [
+        "pending",
+        "authorized",
+        "enterprise_authorized",
+      ],
+      client_type_enum: [
+        "individual",
+        "celebrity",
+        "creator",
+        "business",
+        "corporate",
+        "agency",
+      ],
+      enterprise_doc_type_enum: [
+        "authorization_letter",
+        "agency_agreement",
+        "power_of_attorney",
+        "brand_protection",
+      ],
     },
   },
 } as const
