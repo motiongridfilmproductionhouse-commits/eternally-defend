@@ -28,7 +28,7 @@ function AppLayout() {
       <Sidebar />
       <main className="flex-1 min-w-0 flex flex-col">
         <TopBar />
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 px-8 pt-8 pb-10 min-w-0">
           <Outlet />
         </div>
       </main>
