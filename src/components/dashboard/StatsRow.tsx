@@ -21,11 +21,11 @@ function ReputationRing({ value }: { value: number | null }) {
       <svg viewBox="0 0 140 140" className="size-full -rotate-90">
         <defs>
           <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="oklch(0.6 0.24 295)" />
-            <stop offset="100%" stopColor="oklch(0.7 0.2 320)" />
+            <stop offset="0%" stopColor="#1E5EFF" />
+            <stop offset="100%" stopColor="#3B82F6" />
           </linearGradient>
         </defs>
-        <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="oklch(0.94 0.02 295)" fill="none" />
+        <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="rgba(255,255,255,0.08)" fill="none" />
         <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="url(#ringGrad)" fill="none"
           strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" />
       </svg>
