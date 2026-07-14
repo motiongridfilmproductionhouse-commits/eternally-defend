@@ -146,12 +146,13 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function navClass(active: boolean) {
-  return `relative flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+  return `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
     active
-      ? "bg-sidebar-accent text-white shadow-[inset_2px_0_0_0_var(--brand-glow)]"
-      : "text-sidebar-foreground/85 hover:bg-sidebar-accent/40 hover:text-white"
+      ? "bg-sidebar-accent text-white shadow-[inset_2px_0_0_0_var(--brand-glow),0_0_20px_-6px_rgba(30,123,255,0.5)]"
+      : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-white hover:translate-x-0.5"
   }`;
 }
+
 
 function NavGroup({ items, pathname }: { items: NavItem[]; pathname: string }) {
   return (

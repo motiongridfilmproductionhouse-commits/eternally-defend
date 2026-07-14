@@ -47,18 +47,18 @@ export function TopBar() {
   const status = protectionStatus(statusQuery.data);
 
   return (
-    <header className="flex items-center gap-4 px-6 py-5">
+    <header className="sticky top-0 z-30 flex items-center gap-4 px-8 py-5 glass-surface border-b border-border">
       <div className="min-w-0">
         <h1 className="text-[22px] font-display font-bold tracking-tight text-white">{meta.title}</h1>
         <p className="text-xs text-muted-foreground mt-0.5">{meta.sub}</p>
       </div>
 
-      <div className="flex-1 max-w-md ml-auto">
+      <div className="flex-1 max-w-xl ml-auto">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             placeholder="Search assets, threats, cases, URLs…"
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-input/60 border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40"
+            className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-input/60 border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition"
           />
         </div>
       </div>
@@ -66,7 +66,7 @@ export function TopBar() {
       <StatusPill status={status} loading={statusQuery.isLoading} />
       <AuthorizationBadge />
 
-      <button className="relative size-10 grid place-items-center rounded-lg border border-border bg-card/60 hover:bg-card transition">
+      <button className="relative size-10 grid place-items-center rounded-xl border border-border bg-card/60 hover:bg-card hover:border-primary/30 transition">
         <Bell className="size-4" />
         {status.level === "critical" && (
           <span className="absolute top-2 right-2 size-2 rounded-full bg-danger animate-pulse" />
@@ -75,6 +75,7 @@ export function TopBar() {
     </header>
   );
 }
+
 
 type Status = { level: "protected" | "monitoring" | "at-risk" | "critical" | "unknown"; label: string };
 
