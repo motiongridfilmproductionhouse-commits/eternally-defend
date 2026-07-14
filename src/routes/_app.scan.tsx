@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { persistScan, listScanHits } from "@/lib/scans.functions";
 import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
 import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
-import { cleanTitle, viaProxy, faviconUrl, hostFromUrl, readableFromSlug } from "@/lib/media-utils";
+import { cleanTitle, viaProxy, faviconUrl, hostFromUrl, readableFromSlug, youtubeThumbFromUrl, youtubeIdFromUrl } from "@/lib/media-utils";
 import {
   Radar, Search, ExternalLink, ShieldPlus, Loader2, Sparkles, TrendingUp,
   AlertTriangle, Flame, Users, Eye, Copyright, Gavel, Bell, FileDown,
