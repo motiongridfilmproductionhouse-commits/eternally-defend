@@ -25,7 +25,7 @@ function ReputationRing({ value }: { value: number | null }) {
             <stop offset="100%" stopColor="#3B82F6" />
           </linearGradient>
         </defs>
-        <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="rgba(255,255,255,0.08)" fill="none" />
+        <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="rgba(15,27,51,0.08)" fill="none" />
         <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="url(#ringGrad)" fill="none"
           strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" />
       </svg>
