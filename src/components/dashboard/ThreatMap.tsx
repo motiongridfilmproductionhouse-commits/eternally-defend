@@ -132,8 +132,8 @@ export function ThreatMap() {
                   <span className="absolute inset-0 -m-4 rounded-full animate-ping opacity-40" style={{ background: h.color }} />
                   <span className="relative block size-3 rounded-full ring-4" style={{ background: h.color, boxShadow: `0 0 24px ${h.color}` }} />
                 </div>
-                <div className="absolute left-5 -top-6 whitespace-nowrap bg-white border border-border rounded-lg px-2.5 py-1.5 shadow-md">
-                  <div className="text-xs font-semibold">{h.label}</div>
+                <div className="absolute left-5 -top-6 whitespace-nowrap bg-card border border-border rounded-lg px-2.5 py-1.5 shadow-md">
+                  <div className="text-xs font-semibold text-foreground">{h.label}</div>
                   <div className="text-[10px]" style={{ color: h.color }}>{h.count} Threats</div>
                 </div>
               </div>
