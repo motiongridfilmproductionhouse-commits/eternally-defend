@@ -62,6 +62,8 @@ function ScanPage() {
   const { addThreat } = useData();
   const [q, setQ] = useState("");
   const [aliases, setAliases] = useState("");
+  const [variations, setVariations] = useState("");
+  const [hashtags, setHashtags] = useState("");
   const [handles, setHandles] = useState("");
   const [site, setSite] = useState("");
   const [country, setCountry] = useState("");
@@ -75,15 +77,28 @@ function ScanPage() {
 
   const toggleSource = (s: SourceKey) => setSources((p) => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
 
+  const split = (s: string) => s.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!q.trim() || m.isPending) return;
     setAdded(new Set());
-    const aliasList = aliases.split(",").map(s => s.trim()).filter(Boolean);
-    const handleList = handles.split(",").map(s => s.trim()).filter(Boolean);
-    const context = [industry, country, site].filter(Boolean).join(" ");
-    const fullQuery = `${q.trim()}${context ? " " + context : ""}${handleList.length ? " " + handleList.join(" ") : ""}`;
-    m.mutate({ query: q.trim(), aliases: aliasList, period, sources: sources.length ? sources : DEFAULT_SOURCES, limit: 8, youtubeTarget: 100, context: [industry, country, site].filter(Boolean).join(" "), handles: handleList });
+    const aliasList = split(aliases);
+    const variationList = split(variations);
+    const hashtagList = split(hashtags);
+    const handleList = split(handles);
+    m.mutate({
+      query: q.trim(),
+      aliases: aliasList,
+      variations: variationList,
+      hashtags: hashtagList,
+      handles: handleList,
+      period,
+      sources: sources.length ? sources : DEFAULT_SOURCES,
+      limit: 8,
+      youtubeTarget: 500,
+      context: [industry, country, site].filter(Boolean).join(" "),
+    });
   };
 
   const promote = (h: ScanHit) => {
