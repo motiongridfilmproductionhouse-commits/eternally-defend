@@ -13,11 +13,8 @@ function randomToken(): string {
   return "ET-" + Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
 }
 
-async function transition(
-  supabase: Database extends unknown ? Awaited<ReturnType<typeof import("@/integrations/supabase/auth-middleware")["requireSupabaseAuth"]>>["context" & unknown]["supabase"] : never,
-  _placeholder?: unknown,
-) { return supabase; /* type helper only */ }
-void transition;
+type Json = Database["public"]["Tables"]["account_verifications"]["Insert"]["evidence"];
+
 
 /* ------------------------------------------------------------------ */
 /* startVerification — creates a pending record. For bio_code /       */
