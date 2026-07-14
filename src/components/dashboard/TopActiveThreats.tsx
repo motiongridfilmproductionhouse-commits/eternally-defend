@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { getDashboardStats } from "@/lib/mm/dashboard.functions";
+import { useSession } from "@/hooks/use-session";
 
 const TAG_COLOR: Record<string, string> = {
   Critical: "oklch(0.63 0.24 25)",
@@ -12,9 +13,11 @@ const TAG_COLOR: Record<string, string> = {
 
 export function TopActiveThreats() {
   const fn = useServerFn(getDashboardStats);
+  const { session } = useSession();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => fn({}),
+    enabled: !!session,
     refetchInterval: 30_000,
   });
   const items = data?.topThreats ?? [];
