@@ -98,7 +98,7 @@ export const runRetentionCleanup = createServerFn({ method: "POST" })
     // fact_check_matches, timestamp_findings) are preserved.
     const deleted: Record<string, number> = {};
     const del = async (table: string) => {
-      const { error, count } = await (supabase.from(table) as any)
+      const { error, count } = await ((supabase as any).from(table) as any)
         .delete({ count: "exact" }).in("job_id", toClean);
       if (!error) deleted[table] = count ?? 0;
     };
