@@ -44,12 +44,13 @@ export const clusterFindings = createServerFn({ method: "POST" })
     const jobMap = new Map((jobs ?? []).map((j: any) => [j.id, j]));
 
     // Group findings by cluster key
-    const groups = new Map<string, { key: string; kind: string; target: string; findings: any[]; sources: Set<string>; reach: number; dominantHost?: string; hostCounts: Map<string, number> }>();
-    for (const f of findings ?? []) {
-      const job = jobMap.get(f.job_id);
+    type Group = { key: string; kind: string; target: string; findings: any[]; sources: Set<string>; reach: number; hostCounts: Map<string, number> };
+    const groups = new Map<string, Group>();
+    for (const f of (findings ?? []) as any[]) {
+      const job: any = jobMap.get(f.job_id);
       if (!job) continue;
       const { key, kind } = clusterKeyFor(job, f);
-      const g = groups.get(key) ?? { key, kind, target: job.target_name, findings: [], sources: new Set<string>(), reach: 0, hostCounts: new Map<string, number>() };
+      const g: Group = groups.get(key) ?? { key, kind, target: job.target_name, findings: [], sources: new Set<string>(), reach: 0, hostCounts: new Map<string, number>() };
       g.findings.push({ ...f, job });
       g.sources.add(job.source_ref);
       g.reach += Number(job.source_metadata?.view_count ?? 0);
