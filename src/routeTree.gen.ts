@@ -25,6 +25,7 @@ import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
+import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 
@@ -108,6 +109,11 @@ const AppAssetsRoute = AppAssetsRouteImport.update({
   path: '/assets',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiMediaPreviewRoute = ApiMediaPreviewRouteImport.update({
+  id: '/api/media/preview',
+  path: '/api/media/preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppAdminProviderActivationRoute =
   AppAdminProviderActivationRouteImport.update({
     id: '/admin/provider-activation',
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/api/scan': typeof ApiScanRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
+  '/api/media/preview': typeof ApiMediaPreviewRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
+  '/api/media/preview': typeof ApiMediaPreviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/_app/admin/provider-activation': typeof AppAdminProviderActivationRoute
+  '/api/media/preview': typeof ApiMediaPreviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/admin/multimedia-health'
     | '/admin/provider-activation'
+    | '/api/media/preview'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/multimedia-health'
     | '/admin/provider-activation'
+    | '/api/media/preview'
   id:
     | '__root__'
     | '/_app'
@@ -239,12 +250,14 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/admin/multimedia-health'
     | '/_app/admin/provider-activation'
+    | '/api/media/preview'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiScanRoute: typeof ApiScanRoute
+  ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -361,6 +374,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/media/preview': {
+      id: '/api/media/preview'
+      path: '/api/media/preview'
+      fullPath: '/api/media/preview'
+      preLoaderRoute: typeof ApiMediaPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/admin/provider-activation': {
       id: '/_app/admin/provider-activation'
       path: '/admin/provider-activation'
@@ -420,6 +440,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiScanRoute: ApiScanRoute,
+  ApiMediaPreviewRoute: ApiMediaPreviewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
