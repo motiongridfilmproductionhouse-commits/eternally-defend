@@ -1,101 +1,88 @@
+## Onboarding & Authorization Workflow
 
-# Eterna Multimedia Intelligence Engine — Build Plan
+Build a mandatory 8-step onboarding gate that blocks access to monitoring/enforcement features until the user completes profile, asset registration, consent, and digital signature. Persist everything in Lovable Cloud with audit trails, and gate enforcement actions by `authorization_level`.
 
-Scope is large. Delivered in one implementation pass across 4 sequential milestones so nothing blocks the rest. Existing YouTube Scanner, Threat Radar, Evidence Centre, Copyright and Reputation modules stay in place — this plugs into them.
+### 1. Database (single migration)
 
-## Milestone 0 — Foundations (required before any code runs)
+New tables (all RLS-scoped to `auth.uid()`, with `GRANT` blocks + `updated_at` triggers):
 
-1. **Enable Lovable Cloud** — provisions Postgres, RLS, auth, and Storage bucket.
-2. **Request secrets** via secure form:
-   - `GOOGLE_APPLICATION_CREDENTIALS_JSON` (service account JSON, single-line)
-   - `GOOGLE_CLOUD_PROJECT_ID`
-   - `GOOGLE_CLOUD_STORAGE_BUCKET` (GCS bucket the service account can write to)
-   - `FACT_CHECK_API_KEY`
-3. Reuse existing `GOOGLE_API_KEY` for YouTube v3 + Translation v2 fallback.
-4. Add helper `src/lib/gcp/auth.server.ts` to mint Google OAuth access tokens from the service account JSON (JWT self-signed → token endpoint, cached in memory per worker).
+- `client_profiles` — one row per user
+  - `user_id` (PK, FK → auth.users)
+  - `client_type` enum: `individual | celebrity | creator | business | corporate | agency`
+  - `account_type` (derived: `personal | business`)
+  - `onboarding_completed` bool, `onboarding_step` int, `onboarding_version` text
+  - Individual fields: `full_name, email, phone, country, gov_id_ref, social_profiles jsonb`
+  - Business fields: `company_name, website, contact_person, business_reg_number, company_email, official_socials jsonb`
+  - `authorization_level` enum: `monitoring | monitoring_evidence | monitoring_enforcement | full_protection`
+  - `authorization_status` enum: `pending | authorized | enterprise_authorized`
 
-## Milestone 1 — Database schema (single migration)
+- `onboarding_assets` — protected assets registered during Step 3
+  - `asset_kind` enum: `name | brand | company | product | social_account | youtube_channel | website | logo | image | video | copyright`
+  - `label, value, url, storage_path, metadata jsonb`
 
-Tables (all with `org_id`, `user_id`, `case_id?`, `scan_job_id?`, `source_result_id?`, timestamps, RLS by `has_role` or `auth.uid()`):
+- `authorization_records` — signed consent (immutable; insert-only from client)
+  - `consent_version, onboarding_version`
+  - `consents jsonb` (5 required checkboxes with individual bool + timestamp)
+  - `authorization_level`
+  - `legal_name, signature_text, signed_at, ip_address, user_agent`
+  - `signature_hash` (SHA-256 of canonical payload)
+  - `active` bool (latest active record per user)
 
-- `multimedia_analysis_jobs` — parent job, status, stage flags, error map, cost, source kind (youtube_meta | upload_video | upload_audio | upload_image | screenshot)
-- `evidence_frames` — per-frame url, hash, timestamp, source job
-- `video_annotations` — Video Intelligence detections (label/logo/object/shot/text/explicit) w/ start/end/confidence/bbox
-- `transcription_jobs` — Speech-to-Text long-running op state
-- `transcript_segments` — 15–30s window, speaker, language, text, confidence, entities, sentiment
-- `speaker_segments` — raw diarisation
-- `visual_detections` — Vision results per image/frame (logos/objects/labels/OCR/safesearch/face-presence)
-- `ocr_results` — normalized text extractions
-- `protected_asset_matches` — client-registered asset ↔ detection similarity
-- `translations` — original+translated text pairs w/ language + confidence + provider
-- `extracted_claims` — Gemini-extracted searchable claims + source pointer
-- `fact_check_matches` — Fact Check Tools API results linked to claims
-- `timestamp_findings` — canonical timeline row (fed by transcript + video + vision) — this is what the UI reads
-- `multimedia_errors` — per-stage error log
-- `protected_assets` — client uploads (photos/logos/artwork) for matching
+- `enterprise_documents` — uploads for agencies/corporate
+  - `doc_type` enum: `authorization_letter | agency_agreement | power_of_attorney | brand_protection`
+  - `storage_path, filename, mime, size_bytes, uploaded_at`
 
-`storage.buckets`: `eterna-media` (private) via `supabase--storage_create_bucket`. Signed URLs only. RLS policies on `storage.objects` restrict to `org_id` prefix.
+- `onboarding_audit_log` — every step transition + consent event
+  - `event_type, step, payload jsonb, ip_address, user_agent, created_at`
 
-GRANTs on every public table to `authenticated` + `service_role`.
+Storage bucket: `authorization-vault` (private) for gov ID scans, logos, and enterprise documents. RLS on `storage.objects` scoped by `{user_id}/...` path prefix.
 
-## Milestone 2 — Backend orchestration (server functions + one server route)
+### 2. Server functions (`src/lib/onboarding.functions.ts`)
 
-All under `src/lib/mm/` as `*.functions.ts` (thin) + `*.server.ts` (helpers):
+All use `requireSupabaseAuth`:
 
-- `mm-orchestrator.functions.ts` → `runMultimediaIntelligenceAnalysis({ jobKind, sourceRef })`
-  - creates job, kicks off parallel stages via `waitUntil`-style fire-and-forget (edge-compatible: run sequentially inside a background invocation triggered by a server route poller)
-- Video Intelligence: `startVideoAnalysis`, `getVideoAnalysisStatus`, `processVideoAnnotations`, `retryVideoAnalysis`, `cancelVideoAnalysis`
-- Speech: `extractAudioForTranscription` (ffmpeg via ffmpeg.wasm on server — heavy; fallback: send video directly if <60s or require pre-extracted audio), `startTranscriptionJob`, `getTranscriptionStatus`, `processTranscriptResults`, `createTranscriptSegments`, `saveSpeakerSegments`
-- Vision: `analyzeImage`, `extractImageText`, `detectLogos`, `detectObjects`, `detectFacePresence`, `analyzeEvidenceFrame`, `compareProtectedAssets` (perceptual hash — pHash via JS), `saveImageFindings`
-- Translation: `detectLanguage`, `translateText` (v3 REST), `translate*` wrappers
-- Fact Check: `extractSearchableClaim` (uses Lovable AI Gateway `google/gemini-2.5-flash`), `searchFactChecks`, `normalizeFactCheckResults`, `calculateFactCheckMatch`, `saveFactCheckResult`, `refreshFactCheckStatus`
-- Risk: `computeRiskScores` merges signals into the 9 scores listed in spec
-- Job runner: `src/routes/api/mm/tick.ts` — public route, HMAC-verified via `MM_TICK_SECRET`, advances any `pending`/`polling` jobs one step. Client-side hook polls `getJobStatus` every 2s while a scan is active AND fires `/api/mm/tick` to progress work (Cloudflare workers have no cron — this cooperative advance keeps things moving during a session).
+- `getOnboardingState` — returns profile + latest active authorization record
+- `upsertClientProfile({ step, data })` — writes step data, advances `onboarding_step`, appends audit log
+- `addProtectedAsset` / `removeProtectedAsset` / `listProtectedAssets`
+- `uploadEnterpriseDocument` (returns signed upload URL) / `listEnterpriseDocuments`
+- `submitAuthorization({ consents, authorization_level, legal_name, signature_text })` — captures IP from request headers, computes signature hash, inserts `authorization_records` (deactivates prior), sets `onboarding_completed=true`, marks `authorization_status`
+- `getAuthorizationRecord(id)` — for report/complaint export
 
-Each stage writes partial results; a stage failure logs to `multimedia_errors` and marks `stage_status[stage] = 'failed'` without aborting siblings.
+### 3. Onboarding UI
 
-## Milestone 3 — UI integration
+New route `src/routes/_app.onboarding.tsx` — 8-step wizard using existing shadcn `Card`, `Button`, `Input`, `Checkbox`, `RadioGroup`, `Progress`. One component per step under `src/components/onboarding/`:
 
-- **Upload widget** on `/scan` — accepts video/audio/image/pdf, signs upload URL, kicks `runMultimediaIntelligenceAnalysis`.
-- **Job progress panel** — shows the 14 stages with per-stage state (pending/running/done/failed).
-- **Video Threat Timeline** — new section inside every YouTube result card and every uploaded video result. Reads `timestamp_findings`, renders time-ordered list with severity chip, transcript excerpt, original+translation, evidence frame thumb, "Watch exact moment" (deep-links `?t={seconds}s`), "Save evidence", "Mark false positive".
-- **Evidence panel tabs** (expands current expandable panel): Overview / Transcript / Threat Timeline / Visual Detections / Translations / Fact Checks / Copyright Matches / Technical Evidence.
-- **Metadata-only badge** when only YouTube metadata was analyzed (no authorized full-content processing).
-- **Protected Assets manager** — new `/assets` sub-tab to upload logos/photos for matching.
-- **Threat Radar promotion** already exists — extend to accept `timestamp_finding_id`.
+`Step1ClientType`, `Step2Info` (branches on client_type), `Step3Assets`, `Step4Consent` (5 checkboxes, all required), `Step5Authorization` (radio), `Step6Signature` (typed legal name + signature canvas fallback to typed script font, auto-fills date/IP/timestamp), `Step7VaultSummary` (read-only receipt), `Step8Enterprise` (only for `business | corporate | agency`, otherwise skipped).
 
-## Milestone 4 — Hardening
+Progress bar + Back/Next. Steps validated with Zod.
 
-- Retries with exponential backoff on all Google REST calls (`p-retry` inline)
-- Duplicate prevention: unique `(source_kind, source_ref, org_id)` on `multimedia_analysis_jobs`
-- Quota + cost tracking table (`api_usage`)
-- Signed URL expiry: 10 min for evidence frames
-- Retention: uploaded media deleted after job completes + 7 days (soft policy row on job)
+### 4. Gating
 
-## Technical Notes
+- **Route-level:** modify `src/routes/_app.tsx` `beforeLoad` — after auth check, fetch `onboarding_completed`; if false and pathname is not `/onboarding`, `throw redirect({ to: "/onboarding" })`. Skip redirect on `/settings` to allow logout.
+- **Action-level:** new helper `useAuthorization()` hook exposes `{ canMonitor, canCollectEvidence, canRequestEnforcement, canTakedown, status }`. Update `src/routes/_app.enforcement.tsx`, `_app.removals.tsx`, and any "Send takedown" buttons to disable + show tooltip "Requires enforcement authorization" when `authorization_level` insufficient.
 
-- Speech-to-Text and Video Intelligence use long-running operations — we store `operation_name` and poll via `/api/mm/tick`.
-- All Google REST endpoints called with `Authorization: Bearer <sa-token>`; no SDK (avoids Node-only deps on Cloudflare Workers).
-- Fact Check Tools uses simple API key (no service account).
-- ffmpeg audio extraction is **not** available on Workers — for uploaded video, we send the video URL directly to Speech-to-Text via `uri` in a GCS bucket (Speech supports video containers with `enableSeparateRecognitionPerChannel`).
-- Gemini claim extraction via existing `LOVABLE_API_KEY` → `google/gemini-2.5-flash` (no extra secret).
-- Perceptual hashing via `sharp` is Node-only; use pure-JS `pngjs` + custom 8x8 DCT-lite pHash inside a server fn.
+### 5. Status badge
 
-## Deliverables
+New `AuthorizationBadge` component rendered in `TopBar`:
+- ✓ Authorized (green) — any completed authorization
+- ✓ Monitoring Only / Enforcement Authorized / Enterprise Authorized (variant per level)
+- ⚠ Pending — if not completed
 
-- 1 migration (all tables + RLS + grants + bucket policies)
-- ~20 backend files under `src/lib/mm/`
-- 1 job runner route `src/routes/api/mm/tick.ts`
-- Extended `src/routes/api/scan.ts` to also fan out to `runMultimediaIntelligenceAnalysis` after YouTube fetch
-- Extended `_app.scan.tsx` with upload widget, progress panel, timeline UI, evidence tabs
-- New `_app.assets.tsx` protected assets manager (or extend existing)
-- No breaking changes to current cards / Threat Radar / dashboard styling
+### 6. Reports integration
 
-## What I will do first if you approve
+Extend `_app.reports.tsx` with a "Legal & Authorization" section that lists `authorization_records` with a "Download signed authorization" action (renders a PDF via existing PDF utilities or a simple print stylesheet including consent text, signature, IP, timestamp, and hash).
 
-1. Call `supabase--enable`
-2. Call `secrets--add_secret` for the 4 GCP secrets
-3. Ship Milestone 1 migration
-4. Then Milestone 2 backend, then 3, then 4.
+### Technical notes
 
-This will be several long turns. Confirm to proceed.
+- IP captured server-side from `x-forwarded-for` / request headers inside `submitAuthorization` handler (never trusted from client).
+- Signature hash: `sha256(JSON.stringify({ user_id, consents, authorization_level, legal_name, signed_at }))` stored for tamper evidence.
+- `authorization_records` policy: `INSERT` by owner allowed; `UPDATE`/`DELETE` denied (immutable audit).
+- Consent/onboarding version constants in `src/lib/onboarding-versions.ts` — bump when copy changes to force re-consent.
+- All new tables get `GRANT SELECT, INSERT, UPDATE, DELETE ON ... TO authenticated` + `GRANT ALL ... TO service_role`; no `anon`.
+- Existing `AdminGuard`/`useUserRoles` untouched; onboarding is orthogonal to admin roles.
+
+### Out of scope (call out to user)
+
+- Real legal review of consent copy (uses provided text verbatim).
+- Actual gov ID verification / KYC provider integration — stored as uploaded file only.
+- Automated re-consent flow on version bump beyond redirecting to `/onboarding` when versions differ.
