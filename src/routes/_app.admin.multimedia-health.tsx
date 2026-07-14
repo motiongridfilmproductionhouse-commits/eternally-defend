@@ -6,11 +6,12 @@ import { getMultimediaHealth, testAllMultimediaProviders, testOneProvider } from
 import { PageCard, StatCard } from "@/components/dashboard/PageCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AdminGuard } from "@/components/AdminGuard";
 import { Activity, AlertTriangle, CheckCircle2, Clock, PlayCircle, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/admin/multimedia-health")({
   head: () => ({ meta: [{ title: "Multimedia Health — Eterna AI" }] }),
-  component: HealthPage,
+  component: () => <AdminGuard><HealthPage /></AdminGuard>,
 });
 
 const STATUS_STYLE: Record<string, { label: string; cls: string; icon: any }> = {
