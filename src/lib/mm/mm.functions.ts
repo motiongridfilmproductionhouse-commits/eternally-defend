@@ -130,7 +130,7 @@ async function runPipeline(supabase: any, userId: string, jobId: string, input: 
   const { detectLanguage, translateText } = await import("./translation.server");
   const { extractSearchableClaims } = await import("./claims.server");
   const { searchFactChecks, classifyReviews } = await import("./factcheck.server");
-  const { computeRiskScores, explainRiskScores } = await import("./risk.server");
+  const { explainRiskScores } = await import("./risk.server");
 
   const cfg = getProviderConfig();
   const stage: Record<Stage, string> = Object.fromEntries(STAGES.map((s) => [s, "pending"])) as any;
