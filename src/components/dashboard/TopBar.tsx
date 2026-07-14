@@ -1,13 +1,15 @@
-import { useRouterState } from "@tanstack/react-router";
+import { useRouterState, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Search, Bell, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2, PanelLeft, PanelLeftClose } from "lucide-react";
 import { AuthorizationBadge } from "@/components/AuthorizationBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { useSidebarLayout } from "@/lib/layout-context";
+import { getNotifications } from "@/lib/command-center.functions";
 
 const titles: Record<string, { title: string; sub: string }> = {
-  "/": { title: "Protection Command Center", sub: "Real-time reputation protection & threat intelligence" },
+  "/": { title: "Eterna Command Center", sub: "Mission control for digital reputation protection" },
   "/assets": { title: "Protected Assets", sub: "Register, monitor and manage your digital assets" },
   "/scan": { title: "Web Scan", sub: "Deep, surface and social web reconnaissance" },
   "/threat-radar": { title: "Threat Radar", sub: "Live threat stream across every monitored surface" },
