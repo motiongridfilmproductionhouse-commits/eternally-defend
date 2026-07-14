@@ -11,15 +11,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MethodSchema = z.enum(["DMCA", "Platform Report", "Legal Notice"]);
 
 const GenerateInput = z.object({
   scanHitIds: z.array(z.string().uuid()).min(1).max(50),
   method: MethodSchema,
-  /** When true, only produces the Evidence PDF and does NOT create an
-   *  enforcement_requests row. Used by the scan page's per-video
-   *  "Generate PDF" button. */
   dryRun: z.boolean().optional().default(false),
 });
 
@@ -29,8 +27,7 @@ interface PackageResult {
   evidencePath: string | null;
   authorizationPath: string | null;
   complaintPath: string | null;
-  complaintJson: unknown;
-  error?: string;
+  error: string | null;
 }
 
 export const generateEnforcementPackages = createServerFn({ method: "POST" })
@@ -42,7 +39,6 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
     const { buildEvidencePdf, buildAuthorizationPdf, buildComplaintPdf } = await import("./enforcement/pdf.server");
     const { buildComplaint } = await import("./enforcement/platform-templates.server");
 
-    // Load caller identity + authorization record.
     const [{ data: profile }, { data: auth }] = await Promise.all([
       supabase.from("client_profiles").select("full_name,company_name,email,country,client_type").eq("user_id", userId).maybeSingle(),
       supabase
@@ -61,7 +57,6 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
     const complainantName =
       auth?.legal_name || profile?.full_name || profile?.company_name || "Authorized Representative";
 
-    // Load all scan hits owned by the caller.
     const { data: hits, error: hitsErr } = await supabase
       .from("scan_hits")
       .select("id,title,description,permalink,canonical_url,source,source_type,author,published_at,severity,threat_score,narrative_claim")
@@ -76,34 +71,49 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
         const targetUrl = hit.permalink || hit.canonical_url || "";
         const platform = hit.source_type || hit.source || "Web";
 
-        // Load evidence rows in parallel.
-        const [ts, vts, claimsRes, fcRes, frames] = await Promise.all([
-          supabase.from("timestamp_findings").select("start_seconds,end_seconds,excerpt,severity").eq("scan_hit_id", hit.id).limit(200),
-          supabase.from("video_timestamp_findings").select("start_seconds,end_seconds,excerpt,severity").eq("scan_hit_id", hit.id).limit(200),
-          supabase.from("extracted_claims").select("extracted_claim,claimant,fact_check_status").eq("user_id", userId).limit(50),
-          supabase.from("fact_check_matches").select("publisher_name,review_title,review_url,textual_rating").eq("user_id", userId).limit(50),
-          supabase.from("evidence_frames").select("frame_seconds,description").eq("scan_hit_id", hit.id).limit(30),
+        // video_timestamp_findings is the only evidence table linked directly by scan_hit_id.
+        const [vtsRes, claimsRes, fcRes] = await Promise.all([
+          supabase
+            .from("video_timestamp_findings")
+            .select("start_seconds,end_seconds,original_text,translated_text,severity")
+            .eq("scan_hit_id", hit.id)
+            .limit(200),
+          supabase
+            .from("extracted_claims")
+            .select("extracted_claim,claimant,fact_check_status")
+            .eq("user_id", userId)
+            .limit(25),
+          supabase
+            .from("fact_check_matches")
+            .select("publisher_name,review_title,review_url,textual_rating")
+            .eq("user_id", userId)
+            .limit(25),
         ]);
 
-        const timestamps = [
-          ...((ts.data ?? []) as Array<{ start_seconds: number; end_seconds: number | null; excerpt: string; severity: string | null }>),
-          ...((vts.data ?? []) as Array<{ start_seconds: number; end_seconds: number | null; excerpt: string; severity: string | null }>),
-        ].map((r) => ({ startSeconds: r.start_seconds ?? 0, endSeconds: r.end_seconds ?? null, excerpt: r.excerpt ?? "", severity: r.severity }));
+        const timestamps = ((vtsRes.data ?? []) as Array<{
+          start_seconds: number | null;
+          end_seconds: number | null;
+          original_text: string | null;
+          translated_text: string | null;
+          severity: string | null;
+        }>).map((r) => ({
+          startSeconds: r.start_seconds ?? 0,
+          endSeconds: r.end_seconds ?? null,
+          excerpt: r.translated_text || r.original_text || "",
+          severity: r.severity,
+        }));
 
-        const claims = ((claimsRes.data ?? []) as Array<{ extracted_claim: string; claimant: string | null; fact_check_status: string | null }>)
-          .map((c) => ({ extracted: c.extracted_claim, claimant: c.claimant, status: c.fact_check_status }));
+        const claims = ((claimsRes.data ?? []) as Array<{
+          extracted_claim: string; claimant: string | null; fact_check_status: string | null;
+        }>).map((c) => ({ extracted: c.extracted_claim, claimant: c.claimant, status: c.fact_check_status }));
 
-        const factChecks = ((fcRes.data ?? []) as Array<{ publisher_name: string; review_title: string; review_url: string; textual_rating: string | null }>)
-          .map((f) => ({ publisher: f.publisher_name, title: f.review_title, url: f.review_url, rating: f.textual_rating }));
-
-        const evidenceFrames = ((frames.data ?? []) as Array<{ frame_seconds: number; description: string | null }>)
-          .map((f) => ({ frameSeconds: f.frame_seconds ?? 0, description: f.description }));
+        const factChecks = ((fcRes.data ?? []) as Array<{
+          publisher_name: string; review_title: string; review_url: string; textual_rating: string | null;
+        }>).map((f) => ({ publisher: f.publisher_name, title: f.review_title, url: f.review_url, rating: f.textual_rating }));
 
         const capturedAt = new Date().toISOString();
-        const contentSeed = `${hit.id}|${targetUrl}|${capturedAt}`;
-        const contentHash = await sha256Hex(contentSeed);
+        const contentHash = await sha256Hex(`${hit.id}|${targetUrl}|${capturedAt}`);
 
-        // Build Evidence PDF (always).
         const evidenceBytes = await buildEvidencePdf({
           finding: {
             id: hit.id,
@@ -120,12 +130,11 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
           timestamps,
           claims,
           factChecks,
-          evidenceFrames,
+          evidenceFrames: [],
           capturedAt,
           contentHash,
         });
 
-        // Dry-run: upload evidence only, no DB row, no other packages.
         if (data.dryRun) {
           const key = `${userId}/dryrun/${hit.id}-${Date.now()}/evidence.pdf`;
           await uploadPdf(supabaseAdmin, key, evidenceBytes);
@@ -135,12 +144,11 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
             evidencePath: key,
             authorizationPath: null,
             complaintPath: null,
-            complaintJson: null,
+            error: null,
           });
           continue;
         }
 
-        // Complaint payload.
         const complaint = buildComplaint({
           method: data.method,
           source: hit.source,
@@ -152,7 +160,7 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
           claimSummary: hit.narrative_claim,
           timestampsCount: timestamps.length,
           factCheckMatches: factChecks.length,
-          hasEvidenceFrames: evidenceFrames.length > 0,
+          hasEvidenceFrames: false,
           complainant: {
             legalName: complainantName,
             email: profile?.email ?? undefined,
@@ -178,7 +186,6 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
 
         const complaintBytes = await buildComplaintPdf(complaint, hit.title ?? "Complaint");
 
-        // Insert enforcement_request first so we know the id for storage path.
         const { data: reqRow, error: reqErr } = await supabase
           .from("enforcement_requests")
           .insert({
@@ -212,7 +219,7 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
             evidence_pdf_path: evidencePath,
             authorization_pdf_path: authPath,
             platform_complaint_pdf_path: complaintPath,
-            platform_complaint_json: complaint as unknown as Record<string, unknown>,
+            platform_complaint_json: JSON.parse(JSON.stringify(complaint)),
             package_generated_at: capturedAt,
             package_hash: contentHash,
           })
@@ -230,7 +237,7 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
           evidencePath,
           authorizationPath: authPath,
           complaintPath,
-          complaintJson: complaint,
+          error: null,
         });
       } catch (e) {
         console.error("[enforcement-package] failed for", hit.id, e);
@@ -240,7 +247,6 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
           evidencePath: null,
           authorizationPath: null,
           complaintPath: null,
-          complaintJson: null,
           error: e instanceof Error ? e.message : String(e),
         });
       }
@@ -249,11 +255,11 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
     return { results };
   });
 
-/** Returns a short-lived signed URL for a package artifact the caller owns. */
+/** Short-lived signed URL for a package artifact the caller owns. */
 export const signPackageUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ path: z.string().min(1) }).parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<{ url: string }> => {
     const { userId } = context;
     if (!data.path.startsWith(`${userId}/`)) throw new Error("Forbidden");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -264,13 +270,7 @@ export const signPackageUrl = createServerFn({ method: "POST" })
     return { url: signed.signedUrl };
   });
 
-async function uploadPdf(
-  admin: Awaited<ReturnType<typeof import("@/integrations/supabase/client.server").getAdminClient>> extends never
-    ? never
-    : import("@supabase/supabase-js").SupabaseClient,
-  path: string,
-  bytes: Uint8Array,
-): Promise<void> {
+async function uploadPdf(admin: SupabaseClient, path: string, bytes: Uint8Array): Promise<void> {
   const { error } = await admin.storage.from("enforcement-packages").upload(path, bytes, {
     contentType: "application/pdf",
     upsert: true,
