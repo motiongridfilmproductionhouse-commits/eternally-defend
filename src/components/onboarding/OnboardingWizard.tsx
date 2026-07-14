@@ -69,94 +69,168 @@ export function OnboardingWizard({ initial }: { initial: State }) {
 
   const goBack = () => setStep((s) => Math.max(1, s - 1));
 
-  return (
-    <div className="max-w-3xl mx-auto py-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="size-10 rounded-2xl grid place-items-center text-white" style={{ background: "var(--gradient-brand)" }}>
-          <ShieldCheck className="size-5" />
-        </div>
-        <div className="flex-1">
-          <div className="text-xs font-semibold tracking-[0.18em] text-muted-foreground">ETERNA ONBOARDING</div>
-          <h1 className="font-display text-2xl font-bold">Step {step} of {totalSteps} — {STEP_TITLES[step - 1]}</h1>
-        </div>
-        {profile?.onboarding_completed && <Badge className="bg-emerald-100 text-emerald-800">Completed</Badge>}
-      </div>
-      <Progress value={(step / totalSteps) * 100} />
+  const stepIndex = Math.min(step, STEP_TITLES.length) - 1;
+  const visibleSteps = STEP_TITLES.slice(0, totalSteps);
 
-      {step === 1 && <Step1 profile={profile} onNext={(v, acct) => savePatch({ client_type: v, account_type: acct }, 2)} saving={saving} />}
-      {step === 2 && <Step2 profile={profile} isEnterprise={isEnterprise} onBack={goBack} onNext={(patch) => savePatch(patch, 3)} saving={saving} />}
-      {step === 3 && (
-        <Step3
-          assets={state.assets}
-          onAdd={async (a) => { await addAsset({ data: a }); await reload(); }}
-          onRemove={async (id) => { await rmAsset({ data: { id } }); await reload(); }}
-          onBack={goBack}
-          onNext={() => savePatch({}, 4)}
-          saving={saving}
-        />
-      )}
-      {step === 4 && <Step4 onBack={goBack} onNext={(consents) => { void consents; savePatch({}, 5); }} saving={saving} />}
-      {step === 5 && (
-        <Step5
-          initial={profile?.authorization_level ?? "monitoring_enforcement"}
-          onBack={goBack}
-          onNext={(level) => savePatch({ authorization_level: level }, 6)}
-          saving={saving}
-        />
-      )}
-      {step === 6 && (
-        <Step6
-          profile={profile}
-          consentsPreset={CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>)}
-          onBack={goBack}
-          onSubmit={async ({ legal_name, signature_text }) => {
-            setSaving(true);
-            try {
-              await submit({
-                data: {
-                  consents: CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>),
-                  authorization_level: (profile?.authorization_level ?? "monitoring_enforcement") as any,
-                  legal_name, signature_text,
-                },
-              });
-              await reload();
-              await qc.invalidateQueries();
-              setStep(7);
-              toast.success("Authorization signed and stored.");
-            } catch (e: any) {
-              toast.error(e?.message ?? "Signing failed");
-            } finally { setSaving(false); }
-          }}
-          saving={saving}
-        />
-      )}
-      {step === 7 && (
-        <Step7
-          state={state}
-          onBack={goBack}
-          onFinish={() => {
-            if (isEnterprise) setStep(8);
-            else navigate({ to: "/" });
-          }}
-          finishLabel={isEnterprise ? "Continue to enterprise documents" : "Enter dashboard"}
-        />
-      )}
-      {step === 8 && isEnterprise && (
-        <Step8
-          documents={state.documents}
-          userId={profile?.user_id ?? ""}
-          onUploaded={async ({ doc_type, filename, storage_path, mime, size_bytes }) => {
-            await recDoc({ data: { doc_type, filename, storage_path, mime, size_bytes } });
-            await reload();
-          }}
-          onRemove={async (id) => { await rmDoc({ data: { id } }); await reload(); }}
-          onBack={goBack}
-          onFinish={() => navigate({ to: "/" })}
-        />
-      )}
+  return (
+    <div className="-mx-6 -mb-6 min-h-[calc(100vh-4rem)] bg-slate-50">
+      <div className="mx-auto max-w-[1400px] p-4 md:p-8">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] rounded-3xl overflow-hidden shadow-2xl bg-white border border-slate-200">
+          {/* LEFT — brand / steps panel */}
+          <aside className="relative overflow-hidden text-white p-8 md:p-12 flex flex-col justify-between min-h-[560px]"
+            style={{ background: "linear-gradient(135deg,#0b1f4d 0%,#153a8a 45%,#2563eb 100%)" }}>
+            <div className="absolute -right-24 -top-24 size-[420px] rounded-full border border-white/10" />
+            <div className="absolute -right-40 -bottom-40 size-[520px] rounded-full border border-white/10" />
+            <div className="absolute right-10 top-32 size-40 rounded-full bg-white/5 blur-2xl" />
+
+            <div className="relative z-10 flex items-center gap-2">
+              <div className="size-9 rounded-xl grid place-items-center bg-white/15 backdrop-blur">
+                <ShieldCheck className="size-5" />
+              </div>
+              <div className="font-display text-lg font-bold tracking-tight">Eterna AI</div>
+            </div>
+
+            <div className="relative z-10 space-y-8">
+              <div>
+                <div className="text-[11px] font-semibold tracking-[0.24em] text-white/70">ONBOARDING</div>
+                <h1 className="mt-2 font-display text-3xl md:text-4xl font-bold leading-tight">
+                  Protect what's<br />yours, effortlessly.
+                </h1>
+                <p className="mt-3 text-sm text-white/80 max-w-sm">
+                  Complete these steps to authorize monitoring, enforcement, and takedowns across every platform.
+                </p>
+              </div>
+
+              <ol className="space-y-2 max-w-sm">
+                {visibleSteps.map((title, i) => {
+                  const done = i < stepIndex;
+                  const current = i === stepIndex;
+                  return (
+                    <li
+                      key={title}
+                      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-colors ${
+                        current
+                          ? "bg-white text-slate-900 border-white shadow-lg"
+                          : done
+                          ? "bg-white/10 text-white border-white/20"
+                          : "bg-white/5 text-white/70 border-white/10"
+                      }`}
+                    >
+                      <span
+                        className={`size-6 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${
+                          current ? "bg-slate-900 text-white" : done ? "bg-emerald-400 text-slate-900" : "bg-white/15 text-white"
+                        }`}
+                      >
+                        {done ? <CheckCircle2 className="size-3.5" /> : i + 1}
+                      </span>
+                      <span className="text-sm font-medium truncate">{title}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+
+            <div className="relative z-10 text-xs text-white/60">
+              Step {step} of {totalSteps} · Your data is encrypted and legally binding.
+            </div>
+          </aside>
+
+          {/* RIGHT — form panel */}
+          <section className="p-6 md:p-10 lg:p-14 bg-white">
+            <div className="max-w-xl mx-auto">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold tracking-[0.22em] text-blue-700">
+                    STEP {step} / {totalSteps}
+                  </div>
+                  <h2 className="mt-1 font-display text-2xl font-bold text-slate-900">{STEP_TITLES[step - 1]}</h2>
+                </div>
+                {profile?.onboarding_completed && (
+                  <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">Completed</Badge>
+                )}
+              </div>
+
+              <div className="[&_.card]:shadow-none">
+                {step === 1 && <Step1 profile={profile} onNext={(v, acct) => savePatch({ client_type: v, account_type: acct }, 2)} saving={saving} />}
+                {step === 2 && <Step2 profile={profile} isEnterprise={isEnterprise} onBack={goBack} onNext={(patch) => savePatch(patch, 3)} saving={saving} />}
+                {step === 3 && (
+                  <Step3
+                    assets={state.assets}
+                    onAdd={async (a) => { await addAsset({ data: a }); await reload(); }}
+                    onRemove={async (id) => { await rmAsset({ data: { id } }); await reload(); }}
+                    onBack={goBack}
+                    onNext={() => savePatch({}, 4)}
+                    saving={saving}
+                  />
+                )}
+                {step === 4 && <Step4 onBack={goBack} onNext={(consents) => { void consents; savePatch({}, 5); }} saving={saving} />}
+                {step === 5 && (
+                  <Step5
+                    initial={profile?.authorization_level ?? "monitoring_enforcement"}
+                    onBack={goBack}
+                    onNext={(level) => savePatch({ authorization_level: level }, 6)}
+                    saving={saving}
+                  />
+                )}
+                {step === 6 && (
+                  <Step6
+                    profile={profile}
+                    consentsPreset={CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>)}
+                    onBack={goBack}
+                    onSubmit={async ({ legal_name, signature_text }) => {
+                      setSaving(true);
+                      try {
+                        await submit({
+                          data: {
+                            consents: CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>),
+                            authorization_level: (profile?.authorization_level ?? "monitoring_enforcement") as any,
+                            legal_name, signature_text,
+                          },
+                        });
+                        await reload();
+                        await qc.invalidateQueries();
+                        setStep(7);
+                        toast.success("Authorization signed and stored.");
+                      } catch (e: any) {
+                        toast.error(e?.message ?? "Signing failed");
+                      } finally { setSaving(false); }
+                    }}
+                    saving={saving}
+                  />
+                )}
+                {step === 7 && (
+                  <Step7
+                    state={state}
+                    onBack={goBack}
+                    onFinish={() => {
+                      if (isEnterprise) setStep(8);
+                      else navigate({ to: "/" });
+                    }}
+                    finishLabel={isEnterprise ? "Continue to enterprise documents" : "Enter dashboard"}
+                  />
+                )}
+                {step === 8 && isEnterprise && (
+                  <Step8
+                    documents={state.documents}
+                    userId={profile?.user_id ?? ""}
+                    onUploaded={async ({ doc_type, filename, storage_path, mime, size_bytes }) => {
+                      await recDoc({ data: { doc_type, filename, storage_path, mime, size_bytes } });
+                      await reload();
+                    }}
+                    onRemove={async (id) => { await rmDoc({ data: { id } }); await reload(); }}
+                    onBack={goBack}
+                    onFinish={() => navigate({ to: "/" })}
+                  />
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }
+
 
 /* ---------- Step 1 ---------- */
 function Step1({ profile, onNext, saving }: { profile: State["profile"]; onNext: (v: string, acct: string) => void; saving: boolean }) {
