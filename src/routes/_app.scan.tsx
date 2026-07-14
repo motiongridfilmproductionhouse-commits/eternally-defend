@@ -37,7 +37,7 @@ const SOURCES: { key: SourceKey; label: string }[] = [
   { key: "archive", label: "Archive" },
 ];
 
-const PERIODS = ["Last 24 hours", "Last 7 days", "Last 30 days", "Last 90 days", "All available history"];
+const PERIODS = ["Last 24 hours", "Last 7 days", "Last 30 days", "Last 90 days", "All time"];
 const DEFAULT_SOURCES: SourceKey[] = ["web", "news", "youtube", "reddit", "x", "reviews"];
 
 const sentimentColor = (s: Sentiment) =>
@@ -62,6 +62,8 @@ function ScanPage() {
   const { addThreat } = useData();
   const [q, setQ] = useState("");
   const [aliases, setAliases] = useState("");
+  const [variations, setVariations] = useState("");
+  const [hashtags, setHashtags] = useState("");
   const [handles, setHandles] = useState("");
   const [site, setSite] = useState("");
   const [country, setCountry] = useState("");
@@ -75,15 +77,28 @@ function ScanPage() {
 
   const toggleSource = (s: SourceKey) => setSources((p) => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
 
+  const split = (s: string) => s.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!q.trim() || m.isPending) return;
     setAdded(new Set());
-    const aliasList = aliases.split(",").map(s => s.trim()).filter(Boolean);
-    const handleList = handles.split(",").map(s => s.trim()).filter(Boolean);
-    const context = [industry, country, site].filter(Boolean).join(" ");
-    const fullQuery = `${q.trim()}${context ? " " + context : ""}${handleList.length ? " " + handleList.join(" ") : ""}`;
-    m.mutate({ query: q.trim(), aliases: aliasList, period, sources: sources.length ? sources : DEFAULT_SOURCES, limit: 8, youtubeTarget: 100, context: [industry, country, site].filter(Boolean).join(" "), handles: handleList });
+    const aliasList = split(aliases);
+    const variationList = split(variations);
+    const hashtagList = split(hashtags);
+    const handleList = split(handles);
+    m.mutate({
+      query: q.trim(),
+      aliases: aliasList,
+      variations: variationList,
+      hashtags: hashtagList,
+      handles: handleList,
+      period,
+      sources: sources.length ? sources : DEFAULT_SOURCES,
+      limit: 8,
+      youtubeTarget: 500,
+      context: [industry, country, site].filter(Boolean).join(" "),
+    });
   };
 
   const promote = (h: ScanHit) => {
@@ -154,6 +169,12 @@ function ScanPage() {
             </Field>
             <Field label="Industry / profession">
               <input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="e.g. musician, SaaS" className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm" />
+            </Field>
+            <Field label="Name / spelling variations (Malayalam, English, nicknames)">
+              <input value={variations} onChange={(e) => setVariations(e.target.value)} placeholder="comma separated" className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm" />
+            </Field>
+            <Field label="Hashtags to track">
+              <input value={hashtags} onChange={(e) => setHashtags(e.target.value)} placeholder="#brandname, #topic" className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm" />
             </Field>
             <Field label="Search period">
               <select value={period} onChange={(e) => setPeriod(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm">
@@ -330,40 +351,70 @@ function KPI({ label, value, icon, tone }: { label: string; value: string | numb
   );
 }
 
+type SortKey = "newest" | "critical" | "viral" | "growth" | "reach" | "discussed" | "shared" | "threat";
+const SORT_LABEL: Record<SortKey, string> = {
+  newest: "Newest",
+  critical: "Critical",
+  viral: "Viral",
+  growth: "Fastest growing",
+  reach: "Highest reach",
+  discussed: "Most discussed",
+  shared: "Most shared",
+  threat: "Threat",
+};
+const SEV_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+const PAGE_SIZE = 24;
+
 function Bucket({ title, icon, hits, onPromote, added }: { title: string; icon: React.ReactNode; hits: ScanHit[]; onPromote: (h: ScanHit) => void; added: Set<string> }) {
-  const [sort, setSort] = useState<"threat"|"reach"|"recent">("threat");
+  const [sort, setSort] = useState<SortKey>("newest");
   const [sentimentFilter, setSentimentFilter] = useState<string>("All");
+  const [visible, setVisible] = useState(PAGE_SIZE);
   const filtered = useMemo(() => {
     let list = sentimentFilter === "All" ? hits : hits.filter((h) => h.sentiment === sentimentFilter);
-    if (sort === "reach") list = [...list].sort((a, b) => b.reachEstimate - a.reachEstimate);
-    else if (sort === "recent") list = [...list].sort((a, b) => (b.published ?? "").localeCompare(a.published ?? ""));
-    else list = [...list].sort((a, b) => b.threatScore - a.threatScore);
+    const by = <T,>(fn: (h: ScanHit) => T) => (a: ScanHit, b: ScanHit) => (fn(b) as number) - (fn(a) as number);
+    switch (sort) {
+      case "newest":    list = [...list].sort(by((h) => h.published ? new Date(h.published).getTime() : 0)); break;
+      case "reach":     list = [...list].sort(by((h) => h.reachEstimate)); break;
+      case "growth":    list = [...list].sort(by((h) => h.media?.growthPerDay ?? 0)); break;
+      case "viral":     list = [...list].sort(by((h) => h.viralityScore + (h.viral ? 20 : 0))); break;
+      case "critical":  list = [...list].sort(by((h) => (SEV_RANK[h.severity] ?? 0) * 100 + h.threatScore)); break;
+      case "discussed": list = [...list].sort(by((h) => h.media?.comments ?? h.engagement)); break;
+      case "shared":    list = [...list].sort(by((h) => h.media?.likes ?? h.engagement)); break;
+      default:          list = [...list].sort(by((h) => h.threatScore));
+    }
     return list;
   }, [hits, sort, sentimentFilter]);
   if (!hits.length) return null;
+  const shown = filtered.slice(0, visible);
   return (
     <PageCard
       title={title}
-      sub={`${hits.length} result${hits.length === 1 ? "" : "s"}`}
+      sub={`${filtered.length} of ${hits.length} result${hits.length === 1 ? "" : "s"}`}
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           <select value={sentimentFilter} onChange={(e) => setSentimentFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
             <option>All</option><option>Negative</option><option>Neutral</option><option>Positive</option>
           </select>
-          <div className="flex rounded-full border border-border overflow-hidden text-xs">
-            {(["threat","reach","recent"] as const).map((k) => (
-              <button key={k} onClick={() => setSort(k)} className={`px-3 py-1.5 ${sort === k ? "text-white" : "bg-card hover:bg-accent"}`} style={sort === k ? { background: "var(--gradient-brand)" } : undefined}>
-                {k === "threat" ? "Threat" : k === "reach" ? "Reach" : "Recent"}
-              </button>
-            ))}
-          </div>
+          <select value={sort} onChange={(e) => { setSort(e.target.value as SortKey); setVisible(PAGE_SIZE); }} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
+            {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
+          </select>
         </div>
       }
     >
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2"><span className="opacity-60">{icon}</span></div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filtered.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} />)}
+        {shown.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} />)}
       </div>
+      {filtered.length > visible && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={() => setVisible((v) => v + PAGE_SIZE)}
+            className="text-xs px-4 py-2 rounded-full border border-border hover:bg-accent font-semibold"
+          >
+            Load more · {filtered.length - visible} remaining
+          </button>
+        </div>
+      )}
     </PageCard>
   );
 }
@@ -375,8 +426,17 @@ function ResultCard({ h, added, onPromote }: { h: ScanHit; added: boolean; onPro
   const [loaded, setLoaded] = useState(false);
   const thumb = h.media?.thumbnailHi || h.media?.thumbnail;
   const isYouTube = h.source === "YouTube";
-  const publishedLabel = h.published ? new Date(h.published).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+  const publishedTs = h.published ? new Date(h.published).getTime() : 0;
+  const publishedLabel = publishedTs ? new Date(publishedTs).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+  const ageDays = publishedTs ? Math.max(0, (Date.now() - publishedTs) / 86400000) : 0;
+  const ageLabel = !publishedTs ? "" : ageDays < 1 ? `${Math.max(1, Math.round(ageDays * 24))}h ago` : ageDays < 30 ? `${Math.round(ageDays)}d ago` : ageDays < 365 ? `${Math.round(ageDays / 30)}mo ago` : `${Math.round(ageDays / 365)}y ago`;
   const m = h.media;
+  const growth = m?.growthPerDay ?? 0;
+  const trend: { label: string; color: string } | null =
+    growth >= 20000 ? { label: "Exploding", color: "oklch(0.63 0.24 25)" } :
+    growth >= 5000 ? { label: "Rising", color: "oklch(0.7 0.2 35)" } :
+    growth >= 500 ? { label: "Growing", color: "oklch(0.75 0.16 70)" } :
+    publishedTs ? { label: "Steady", color: "oklch(0.68 0.16 155)" } : null;
 
   return (
     <div className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
@@ -450,7 +510,14 @@ function ResultCard({ h, added, onPromote }: { h: ScanHit; added: boolean; onPro
               <span className="font-semibold text-foreground">{h.author ?? h.platform}</span>
             )}
             {publishedLabel && <><span>·</span><span className="inline-flex items-center gap-1"><Clock className="size-3" />{publishedLabel}</span></>}
+            {ageLabel && <><span>·</span><span>{ageLabel}</span></>}
             <span>·</span><span>{h.source}</span>
+            {trend && (
+              <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: `color-mix(in oklab, ${trend.color} 14%, white)`, color: trend.color }}>
+                <TrendingUp className="size-3" /> {trend.label}
+              </span>
+            )}
           </div>
         </div>
 
