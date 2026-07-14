@@ -52,7 +52,7 @@ export const startVerification = createServerFn({ method: "POST" })
         state: "pending" as State,
         code,
         expires_at,
-        evidence: data.evidence ?? {},
+        evidence: (data.evidence ?? {}) as Json,
       })
       .select("*")
       .single();
