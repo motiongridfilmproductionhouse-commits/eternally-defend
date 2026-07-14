@@ -22,8 +22,15 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/intelligence" });
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) return;
+      // Route by onboarding status — dashboard gate would just bounce back here otherwise.
+      const { data: profile } = await supabase
+        .from("client_profiles")
+        .select("onboarding_completed")
+        .eq("user_id", data.session.user.id)
+        .maybeSingle();
+      navigate({ to: profile?.onboarding_completed ? "/" : "/onboarding" });
     });
   }, [navigate]);
 
@@ -31,13 +38,25 @@ function AuthPage() {
     e.preventDefault();
     setError(null); setLoading(true);
     try {
-      const fn = mode === "signin" ? supabase.auth.signInWithPassword : supabase.auth.signUp;
-      const { error } = await fn.call(supabase.auth, {
-        email, password,
-        options: mode === "signup" ? { emailRedirectTo: window.location.origin } : undefined,
-      } as any);
-      if (error) throw error;
-      navigate({ to: "/intelligence" });
+      if (mode === "signup") {
+        const { data, error } = await supabase.auth.signUp({
+          email, password,
+          options: { emailRedirectTo: `${window.location.origin}/onboarding` },
+        });
+        if (error) throw error;
+        // If email confirmation is disabled, session exists immediately.
+        if (data.session) navigate({ to: "/onboarding" });
+        else setError("Check your email to confirm your account, then sign in.");
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        const { data: profile } = await supabase
+          .from("client_profiles")
+          .select("onboarding_completed")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        navigate({ to: profile?.onboarding_completed ? "/" : "/onboarding" });
+      }
     } catch (e: any) {
       setError(e?.message ?? "Authentication failed");
     } finally { setLoading(false); }
