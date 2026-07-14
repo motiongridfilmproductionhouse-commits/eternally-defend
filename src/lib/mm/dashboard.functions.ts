@@ -145,5 +145,48 @@ export const getDashboardStats = createServerFn({ method: "GET" })
         jobs: jobs.length,
         findings: findings.length,
       },
+      // -------- Live Global Threat Map --------
+      hotspots: (() => {
+        const CATEGORY: Record<string, string> = {
+          deepfake: "Deepfake Detection",
+          face_swap: "Deepfake Detection",
+          voice_clone: "Deepfake Detection",
+          synthetic_media: "Deepfake Detection",
+          news_attack: "News Attacks",
+          misinformation: "News Attacks",
+          viral: "Viral Content",
+          impersonation: "Impersonation",
+          unauthorized_ad: "Unauthorized Ads",
+          copyright_match: "Copyright Violation",
+          logo_match: "Copyright Violation",
+        };
+        const byCountry = new Map<string, { count: number; category: string }>();
+        for (const f of findings) {
+          const job = jobs.find((j) => j.id === f.job_id);
+          const meta = (job?.source_metadata as any) ?? {};
+          const country = (meta.country || meta.country_code || meta.region || "").toString().trim();
+          if (!country) continue;
+          const cat = CATEGORY[f.finding_type ?? ""] ?? "News Attacks";
+          const cur = byCountry.get(country) ?? { count: 0, category: cat };
+          cur.count += 1;
+          byCountry.set(country, cur);
+        }
+        return [...byCountry.entries()]
+          .map(([label, v]) => ({ label, count: v.count, category: v.category }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8);
+      })(),
+      // -------- AI Threat Timeline --------
+      timeline: findings.slice(0, 8).map((f) => {
+        const job = jobs.find((j) => j.id === f.job_id);
+        return {
+          id: f.id,
+          time: f.created_at as string,
+          type: f.finding_type ?? "event",
+          severity: f.severity ?? "info",
+          title: f.title ?? "Finding",
+          sub: f.description ?? (job ? `${platformFromRef(job.source_kind, job.source_ref)}` : ""),
+        };
+      }),
     };
   });
