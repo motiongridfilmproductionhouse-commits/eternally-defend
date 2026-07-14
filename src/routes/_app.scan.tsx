@@ -87,10 +87,21 @@ function ScanPage() {
   };
 
   const promote = (h: ScanHit) => {
-    const cat = (["Deepfake","Impersonation","Copyright","News Attack","Unauthorized Ad","Viral"] as const).includes(h.category as never)
-      ? (h.category as "Deepfake"|"Impersonation"|"Copyright"|"News Attack"|"Unauthorized Ad"|"Viral")
-      : "Copyright";
-    addThreat({ title: h.title.slice(0, 80), category: cat, platform: h.platform, severity: h.severity, location: h.source, confidence: h.confidence });
+    const riskMap: Record<string, "Deepfake"|"Impersonation"|"Copyright"|"News Attack"|"Brand Abuse"> = {
+      Deepfake: "Deepfake", Impersonation: "Impersonation", Copyright: "Copyright",
+      "News Attack": "News Attack", "Unauthorized Ad": "Brand Abuse", Viral: "Copyright",
+    };
+    const risk = riskMap[h.category] ?? "Brand Abuse";
+    addThreat({
+      title: h.title.slice(0, 80),
+      riskType: risk,
+      platform: h.platform,
+      severity: h.severity,
+      location: h.source,
+      confidence: h.confidence,
+      reach: Number(h.reachEstimate) || 0,
+      threatScore: Number(h.threatScore) || h.confidence,
+    });
     setAdded((s) => new Set(s).add(h.url));
   };
 

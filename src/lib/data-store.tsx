@@ -12,16 +12,50 @@ export interface Asset {
   status: "Protected" | "Monitoring" | "At Risk";
 }
 
+export type SourceType =
+  | "YouTube Video"
+  | "News Article"
+  | "Instagram Post"
+  | "Reddit Discussion"
+  | "TikTok Video"
+  | "Facebook Page"
+  | "Unauthorized Advertisement"
+  | "Fake Profile"
+  | "Copyright Violation";
+
+export type RiskType =
+  | "Defamation"
+  | "Impersonation"
+  | "Deepfake"
+  | "Copyright"
+  | "Fraud"
+  | "Scam"
+  | "Brand Abuse"
+  | "News Attack";
+
+export type Virality = "Normal" | "Growing" | "Viral" | "Exploding";
+
 export interface Threat {
   id: string;
   title: string;
-  category: "Deepfake" | "Impersonation" | "Copyright" | "News Attack" | "Unauthorized Ad" | "Viral";
+  sourceType: SourceType;
+  riskType: RiskType;
   platform: string;
   severity: Severity;
   detected: string;
   location: string;
   status: Status;
   confidence: number;
+  threatScore: number;   // 0-100
+  reach: number;         // raw
+  sources: number;       // count
+  evidence: number;      // findings count
+  velocity: Virality;
+  firstDetected: string; // e.g. "12 Jul"
+  latestActivity: string; // e.g. "14 Jul"
+  growthPct: number;     // e.g. 187
+  narrativeClaim: string;
+  caseId?: string;
 }
 
 export interface Case {
@@ -53,12 +87,12 @@ const seed = {
     { id: "A-006", name: "Campaign Hero Image", type: "Image", platform: "Meta Ads", registered: "2026-04-11", status: "Protected" },
   ] as Asset[],
   threats: [
-    { id: "T-9821", title: "Deepfake Video Spreading", category: "Deepfake", platform: "YouTube", severity: "Critical", detected: "08:23 AM", location: "USA", status: "In Review", confidence: 92 },
-    { id: "T-9822", title: "Impersonation Account", category: "Impersonation", platform: "Instagram", severity: "High", detected: "07:44 AM", location: "India", status: "Detected", confidence: 88 },
-    { id: "T-9823", title: "False News Article", category: "News Attack", platform: "News Portal", severity: "High", detected: "06:12 AM", location: "UK", status: "Takedown Sent", confidence: 81 },
-    { id: "T-9824", title: "Unauthorized Ad Campaign", category: "Unauthorized Ad", platform: "Meta Ads", severity: "Medium", detected: "Yesterday", location: "UAE", status: "In Review", confidence: 76 },
-    { id: "T-9825", title: "Viral TikTok Clip Misuse", category: "Viral", platform: "TikTok", severity: "Medium", detected: "Yesterday", location: "India", status: "Detected", confidence: 71 },
-    { id: "T-9826", title: "Reddit Copyright Repost", category: "Copyright", platform: "Reddit", severity: "Low", detected: "2 days ago", location: "USA", status: "Resolved", confidence: 64 },
+    { id: "T-9821", title: "Deepfake Video Spreading", sourceType: "YouTube Video", riskType: "Deepfake", platform: "YouTube", severity: "Critical", detected: "08:23 AM", location: "USA", status: "In Review", confidence: 92, threatScore: 92, reach: 248000, sources: 12, evidence: 17, velocity: "Exploding", firstDetected: "12 Jul", latestActivity: "14 Jul", growthPct: 187, narrativeClaim: "Brand X CEO caught in fabricated statement", caseId: "CASE-2031" },
+    { id: "T-9822", title: "Impersonation Account", sourceType: "Instagram Post", riskType: "Impersonation", platform: "Instagram", severity: "High", detected: "07:44 AM", location: "India", status: "Detected", confidence: 88, threatScore: 84, reach: 62000, sources: 6, evidence: 9, velocity: "Viral", firstDetected: "11 Jul", latestActivity: "14 Jul", growthPct: 94, narrativeClaim: "Fake founder profile soliciting investments" },
+    { id: "T-9823", title: "False News Article", sourceType: "News Article", riskType: "News Attack", platform: "News Portal", severity: "High", detected: "06:12 AM", location: "UK", status: "Takedown Sent", confidence: 81, threatScore: 78, reach: 134000, sources: 4, evidence: 6, velocity: "Growing", firstDetected: "10 Jul", latestActivity: "13 Jul", growthPct: 42, narrativeClaim: "Regulatory investigation allegations (unverified)", caseId: "CASE-2029" },
+    { id: "T-9824", title: "Unauthorized Ad Campaign", sourceType: "Unauthorized Advertisement", riskType: "Brand Abuse", platform: "Meta Ads", severity: "Medium", detected: "Yesterday", location: "UAE", status: "In Review", confidence: 76, threatScore: 68, reach: 48000, sources: 3, evidence: 5, velocity: "Growing", firstDetected: "09 Jul", latestActivity: "13 Jul", growthPct: 21, narrativeClaim: "Cloned ad creative used by third party" },
+    { id: "T-9825", title: "Viral TikTok Clip Misuse", sourceType: "TikTok Video", riskType: "Copyright", platform: "TikTok", severity: "Medium", detected: "Yesterday", location: "India", status: "Detected", confidence: 71, threatScore: 61, reach: 96000, sources: 8, evidence: 11, velocity: "Viral", firstDetected: "08 Jul", latestActivity: "14 Jul", growthPct: 133, narrativeClaim: "Product footage remixed with false claims" },
+    { id: "T-9826", title: "Reddit Copyright Repost", sourceType: "Reddit Discussion", riskType: "Copyright", platform: "Reddit", severity: "Low", detected: "2 days ago", location: "USA", status: "Resolved", confidence: 64, threatScore: 34, reach: 12000, sources: 2, evidence: 3, velocity: "Normal", firstDetected: "07 Jul", latestActivity: "11 Jul", growthPct: 4, narrativeClaim: "Whitepaper excerpt reposted without attribution" },
   ] as Threat[],
   cases: [
     { id: "CASE-2025-0622-0012", subject: "Deepfake takedown - YouTube", type: "DMCA", status: "In Progress", priority: "Critical", opened: "2026-07-05", assignee: "Legal Team" },
@@ -81,7 +115,7 @@ interface Ctx {
   cases: Case[];
   removals: Removal[];
   addAsset: (a: Omit<Asset, "id" | "registered">) => void;
-  addThreat: (t: Omit<Threat, "id" | "detected" | "status">) => void;
+  addThreat: (t: Partial<Threat> & Pick<Threat, "title" | "platform" | "severity" | "location" | "confidence">) => void;
   updateThreatStatus: (id: string, status: Status) => void;
   updateCaseStatus: (id: string, status: Case["status"]) => void;
   addRemoval: (r: Omit<Removal, "id" | "submitted" | "status">) => void;
@@ -102,7 +136,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ...prev,
     ]),
     addThreat: (t) => setThreats((prev) => [
-      { ...t, id: `T-${9827 + prev.length}`, detected: "Just now", status: "Detected" },
+      {
+        sourceType: "News Article",
+        riskType: "Brand Abuse",
+        threatScore: Math.round(t.confidence ?? 60),
+        reach: 0,
+        sources: 1,
+        evidence: 1,
+        velocity: "Normal",
+        firstDetected: "Just now",
+        latestActivity: "Just now",
+        growthPct: 0,
+        narrativeClaim: t.title ?? "",
+        ...t,
+        id: `T-${9827 + prev.length}`,
+        detected: "Just now",
+        status: "Detected",
+      } as Threat,
       ...prev,
     ]),
     updateThreatStatus: (id, status) => setThreats((prev) => prev.map((t) => t.id === id ? { ...t, status } : t)),
