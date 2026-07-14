@@ -205,7 +205,7 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
     timeline.sort((a, b) => (b.time > a.time ? 1 : -1));
 
     // Asset exposure — join by target_name contained in title
-    const targetName = (profile?.target_name as string) || "";
+    const targetName = ((profile?.full_name as string) || (profile?.company_name as string) || "") as string;
     const assetExposure = assets.slice(0, 6).map((a) => {
       const name = (a.name as string) || "";
       const rel = hits.filter((h) => name && ((h.title as string) ?? "").toLowerCase().includes(name.toLowerCase()));
