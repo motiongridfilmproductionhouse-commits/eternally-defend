@@ -40,7 +40,7 @@ export const importOfficialAccountFaces = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: acct, error } = await supabase
       .from("discovered_accounts")
-      .select("id,platform,handle,profile_url,avatar_url,thumbnails")
+      .select("id,platform,handle,profile_url,profile_image_url")
       .eq("id", data.discoveredAccountId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -53,9 +53,7 @@ export const importOfficialAccountFaces = createServerFn({ method: "POST" })
     const { indexFace } = await import("./aws/rekognition.server");
 
     const urls: string[] = [];
-    if (acct.avatar_url) urls.push(acct.avatar_url);
-    const thumbs = Array.isArray(acct.thumbnails) ? (acct.thumbnails as unknown[]).filter((t): t is string => typeof t === "string") : [];
-    for (const t of thumbs.slice(0, 4)) if (!urls.includes(t)) urls.push(t);
+    if (acct.profile_image_url) urls.push(acct.profile_image_url);
 
     const bucket = getBucket();
     let indexed = 0;
@@ -83,7 +81,7 @@ export const importOfficialAccountFaces = createServerFn({ method: "POST" })
             image_id: f.imageId ?? null,
             external_image_id: f.externalImageId ?? externalImageId,
             confidence: f.confidence ?? null,
-            bounding_box: f.boundingBox ?? null,
+            bounding_box: (f.boundingBox ?? null) as never,
           });
           indexed++;
         }
@@ -115,7 +113,7 @@ export const importAssetFaces = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: asset, error } = await supabase
       .from("protected_assets")
-      .select("id,name,type")
+      .select("id,name,kind")
       .eq("id", data.assetId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -151,7 +149,7 @@ export const importAssetFaces = createServerFn({ method: "POST" })
             image_id: f.imageId ?? null,
             external_image_id: f.externalImageId ?? externalImageId,
             confidence: f.confidence ?? null,
-            bounding_box: f.boundingBox ?? null,
+            bounding_box: (f.boundingBox ?? null) as never,
           });
           indexed++;
         }

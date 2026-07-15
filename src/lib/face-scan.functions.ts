@@ -85,7 +85,7 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
             scan_hit_id: data.scanHitId ?? null,
             image_s3_bucket: bucket,
             image_s3_key: key,
-            bounding_box: (searchedFaceBoundingBox as object) ?? null,
+            bounding_box: ((searchedFaceBoundingBox as object) ?? null) as never,
             review_status: "pending",
           })
           .select("id")
