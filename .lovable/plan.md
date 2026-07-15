@@ -1,102 +1,84 @@
-# Eterna Command Center — Home Dashboard Redesign
+# AWS Rekognition + S3 Integration
 
-Rebuild `src/routes/_app.index.tsx` as a dense, SOC-style Reputation Intelligence Command Center. Reference image is used only for aesthetic/layout language (glass cards, deep navy, electric-blue accents, radial gauges, dense grid). No feature or copy is lifted from it.
+Server-only integration wiring Amazon Rekognition (face collections + face search) and Amazon S3 (originals + evidence vault) into Eterna. All AWS calls happen in server functions using the existing `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_REKOGNITION_BUCKET` secrets. Nothing AWS ever reaches the browser.
 
-All widgets are backed by **real project data** via existing server functions (`getDashboardStats`, `listPersistedResults`, `scan_hits`, `enforcement_requests`, `timestamp_findings`, `multimedia_analysis_jobs`, `client_profiles`). No mock data, no fabricated scores. Empty states render explicitly when data is absent.
+## 1. Dependencies
 
-## Layout (12-col grid, high density)
+Add `@aws-sdk/client-rekognition`, `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`.
 
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ TopIntelBar: Reputation | Threat Lvl | Protection | Scans |   │
-│              Assets | Critical | Pending | Enforcement        │
-├───────────────────┬──────────────────────┬────────────────────┤
-│ ReputationRadar   │  DangerMeter         │ ExecutiveSummary   │
-│ (SVG polar, 4     │  (large gauge:       │ (AI status +       │
-│  zones, threat    │   SAFE/WATCH/DANGER  │  key risks +       │
-│  nodes)           │   /CRITICAL)         │  recommended       │
-│                   ├──────────────────────┤  actions)          │
-│                   │ ThreatIntelOverview  │                    │
-│                   │ (6 KPIs + trends)    │                    │
-├───────────────────┴──────────────────────┴────────────────────┤
-│ LiveScannerPanel (6 scanners) │ ThreatHeatmap (platform grid) │
-├───────────────────────────────┴────────────────────────────────┤
-│ ReputationSpoilerDetector (9 categories, counts + reach)      │
-├────────────────────────────────────────────────────────────────┤
-│ TrendingThreats (top 10) │ AssetExposurePanel (most targeted) │
-├──────────────────────────┴─────────────────────────────────────┤
-│ ScanTimeline (event stream)  │  ActionCenter (6 quick actions)│
-└────────────────────────────────────────────────────────────────┘
-```
+## 2. Database migration
 
-## Data wiring (all real, no mocks)
+New tables (all `public`, RLS on, GRANTs for authenticated + service_role, `has_role` used where needed):
 
-- **TopIntelBar** — new server fn `getCommandCenterStats` aggregates:
-  - Reputation score (avg `reputation_score` from `multimedia_analysis_jobs`)
-  - Threat level (derived from severity distribution in `scan_hits` + `timestamp_findings`)
-  - Protection status (from `client_profiles.authorization_level`)
-  - Active scans (`scans` where `status='running'`)
-  - Protected assets (count from `assets`)
-  - Critical cases, pending actions, open enforcement (`enforcement_requests` grouped by status)
-- **ReputationRadar** — plots up to 40 nodes from `scan_hits` on polar coords: angle = platform bucket, radius = `100 - threat_score` (critical → center). Colored by severity. Hover → tooltip; click → opens `DetailDrawer` (reuse existing).
-- **DangerMeter** — composite score: weighted blend of avg threat_score, total reach, velocity (new findings last 24h vs prior 24h), sentiment. Renders zone label.
-- **ThreatIntelOverview** — 6 KPI tiles with 7-day sparkline + trend arrow computed from `scan_hits.first_seen_at` buckets.
-- **LiveScannerPanel** — reads from `scans` table filtered by kind; shows current query, progress, per-source status. Reuses existing scan progress fields.
-- **ThreatHeatmap** — matrix of platforms × severity from `scan_hits` grouped by `source`.
-- **ReputationSpoilerDetector** — categorises `scan_hits` by `risk_type`/tags into the 9 categories (defamation, false claims, fake news, leaks, exposed, scandals, harassment, hate, manipulation). Uncategorised → "Other" (hidden if 0).
-- **TrendingThreats** — top 10 `scan_hits` by `threat_score * log(reach+1)` in last 14d, with View / Evidence / Take Action buttons wired to existing `DetailDrawer` + `ActionDrawer`.
-- **AssetExposurePanel** — joins `assets` with `scan_hits` where hit mentions asset (existing linkage).
-- **ScanTimeline** — merged event stream from `scan_hits.first_seen_at`, `enforcement_evidence.created_at`, `enforcement_requests.created_at`/`.submitted_at`.
-- **ActionCenter** — 6 buttons routing to existing pages (`/scan`, `/reports`, `/enforcement`, `/cases`, evidence flow, etc.). No new backend.
-- **ExecutiveSummary** — deterministic template built from the aggregated numbers above (no LLM call this pass). Clearly labeled as auto-generated.
+- `rekognition_collections` — one per client
+  - `user_id`, `collection_id` (unique), `status`, `face_count`
+- `protected_faces` — indexed reference faces
+  - `user_id`, `collection_id`, `asset_id` (nullable FK to `protected_assets`), `discovered_account_id` (nullable FK), `platform`, `source_url`, `s3_bucket`, `s3_key`, `face_id` (Rekognition), `image_id`, `confidence`, `bounding_box` jsonb
+- `face_match_events` — every Rekognition SearchFacesByImage result
+  - `user_id`, `collection_id`, `matched_face_id`, `matched_asset_id`, `similarity`, `face_confidence`, `source_url`, `source_type` (`youtube_thumb|profile|news|website|screenshot`), `scan_hit_id` (nullable), `image_s3_bucket`, `image_s3_key`, `bounding_box`, `review_status` (`pending|authorized|harmless|threat_created|dismissed`), `threat_category` (`impersonation|fake_endorsement|unauthorized_image|face_misuse|celebrity_detection|null`), `context_notes`
+- `evidence_vault_items` — S3 evidence entries
+  - `user_id`, `case_id`/`enforcement_request_id`/`scan_hit_id` (nullable), `kind` (`screenshot|takedown_package|certificate|thumbnail|archive`), `s3_bucket`, `s3_key`, `sha256`, `bytes`, `content_type`, `metadata` jsonb
 
-## Visual system
+Migration also creates two Storage buckets used server-side only (private): none — everything goes to the AWS S3 bucket `AWS_REKOGNITION_BUCKET`, not Supabase Storage. Key prefixes:
+- `clients/{user_id}/reference/{asset_id}/{uuid}.jpg`
+- `clients/{user_id}/scan-images/{yyyy}/{mm}/{uuid}.jpg`
+- `clients/{user_id}/evidence/{kind}/{uuid}`
 
-- Deep navy backdrop layer added via CSS token `--surface-command` on the dashboard root only (does not affect other pages).
-- Glass cards: `bg-background/60 backdrop-blur-md border-white/5` with subtle inner glow via existing `--shadow-elegant`.
-- Electric blue + cyan accents from existing brand tokens; severity uses existing severity colors (green/amber/orange/red) so it stays consistent with the rest of the app.
-- Framer-motion fade/slide on card mount, radar node pulse for critical severity only.
-- Fully responsive: collapses to single column below `lg`.
+## 3. Server-only AWS client
 
-## Notifications (from screenshot)
+`src/lib/aws/clients.server.ts` — lazy singleton `RekognitionClient` and `S3Client` reading `process.env`. Never imported from routes/components directly.
 
-Wire the Notifications page inbox to real data:
-- Source: `enforcement_requests` state changes, new `scan_hits` at severity ≥ high, new `assets`, weekly digest row from `reports`.
-- Add `getNotifications` server fn + hook it into existing `_app.notifications.tsx` page and the topbar bell badge count.
-- Real timestamps ("2m ago" via `date-fns`), severity chips (Critical/Success/Info/Digest) driven by event type.
-- Empty state when no notifications.
+`src/lib/aws/s3.server.ts` — `putObject`, `getSignedGetUrl`, `getSignedPutUrl`, `headObject`, sha256 helper.
 
-## Files
+`src/lib/aws/rekognition.server.ts` — `ensureCollection(userId)`, `indexFace({ userId, bytes, externalImageId })`, `searchFacesByImage({ userId, bytes, threshold=80, maxFaces=5 })`, `deleteFace`.
 
-New:
-- `src/lib/command-center.functions.ts` — `getCommandCenterStats`, `getNotifications`
-- `src/components/command/TopIntelBar.tsx`
-- `src/components/command/ReputationRadar.tsx`
-- `src/components/command/DangerMeter.tsx`
-- `src/components/command/ThreatIntelOverview.tsx`
-- `src/components/command/LiveScannerPanel.tsx`
-- `src/components/command/ThreatHeatmap.tsx`
-- `src/components/command/ReputationSpoilerDetector.tsx`
-- `src/components/command/TrendingThreats.tsx`
-- `src/components/command/AssetExposurePanel.tsx`
-- `src/components/command/ScanTimeline.tsx`
-- `src/components/command/ActionCenter.tsx`
-- `src/components/command/ExecutiveSummary.tsx`
+## 4. Server functions (all `.server` wrappers via `*.functions.ts`, protected with `requireSupabaseAuth`)
 
-Edited:
-- `src/routes/_app.index.tsx` — replace current composition with command-center layout
-- `src/routes/_app.notifications.tsx` — wire to real `getNotifications`
-- `src/components/dashboard/TopBar.tsx` — bell badge from notifications count
-- `src/styles.css` — add `--surface-command`, radar/heatmap tokens
-- Fix hydration warning on `/auth` (root cause of current runtime error) as a small side-fix
+`src/lib/face-protection.functions.ts`:
+- `ensureClientCollection()` — create/reuse Rekognition collection for user.
+- `importOfficialAccountFaces({ discoveredAccountId })` — called from the confirm-official-account flow. Downloads the account's profile/reference images (via `/api/media/preview` fetch helper server-side), uploads originals to S3, indexes into the user's collection, writes `protected_faces` rows.
+- `importAssetFaces({ assetId, imageUrls })` — same for `protected_assets`.
+- `deleteProtectedFace({ id })`.
 
-## Out of scope (call out for follow-up)
+`src/lib/face-scan.functions.ts`:
+- `analyzeImagesForFaces({ scanHitId?, images: [{url,type}] })` — downloads each image server-side, calls `searchFacesByImage`, stores S3 copy under `scan-images/`, writes `face_match_events` rows in `pending` review. Returns matches.
+- `listFaceMatches({ status?, category? })`, `reviewFaceMatch({ id, decision, category, notes })` — moves through review workflow. Only `decision='threat_created'` with a category creates/links an `enforcement_request` (Draft) and a `case_findings` row. Match alone never creates a threat.
 
-- LLM-generated executive summary (deterministic template used first)
-- Radar drag/pan interactivity beyond hover + click
-- Push notifications / realtime subscriptions (polling only, 30s)
-- Full write-back for "Take Action" from radar nodes (reuses existing ActionDrawer flow)
+`src/lib/evidence-vault.functions.ts`:
+- `uploadEvidence({ kind, targetId, contentType, bytes|base64 })` — stores in S3, sha256, inserts `evidence_vault_items`.
+- `listEvidence({ scope })`, `getEvidenceSignedUrl({ id })` — 5-minute presigned GET.
 
-## Confirm before build
+## 5. Scan pipeline hookup
 
-Confirm and I'll build it in one pass. If you want the LLM-written Executive Summary in this same turn, say so and I'll add a `generateExecutiveSummary` server fn using the Lovable AI Gateway.
+In `src/lib/scans.functions.ts` where `scan_hits` are inserted, after write, enqueue `analyzeImagesForFaces` for hits whose `thumbnail_url`/`canonical_url` looks like an image or YouTube (uses existing `youtubeThumbFromUrl`). Best-effort; failures logged, never block the scan.
+
+## 6. UI (frontend only reads via server fns; no AWS in the client)
+
+- `src/routes/_app.assets.tsx` — on official-account confirm (existing `VerificationDialog`), after success call `importOfficialAccountFaces`. Show toast with indexed face count.
+- New route `src/routes/_app.face-protection.tsx` — Protected Faces list, Face Matches review queue with side-by-side (reference vs matched image via presigned URL), decision buttons (Authorized / Harmless / Create Threat with category / Dismiss).
+- New route `src/routes/_app.evidence-vault.tsx` — evidence list with signed download links.
+- `CommandCenter.tsx` — add 5 widgets fed by a new `getFaceProtectionStats` server fn:
+  - Protected Faces (count of `protected_faces`)
+  - Face Matches (24h count)
+  - Impersonation Alerts (category='impersonation', status='threat_created' last 7d)
+  - Fake Endorsements (category='fake_endorsement' last 7d)
+  - Evidence Vault (item count + total bytes)
+
+## 7. Review workflow enforcement
+
+`reviewFaceMatch` requires: `similarity >= 80`, explicit `context_notes`, an `authorization_check` (server checks `authorization_records` for the matched asset), and explicit user decision. Server rejects `threat_created` if any missing. Matches from official/authorized accounts auto-suggest `authorized`.
+
+## 8. Out of scope this pass
+
+- Auto-cropping to face bounding box before re-indexing.
+- Video face search (Rekognition StartFaceSearch) — images only for now.
+- Celebrity Recognition API — schema supports the category, but wiring uses the existing face collection first; celebrity API can be added later behind a flag.
+- Bulk backfill of already-confirmed accounts (a "Reindex" button is provided; no automatic migration).
+
+## Files touched
+
+New: migration SQL, `src/lib/aws/{clients,s3,rekognition}.server.ts`, `src/lib/face-protection.functions.ts`, `src/lib/face-scan.functions.ts`, `src/lib/evidence-vault.functions.ts`, `src/routes/_app.face-protection.tsx`, `src/routes/_app.evidence-vault.tsx`, small components under `src/components/face/`.
+
+Edited: `src/lib/scans.functions.ts` (hook), `src/lib/command-center.functions.ts` (+ `getFaceProtectionStats`), `src/components/command/CommandCenter.tsx` (5 widgets), `src/routes/_app.assets.tsx` + `src/components/discovery/VerificationDialog.tsx` (call importer on confirm), `src/components/dashboard/Sidebar.tsx` (2 nav items), `package.json` (AWS SDK deps).
+
+Approve to proceed and I'll ship it end-to-end.
