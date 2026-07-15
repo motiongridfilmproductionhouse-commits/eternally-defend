@@ -203,6 +203,28 @@ export const persistScan = createServerFn({ method: "POST" })
       })
       .eq("id", scan.id);
 
+    // 6) Best-effort AWS Rekognition face analysis for hits with images.
+    // Never blocks or throws — runs in-line for the current request.
+    try {
+      const { data: recent } = await supabase
+        .from("scan_hits")
+        .select("id,thumbnail_url,permalink,canonical_url,source")
+        .eq("scan_id", scan.id)
+        .limit(20);
+      if (recent && recent.length > 0) {
+        const { analyzeHitForFaces, pickScanImageUrl } = await import("./face-scan.server");
+        for (const h of recent) {
+          const pick = pickScanImageUrl(h);
+          if (!pick) continue;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await analyzeHitForFaces({ supabase: supabase as any, userId, scanHitId: h.id, imageUrl: pick.url, sourceType: pick.type });
+        }
+      }
+    } catch (e) {
+      console.warn("[scans] face analysis skipped", (e as Error).message);
+    }
+
+
     return {
       scanId: scan.id,
       newHits: newCount,
