@@ -24,6 +24,8 @@ import { Route as AppRemovalsRouteImport } from './routes/_app.removals'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppNarrativeIntelligenceRouteImport } from './routes/_app.narrative-intelligence'
 import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
+import { Route as AppFaceProtectionRouteImport } from './routes/_app.face-protection'
+import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vault'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
@@ -106,6 +108,16 @@ const AppIntelligenceRoute = AppIntelligenceRouteImport.update({
   path: '/intelligence',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFaceProtectionRoute = AppFaceProtectionRouteImport.update({
+  id: '/face-protection',
+  path: '/face-protection',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEvidenceVaultRoute = AppEvidenceVaultRouteImport.update({
+  id: '/evidence-vault',
+  path: '/evidence-vault',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEnforcementRoute = AppEnforcementRouteImport.update({
   id: '/enforcement',
   path: '/enforcement',
@@ -147,6 +159,8 @@ export interface FileRoutesByFullPath {
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
+  '/evidence-vault': typeof AppEvidenceVaultRoute
+  '/face-protection': typeof AppFaceProtectionRoute
   '/intelligence': typeof AppIntelligenceRoute
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
@@ -168,6 +182,8 @@ export interface FileRoutesByTo {
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/enforcement': typeof AppEnforcementRoute
+  '/evidence-vault': typeof AppEvidenceVaultRoute
+  '/face-protection': typeof AppFaceProtectionRoute
   '/intelligence': typeof AppIntelligenceRoute
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
@@ -192,6 +208,8 @@ export interface FileRoutesById {
   '/_app/assets': typeof AppAssetsRoute
   '/_app/cases': typeof AppCasesRoute
   '/_app/enforcement': typeof AppEnforcementRoute
+  '/_app/evidence-vault': typeof AppEvidenceVaultRoute
+  '/_app/face-protection': typeof AppFaceProtectionRoute
   '/_app/intelligence': typeof AppIntelligenceRoute
   '/_app/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -217,6 +235,8 @@ export interface FileRouteTypes {
     | '/assets'
     | '/cases'
     | '/enforcement'
+    | '/evidence-vault'
+    | '/face-protection'
     | '/intelligence'
     | '/narrative-intelligence'
     | '/notifications'
@@ -238,6 +258,8 @@ export interface FileRouteTypes {
     | '/assets'
     | '/cases'
     | '/enforcement'
+    | '/evidence-vault'
+    | '/face-protection'
     | '/intelligence'
     | '/narrative-intelligence'
     | '/notifications'
@@ -261,6 +283,8 @@ export interface FileRouteTypes {
     | '/_app/assets'
     | '/_app/cases'
     | '/_app/enforcement'
+    | '/_app/evidence-vault'
+    | '/_app/face-protection'
     | '/_app/intelligence'
     | '/_app/narrative-intelligence'
     | '/_app/notifications'
@@ -393,6 +417,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIntelligenceRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/face-protection': {
+      id: '/_app/face-protection'
+      path: '/face-protection'
+      fullPath: '/face-protection'
+      preLoaderRoute: typeof AppFaceProtectionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/evidence-vault': {
+      id: '/_app/evidence-vault'
+      path: '/evidence-vault'
+      fullPath: '/evidence-vault'
+      preLoaderRoute: typeof AppEvidenceVaultRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/enforcement': {
       id: '/_app/enforcement'
       path: '/enforcement'
@@ -442,6 +480,8 @@ interface AppRouteChildren {
   AppAssetsRoute: typeof AppAssetsRoute
   AppCasesRoute: typeof AppCasesRoute
   AppEnforcementRoute: typeof AppEnforcementRoute
+  AppEvidenceVaultRoute: typeof AppEvidenceVaultRoute
+  AppFaceProtectionRoute: typeof AppFaceProtectionRoute
   AppIntelligenceRoute: typeof AppIntelligenceRoute
   AppNarrativeIntelligenceRoute: typeof AppNarrativeIntelligenceRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -460,6 +500,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsRoute: AppAssetsRoute,
   AppCasesRoute: AppCasesRoute,
   AppEnforcementRoute: AppEnforcementRoute,
+  AppEvidenceVaultRoute: AppEvidenceVaultRoute,
+  AppFaceProtectionRoute: AppFaceProtectionRoute,
   AppIntelligenceRoute: AppIntelligenceRoute,
   AppNarrativeIntelligenceRoute: AppNarrativeIntelligenceRoute,
   AppNotificationsRoute: AppNotificationsRoute,

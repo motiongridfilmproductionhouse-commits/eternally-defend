@@ -3,13 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { listFaceMatches, reviewFaceMatch, listProtectedFaces, deleteProtectedFace, ensureClientCollection } from "@/lib/face-scan.functions";
+import { listFaceMatches, reviewFaceMatch } from "@/lib/face-scan.functions";
 import { listProtectedFaces as listPFaces, deleteProtectedFace as delPFace } from "@/lib/face-protection.functions";
 import { ShieldCheck, Trash2, ExternalLink, Loader2, ScanFace } from "lucide-react";
-
-// Some helpers were re-exported for a cleaner import surface above;
-// alias to the real functions to avoid duplicate identifiers.
-void listProtectedFaces; void deleteProtectedFace; void ensureClientCollection;
 
 export const Route = createFileRoute("/_app/face-protection")({
   head: () => ({ meta: [{ title: "Face Protection · Eterna AI" }] }),
