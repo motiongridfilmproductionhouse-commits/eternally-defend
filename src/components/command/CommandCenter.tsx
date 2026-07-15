@@ -70,6 +70,9 @@ export function CommandCenter() {
 
       <TopIntelBar d={d} />
 
+      <FaceProtectionRow />
+
+
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
         <div className="xl:col-span-5"><ReputationRadar d={d} /></div>
         <div className="xl:col-span-4 space-y-5">
