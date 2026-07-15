@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { checkVerification, listVerifications, startVerification } from "@/lib/verification.functions";
+import { importOfficialAccountFaces } from "@/lib/face-protection.functions";
 import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { CheckCircle2, Loader2, ShieldCheck, ExternalLink, Copy } from "lucide-react";
@@ -32,6 +33,7 @@ export function VerificationDialog({ account, open, onOpenChange, onAccountUpdat
   const startFn = useServerFn(startVerification);
   const checkFn = useServerFn(checkVerification);
   const listFn = useServerFn(listVerifications);
+  const importFacesFn = useServerFn(importOfficialAccountFaces);
 
   const [selected, setSelected] = useState<Method>("bio_code");
   const [domain, setDomain] = useState("");
@@ -65,8 +67,15 @@ export function VerificationDialog({ account, open, onOpenChange, onAccountUpdat
 
   const checkMut = useMutation({
     mutationFn: (verificationId: string) => checkFn({ data: { verificationId } }),
-    onSuccess: (v) => {
-      if (v.state === "passed") toast.success("Ownership verified");
+    onSuccess: async (v) => {
+      if (v.state === "passed") {
+        toast.success("Ownership verified");
+        // Fire-and-forget: index the account's profile image into Rekognition
+        try {
+          const res = await importFacesFn({ data: { discoveredAccountId: account!.id } });
+          if (res.indexed > 0) toast.success(`Protected ${res.indexed} face${res.indexed === 1 ? "" : "s"}`);
+        } catch (e) { console.warn("Face indexing failed", e); }
+      }
       else if (v.state === "failed") toast.error("We couldn't confirm the token yet — try again");
       else toast.message(`Status: ${v.state}`);
       qc.invalidateQueries({ queryKey: ["account-verifications", account?.id] });

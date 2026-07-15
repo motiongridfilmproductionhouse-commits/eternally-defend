@@ -2,7 +2,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Package, Radar, Activity, Brain, ShieldCheck,
   Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search, HeartPulse, Network, PlugZap, LogOut, User as UserIcon,
-  ChevronsLeft, ChevronsRight,
+  ChevronsLeft, ChevronsRight, ScanFace, Archive,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useSession } from "@/hooks/use-session";
@@ -23,9 +23,11 @@ const mainNav: NavItem[] = [
   { icon: Activity, label: "Threat Monitoring", to: "/threat-monitoring" },
   { icon: Brain, label: "Evidence Analysis", to: "/intelligence" },
   { icon: Network, label: "Narrative Intelligence", to: "/narrative-intelligence" },
+  { icon: ScanFace, label: "Face Protection", to: "/face-protection" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
   { icon: Briefcase, label: "Cases", to: "/cases" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
+  { icon: Archive, label: "Evidence Vault", to: "/evidence-vault" },
   { icon: FileText, label: "Reports", to: "/reports" },
 ];
 
