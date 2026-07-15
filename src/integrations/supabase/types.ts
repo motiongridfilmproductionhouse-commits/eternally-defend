@@ -1029,6 +1029,89 @@ export type Database = {
           },
         ]
       }
+      evidence_vault_items: {
+        Row: {
+          bytes: number | null
+          case_id: string | null
+          content_type: string | null
+          created_at: string
+          enforcement_request_id: string | null
+          face_match_event_id: string | null
+          id: string
+          kind: string
+          label: string | null
+          metadata: Json | null
+          s3_bucket: string
+          s3_key: string
+          scan_hit_id: string | null
+          sha256: string | null
+          user_id: string
+        }
+        Insert: {
+          bytes?: number | null
+          case_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          face_match_event_id?: string | null
+          id?: string
+          kind: string
+          label?: string | null
+          metadata?: Json | null
+          s3_bucket: string
+          s3_key: string
+          scan_hit_id?: string | null
+          sha256?: string | null
+          user_id: string
+        }
+        Update: {
+          bytes?: number | null
+          case_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          face_match_event_id?: string | null
+          id?: string
+          kind?: string
+          label?: string | null
+          metadata?: Json | null
+          s3_bucket?: string
+          s3_key?: string
+          scan_hit_id?: string | null
+          sha256?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_vault_items_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_vault_items_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_vault_items_face_match_event_id_fkey"
+            columns: ["face_match_event_id"]
+            isOneToOne: false
+            referencedRelation: "face_match_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_vault_items_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       extracted_claims: {
         Row: {
           claimant: string | null
@@ -1079,6 +1162,110 @@ export type Database = {
             columns: ["transcript_segment_id"]
             isOneToOne: false
             referencedRelation: "transcript_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      face_match_events: {
+        Row: {
+          bounding_box: Json | null
+          collection_id: string
+          context_notes: string | null
+          created_at: string
+          enforcement_request_id: string | null
+          face_confidence: number | null
+          id: string
+          image_s3_bucket: string | null
+          image_s3_key: string | null
+          matched_asset_id: string | null
+          matched_face_id: string | null
+          matched_protected_face_id: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          scan_hit_id: string | null
+          similarity: number | null
+          source_type: string | null
+          source_url: string | null
+          threat_category: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bounding_box?: Json | null
+          collection_id: string
+          context_notes?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          image_s3_bucket?: string | null
+          image_s3_key?: string | null
+          matched_asset_id?: string | null
+          matched_face_id?: string | null
+          matched_protected_face_id?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scan_hit_id?: string | null
+          similarity?: number | null
+          source_type?: string | null
+          source_url?: string | null
+          threat_category?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bounding_box?: Json | null
+          collection_id?: string
+          context_notes?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          image_s3_bucket?: string | null
+          image_s3_key?: string | null
+          matched_asset_id?: string | null
+          matched_face_id?: string | null
+          matched_protected_face_id?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scan_hit_id?: string | null
+          similarity?: number | null
+          source_type?: string | null
+          source_url?: string | null
+          threat_category?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "face_match_events_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "face_match_events_matched_asset_id_fkey"
+            columns: ["matched_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "face_match_events_matched_protected_face_id_fkey"
+            columns: ["matched_protected_face_id"]
+            isOneToOne: false
+            referencedRelation: "protected_faces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "face_match_events_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
             referencedColumns: ["id"]
           },
         ]
@@ -1832,6 +2019,78 @@ export type Database = {
           },
         ]
       }
+      protected_faces: {
+        Row: {
+          asset_id: string | null
+          bounding_box: Json | null
+          collection_id: string
+          confidence: number | null
+          created_at: string
+          discovered_account_id: string | null
+          external_image_id: string | null
+          face_id: string
+          id: string
+          image_id: string | null
+          label: string | null
+          platform: string | null
+          s3_bucket: string
+          s3_key: string
+          source_url: string | null
+          user_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          bounding_box?: Json | null
+          collection_id: string
+          confidence?: number | null
+          created_at?: string
+          discovered_account_id?: string | null
+          external_image_id?: string | null
+          face_id: string
+          id?: string
+          image_id?: string | null
+          label?: string | null
+          platform?: string | null
+          s3_bucket: string
+          s3_key: string
+          source_url?: string | null
+          user_id: string
+        }
+        Update: {
+          asset_id?: string | null
+          bounding_box?: Json | null
+          collection_id?: string
+          confidence?: number | null
+          created_at?: string
+          discovered_account_id?: string | null
+          external_image_id?: string | null
+          face_id?: string
+          id?: string
+          image_id?: string | null
+          label?: string | null
+          platform?: string | null
+          s3_bucket?: string
+          s3_key?: string
+          source_url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protected_faces_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protected_faces_discovered_account_id_fkey"
+            columns: ["discovered_account_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       provider_health_checks: {
         Row: {
           checked_by: string | null
@@ -1900,6 +2159,36 @@ export type Database = {
           storage_bytes?: number
           updated_at?: string
           usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rekognition_collections: {
+        Row: {
+          collection_id: string
+          created_at: string
+          face_count: number
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          face_count?: number
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          face_count?: number
+          id?: string
+          status?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

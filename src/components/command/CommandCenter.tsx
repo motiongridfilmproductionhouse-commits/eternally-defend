@@ -8,6 +8,9 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { getCommandCenterStats } from "@/lib/command-center.functions";
+import { getFaceProtectionStats } from "@/lib/face-scan.functions";
+import { ScanFace, UserX, Award, Archive as ArchiveIcon, Eye as EyeIcon } from "lucide-react";
+
 
 type CmdData = Awaited<ReturnType<typeof getCommandCenterStats>>;
 
@@ -69,6 +72,9 @@ export function CommandCenter() {
       <div className="pointer-events-none fixed inset-0 -z-10 opacity-[0.55] [background:radial-gradient(1200px_600px_at_20%_-10%,oklch(0.42_0.18_260_/_0.35),transparent_60%),radial-gradient(1000px_500px_at_100%_10%,oklch(0.55_0.22_295_/_0.25),transparent_60%),linear-gradient(180deg,oklch(0.16_0.06_260)_0%,transparent_50%)]" />
 
       <TopIntelBar d={d} />
+
+      <FaceProtectionRow />
+
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
         <div className="xl:col-span-5"><ReputationRadar d={d} /></div>
@@ -604,5 +610,42 @@ function ActionCenter() {
         })}
       </div>
     </Glass>
+  );
+}
+
+/* ---------- Face Protection widget row (AWS Rekognition) ---------- */
+function FaceProtectionRow() {
+  const fn = useServerFn(getFaceProtectionStats);
+  const q = useQuery({ queryKey: ["face-protection-stats"], queryFn: () => fn(), refetchInterval: 60_000 });
+  const s = q.data;
+  const items: { icon: React.ComponentType<{ className?: string }>; label: string; value: number; hint: string; color: string; to: string }[] = [
+    { icon: ScanFace, label: "Protected Faces", value: s?.protectedFaces ?? 0, hint: "indexed references", color: "oklch(0.68 0.16 200)", to: "/face-protection" },
+    { icon: EyeIcon, label: "Face Matches", value: s?.faceMatches24h ?? 0, hint: "last 24h", color: "oklch(0.78 0.15 85)", to: "/face-protection" },
+    { icon: UserX, label: "Impersonation", value: s?.impersonationAlerts7d ?? 0, hint: "7d threats", color: "oklch(0.63 0.24 25)", to: "/face-protection" },
+    { icon: Award, label: "Fake Endorsements", value: s?.fakeEndorsements7d ?? 0, hint: "7d threats", color: "oklch(0.7 0.2 35)", to: "/face-protection" },
+    { icon: ArchiveIcon, label: "Evidence Vault", value: s?.evidenceItems ?? 0, hint: "artifacts stored", color: "oklch(0.7 0.18 320)", to: "/evidence-vault" },
+  ];
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+      {items.map((it) => {
+        const Icon = it.icon;
+        return (
+          <Link key={it.label} to={it.to} className="group">
+            <div className="relative rounded-xl border border-white/10 bg-background/60 backdrop-blur-md p-4 transition hover:border-white/25">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-lg grid place-items-center" style={{ background: `${it.color.replace(")", " / 0.18)")}` }}>
+                  <Icon className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground uppercase">{it.label}</div>
+                  <div className="text-2xl font-bold leading-tight" style={{ color: it.color }}>{fmt(it.value)}</div>
+                  <div className="text-[10px] text-muted-foreground">{it.hint}</div>
+                </div>
+              </div>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
   );
 }
