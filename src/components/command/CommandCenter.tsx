@@ -8,6 +8,9 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { getCommandCenterStats } from "@/lib/command-center.functions";
+import { getFaceProtectionStats } from "@/lib/face-scan.functions";
+import { ScanFace, UserX, Award, Archive as ArchiveIcon, Eye as EyeIcon } from "lucide-react";
+
 
 type CmdData = Awaited<ReturnType<typeof getCommandCenterStats>>;
 
