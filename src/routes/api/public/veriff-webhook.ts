@@ -35,9 +35,9 @@ export const Route = createFileRoute("/api/public/veriff-webhook")({
           verification_date: status === "APPROVED" ? new Date().toISOString() : null,
         };
         if (veriff_session_id) {
-          await supabaseAdmin.from("kyc_verifications").update(patch).eq("veriff_session_id", veriff_session_id);
+          await supabaseAdmin.from("kyc_verifications").update(patch as never).eq("veriff_session_id", veriff_session_id);
         } else if (vendorData) {
-          await supabaseAdmin.from("kyc_verifications").update(patch).eq("user_id", vendorData);
+          await supabaseAdmin.from("kyc_verifications").update(patch as never).eq("user_id", vendorData);
         }
         return new Response("ok");
       },

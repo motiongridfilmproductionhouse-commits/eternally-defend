@@ -75,10 +75,11 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
           profile_id: (await supabase.from("protected_face_profiles").select("id").eq("user_id", userId).maybeSingle()).data?.id,
           user_id: userId, s3_key: key, face_id: f.faceId, quality_scores: { confidence: f.confidence },
         });
-        savedFaceIds.push(f.faceId);
+        if (f.faceId) savedFaceIds.push(f.faceId);
         savedKeys.push(key);
       }
     }
+    void savedKeys;
 
     await supabase.from("protected_face_profiles").update({
       status: "FACE_VERIFIED",

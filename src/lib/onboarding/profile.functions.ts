@@ -39,7 +39,7 @@ export const saveClientProfile = createServerFn({ method: "POST" })
       email_verified_at: userInfo.user?.email_confirmed_at ?? new Date().toISOString(),
       ...data,
     };
-    const { data: row, error } = await supabase.from("client_profiles").upsert(patch, { onConflict: "user_id" }).select().single();
+    const { data: row, error } = await supabase.from("client_profiles").upsert({ ...patch, full_name: data.legal_name } as never, { onConflict: "user_id" }).select().single();
     if (error) throw new Error(error.message);
     return row;
   });

@@ -11,8 +11,9 @@ export const createVeriffSession = createServerFn({ method: "POST" })
     const baseUrl = process.env.VERIFF_BASE_URL ?? "https://stationapi.veriff.com";
     if (!apiKey || !secret) throw new Error("Veriff not configured");
 
-    const { data: profile } = await supabase.from("client_profiles").select("client_id, legal_name").eq("user_id", userId).maybeSingle();
-    const [firstName, ...rest] = (profile?.legal_name ?? "Client").split(" ");
+    const { data: profile } = await supabase.from("client_profiles").select("client_id, full_name").eq("user_id", userId).maybeSingle();
+    const fullName = (profile as { full_name?: string | null } | null)?.full_name ?? "Client User";
+    const [firstName, ...rest] = fullName.split(" ");
     const lastName = rest.join(" ") || "User";
 
     const payload = {
@@ -37,11 +38,11 @@ export const createVeriffSession = createServerFn({ method: "POST" })
 
     await supabase.from("kyc_verifications").upsert({
       user_id: userId,
-      client_id: profile?.client_id ?? null,
-      veriff_session_id,
+      client_id: (profile as { client_id?: string | null } | null)?.client_id ?? null,
+      veriff_session_id: veriff_session_id ?? undefined,
       session_url,
       verification_status: "SESSION_CREATED",
-    }, { onConflict: "veriff_session_id" });
+    } as never, { onConflict: "veriff_session_id" });
 
     return { session_url, veriff_session_id };
   });

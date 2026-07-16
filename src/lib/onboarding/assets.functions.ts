@@ -88,13 +88,12 @@ export const verifyChallenge = createServerFn({ method: "POST" })
     if (!chal) throw new Error("No active challenge");
     if (new Date(chal.expires_at).getTime() < Date.now()) throw new Error("Challenge expired");
 
-    // Search channel description + last 5 videos descriptions for the code
     const chRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,brandingSettings&id=${asset.channel_id}&key=${apiKey}`);
     const chJ = await chRes.json() as { items?: Array<{ snippet?: { description?: string }; brandingSettings?: { channel?: { description?: string } } }> };
     const chDesc = (chJ.items?.[0]?.snippet?.description ?? "") + "\n" + (chJ.items?.[0]?.brandingSettings?.channel?.description ?? "");
 
     let found = chDesc.includes(chal.code);
-    let evidence: Record<string, unknown> = { source: "channel_description", matched: found };
+    let evidence: { source: string; matched: boolean; video_id?: string } = { source: "channel_description", matched: found };
 
     if (!found) {
       const sr = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${asset.channel_id}&order=date&maxResults=5&type=video&key=${apiKey}`);
@@ -114,12 +113,12 @@ export const verifyChallenge = createServerFn({ method: "POST" })
     }
 
     if (!found) {
-      await supabase.from("asset_verification_events").insert({ user_id: userId, asset_id: data.asset_id, event: "verify_failed", payload: evidence });
+      await supabase.from("asset_verification_events").insert({ user_id: userId, asset_id: data.asset_id, event: "verify_failed", payload: evidence as never });
       throw new Error("Verification code not found on channel. Ensure you posted it and try again.");
     }
 
-    await supabase.from("youtube_verification_challenges").update({ used_at: new Date().toISOString(), evidence }).eq("id", chal.id);
+    await supabase.from("youtube_verification_challenges").update({ used_at: new Date().toISOString(), evidence: evidence as never }).eq("id", chal.id);
     await supabase.from("digital_assets").update({ verification_status: "VERIFIED", verification_method: "code_challenge", verified_at: new Date().toISOString() }).eq("id", data.asset_id);
-    await supabase.from("asset_verification_events").insert({ user_id: userId, asset_id: data.asset_id, event: "verified", payload: evidence });
+    await supabase.from("asset_verification_events").insert({ user_id: userId, asset_id: data.asset_id, event: "verified", payload: evidence as never });
     return { ok: true, evidence };
   });
