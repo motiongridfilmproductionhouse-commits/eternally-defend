@@ -70,13 +70,16 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
       const key = `clients/${userId}/reference/liveness/${data.sessionId}.jpg`;
       await putObject({ key, body: Buffer.from(bytes), contentType: "image/jpeg" });
       const faces = await indexFace({ collectionId, bytes, externalImageId: `user_${userId.replace(/-/g, "")}` });
-      for (const f of faces) {
-        await supabase.from("protected_face_references").insert({
-          profile_id: (await supabase.from("protected_face_profiles").select("id").eq("user_id", userId).maybeSingle()).data?.id,
-          user_id: userId, s3_key: key, face_id: f.faceId, quality_scores: { confidence: f.confidence },
-        });
-        if (f.faceId) savedFaceIds.push(f.faceId);
-        savedKeys.push(key);
+      const { data: prof } = await supabase.from("protected_face_profiles").select("id").eq("user_id", userId).maybeSingle();
+      const profileId = prof?.id;
+      if (profileId) {
+        for (const f of faces) {
+          await supabase.from("protected_face_references").insert({
+            profile_id: profileId, user_id: userId, s3_key: key, face_id: f.faceId, quality_scores: { confidence: f.confidence } as never,
+          });
+          if (f.faceId) savedFaceIds.push(f.faceId);
+          savedKeys.push(key);
+        }
       }
     }
     void savedKeys;
