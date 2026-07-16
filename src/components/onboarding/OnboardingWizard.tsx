@@ -38,7 +38,7 @@ const STEP_TITLES = [
 export function OnboardingWizard({ initialProgress }: { initialProgress: any }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [step, setStep] = useState<number>(Math.max(initialProgress?.current_step ?? 1, 1));
+  const [step, setStep] = useState<number>(2);
   const setStatus = useServerFn(setStepStatus);
   const refreshProgress = useServerFn(getProgress);
 
