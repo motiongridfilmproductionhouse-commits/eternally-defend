@@ -95,7 +95,7 @@ export const decideAuthorization = createServerFn({ method: "POST" })
         && score >= 100;
 
       await supabase.from("client_authorizations").update({
-        status: newStatus, enforcement_enabled: enforcementReady,
+        status: newStatus as never, enforcement_enabled: enforcementReady,
       }).eq("id", auth.id);
 
       // Generate certificate PDF + QR
@@ -113,7 +113,7 @@ export const decideAuthorization = createServerFn({ method: "POST" })
       line(`Certificate: ${cert_number}`, bold);
       line(`Authorization: ${auth.auth_number}`);
       line(`Client ID: ${profile?.client_id ?? ""}`);
-      line(`Name: ${profile?.display_name ?? profile?.legal_name ?? ""}`);
+      line(`Name: ${profile?.display_name ?? (profile as { full_name?: string } | null)?.full_name ?? ""}`);
       line(`Company: ${profile?.company_name ?? ""}`);
       line(`Verification Score: ${score}/100`);
       line(`Status: ACTIVE`);
@@ -151,7 +151,7 @@ export const decideAuthorization = createServerFn({ method: "POST" })
       });
       await supabase.from("onboarding_progress").update({ current_step: 10, overall_status: "COMPLETED" }).eq("user_id", auth.user_id);
     } else {
-      await supabase.from("client_authorizations").update({ status: newStatus, enforcement_enabled: false }).eq("id", auth.id);
+      await supabase.from("client_authorizations").update({ status: newStatus as never, enforcement_enabled: false }).eq("id", auth.id);
     }
 
     await supabase.from("authorization_audit_logs").insert({
