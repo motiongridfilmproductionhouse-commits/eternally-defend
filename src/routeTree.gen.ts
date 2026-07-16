@@ -29,6 +29,7 @@ import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vau
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
+import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
 import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
@@ -133,6 +134,11 @@ const AppAssetsRoute = AppAssetsRouteImport.update({
   path: '/assets',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiPublicVeriffWebhookRoute = ApiPublicVeriffWebhookRouteImport.update({
+  id: '/api/public/veriff-webhook',
+  path: '/api/public/veriff-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMediaPreviewRoute = ApiMediaPreviewRouteImport.update({
   id: '/api/media/preview',
   path: '/api/media/preview',
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
+  '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
+  '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -224,6 +232,7 @@ export interface FileRoutesById {
   '/_app/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/_app/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
+  '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -250,6 +259,7 @@ export interface FileRouteTypes {
     | '/admin/multimedia-health'
     | '/admin/provider-activation'
     | '/api/media/preview'
+    | '/api/public/veriff-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/admin/multimedia-health'
     | '/admin/provider-activation'
     | '/api/media/preview'
+    | '/api/public/veriff-webhook'
   id:
     | '__root__'
     | '/_app'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/_app/admin/multimedia-health'
     | '/_app/admin/provider-activation'
     | '/api/media/preview'
+    | '/api/public/veriff-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -308,6 +320,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ApiScanRoute: typeof ApiScanRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
+  ApiPublicVeriffWebhookRoute: typeof ApiPublicVeriffWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -452,6 +465,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/veriff-webhook': {
+      id: '/api/public/veriff-webhook'
+      path: '/api/public/veriff-webhook'
+      fullPath: '/api/public/veriff-webhook'
+      preLoaderRoute: typeof ApiPublicVeriffWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/media/preview': {
       id: '/api/media/preview'
       path: '/api/media/preview'
@@ -525,17 +545,8 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ApiScanRoute: ApiScanRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
+  ApiPublicVeriffWebhookRoute: ApiPublicVeriffWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

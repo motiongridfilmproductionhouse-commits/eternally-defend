@@ -164,6 +164,156 @@ export type Database = {
           },
         ]
       }
+      asset_verification_events: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          event: string
+          id: string
+          payload: Json | null
+          user_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          event: string
+          id?: string
+          payload?: Json | null
+          user_id: string
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          event?: string
+          id?: string
+          payload?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_verification_events_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "digital_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      authorization_admin_reviews: {
+        Row: {
+          authorization_id: string
+          decided_at: string
+          decision: string
+          id: string
+          notes: string | null
+          reviewer_id: string | null
+          user_id: string
+        }
+        Insert: {
+          authorization_id: string
+          decided_at?: string
+          decision: string
+          id?: string
+          notes?: string | null
+          reviewer_id?: string | null
+          user_id: string
+        }
+        Update: {
+          authorization_id?: string
+          decided_at?: string
+          decision?: string
+          id?: string
+          notes?: string | null
+          reviewer_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorization_admin_reviews_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      authorization_audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          payload: Json | null
+          target: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json | null
+          target?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json | null
+          target?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      authorization_documents: {
+        Row: {
+          authorization_id: string
+          created_at: string
+          id: string
+          kind: string
+          s3_key: string
+          sha256: string | null
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          authorization_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          s3_key: string
+          sha256?: string | null
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          authorization_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          s3_key?: string
+          sha256?: string | null
+          user_id?: string
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorization_documents_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       authorization_records: {
         Row: {
           active: boolean
@@ -209,6 +359,168 @@ export type Database = {
           onboarding_version?: string
           signature_hash?: string
           signature_text?: string
+          signed_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      authorization_scopes: {
+        Row: {
+          authorization_id: string
+          created_at: string
+          granted: boolean
+          id: string
+          scope_key: string
+          user_id: string
+        }
+        Insert: {
+          authorization_id: string
+          created_at?: string
+          granted?: boolean
+          id?: string
+          scope_key: string
+          user_id: string
+        }
+        Update: {
+          authorization_id?: string
+          created_at?: string
+          granted?: boolean
+          id?: string
+          scope_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorization_scopes_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      authorization_signatures: {
+        Row: {
+          authorization_id: string
+          created_at: string
+          document_sha256: string | null
+          drawn_signature_svg: string | null
+          id: string
+          ip_address: string | null
+          otp_verified_at: string | null
+          role_title: string | null
+          signed_at: string | null
+          status: Database["public"]["Enums"]["signature_status"]
+          typed_name: string | null
+          user_agent: string | null
+          user_id: string
+          version: number
+        }
+        Insert: {
+          authorization_id: string
+          created_at?: string
+          document_sha256?: string | null
+          drawn_signature_svg?: string | null
+          id?: string
+          ip_address?: string | null
+          otp_verified_at?: string | null
+          role_title?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["signature_status"]
+          typed_name?: string | null
+          user_agent?: string | null
+          user_id: string
+          version: number
+        }
+        Update: {
+          authorization_id?: string
+          created_at?: string
+          document_sha256?: string | null
+          drawn_signature_svg?: string | null
+          id?: string
+          ip_address?: string | null
+          otp_verified_at?: string | null
+          role_title?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["signature_status"]
+          typed_name?: string | null
+          user_agent?: string | null
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorization_signatures_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      authorization_versions: {
+        Row: {
+          authorization_id: string
+          created_at: string
+          id: string
+          snapshot: Json
+          user_id: string
+          version: number
+        }
+        Insert: {
+          authorization_id: string
+          created_at?: string
+          id?: string
+          snapshot: Json
+          user_id: string
+          version: number
+        }
+        Update: {
+          authorization_id?: string
+          created_at?: string
+          id?: string
+          snapshot?: Json
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorization_versions_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      biometric_consents: {
+        Row: {
+          consent_version: string
+          consents: Json
+          id: string
+          ip_address: string | null
+          revoked_at: string | null
+          signed_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          consent_version: string
+          consents: Json
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
+          signed_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          consent_version?: string
+          consents?: Json
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
           signed_at?: string
           user_agent?: string | null
           user_id?: string
@@ -358,21 +670,70 @@ export type Database = {
         }
         Relationships: []
       }
+      client_authorizations: {
+        Row: {
+          auth_number: string
+          created_at: string
+          effective_date: string | null
+          enforcement_enabled: boolean
+          expiry_date: string | null
+          id: string
+          snapshot: Json | null
+          status: Database["public"]["Enums"]["authorization_status"]
+          territory: string | null
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          auth_number: string
+          created_at?: string
+          effective_date?: string | null
+          enforcement_enabled?: boolean
+          expiry_date?: string | null
+          id?: string
+          snapshot?: Json | null
+          status?: Database["public"]["Enums"]["authorization_status"]
+          territory?: string | null
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          auth_number?: string
+          created_at?: string
+          effective_date?: string | null
+          enforcement_enabled?: boolean
+          expiry_date?: string | null
+          id?: string
+          snapshot?: Json | null
+          status?: Database["public"]["Enums"]["authorization_status"]
+          territory?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       client_profiles: {
         Row: {
           account_type: Database["public"]["Enums"]["account_type_enum"] | null
+          address: string | null
           authorization_level:
             | Database["public"]["Enums"]["authorization_level_enum"]
             | null
           authorization_status: Database["public"]["Enums"]["authorization_status_enum"]
           business_reg_number: string | null
+          client_id: string | null
           client_type: Database["public"]["Enums"]["client_type_enum"] | null
           company_email: string | null
           company_name: string | null
           contact_person: string | null
           country: string | null
           created_at: string
+          display_name: string | null
           email: string | null
+          email_verified_at: string | null
           full_name: string | null
           gov_id_ref: string | null
           official_socials: Json
@@ -380,6 +741,8 @@ export type Database = {
           onboarding_step: number
           onboarding_version: string
           phone: string | null
+          phone_verified_at: string | null
+          role_title: string | null
           sidebar_collapsed: boolean
           social_profiles: Json
           updated_at: string
@@ -388,18 +751,22 @@ export type Database = {
         }
         Insert: {
           account_type?: Database["public"]["Enums"]["account_type_enum"] | null
+          address?: string | null
           authorization_level?:
             | Database["public"]["Enums"]["authorization_level_enum"]
             | null
           authorization_status?: Database["public"]["Enums"]["authorization_status_enum"]
           business_reg_number?: string | null
+          client_id?: string | null
           client_type?: Database["public"]["Enums"]["client_type_enum"] | null
           company_email?: string | null
           company_name?: string | null
           contact_person?: string | null
           country?: string | null
           created_at?: string
+          display_name?: string | null
           email?: string | null
+          email_verified_at?: string | null
           full_name?: string | null
           gov_id_ref?: string | null
           official_socials?: Json
@@ -407,6 +774,8 @@ export type Database = {
           onboarding_step?: number
           onboarding_version?: string
           phone?: string | null
+          phone_verified_at?: string | null
+          role_title?: string | null
           sidebar_collapsed?: boolean
           social_profiles?: Json
           updated_at?: string
@@ -415,18 +784,22 @@ export type Database = {
         }
         Update: {
           account_type?: Database["public"]["Enums"]["account_type_enum"] | null
+          address?: string | null
           authorization_level?:
             | Database["public"]["Enums"]["authorization_level_enum"]
             | null
           authorization_status?: Database["public"]["Enums"]["authorization_status_enum"]
           business_reg_number?: string | null
+          client_id?: string | null
           client_type?: Database["public"]["Enums"]["client_type_enum"] | null
           company_email?: string | null
           company_name?: string | null
           contact_person?: string | null
           country?: string | null
           created_at?: string
+          display_name?: string | null
           email?: string | null
+          email_verified_at?: string | null
           full_name?: string | null
           gov_id_ref?: string | null
           official_socials?: Json
@@ -434,11 +807,61 @@ export type Database = {
           onboarding_step?: number
           onboarding_version?: string
           phone?: string | null
+          phone_verified_at?: string | null
+          role_title?: string | null
           sidebar_collapsed?: boolean
           social_profiles?: Json
           updated_at?: string
           user_id?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      digital_assets: {
+        Row: {
+          channel_id: string | null
+          channel_url: string | null
+          created_at: string
+          handle: string | null
+          id: string
+          kind: string
+          metadata: Json
+          name: string | null
+          updated_at: string
+          user_id: string
+          verification_method: string | null
+          verification_status: Database["public"]["Enums"]["asset_verification_status"]
+          verified_at: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          channel_url?: string | null
+          created_at?: string
+          handle?: string | null
+          id?: string
+          kind: string
+          metadata?: Json
+          name?: string | null
+          updated_at?: string
+          user_id: string
+          verification_method?: string | null
+          verification_status?: Database["public"]["Enums"]["asset_verification_status"]
+          verified_at?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          channel_url?: string | null
+          created_at?: string
+          handle?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          name?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_method?: string | null
+          verification_status?: Database["public"]["Enums"]["asset_verification_status"]
+          verified_at?: string | null
         }
         Relationships: []
       }
@@ -1425,6 +1848,57 @@ export type Database = {
         }
         Relationships: []
       }
+      kyc_verifications: {
+        Row: {
+          client_id: string | null
+          country: string | null
+          created_at: string
+          document_type: string | null
+          id: string
+          provider_reference: string | null
+          raw_webhook: Json | null
+          review_reason: string | null
+          session_url: string | null
+          updated_at: string
+          user_id: string
+          veriff_session_id: string | null
+          verification_date: string | null
+          verification_status: Database["public"]["Enums"]["kyc_status"]
+        }
+        Insert: {
+          client_id?: string | null
+          country?: string | null
+          created_at?: string
+          document_type?: string | null
+          id?: string
+          provider_reference?: string | null
+          raw_webhook?: Json | null
+          review_reason?: string | null
+          session_url?: string | null
+          updated_at?: string
+          user_id: string
+          veriff_session_id?: string | null
+          verification_date?: string | null
+          verification_status?: Database["public"]["Enums"]["kyc_status"]
+        }
+        Update: {
+          client_id?: string | null
+          country?: string | null
+          created_at?: string
+          document_type?: string | null
+          id?: string
+          provider_reference?: string | null
+          raw_webhook?: Json | null
+          review_reason?: string | null
+          session_url?: string | null
+          updated_at?: string
+          user_id?: string
+          veriff_session_id?: string | null
+          verification_date?: string | null
+          verification_status?: Database["public"]["Enums"]["kyc_status"]
+        }
+        Relationships: []
+      }
       legal_cases: {
         Row: {
           attorney: string | null
@@ -1843,6 +2317,33 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_progress: {
+        Row: {
+          created_at: string
+          current_step: number
+          overall_status: Database["public"]["Enums"]["onboarding_overall_status"]
+          step_states: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_step?: number
+          overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
+          step_states?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_step?: number
+          overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
+          step_states?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       platform_reports: {
         Row: {
           created_at: string
@@ -2015,6 +2516,83 @@ export type Database = {
             columns: ["discovered_account_id"]
             isOneToOne: false
             referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protected_face_profiles: {
+        Row: {
+          collection_id: string
+          created_at: string
+          enrollment_date: string | null
+          id: string
+          liveness_score: number | null
+          liveness_session_id: string | null
+          rekognition_user_id: string | null
+          status: Database["public"]["Enums"]["face_profile_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          enrollment_date?: string | null
+          id?: string
+          liveness_score?: number | null
+          liveness_session_id?: string | null
+          rekognition_user_id?: string | null
+          status?: Database["public"]["Enums"]["face_profile_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          enrollment_date?: string | null
+          id?: string
+          liveness_score?: number | null
+          liveness_session_id?: string | null
+          rekognition_user_id?: string | null
+          status?: Database["public"]["Enums"]["face_profile_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      protected_face_references: {
+        Row: {
+          created_at: string
+          face_id: string | null
+          id: string
+          profile_id: string
+          quality_scores: Json | null
+          s3_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          face_id?: string | null
+          id?: string
+          profile_id: string
+          quality_scores?: Json | null
+          s3_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          face_id?: string | null
+          id?: string
+          profile_id?: string
+          quality_scores?: Json | null
+          s3_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protected_face_references_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "protected_face_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2833,6 +3411,59 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_certificates: {
+        Row: {
+          authorization_id: string
+          certificate_number: string
+          expires_at: string | null
+          id: string
+          issued_at: string
+          public_slug: string
+          s3_key: string | null
+          score: number
+          sha256: string | null
+          snapshot: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          authorization_id: string
+          certificate_number: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string
+          public_slug: string
+          s3_key?: string | null
+          score: number
+          sha256?: string | null
+          snapshot?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          authorization_id?: string
+          certificate_number?: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string
+          public_slug?: string
+          s3_key?: string | null
+          score?: number
+          sha256?: string | null
+          snapshot?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_certificates_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_analysis_jobs: {
         Row: {
           analysis_state: string
@@ -3446,11 +4077,69 @@ export type Database = {
           },
         ]
       }
+      youtube_verification_challenges: {
+        Row: {
+          asset_id: string
+          code: string
+          created_at: string
+          evidence: Json | null
+          expires_at: string
+          id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          asset_id: string
+          code: string
+          created_at?: string
+          evidence?: Json | null
+          expires_at: string
+          id?: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          asset_id?: string
+          code?: string
+          created_at?: string
+          evidence?: Json | null
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_verification_challenges_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "digital_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_public_verification: {
+        Args: { _slug: string }
+        Returns: {
+          auth_number: string
+          authorization_status: Database["public"]["Enums"]["authorization_status"]
+          certificate_number: string
+          client_id: string
+          company_name: string
+          display_name: string
+          enforcement_enabled: boolean
+          expires_at: string
+          issued_at: string
+          public_slug: string
+          score: number
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3474,11 +4163,32 @@ export type Database = {
         | "image"
         | "video"
         | "copyright"
+      asset_verification_status:
+        | "UNVERIFIED"
+        | "CODE_GENERATED"
+        | "VERIFICATION_PENDING"
+        | "VERIFIED"
+        | "REJECTED"
+        | "EXPIRED"
+        | "REVOKED"
       authorization_level_enum:
         | "monitoring"
         | "monitoring_evidence"
         | "monitoring_enforcement"
         | "full_protection"
+      authorization_status:
+        | "DRAFT"
+        | "AWAITING_KYC"
+        | "AWAITING_FACE_VERIFICATION"
+        | "AWAITING_ASSET_VERIFICATION"
+        | "AWAITING_SIGNATURE"
+        | "SIGNED"
+        | "UNDER_ADMIN_REVIEW"
+        | "ACTIVE"
+        | "REJECTED"
+        | "SUSPENDED"
+        | "REVOKED"
+        | "EXPIRED"
       authorization_status_enum:
         | "pending"
         | "authorized"
@@ -3524,6 +4234,44 @@ export type Database = {
         | "agency_agreement"
         | "power_of_attorney"
         | "brand_protection"
+      face_profile_status:
+        | "NOT_STARTED"
+        | "CONSENT_REQUIRED"
+        | "CAMERA_PERMISSION_REQUIRED"
+        | "CAPTURE_IN_PROGRESS"
+        | "LIVENESS_PROCESSING"
+        | "LIVENESS_FAILED"
+        | "QUALITY_FAILED"
+        | "FACE_VERIFIED"
+        | "MANUAL_REVIEW"
+        | "DELETION_REQUESTED"
+        | "DELETED"
+      kyc_status:
+        | "NOT_STARTED"
+        | "SESSION_CREATED"
+        | "IN_PROGRESS"
+        | "SUBMITTED"
+        | "APPROVED"
+        | "DECLINED"
+        | "RESUBMISSION_REQUIRED"
+        | "EXPIRED"
+        | "MANUAL_REVIEW"
+      onboarding_overall_status:
+        | "NOT_STARTED"
+        | "IN_PROGRESS"
+        | "ACTION_REQUIRED"
+        | "UNDER_REVIEW"
+        | "VERIFIED"
+        | "REJECTED"
+        | "COMPLETED"
+      signature_status:
+        | "DRAFT"
+        | "READY_FOR_REVIEW"
+        | "AWAITING_SIGNATURE"
+        | "AWAITING_OTP"
+        | "SIGNED"
+        | "VOIDED"
+        | "SUPERSEDED"
       verification_method:
         | "oauth"
         | "domain_dns"
@@ -3675,11 +4423,34 @@ export const Constants = {
         "video",
         "copyright",
       ],
+      asset_verification_status: [
+        "UNVERIFIED",
+        "CODE_GENERATED",
+        "VERIFICATION_PENDING",
+        "VERIFIED",
+        "REJECTED",
+        "EXPIRED",
+        "REVOKED",
+      ],
       authorization_level_enum: [
         "monitoring",
         "monitoring_evidence",
         "monitoring_enforcement",
         "full_protection",
+      ],
+      authorization_status: [
+        "DRAFT",
+        "AWAITING_KYC",
+        "AWAITING_FACE_VERIFICATION",
+        "AWAITING_ASSET_VERIFICATION",
+        "AWAITING_SIGNATURE",
+        "SIGNED",
+        "UNDER_ADMIN_REVIEW",
+        "ACTIVE",
+        "REJECTED",
+        "SUSPENDED",
+        "REVOKED",
+        "EXPIRED",
       ],
       authorization_status_enum: [
         "pending",
@@ -3732,6 +4503,48 @@ export const Constants = {
         "agency_agreement",
         "power_of_attorney",
         "brand_protection",
+      ],
+      face_profile_status: [
+        "NOT_STARTED",
+        "CONSENT_REQUIRED",
+        "CAMERA_PERMISSION_REQUIRED",
+        "CAPTURE_IN_PROGRESS",
+        "LIVENESS_PROCESSING",
+        "LIVENESS_FAILED",
+        "QUALITY_FAILED",
+        "FACE_VERIFIED",
+        "MANUAL_REVIEW",
+        "DELETION_REQUESTED",
+        "DELETED",
+      ],
+      kyc_status: [
+        "NOT_STARTED",
+        "SESSION_CREATED",
+        "IN_PROGRESS",
+        "SUBMITTED",
+        "APPROVED",
+        "DECLINED",
+        "RESUBMISSION_REQUIRED",
+        "EXPIRED",
+        "MANUAL_REVIEW",
+      ],
+      onboarding_overall_status: [
+        "NOT_STARTED",
+        "IN_PROGRESS",
+        "ACTION_REQUIRED",
+        "UNDER_REVIEW",
+        "VERIFIED",
+        "REJECTED",
+        "COMPLETED",
+      ],
+      signature_status: [
+        "DRAFT",
+        "READY_FOR_REVIEW",
+        "AWAITING_SIGNATURE",
+        "AWAITING_OTP",
+        "SIGNED",
+        "VOIDED",
+        "SUPERSEDED",
       ],
       verification_method: [
         "oauth",
