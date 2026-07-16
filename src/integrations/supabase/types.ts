@@ -4120,27 +4120,26 @@ export type Database = {
       }
     }
     Views: {
-      public_verifications: {
-        Row: {
-          auth_number: string | null
-          authorization_status:
-            | Database["public"]["Enums"]["authorization_status"]
-            | null
-          certificate_number: string | null
-          client_id: string | null
-          company_name: string | null
-          display_name: string | null
-          enforcement_enabled: boolean | null
-          expires_at: string | null
-          issued_at: string | null
-          public_slug: string | null
-          score: number | null
-          status: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
+      get_public_verification: {
+        Args: { _slug: string }
+        Returns: {
+          auth_number: string
+          authorization_status: Database["public"]["Enums"]["authorization_status"]
+          certificate_number: string
+          client_id: string
+          company_name: string
+          display_name: string
+          enforcement_enabled: boolean
+          expires_at: string
+          issued_at: string
+          public_slug: string
+          score: number
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
