@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { ShieldHalf } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
+ ssr: false,
   head: () => ({ meta: [
     { title: "Sign In — Eterna AI" },
     { name: "description", content: "Sign in to Eterna AI — AI-powered digital protection, content fingerprinting and automated takedowns." },
   ]}),
   component: AuthPage,
 });
+  
 
 function AuthPage() {
   const navigate = useNavigate();
