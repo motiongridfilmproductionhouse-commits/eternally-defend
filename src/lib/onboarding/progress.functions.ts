@@ -24,7 +24,7 @@ export const setStepStatus = createServerFn({ method: "POST" })
     const { data: cur } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
     const states = { ...((cur?.step_states as Record<string, StepStatus>) ?? {}), [String(data.step)]: data.status };
     const current_step = data.advance ? Math.max(cur?.current_step ?? 1, data.step + 1) : (cur?.current_step ?? data.step);
-    const overall_status = data.step >= 10 && data.status === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS";
+    const overall_status = data.step >= 9 && data.status === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS";
     const { data: up } = await supabase
       .from("onboarding_progress")
       .upsert({ user_id: userId, current_step, step_states: states, overall_status }, { onConflict: "user_id" })

@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { getOnboardingState } from "@/lib/onboarding.functions";
+import { getProgress } from "@/lib/onboarding/progress.functions";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { Loader2 } from "lucide-react";
 
@@ -24,15 +24,16 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 function OnboardingPage() {
-  const fetchState = useServerFn(getOnboardingState);
-  const q = useQuery({ queryKey: ["onboarding-state"], queryFn: () => fetchState() });
+  const fetchProgress = useServerFn(getProgress);
+  const q = useQuery({ queryKey: ["onboarding-progress"], queryFn: () => fetchProgress() });
 
-  if (q.isLoading || !q.data) {
+  if (q.isLoading) {
     return (
       <div className="fixed inset-0 grid place-items-center bg-[#050A18] text-white/70 text-sm gap-2">
-        <div className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Loading onboarding…</div>
+        <div className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Loading secure onboarding…</div>
       </div>
     );
   }
-  return <OnboardingWizard initial={q.data} />;
+  
+  return <OnboardingWizard initialProgress={q.data} />;
 }

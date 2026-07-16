@@ -5,8 +5,13 @@ export const Route = createFileRoute("/api/public/veriff-webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const apiKey = process.env.VERIFF_API_KEY;
         const secret = process.env.VERIFF_SHARED_SECRET;
-        if (!secret) return new Response("not configured", { status: 500 });
+        if (!apiKey || !secret) return new Response("not configured", { status: 500 });
+        
+        const clientHeader = request.headers.get("x-auth-client") ?? "";
+        if (clientHeader !== apiKey) return new Response("bad client id", { status: 401 });
+
         const sig = request.headers.get("x-hmac-signature") ?? request.headers.get("x-signature") ?? "";
         const body = await request.text();
         const expected = createHmac("sha256", secret).update(body).digest("hex");
@@ -18,12 +23,15 @@ export const Route = createFileRoute("/api/public/veriff-webhook")({
         const payload = JSON.parse(body);
         const veriff_session_id: string | undefined = payload?.verification?.id ?? payload?.sessionId;
         const vendorData: string | undefined = payload?.verification?.vendorData ?? payload?.vendorData;
-        const codeStatus: string | undefined = payload?.verification?.status ?? payload?.status;
+        const codeStatus: string | undefined = payload?.verification?.status ?? payload?.status ?? payload?.action;
+        
+        // Map Veriff string to DB Enum
         const map: Record<string, string> = {
           approved: "APPROVED", declined: "DECLINED", resubmission_requested: "RESUBMISSION_REQUIRED",
-          expired: "EXPIRED", submitted: "SUBMITTED", review: "MANUAL_REVIEW", started: "IN_PROGRESS",
+          expired: "EXPIRED", submitted: "SUBMITTED", review: "MANUAL_REVIEW", review_required: "MANUAL_REVIEW", 
+          started: "IN_PROGRESS", pending: "IN_PROGRESS", created: "SESSION_CREATED"
         };
-        const status = map[codeStatus ?? ""] ?? "IN_PROGRESS";
+        const status = map[codeStatus?.toLowerCase() ?? ""] ?? "IN_PROGRESS";
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const patch: Record<string, unknown> = {

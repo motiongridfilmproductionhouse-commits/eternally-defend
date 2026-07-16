@@ -14,6 +14,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
 import { Route as AppThreatRadarRouteImport } from './routes/_app.threat-radar'
 import { Route as AppThreatMonitoringRouteImport } from './routes/_app.threat-monitoring'
@@ -29,10 +30,18 @@ import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vau
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
+import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
 import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
 import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
+import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes/_app.sensitive-protection.removal-cases'
+import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
+import { Route as AppAdminSensitiveProtectionRouteImport } from './routes/_app.admin.sensitive-protection'
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
+import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.admin.onboarding-reviews'
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
+import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
+import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
+import { Route as AppSensitiveProtectionResultsIdRouteImport } from './routes/_app.sensitive-protection.results.$id'
 
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
@@ -57,6 +66,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const VerifySlugRoute = VerifySlugRouteImport.update({
+  id: '/verify/$slug',
+  path: '/verify/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiScanRoute = ApiScanRouteImport.update({
   id: '/api/scan',
@@ -134,6 +148,12 @@ const AppAssetsRoute = AppAssetsRouteImport.update({
   path: '/assets',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSensitiveProtectionIndexRoute =
+  AppSensitiveProtectionIndexRouteImport.update({
+    id: '/sensitive-protection/',
+    path: '/sensitive-protection/',
+    getParentRoute: () => AppRoute,
+  } as any)
 const ApiPublicVeriffWebhookRoute = ApiPublicVeriffWebhookRouteImport.update({
   id: '/api/public/veriff-webhook',
   path: '/api/public/veriff-webhook',
@@ -144,16 +164,57 @@ const ApiMediaPreviewRoute = ApiMediaPreviewRouteImport.update({
   path: '/api/media/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSensitiveProtectionRemovalCasesRoute =
+  AppSensitiveProtectionRemovalCasesRouteImport.update({
+    id: '/sensitive-protection/removal-cases',
+    path: '/sensitive-protection/removal-cases',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSensitiveProtectionEmergencyRoute =
+  AppSensitiveProtectionEmergencyRouteImport.update({
+    id: '/sensitive-protection/emergency',
+    path: '/sensitive-protection/emergency',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdminSensitiveProtectionRoute =
+  AppAdminSensitiveProtectionRouteImport.update({
+    id: '/admin/sensitive-protection',
+    path: '/admin/sensitive-protection',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppAdminProviderActivationRoute =
   AppAdminProviderActivationRouteImport.update({
     id: '/admin/provider-activation',
     path: '/admin/provider-activation',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAdminOnboardingReviewsRoute =
+  AppAdminOnboardingReviewsRouteImport.update({
+    id: '/admin/onboarding-reviews',
+    path: '/admin/onboarding-reviews',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppAdminMultimediaHealthRoute =
   AppAdminMultimediaHealthRouteImport.update({
     id: '/admin/multimedia-health',
     path: '/admin/multimedia-health',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdminDiagnosticsRoute = AppAdminDiagnosticsRouteImport.update({
+  id: '/admin/diagnostics',
+  path: '/admin/diagnostics',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSensitiveProtectionResultsIndexRoute =
+  AppSensitiveProtectionResultsIndexRouteImport.update({
+    id: '/sensitive-protection/results/',
+    path: '/sensitive-protection/results/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSensitiveProtectionResultsIdRoute =
+  AppSensitiveProtectionResultsIdRouteImport.update({
+    id: '/sensitive-protection/results/$id',
+    path: '/sensitive-protection/results/$id',
     getParentRoute: () => AppRoute,
   } as any)
 
@@ -177,10 +238,19 @@ export interface FileRoutesByFullPath {
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
   '/api/scan': typeof ApiScanRoute
+  '/verify/$slug': typeof VerifySlugRoute
+  '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
+  '/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
+  '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
+  '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
+  '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
+  '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -201,11 +271,20 @@ export interface FileRoutesByTo {
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
   '/api/scan': typeof ApiScanRoute
+  '/verify/$slug': typeof VerifySlugRoute
   '/': typeof AppIndexRoute
+  '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
+  '/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
+  '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
+  '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
+  '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
+  '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -228,11 +307,20 @@ export interface FileRoutesById {
   '/_app/threat-monitoring': typeof AppThreatMonitoringRoute
   '/_app/threat-radar': typeof AppThreatRadarRoute
   '/api/scan': typeof ApiScanRoute
+  '/verify/$slug': typeof VerifySlugRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/_app/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
+  '/_app/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
   '/_app/admin/provider-activation': typeof AppAdminProviderActivationRoute
+  '/_app/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/_app/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
+  '/_app/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
+  '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
+  '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -256,10 +344,19 @@ export interface FileRouteTypes {
     | '/threat-monitoring'
     | '/threat-radar'
     | '/api/scan'
+    | '/verify/$slug'
+    | '/admin/diagnostics'
     | '/admin/multimedia-health'
+    | '/admin/onboarding-reviews'
     | '/admin/provider-activation'
+    | '/admin/sensitive-protection'
+    | '/sensitive-protection/emergency'
+    | '/sensitive-protection/removal-cases'
     | '/api/media/preview'
     | '/api/public/veriff-webhook'
+    | '/sensitive-protection/'
+    | '/sensitive-protection/results/$id'
+    | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -280,11 +377,20 @@ export interface FileRouteTypes {
     | '/threat-monitoring'
     | '/threat-radar'
     | '/api/scan'
+    | '/verify/$slug'
     | '/'
+    | '/admin/diagnostics'
     | '/admin/multimedia-health'
+    | '/admin/onboarding-reviews'
     | '/admin/provider-activation'
+    | '/admin/sensitive-protection'
+    | '/sensitive-protection/emergency'
+    | '/sensitive-protection/removal-cases'
     | '/api/media/preview'
     | '/api/public/veriff-webhook'
+    | '/sensitive-protection'
+    | '/sensitive-protection/results/$id'
+    | '/sensitive-protection/results'
   id:
     | '__root__'
     | '/_app'
@@ -306,11 +412,20 @@ export interface FileRouteTypes {
     | '/_app/threat-monitoring'
     | '/_app/threat-radar'
     | '/api/scan'
+    | '/verify/$slug'
     | '/_app/'
+    | '/_app/admin/diagnostics'
     | '/_app/admin/multimedia-health'
+    | '/_app/admin/onboarding-reviews'
     | '/_app/admin/provider-activation'
+    | '/_app/admin/sensitive-protection'
+    | '/_app/sensitive-protection/emergency'
+    | '/_app/sensitive-protection/removal-cases'
     | '/api/media/preview'
     | '/api/public/veriff-webhook'
+    | '/_app/sensitive-protection/'
+    | '/_app/sensitive-protection/results/$id'
+    | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -319,6 +434,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PrivacyRoute: typeof PrivacyRoute
   ApiScanRoute: typeof ApiScanRoute
+  VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
   ApiPublicVeriffWebhookRoute: typeof ApiPublicVeriffWebhookRoute
 }
@@ -359,6 +475,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/verify/$slug': {
+      id: '/verify/$slug'
+      path: '/verify/$slug'
+      fullPath: '/verify/$slug'
+      preLoaderRoute: typeof VerifySlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/scan': {
       id: '/api/scan'
@@ -465,6 +588,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sensitive-protection/': {
+      id: '/_app/sensitive-protection/'
+      path: '/sensitive-protection'
+      fullPath: '/sensitive-protection/'
+      preLoaderRoute: typeof AppSensitiveProtectionIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/public/veriff-webhook': {
       id: '/api/public/veriff-webhook'
       path: '/api/public/veriff-webhook'
@@ -479,6 +609,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/sensitive-protection/removal-cases': {
+      id: '/_app/sensitive-protection/removal-cases'
+      path: '/sensitive-protection/removal-cases'
+      fullPath: '/sensitive-protection/removal-cases'
+      preLoaderRoute: typeof AppSensitiveProtectionRemovalCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sensitive-protection/emergency': {
+      id: '/_app/sensitive-protection/emergency'
+      path: '/sensitive-protection/emergency'
+      fullPath: '/sensitive-protection/emergency'
+      preLoaderRoute: typeof AppSensitiveProtectionEmergencyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/sensitive-protection': {
+      id: '/_app/admin/sensitive-protection'
+      path: '/admin/sensitive-protection'
+      fullPath: '/admin/sensitive-protection'
+      preLoaderRoute: typeof AppAdminSensitiveProtectionRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/provider-activation': {
       id: '/_app/admin/provider-activation'
       path: '/admin/provider-activation'
@@ -486,11 +637,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminProviderActivationRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/onboarding-reviews': {
+      id: '/_app/admin/onboarding-reviews'
+      path: '/admin/onboarding-reviews'
+      fullPath: '/admin/onboarding-reviews'
+      preLoaderRoute: typeof AppAdminOnboardingReviewsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/multimedia-health': {
       id: '/_app/admin/multimedia-health'
       path: '/admin/multimedia-health'
       fullPath: '/admin/multimedia-health'
       preLoaderRoute: typeof AppAdminMultimediaHealthRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/diagnostics': {
+      id: '/_app/admin/diagnostics'
+      path: '/admin/diagnostics'
+      fullPath: '/admin/diagnostics'
+      preLoaderRoute: typeof AppAdminDiagnosticsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sensitive-protection/results/': {
+      id: '/_app/sensitive-protection/results/'
+      path: '/sensitive-protection/results'
+      fullPath: '/sensitive-protection/results/'
+      preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sensitive-protection/results/$id': {
+      id: '/_app/sensitive-protection/results/$id'
+      path: '/sensitive-protection/results/$id'
+      fullPath: '/sensitive-protection/results/$id'
+      preLoaderRoute: typeof AppSensitiveProtectionResultsIdRouteImport
       parentRoute: typeof AppRoute
     }
   }
@@ -512,8 +691,16 @@ interface AppRouteChildren {
   AppThreatMonitoringRoute: typeof AppThreatMonitoringRoute
   AppThreatRadarRoute: typeof AppThreatRadarRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminDiagnosticsRoute: typeof AppAdminDiagnosticsRoute
   AppAdminMultimediaHealthRoute: typeof AppAdminMultimediaHealthRoute
+  AppAdminOnboardingReviewsRoute: typeof AppAdminOnboardingReviewsRoute
   AppAdminProviderActivationRoute: typeof AppAdminProviderActivationRoute
+  AppAdminSensitiveProtectionRoute: typeof AppAdminSensitiveProtectionRoute
+  AppSensitiveProtectionEmergencyRoute: typeof AppSensitiveProtectionEmergencyRoute
+  AppSensitiveProtectionRemovalCasesRoute: typeof AppSensitiveProtectionRemovalCasesRoute
+  AppSensitiveProtectionIndexRoute: typeof AppSensitiveProtectionIndexRoute
+  AppSensitiveProtectionResultsIdRoute: typeof AppSensitiveProtectionResultsIdRoute
+  AppSensitiveProtectionResultsIndexRoute: typeof AppSensitiveProtectionResultsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -532,8 +719,18 @@ const AppRouteChildren: AppRouteChildren = {
   AppThreatMonitoringRoute: AppThreatMonitoringRoute,
   AppThreatRadarRoute: AppThreatRadarRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAdminDiagnosticsRoute: AppAdminDiagnosticsRoute,
   AppAdminMultimediaHealthRoute: AppAdminMultimediaHealthRoute,
+  AppAdminOnboardingReviewsRoute: AppAdminOnboardingReviewsRoute,
   AppAdminProviderActivationRoute: AppAdminProviderActivationRoute,
+  AppAdminSensitiveProtectionRoute: AppAdminSensitiveProtectionRoute,
+  AppSensitiveProtectionEmergencyRoute: AppSensitiveProtectionEmergencyRoute,
+  AppSensitiveProtectionRemovalCasesRoute:
+    AppSensitiveProtectionRemovalCasesRoute,
+  AppSensitiveProtectionIndexRoute: AppSensitiveProtectionIndexRoute,
+  AppSensitiveProtectionResultsIdRoute: AppSensitiveProtectionResultsIdRoute,
+  AppSensitiveProtectionResultsIndexRoute:
+    AppSensitiveProtectionResultsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -544,9 +741,20 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PrivacyRoute: PrivacyRoute,
   ApiScanRoute: ApiScanRoute,
+  VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
   ApiPublicVeriffWebhookRoute: ApiPublicVeriffWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

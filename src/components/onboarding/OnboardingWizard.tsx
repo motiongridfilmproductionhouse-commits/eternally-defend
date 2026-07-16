@@ -1,260 +1,232 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-// Progress removed — using left-panel step indicator instead
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  addProtectedAsset, getOnboardingState, recordEnterpriseDocument, removeEnterpriseDocument,
-  removeProtectedAsset, submitAuthorization, upsertClientProfile,
-} from "@/lib/onboarding.functions";
-import { refreshOnboardingYouTubeAsset, type YTChannel } from "@/lib/youtube.functions";
-import { YouTubeChannelPicker, YouTubeAssetCard } from "@/components/onboarding/YouTubeChannelPicker";
-import {
-  AUTHORIZATION_LEVELS, CLIENT_TYPES, CONSENT_KEYS, CONSENT_TEXTS, ENTERPRISE_CLIENT_TYPES,
-} from "@/lib/onboarding-versions";
-import { CheckCircle2, Trash2, Upload, ChevronRight, ChevronLeft, ShieldCheck, User, Star, Video, Building2, Building, Users, Check } from "lucide-react";
-
-type State = Awaited<ReturnType<typeof getOnboardingState>>;
+import { Loader2, ShieldCheck, Check, ChevronRight, ChevronLeft, Lock } from "lucide-react";
+import { getProgress, setStepStatus } from "@/lib/onboarding/progress.functions";
+import { getClientProfile, saveClientProfile } from "@/lib/onboarding/profile.functions";
+import { getKycStatus, createVeriffSession } from "@/lib/onboarding/kyc.functions";
+import { getFaceEnrollment } from "@/lib/onboarding/face-enrollment.functions";
+import { listAssets } from "@/lib/onboarding/assets.functions";
+import { getAuthorizationBundle } from "@/lib/onboarding/authorization.functions";
+import { FaceEnrollmentStep } from "@/components/onboarding/FaceEnrollmentStep";
+import { AssetVerificationStep } from "@/components/onboarding/AssetVerificationStep";
+import { AuthorizationScopeStep } from "@/components/onboarding/AuthorizationScopeStep";
+import { AuthorizationReviewStep } from "@/components/onboarding/AuthorizationReviewStep";
+import { SignatureStep } from "@/components/onboarding/SignatureStep";
+import { CertificateStep } from "@/components/onboarding/CertificateStep";
+import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
 
 const STEP_TITLES = [
-  "Client Type",
-  "Client Information",
-  "Protected Assets",
-  "Authorization & Consent",
-  "Enforcement Authorization",
-  "Digital Signature",
-  "Authorization Vault",
-  "Enterprise Documents",
+  "Account & Client Profile",
+  "Veriff Identity Verification",
+  "Face Protection Enrollment",
+  "Digital Asset Verification",
+  "Authorization Scope",
+  "Authorization Letter Review",
+  "Electronic Signature & OTP",
+  "Verification Certificate",
+  "Onboarding Complete",
 ];
 
-export function OnboardingWizard({ initial }: { initial: State }) {
+export function OnboardingWizard({ initialProgress }: { initialProgress: any }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [state, setState] = useState<State>(initial);
-  const [step, setStep] = useState<number>(Math.min(Math.max(initial.profile?.onboarding_step ?? 1, 1), 8));
-  const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState<number>(Math.max(initialProgress?.current_step ?? 1, 1));
+  const setStatus = useServerFn(setStepStatus);
+  const refreshProgress = useServerFn(getProgress);
 
-  const upsert = useServerFn(upsertClientProfile);
-  const addAsset = useServerFn(addProtectedAsset);
-  const rmAsset = useServerFn(removeProtectedAsset);
-  const submit = useServerFn(submitAuthorization);
-  const recDoc = useServerFn(recordEnterpriseDocument);
-  const rmDoc = useServerFn(removeEnterpriseDocument);
-  const refresh = useServerFn(getOnboardingState);
+  // Queries for specific step data
+  const { data: profile, refetch: refetchProfile } = useQuery({
+    queryKey: ["client_profile"],
+    queryFn: () => useServerFn(getClientProfile)(),
+  });
 
-  const profile = state.profile;
-  const clientType = profile?.client_type ?? null;
-  const isEnterprise = clientType ? ENTERPRISE_CLIENT_TYPES.has(clientType) : false;
-  const totalSteps = isEnterprise ? 8 : 7;
+  const { data: kyc, refetch: refetchKyc } = useQuery({
+    queryKey: ["kyc_status"],
+    queryFn: () => useServerFn(getKycStatus)(),
+  });
 
-  const reload = async () => setState(await refresh());
+  const { data: faceEnrollment, refetch: refetchFaceEnrollment } = useQuery({
+    queryKey: ["face_enrollment_status"],
+    queryFn: () => useServerFn(getFaceEnrollment)(),
+  });
 
-  const savePatch = async (patch: Record<string, unknown>, nextStep: number) => {
-    setSaving(true);
+  const { data: assets } = useQuery({
+    queryKey: ["digital_assets"],
+    queryFn: () => useServerFn(listAssets)(),
+  });
+
+  const { data: authBundle } = useQuery({
+    queryKey: ["auth_bundle"],
+    queryFn: () => useServerFn(getAuthorizationBundle)(),
+  });
+
+  const advanceStep = async (nextStep: number, status: any = "COMPLETED") => {
     try {
-      await upsert({ data: { step: nextStep, patch } });
-      await reload();
-      setStep(nextStep);
+      await setStatus({ data: { step: step, status, advance: true } });
+      const p = await refreshProgress();
+      setStep(Math.max(p?.current_step ?? nextStep, nextStep));
+      await qc.invalidateQueries({ queryKey: ["onboarding-progress"] });
     } catch (e: any) {
-      toast.error(e?.message ?? "Save failed");
-    } finally { setSaving(false); }
+      toast.error(e?.message ?? "Failed to advance step");
+    }
   };
 
   const goBack = () => setStep((s) => Math.max(1, s - 1));
 
-  const stepIndex = Math.min(step, STEP_TITLES.length) - 1;
-  const visibleSteps = STEP_TITLES.slice(0, totalSteps);
+  const stepIndex = step - 1;
+  const isKycApproved = kyc?.verification_status === "APPROVED";
+  const isFaceVerified = faceEnrollment?.status === "FACE_VERIFIED";
+  const hasVerifiedAsset = assets?.some((a: any) => a.verification_status === "VERIFIED") ?? false;
+  const hasScopes = (authBundle?.scopes?.filter((s: any) => s.granted)?.length ?? 0) > 0;
+  
+  const auth = authBundle?.auth;
+  const isDraftReady = authBundle?.documents?.some((d: any) => d.kind === "draft" && d.version === auth?.version) ?? false;
+  const isReviewVisible = auth && auth.status !== "DRAFT";
+  const isApproved = auth?.status === "ACTIVE";
 
   return (
-    <div className="fixed inset-0 flex flex-col lg:flex-row bg-[#050A18] overflow-hidden">
-      {/* LEFT PANEL */}
-      <aside className="relative lg:w-[45%] md:w-[40%] w-full lg:h-full h-auto overflow-hidden text-white flex flex-col justify-between p-8 md:p-12 lg:p-14"
-        style={{
-          background:
-            "linear-gradient(135deg, #071B4A 0%, #1037A6 55%, #1E5EFF 100%)",
-        }}
+    <div className="fixed inset-0 flex flex-col lg:flex-row bg-[#050A18] overflow-hidden text-white">
+      <aside
+        className="relative lg:w-[40%] md:w-[45%] w-full lg:h-full h-auto overflow-hidden flex flex-col justify-between p-8 md:p-12"
+        style={{ background: "linear-gradient(135deg, #071B4A 0%, #1037A6 55%, #1E5EFF 100%)" }}
       >
-        {/* radial glows */}
-        <div className="pointer-events-none absolute -top-40 -left-32 size-[520px] rounded-full opacity-60"
-          style={{ background: "radial-gradient(closest-side, rgba(96,165,250,0.35), transparent 70%)" }} />
-        <div className="pointer-events-none absolute -bottom-52 -right-40 size-[620px] rounded-full opacity-50"
-          style={{ background: "radial-gradient(closest-side, rgba(59,130,246,0.35), transparent 70%)" }} />
-        <div className="pointer-events-none absolute right-16 top-40 size-56 rounded-full bg-cyan-400/10 blur-3xl animate-pulse" />
-
-        {/* cyber grid */}
-        <div className="pointer-events-none absolute inset-0 opacity-[0.08]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-            maskImage: "radial-gradient(ellipse at 30% 40%, black 40%, transparent 80%)",
-          }}
-        />
-
-        {/* orbital rings */}
-        <div className="pointer-events-none absolute -right-32 top-1/2 -translate-y-1/2 size-[520px] rounded-full border border-white/10" />
-        <div className="pointer-events-none absolute -right-16 top-1/2 -translate-y-1/2 size-[360px] rounded-full border border-white/15" />
-        <div className="pointer-events-none absolute right-24 top-1/2 -translate-y-1/2 size-[220px] rounded-full border border-white/10" />
-
-        {/* glass overlay */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/[0.06] to-transparent" />
-
-        {/* LOGO */}
+        <div className="pointer-events-none absolute -top-40 -left-32 size-[520px] rounded-full opacity-60 bg-blue-400/30 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-52 -right-40 size-[620px] rounded-full opacity-50 bg-blue-600/30 blur-3xl" />
+        
         <div className="relative z-10 flex items-center gap-3">
-          <div className="size-10 rounded-xl grid place-items-center bg-white/15 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(30,94,255,0.35)]">
+          <div className="size-10 rounded-xl grid place-items-center bg-white/15 backdrop-blur-xl border border-white/20 shadow-lg">
             <ShieldCheck className="size-5" />
           </div>
           <div className="font-display text-xl font-bold tracking-tight">Eterna AI</div>
         </div>
 
-        {/* HERO + TIMELINE */}
-        <div className="relative z-10 space-y-10 my-10 lg:my-0">
-          <div>
-            <div className="text-[11px] font-semibold tracking-[0.28em] text-white/60">ENTERPRISE ONBOARDING</div>
-            <h1 className="mt-3 font-display text-4xl md:text-5xl font-bold leading-[1.05] tracking-tight">
-              Protect What's Yours.
-            </h1>
-            <p className="mt-3 text-lg font-medium text-white/90">Monitor. Detect. Enforce.</p>
-            <p className="mt-4 text-sm leading-relaxed text-white/70 max-w-md">
-              Protect your reputation, content, identity, brand assets and digital presence across
-              YouTube, Instagram, TikTok, X, Reddit, websites and news platforms.
-            </p>
-          </div>
+        <div className="relative z-10 my-8 lg:my-0 flex-1 overflow-y-auto pr-4 custom-scrollbar">
+          <div className="text-[11px] font-semibold tracking-[0.28em] text-white/60 mb-2">SECURE ONBOARDING</div>
+          <h1 className="font-display text-3xl font-bold leading-tight mb-8">Identity & Protection Setup</h1>
+          
+          <ol className="relative space-y-1">
+            <div className="absolute left-[15px] top-4 bottom-4 w-px bg-white/15" />
+            {STEP_TITLES.map((title, i) => {
+              const isActive = i === stepIndex;
+              const isPast = i < stepIndex;
+              const isLocked = 
+                (i >= 2 && !isKycApproved) || 
+                (i >= 3 && !isFaceVerified) || 
+                (i >= 4 && !hasVerifiedAsset) || 
+                (i >= 5 && !hasScopes) ||
+                (i >= 6 && !isDraftReady) ||
+                (i >= 7 && !isReviewVisible) ||
+                (i >= 8 && !isApproved);
 
-          <ol className="relative space-y-1 max-w-sm">
-            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-white/15" />
-            {visibleSteps.map((title, i) => {
-              const done = i < stepIndex;
-              const current = i === stepIndex;
               return (
-                <li key={title} className="relative flex items-center gap-4 py-2.5">
+                <li key={title} className="relative flex items-center gap-4 py-3">
                   <span
                     className={`relative z-10 size-8 rounded-full grid place-items-center text-[11px] font-bold shrink-0 border transition-all duration-300 ${
-                      current
-                        ? "bg-white text-[#0b1f4d] border-white shadow-[0_0_0_6px_rgba(255,255,255,0.12),0_0_24px_rgba(96,165,250,0.6)]"
-                        : done
+                      isActive
+                        ? "bg-white text-[#0b1f4d] border-white shadow-[0_0_0_4px_rgba(255,255,255,0.1)]"
+                        : isPast
                         ? "bg-emerald-400 text-[#0b1f4d] border-emerald-300"
-                        : "bg-white/5 text-white/70 border-white/20 backdrop-blur"
+                        : "bg-white/5 text-white/50 border-white/20 backdrop-blur"
                     }`}
                   >
-                    {done ? <Check className="size-4" /> : i + 1}
+                    {isPast ? <Check className="size-4" /> : isLocked ? <Lock className="size-3.5 opacity-50" /> : (i + 1)}
                   </span>
                   <span className={`text-sm font-medium truncate transition-colors ${
-                    current ? "text-white" : done ? "text-white/80" : "text-white/50"
-                  }`}>{title}</span>
+                    isActive ? "text-white font-semibold" : isPast ? "text-white/80" : "text-white/40"
+                  }`}>
+                    {title}
+                  </span>
                 </li>
               );
             })}
           </ol>
         </div>
 
-        <div className="relative z-10 text-xs text-white/50">
-          Step {step} of {totalSteps} · Encrypted &amp; legally binding
+        <div className="relative z-10 text-xs text-white/50 pt-4 border-t border-white/10">
+          Step {step} of 9 · Enterprise Security
         </div>
       </aside>
 
-      {/* RIGHT PANEL */}
-      <section className="dark relative flex-1 lg:h-full h-auto overflow-y-auto bg-[#050A18] text-white">
-        {/* subtle backdrop accents */}
-        <div className="pointer-events-none absolute top-0 right-0 size-[500px] rounded-full opacity-30"
-          style={{ background: "radial-gradient(closest-side, rgba(59,130,246,0.15), transparent 70%)" }} />
-        <div className="pointer-events-none absolute bottom-0 left-0 size-[400px] rounded-full opacity-20"
-          style={{ background: "radial-gradient(closest-side, rgba(37,99,235,0.15), transparent 70%)" }} />
-
-        <div className="relative min-h-full flex flex-col justify-center px-6 md:px-12 lg:px-16 py-14 md:py-20">
-          <div className="mx-auto w-full max-w-[700px]">
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-semibold tracking-[0.24em] text-blue-400">
-                  STEP {step} / {totalSteps}
-                </div>
-                <h2 className="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{STEP_TITLES[step - 1]}</h2>
+      <section className="relative flex-1 lg:h-full h-auto overflow-y-auto bg-[#050A18]">
+        <div className="relative min-h-full flex flex-col justify-center px-6 md:px-12 lg:px-20 py-14">
+          <div className="w-full max-w-2xl mx-auto">
+            <div className="mb-8">
+              <div className="text-[11px] font-semibold tracking-[0.24em] text-blue-400 mb-2">
+                STEP {step} / 9
               </div>
-              {profile?.onboarding_completed && (
-                <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">Completed</Badge>
-              )}
+              <h2 className="font-display text-3xl font-bold">{STEP_TITLES[stepIndex]}</h2>
             </div>
 
-            <div key={step} className="animate-fade-in">
-              {step === 1 && <Step1 profile={profile} onNext={(v, acct) => savePatch({ client_type: v, account_type: acct }, 2)} saving={saving} />}
-              {step === 2 && <Step2 profile={profile} isEnterprise={isEnterprise} onBack={goBack} onNext={(patch) => savePatch(patch, 3)} saving={saving} />}
-              {step === 3 && (
-                <Step3
-                  assets={state.assets}
-                  onAdd={async (a) => { await addAsset({ data: a }); await reload(); }}
-                  onRemove={async (id) => { await rmAsset({ data: { id } }); await reload(); }}
-                  onRefresh={async () => { await reload(); }}
-                  onBack={goBack}
-                  onNext={() => savePatch({}, 4)}
-                  saving={saving}
+            <div className="animate-fade-in">
+              {step === 1 && (
+                <Step1Profile 
+                  profile={profile} 
+                  onRefetch={refetchProfile}
+                  onNext={() => advanceStep(2)} 
                 />
               )}
-              {step === 4 && <Step4 onBack={goBack} onNext={(consents) => { void consents; savePatch({}, 5); }} saving={saving} />}
-              {step === 5 && (
-                <Step5
-                  initial={profile?.authorization_level ?? "monitoring_enforcement"}
-                  onBack={goBack}
-                  onNext={(level) => savePatch({ authorization_level: level }, 6)}
-                  saving={saving}
+              {step === 2 && (
+                <Step2Kyc 
+                  kyc={kyc} 
+                  profile={profile}
+                  onRefetch={refetchKyc}
+                  onBack={goBack} 
+                  onNext={() => advanceStep(3)} 
                 />
+              )}
+              {step === 3 && (
+                <FaceEnrollmentStep
+                  enrollmentStatus={faceEnrollment}
+                  onRefetch={async () => { await refetchFaceEnrollment(); }}
+                  onBack={goBack}
+                  onNext={() => advanceStep(4)}
+                />
+              )}
+              {step === 4 && (
+                <AssetVerificationStep onBack={goBack} onNext={() => advanceStep(5)} />
+              )}
+              {step === 5 && (
+                <AuthorizationScopeStep onBack={goBack} onNext={() => advanceStep(6)} />
               )}
               {step === 6 && (
-                <Step6
-                  profile={profile}
-                  consentsPreset={CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>)}
-                  onBack={goBack}
-                  onSubmit={async ({ legal_name, signature_text }) => {
-                    setSaving(true);
-                    try {
-                      await submit({
-                        data: {
-                          consents: CONSENT_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Record<string, boolean>),
-                          authorization_level: (profile?.authorization_level ?? "monitoring_enforcement") as any,
-                          legal_name, signature_text,
-                        },
-                      });
-                      await reload();
-                      await qc.invalidateQueries();
-                      setStep(7);
-                      toast.success("Authorization signed and stored.");
-                    } catch (e: any) {
-                      toast.error(e?.message ?? "Signing failed");
-                    } finally { setSaving(false); }
-                  }}
-                  saving={saving}
-                />
+                <AuthorizationReviewStep onBack={goBack} onNext={() => advanceStep(7)} onGoToStep={advanceStep} />
               )}
               {step === 7 && (
-                <Step7
-                  state={state}
-                  onBack={goBack}
-                  onFinish={() => {
-                    if (isEnterprise) setStep(8);
-                    else navigate({ to: "/" });
-                  }}
-                  finishLabel={isEnterprise ? "Continue to enterprise documents" : "Enter dashboard"}
+                <SignatureStep onBack={goBack} onNext={() => advanceStep(8)} />
+              )}
+              {step === 8 && isApproved && (
+                <CertificateStep 
+                  onBack={goBack} 
+                  onNext={() => advanceStep(9)} 
+                  kycStatus={kyc?.verification_status ?? "NOT_STARTED"}
+                  faceStatus={faceEnrollment?.status ?? "NOT_STARTED"}
+                  assetStatus={hasVerifiedAsset ? "VERIFIED" : "UNVERIFIED"}
                 />
               )}
-              {step === 8 && isEnterprise && (
-                <Step8
-                  documents={state.documents}
-                  userId={profile?.user_id ?? ""}
-                  onUploaded={async ({ doc_type, filename, storage_path, mime, size_bytes }) => {
-                    await recDoc({ data: { doc_type, filename, storage_path, mime, size_bytes } });
-                    await reload();
-                  }}
-                  onRemove={async (id) => { await rmDoc({ data: { id } }); await reload(); }}
-                  onBack={goBack}
-                  onFinish={() => navigate({ to: "/" })}
+              {step === 9 && isApproved && (
+                <OnboardingCompleteStep 
+                  onGoToStep={advanceStep} 
+                />
+              )}
+              {step >= 8 && step <= 9 && !isApproved && (
+                <StepLockedPlaceholder 
+                  step={step} 
+                  isKycApproved={isKycApproved} 
+                  isFaceVerified={isFaceVerified} 
+                  hasVerifiedAsset={hasVerifiedAsset}
+                  hasScopes={hasScopes}
+                  isDraftReady={isDraftReady}
+                  isReviewVisible={!!isReviewVisible}
+                  isApproved={isApproved}
+                  onBack={goBack} 
                 />
               )}
             </div>
@@ -265,137 +237,275 @@ export function OnboardingWizard({ initial }: { initial: State }) {
   );
 }
 
-
-/* ---------- Step 1 ---------- */
-const CLIENT_TYPE_META: Record<string, { icon: any; description: string }> = {
-  individual: { icon: User, description: "Protect your personal identity and reputation" },
-  celebrity: { icon: Star, description: "Monitor media, impersonation and public narratives" },
-  creator: { icon: Video, description: "Protect content, channels and sponsorship reputation" },
-  business: { icon: Building2, description: "Protect company reputation and brand assets" },
-  corporate: { icon: Building, description: "Advanced monitoring and enforcement" },
-  agency: { icon: Users, description: "Manage protection for multiple clients" },
-};
-
-function Step1({ profile, onNext, saving }: { profile: State["profile"]; onNext: (v: string, acct: string) => void; saving: boolean }) {
-  const [value, setValue] = useState<string>(profile?.client_type ?? "");
-  const acct = useMemo(() => CLIENT_TYPES.find((c) => c.value === value)?.account ?? "personal", [value]);
-  return (
-    <div className="space-y-8">
-      <p className="text-sm text-white/60 -mt-4">Select the option that best describes you or the entity you represent.</p>
-      <div className="grid sm:grid-cols-2 gap-3">
-        {CLIENT_TYPES.map((t) => {
-          const meta = CLIENT_TYPE_META[t.value];
-          const Icon = meta?.icon ?? User;
-          const active = value === t.value;
-          return (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setValue(t.value)}
-              className={`group relative text-left rounded-2xl p-5 border transition-all duration-300 overflow-hidden ${
-                active
-                  ? "border-blue-400/60 bg-gradient-to-br from-blue-500/15 to-blue-500/5 shadow-[0_0_0_1px_rgba(59,130,246,0.4),0_10px_40px_-10px_rgba(59,130,246,0.6)]"
-                  : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.06]"
-              }`}
-            >
-              {active && (
-                <span className="absolute top-3 right-3 size-6 rounded-full bg-blue-500 grid place-items-center shadow-lg shadow-blue-500/50">
-                  <Check className="size-3.5 text-white" />
-                </span>
-              )}
-              <div className={`size-11 rounded-xl grid place-items-center mb-4 border transition-colors ${
-                active ? "bg-blue-500/20 border-blue-400/40 text-blue-300" : "bg-white/5 border-white/10 text-white/70 group-hover:text-white"
-              }`}>
-                <Icon className="size-5" />
-              </div>
-              <div className="font-semibold text-[15px] text-white">{t.label}</div>
-              <div className="text-xs text-white/55 mt-1 leading-relaxed pr-6">
-                {meta?.description}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex justify-end pt-2">
-        <Button
-          disabled={!value || saving}
-          onClick={() => onNext(value, acct)}
-          className="h-11 px-6 bg-gradient-to-r from-[#2563EB] to-[#3B82F6] hover:opacity-90 shadow-lg shadow-blue-500/25 border-0"
-        >
-          Continue <ChevronRight className="size-4 ml-1" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Step 2 ---------- */
-function Step2({ profile, isEnterprise, onBack, onNext, saving }: {
-  profile: State["profile"]; isEnterprise: boolean;
-  onBack: () => void; onNext: (patch: Record<string, unknown>) => void; saving: boolean;
-}) {
+/* ---------- STEP 1: Account & Client Profile ---------- */
+function Step1Profile({ profile, onRefetch, onNext }: { profile: any; onRefetch: () => void; onNext: () => void }) {
+  const saveAction = useServerFn(saveClientProfile);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    full_name: profile?.full_name ?? "",
+    legal_name: profile?.full_name ?? "",
+    display_name: profile?.display_name ?? "",
+    company_name: profile?.company_name ?? "",
+    role_title: profile?.role_title ?? "",
     email: profile?.email ?? "",
     phone: profile?.phone ?? "",
     country: profile?.country ?? "",
-    gov_id_ref: profile?.gov_id_ref ?? "",
-    social: (profile?.social_profiles as any[])?.map((s) => String(s)).join("\n") ?? "",
-    company_name: profile?.company_name ?? "",
-    website: profile?.website ?? "",
-    contact_person: profile?.contact_person ?? "",
-    business_reg_number: profile?.business_reg_number ?? "",
-    company_email: profile?.company_email ?? "",
-    official_socials: (profile?.official_socials as any[])?.map((s) => String(s)).join("\n") ?? "",
+    address: profile?.address ?? "",
+    client_type: profile?.client_type ?? "individual",
   });
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
-  const valid = isEnterprise
-    ? form.company_name && form.website && form.country && form.contact_person && form.company_email
-    : form.full_name && form.email && form.country;
 
-  const submit = () => {
-    const socials = form.social.split("\n").map((s) => s.trim()).filter(Boolean);
-    const off = form.official_socials.split("\n").map((s) => s.trim()).filter(Boolean);
-    const patch = isEnterprise
-      ? {
-          company_name: form.company_name, website: form.website, country: form.country,
-          contact_person: form.contact_person, business_reg_number: form.business_reg_number,
-          company_email: form.company_email, official_socials: off,
-        }
-      : {
-          full_name: form.full_name, email: form.email, phone: form.phone, country: form.country,
-          gov_id_ref: form.gov_id_ref || null, social_profiles: socials,
-        };
-    onNext(patch);
+  useEffect(() => {
+    if (profile) {
+      setForm(prev => ({
+        ...prev,
+        legal_name: profile.full_name || prev.legal_name,
+        display_name: profile.display_name || prev.display_name,
+        company_name: profile.company_name || prev.company_name,
+        role_title: profile.role_title || prev.role_title,
+        email: profile.email || prev.email,
+        phone: profile.phone || prev.phone,
+        country: profile.country || prev.country,
+        address: profile.address || prev.address,
+        client_type: profile.client_type || prev.client_type,
+      }));
+    }
+  }, [profile]);
+
+  const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
+  const isValid = form.legal_name.trim() && form.country.trim() && form.email.trim();
+
+  const handleSave = async () => {
+    if (!isValid) return;
+    setSaving(true);
+    try {
+      await saveAction({ data: form as any });
+      await onRefetch();
+      toast.success("Profile saved successfully");
+      onNext();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save profile");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <Card>
-      <CardHeader><CardTitle>{isEnterprise ? "Company information" : "Your information"}</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
-        {isEnterprise ? (
-          <>
-            <Field label="Company Name" required><Input value={form.company_name} onChange={set("company_name")} /></Field>
-            <Field label="Website" required><Input value={form.website} onChange={set("website")} placeholder="https://" /></Field>
-            <Field label="Country" required><Input value={form.country} onChange={set("country")} /></Field>
-            <Field label="Contact Person" required><Input value={form.contact_person} onChange={set("contact_person")} /></Field>
-            <Field label="Business Registration Number"><Input value={form.business_reg_number} onChange={set("business_reg_number")} /></Field>
-            <Field label="Company Email" required><Input type="email" value={form.company_email} onChange={set("company_email")} /></Field>
-            <Field label="Official Social Profiles (one per line)"><textarea className="w-full rounded-md border border-border p-2 text-sm min-h-20" value={form.official_socials} onChange={set("official_socials")} /></Field>
-          </>
-        ) : (
-          <>
-            <Field label="Full Name" required><Input value={form.full_name} onChange={set("full_name")} /></Field>
-            <Field label="Email" required><Input type="email" value={form.email} onChange={set("email")} /></Field>
-            <Field label="Phone"><Input value={form.phone} onChange={set("phone")} /></Field>
-            <Field label="Country" required><Input value={form.country} onChange={set("country")} /></Field>
-            <Field label="Government ID reference (optional)"><Input value={form.gov_id_ref} onChange={set("gov_id_ref")} placeholder="e.g. passport number or filed ID" /></Field>
-            <Field label="Social Profiles (one URL per line)"><textarea className="w-full rounded-md border border-border p-2 text-sm min-h-20" value={form.social} onChange={set("social")} /></Field>
-          </>
+    <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
+      <CardHeader>
+        <CardTitle className="text-xl">Client Information</CardTitle>
+        <CardDescription className="text-white/60">
+          Enter your official details. This will be used for legal agreements.
+        </CardDescription>
+        {profile?.client_id && (
+          <div className="mt-2 inline-flex items-center gap-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-md text-xs font-mono font-medium">
+            Client ID: {profile.client_id}
+          </div>
         )}
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" onClick={onBack}><ChevronLeft className="size-4 mr-1" /> Back</Button>
-          <Button disabled={!valid || saving} onClick={submit}>Continue <ChevronRight className="size-4 ml-1" /></Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Client Type" required>
+            <select 
+              className="flex h-10 w-full rounded-md border border-white/10 bg-[#0F172A] px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 text-white"
+              value={form.client_type} 
+              onChange={set("client_type")}
+            >
+              <option value="individual">Individual</option>
+              <option value="creator">Creator</option>
+              <option value="celebrity">Celebrity</option>
+              <option value="business">Business</option>
+              <option value="corporate">Corporate</option>
+              <option value="agency">Agency</option>
+            </select>
+          </Field>
+          <Field label="Full Legal Name" required>
+            <Input className="bg-[#0F172A] border-white/10 text-white" value={form.legal_name} onChange={set("legal_name")} placeholder="As it appears on ID" />
+          </Field>
+          <Field label="Artist / Display Name">
+            <Input className="bg-[#0F172A] border-white/10 text-white" value={form.display_name} onChange={set("display_name")} placeholder="Optional alias" />
+          </Field>
+          <Field label="Company Name">
+            <Input className="bg-[#0F172A] border-white/10 text-white" value={form.company_name} onChange={set("company_name")} />
+          </Field>
+          <Field label="Role / Title">
+            <Input className="bg-[#0F172A] border-white/10 text-white" value={form.role_title} onChange={set("role_title")} placeholder="e.g. CEO, Manager" />
+          </Field>
+          <Field label="Email" required>
+            <Input className="bg-[#0F172A] border-white/10 text-white" type="email" value={form.email} onChange={set("email")} />
+            {profile?.email_verified_at && <p className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1"><Check className="size-3" /> Email verified</p>}
+          </Field>
+          <Field label="Phone">
+            <Input className="bg-[#0F172A] border-white/10 text-white" value={form.phone} onChange={set("phone")} />
+          </Field>
+          <Field label="Country" required>
+            <Input className="bg-[#0F172A] border-white/10 text-white" value={form.country} onChange={set("country")} />
+          </Field>
+        </div>
+        <Field label="Address">
+          <Input className="bg-[#0F172A] border-white/10 text-white" value={form.address} onChange={set("address")} placeholder="Full address for contracts" />
+        </Field>
+        
+        <div className="flex justify-end pt-4">
+          <Button 
+            disabled={!isValid || saving} 
+            onClick={handleSave} 
+            className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-lg shadow-blue-500/20"
+          >
+            {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+            Save & Continue <ChevronRight className="size-4 ml-1" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ---------- STEP 2: Veriff Identity Verification ---------- */
+function Step2Kyc({ kyc, profile, onRefetch, onBack, onNext }: { kyc: any; profile: any; onRefetch: () => void; onBack: () => void; onNext: () => void }) {
+  const createSession = useServerFn(createVeriffSession);
+  const [loading, setLoading] = useState(false);
+  const status = kyc?.verification_status ?? "NOT_STARTED";
+  
+  const handleStart = async () => {
+    setLoading(true);
+    try {
+      const { session_url } = await createSession();
+      if (session_url) window.open(session_url, "_blank");
+      toast.success("Verification session created. Please complete it in the new tab.");
+      await onRefetch();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to start verification");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusDisplay = () => {
+    switch (status) {
+      case "APPROVED": return { color: "text-emerald-400", bg: "bg-emerald-500/10", label: "Approved" };
+      case "DECLINED": return { color: "text-red-400", bg: "bg-red-500/10", label: "Declined" };
+      case "RESUBMISSION_REQUIRED": return { color: "text-orange-400", bg: "bg-orange-500/10", label: "Resubmission Required" };
+      case "MANUAL_REVIEW": return { color: "text-yellow-400", bg: "bg-yellow-500/10", label: "Manual Review" };
+      case "EXPIRED": return { color: "text-zinc-400", bg: "bg-zinc-500/10", label: "Expired" };
+      case "SESSION_CREATED":
+      case "VERIFICATION_OPENED":
+      case "IN_PROGRESS":
+      case "SUBMITTED":
+        return { color: "text-blue-400", bg: "bg-blue-500/10", label: "In Progress" };
+      default: return { color: "text-white/50", bg: "bg-white/5", label: "Not Started" };
+    }
+  };
+
+  const s = getStatusDisplay();
+  const isApproved = status === "APPROVED";
+
+  return (
+    <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
+      <CardHeader>
+        <CardTitle className="text-xl">Identity Verification</CardTitle>
+        <CardDescription className="text-white/60">
+          To enforce rights on your behalf, we must legally verify your identity through Veriff.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        
+        <div className={`border border-white/10 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-4 ${s.bg}`}>
+          <div className={`font-mono text-sm tracking-wider uppercase font-semibold ${s.color}`}>
+            Status: {s.label}
+          </div>
+          
+          {isApproved ? (
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2 justify-center text-emerald-400"><CheckCircle2 className="size-5" /> Identity Verified</div>
+              <div className="flex items-center gap-2 justify-center text-emerald-400"><CheckCircle2 className="size-5" /> Government ID Verified</div>
+              <div className="text-white/50 text-xs mt-2">Provider: Veriff</div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-white/70 max-w-sm">
+                You will be redirected to securely scan your government ID and face. 
+                Keep this window open, it will update automatically.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={handleStart} disabled={loading} className="bg-blue-600 hover:bg-blue-500 text-white">
+                  {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+                  {status === "NOT_STARTED" ? "Start Identity Verification" : "Open / Continue Verification"}
+                </Button>
+                {status !== "NOT_STARTED" && (
+                  <Button variant="outline" onClick={onRefetch} className="border-white/20 text-white hover:bg-white/10">
+                    Refresh Status
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-between pt-4">
+          <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
+            <ChevronLeft className="size-4 mr-1" /> Back
+          </Button>
+          <Button 
+            disabled={!isApproved} 
+            onClick={onNext} 
+            className="bg-blue-600 hover:bg-blue-500 text-white border-0"
+          >
+            Continue <ChevronRight className="size-4 ml-1" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CheckCircle2({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+    </svg>
+  );
+}
+
+/* ---------- STEPS 8-9: Locked Placeholders ---------- */
+function StepLockedPlaceholder({ 
+  step, isKycApproved, isFaceVerified, hasVerifiedAsset, hasScopes, isDraftReady, isReviewVisible, isApproved, onBack 
+}: { 
+  step: number, isKycApproved: boolean, isFaceVerified: boolean, hasVerifiedAsset: boolean, hasScopes: boolean, isDraftReady: boolean, isReviewVisible: boolean, isApproved: boolean, onBack: () => void 
+}) {
+  return (
+    <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
+      <CardHeader>
+        <CardTitle className="text-xl">{STEP_TITLES[step - 1]}</CardTitle>
+        <CardDescription className="text-white/60">
+          This step is currently locked.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
+          <div className="size-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+            <Lock className="size-6 text-white/40" />
+          </div>
+          {!isKycApproved ? (
+            <p className="text-sm text-red-400">You must complete Identity Verification (Step 2) to unlock this section.</p>
+          ) : !isFaceVerified && step >= 4 ? (
+            <p className="text-sm text-red-400">You must complete Face Protection Enrollment (Step 3) to unlock this section.</p>
+          ) : !hasVerifiedAsset && step >= 5 ? (
+            <p className="text-sm text-red-400">You must verify at least one Digital Asset (Step 4) to unlock this section.</p>
+          ) : !hasScopes && step >= 6 ? (
+            <p className="text-sm text-red-400">You must authorize at least one monitoring scope (Step 5) to unlock this section.</p>
+          ) : !isDraftReady && step >= 7 ? (
+            <p className="text-sm text-red-400">You must generate and review your Authorization Draft (Step 6) to unlock this section.</p>
+          ) : !isReviewVisible && step >= 8 ? (
+            <p className="text-sm text-red-400">You must securely sign the Authorization Letter (Step 7) to unlock this section.</p>
+          ) : !isApproved && step >= 9 ? (
+            <p className="text-sm text-red-400">Admin approval is required (Step 8) to unlock this section.</p>
+          ) : (
+            <p className="text-sm text-white/50">This section is under construction. Development will continue in future phases.</p>
+          )}
+        </div>
+        <div className="flex justify-between pt-4">
+          <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
+            <ChevronLeft className="size-4 mr-1" /> Back
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -405,278 +515,8 @@ function Step2({ profile, isEnterprise, onBack, onNext, saving }: {
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-semibold">{label}{required && <span className="text-destructive"> *</span>}</Label>
+      <Label className="text-xs font-semibold text-white/80">{label}{required && <span className="text-blue-400"> *</span>}</Label>
       {children}
     </div>
-  );
-}
-
-/* ---------- Step 3 ---------- */
-const ASSET_KINDS = [
-  { value: "name", label: "Name" }, { value: "brand", label: "Brand" }, { value: "company", label: "Company" },
-  { value: "product", label: "Product" }, { value: "social_account", label: "Social Account" },
-  { value: "youtube_channel", label: "YouTube Channel" }, { value: "website", label: "Website" },
-  { value: "logo", label: "Logo" }, { value: "image", label: "Image" }, { value: "video", label: "Video" },
-  { value: "copyright", label: "Copyright Asset" },
-] as const;
-
-function Step3({ assets, onAdd, onRemove, onRefresh, onBack, onNext, saving }: {
-  assets: State["assets"];
-  onAdd: (a: { asset_kind: any; label: string; value?: string; url?: string; metadata?: Record<string, unknown> }) => Promise<void>;
-  onRemove: (id: string) => Promise<void>;
-  onRefresh: () => Promise<void>;
-  onBack: () => void; onNext: () => void; saving: boolean;
-}) {
-  const [kind, setKind] = useState<string>("brand");
-  const [label, setLabel] = useState(""); const [value, setValue] = useState(""); const [url, setUrl] = useState("");
-  const [busy, setBusy] = useState(false);
-  const refreshYT = useServerFn(refreshOnboardingYouTubeAsset);
-
-  const add = async () => {
-    if (!label.trim()) return;
-    setBusy(true);
-    try { await onAdd({ asset_kind: kind as any, label: label.trim(), value: value.trim() || undefined, url: url.trim() || undefined });
-      setLabel(""); setValue(""); setUrl(""); }
-    finally { setBusy(false); }
-  };
-
-  const confirmYouTube = async (ch: YTChannel) => {
-    await onAdd({
-      asset_kind: "youtube_channel",
-      label: ch.channel_title,
-      value: ch.channel_handle ?? ch.channel_id,
-      url: ch.channel_url,
-      metadata: {
-        ...ch,
-        confirmation_status: "user_confirmed",
-        verification_status: "pending",
-        last_synced_at: new Date().toISOString(),
-        raw_provider_metadata: ch,
-      },
-    });
-    toast.success(`Added ${ch.channel_title} · ownership verification pending`);
-  };
-
-  return (
-    <Card>
-      <CardHeader><CardTitle>Register your protected assets</CardTitle><CardDescription>Add every name, brand, account, or piece of content you want Eterna to monitor.</CardDescription></CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2 md:grid-cols-4">
-          <select className="border border-border rounded-md h-10 px-2 text-sm bg-background" value={kind} onChange={(e) => setKind(e.target.value)}>
-            {ASSET_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
-          </select>
-          {kind !== "youtube_channel" && (
-            <>
-              <Input placeholder="Label" value={label} onChange={(e) => setLabel(e.target.value)} />
-              <Input placeholder="Value / handle" value={value} onChange={(e) => setValue(e.target.value)} />
-              <Input placeholder="URL (optional)" value={url} onChange={(e) => setUrl(e.target.value)} />
-            </>
-          )}
-        </div>
-        {kind === "youtube_channel" ? (
-          <YouTubeChannelPicker onConfirm={confirmYouTube} />
-        ) : (
-          <div className="flex justify-end"><Button size="sm" disabled={!label.trim() || busy} onClick={add}>Add asset</Button></div>
-        )}
-
-        <div className="space-y-2">
-          {assets.length === 0 && <div className="text-sm text-muted-foreground text-center py-6 border border-dashed rounded-xl">No assets yet — add at least one to continue.</div>}
-          {assets.map((a) => (
-            a.asset_kind === "youtube_channel" && (a.metadata as any)?.channel_id ? (
-              <YouTubeAssetCard
-                key={a.id}
-                asset={a as any}
-                onRefresh={async (id: string) => { await refreshYT({ data: { asset_id: id } }); await onRefresh(); }}
-                onRemove={onRemove}
-              />
-            ) : (
-              <div key={a.id} className="flex items-center gap-3 border border-border rounded-xl p-3">
-                <Badge variant="secondary" className="uppercase text-[10px]">{a.asset_kind}</Badge>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">{a.label}</div>
-                  <div className="text-xs text-muted-foreground truncate">{a.value ?? a.url ?? ""}</div>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => onRemove(a.id)}><Trash2 className="size-4" /></Button>
-              </div>
-            )
-          ))}
-        </div>
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" onClick={onBack}><ChevronLeft className="size-4 mr-1" /> Back</Button>
-          <Button disabled={assets.length === 0 || saving} onClick={onNext}>Continue <ChevronRight className="size-4 ml-1" /></Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-
-/* ---------- Step 4 ---------- */
-function Step4({ onBack, onNext, saving }: { onBack: () => void; onNext: (consents: Record<string, boolean>) => void; saving: boolean }) {
-  const [checks, setChecks] = useState<Record<string, boolean>>(() => CONSENT_KEYS.reduce((a, k) => ({ ...a, [k]: false }), {}));
-  const allChecked = CONSENT_KEYS.every((k) => checks[k]);
-  return (
-    <Card>
-      <CardHeader><CardTitle>Authorization & consent</CardTitle><CardDescription>Please read and confirm each statement. All are required.</CardDescription></CardHeader>
-      <CardContent className="space-y-3">
-        {CONSENT_KEYS.map((k) => (
-          <label key={k} className="flex gap-3 items-start border border-border rounded-xl p-3 cursor-pointer">
-            <Checkbox checked={checks[k]} onCheckedChange={(v) => setChecks({ ...checks, [k]: !!v })} className="mt-0.5" />
-            <span className="text-sm leading-relaxed">{CONSENT_TEXTS[k]}</span>
-          </label>
-        ))}
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" onClick={onBack}><ChevronLeft className="size-4 mr-1" /> Back</Button>
-          <Button disabled={!allChecked || saving} onClick={() => onNext(checks)}>Continue <ChevronRight className="size-4 ml-1" /></Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ---------- Step 5 ---------- */
-function Step5({ initial, onBack, onNext, saving }: { initial: string; onBack: () => void; onNext: (level: string) => void; saving: boolean }) {
-  const [level, setLevel] = useState<string>(initial);
-  return (
-    <Card>
-      <CardHeader><CardTitle>Enforcement authorization</CardTitle><CardDescription>Choose how far Eterna should act on your behalf.</CardDescription></CardHeader>
-      <CardContent className="space-y-4">
-        <RadioGroup value={level} onValueChange={setLevel} className="grid gap-2">
-          {AUTHORIZATION_LEVELS.map((l) => (
-            <label key={l.value} className={`border rounded-xl p-3 flex gap-3 cursor-pointer ${level === l.value ? "border-primary bg-primary/5" : "border-border hover:bg-accent/40"}`}>
-              <RadioGroupItem value={l.value} id={l.value} className="mt-0.5" />
-              <div><div className="font-semibold text-sm">{l.label}</div><div className="text-xs text-muted-foreground">{l.desc}</div></div>
-            </label>
-          ))}
-        </RadioGroup>
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={onBack}><ChevronLeft className="size-4 mr-1" /> Back</Button>
-          <Button disabled={!level || saving} onClick={() => onNext(level)}>Continue <ChevronRight className="size-4 ml-1" /></Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ---------- Step 6 ---------- */
-function Step6({ profile, consentsPreset, onBack, onSubmit, saving }: {
-  profile: State["profile"]; consentsPreset: Record<string, boolean>;
-  onBack: () => void; onSubmit: (v: { legal_name: string; signature_text: string }) => Promise<void>; saving: boolean;
-}) {
-  void consentsPreset;
-  const [legal, setLegal] = useState(profile?.full_name ?? profile?.contact_person ?? "");
-  const [sig, setSig] = useState("");
-  const today = new Date().toLocaleString();
-  return (
-    <Card>
-      <CardHeader><CardTitle>Digital signature</CardTitle><CardDescription>Your electronic signature is legally binding. Date, IP address, and timestamp are captured automatically.</CardDescription></CardHeader>
-      <CardContent className="space-y-3">
-        <Field label="Full legal name" required><Input value={legal} onChange={(e) => setLegal(e.target.value)} /></Field>
-        <Field label="Electronic signature (type your name)" required>
-          <Input value={sig} onChange={(e) => setSig(e.target.value)} className="font-[cursive] text-lg" placeholder="Type your signature" />
-        </Field>
-        <div className="text-xs text-muted-foreground">Date & time: {today}</div>
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" onClick={onBack}><ChevronLeft className="size-4 mr-1" /> Back</Button>
-          <Button disabled={!legal.trim() || !sig.trim() || saving} onClick={() => onSubmit({ legal_name: legal, signature_text: sig })}>
-            Sign & store authorization
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ---------- Step 7 ---------- */
-function Step7({ state, onBack, onFinish, finishLabel }: { state: State; onBack: () => void; onFinish: () => void; finishLabel: string }) {
-  const a = state.authorization;
-  return (
-    <Card>
-      <CardHeader><CardTitle>Authorization vault</CardTitle><CardDescription>Your signed authorization is stored and available for platform reports and legal review.</CardDescription></CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        {a ? (
-          <div className="space-y-2 border border-border rounded-xl p-4 bg-emerald-50/40">
-            <div className="flex items-center gap-2 text-emerald-800 font-semibold"><CheckCircle2 className="size-4" /> Authorization signed</div>
-            <Row k="Legal name" v={a.legal_name} />
-            <Row k="Authorization level" v={a.authorization_level} />
-            <Row k="Signed at" v={new Date(a.signed_at).toLocaleString()} />
-            <Row k="IP address" v={a.ip_address ?? "—"} />
-            <Row k="Consent version" v={a.consent_version} />
-            <Row k="Signature hash" v={<code className="text-[11px] break-all">{a.signature_hash}</code>} />
-          </div>
-        ) : <div className="text-muted-foreground">Authorization pending.</div>}
-        <div className="text-xs text-muted-foreground">This record can be attached to YouTube copyright complaints, impersonation reports, trademark complaints, platform reports, and legal review.</div>
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" onClick={onBack}><ChevronLeft className="size-4 mr-1" /> Back</Button>
-          <Button onClick={onFinish}>{finishLabel} <ChevronRight className="size-4 ml-1" /></Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-function Row({ k, v }: { k: string; v: React.ReactNode }) {
-  return <div className="flex gap-4 text-sm"><div className="w-40 text-muted-foreground">{k}</div><div className="flex-1 min-w-0">{v}</div></div>;
-}
-
-/* ---------- Step 8 ---------- */
-const DOC_TYPES = [
-  { value: "authorization_letter", label: "Authorization Letter" },
-  { value: "agency_agreement", label: "Agency Agreement" },
-  { value: "power_of_attorney", label: "Power of Attorney" },
-  { value: "brand_protection", label: "Brand Protection Authorization" },
-] as const;
-
-function Step8({ documents, userId, onUploaded, onRemove, onBack, onFinish }: {
-  documents: State["documents"]; userId: string;
-  onUploaded: (d: { doc_type: any; filename: string; storage_path: string; mime?: string; size_bytes?: number }) => Promise<void>;
-  onRemove: (id: string) => Promise<void>;
-  onBack: () => void; onFinish: () => void;
-}) {
-  const [docType, setDocType] = useState<string>("authorization_letter");
-  const [busy, setBusy] = useState(false);
-
-  const handleUpload = async (file: File) => {
-    if (!userId) return;
-    setBusy(true);
-    try {
-      const path = `${userId}/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from("authorization-vault").upload(path, file, { upsert: false, contentType: file.type });
-      if (error) throw error;
-      await onUploaded({ doc_type: docType as any, filename: file.name, storage_path: path, mime: file.type, size_bytes: file.size });
-      toast.success("Document uploaded");
-    } catch (e: any) { toast.error(e?.message ?? "Upload failed"); }
-    finally { setBusy(false); }
-  };
-
-  return (
-    <Card>
-      <CardHeader><CardTitle>Enterprise documents</CardTitle><CardDescription>Upload authorization letters or agreements. Stored securely and only visible to your account.</CardDescription></CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-          <select className="border border-border rounded-md h-10 px-2 text-sm bg-background" value={docType} onChange={(e) => setDocType(e.target.value)}>
-            {DOC_TYPES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-          </select>
-          <label className="inline-flex items-center gap-2 px-4 h-10 border border-border rounded-md cursor-pointer bg-accent/40 text-sm font-medium">
-            <Upload className="size-4" /> {busy ? "Uploading…" : "Upload file"}
-            <input type="file" className="hidden" onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])} />
-          </label>
-        </div>
-        <div className="space-y-2">
-          {documents.length === 0 && <div className="text-sm text-muted-foreground text-center py-6 border border-dashed rounded-xl">No documents uploaded yet.</div>}
-          {documents.map((d) => (
-            <div key={d.id} className="flex items-center gap-3 border border-border rounded-xl p-3">
-              <Badge variant="secondary" className="uppercase text-[10px]">{d.doc_type.replaceAll("_", " ")}</Badge>
-              <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{d.filename}</div>
-                <div className="text-xs text-muted-foreground">{new Date(d.uploaded_at).toLocaleString()}</div></div>
-              <Button variant="ghost" size="icon" onClick={() => onRemove(d.id)}><Trash2 className="size-4" /></Button>
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" onClick={onBack}><ChevronLeft className="size-4 mr-1" /> Back</Button>
-          <Button onClick={onFinish}>Enter dashboard <ChevronRight className="size-4 ml-1" /></Button>
-        </div>
-      </CardContent>
-    </Card>
   );
 }

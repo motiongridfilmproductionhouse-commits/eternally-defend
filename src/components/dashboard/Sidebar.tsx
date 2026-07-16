@@ -2,7 +2,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Package, Radar, Activity, Brain, ShieldCheck,
   Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search, HeartPulse, Network, PlugZap, LogOut, User as UserIcon,
-  ChevronsLeft, ChevronsRight, ScanFace, Archive,
+  ChevronsLeft, ChevronsRight, ScanFace, Archive, Lock,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useSession } from "@/hooks/use-session";
@@ -17,13 +17,15 @@ type NavItem = { icon: typeof LayoutDashboard; label: string; to: string; badge?
 
 const mainNav: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/" },
-  { icon: Package, label: "Assets", to: "/assets" },
+  { icon: ShieldCheck, label: "Verification & Auth", to: "/onboarding" },
+  { icon: Package, label: "Verified Assets", to: "/assets" },
   { icon: Search, label: "Web Scan", to: "/scan", badge: "LIVE" },
   { icon: Radar, label: "Threat Radar", to: "/threat-radar" },
   { icon: Activity, label: "Threat Monitoring", to: "/threat-monitoring" },
   { icon: Brain, label: "Evidence Analysis", to: "/intelligence" },
   { icon: Network, label: "Narrative Intelligence", to: "/narrative-intelligence" },
   { icon: ScanFace, label: "Face Protection", to: "/face-protection" },
+  { icon: Lock, label: "Intimate Image & Deepfake Protection", to: "/sensitive-protection" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
   { icon: Briefcase, label: "Cases", to: "/cases" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
@@ -32,6 +34,8 @@ const mainNav: NavItem[] = [
 ];
 
 const adminSystemNav: NavItem[] = [
+  { icon: FileText, label: "Onboarding Reviews", to: "/admin/onboarding-reviews", badge: "ADMIN" },
+  { icon: ShieldCheck, label: "Active Authorizations", to: "/admin/authorizations", badge: "ADMIN" },
   { icon: HeartPulse, label: "MM Health", to: "/admin/multimedia-health", badge: "ADMIN" },
   { icon: PlugZap, label: "Provider Activation", to: "/admin/provider-activation", badge: "ADMIN" },
 ];

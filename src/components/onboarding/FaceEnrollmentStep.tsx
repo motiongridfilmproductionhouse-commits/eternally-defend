@@ -1,0 +1,277 @@
+import { useState, useEffect } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { FaceLivenessDetector } from "@aws-amplify/ui-react-liveness";
+import "@aws-amplify/ui-react-liveness/styles.css";
+import { Loader2, ChevronRight, ChevronLeft, ShieldCheck, CheckCircle2, UserCircle, RefreshCcw, Trash2 } from "lucide-react";
+import { 
+  recordBiometricConsent, 
+  createLivenessSession, 
+  finalizeLiveness, 
+  revokeBiometrics 
+} from "@/lib/onboarding/face-enrollment.functions";
+
+const CONSENT_VERSION = "1.0";
+
+const CONSENTS = [
+  { id: "processing", text: "I consent to the collection, processing, and storage of my biometric data (facial geometry) for the sole purpose of identity verification and digital impersonation protection." },
+  { id: "usage", text: "I understand that my verified face profile will be used as a secure reference to monitor, detect, and enforce against unauthorized use of my likeness across digital platforms." },
+  { id: "revocable", text: "I acknowledge that I can revoke this consent and request the deletion of my biometric data at any time from my account settings." },
+  { id: "own_face", text: "I confirm that I am enrolling my own face, and I am the legal owner of the identity being protected." }
+] as const;
+
+export function FaceEnrollmentStep({
+  enrollmentStatus,
+  onRefetch,
+  onBack,
+  onNext
+}: {
+  enrollmentStatus: any;
+  onRefetch: () => Promise<void>;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const [checks, setChecks] = useState<Record<string, boolean>>({
+    processing: false, usage: false, revocable: false, own_face: false
+  });
+  
+  const [busy, setBusy] = useState(false);
+  const [livenessData, setLivenessData] = useState<{ sessionId: string; region: string } | null>(null);
+  const [processingText, setProcessingText] = useState("");
+
+  const recordConsent = useServerFn(recordBiometricConsent);
+  const createSession = useServerFn(createLivenessSession);
+  const finalize = useServerFn(finalizeLiveness);
+  const revoke = useServerFn(revokeBiometrics);
+
+  const status = enrollmentStatus?.status ?? "CONSENT_REQUIRED";
+  const allChecked = CONSENTS.every((c) => checks[c.id as keyof typeof checks]);
+
+  const handleConsent = async () => {
+    setBusy(true);
+    try {
+      await recordConsent({ data: { consents: checks, consent_version: CONSENT_VERSION } });
+      await onRefetch();
+      toast.success("Biometric consent recorded securely.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to record consent");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startLiveness = async () => {
+    setBusy(true);
+    setProcessingText("Creating secure session...");
+    try {
+      const data = await createSession();
+      setLivenessData({ sessionId: data.sessionId, region: data.region ?? "us-east-1" });
+      await onRefetch();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to start liveness session");
+    } finally {
+      setBusy(false);
+      setProcessingText("");
+    }
+  };
+
+  const handleAnalysisComplete = async () => {
+    if (!livenessData) return;
+    setBusy(true);
+    setProcessingText("Analyzing liveness and securing face profile...");
+    try {
+      const res = await finalize({ data: { sessionId: livenessData.sessionId } });
+      if (res.ok) {
+        toast.success("Face Protection Profile established!");
+      } else {
+        toast.error("Liveness verification failed. Please try again.");
+      }
+      setLivenessData(null);
+      await onRefetch();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error finalizing liveness");
+      setLivenessData(null);
+    } finally {
+      setBusy(false);
+      setProcessingText("");
+    }
+  };
+
+  const handleRevoke = async () => {
+    if (!confirm("Are you sure you want to revoke consent and delete your biometric data? This will disable face protection features.")) return;
+    setBusy(true);
+    try {
+      await revoke();
+      setChecks({ processing: false, usage: false, revocable: false, own_face: false });
+      setLivenessData(null);
+      await onRefetch();
+      toast.success("Biometric data and consent revoked successfully.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to revoke biometrics");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 1. Consent Screen
+  if (status === "CONSENT_REQUIRED" || status === "DELETED") {
+    return (
+      <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
+        <CardHeader>
+          <CardTitle className="text-xl">Biometric Protection Consent</CardTitle>
+          <CardDescription className="text-white/60">
+            To actively scan the internet for impersonation and deepfakes, we need to create a secure, encrypted reference map of your face.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3 bg-white/5 border border-white/10 p-4 rounded-xl">
+            {CONSENTS.map((c) => (
+              <label key={c.id} className="flex gap-3 items-start cursor-pointer hover:bg-white/5 p-2 rounded-md transition-colors">
+                <Checkbox 
+                  checked={checks[c.id]} 
+                  onCheckedChange={(v) => setChecks({ ...checks, [c.id]: !!v })} 
+                  className="mt-0.5 border-white/30 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white" 
+                />
+                <span className="text-sm text-white/80 leading-relaxed">{c.text}</span>
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-between pt-4">
+            <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
+              <ChevronLeft className="size-4 mr-1" /> Back
+            </Button>
+            <Button 
+              disabled={!allChecked || busy} 
+              onClick={handleConsent} 
+              className="bg-blue-600 hover:bg-blue-500 text-white border-0"
+            >
+              {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              Accept & Continue <ChevronRight className="size-4 ml-1" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // 2. Active Liveness Scanner (AWS Component)
+  if (livenessData && !busy) {
+    return (
+      <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50 overflow-hidden">
+        <CardContent className="p-0">
+          <div className="w-full max-w-lg mx-auto relative h-[600px] bg-black">
+            {/* The Amplify component automatically handles camera permissions, UI masks, and guidance */}
+            <FaceLivenessDetector
+              sessionId={livenessData.sessionId}
+              region={livenessData.region}
+              onAnalysisComplete={handleAnalysisComplete}
+              onError={(error) => {
+                toast.error(`Scanner error: ${error.state}`);
+                setLivenessData(null);
+                onRefetch();
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // 3. Loading / Processing State
+  if (busy) {
+    return (
+      <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
+        <CardContent className="p-12 flex flex-col items-center justify-center space-y-4">
+          <div className="relative">
+            <div className="size-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+            <ShieldCheck className="size-6 text-blue-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <p className="text-sm font-medium text-white/80">{processingText || "Processing..."}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // 4. Success State
+  if (status === "FACE_VERIFIED") {
+    return (
+      <Card className="bg-[#0A1128] border-emerald-500/30 text-white shadow-2xl shadow-emerald-500/10">
+        <CardHeader>
+          <CardTitle className="text-xl text-emerald-400 flex items-center gap-2">
+            <ShieldCheck className="size-6" /> Protected Face Profile Established
+          </CardTitle>
+          <CardDescription className="text-white/60">
+            Your biometric reference has been securely encrypted and indexed. Eterna AI is now actively protecting your likeness.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="border border-white/10 rounded-xl p-6 bg-white/5 space-y-3">
+            <div className="flex items-center gap-3 text-sm text-white/80">
+              <CheckCircle2 className="size-5 text-emerald-400" /> Face Verified
+            </div>
+            <div className="flex items-center gap-3 text-sm text-white/80">
+              <CheckCircle2 className="size-5 text-emerald-400" /> Real Human Verified
+            </div>
+            <div className="flex items-center gap-3 text-sm text-white/80">
+              <CheckCircle2 className="size-5 text-emerald-400" /> Protected Face Profile Created
+            </div>
+            <div className="flex items-center gap-3 text-sm text-white/80">
+              <CheckCircle2 className="size-5 text-emerald-400" /> Identity Protection Ready
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-between pt-4">
+            <Button variant="ghost" onClick={handleRevoke} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs">
+              <Trash2 className="size-3.5 mr-1" /> Revoke Consent & Delete
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onBack} className="border-white/20 text-white hover:bg-white/10">
+                <ChevronLeft className="size-4 mr-1" /> Back
+              </Button>
+              <Button onClick={onNext} className="bg-blue-600 hover:bg-blue-500 text-white border-0">
+                Continue <ChevronRight className="size-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // 5. Ready to Scan / Failed State
+  return (
+    <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
+      <CardHeader>
+        <CardTitle className="text-xl">{status === "LIVENESS_FAILED" ? "Verification Failed" : "Biometric Scan Ready"}</CardTitle>
+        <CardDescription className="text-white/60">
+          {status === "LIVENESS_FAILED" 
+            ? "We couldn't verify your liveness. Please ensure you are in a well-lit area and remove masks or heavy glasses."
+            : "Your consent is recorded. You are ready to perform the secure liveness scan."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="border border-white/10 rounded-xl p-8 bg-white/5 flex flex-col items-center text-center space-y-4">
+          <UserCircle className="size-16 text-blue-400/50" />
+          <p className="text-sm text-white/70 max-w-sm">
+            When you click start, your camera will activate. Center your face in the oval and follow the on-screen prompts.
+          </p>
+          <Button onClick={startLiveness} className="bg-blue-600 hover:bg-blue-500 text-white border-0 mt-2">
+            {status === "LIVENESS_FAILED" ? <><RefreshCcw className="size-4 mr-2" /> Retry Scan</> : "Start Liveness Scan"}
+          </Button>
+        </div>
+        
+        <div className="flex justify-between pt-4">
+          <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
+            <ChevronLeft className="size-4 mr-1" /> Back
+          </Button>
+          <Button variant="ghost" onClick={handleRevoke} className="text-white/40 hover:text-red-400 hover:bg-white/5 text-xs">
+            Revoke Consent
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
