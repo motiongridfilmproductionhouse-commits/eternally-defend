@@ -112,8 +112,12 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
           <div className="text-[11px] font-semibold tracking-[0.28em] text-white/60 mb-2">SECURE ONBOARDING</div>
           <h1 className="font-display text-3xl font-bold leading-tight mb-8">Identity & Protection Setup</h1>
           
-          <ol className="relative space-y-1">
-            <div className="absolute left-[15px] top-4 bottom-4 w-px bg-white/15" />
+          <div className="relative">
+            <div
+              aria-hidden="true"
+              className="absolute left-[15px] top-4 bottom-4 w-px bg-white/15"
+            />
+            <ol className="relative space-y-1">
             {STEP_TITLES.map((title, i) => {
               const isActive = i === stepIndex;
               const isPast = i < stepIndex;
@@ -147,7 +151,8 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
                 </li>
               );
             })}
-          </ol>
+            </ol>
+          </div>
         </div>
 
         <div className="relative z-10 text-xs text-white/50 pt-4 border-t border-white/10">
