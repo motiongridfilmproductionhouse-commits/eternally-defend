@@ -14,13 +14,24 @@ const ProfileSchema = z.object({
 });
 
 async function ensureClientId(supabase: any, userId: string): Promise<string> {
-  const { data } = await supabase.from("client_profiles").select("client_id").eq("user_id", userId).maybeSingle();
-  if (data?.client_id) return data.client_id;
-  const { data: seq } = await supabase.rpc("nextval" as never, { seq: "client_id_seq" } as never).single().throwOnError().then(() => ({ data: null })).catch(() => ({ data: null }));
-  // fallback: use time-based
-  const num = 10000 + Math.floor((Date.now() / 1000) % 999999);
-  const id = `ET-${num}`;
-  return id;
+  const { data, error } = await supabase
+    .from("client_profiles")
+    .select("client_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Unable to check existing Client ID: ${error.message}`);
+  }
+
+  if (data?.client_id) {
+    return data.client_id;
+  }
+
+  const timestampPart = Date.now().toString().slice(-6);
+  const randomPart = crypto.randomUUID().replace(/-/g, "").slice(0, 4).toUpperCase();
+
+  return `ET-${timestampPart}-${randomPart}`;
 }
 
 export const saveClientProfile = createServerFn({ method: "POST" })

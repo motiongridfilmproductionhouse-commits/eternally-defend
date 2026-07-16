@@ -357,8 +357,9 @@ function Step1Profile({ profile, onRefetch, onNext }: { profile: any; onRefetch:
         </Field>
         
         <div className="flex justify-end pt-4">
-          <Button 
-            disabled={!isValid || saving} 
+          <Button
+            type="button"
+            disabled={!isValid || saving}
             onClick={handleSave} 
             className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-lg shadow-blue-500/20"
           >
