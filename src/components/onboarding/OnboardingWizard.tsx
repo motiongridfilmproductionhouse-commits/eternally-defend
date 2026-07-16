@@ -42,30 +42,37 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
   const setStatus = useServerFn(setStepStatus);
   const refreshProgress = useServerFn(getProgress);
 
+  // Create server function callers at the component top level.
+  const fetchClientProfile = useServerFn(getClientProfile);
+  const fetchKycStatus = useServerFn(getKycStatus);
+  const fetchFaceEnrollment = useServerFn(getFaceEnrollment);
+  const fetchAssets = useServerFn(listAssets);
+  const fetchAuthorizationBundle = useServerFn(getAuthorizationBundle);
+
   // Queries for specific step data
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ["client_profile"],
-    queryFn: () => useServerFn(getClientProfile)(),
+    queryFn: () => fetchClientProfile(),
   });
 
   const { data: kyc, refetch: refetchKyc } = useQuery({
     queryKey: ["kyc_status"],
-    queryFn: () => useServerFn(getKycStatus)(),
+    queryFn: () => fetchKycStatus(),
   });
 
   const { data: faceEnrollment, refetch: refetchFaceEnrollment } = useQuery({
     queryKey: ["face_enrollment_status"],
-    queryFn: () => useServerFn(getFaceEnrollment)(),
+    queryFn: () => fetchFaceEnrollment(),
   });
 
   const { data: assets } = useQuery({
     queryKey: ["digital_assets"],
-    queryFn: () => useServerFn(listAssets)(),
+    queryFn: () => fetchAssets(),
   });
 
   const { data: authBundle } = useQuery({
     queryKey: ["auth_bundle"],
-    queryFn: () => useServerFn(getAuthorizationBundle)(),
+    queryFn: () => fetchAuthorizationBundle(),
   });
 
   const advanceStep = async (nextStep: number, status: any = "COMPLETED") => {
