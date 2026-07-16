@@ -77,10 +77,15 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
 
   const advanceStep = async (nextStep: number, status: any = "COMPLETED") => {
     try {
-      await setStatus({ data: { step: step, status, advance: true } });
-      const p = await refreshProgress();
-      setStep(Math.max(p?.current_step ?? nextStep, nextStep));
-      await qc.invalidateQueries({ queryKey: ["onboarding-progress"] });
+      const updated = await setStatus({
+        data: { step, status, advance: true },
+      });
+
+      setStep(Math.max(updated?.current_step ?? nextStep, nextStep));
+
+      await qc.invalidateQueries({
+        queryKey: ["onboarding-progress"],
+      });
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to advance step");
     }
