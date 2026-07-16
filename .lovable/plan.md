@@ -1,84 +1,99 @@
-# AWS Rekognition + S3 Integration
+## Eterna Verified Client Onboarding — Implementation Plan
 
-Server-only integration wiring Amazon Rekognition (face collections + face search) and Amazon S3 (originals + evidence vault) into Eterna. All AWS calls happen in server functions using the existing `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_REKOGNITION_BUCKET` secrets. Nothing AWS ever reaches the browser.
+Build the full 10-step verified onboarding journey on top of existing integrations (Veriff, AWS Rekognition/S3, YouTube, Supabase). No new secrets, no frontend AWS/Veriff calls.
 
-## 1. Dependencies
+### Scope
 
-Add `@aws-sdk/client-rekognition`, `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`.
+Replace the current onboarding wizard with a premium multi-step flow that gates each step on real verification results, culminating in an admin-reviewed Authorization Letter, signed PDF, Verification Certificate, and public verify page.
 
-## 2. Database migration
+### Database (single migration)
 
-New tables (all `public`, RLS on, GRANTs for authenticated + service_role, `has_role` used where needed):
+New tables (RLS: owner-only for clients, `has_role(_,'admin')` for admins; all with GRANTs):
 
-- `rekognition_collections` — one per client
-  - `user_id`, `collection_id` (unique), `status`, `face_count`
-- `protected_faces` — indexed reference faces
-  - `user_id`, `collection_id`, `asset_id` (nullable FK to `protected_assets`), `discovered_account_id` (nullable FK), `platform`, `source_url`, `s3_bucket`, `s3_key`, `face_id` (Rekognition), `image_id`, `confidence`, `bounding_box` jsonb
-- `face_match_events` — every Rekognition SearchFacesByImage result
-  - `user_id`, `collection_id`, `matched_face_id`, `matched_asset_id`, `similarity`, `face_confidence`, `source_url`, `source_type` (`youtube_thumb|profile|news|website|screenshot`), `scan_hit_id` (nullable), `image_s3_bucket`, `image_s3_key`, `bounding_box`, `review_status` (`pending|authorized|harmless|threat_created|dismissed`), `threat_category` (`impersonation|fake_endorsement|unauthorized_image|face_misuse|celebrity_detection|null`), `context_notes`
-- `evidence_vault_items` — S3 evidence entries
-  - `user_id`, `case_id`/`enforcement_request_id`/`scan_hit_id` (nullable), `kind` (`screenshot|takedown_package|certificate|thumbnail|archive`), `s3_bucket`, `s3_key`, `sha256`, `bytes`, `content_type`, `metadata` jsonb
+- `onboarding_progress` — per-user step status map, current_step, overall status enum
+- `kyc_verifications` — veriff_session_id, provider_reference, status, country, document_type, review_reason (no images)
+- `biometric_consents` — consent_version, ip, ua, checkboxes, revoked_at
+- `protected_face_profiles` — collection_id, rekognition_user_id, liveness_score, status
+- `protected_face_references` — profile_id, s3_key, face_id, quality scores
+- `digital_assets` — kind (youtube/…), channel_id, handle, name, verified, method, verified_at
+- `youtube_verification_challenges` — code, asset_id, expires_at, used_at, evidence
+- `asset_verification_events` — audit trail per asset
+- `authorization_scopes` — auth_id, scope_key, granted
+- `client_authorizations` — auth_number (AUTH-YYYY-NNNNNN), version, status enum, effective/expiry, enforcement_enabled
+- `authorization_versions` — snapshot json per version
+- `authorization_signatures` — signer name/role, drawn_signature_svg, typed_name, otp_verified_at, ip, ua, sha256
+- `authorization_documents` — kind (draft/signed/certificate/package), s3_key, sha256
+- `authorization_admin_reviews` — reviewer_id, decision, notes, decided_at
+- `verification_certificates` — cert_number (ETC-…), score, issued_at, expires_at, sha256, public_slug
+- `authorization_audit_logs` — actor, action, target, payload, ip, ua
+- Extend `client_profiles` with: `client_id` (ET-#####), `display_name`, `role_title`, `address`, `phone_verified_at`, `email_verified_at`
 
-Migration also creates two Storage buckets used server-side only (private): none — everything goes to the AWS S3 bucket `AWS_REKOGNITION_BUCKET`, not Supabase Storage. Key prefixes:
-- `clients/{user_id}/reference/{asset_id}/{uuid}.jpg`
-- `clients/{user_id}/scan-images/{yyyy}/{mm}/{uuid}.jpg`
-- `clients/{user_id}/evidence/{kind}/{uuid}`
+Add `has_role(_,'admin')` policies alongside owner policies. Reuse existing `user_roles`/`app_role` enum.
 
-## 3. Server-only AWS client
+Sequences for `client_id`, authorization number, certificate number.
 
-`src/lib/aws/clients.server.ts` — lazy singleton `RekognitionClient` and `S3Client` reading `process.env`. Never imported from routes/components directly.
+### Server functions (all server-only, using existing env)
 
-`src/lib/aws/s3.server.ts` — `putObject`, `getSignedGetUrl`, `getSignedPutUrl`, `headObject`, sha256 helper.
+`src/lib/onboarding/`:
 
-`src/lib/aws/rekognition.server.ts` — `ensureCollection(userId)`, `indexFace({ userId, bytes, externalImageId })`, `searchFacesByImage({ userId, bytes, threshold=80, maxFaces=5 })`, `deleteFace`.
+- `progress.functions.ts` — get/update step status, resume
+- `profile.functions.ts` — save profile, mint `ET-#####`, send email OTP (via Supabase auth OTP)
+- `kyc.functions.ts` — `createVeriffSession` (POST to `${VERIFF_BASE_URL}/sessions` with `X-AUTH-CLIENT`, HMAC signed), `getKycStatus`
+- `src/routes/api/public/veriff-webhook.ts` — verify `x-hmac-signature` with `VERIFF_SHARED_SECRET`, update `kyc_verifications`
+- `face-enrollment.functions.ts` — `recordBiometricConsent`, `createLivenessSession` (Rekognition `CreateFaceLivenessSession`), `finalizeLiveness` (calls `GetFaceLivenessSessionResults`, stores reference image + audit frames to S3 private, `IndexFaces` into per-user collection, associates to Rekognition UserId, persists face_ids); `revokeBiometrics` (DeleteFaces + S3 delete)
+- `assets.functions.ts` — add asset, list, remove, `generateYouTubeChallenge` (crypto-random `ETERNA-XXXX-YYYY`), `verifyYouTubeChallenge` (YouTube Data API v3: channels.list snippet+description; search channel's latest videos & community posts for the code), Google OAuth path via existing `lovable.auth.signInWithOAuth('google', scopes: youtube.readonly)` then `youtube.channels.list?mine=true`
+- `authorization.functions.ts` — `buildDraft`, `generateDraftPdf`, `sendSignatureOtp`, `verifySignatureAndSeal` (renders final PDF, SHA-256, uploads to S3, creates `authorization_documents`, `authorization_signatures`), version bump on edits
+- `admin.functions.ts` — `listPendingReviews`, `decideAuthorization` (approve/reject/suspend/revoke/request-info), guarded by `has_role(admin)`
+- `certificate.functions.ts` — `issueCertificate` (score calc, PDF w/ QR to public page, SHA-256, S3), `getPublicVerification(slug)`
+- `package.functions.ts` — `buildAuthorizationPackage` (concat cert + summary + signed letter + audit → PDF, S3)
 
-## 4. Server functions (all `.server` wrappers via `*.functions.ts`, protected with `requireSupabaseAuth`)
+PDF generation: reuse `src/lib/enforcement/pdf.server.ts` pattern (pdf-lib). QR: `qrcode` package.
 
-`src/lib/face-protection.functions.ts`:
-- `ensureClientCollection()` — create/reuse Rekognition collection for user.
-- `importOfficialAccountFaces({ discoveredAccountId })` — called from the confirm-official-account flow. Downloads the account's profile/reference images (via `/api/media/preview` fetch helper server-side), uploads originals to S3, indexes into the user's collection, writes `protected_faces` rows.
-- `importAssetFaces({ assetId, imageUrls })` — same for `protected_assets`.
-- `deleteProtectedFace({ id })`.
+### Frontend routes/components
 
-`src/lib/face-scan.functions.ts`:
-- `analyzeImagesForFaces({ scanHitId?, images: [{url,type}] })` — downloads each image server-side, calls `searchFacesByImage`, stores S3 copy under `scan-images/`, writes `face_match_events` rows in `pending` review. Returns matches.
-- `listFaceMatches({ status?, category? })`, `reviewFaceMatch({ id, decision, category, notes })` — moves through review workflow. Only `decision='threat_created'` with a category creates/links an `enforcement_request` (Draft) and a `case_findings` row. Match alone never creates a threat.
+- Rewrite `src/routes/onboarding.tsx` shell with stepper (10 steps, statuses)
+- `src/components/onboarding/steps/` — one component per step:
+  1. `AccountProfileStep` (form + email OTP)
+  2. `KycStep` (Veriff hosted URL iframe/redirect, polls status)
+  3. `FaceEnrollmentStep` (consent screen → premium liveness UI using AWS Amplify `FaceLivenessDetector` React component, which talks to backend session tokens only; framer-motion overlays for mesh/scan-line/particles; guidance messages)
+  4. `AssetVerificationStep` (YouTube: OAuth or code challenge UI)
+  5. `AuthorizationScopeStep` (checkbox list)
+  6. `AuthorizationReviewStep` (PDF preview iframe of signed URL)
+  7. `SignatureStep` (typed name + `react-signature-canvas` + email OTP)
+  8. `AdminReviewWaitingStep` (status card, polling)
+  9. `CertificateStep` (view/download cert + package + public link)
+  10. `CompleteStep` (summary + dashboard CTAs)
+- `src/routes/_app.admin.onboarding-reviews.tsx` — admin review queue + detail (uses existing `AdminGuard`)
+- `src/routes/verify.$authId.tsx` — public route (top-level, no auth), shows sanitized status only via `getPublicVerification`
 
-`src/lib/evidence-vault.functions.ts`:
-- `uploadEvidence({ kind, targetId, contentType, bytes|base64 })` — stores in S3, sha256, inserts `evidence_vault_items`.
-- `listEvidence({ scope })`, `getEvidenceSignedUrl({ id })` — 5-minute presigned GET.
+### Packages to add
 
-## 5. Scan pipeline hookup
+`@aws-sdk/client-rekognitionstreaming` (for FaceLiveness types), `@aws-amplify/ui-react-liveness`, `aws-amplify`, `qrcode`, `pdf-lib` (may already be present), `react-signature-canvas`.
 
-In `src/lib/scans.functions.ts` where `scan_hits` are inserted, after write, enqueue `analyzeImagesForFaces` for hits whose `thumbnail_url`/`canonical_url` looks like an image or YouTube (uses existing `youtubeThumbFromUrl`). Best-effort; failures logged, never block the scan.
+### Security
 
-## 6. UI (frontend only reads via server fns; no AWS in the client)
+- All AWS/Veriff/Google-secret calls inside `.server.ts` or handler bodies
+- Webhook signature verification (HMAC-SHA256) with timing-safe compare
+- Signed S3 URLs, 5-min expiry, never returned to public verify page
+- RLS: owner-only + admin role; public verify uses server-publishable client with narrow anon SELECT on a `public_verifications` view exposing only safe columns
+- Audit log on every sensitive action
+- Immutable signed docs; version bump on any post-sign change
 
-- `src/routes/_app.assets.tsx` — on official-account confirm (existing `VerificationDialog`), after success call `importOfficialAccountFaces`. Show toast with indexed face count.
-- New route `src/routes/_app.face-protection.tsx` — Protected Faces list, Face Matches review queue with side-by-side (reference vs matched image via presigned URL), decision buttons (Authorized / Harmless / Create Threat with category / Dismiss).
-- New route `src/routes/_app.evidence-vault.tsx` — evidence list with signed download links.
-- `CommandCenter.tsx` — add 5 widgets fed by a new `getFaceProtectionStats` server fn:
-  - Protected Faces (count of `protected_faces`)
-  - Face Matches (24h count)
-  - Impersonation Alerts (category='impersonation', status='threat_created' last 7d)
-  - Fake Endorsements (category='fake_endorsement' last 7d)
-  - Evidence Vault (item count + total bytes)
+### Gating rules
 
-## 7. Review workflow enforcement
+Step N cannot start until N-1 status ∈ {VERIFIED, COMPLETED}. `enforcement_enabled` only when all conditions in spec are true. Certificate score computed server-side.
 
-`reviewFaceMatch` requires: `similarity >= 80`, explicit `context_notes`, an `authorization_check` (server checks `authorization_records` for the matched asset), and explicit user decision. Server rejects `threat_created` if any missing. Matches from official/authorized accounts auto-suggest `authorized`.
+### Explicitly deferred (per spec)
 
-## 8. Out of scope this pass
+Continuous scanning, deepfake, adult content, auto-takedowns, mass reporting, scheduler.
 
-- Auto-cropping to face bounding box before re-indexing.
-- Video face search (Rekognition StartFaceSearch) — images only for now.
-- Celebrity Recognition API — schema supports the category, but wiring uses the existing face collection first; celebrity API can be added later behind a flag.
-- Bulk backfill of already-confirmed accounts (a "Reindex" button is provided; no automatic migration).
+### Delivery order (single build)
 
-## Files touched
+1. Migration (tables, enums, sequences, RLS, GRANTs, admin policies)
+2. Server functions + webhook route + package installs
+3. Onboarding shell + steps 1–4
+4. Steps 5–7 (scope, letter, signature)
+5. Admin review + certificate + package + public verify
+6. Wire completion screen and dashboard entry points
 
-New: migration SQL, `src/lib/aws/{clients,s3,rekognition}.server.ts`, `src/lib/face-protection.functions.ts`, `src/lib/face-scan.functions.ts`, `src/lib/evidence-vault.functions.ts`, `src/routes/_app.face-protection.tsx`, `src/routes/_app.evidence-vault.tsx`, small components under `src/components/face/`.
-
-Edited: `src/lib/scans.functions.ts` (hook), `src/lib/command-center.functions.ts` (+ `getFaceProtectionStats`), `src/components/command/CommandCenter.tsx` (5 widgets), `src/routes/_app.assets.tsx` + `src/components/discovery/VerificationDialog.tsx` (call importer on confirm), `src/components/dashboard/Sidebar.tsx` (2 nav items), `package.json` (AWS SDK deps).
-
-Approve to proceed and I'll ship it end-to-end.
+This is a large single delivery (~30 files). No mocks: every status comes from Veriff/Rekognition/YouTube/DB.
