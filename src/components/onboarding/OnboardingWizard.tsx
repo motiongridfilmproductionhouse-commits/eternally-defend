@@ -38,9 +38,14 @@ const STEP_TITLES = [
 export function OnboardingWizard({ initialProgress }: { initialProgress: any }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [step, setStep] = useState<number>(2);
+  const initialStep = Math.min(
+    Math.max(1, Number(initialProgress?.current_step) || 1),
+    STEP_TITLES.length,
+  );
+  const [step, setStep] = useState<number>(initialStep);
   const setStatus = useServerFn(setStepStatus);
   const refreshProgress = useServerFn(getProgress);
+
 
   // Create server function callers at the component top level.
   const fetchClientProfile = useServerFn(getClientProfile);
