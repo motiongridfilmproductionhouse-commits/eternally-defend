@@ -97,3 +97,77 @@ export const getKycStatus = createServerFn({ method: "GET" })
     const { data } = await supabase.from("kyc_verifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     return data;
   });
+
+const VERIFF_STATUS_MAP: Record<string, string> = {
+  approved: "APPROVED",
+  declined: "DECLINED",
+  resubmission_requested: "RESUBMISSION_REQUIRED",
+  expired: "EXPIRED",
+  abandoned: "EXPIRED",
+  submitted: "SUBMITTED",
+  review: "MANUAL_REVIEW",
+  review_required: "MANUAL_REVIEW",
+  started: "IN_PROGRESS",
+  pending: "IN_PROGRESS",
+  created: "SESSION_CREATED",
+};
+
+export const syncVeriffStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const apiKey = process.env.VERIFF_API_KEY;
+    const secret = process.env.VERIFF_SHARED_SECRET;
+    const baseUrl = process.env.VERIFF_BASE_URL ?? "https://stationapi.veriff.com";
+    if (!apiKey || !secret) return { verification_status: null, error: "Veriff not configured" };
+
+    const { data: row } = await supabase
+      .from("kyc_verifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const sessionId = (row as { veriff_session_id?: string | null } | null)?.veriff_session_id;
+    if (!sessionId) return { verification_status: (row as { verification_status?: string } | null)?.verification_status ?? null, error: null };
+
+    const signature = createHmac("sha256", secret).update(sessionId).digest("hex");
+    const res = await fetch(`${baseUrl}/v1/sessions/${sessionId}/decision`, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "x-auth-client": apiKey,
+        "x-hmac-signature": signature,
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Veriff decision fetch failed", { status: res.status, response: text });
+      return { verification_status: (row as { verification_status?: string } | null)?.verification_status ?? null, error: null };
+    }
+    const json = await res.json() as {
+      status?: string;
+      verification?: {
+        status?: string;
+        code?: number;
+        reason?: string | null;
+        document?: { country?: string | null; type?: string | null } | null;
+        decisionTime?: string | null;
+      } | null;
+    };
+    const code = json.verification?.status?.toLowerCase() ?? "";
+    const mapped = VERIFF_STATUS_MAP[code] ?? (row as { verification_status?: string } | null)?.verification_status ?? "IN_PROGRESS";
+
+    const patch: Record<string, unknown> = {
+      verification_status: mapped,
+      raw_webhook: json,
+      review_reason: json.verification?.reason ?? null,
+      country: json.verification?.document?.country ?? null,
+      document_type: json.verification?.document?.type ?? null,
+      verification_date: mapped === "APPROVED" ? (json.verification?.decisionTime ?? new Date().toISOString()) : null,
+    };
+    await supabase.from("kyc_verifications").update(patch as never).eq("veriff_session_id", sessionId);
+
+    return { verification_status: mapped, error: null };
+  });
+
