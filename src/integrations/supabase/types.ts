@@ -736,6 +736,7 @@ export type Database = {
           email_verified_at: string | null
           full_name: string | null
           gov_id_ref: string | null
+          legal_name: string | null
           official_socials: Json
           onboarding_completed: boolean
           onboarding_step: number
@@ -769,6 +770,7 @@ export type Database = {
           email_verified_at?: string | null
           full_name?: string | null
           gov_id_ref?: string | null
+          legal_name?: string | null
           official_socials?: Json
           onboarding_completed?: boolean
           onboarding_step?: number
@@ -802,6 +804,7 @@ export type Database = {
           email_verified_at?: string | null
           full_name?: string | null
           gov_id_ref?: string | null
+          legal_name?: string | null
           official_socials?: Json
           onboarding_completed?: boolean
           onboarding_step?: number
