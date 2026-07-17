@@ -120,5 +120,18 @@ export const verifyChallenge = createServerFn({ method: "POST" })
     await supabase.from("youtube_verification_challenges").update({ used_at: new Date().toISOString(), evidence: evidence as never }).eq("id", chal.id);
     await supabase.from("digital_assets").update({ verification_status: "VERIFIED", verification_method: "code_challenge", verified_at: new Date().toISOString() }).eq("id", data.asset_id);
     await supabase.from("asset_verification_events").insert({ user_id: userId, asset_id: data.asset_id, event: "verified", payload: evidence as never });
+
+    const { data: progress } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
+    const states = {
+      ...(progress?.step_states as Record<string, string> ?? {}),
+      "4": "COMPLETED"
+    };
+    await supabase.from("onboarding_progress").upsert({
+      user_id: userId,
+      current_step: Math.max(progress?.current_step ?? 1, 5),
+      step_states: states,
+      overall_status: "IN_PROGRESS"
+    }, { onConflict: "user_id" });
+
     return { ok: true, evidence };
   });

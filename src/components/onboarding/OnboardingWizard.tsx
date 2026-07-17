@@ -20,6 +20,7 @@ import { AssetVerificationStep } from "@/components/onboarding/AssetVerification
 import { AuthorizationScopeStep } from "@/components/onboarding/AuthorizationScopeStep";
 import { AuthorizationReviewStep } from "@/components/onboarding/AuthorizationReviewStep";
 import { SignatureStep } from "@/components/onboarding/SignatureStep";
+import { AdminReviewStatusStep } from "@/components/onboarding/AdminReviewStatusStep";
 import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
 
@@ -31,6 +32,7 @@ const STEP_TITLES = [
   "Authorization Scope",
   "Authorization Letter Review",
   "Electronic Signature & OTP",
+  "Admin Review",
   "Verification Certificate",
   "Onboarding Complete",
 ];
@@ -149,7 +151,8 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
                 (i >= 5 && !hasScopes) ||
                 (i >= 6 && !isDraftReady) ||
                 (i >= 7 && !isReviewVisible) ||
-                (i >= 8 && !isApproved);
+                (i >= 8 && !isApproved) ||
+                (i >= 9 && !isApproved);
 
               return (
                 <li key={title} className="relative flex items-center gap-4 py-3">
@@ -228,21 +231,31 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
               {step === 7 && (
                 <SignatureStep onBack={goBack} onNext={() => advanceStep(8)} />
               )}
-              {step === 8 && isApproved && (
-                <CertificateStep 
+              {step === 8 && (
+                <AdminReviewStatusStep 
                   onBack={goBack} 
                   onNext={() => advanceStep(9)} 
+                  onGoToStep={(s) => setStep(s)}
                   kycStatus={kyc?.verification_status ?? "NOT_STARTED"}
                   faceStatus={faceEnrollment?.status ?? "NOT_STARTED"}
                   assetStatus={hasVerifiedAsset ? "VERIFIED" : "UNVERIFIED"}
                 />
               )}
               {step === 9 && isApproved && (
+                <CertificateStep 
+                  onBack={goBack} 
+                  onNext={() => advanceStep(10)} 
+                  kycStatus={kyc?.verification_status ?? "NOT_STARTED"}
+                  faceStatus={faceEnrollment?.status ?? "NOT_STARTED"}
+                  assetStatus={hasVerifiedAsset ? "VERIFIED" : "UNVERIFIED"}
+                />
+              )}
+              {step === 10 && isApproved && (
                 <OnboardingCompleteStep 
                   onGoToStep={advanceStep} 
                 />
               )}
-              {step >= 8 && step <= 9 && !isApproved && (
+              {step >= 9 && step <= 10 && !isApproved && (
                 <StepLockedPlaceholder 
                   step={step} 
                   isKycApproved={isKycApproved} 

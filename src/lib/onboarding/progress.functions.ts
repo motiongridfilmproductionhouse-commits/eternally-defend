@@ -111,3 +111,41 @@ export const setStepStatus = createServerFn({ method: "POST" })
 
     return updated;
   });
+
+export const completeOnboarding = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    
+    // Set onboarding_completed = true in client_profiles
+    const { error: profileError } = await supabase
+      .from("client_profiles")
+      .update({ onboarding_completed: true } as any)
+      .eq("user_id", userId);
+      
+    if (profileError) {
+      throw new Error(`Failed to complete onboarding profile: ${profileError.message}`);
+    }
+
+    // Set overall_status = 'COMPLETED' and mark step 9 as completed in onboarding_progress
+    const { data: progress } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
+    const states = {
+      ...(progress?.step_states as Record<string, string> ?? {}),
+      "9": "COMPLETED"
+    };
+
+    const { error: progressError } = await supabase
+      .from("onboarding_progress")
+      .update({ 
+        current_step: 10,
+        step_states: states,
+        overall_status: "COMPLETED" 
+      })
+      .eq("user_id", userId);
+
+    if (progressError) {
+      throw new Error(`Failed to update onboarding progress: ${progressError.message}`);
+    }
+
+    return { ok: true };
+  });

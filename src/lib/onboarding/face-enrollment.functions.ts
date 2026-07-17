@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { ensureCollection, collectionIdForUser } from "@/lib/aws/rekognition.server";
 
@@ -10,13 +11,41 @@ export const recordBiometricConsent = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const required = ["processing", "usage", "revocable", "own_face"];
     for (const k of required) if (!data.consents[k]) throw new Error(`Consent required: ${k}`);
+
+    const { data: profile } = await supabase
+      .from("client_profiles")
+      .select("client_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const clientId = profile?.client_id ?? null;
+
+    const request = getRequest();
+    const userAgent = request?.headers?.get("user-agent") || null;
+    const ipAddress = request?.headers?.get("x-forwarded-for") || null;
+
+    const consentPayload = {
+      ...data.consents,
+      client_id: clientId,
+      accepted_at: new Date().toISOString(),
+      status: "ACTIVE",
+      consent_text_identifier: `consent_v${data.consent_version}`,
+    };
+
     const { data: row, error } = await supabase.from("biometric_consents").insert({
-      user_id: userId, consent_version: data.consent_version, consents: data.consents,
+      user_id: userId,
+      consent_version: data.consent_version,
+      consents: consentPayload as any,
+      user_agent: userAgent,
+      ip_address: ipAddress,
     }).select().single();
     if (error) throw new Error(error.message);
+
     await supabase.from("protected_face_profiles").upsert({
-      user_id: userId, collection_id: collectionIdForUser(userId), status: "CONSENT_REQUIRED",
+      user_id: userId,
+      collection_id: collectionIdForUser(userId),
+      status: "CAMERA_PERMISSION_REQUIRED",
     }, { onConflict: "user_id" });
+
     return row;
   });
 
@@ -29,6 +58,8 @@ export const createLivenessSession = createServerFn({ method: "POST" })
     if (!consent) throw new Error("Biometric consent required");
     const { CreateFaceLivenessSessionCommand } = await import("@aws-sdk/client-rekognition");
     const { getRekognition, getBucket } = await import("@/lib/aws/clients.server");
+    const { STSClient, GetSessionTokenCommand } = await import("@aws-sdk/client-sts");
+
     const collectionId = await ensureCollection(userId);
     const out = await getRekognition().send(new CreateFaceLivenessSessionCommand({
       Settings: {
@@ -40,7 +71,30 @@ export const createLivenessSession = createServerFn({ method: "POST" })
     await supabase.from("protected_face_profiles").upsert({
       user_id: userId, collection_id: collectionId, liveness_session_id: sid, status: "CAPTURE_IN_PROGRESS",
     }, { onConflict: "user_id" });
-    return { sessionId: sid, region: process.env.AWS_REGION };
+
+    const region = process.env.AWS_REGION || "us-east-1";
+    const sts = new STSClient({
+      region,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
+      }
+    });
+
+    const stsCreds = await sts.send(new GetSessionTokenCommand({
+      DurationSeconds: 900
+    }));
+
+    return {
+      sessionId: sid,
+      region,
+      credentials: {
+        accessKeyId: stsCreds.Credentials!.AccessKeyId!,
+        secretAccessKey: stsCreds.Credentials!.SecretAccessKey!,
+        sessionToken: stsCreds.Credentials!.SessionToken!,
+        expiration: stsCreds.Credentials!.Expiration!.toISOString()
+      }
+    };
   });
 
 export const finalizeLiveness = createServerFn({ method: "POST" })
@@ -48,6 +102,17 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
   .inputValidator((d: { sessionId: string }) => z.object({ sessionId: z.string().min(8) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    const { data: prof, error: profErr } = await supabase
+      .from("protected_face_profiles")
+      .select("id, liveness_session_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+      
+    if (profErr || !prof || prof.liveness_session_id !== data.sessionId) {
+      throw new Error("Unauthorized: Liveness session does not match authenticated user.");
+    }
+
     const { GetFaceLivenessSessionResultsCommand } = await import("@aws-sdk/client-rekognition");
     const { getRekognition } = await import("@/lib/aws/clients.server");
     const { indexFace } = await import("@/lib/aws/rekognition.server");
@@ -64,31 +129,39 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
     const collectionId = collectionIdForUser(userId);
     const ref = res.ReferenceImage?.Bytes;
     const savedFaceIds: string[] = [];
-    const savedKeys: string[] = [];
     if (ref) {
       const bytes = ref as Uint8Array;
       const key = `clients/${userId}/reference/liveness/${data.sessionId}.jpg`;
       await putObject({ key, body: Buffer.from(bytes), contentType: "image/jpeg" });
       const faces = await indexFace({ collectionId, bytes, externalImageId: `user_${userId.replace(/-/g, "")}` });
-      const { data: prof } = await supabase.from("protected_face_profiles").select("id").eq("user_id", userId).maybeSingle();
-      const profileId = prof?.id;
+      const profileId = prof.id;
       if (profileId) {
         for (const f of faces) {
           await supabase.from("protected_face_references").insert({
             profile_id: profileId, user_id: userId, s3_key: key, face_id: f.faceId, quality_scores: { confidence: f.confidence } as never,
           });
           if (f.faceId) savedFaceIds.push(f.faceId);
-          savedKeys.push(key);
         }
       }
     }
-    void savedKeys;
 
     await supabase.from("protected_face_profiles").update({
       status: "FACE_VERIFIED",
       liveness_score: conf,
       enrollment_date: new Date().toISOString(),
     }).eq("user_id", userId);
+
+    const { data: progress } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
+    const states = {
+      ...(progress?.step_states as Record<string, string> ?? {}),
+      "3": "COMPLETED"
+    };
+    await supabase.from("onboarding_progress").upsert({
+      user_id: userId,
+      current_step: Math.max(progress?.current_step ?? 1, 4),
+      step_states: states,
+      overall_status: "IN_PROGRESS"
+    }, { onConflict: "user_id" });
 
     return { ok: true, status: "FACE_VERIFIED", confidence: conf, faceIds: savedFaceIds };
   });
@@ -97,8 +170,15 @@ export const getFaceEnrollment = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data } = await supabase.from("protected_face_profiles").select("*").eq("user_id", userId).maybeSingle();
-    return data;
+    const { data: profile } = await supabase.from("protected_face_profiles").select("*").eq("user_id", userId).maybeSingle();
+    const { data: consent } = await supabase.from("biometric_consents").select("id").eq("user_id", userId).is("revoked_at", null).order("signed_at", { ascending: false }).limit(1).maybeSingle();
+    
+    const dbStatus = profile?.status ?? "NOT_STARTED";
+    const status = (dbStatus === "NOT_STARTED" || dbStatus === "CONSENT_REQUIRED") && consent 
+      ? "CAMERA_PERMISSION_REQUIRED" 
+      : dbStatus;
+    
+    return profile ? { ...profile, status } : { status };
   });
 
 export const revokeBiometrics = createServerFn({ method: "POST" })
@@ -115,3 +195,4 @@ export const revokeBiometrics = createServerFn({ method: "POST" })
     await supabase.from("biometric_consents").update({ revoked_at: new Date().toISOString() }).eq("user_id", userId).is("revoked_at", null);
     return { ok: true };
   });
+

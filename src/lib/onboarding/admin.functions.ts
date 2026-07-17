@@ -149,7 +149,17 @@ export const decideAuthorization = createServerFn({ method: "POST" })
       await supabase.from("authorization_documents").insert({
         authorization_id: auth.id, user_id: auth.user_id, kind: "certificate", version: auth.version, s3_key: key, sha256: sha,
       });
-      await supabase.from("onboarding_progress").update({ current_step: 10, overall_status: "COMPLETED" }).eq("user_id", auth.user_id);
+      const { data: progress } = await supabase.from("onboarding_progress").select("*").eq("user_id", auth.user_id).maybeSingle();
+      const states = {
+        ...(progress?.step_states as Record<string, string> ?? {}),
+        "8": "COMPLETED"
+      };
+      await supabase.from("onboarding_progress").upsert({
+        user_id: auth.user_id,
+        current_step: Math.max(progress?.current_step ?? 1, 9),
+        step_states: states,
+        overall_status: "IN_PROGRESS"
+      }, { onConflict: "user_id" });
     } else {
       await supabase.from("client_authorizations").update({ status: newStatus as never, enforcement_enabled: false }).eq("id", auth.id);
     }

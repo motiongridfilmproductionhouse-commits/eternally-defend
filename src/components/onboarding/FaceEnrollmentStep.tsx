@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FaceLivenessDetector } from "@aws-amplify/ui-react-liveness";
 import "@aws-amplify/ui-react-liveness/styles.css";
 import { Loader2, ChevronRight, ChevronLeft, ShieldCheck, CheckCircle2, UserCircle, RefreshCcw, Trash2 } from "lucide-react";
 import { 
@@ -13,6 +12,11 @@ import {
   finalizeLiveness, 
   revokeBiometrics 
 } from "@/lib/onboarding/face-enrollment.functions";
+
+const LazyFaceLivenessDetector = lazy(async () => {
+  const { FaceLivenessDetectorCore } = await import("@aws-amplify/ui-react-liveness");
+  return { default: FaceLivenessDetectorCore };
+});
 
 const CONSENT_VERSION = "1.0";
 
@@ -39,7 +43,16 @@ export function FaceEnrollmentStep({
   });
   
   const [busy, setBusy] = useState(false);
-  const [livenessData, setLivenessData] = useState<{ sessionId: string; region: string } | null>(null);
+  const [livenessData, setLivenessData] = useState<{
+    sessionId: string;
+    region: string;
+    credentials?: {
+      accessKeyId: string;
+      secretAccessKey: string;
+      sessionToken: string;
+      expiration: string;
+    };
+  } | null>(null);
   const [processingText, setProcessingText] = useState("");
 
   const recordConsent = useServerFn(recordBiometricConsent);
@@ -52,14 +65,24 @@ export function FaceEnrollmentStep({
 
   const handleConsent = async () => {
     setBusy(true);
+    setProcessingText("Saving consent...");
     try {
       await recordConsent({ data: { consents: checks, consent_version: CONSENT_VERSION } });
-      await onRefetch();
       toast.success("Biometric consent recorded securely.");
+      
+      setProcessingText("Creating secure face session...");
+      const data = await createSession();
+      setLivenessData({
+        sessionId: data.sessionId,
+        region: data.region ?? "us-east-1",
+        credentials: data.credentials
+      });
+      await onRefetch();
     } catch (e: any) {
-      toast.error(e?.message ?? "Failed to record consent");
+      toast.error(e?.message ?? "Failed to save consent or start session");
     } finally {
       setBusy(false);
+      setProcessingText("");
     }
   };
 
@@ -68,7 +91,11 @@ export function FaceEnrollmentStep({
     setProcessingText("Creating secure session...");
     try {
       const data = await createSession();
-      setLivenessData({ sessionId: data.sessionId, region: data.region ?? "us-east-1" });
+      setLivenessData({
+        sessionId: data.sessionId,
+        region: data.region ?? "us-east-1",
+        credentials: data.credentials
+      });
       await onRefetch();
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to start liveness session");
@@ -86,14 +113,17 @@ export function FaceEnrollmentStep({
       const res = await finalize({ data: { sessionId: livenessData.sessionId } });
       if (res.ok) {
         toast.success("Face Protection Profile established!");
+        await onRefetch();
+        onNext();
       } else {
         toast.error("Liveness verification failed. Please try again.");
+        setLivenessData(null);
+        await onRefetch();
       }
-      setLivenessData(null);
-      await onRefetch();
     } catch (e: any) {
       toast.error(e?.message ?? "Error finalizing liveness");
       setLivenessData(null);
+      await onRefetch();
     } finally {
       setBusy(false);
       setProcessingText("");
@@ -159,21 +189,35 @@ export function FaceEnrollmentStep({
 
   // 2. Active Liveness Scanner (AWS Component)
   if (livenessData && !busy) {
+    const credentialProvider = async () => {
+      if (!livenessData.credentials) {
+        throw new Error("Temporary credentials not available");
+      }
+      return {
+        accessKeyId: livenessData.credentials.accessKeyId,
+        secretAccessKey: livenessData.credentials.secretAccessKey,
+        sessionToken: livenessData.credentials.sessionToken,
+        expiration: new Date(livenessData.credentials.expiration),
+      };
+    };
+
     return (
       <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50 overflow-hidden">
         <CardContent className="p-0">
           <div className="w-full max-w-lg mx-auto relative h-[600px] bg-black">
-            {/* The Amplify component automatically handles camera permissions, UI masks, and guidance */}
-            <FaceLivenessDetector
-              sessionId={livenessData.sessionId}
-              region={livenessData.region}
-              onAnalysisComplete={handleAnalysisComplete}
-              onError={(error) => {
-                toast.error(`Scanner error: ${error.state}`);
-                setLivenessData(null);
-                onRefetch();
-              }}
-            />
+            <Suspense fallback={<div className="flex flex-col items-center justify-center h-full text-white space-y-2"><Loader2 className="size-8 animate-spin text-blue-500" /><p className="text-xs text-white/60">Initializing camera...</p></div>}>
+              <LazyFaceLivenessDetector
+                sessionId={livenessData.sessionId}
+                region={livenessData.region}
+                config={{ credentialProvider }}
+                onAnalysisComplete={handleAnalysisComplete}
+                onError={(error) => {
+                  toast.error(`Scanner error: ${error.state}`);
+                  setLivenessData(null);
+                  onRefetch();
+                }}
+              />
+            </Suspense>
           </div>
         </CardContent>
       </Card>

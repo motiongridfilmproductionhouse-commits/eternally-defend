@@ -219,85 +219,37 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       signed_at: new Date().toISOString(), document_sha256: doc_sha,
     }).eq("id", sig.id);
 
-    // Compute score & issue certificate automatically
-    const [{ data: profile }, { data: kyc }, { data: face }, { data: assets }, { data: sigs }] = await Promise.all([
-      supabase.from("client_profiles").select("*").eq("user_id", userId).maybeSingle(),
-      supabase.from("kyc_verifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("protected_face_profiles").select("*").eq("user_id", userId).maybeSingle(),
-      supabase.from("digital_assets").select("*").eq("user_id", userId),
-      supabase.from("authorization_signatures").select("*").eq("authorization_id", auth.id),
-    ]);
-    const bundle = { profile, kyc, face, assets, signatures: sigs };
+    // Update status to UNDER_ADMIN_REVIEW
+    await supabase.from("client_authorizations").update({ 
+      status: "UNDER_ADMIN_REVIEW", 
+      snapshot: snap 
+    }).eq("id", auth.id);
     
-    let score = 0;
-    if (bundle.kyc?.verification_status === "APPROVED") score += 25;
-    if (bundle.face?.status === "FACE_VERIFIED") score += 20;
-    if (bundle.profile?.email_verified_at) score += 10;
-    if ((bundle.assets ?? []).some((a: any) => a.verification_status === "VERIFIED")) score += 25;
-    if ((bundle.signatures ?? []).some((x: any) => x.status === "SIGNED")) score += 20; // Replaces admin points
-
-    const enforcementReady = kyc?.verification_status === "APPROVED"
-      && face?.status === "FACE_VERIFIED"
-      && (assets ?? []).some((a: any) => a.verification_status === "VERIFIED")
-      && (sigs ?? []).some((x: any) => x.status === "SIGNED")
-      && score >= 100;
-
-    await supabase.from("client_authorizations").update({ status: "ACTIVE", snapshot: snap, enforcement_enabled: enforcementReady }).eq("id", auth.id);
-    await supabase.from("authorization_versions").insert({ authorization_id: auth.id, user_id: userId, version: auth.version, snapshot: snap });
-    await supabase.from("authorization_audit_logs").insert({ user_id: userId, actor_id: userId, action: "signed", target: auth.auth_number });
-    await supabase.from("authorization_audit_logs").insert({ user_id: userId, actor_id: userId, action: "admin_approve", target: auth.auth_number, notes: "Automated verification" } as never);
-
-    // Generate certificate PDF + QR
-    const cert_number = `ETC-${new Date().getUTCFullYear()}-${randomBytes(3).toString("hex").toUpperCase()}`;
-    const public_slug = randomBytes(6).toString("hex");
-    const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
-    const doc = await PDFDocument.create();
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-    const page = doc.addPage([612, 792]);
-    const { height } = page.getSize();
-    let y = height - 60;
-    const line = (t: string, f = font, sz = 11) => { page.drawText(t, { x: 60, y, size: sz, font: f, color: rgb(0.05, 0.1, 0.35) }); y -= sz + 8; };
-    line("ETERNA VERIFICATION CERTIFICATE", bold, 18);
-    line(`Certificate: ${cert_number}`, bold);
-    line(`Authorization: ${auth.auth_number}`);
-    line(`Client ID: ${profile?.client_id ?? ""}`);
-    line(`Name: ${profile?.display_name ?? (profile as any)?.full_name ?? ""}`);
-    line(`Company: ${profile?.company_name ?? ""}`);
-    line(`Verification Score: ${score}/100`);
-    line(`Status: ACTIVE`);
-    line(`Issued: ${new Date().toISOString().slice(0, 10)}`);
-    line(`Expires: ${auth.expiry_date}`);
-    y -= 10;
-    line("✓ Identity Verified (Veriff)", bold);
-    line("✓ Real Human Verified (Rekognition Liveness)", bold);
-    line("✓ Face Protected Profile Created", bold);
-    line("✓ Asset Ownership Verified", bold);
-    line("✓ Authorization Signed", bold);
-    line("✓ Automated Approval", bold);
-    // QR
-    try {
-      const QR = await import("qrcode");
-      const publicBase = process.env.PUBLIC_APP_URL ?? "http://localhost:3000";
-      const dataUrl = await QR.toDataURL(`${publicBase}/verify/${public_slug}`);
-      const png = await doc.embedPng(Buffer.from(dataUrl.split(",")[1], "base64"));
-      page.drawImage(png, { x: 420, y: 90, width: 120, height: 120 });
-      page.drawText(`Verify: /verify/${public_slug}`, { x: 380, y: 78, size: 8, font, color: rgb(0.3, 0.3, 0.3) });
-    } catch { /* ignore */ }
-    const certBytes = await doc.save();
-    const certSha = createHash("sha256").update(certBytes).digest("hex");
-    const certKey = `clients/${userId}/certificates/${cert_number}.pdf`;
-    await putObject({ key: certKey, body: Buffer.from(certBytes), contentType: "application/pdf" });
-    await supabase.from("verification_certificates").insert({
-      user_id: userId, authorization_id: auth.id, certificate_number: cert_number,
-      public_slug, score, status: "ACTIVE",
-      expires_at: new Date(auth.expiry_date ?? Date.now() + 365 * 86400_000).toISOString(),
-      s3_key: certKey, sha256: certSha, snapshot: bundle,
+    await supabase.from("authorization_versions").insert({ 
+      authorization_id: auth.id, 
+      user_id: userId, 
+      version: auth.version, 
+      snapshot: snap 
     });
-    await supabase.from("authorization_documents").insert({
-      authorization_id: auth.id, user_id: userId, kind: "certificate", version: auth.version, s3_key: certKey, sha256: certSha,
+    
+    await supabase.from("authorization_audit_logs").insert({ 
+      user_id: userId, 
+      actor_id: userId, 
+      action: "signed", 
+      target: auth.auth_number 
     });
-    await supabase.from("onboarding_progress").update({ current_step: 9, overall_status: "COMPLETED" }).eq("user_id", userId);
+
+    const { data: progress } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
+    const states = {
+      ...(progress?.step_states as Record<string, string> ?? {}),
+      "7": "COMPLETED"
+    };
+    await supabase.from("onboarding_progress").upsert({
+      user_id: userId,
+      current_step: Math.max(progress?.current_step ?? 1, 8),
+      step_states: states,
+      overall_status: "IN_PROGRESS"
+    }, { onConflict: "user_id" });
 
     return { ok: true };
   });

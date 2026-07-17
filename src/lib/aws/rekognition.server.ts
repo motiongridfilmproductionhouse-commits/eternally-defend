@@ -43,10 +43,54 @@ export async function indexFace(opts: {
     CollectionId: opts.collectionId,
     Image: { Bytes: opts.bytes },
     ExternalImageId: opts.externalImageId,
-    DetectionAttributes: ["DEFAULT"],
+    DetectionAttributes: ["ALL"],
     QualityFilter: "AUTO",
     MaxFaces: 1,
   }));
+
+  if (!out.FaceRecords || out.FaceRecords.length === 0) {
+    let reason = "No valid face detected or image quality was too low.";
+    if (out.UnindexedFaces && out.UnindexedFaces.length > 0) {
+      const reasons = out.UnindexedFaces[0].Reasons || [];
+      if (reasons.includes("EXCEEDS_MAX_FACES")) {
+        reason = "Multiple faces detected. Please ensure only you are in the frame.";
+      } else if (reasons.includes("LOW_QUALITY") || reasons.includes("LOW_CONFIDENCE") || reasons.includes("LOW_SHARPNESS")) {
+        reason = "Image quality is too low (excessive blur, poor lighting, or poor pose).";
+      }
+    }
+    throw new Error(reason);
+  }
+
+  const faceRecord = out.FaceRecords[0];
+  const detail = faceRecord.FaceDetail;
+  if (detail) {
+    const pose = detail.Pose;
+    const quality = detail.ImageQuality;
+    const confidence = detail.Confidence ?? 0;
+    
+    if (confidence < 90) {
+      throw new Error("Face detection confidence too low.");
+    }
+    if (pose) {
+      const yaw = Math.abs(pose.Yaw ?? 0);
+      const pitch = Math.abs(pose.Pitch ?? 0);
+      const roll = Math.abs(pose.Roll ?? 0);
+      if (yaw > 15 || pitch > 15 || roll > 15) {
+        throw new Error("Poor face pose. Please look directly at the camera.");
+      }
+    }
+    if (quality) {
+      const sharpness = quality.Sharpness ?? 100;
+      const brightness = quality.Brightness ?? 100;
+      if (sharpness < 50) {
+        throw new Error("Image is too blurry. Please stabilize your camera.");
+      }
+      if (brightness < 30 || brightness > 90) {
+        throw new Error("Poor lighting conditions. Please ensure your face is well-lit.");
+      }
+    }
+  }
+
   return (out.FaceRecords ?? []).map((r) => ({
     faceId: r.Face?.FaceId ?? "",
     imageId: r.Face?.ImageId,

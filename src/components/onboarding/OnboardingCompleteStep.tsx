@@ -1,12 +1,13 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, ShieldCheck, Download, ExternalLink, FileKey2, Settings, LayoutDashboard, CheckCircle2 } from "lucide-react";
 import { getMyCertificate, getCertificateSignedUrl } from "@/lib/onboarding/certificate.functions";
 import { getAuthorizationBundle } from "@/lib/onboarding/authorization.functions";
 import { buildAuthorizationPackage } from "@/lib/onboarding/package.functions";
+import { completeOnboarding } from "@/lib/onboarding/progress.functions";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -15,6 +16,8 @@ export function OnboardingCompleteStep({ onGoToStep }: { onGoToStep: (step: numb
   const fetchAuth = useServerFn(getAuthorizationBundle);
   const getCertUrl = useServerFn(getCertificateSignedUrl);
   const buildPkg = useServerFn(buildAuthorizationPackage);
+  const complete = useServerFn(completeOnboarding);
+  const navigate = useNavigate();
 
   const { data: cert, isLoading: certLoading } = useQuery({
     queryKey: ["my_certificate"],
@@ -134,11 +137,16 @@ export function OnboardingCompleteStep({ onGoToStep }: { onGoToStep: (step: numb
           </div>
 
           <div className="flex flex-wrap justify-center gap-3 w-full max-w-3xl pt-4 border-t border-white/10">
-            <Link to="/">
-              <Button className="bg-blue-600 hover:bg-blue-500 text-white">
-                <LayoutDashboard className="size-4 mr-2" /> Open Dashboard
-              </Button>
-            </Link>
+            <Button onClick={async () => {
+              try {
+                await complete();
+                navigate({ to: "/" });
+              } catch (e: any) {
+                toast.error(e?.message ?? "Failed to complete onboarding");
+              }
+            }} className="bg-blue-600 hover:bg-blue-500 text-white">
+              <LayoutDashboard className="size-4 mr-2" /> Open Dashboard
+            </Button>
             <Button variant="outline" onClick={handleDownloadCert} disabled={loadingUrl === cert.id} className="border-white/20 text-white hover:bg-white/10">
               {loadingUrl === cert.id ? <Loader2 className="size-4 animate-spin mr-2" /> : <ExternalLink className="size-4 mr-2" />} View Certificate
             </Button>
