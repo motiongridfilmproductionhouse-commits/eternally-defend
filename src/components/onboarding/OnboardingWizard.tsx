@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ShieldCheck, Check, ChevronRight, ChevronLeft, Lock } from "lucide-react";
 import { getProgress, setStepStatus } from "@/lib/onboarding/progress.functions";
 import { getClientProfile, saveClientProfile } from "@/lib/onboarding/profile.functions";
-import { getKycStatus, createVeriffSession } from "@/lib/onboarding/kyc.functions";
+import { getKycStatus, createVeriffSession, syncVeriffStatus } from "@/lib/onboarding/kyc.functions";
 import { getFaceEnrollment } from "@/lib/onboarding/face-enrollment.functions";
 import { listAssets } from "@/lib/onboarding/assets.functions";
 import { getAuthorizationBundle } from "@/lib/onboarding/authorization.functions";
@@ -63,6 +63,10 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
   const { data: kyc, refetch: refetchKyc } = useQuery({
     queryKey: ["kyc_status"],
     queryFn: () => fetchKycStatus(),
+    refetchInterval: (q) => {
+      const s = (q.state.data as { verification_status?: string } | undefined)?.verification_status;
+      return s === "APPROVED" || s === "DECLINED" || s === "EXPIRED" ? false : 5000;
+    },
   });
 
   const { data: faceEnrollment, refetch: refetchFaceEnrollment } = useQuery({
@@ -385,9 +389,24 @@ function Step1Profile({ profile, onRefetch, onNext }: { profile: any; onRefetch:
 /* ---------- STEP 2: Veriff Identity Verification ---------- */
 function Step2Kyc({ kyc, profile, onRefetch, onBack, onNext }: { kyc: any; profile: any; onRefetch: () => void; onBack: () => void; onNext: () => void }) {
   const createSession = useServerFn(createVeriffSession);
+  const syncStatus = useServerFn(syncVeriffStatus);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const status = kyc?.verification_status ?? "NOT_STARTED";
-  
+  const isTerminal = status === "APPROVED" || status === "DECLINED" || status === "EXPIRED";
+
+  // Auto-sync from Veriff API while pending, so status flips without waiting on the webhook.
+  useEffect(() => {
+    if (!kyc?.veriff_session_id || isTerminal) return;
+    let cancelled = false;
+    const run = async () => {
+      try { await syncStatus(); if (!cancelled) await onRefetch(); } catch { /* ignore */ }
+    };
+    run();
+    const id = setInterval(run, 5000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [kyc?.veriff_session_id, isTerminal, syncStatus, onRefetch]);
+
   const handleStart = async () => {
     setLoading(true);
     try {
@@ -405,6 +424,20 @@ function Step2Kyc({ kyc, profile, onRefetch, onBack, onNext }: { kyc: any; profi
       setLoading(false);
     }
   };
+
+  const handleRefresh = async () => {
+    setSyncing(true);
+    try {
+      const res = await syncStatus();
+      await onRefetch();
+      if (res?.verification_status === "APPROVED") toast.success("Identity verified");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to refresh status");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
 
   const getStatusDisplay = () => {
     switch (status) {
@@ -458,7 +491,8 @@ function Step2Kyc({ kyc, profile, onRefetch, onBack, onNext }: { kyc: any; profi
                   {status === "NOT_STARTED" ? "Start Identity Verification" : "Open / Continue Verification"}
                 </Button>
                 {status !== "NOT_STARTED" && (
-                  <Button variant="outline" onClick={onRefetch} className="border-white/20 text-white hover:bg-white/10">
+                  <Button variant="outline" onClick={handleRefresh} disabled={syncing} className="border-white/20 text-white hover:bg-white/10">
+                    {syncing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
                     Refresh Status
                   </Button>
                 )}
