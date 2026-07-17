@@ -389,9 +389,24 @@ function Step1Profile({ profile, onRefetch, onNext }: { profile: any; onRefetch:
 /* ---------- STEP 2: Veriff Identity Verification ---------- */
 function Step2Kyc({ kyc, profile, onRefetch, onBack, onNext }: { kyc: any; profile: any; onRefetch: () => void; onBack: () => void; onNext: () => void }) {
   const createSession = useServerFn(createVeriffSession);
+  const syncStatus = useServerFn(syncVeriffStatus);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const status = kyc?.verification_status ?? "NOT_STARTED";
-  
+  const isTerminal = status === "APPROVED" || status === "DECLINED" || status === "EXPIRED";
+
+  // Auto-sync from Veriff API while pending, so status flips without waiting on the webhook.
+  useEffect(() => {
+    if (!kyc?.veriff_session_id || isTerminal) return;
+    let cancelled = false;
+    const run = async () => {
+      try { await syncStatus(); if (!cancelled) await onRefetch(); } catch { /* ignore */ }
+    };
+    run();
+    const id = setInterval(run, 5000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [kyc?.veriff_session_id, isTerminal, syncStatus, onRefetch]);
+
   const handleStart = async () => {
     setLoading(true);
     try {
@@ -409,6 +424,20 @@ function Step2Kyc({ kyc, profile, onRefetch, onBack, onNext }: { kyc: any; profi
       setLoading(false);
     }
   };
+
+  const handleRefresh = async () => {
+    setSyncing(true);
+    try {
+      const res = await syncStatus();
+      await onRefetch();
+      if (res?.verification_status === "APPROVED") toast.success("Identity verified");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to refresh status");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
 
   const getStatusDisplay = () => {
     switch (status) {
