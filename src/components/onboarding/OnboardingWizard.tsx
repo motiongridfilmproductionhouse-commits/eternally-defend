@@ -63,6 +63,10 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
   const { data: kyc, refetch: refetchKyc } = useQuery({
     queryKey: ["kyc_status"],
     queryFn: () => fetchKycStatus(),
+    refetchInterval: (q) => {
+      const s = (q.state.data as { verification_status?: string } | undefined)?.verification_status;
+      return s === "APPROVED" || s === "DECLINED" || s === "EXPIRED" ? false : 5000;
+    },
   });
 
   const { data: faceEnrollment, refetch: refetchFaceEnrollment } = useQuery({
