@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+import { createServerFn, getRequest } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 type VeriffSessionResult = {
@@ -20,10 +20,17 @@ export const createVeriffSession = createServerFn({ method: "POST" })
     const fullName = (profile as { full_name?: string | null } | null)?.full_name ?? "Client User";
     const [firstName, ...rest] = fullName.split(" ");
     const lastName = rest.join(" ") || "User";
+    const requestOrigin = new URL(getRequest().url).origin;
+    const configuredOrigin = process.env.PUBLIC_APP_URL?.replace(/\/$/, "");
+    const callbackOrigin = configuredOrigin?.startsWith("https://")
+      ? configuredOrigin
+      : requestOrigin.startsWith("https://")
+        ? requestOrigin
+        : "https://eternally-defend.lovable.app";
 
     const payload = {
       verification: {
-        callback: `${process.env.PUBLIC_APP_URL ?? ""}/api/public/veriff-webhook`,
+        callback: `${callbackOrigin}/api/public/veriff-webhook`,
         person: { firstName, lastName },
         vendorData: userId,
         timestamp: new Date().toISOString(),
