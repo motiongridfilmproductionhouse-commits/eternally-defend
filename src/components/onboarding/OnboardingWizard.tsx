@@ -491,7 +491,8 @@ function Step2Kyc({ kyc, profile, onRefetch, onBack, onNext }: { kyc: any; profi
                   {status === "NOT_STARTED" ? "Start Identity Verification" : "Open / Continue Verification"}
                 </Button>
                 {status !== "NOT_STARTED" && (
-                  <Button variant="outline" onClick={onRefetch} className="border-white/20 text-white hover:bg-white/10">
+                  <Button variant="outline" onClick={handleRefresh} disabled={syncing} className="border-white/20 text-white hover:bg-white/10">
+                    {syncing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
                     Refresh Status
                   </Button>
                 )}
