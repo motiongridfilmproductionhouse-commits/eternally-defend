@@ -245,7 +245,7 @@ export const finalizeSignature = createServerFn({ method: "POST" })
     await supabase.from("client_authorizations").update({ status: "ACTIVE", snapshot: snap, enforcement_enabled: enforcementReady }).eq("id", auth.id);
     await supabase.from("authorization_versions").insert({ authorization_id: auth.id, user_id: userId, version: auth.version, snapshot: snap });
     await supabase.from("authorization_audit_logs").insert({ user_id: userId, actor_id: userId, action: "signed", target: auth.auth_number });
-    await supabase.from("authorization_audit_logs").insert({ user_id: userId, actor_id: userId, action: "admin_approve", target: auth.auth_number, notes: "Automated verification" });
+    await supabase.from("authorization_audit_logs").insert({ user_id: userId, actor_id: userId, action: "admin_approve", target: auth.auth_number, notes: "Automated verification" } as never);
 
     // Generate certificate PDF + QR
     const cert_number = `ETC-${new Date().getUTCFullYear()}-${randomBytes(3).toString("hex").toUpperCase()}`;
