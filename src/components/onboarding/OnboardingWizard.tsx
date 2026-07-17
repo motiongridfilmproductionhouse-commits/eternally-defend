@@ -391,8 +391,12 @@ function Step2Kyc({ kyc, profile, onRefetch, onBack, onNext }: { kyc: any; profi
   const handleStart = async () => {
     setLoading(true);
     try {
-      const { session_url } = await createSession();
-      if (session_url) window.open(session_url, "_blank");
+      const { session_url, error } = await createSession();
+      if (error || !session_url) {
+        toast.error(error ?? "Failed to start verification");
+        return;
+      }
+      window.open(session_url, "_blank", "noopener,noreferrer");
       toast.success("Verification session created. Please complete it in the new tab.");
       await onRefetch();
     } catch (e: any) {

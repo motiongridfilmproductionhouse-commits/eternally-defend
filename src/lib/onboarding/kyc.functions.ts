@@ -1,6 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createHmac } from "crypto";
+
+type VeriffSessionResult = {
+  session_url: string | null;
+  veriff_session_id: string | null;
+  error: string | null;
+};
 
 export const createVeriffSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -15,36 +21,72 @@ export const createVeriffSession = createServerFn({ method: "POST" })
     const fullName = (profile as { full_name?: string | null } | null)?.full_name ?? "Client User";
     const [firstName, ...rest] = fullName.split(" ");
     const lastName = rest.join(" ") || "User";
+    const requestOrigin = new URL(getRequest().url).origin;
+    const configuredOrigin = process.env.PUBLIC_APP_URL?.replace(/\/$/, "");
+    const callbackOrigin = configuredOrigin?.startsWith("https://")
+      ? configuredOrigin
+      : requestOrigin.startsWith("https://")
+        ? requestOrigin
+        : "https://eternally-defend.lovable.app";
 
     const payload = {
       verification: {
-        callback: `${process.env.PUBLIC_APP_URL ?? ""}/api/public/veriff-webhook`,
+        callback: `${callbackOrigin}/api/public/veriff-webhook`,
         person: { firstName, lastName },
         vendorData: userId,
         timestamp: new Date().toISOString(),
       },
     };
     const body = JSON.stringify(payload);
-    const signature = createHmac("sha256", secret).update(body).digest("hex");
     const res = await fetch(`${baseUrl}/v1/sessions`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-auth-client": apiKey, "x-hmac-signature": signature },
+      // Veriff explicitly exempts POST /v1/sessions from HMAC signing.
+      headers: { "content-type": "application/json", "x-auth-client": apiKey },
       body,
     });
-    if (!res.ok) throw new Error(`Veriff error ${res.status}: ${await res.text()}`);
+    if (!res.ok) {
+      const providerMessage = await res.text();
+      console.error("Veriff session creation failed", { status: res.status, response: providerMessage });
+      return {
+        session_url: null,
+        veriff_session_id: null,
+        error: "Identity verification is temporarily unavailable. Please try again.",
+      } satisfies VeriffSessionResult;
+    }
     const json = await res.json() as { verification?: { id?: string; url?: string; sessionToken?: string } };
     const veriff_session_id = json.verification?.id ?? null;
     const session_url = json.verification?.url ?? null;
 
-    await supabase.from("kyc_verifications").upsert({
+    if (!veriff_session_id || !session_url) {
+      console.error("Veriff returned an incomplete session response", {
+        hasSessionId: Boolean(veriff_session_id),
+        hasSessionUrl: Boolean(session_url),
+      });
+      return {
+        session_url: null,
+        veriff_session_id: null,
+        error: "Identity verification did not return a usable session. Please try again.",
+      } satisfies VeriffSessionResult;
+    }
+
+    const { error: persistenceError } = await supabase.from("kyc_verifications").upsert({
       user_id: userId,
       client_id: (profile as { client_id?: string | null } | null)?.client_id ?? null,
-      veriff_session_id: veriff_session_id ?? undefined,
+      veriff_session_id,
       session_url,
       verification_status: "SESSION_CREATED",
     } as never, { onConflict: "veriff_session_id" });
 
-    return { session_url, veriff_session_id };
+    if (persistenceError) {
+      console.error("Failed to persist Veriff session", { message: persistenceError.message });
+      return {
+        session_url: null,
+        veriff_session_id: null,
+        error: "The verification session could not be saved. Please try again.",
+      } satisfies VeriffSessionResult;
+    }
+
+    return { session_url, veriff_session_id, error: null } satisfies VeriffSessionResult;
   });
 
 export const getKycStatus = createServerFn({ method: "GET" })
