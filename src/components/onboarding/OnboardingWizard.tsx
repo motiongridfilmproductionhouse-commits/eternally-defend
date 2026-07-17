@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ShieldCheck, Check, ChevronRight, ChevronLeft, Lock } from "lucide-react";
 import { getProgress, setStepStatus } from "@/lib/onboarding/progress.functions";
 import { getClientProfile, saveClientProfile } from "@/lib/onboarding/profile.functions";
-import { getKycStatus, createVeriffSession } from "@/lib/onboarding/kyc.functions";
+import { getKycStatus, createVeriffSession, syncVeriffStatus } from "@/lib/onboarding/kyc.functions";
 import { getFaceEnrollment } from "@/lib/onboarding/face-enrollment.functions";
 import { listAssets } from "@/lib/onboarding/assets.functions";
 import { getAuthorizationBundle } from "@/lib/onboarding/authorization.functions";
