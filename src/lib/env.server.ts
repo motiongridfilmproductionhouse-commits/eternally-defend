@@ -7,7 +7,7 @@ const serverEnvSchema = z.object({
   SUPABASE_URL: z.string().url("SUPABASE_URL must be a valid URL"),
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1, "SUPABASE_PUBLISHABLE_KEY is required"),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-  PUBLIC_APP_URL: z.string().url("PUBLIC_APP_URL is required"),
+  PUBLIC_APP_URL: z.string().url().optional(),
   
   // Optional integrations
   FIRECRAWL_API_KEY: z.string().optional(),
