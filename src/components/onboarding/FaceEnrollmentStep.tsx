@@ -1,16 +1,17 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import "@aws-amplify/ui-react-liveness/styles.css";
-import { Loader2, ChevronRight, ChevronLeft, ShieldCheck, CheckCircle2, UserCircle, RefreshCcw, Trash2 } from "lucide-react";
-import { 
-  recordBiometricConsent, 
-  createLivenessSession, 
-  finalizeLiveness, 
-  revokeBiometrics 
+import { Loader2, ChevronRight, ChevronLeft, ShieldCheck, CheckCircle2, UserCircle, RefreshCcw, Trash2, Clock, AlertTriangle } from "lucide-react";
+import {
+  recordBiometricConsent,
+  createLivenessSession,
+  finalizeLiveness,
+  revokeBiometrics,
+  deferFaceEnrollment,
 } from "@/lib/onboarding/face-enrollment.functions";
 
 const LazyFaceLivenessDetector = lazy(async () => {
