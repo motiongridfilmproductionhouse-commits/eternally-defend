@@ -6,12 +6,22 @@ import { getProgress } from "@/lib/onboarding/progress.functions";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { Loader2 } from "lucide-react";
 
+// Demo bypass — same constants as _app.tsx (module-level, tree-shaken in prod when false)
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+const DEMO_USER_EMAIL = (import.meta.env.VITE_DEMO_USER_EMAIL ?? "").trim().toLowerCase();
+
 export const Route = createFileRoute("/onboarding")({
   ssr: false,
   head: () => ({ meta: [{ title: "Onboarding — Eterna AI" }] }),
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
+
+    // Demo bypass: send demo account straight to the dashboard.
+    if (DEMO_MODE && DEMO_USER_EMAIL && data.user.email?.toLowerCase() === DEMO_USER_EMAIL) {
+      throw redirect({ to: "/" });
+    }
+
     const { data: profile } = await supabase
       .from("client_profiles")
       .select("onboarding_completed")
@@ -22,6 +32,7 @@ export const Route = createFileRoute("/onboarding")({
   },
   component: OnboardingPage,
 });
+
 
 function OnboardingPage() {
   const fetchProgress = useServerFn(getProgress);

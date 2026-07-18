@@ -1,12 +1,16 @@
 import { useRouterState, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Search, Bell, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2, PanelLeft, PanelLeftClose } from "lucide-react";
+import { Search, Bell, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2, PanelLeft, PanelLeftClose, FlaskConical } from "lucide-react";
 import { AuthorizationBadge } from "@/components/AuthorizationBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { useSidebarLayout } from "@/lib/layout-context";
 import { getNotifications } from "@/lib/command-center.functions";
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+const DEMO_USER_EMAIL = (import.meta.env.VITE_DEMO_USER_EMAIL ?? "").trim().toLowerCase();
+
 
 const titles: Record<string, { title: string; sub: string }> = {
   "/": { title: "Eterna Command Center", sub: "Mission control for digital reputation protection" },
@@ -80,7 +84,20 @@ export function TopBar() {
       <AuthorizationBadge />
 
       <NotificationsBell />
+      {DEMO_MODE && session?.user.email?.toLowerCase() === DEMO_USER_EMAIL && <DemoBadge />}
     </header>
+  );
+}
+
+function DemoBadge() {
+  return (
+    <div
+      title="Demo Mode active — onboarding bypassed for this account only"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-400/60 bg-amber-400/10 text-amber-400 text-[11px] font-bold uppercase tracking-widest animate-pulse select-none"
+    >
+      <FlaskConical className="size-3.5 shrink-0" />
+      Demo Mode
+    </div>
   );
 }
 
