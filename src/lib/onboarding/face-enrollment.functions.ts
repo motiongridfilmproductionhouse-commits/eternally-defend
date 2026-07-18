@@ -4,6 +4,28 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { ensureCollection, collectionIdForUser } from "@/lib/aws/rekognition.server";
 
+function classifyAwsError(e: any): { code: string; message: string; retryable: boolean } {
+  const name = e?.name ?? e?.Code ?? "";
+  const raw = String(e?.message ?? e);
+  if (name === "AccessDeniedException" || /not authorized|AccessDenied/i.test(raw)) {
+    return { code: "AWS_CONFIG_ERROR", message: "Face Protection is temporarily unavailable (service permissions). You can retry or complete this setup later.", retryable: true };
+  }
+  if (name === "InvalidSignatureException" || /Signature|clock skew/i.test(raw)) {
+    return { code: "AWS_CREDENTIALS_ERROR", message: "Face Protection is temporarily unavailable (credential sync). You can retry or complete this setup later.", retryable: true };
+  }
+  if (/region|endpoint/i.test(raw)) {
+    return { code: "AWS_REGION_ERROR", message: "Face Protection is temporarily unavailable (region mismatch). You can retry or complete this setup later.", retryable: true };
+  }
+  if (name === "SessionNotFoundException" || /session.*(expired|not found)/i.test(raw)) {
+    return { code: "AWS_SESSION_ERROR", message: "The face scan session expired. Please restart the scan or complete this setup later.", retryable: true };
+  }
+  if (name === "ThrottlingException" || name === "ServiceUnavailableException" || /throttl|unavailable|timeout/i.test(raw)) {
+    return { code: "AWS_SERVICE_ERROR", message: "Face Protection is temporarily unavailable. You can retry or complete this setup later.", retryable: true };
+  }
+  return { code: "UNKNOWN", message: raw || "Face Protection error", retryable: true };
+}
+
+
 export const recordBiometricConsent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { consents: Record<string, boolean>; consent_version: string }) => d)
@@ -53,48 +75,55 @@ export const createLivenessSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    // Verify consent exists
-    const { data: consent } = await supabase.from("biometric_consents").select("id").eq("user_id", userId).is("revoked_at", null).order("signed_at", { ascending: false }).limit(1).maybeSingle();
-    if (!consent) throw new Error("Biometric consent required");
-    const { CreateFaceLivenessSessionCommand } = await import("@aws-sdk/client-rekognition");
-    const { getRekognition, getBucket } = await import("@/lib/aws/clients.server");
-    const { STSClient, GetSessionTokenCommand } = await import("@aws-sdk/client-sts");
+    try {
+      // Verify consent exists
+      const { data: consent } = await supabase.from("biometric_consents").select("id").eq("user_id", userId).is("revoked_at", null).order("signed_at", { ascending: false }).limit(1).maybeSingle();
+      if (!consent) throw new Error("Biometric consent required");
+      const { CreateFaceLivenessSessionCommand } = await import("@aws-sdk/client-rekognition");
+      const { getRekognition, getBucket } = await import("@/lib/aws/clients.server");
+      const { STSClient, GetSessionTokenCommand } = await import("@aws-sdk/client-sts");
 
-    const collectionId = await ensureCollection(userId);
-    const out = await getRekognition().send(new CreateFaceLivenessSessionCommand({
-      Settings: {
-        OutputConfig: { S3Bucket: getBucket(), S3KeyPrefix: `clients/${userId}/liveness/` },
-        AuditImagesLimit: 4,
-      },
-    }));
-    const sid = out.SessionId!;
-    await supabase.from("protected_face_profiles").upsert({
-      user_id: userId, collection_id: collectionId, liveness_session_id: sid, status: "CAPTURE_IN_PROGRESS",
-    }, { onConflict: "user_id" });
+      const collectionId = await ensureCollection(userId);
+      const out = await getRekognition().send(new CreateFaceLivenessSessionCommand({
+        Settings: {
+          OutputConfig: { S3Bucket: getBucket(), S3KeyPrefix: `clients/${userId}/liveness/` },
+          AuditImagesLimit: 4,
+        },
+      }));
+      const sid = out.SessionId!;
+      await supabase.from("protected_face_profiles").upsert({
+        user_id: userId, collection_id: collectionId, liveness_session_id: sid, status: "CAPTURE_IN_PROGRESS",
+      }, { onConflict: "user_id" });
 
-    const region = process.env.AWS_REGION || "us-east-1";
-    const sts = new STSClient({
-      region,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
-      }
-    });
+      const region = process.env.AWS_REGION || "us-east-1";
+      const sts = new STSClient({
+        region,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
+        }
+      });
 
-    const stsCreds = await sts.send(new GetSessionTokenCommand({
-      DurationSeconds: 900
-    }));
+      const stsCreds = await sts.send(new GetSessionTokenCommand({ DurationSeconds: 900 }));
 
-    return {
-      sessionId: sid,
-      region,
-      credentials: {
-        accessKeyId: stsCreds.Credentials!.AccessKeyId!,
-        secretAccessKey: stsCreds.Credentials!.SecretAccessKey!,
-        sessionToken: stsCreds.Credentials!.SessionToken!,
-        expiration: stsCreds.Credentials!.Expiration!.toISOString()
-      }
-    };
+      return {
+        sessionId: sid,
+        region,
+        credentials: {
+          accessKeyId: stsCreds.Credentials!.AccessKeyId!,
+          secretAccessKey: stsCreds.Credentials!.SecretAccessKey!,
+          sessionToken: stsCreds.Credentials!.SessionToken!,
+          expiration: stsCreds.Credentials!.Expiration!.toISOString()
+        }
+      };
+    } catch (e: any) {
+      if (/Biometric consent/i.test(String(e?.message))) throw e;
+      const info = classifyAwsError(e);
+      const err: any = new Error(info.message);
+      err.code = info.code;
+      err.retryable = info.retryable;
+      throw err;
+    }
   });
 
 export const finalizeLiveness = createServerFn({ method: "POST" })
@@ -195,4 +224,50 @@ export const revokeBiometrics = createServerFn({ method: "POST" })
     await supabase.from("biometric_consents").update({ revoked_at: new Date().toISOString() }).eq("user_id", userId).is("revoked_at", null);
     return { ok: true };
   });
+
+/**
+ * Defer face enrollment. Requires KYC APPROVED. Marks the face profile DEFERRED
+ * and advances onboarding_progress past Step 3 so the user can resume later.
+ */
+export const deferFaceEnrollment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
+    const { data: kyc } = await supabase
+      .from("kyc_verifications")
+      .select("verification_status")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (kyc?.verification_status !== "APPROVED") {
+      throw new Error("Identity Verification must be APPROVED before deferring Face Protection.");
+    }
+
+    await supabase.from("protected_face_profiles").upsert({
+      user_id: userId,
+      collection_id: collectionIdForUser(userId),
+      status: "DEFERRED",
+    }, { onConflict: "user_id" });
+
+    const { data: progress } = await supabase
+      .from("onboarding_progress")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const states = {
+      ...((progress?.step_states as Record<string, string>) ?? {}),
+      "3": "DEFERRED",
+    };
+    await supabase.from("onboarding_progress").upsert({
+      user_id: userId,
+      current_step: Math.max(progress?.current_step ?? 1, 4),
+      step_states: states,
+      overall_status: "IN_PROGRESS",
+    }, { onConflict: "user_id" });
+
+    return { ok: true, status: "DEFERRED" as const };
+  });
+
 

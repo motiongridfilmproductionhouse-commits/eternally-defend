@@ -4249,6 +4249,7 @@ export type Database = {
         | "MANUAL_REVIEW"
         | "DELETION_REQUESTED"
         | "DELETED"
+        | "DEFERRED"
       kyc_status:
         | "NOT_STARTED"
         | "SESSION_CREATED"
@@ -4519,6 +4520,7 @@ export const Constants = {
         "MANUAL_REVIEW",
         "DELETION_REQUESTED",
         "DELETED",
+        "DEFERRED",
       ],
       kyc_status: [
         "NOT_STARTED",

@@ -1,0 +1,1 @@
+ALTER TYPE public.face_profile_status ADD VALUE IF NOT EXISTS 'DEFERRED';

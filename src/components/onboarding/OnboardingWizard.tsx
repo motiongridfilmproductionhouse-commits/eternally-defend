@@ -107,6 +107,8 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
   const stepIndex = step - 1;
   const isKycApproved = kyc?.verification_status === "APPROVED";
   const isFaceVerified = faceEnrollment?.status === "FACE_VERIFIED";
+  const isFaceDeferred = faceEnrollment?.status === "DEFERRED";
+  const isFaceHandled = isFaceVerified || isFaceDeferred;
   const hasVerifiedAsset = assets?.some((a: any) => a.verification_status === "VERIFIED") ?? false;
   const hasScopes = (authBundle?.scopes?.filter((s: any) => s.granted)?.length ?? 0) > 0;
   
@@ -146,7 +148,7 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
               const isPast = i < stepIndex;
               const isLocked = 
                 (i >= 2 && !isKycApproved) || 
-                (i >= 3 && !isFaceVerified) || 
+                (i >= 3 && !isFaceHandled) || 
                 (i >= 4 && !hasVerifiedAsset) || 
                 (i >= 5 && !hasScopes) ||
                 (i >= 6 && !isDraftReady) ||
@@ -214,9 +216,11 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
               {step === 3 && (
                 <FaceEnrollmentStep
                   enrollmentStatus={faceEnrollment}
+                  isKycApproved={isKycApproved}
                   onRefetch={async () => { await refetchFaceEnrollment(); }}
                   onBack={goBack}
                   onNext={() => advanceStep(4)}
+                  onDefer={() => advanceStep(4, "DEFERRED")}
                 />
               )}
               {step === 4 && (
@@ -561,7 +565,7 @@ function StepLockedPlaceholder({
           {!isKycApproved ? (
             <p className="text-sm text-red-400">You must complete Identity Verification (Step 2) to unlock this section.</p>
           ) : !isFaceVerified && step >= 4 ? (
-            <p className="text-sm text-red-400">You must complete Face Protection Enrollment (Step 3) to unlock this section.</p>
+            <p className="text-sm text-red-400">Complete or defer Face Protection Enrollment (Step 3) to unlock this section.</p>
           ) : !hasVerifiedAsset && step >= 5 ? (
             <p className="text-sm text-red-400">You must verify at least one Digital Asset (Step 4) to unlock this section.</p>
           ) : !hasScopes && step >= 6 ? (
