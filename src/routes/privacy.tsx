@@ -3,17 +3,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy Policy | Eterna AI" },
+      { title: "Privacy Policy | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "Privacy Policy for Eterna AI — digital protection, reputation intelligence, and YouTube API Services disclosure.",
+          "Privacy Policy for Eterna Sentinel — digital protection, reputation intelligence, and YouTube API Services disclosure.",
       },
-      { property: "og:title", content: "Privacy Policy | Eterna AI" },
+      { property: "og:title", content: "Privacy Policy | Eterna Sentinel" },
       {
         property: "og:description",
         content:
-          "How Eterna AI collects, uses, retains, and protects information across our digital protection and reputation intelligence platform.",
+          "How Eterna Sentinel collects, uses, retains, and protects information across our digital protection and reputation intelligence platform.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

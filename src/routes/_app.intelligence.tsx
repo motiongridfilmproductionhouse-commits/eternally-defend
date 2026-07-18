@@ -247,7 +247,7 @@ function StageAvailabilityList({ providers }: { providers?: any }) {
   const rows = [
     ["Mention detection", true, "Runs on title/description/text"],
     ["Translation", providers.hasTranslationKey, "Google Translate v2"],
-    ["Claim extraction", true, "Gemini via Lovable AI Gateway"],
+    ["Claim extraction", true, "Gemini via Eterna AI Gateway"],
     ["Fact Check Tools", providers.hasFactCheckKey, "Publisher review lookup"],
     ["Video Intelligence", !providers.videoIntelligence.includes("stub"), "Scene/object/logo/OCR — needs SA"],
     ["Speech-to-Text", !providers.speechToText.includes("stub"), "Word-timestamped transcript — needs SA"],

@@ -10,7 +10,8 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
+
+
 
 
 function NotFoundComponent() {
@@ -39,7 +40,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    console.error("[Eterna] root error:", error);
+
   }, [error]);
 
   return (
@@ -78,20 +80,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Eterna AI — Digital Protection Command Center" },
+      { title: "Eterna Sentinel — Digital Protection" },
       { name: "description", content: "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures." },
-      { property: "og:title", content: "Eterna AI — Digital Protection Command Center" },
+      { name: "theme-color", content: "#6B21A8" },
+      { name: "application-name", content: "Eterna Sentinel" },
+      // Open Graph
+      { property: "og:site_name", content: "Eterna Sentinel" },
+      { property: "og:title", content: "Eterna Sentinel — Digital Protection" },
       { property: "og:description", content: "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Eterna AI — Digital Protection Command Center" },
+      { property: "og:image", content: "/eterna-icon-512.png" },
+      // Twitter / X
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Eterna Sentinel — Digital Protection" },
       { name: "twitter:description", content: "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f7279cba-0a8f-4ce7-8e9c-c65b99f7b9f4/id-preview-bd46d132--cee11c03-c063-46d5-9436-8e007b1b3e97.lovable.app-1784043156456.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f7279cba-0a8f-4ce7-8e9c-c65b99f7b9f4/id-preview-bd46d132--cee11c03-c063-46d5-9436-8e007b1b3e97.lovable.app-1784043156456.png" },
+      { name: "twitter:image", content: "/eterna-icon-512.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      // Cache-busted favicon — version param forces browsers to reload immediately after deployment
+      { rel: "icon", href: "/favicon.ico?v=2", type: "image/x-icon" },
+      { rel: "icon", href: "/eterna-icon-32.png?v=2", type: "image/png", sizes: "32x32" },
+      { rel: "icon", href: "/eterna-icon-16.png?v=2", type: "image/png", sizes: "16x16" },
+      { rel: "apple-touch-icon", href: "/eterna-icon-180.png?v=2", sizes: "180x180" },
+      { rel: "manifest", href: "/site.webmanifest" },
+      // Fonts
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" },

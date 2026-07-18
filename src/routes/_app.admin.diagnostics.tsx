@@ -40,7 +40,7 @@ function DiagnosticsPage() {
               <StatusCard title="AWS Services" status={status.aws} description="Rekognition video processing and S3 storage" />
               <StatusCard title="Veriff KYC" status={status.veriff} description="Identity verification sessions and webhooks" />
               <StatusCard title="Google Cloud" status={status.googleCloud} description="Multimedia processing (Vision, Speech, etc)" />
-              <StatusCard title="Lovable AI" status={status.ai} description="Gemini extraction and video classification" />
+              <StatusCard title="Eterna AI" status={status.ai} description="Gemini extraction and video classification" />
               <StatusCard title="Fact Checking" status={status.factChecking} description="Google Fact Check Tools API for claims" />
             </div>
           </div>

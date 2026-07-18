@@ -1,0 +1,23 @@
+{
+  "name": "Eterna Sentinel — Digital Protection",
+  "short_name": "Eterna Sentinel",
+  "description": "AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0E1A",
+  "theme_color": "#6B21A8",
+  "icons": [
+    {
+      "src": "/eterna-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/eterna-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
