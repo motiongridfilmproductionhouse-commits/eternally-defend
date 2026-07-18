@@ -565,7 +565,7 @@ function StepLockedPlaceholder({
           {!isKycApproved ? (
             <p className="text-sm text-red-400">You must complete Identity Verification (Step 2) to unlock this section.</p>
           ) : !isFaceVerified && step >= 4 ? (
-            <p className="text-sm text-red-400">You must complete Face Protection Enrollment (Step 3) to unlock this section.</p>
+            <p className="text-sm text-red-400">Complete or defer Face Protection Enrollment (Step 3) to unlock this section.</p>
           ) : !hasVerifiedAsset && step >= 5 ? (
             <p className="text-sm text-red-400">You must verify at least one Digital Asset (Step 4) to unlock this section.</p>
           ) : !hasScopes && step >= 6 ? (
