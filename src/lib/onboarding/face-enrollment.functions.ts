@@ -75,48 +75,55 @@ export const createLivenessSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    // Verify consent exists
-    const { data: consent } = await supabase.from("biometric_consents").select("id").eq("user_id", userId).is("revoked_at", null).order("signed_at", { ascending: false }).limit(1).maybeSingle();
-    if (!consent) throw new Error("Biometric consent required");
-    const { CreateFaceLivenessSessionCommand } = await import("@aws-sdk/client-rekognition");
-    const { getRekognition, getBucket } = await import("@/lib/aws/clients.server");
-    const { STSClient, GetSessionTokenCommand } = await import("@aws-sdk/client-sts");
+    try {
+      // Verify consent exists
+      const { data: consent } = await supabase.from("biometric_consents").select("id").eq("user_id", userId).is("revoked_at", null).order("signed_at", { ascending: false }).limit(1).maybeSingle();
+      if (!consent) throw new Error("Biometric consent required");
+      const { CreateFaceLivenessSessionCommand } = await import("@aws-sdk/client-rekognition");
+      const { getRekognition, getBucket } = await import("@/lib/aws/clients.server");
+      const { STSClient, GetSessionTokenCommand } = await import("@aws-sdk/client-sts");
 
-    const collectionId = await ensureCollection(userId);
-    const out = await getRekognition().send(new CreateFaceLivenessSessionCommand({
-      Settings: {
-        OutputConfig: { S3Bucket: getBucket(), S3KeyPrefix: `clients/${userId}/liveness/` },
-        AuditImagesLimit: 4,
-      },
-    }));
-    const sid = out.SessionId!;
-    await supabase.from("protected_face_profiles").upsert({
-      user_id: userId, collection_id: collectionId, liveness_session_id: sid, status: "CAPTURE_IN_PROGRESS",
-    }, { onConflict: "user_id" });
+      const collectionId = await ensureCollection(userId);
+      const out = await getRekognition().send(new CreateFaceLivenessSessionCommand({
+        Settings: {
+          OutputConfig: { S3Bucket: getBucket(), S3KeyPrefix: `clients/${userId}/liveness/` },
+          AuditImagesLimit: 4,
+        },
+      }));
+      const sid = out.SessionId!;
+      await supabase.from("protected_face_profiles").upsert({
+        user_id: userId, collection_id: collectionId, liveness_session_id: sid, status: "CAPTURE_IN_PROGRESS",
+      }, { onConflict: "user_id" });
 
-    const region = process.env.AWS_REGION || "us-east-1";
-    const sts = new STSClient({
-      region,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
-      }
-    });
+      const region = process.env.AWS_REGION || "us-east-1";
+      const sts = new STSClient({
+        region,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
+        }
+      });
 
-    const stsCreds = await sts.send(new GetSessionTokenCommand({
-      DurationSeconds: 900
-    }));
+      const stsCreds = await sts.send(new GetSessionTokenCommand({ DurationSeconds: 900 }));
 
-    return {
-      sessionId: sid,
-      region,
-      credentials: {
-        accessKeyId: stsCreds.Credentials!.AccessKeyId!,
-        secretAccessKey: stsCreds.Credentials!.SecretAccessKey!,
-        sessionToken: stsCreds.Credentials!.SessionToken!,
-        expiration: stsCreds.Credentials!.Expiration!.toISOString()
-      }
-    };
+      return {
+        sessionId: sid,
+        region,
+        credentials: {
+          accessKeyId: stsCreds.Credentials!.AccessKeyId!,
+          secretAccessKey: stsCreds.Credentials!.SecretAccessKey!,
+          sessionToken: stsCreds.Credentials!.SessionToken!,
+          expiration: stsCreds.Credentials!.Expiration!.toISOString()
+        }
+      };
+    } catch (e: any) {
+      if (/Biometric consent/i.test(String(e?.message))) throw e;
+      const info = classifyAwsError(e);
+      const err: any = new Error(info.message);
+      err.code = info.code;
+      err.retryable = info.retryable;
+      throw err;
+    }
   });
 
 export const finalizeLiveness = createServerFn({ method: "POST" })
