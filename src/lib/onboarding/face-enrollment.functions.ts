@@ -4,6 +4,28 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { ensureCollection, collectionIdForUser } from "@/lib/aws/rekognition.server";
 
+function classifyAwsError(e: any): { code: string; message: string; retryable: boolean } {
+  const name = e?.name ?? e?.Code ?? "";
+  const raw = String(e?.message ?? e);
+  if (name === "AccessDeniedException" || /not authorized|AccessDenied/i.test(raw)) {
+    return { code: "AWS_CONFIG_ERROR", message: "Face Protection is temporarily unavailable (service permissions). You can retry or complete this setup later.", retryable: true };
+  }
+  if (name === "InvalidSignatureException" || /Signature|clock skew/i.test(raw)) {
+    return { code: "AWS_CREDENTIALS_ERROR", message: "Face Protection is temporarily unavailable (credential sync). You can retry or complete this setup later.", retryable: true };
+  }
+  if (/region|endpoint/i.test(raw)) {
+    return { code: "AWS_REGION_ERROR", message: "Face Protection is temporarily unavailable (region mismatch). You can retry or complete this setup later.", retryable: true };
+  }
+  if (name === "SessionNotFoundException" || /session.*(expired|not found)/i.test(raw)) {
+    return { code: "AWS_SESSION_ERROR", message: "The face scan session expired. Please restart the scan or complete this setup later.", retryable: true };
+  }
+  if (name === "ThrottlingException" || name === "ServiceUnavailableException" || /throttl|unavailable|timeout/i.test(raw)) {
+    return { code: "AWS_SERVICE_ERROR", message: "Face Protection is temporarily unavailable. You can retry or complete this setup later.", retryable: true };
+  }
+  return { code: "UNKNOWN", message: raw || "Face Protection error", retryable: true };
+}
+
+
 export const recordBiometricConsent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { consents: Record<string, boolean>; consent_version: string }) => d)
