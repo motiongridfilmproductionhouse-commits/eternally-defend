@@ -176,6 +176,35 @@ export function FaceEnrollmentStep({
     }
   };
 
+  // 0. Deferred success screen
+  if (status === "DEFERRED") {
+    return (
+      <Card className="bg-[#0A1128] border-amber-500/30 text-white shadow-2xl shadow-amber-500/10">
+        <CardHeader>
+          <CardTitle className="text-xl text-amber-300 flex items-center gap-2">
+            <Clock className="size-5" /> Face Protection Deferred
+          </CardTitle>
+          <CardDescription className="text-white/60">
+            You chose to complete Face Protection later. You can finish this at any time from your dashboard under "Complete Your Protection Setup".
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-white/70">
+            Deepfake and impersonation detection tied to your face will remain <span className="text-amber-300 font-medium">inactive</span> until you complete enrollment.
+          </div>
+          <div className="flex justify-between pt-2">
+            <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
+              <ChevronLeft className="size-4 mr-1" /> Back
+            </Button>
+            <Button onClick={onNext} className="bg-blue-600 hover:bg-blue-500 text-white border-0">
+              Continue <ChevronRight className="size-4 ml-1" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // 1. Consent Screen
   if (status === "CONSENT_REQUIRED" || status === "DELETED") {
     return (
@@ -187,6 +216,12 @@ export function FaceEnrollmentStep({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {technicalError && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex gap-2">
+              <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+              <span>{technicalError}</span>
+            </div>
+          )}
           <div className="space-y-3 bg-white/5 border border-white/10 p-4 rounded-xl">
             {CONSENTS.map((c) => (
               <label key={c.id} className="flex gap-3 items-start cursor-pointer hover:bg-white/5 p-2 rounded-md transition-colors">
@@ -199,18 +234,25 @@ export function FaceEnrollmentStep({
               </label>
             ))}
           </div>
-          <div className="flex justify-between pt-4">
+          <div className="flex flex-wrap justify-between gap-2 pt-4">
             <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
               <ChevronLeft className="size-4 mr-1" /> Back
             </Button>
-            <Button 
-              disabled={!allChecked || busy} 
-              onClick={handleConsent} 
-              className="bg-blue-600 hover:bg-blue-500 text-white border-0"
-            >
-              {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
-              Accept & Continue <ChevronRight className="size-4 ml-1" />
-            </Button>
+            <div className="flex gap-2">
+              {isKycApproved && (
+                <Button variant="outline" onClick={handleDefer} disabled={busy} className="border-white/20 text-white hover:bg-white/10">
+                  <Clock className="size-4 mr-1" /> Do It Later
+                </Button>
+              )}
+              <Button 
+                disabled={!allChecked || busy} 
+                onClick={handleConsent} 
+                className="bg-blue-600 hover:bg-blue-500 text-white border-0"
+              >
+                {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+                Start Face Protection <ChevronRight className="size-4 ml-1" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
