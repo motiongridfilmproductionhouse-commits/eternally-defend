@@ -65,7 +65,7 @@ export async function indexFace(opts: {
   const detail = faceRecord.FaceDetail;
   if (detail) {
     const pose = detail.Pose;
-    const quality = detail.ImageQuality;
+    const quality = (detail as unknown as { ImageQuality?: { Sharpness?: number; Brightness?: number } }).ImageQuality;
     const confidence = detail.Confidence ?? 0;
     
     if (confidence < 90) {
