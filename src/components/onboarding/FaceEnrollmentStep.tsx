@@ -284,7 +284,12 @@ export function FaceEnrollmentStep({
                 config={{ credentialProvider }}
                 onAnalysisComplete={handleAnalysisComplete}
                 onError={(error) => {
-                  toast.error(`Scanner error: ${error.state}`);
+                  const stateStr = String(error?.state ?? "");
+                  const isTech = /CAMERA|PERMISSION|SERVER|TIMEOUT|CONNECTION/i.test(stateStr);
+                  if (isTech) {
+                    setTechnicalError("Face Protection is temporarily unavailable. You can retry or complete this setup later.");
+                  }
+                  toast.error(`Scanner error: ${stateStr || "unknown"}`);
                   setLivenessData(null);
                   onRefetch();
                 }}
