@@ -30,18 +30,23 @@ const CONSENTS = [
 
 export function FaceEnrollmentStep({
   enrollmentStatus,
+  isKycApproved,
   onRefetch,
   onBack,
-  onNext
+  onNext,
+  onDefer,
 }: {
   enrollmentStatus: any;
+  isKycApproved: boolean;
   onRefetch: () => Promise<void>;
   onBack: () => void;
   onNext: () => void;
+  onDefer: () => void;
 }) {
   const [checks, setChecks] = useState<Record<string, boolean>>({
     processing: false, usage: false, revocable: false, own_face: false
   });
+  const [technicalError, setTechnicalError] = useState<string | null>(null);
   
   const [busy, setBusy] = useState(false);
   const [livenessData, setLivenessData] = useState<{
