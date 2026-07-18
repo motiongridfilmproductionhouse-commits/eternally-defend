@@ -225,3 +225,49 @@ export const revokeBiometrics = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Defer face enrollment. Requires KYC APPROVED. Marks the face profile DEFERRED
+ * and advances onboarding_progress past Step 3 so the user can resume later.
+ */
+export const deferFaceEnrollment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
+    const { data: kyc } = await supabase
+      .from("kyc_verifications")
+      .select("verification_status")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (kyc?.verification_status !== "APPROVED") {
+      throw new Error("Identity Verification must be APPROVED before deferring Face Protection.");
+    }
+
+    await supabase.from("protected_face_profiles").upsert({
+      user_id: userId,
+      collection_id: collectionIdForUser(userId),
+      status: "DEFERRED",
+    }, { onConflict: "user_id" });
+
+    const { data: progress } = await supabase
+      .from("onboarding_progress")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const states = {
+      ...((progress?.step_states as Record<string, string>) ?? {}),
+      "3": "DEFERRED",
+    };
+    await supabase.from("onboarding_progress").upsert({
+      user_id: userId,
+      current_step: Math.max(progress?.current_step ?? 1, 4),
+      step_states: states,
+      overall_status: "IN_PROGRESS",
+    }, { onConflict: "user_id" });
+
+    return { ok: true, status: "DEFERRED" as const };
+  });
+
+
