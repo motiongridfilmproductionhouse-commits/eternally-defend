@@ -216,9 +216,11 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
               {step === 3 && (
                 <FaceEnrollmentStep
                   enrollmentStatus={faceEnrollment}
+                  isKycApproved={isKycApproved}
                   onRefetch={async () => { await refetchFaceEnrollment(); }}
                   onBack={goBack}
                   onNext={() => advanceStep(4)}
+                  onDefer={() => advanceStep(4, "DEFERRED")}
                 />
               )}
               {step === 4 && (
