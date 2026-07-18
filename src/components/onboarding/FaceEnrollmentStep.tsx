@@ -104,6 +104,8 @@ export function FaceEnrollmentStep({
       });
       await onRefetch();
     } catch (e: any) {
+      const isTech = /temporarily unavailable|permissions|credential|region|expired|throttl/i.test(String(e?.message));
+      if (isTech) setTechnicalError(e.message);
       toast.error(e?.message ?? "Failed to save consent or start session");
     } finally {
       setBusy(false);
@@ -113,6 +115,7 @@ export function FaceEnrollmentStep({
 
   const startLiveness = async () => {
     setBusy(true);
+    setTechnicalError(null);
     setProcessingText("Creating secure session...");
     try {
       const data = await createSession();
@@ -123,6 +126,8 @@ export function FaceEnrollmentStep({
       });
       await onRefetch();
     } catch (e: any) {
+      const isTech = /temporarily unavailable|permissions|credential|region|expired|throttl/i.test(String(e?.message));
+      if (isTech) setTechnicalError(e.message);
       toast.error(e?.message ?? "Failed to start liveness session");
     } finally {
       setBusy(false);
