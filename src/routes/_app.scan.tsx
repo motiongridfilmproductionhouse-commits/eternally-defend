@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReputationReport, ScanHit, SourceKey, Sentiment } from "@/routes/api/scan";
+import type { ReputationReport, ScanHit, SourceKey, Sentiment, FreshnessWindow } from "@/routes/api/scan";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { severityColor } from "@/lib/data-store";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,7 +52,8 @@ const SOURCES: { key: SourceKey; label: string }[] = [
   { key: "web", label: "Web" },
 ];
 
-const PERIODS = ["Last 24 hours", "Last 7 days", "Last 30 days", "Last 90 days", "All time"];
+
+
 const DEFAULT_SOURCES: SourceKey[] = ["youtube", "news", "reddit", "x", "instagram", "tiktok", "facebook", "blogs", "forums", "reviews", "archive"];
 
 const sentimentColor = (s: Sentiment) =>
@@ -67,10 +68,51 @@ function fmt(n: number) {
   return String(n);
 }
 
-async function runScan(payload: unknown): Promise<ReputationReport> {
+// Extended report type with server-side diagnostics
+interface YtDiag {
+  queriesRun: number;
+  pagesScanned: number;
+  videosFound: number;
+  apiErrors: number;
+  quotaExhausted?: boolean;
+  quotaReason?: string | null;
+  error: string | null;
+  target: number;
+  status?: "ok" | "quota_exhausted" | "no_results" | "disabled";
+}
+interface FcDiscoveryDiag {
+  active: boolean;
+  queriesExecuted?: number;
+  rawUrls?: number;
+  relevantUrls?: number;
+  uniqueUrls?: number;
+  youtubeUrlsDiscovered?: number;
+  newsDiscovered?: number;
+  socialDiscovered?: number;
+  otherWebDiscovered?: number;
+  tier1Queries?: number;
+  tier2Queries?: number;
+  ytWebQueries?: number;
+  expandedTermsUsed?: string[];
+}
+interface ReportWithDiagnostics extends ReputationReport {
+  diagnostics?: {
+    youtube?: YtDiag;
+    firecrawlDiscovery?: FcDiscoveryDiag;
+    sourceCounts?: Record<string, number>;
+    totalRawFetched?: number;
+    sourcesWithResults?: string[];
+    scannedAt?: string;
+    breakingCount?: number;
+    recent3dCount?: number;
+    recent7dCount?: number;
+  };
+}
+
+async function runScan(payload: unknown): Promise<ReportWithDiagnostics> {
   const r = await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const j = await r.json();
-  return j as ReputationReport;
+  return j as ReportWithDiagnostics;
 }
 
 function ScanPage() {
@@ -84,14 +126,15 @@ function ScanPage() {
   const [site, setSite] = useState("");
   const [country, setCountry] = useState("");
   const [industry, setIndustry] = useState("");
-  const [period, setPeriod] = useState("Last 30 days");
+  const [monthFilter, setMonthFilter] = useState<"this"|"previous"|"twoAgo">("this");
+
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [persistedScanId, setPersistedScanId] = useState<string | null>(null);
   const [persistSummary, setPersistSummary] = useState<{ newHits: number; updatedHits: number; duplicatesRemoved: number; uniqueHits: number } | null>(null);
 
   const m = useMutation({ mutationFn: runScan });
-  const report = m.data;
+  const report = m.data as ReportWithDiagnostics | undefined;
   const persistFn = useServerFn(persistScan);
   const analyzeFn = useServerFn(analyzeYoutubeVideo);
   const [analyzingVideos, setAnalyzingVideos] = useState<Set<string>>(new Set());
@@ -200,7 +243,7 @@ function ScanPage() {
       variations: variationList,
       hashtags: hashtagList,
       handles: handleList,
-      period,
+      monthFilter,
       sources: sources.length ? sources : DEFAULT_SOURCES,
       limit: 8,
       youtubeTarget: 1500,
@@ -284,11 +327,10 @@ function ScanPage() {
             <Field label="Hashtags to track">
               <input value={hashtags} onChange={(e) => setHashtags(e.target.value)} placeholder="#brandname, #topic" className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm" />
             </Field>
-            <Field label="Search period">
-              <select value={period} onChange={(e) => setPeriod(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm">
-                {PERIODS.map(p => <option key={p}>{p}</option>)}
-              </select>
-            </Field>
+            <div className="md:col-span-2">
+              <div className="text-[10px] tracking-[0.16em] font-semibold text-muted-foreground mb-2">Scan period</div>
+              <MonthFilterButtons value={monthFilter} onChange={setMonthFilter} />
+            </div>
             <div className="flex items-end">
               <button type="submit" disabled={m.isPending || !q.trim()} className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-60 shadow-lg" style={{ background: "var(--gradient-brand)", boxShadow: "var(--shadow-elev)" }}>
                 {m.isPending ? <Loader2 className="size-4 animate-spin" /> : <ScanSearch className="size-4" />}
@@ -362,32 +404,73 @@ function ScanPage() {
           </div>
 
           {/* KPI row */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <KPI label="Total unique" value={report.totals.unique} icon={<Eye className="size-4" />} tone="brand" />
+            <KPI label="Breaking (24h)" value={report.buckets.breaking.length} icon={<Bell className="size-4" />} tone="danger" />
             <KPI label="Critical" value={report.totals.critical} icon={<AlertTriangle className="size-4" />} tone="danger" />
             <KPI label="High" value={report.totals.high} icon={<ShieldAlert className="size-4" />} tone="warn" />
             <KPI label="Viral" value={report.totals.viral} icon={<Flame className="size-4" />} tone="viral" />
             <KPI label="Reach" value={fmt(report.totals.totalReach)} icon={<Users className="size-4" />} tone="brand" />
           </div>
 
+          {/* ── Eterna Intelligence Status Card — user-facing clean view ── */}
+          <EternaStatusCard report={report} />
+
+          {/* ── Admin Diagnostics — hidden from users, visible in dev or ?diag=1 ── */}
+          <AdminDiagnosticsPanel report={report} />
+
           {/* DB-backed persisted results with cursor-paginated infinite scroll */}
           <PersistedResults scanId={persistedScanId} summary={persistSummary} scanStatus={report ? "completed" : "running"} />
 
-          {(() => null)()}
+          {/* ═══════════════════════════════════════════════════════════
+              TIME-WINDOW BUCKETS — primary discovery view
+              Show freshest content first; older results below.
+          ══════════════════════════════════════════════════════════ */}
 
-          {/* Buckets */}
+          {/* Breaking (last 24 hours) */}
+          {report.buckets.breaking.length > 0 && (
+            <div className="rounded-2xl border-2 border-red-500/40 bg-red-50/30 dark:bg-red-950/10 overflow-hidden">
+              <div className="flex items-center gap-3 px-5 py-3 bg-red-500/10">
+                <span className="relative flex size-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-80" />
+                  <span className="relative inline-flex size-2.5 rounded-full bg-red-500" />
+                </span>
+                <span className="text-[11px] font-bold tracking-widest text-red-600 dark:text-red-400 uppercase">Breaking · Last 24 Hours</span>
+                <span className="ml-auto text-[11px] text-red-500 font-semibold">{report.buckets.breaking.length} result{report.buckets.breaking.length !== 1 ? "s" : ""}</span>
+              </div>
+              <div className="p-4">
+                <Bucket title="" icon={<Bell className="size-4" />} hits={report.buckets.breaking} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} hideCard />
+              </div>
+            </div>
+          )}
 
-          {/* YouTube-first ordering: reputation damage typically starts on YouTube, then spreads to News, Reddit, and other social platforms. */}
-          <Bucket title="LATEST YOUTUBE THREATS" icon={<Youtube className="size-4" />} hits={report.buckets.youtube} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="LAST 3 DAYS" icon={<Clock className="size-4" />} hits={report.buckets.recent3d} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="LAST 7 DAYS" icon={<Clock className="size-4" />} hits={report.buckets.recent7d} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="LAST 30 DAYS" icon={<Clock className="size-4" />} hits={report.buckets.recent30d} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+
+          {/* ═══════════════════════════════════════════════════════════
+              RISK CATEGORY BUCKETS
+          ══════════════════════════════════════════════════════════ */}
           <Bucket title="CRITICAL THREATS" icon={<AlertTriangle className="size-4" />} hits={report.buckets.critical} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
-          <Bucket title="HIGH-PRIORITY NEGATIVE CONTENT" icon={<ShieldAlert className="size-4" />} hits={report.buckets.high} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
-          <Bucket title="EMERGING THREATS" icon={<TrendingUp className="size-4" />} hits={report.buckets.emerging} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="DEFAMATION RISK" icon={<Gavel className="size-4" />} hits={report.buckets.defamation} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="EXPOSÉ / ALLEGATIONS" icon={<ShieldAlert className="size-4" />} hits={report.buckets.expose} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="LEAKS" icon={<EyeOff className="size-4" />} hits={report.buckets.leaks} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="CONTROVERSIES / BOYCOTTS" icon={<Flame className="size-4" />} hits={report.buckets.controversies} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="HARASSMENT / ABUSE" icon={<XIcon className="size-4" />} hits={report.buckets.harassment} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="LEGAL DISPUTES" icon={<Gavel className="size-4" />} hits={report.buckets.legal} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="DEEPFAKE / MANIPULATED MEDIA" icon={<ShieldAlert className="size-4" />} hits={report.buckets.deepfake} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="IMPERSONATION / FAKE ENDORSEMENTS" icon={<BadgeCheck className="size-4" />} hits={report.buckets.impersonation} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="VIRAL / EMERGING" icon={<TrendingUp className="size-4" />} hits={report.buckets.emerging} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+
+          {/* ═══════════════════════════════════════════════════════════
+              SOURCE BUCKETS
+          ══════════════════════════════════════════════════════════ */}
+          <Bucket title="YOUTUBE — FRESHEST FIRST" icon={<Youtube className="size-4" />} hits={report.buckets.youtube} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="NEWS COVERAGE" icon={<Newspaper className="size-4" />} hits={report.buckets.news} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="REDDIT DISCUSSIONS" icon={<MessageCircle className="size-4" />} hits={report.buckets.reddit} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="INSTAGRAM MONITORING" icon={<Instagram className="size-4" />} hits={report.buckets.instagram} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="FACEBOOK MONITORING" icon={<Facebook className="size-4" />} hits={report.buckets.facebook} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
-          <Bucket title="IMPERSONATION" icon={<BadgeCheck className="size-4" />} hits={report.buckets.impersonation} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
-          <Bucket title="DEEPFAKE / MANIPULATED MEDIA" icon={<ShieldAlert className="size-4" />} hits={report.buckets.deepfake} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
+          <Bucket title="COPYRIGHT / REUPLOADS" icon={<Copyright className="size-4" />} hits={report.buckets.copyright} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
           <Bucket title="REVIEWS & COMPLAINTS" icon={<Gavel className="size-4" />} hits={report.buckets.reviews} onPromote={promote} added={added} entityTerms={entityTerms} scanId={persistedScanId} analyzingVideos={analyzingVideos} />
 
           <PageCard title="METHODOLOGY & LIMITATIONS" sub="How Eterna AI produced this report">
@@ -417,6 +500,367 @@ function ScanPage() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// EternaStatusCard — clean, provider-agnostic intelligence status for all users.
+// NO provider names, quota details, API errors, or internal architecture exposed.
+// ---------------------------------------------------------------------------
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+
+function EternaStatusCard({ report }: { report: ReportWithDiagnostics }) {
+  const diag = report.diagnostics;
+  const hits = report.hits;
+
+  // Derived clean metrics — no provider naming
+  const videoFindings   = hits.filter(h => h.source === "YouTube").length;
+  const newsFindings    = hits.filter(h => h.source === "News").length;
+  const socialFindings  = hits.filter(h => ["Reddit","Instagram","X","TikTok","Facebook"].includes(h.source)).length;
+  const webFindings     = hits.filter(h => h.source === "Web").length;
+  const otherFindings   = Math.max(0, hits.length - videoFindings - newsFindings - socialFindings - webFindings);
+  const criticalCount   = report.totals.critical;
+  const highCount       = report.totals.high;
+  const viralCount      = report.totals.viral;
+  const reach           = report.totals.totalReach;
+  const sourcesCount    = diag?.sourcesWithResults?.length ?? report.sourcesReturned.length;
+  const scannedAt       = diag?.scannedAt;
+
+  // Generic "some sources limited" notice — never names the provider
+  const hasPartialCoverage =
+    !DEMO_MODE && (
+      diag?.youtube?.quotaExhausted ||
+      diag?.youtube?.status === "quota_exhausted"
+    );
+
+  const scanTime = scannedAt
+    ? new Date(scannedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    : null;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card px-6 py-5">
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-5 gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="relative flex size-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full size-2.5 bg-green-500" />
+          </span>
+          <span className="text-[11px] font-bold tracking-wider text-green-600 dark:text-green-400 uppercase">
+            Live Reputation Scan · Complete
+          </span>
+          {scanTime && <span className="text-[11px] text-muted-foreground">— {scanTime}</span>}
+        </div>
+        <span className="text-[11px] text-muted-foreground font-medium">Period: {report.period}</span>
+      </div>
+
+      {/* Primary metrics grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        {([
+          { label: "Unique Findings",   val: hits.length.toLocaleString(),    accent: false },
+          { label: "Sources Monitored", val: String(sourcesCount),            accent: false },
+          { label: "Estimated Reach",   val: fmt(reach),                      accent: false },
+          { label: "Critical Threats",  val: String(criticalCount),           accent: criticalCount > 0 },
+        ] as { label: string; val: string; accent: boolean }[]).map(({ label, val, accent }) => (
+          <div key={label} className="rounded-xl border border-border bg-background/60 p-3 text-center">
+            <div className={`text-xl font-bold font-display ${accent ? "text-red-500" : "text-foreground"}`}>{val}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wide">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Source breakdown chips */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {videoFindings  > 0 && <IntelChip label="Video findings"      count={videoFindings}  />}
+        {newsFindings   > 0 && <IntelChip label="News findings"       count={newsFindings}   />}
+        {socialFindings > 0 && <IntelChip label="Social/web findings" count={socialFindings} />}
+        {webFindings    > 0 && <IntelChip label="Web findings"        count={webFindings}    />}
+        {otherFindings  > 0 && <IntelChip label="Other findings"      count={otherFindings}  />}
+        {highCount      > 0 && <IntelChip label="High-risk findings"  count={highCount}  danger />}
+        {viralCount     > 0 && <IntelChip label="Viral signals"       count={viralCount} warn />}
+      </div>
+
+      {/* Status line */}
+      {hasPartialCoverage ? (
+        <p className="text-[11px] text-muted-foreground border-t border-border pt-3 mt-1">
+          ⓘ Some sources are temporarily limited. Eterna continued scanning using alternate discovery sources.
+        </p>
+      ) : (
+        <p className="text-[11px] text-green-600 dark:text-green-400 border-t border-border pt-3 mt-1">
+          ✓ Fresh intelligence collected successfully.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function IntelChip({ label, count, danger, warn }: { label: string; count: number; danger?: boolean; warn?: boolean }) {
+  const textColor = danger ? "text-red-500" : warn ? "text-amber-500" : "text-primary";
+  return (
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-background text-[11px] font-semibold">
+      <span className={`font-bold ${textColor}`}>{count.toLocaleString()}</span>
+      <span className="text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AdminDiagnosticsPanel — technical internals gated to dev mode or ?diag=1.
+// Contains: YouTube API state, Firecrawl status, per-source raw counts, errors.
+// NEVER visible to normal users or in DEMO MODE.
+// ---------------------------------------------------------------------------
+function AdminDiagnosticsPanel({ report }: { report: ReportWithDiagnostics }) {
+  const diag = report.diagnostics;
+  // Only render in dev build, or when the URL has ?diag=1 (admin shortcut)
+  const isAdminView =
+    import.meta.env.DEV ||
+    (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("diag") === "1");
+
+  if (!isAdminView || !diag || DEMO_MODE) return null;
+
+  return (
+    <details className="rounded-2xl border border-dashed border-amber-300 dark:border-amber-700/50 bg-amber-50/30 dark:bg-amber-950/10 px-5 py-3">
+      <summary className="text-[10px] font-bold tracking-widest uppercase text-amber-600 dark:text-amber-400 cursor-pointer select-none">
+        ⚙ Admin · Technical Diagnostics (dev only — not visible to users)
+      </summary>
+      <div className="mt-4">
+        <LiveScanStatus
+          sourceCounts={diag.sourceCounts ?? {}}
+          totalRaw={diag.totalRawFetched ?? 0}
+          sourcesWithResults={diag.sourcesWithResults ?? []}
+          scannedAt={diag.scannedAt}
+          ytDiag={diag.youtube}
+          fcDiscovery={diag.firecrawlDiscovery}
+        />
+        {(diag as { monthWindow?: { filter: string; label: string; startIso: string; endIso: string } }).monthWindow && (
+          <div className="mt-3 text-[11px] text-muted-foreground">
+            Month window: {(diag as { monthWindow?: { label: string; startIso: string; endIso: string } }).monthWindow?.label} · {(diag as { monthWindow?: { startIso: string; endIso: string } }).monthWindow?.startIso} → {(diag as { monthWindow?: { endIso: string } }).monthWindow?.endIso}
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MonthFilterButtons — 3 compact buttons for This Month / Previous Month / Two Months Ago.
+// Labels are computed dynamically from the current date — never hardcoded.
+// ---------------------------------------------------------------------------
+function getClientMonthLabel(filter: "this" | "previous" | "twoAgo"): { label: string; sub: string } {
+  const now = new Date();
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const yr = now.getFullYear(); const mo = now.getMonth();
+  let y: number, m: number;
+  if (filter === "this")     { y = yr; m = mo; }
+  else if (filter === "previous") { m = mo === 0 ? 11 : mo - 1; y = mo === 0 ? yr - 1 : yr; }
+  else { m = mo <= 1 ? mo + 10 : mo - 2; y = mo <= 1 ? yr - 1 : yr; }
+  const monthStart = new Date(y, m, 1);
+  const monthEnd   = filter === "this" ? now : new Date(y, m + 1, 0);
+  const fmt = (d: Date) => `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+  return { label: MONTH_NAMES[m], sub: `${fmt(monthStart)} – ${fmt(monthEnd)} ${y}` };
+}
+
+function MonthFilterButtons({
+  value,
+  onChange,
+}: {
+  value: "this" | "previous" | "twoAgo";
+  onChange: (v: "this" | "previous" | "twoAgo") => void;
+}) {
+  const filters: Array<"this" | "previous" | "twoAgo"> = ["this", "previous", "twoAgo"];
+  const titles: Record<"this"|"previous"|"twoAgo", string> = {
+    this: "This Month",
+    previous: "Previous Month",
+    twoAgo: "Two Months Ago",
+  };
+  return (
+    <div className="flex flex-wrap gap-2">
+      {filters.map((f) => {
+        const { label, sub } = getClientMonthLabel(f);
+        const active = value === f;
+        return (
+          <button
+            key={f}
+            type="button"
+            onClick={() => onChange(f)}
+            className="flex flex-col items-start px-4 py-2.5 rounded-xl border transition-all text-left"
+            style={active
+              ? { background: "var(--gradient-brand)", borderColor: "transparent", color: "#fff" }
+              : { background: "var(--color-card)", borderColor: "var(--color-border)" }
+            }
+          >
+            <span className="text-[11px] font-bold tracking-wide" style={active ? { opacity: 0.85 } : { color: "var(--color-muted-foreground)" }}>
+              {titles[f]}
+            </span>
+            <span className="text-[13px] font-semibold leading-tight">{label}</span>
+            <span className="text-[10px] mt-0.5" style={active ? { opacity: 0.7 } : { color: "var(--color-muted-foreground)" }}>{sub}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Live Scan Status — shows actual source counts returned from the server.
+// This component prevents the "65 total but only 1 YouTube" confusion by
+// displaying the real per-source fetch counts from the API diagnostics.
+// ---------------------------------------------------------------------------
+const SOURCE_ICONS: Record<string, React.ReactNode> = {
+  YouTube:   <Youtube className="size-3.5" />,
+  News:      <Newspaper className="size-3.5" />,
+  Reddit:    <MessageCircle className="size-3.5" />,
+  Web:       <Globe className="size-3.5" />,
+  Instagram: <Instagram className="size-3.5" />,
+  Facebook:  <Facebook className="size-3.5" />,
+};
+
+function LiveScanStatus({
+  sourceCounts,
+  totalRaw,
+  sourcesWithResults,
+  scannedAt,
+  ytDiag,
+  fcDiscovery,
+}: {
+  sourceCounts: Record<string, number>;
+  totalRaw: number;
+  sourcesWithResults: string[];
+  scannedAt?: string;
+  ytDiag?: YtDiag;
+  fcDiscovery?: FcDiscoveryDiag;
+}) {
+  const entries = Object.entries(sourceCounts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  const scanTime = scannedAt ? new Date(scannedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : null;
+  const ytQuotaExhausted = ytDiag?.quotaExhausted || ytDiag?.status === "quota_exhausted";
+  const fcActive = fcDiscovery?.active === true;
+
+  if (!entries.length && !ytDiag && !fcDiscovery) return null;
+
+  return (
+    <div className="space-y-3">
+
+      {/* ── YouTube API status panel ─────────────────────────────────── */}
+      {ytDiag && (
+        <div className={`rounded-2xl border px-5 py-4 ${
+          ytQuotaExhausted
+            ? "border-red-300 bg-red-50/40 dark:bg-red-950/10"
+            : "border-border bg-card"
+        }`}>
+          <div className="flex items-center justify-between mb-3 gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              {ytQuotaExhausted ? (
+                <>
+                  <AlertTriangle className="size-3.5 text-red-500" />
+                  <span className="text-[11px] font-bold tracking-wider text-red-600 dark:text-red-400 uppercase">YouTube API · Quota Exhausted</span>
+                  {ytDiag.quotaReason && <span className="text-[10px] text-red-400 ml-1">({ytDiag.quotaReason})</span>}
+                </>
+              ) : (
+                <>
+                  <span className="relative flex size-2.5">
+                    <span className="relative inline-flex rounded-full size-2.5 bg-green-500" />
+                  </span>
+                  <span className="text-[11px] font-bold tracking-wider text-green-600 dark:text-green-400 uppercase">YouTube API · Active</span>
+                </>
+              )}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {ytQuotaExhausted ? (
+                <span className="text-red-500 font-semibold">Firecrawl Discovery Mode activated automatically</span>
+              ) : (
+                <span><strong className="text-foreground">{ytDiag.videosFound}</strong> videos found</span>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
+            <span>Queries run: <strong className="text-foreground">{ytDiag.queriesRun}</strong></span>
+            <span>Pages scanned: <strong className="text-foreground">{ytDiag.pagesScanned}</strong></span>
+            <span>Videos found: <strong className={ytQuotaExhausted ? "text-red-500" : "text-foreground"}>{ytDiag.videosFound}</strong></span>
+            {ytDiag.apiErrors > 0 && <span className="text-amber-500 font-semibold">API errors: {ytDiag.apiErrors}</span>}
+          </div>
+          {ytQuotaExhausted && (
+            <div className="mt-3 text-[11px] text-red-600 dark:text-red-400 bg-red-100/60 dark:bg-red-900/20 rounded-lg px-3 py-2">
+              ⚡ YouTube Data API daily quota exhausted. All YouTube content is now discovered through Firecrawl's public web index (site:youtube.com searches). Results are normalized and displayed identically.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Firecrawl Discovery Mode panel ──────────────────────────── */}
+      {fcActive && fcDiscovery && (
+        <div className="rounded-2xl border border-blue-200 dark:border-blue-800/40 bg-blue-50/30 dark:bg-blue-950/10 px-5 py-4">
+          <div className="flex items-center justify-between mb-3 gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="relative flex size-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full size-2.5 bg-blue-500" />
+              </span>
+              <span className="text-[11px] font-bold tracking-wider text-blue-600 dark:text-blue-400 uppercase">Firecrawl Discovery Mode · Active</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              <strong className="text-foreground">{fcDiscovery.uniqueUrls ?? 0}</strong> unique URLs discovered ·{" "}
+              <strong className="text-foreground">{fcDiscovery.queriesExecuted ?? 0}</strong> queries executed
+            </div>
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+            {([
+              { label: "YouTube URLs",  val: fcDiscovery.youtubeUrlsDiscovered ?? 0, color: "text-red-500" },
+              { label: "News",          val: fcDiscovery.newsDiscovered ?? 0,         color: "text-blue-600" },
+              { label: "Social/Web",   val: fcDiscovery.socialDiscovered ?? 0,       color: "text-purple-600" },
+              { label: "Other Web",    val: fcDiscovery.otherWebDiscovered ?? 0,     color: "text-muted-foreground" },
+            ] as { label: string; val: number; color: string }[]).map(({ label, val, color }) => (
+              <div key={label} className="rounded-lg bg-white/60 dark:bg-white/5 border border-blue-100 dark:border-blue-800/30 p-2 text-center">
+                <div className={`text-sm font-bold ${color}`}>{val}</div>
+                <div className="text-[10px] text-muted-foreground">{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Query breakdown */}
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
+            <span>Tier-1 queries: <strong className="text-foreground">{fcDiscovery.tier1Queries ?? 0}</strong></span>
+            <span>Tier-2 (expanded): <strong className="text-foreground">{fcDiscovery.tier2Queries ?? 0}</strong></span>
+            <span>YouTube web queries: <strong className="text-foreground">{fcDiscovery.ytWebQueries ?? 0}</strong></span>
+            <span>Raw fetched: <strong className="text-foreground">{fcDiscovery.rawUrls ?? 0}</strong></span>
+          </div>
+          {(fcDiscovery.expandedTermsUsed?.length ?? 0) > 0 && (
+            <div className="mt-2 text-[11px] text-blue-600 dark:text-blue-400">
+              Discovered keywords: {fcDiscovery.expandedTermsUsed!.join(" · ")}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Source count chips + overall stats ──────────────────────── */}
+      <div className="rounded-2xl border border-border bg-card px-5 py-4">
+        <div className="flex items-center justify-between mb-3 gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="relative flex size-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full size-2.5 bg-green-500" />
+            </span>
+            <span className="text-[11px] font-bold tracking-wider text-green-600 dark:text-green-400 uppercase">Web Discovery · Complete</span>
+            {scanTime && <span className="text-[11px] text-muted-foreground">— {scanTime}</span>}
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            <span className="font-semibold text-foreground">{totalRaw.toLocaleString()}</span> raw results across{" "}
+            <span className="font-semibold text-foreground">{sourcesWithResults.length}</span> source{sourcesWithResults.length !== 1 ? "s" : ""}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {entries.map(([src, count]) => (
+            <div key={src} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-background text-[11px] font-semibold">
+              <span className="text-muted-foreground">{SOURCE_ICONS[src] ?? <Globe className="size-3.5" />}</span>
+              <span>{src}</span>
+              <span className="text-primary font-bold">{count.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
@@ -441,6 +885,37 @@ function ActionList({ title, items }: { title: string; items: string[] }) {
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">{title}</div>
       <ul className="text-xs space-y-1 list-disc pl-4">{items.map((i, idx) => <li key={idx}>{i}</li>)}</ul>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FreshnessBadge — prominent pill showing how recently published a result is.
+// Only appears for results < 30 days old, color-coded from red (breaking) to amber.
+// ---------------------------------------------------------------------------
+const FRESHNESS_CONFIG: Record<string, { label: string; bg: string; dot: string }> = {
+  "24h": { label: "Breaking · <24h",  bg: "oklch(0.97 0.06 25)",  dot: "bg-red-500"    },
+  "3d":  { label: "Fresh · 3 days",   bg: "oklch(0.96 0.07 35)",  dot: "bg-orange-500" },
+  "7d":  { label: "Recent · 7 days",  bg: "oklch(0.96 0.06 55)",  dot: "bg-amber-500"  },
+  "30d": { label: "Last 30 days",     bg: "oklch(0.97 0.04 75)",  dot: "bg-yellow-500" },
+};
+const FRESHNESS_TEXT: Record<string, string> = {
+  "24h": "oklch(0.52 0.22 25)",
+  "3d":  "oklch(0.55 0.2 35)",
+  "7d":  "oklch(0.55 0.18 55)",
+  "30d": "oklch(0.55 0.14 75)",
+};
+
+function FreshnessBadge({ window }: { window: FreshnessWindow }) {
+  const cfg = FRESHNESS_CONFIG[window];
+  if (!cfg) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full mb-1.5"
+      style={{ background: cfg.bg, color: FRESHNESS_TEXT[window] }}
+    >
+      <span className={`size-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+      {cfg.label}
+    </span>
   );
 }
 
@@ -480,7 +955,7 @@ const SORT_LABEL: Record<SortKey, string> = {
 const SEV_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 const PAGE_SIZE = 24;
 
-function Bucket({ title, icon, hits, onPromote, added, entityTerms, scanId, analyzingVideos }: { title: string; icon: React.ReactNode; hits: ScanHit[]; onPromote: (h: ScanHit) => void; added: Set<string>; entityTerms: string[]; scanId: string | null; analyzingVideos: Set<string> }) {
+function Bucket({ title, icon, hits, onPromote, added, entityTerms, scanId, analyzingVideos, hideCard }: { title: string; icon: React.ReactNode; hits: ScanHit[]; onPromote: (h: ScanHit) => void; added: Set<string>; entityTerms: string[]; scanId: string | null; analyzingVideos: Set<string>; hideCard?: boolean }) {
   const [sort, setSort] = useState<SortKey>("newest");
   const [sentimentFilter, setSentimentFilter] = useState<string>("All");
   const [visible, setVisible] = useState(PAGE_SIZE);
@@ -501,35 +976,48 @@ function Bucket({ title, icon, hits, onPromote, added, entityTerms, scanId, anal
   }, [hits, sort, sentimentFilter]);
   if (!hits.length) return null;
   const shown = filtered.slice(0, visible);
-  return (
-    <PageCard
-      title={title}
-      sub={`${filtered.length} of ${hits.length} result${hits.length === 1 ? "" : "s"}`}
-      actions={
-        <div className="flex items-center gap-2 flex-wrap">
-          <select value={sentimentFilter} onChange={(e) => setSentimentFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
-            <option>All</option><option>Negative</option><option>Neutral</option><option>Positive</option>
-          </select>
-          <select value={sort} onChange={(e) => { setSort(e.target.value as SortKey); setVisible(PAGE_SIZE); }} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
-            {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
-          </select>
-        </div>
-      }
-    >
-      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2"><span className="opacity-60">{icon}</span></div>
+
+  const controls = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <select value={sentimentFilter} onChange={(e) => setSentimentFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
+        <option>All</option><option>Negative</option><option>Neutral</option><option>Positive</option>
+      </select>
+      <select value={sort} onChange={(e) => { setSort(e.target.value as SortKey); setVisible(PAGE_SIZE); }} className="text-xs px-3 py-1.5 rounded-full border border-border bg-card">
+        {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
+      </select>
+    </div>
+  );
+
+  const grid = (
+    <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {shown.map((h) => <ResultCard key={h.id + h.url} h={h} added={added.has(h.url)} onPromote={() => onPromote(h)} entityTerms={entityTerms} scanId={scanId} analysisPending={!!(h.media?.videoId && analyzingVideos.has(h.media.videoId))} />)}
       </div>
       {filtered.length > visible && (
         <div className="mt-4 flex justify-center">
-          <button
-            onClick={() => setVisible((v) => v + PAGE_SIZE)}
-            className="text-xs px-4 py-2 rounded-full border border-border hover:bg-accent font-semibold"
-          >
+          <button onClick={() => setVisible((v) => v + PAGE_SIZE)} className="text-xs px-4 py-2 rounded-full border border-border hover:bg-accent font-semibold">
             Load more · {filtered.length - visible} remaining
           </button>
         </div>
       )}
+    </>
+  );
+
+  if (hideCard) return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">{controls}</div>
+      {grid}
+    </div>
+  );
+
+  return (
+    <PageCard
+      title={title}
+      sub={`${filtered.length} of ${hits.length} result${hits.length === 1 ? "" : "s"}`}
+      actions={controls}
+    >
+      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2"><span className="opacity-60">{icon}</span></div>
+      {grid}
     </PageCard>
   );
 }
@@ -635,6 +1123,10 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
       {/* Body */}
       <div className="p-5 flex-1 flex flex-col gap-3">
         <div>
+          {/* Freshness badge */}
+          {h.freshnessWindow && h.freshnessWindow !== "older" && (
+            <FreshnessBadge window={h.freshnessWindow} />
+          )}
           <a href={h.url} target="_blank" rel="noreferrer" className="block text-base font-semibold leading-snug line-clamp-3 hover:underline">{displayTitle}</a>
           <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
             {m?.channelUrl ? (
@@ -756,6 +1248,12 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
                 {m.growthPerDay != null && <EvidenceRow label="Views/day" value={fmt(m.growthPerDay)} />}
               </div>
             )}
+            {h.whyItMatters && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Why it matters</div>
+                <div className="text-xs">{h.whyItMatters}</div>
+              </div>
+            )}
             {h.detectionReason && (
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Detection reason</div>
@@ -766,6 +1264,22 @@ function ResultCard({ h, added, onPromote, entityTerms, scanId, analysisPending 
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Reputation impact</div>
               <div className="text-xs">Reputation risk {h.reputationRisk}/100 · Threat {h.threatScore}/100 · Credibility {h.credibilityScore}/100 · {h.sentiment} sentiment · Category: {h.category}.</div>
             </div>
+            {(h.legalTakedownPotential != null || h.copyrightEnforcementPotential != null) && (
+              <div className="grid grid-cols-2 gap-2">
+                {h.legalTakedownPotential != null && (
+                  <div className="rounded-lg border border-dashed border-border p-2.5 bg-muted/30">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Legal Takedown Potential</div>
+                    <div className="text-sm font-bold mt-0.5" style={{ color: h.legalTakedownPotential >= 70 ? "oklch(0.63 0.24 25)" : h.legalTakedownPotential >= 40 ? "oklch(0.7 0.18 55)" : "oklch(0.55 0.03 275)" }}>{h.legalTakedownPotential}/100</div>
+                  </div>
+                )}
+                {h.copyrightEnforcementPotential != null && (
+                  <div className="rounded-lg border border-dashed border-border p-2.5 bg-muted/30">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Copyright Enforcement</div>
+                    <div className="text-sm font-bold mt-0.5" style={{ color: h.copyrightEnforcementPotential >= 70 ? "oklch(0.63 0.24 25)" : h.copyrightEnforcementPotential >= 40 ? "oklch(0.7 0.18 55)" : "oklch(0.55 0.03 275)" }}>{h.copyrightEnforcementPotential}/100</div>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span>Evidence captured {new Date(h.discoveredAt).toLocaleString()}</span>
               <a href={h.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline"><ExternalLink className="size-3" /> Open source</a>
