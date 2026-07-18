@@ -363,34 +363,52 @@ export function FaceEnrollmentStep({
   }
 
   // 5. Ready to Scan / Failed State
+  const failedTech = !!technicalError;
   return (
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
       <CardHeader>
-        <CardTitle className="text-xl">{status === "LIVENESS_FAILED" ? "Verification Failed" : "Biometric Scan Ready"}</CardTitle>
+        <CardTitle className="text-xl">
+          {failedTech ? "Face Protection Temporarily Unavailable" : status === "LIVENESS_FAILED" ? "Verification Failed" : "Biometric Scan Ready"}
+        </CardTitle>
         <CardDescription className="text-white/60">
-          {status === "LIVENESS_FAILED" 
+          {failedTech
+            ? "Face Protection is temporarily unavailable. You can retry or complete this setup later."
+            : status === "LIVENESS_FAILED"
             ? "We couldn't verify your liveness. Please ensure you are in a well-lit area and remove masks or heavy glasses."
             : "Your consent is recorded. You are ready to perform the secure liveness scan."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {failedTech && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex gap-2">
+            <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+            <span>{technicalError}</span>
+          </div>
+        )}
         <div className="border border-white/10 rounded-xl p-8 bg-white/5 flex flex-col items-center text-center space-y-4">
           <UserCircle className="size-16 text-blue-400/50" />
           <p className="text-sm text-white/70 max-w-sm">
             When you click start, your camera will activate. Center your face in the oval and follow the on-screen prompts.
           </p>
           <Button onClick={startLiveness} className="bg-blue-600 hover:bg-blue-500 text-white border-0 mt-2">
-            {status === "LIVENESS_FAILED" ? <><RefreshCcw className="size-4 mr-2" /> Retry Scan</> : "Start Liveness Scan"}
+            {failedTech || status === "LIVENESS_FAILED" ? <><RefreshCcw className="size-4 mr-2" /> Retry Face Scan</> : "Start Liveness Scan"}
           </Button>
         </div>
-        
-        <div className="flex justify-between pt-4">
+
+        <div className="flex flex-wrap justify-between gap-2 pt-4">
           <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
             <ChevronLeft className="size-4 mr-1" /> Back
           </Button>
-          <Button variant="ghost" onClick={handleRevoke} className="text-white/40 hover:text-red-400 hover:bg-white/5 text-xs">
-            Revoke Consent
-          </Button>
+          <div className="flex gap-2">
+            {isKycApproved && (
+              <Button variant="outline" onClick={handleDefer} disabled={busy} className="border-white/20 text-white hover:bg-white/10">
+                <Clock className="size-4 mr-1" /> Do It Later
+              </Button>
+            )}
+            <Button variant="ghost" onClick={handleRevoke} className="text-white/40 hover:text-red-400 hover:bg-white/5 text-xs">
+              Revoke Consent
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
