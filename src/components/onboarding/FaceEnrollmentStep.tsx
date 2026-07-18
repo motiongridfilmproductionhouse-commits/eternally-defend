@@ -65,6 +65,25 @@ export function FaceEnrollmentStep({
   const createSession = useServerFn(createLivenessSession);
   const finalize = useServerFn(finalizeLiveness);
   const revoke = useServerFn(revokeBiometrics);
+  const defer = useServerFn(deferFaceEnrollment);
+
+  const handleDefer = async () => {
+    if (!isKycApproved) {
+      toast.error("Complete Identity Verification first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await defer();
+      await onRefetch();
+      toast.success("Face Protection deferred. You can complete it later from your dashboard.");
+      onDefer();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to defer face protection");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const status = enrollmentStatus?.status ?? "CONSENT_REQUIRED";
   const allChecked = CONSENTS.every((c) => checks[c.id as keyof typeof checks]);
