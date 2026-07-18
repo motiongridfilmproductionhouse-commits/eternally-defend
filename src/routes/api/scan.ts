@@ -1032,16 +1032,62 @@ function buildReport(
     }
   }
 
-  // ── Month filter: strictly exclude results outside the selected calendar month ──
-  // Hits with no published date are also excluded (cannot reliably assign a month).
+  // ── Month filter ────────────────────────────────────────────────────────
+  //
+  // ROOT CAUSE FIX: Do NOT reject results simply because publishedDate is missing.
+  // Firecrawl results almost never carry a publishedDate. Excluding undated results
+  // means the entire scan returns zero when YouTube quota is exhausted.
+  //
+  // RULE:
+  //   - No date   → KEEP  (valid discovery, just not time-assignable)
+  //   - Invalid date string → KEEP (treat as undated)
+  //   - Has real date inside the month window  → KEEP
+  //   - Has real date OUTSIDE the month window → REJECT
+  //
+  const allBeforeFilter = Array.from(dedupe.values());
+  const totalBeforeFilter = allBeforeFilter.length;
+  let rejectedByDate = 0;
+  let keptUndated   = 0;
+  let keptDated     = 0;
+
   const inWindow = (h: ScanHit): boolean => {
-    if (!h.published) return false;
+    if (!h.published) {
+      keptUndated++;
+      return true; // no date → keep
+    }
     const ts = new Date(h.published).getTime();
-    if (isNaN(ts)) return false;
-    return ts >= monthWindow.startMs && ts <= monthWindow.endMs;
+    if (isNaN(ts)) {
+      keptUndated++;
+      return true; // unparseable date → keep
+    }
+    const inside = ts >= monthWindow.startMs && ts <= monthWindow.endMs;
+    if (inside) { keptDated++; } else { rejectedByDate++; }
+    return inside;
   };
 
-  // ── Freshness + threat combined sort — newest-first within the selected month ──
+  const filteredHits = allBeforeFilter.filter(inWindow);
+
+  // ── Server-side diagnostic logging (console only, never in client response) ──
+  const srcBreakdown = allBeforeFilter.reduce((acc, h) => {
+    acc[h.source] = (acc[h.source] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  console.log(`[scan:filter] query="${query}" month=${monthWindow.label}`);
+  console.log(`[scan:filter]   raw dedupe total  : ${totalBeforeFilter}`);
+  console.log(`[scan:filter]   kept (dated)       : ${keptDated}`);
+  console.log(`[scan:filter]   kept (undated)      : ${keptUndated}`);
+  console.log(`[scan:filter]   rejected (out-of-window): ${rejectedByDate}`);
+  console.log(`[scan:filter]   final hits          : ${filteredHits.length}`);
+  console.log(`[scan:filter]   by source (pre-filter): ${JSON.stringify(srcBreakdown)}`);
+  if (filteredHits.length === 0) {
+    console.warn(`[scan:filter] ⚠ ZERO RESULTS — pre-filter had ${totalBeforeFilter} hits.`);
+    if (totalBeforeFilter === 0) console.warn(`[scan:filter]   → Firecrawl/YouTube returned no raw hits at all.`);
+    else if (rejectedByDate === totalBeforeFilter) console.warn(`[scan:filter]   → ALL hits rejected by date filter (all have dates outside ${monthWindow.label}).`);
+  }
+
+  // ── Freshness + threat sort ───────────────────────────────────────────────
+  // Dated results: newest-first (within the selected month).
+  // Undated results: sorted by threat score and placed after dated ones.
   const recencyBoost = (h: ScanHit): number => {
     const d = ageDaysOf(h.published);
     if (d < 0.5)  return 45;
@@ -1053,17 +1099,20 @@ function buildReport(
     return 0;
   };
 
-  // Build hits: filter to selected month, then sort newest-first
-  const hits = Array.from(dedupe.values())
-    .filter(inWindow)
-    .sort((a, b) => {
-      // Primary: published date descending (newest first within the month)
-      const dateA = a.published ? new Date(a.published).getTime() : 0;
-      const dateB = b.published ? new Date(b.published).getTime() : 0;
+  const hits = filteredHits.sort((a, b) => {
+    const dateA = a.published ? new Date(a.published).getTime() : -1;
+    const dateB = b.published ? new Date(b.published).getTime() : -1;
+    // Both have dates: newest first
+    if (dateA >= 0 && dateB >= 0) {
       if (dateB !== dateA) return dateB - dateA;
-      // Secondary: threat + recency boost
       return (b.threatScore + recencyBoost(b)) - (a.threatScore + recencyBoost(a));
-    });
+    }
+    // Dated results before undated
+    if (dateA >= 0 && dateB < 0) return -1;
+    if (dateA < 0  && dateB >= 0) return 1;
+    // Both undated: threat score
+    return b.threatScore - a.threatScore;
+  });
 
   const critical = hits.filter((h) => h.severity === "Critical");
   const high     = hits.filter((h) => h.severity === "High");
@@ -1320,6 +1369,16 @@ export const Route = createFileRoute("/api/scan")({
             breakingCount:       report.buckets.breaking.length,
             recent3dCount:       report.buckets.recent3d.length,
             recent7dCount:       report.buckets.recent7d.length,
+            // Filter diagnostics (admin-only via ?diag=1)
+            filterDiag: {
+              preFilterCount:  report.totals.total, // raw dedupe count before month filter
+              keptDated:       report.hits.filter(h => !!h.published).length,
+              keptUndated:     report.hits.filter(h => !h.published).length,
+              finalCount:      report.hits.length,
+              monthLabel:      monthWindow.label,
+              windowStart:     monthWindow.startIso,
+              windowEnd:       monthWindow.endIso,
+            },
           };
           return Response.json(report);
 
