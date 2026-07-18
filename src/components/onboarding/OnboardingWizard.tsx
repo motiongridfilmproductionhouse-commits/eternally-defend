@@ -107,6 +107,8 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
   const stepIndex = step - 1;
   const isKycApproved = kyc?.verification_status === "APPROVED";
   const isFaceVerified = faceEnrollment?.status === "FACE_VERIFIED";
+  const isFaceDeferred = faceEnrollment?.status === "DEFERRED";
+  const isFaceHandled = isFaceVerified || isFaceDeferred;
   const hasVerifiedAsset = assets?.some((a: any) => a.verification_status === "VERIFIED") ?? false;
   const hasScopes = (authBundle?.scopes?.filter((s: any) => s.granted)?.length ?? 0) > 0;
   
