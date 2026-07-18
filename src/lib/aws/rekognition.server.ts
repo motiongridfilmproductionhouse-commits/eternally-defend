@@ -51,10 +51,10 @@ export async function indexFace(opts: {
   if (!out.FaceRecords || out.FaceRecords.length === 0) {
     let reason = "No valid face detected or image quality was too low.";
     if (out.UnindexedFaces && out.UnindexedFaces.length > 0) {
-      const reasons = out.UnindexedFaces[0].Reasons || [];
+      const reasons = (out.UnindexedFaces[0].Reasons || []) as string[];
       if (reasons.includes("EXCEEDS_MAX_FACES")) {
         reason = "Multiple faces detected. Please ensure only you are in the frame.";
-      } else if (reasons.includes("LOW_QUALITY") || reasons.includes("LOW_CONFIDENCE") || reasons.includes("LOW_SHARPNESS")) {
+      } else if (reasons.some((r) => r === "LOW_QUALITY" || r === "LOW_CONFIDENCE" || r === "LOW_SHARPNESS" || r === "LOW_BRIGHTNESS")) {
         reason = "Image quality is too low (excessive blur, poor lighting, or poor pose).";
       }
     }
