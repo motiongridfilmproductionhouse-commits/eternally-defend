@@ -148,7 +148,7 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
               const isPast = i < stepIndex;
               const isLocked = 
                 (i >= 2 && !isKycApproved) || 
-                (i >= 3 && !isFaceVerified) || 
+                (i >= 3 && !isFaceHandled) || 
                 (i >= 4 && !hasVerifiedAsset) || 
                 (i >= 5 && !hasScopes) ||
                 (i >= 6 && !isDraftReady) ||
