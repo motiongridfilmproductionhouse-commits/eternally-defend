@@ -20,7 +20,6 @@ import { AssetVerificationStep } from "@/components/onboarding/AssetVerification
 import { AuthorizationScopeStep } from "@/components/onboarding/AuthorizationScopeStep";
 import { AuthorizationReviewStep } from "@/components/onboarding/AuthorizationReviewStep";
 import { SignatureStep } from "@/components/onboarding/SignatureStep";
-import { AdminReviewStatusStep } from "@/components/onboarding/AdminReviewStatusStep";
 import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
 
@@ -31,8 +30,7 @@ const STEP_TITLES = [
   "Digital Asset Verification",
   "Authorization Scope",
   "Authorization Letter Review",
-  "Electronic Signature & OTP",
-  "Admin Review",
+  "Electronic Signature",
   "Verification Certificate",
   "Onboarding Complete",
 ];
