@@ -2528,6 +2528,9 @@ export type Database = {
           collection_id: string
           created_at: string
           enrollment_date: string | null
+          failure_at: string | null
+          failure_code: string | null
+          failure_reason: string | null
           id: string
           liveness_score: number | null
           liveness_session_id: string | null
@@ -2540,6 +2543,9 @@ export type Database = {
           collection_id: string
           created_at?: string
           enrollment_date?: string | null
+          failure_at?: string | null
+          failure_code?: string | null
+          failure_reason?: string | null
           id?: string
           liveness_score?: number | null
           liveness_session_id?: string | null
@@ -2552,6 +2558,9 @@ export type Database = {
           collection_id?: string
           created_at?: string
           enrollment_date?: string | null
+          failure_at?: string | null
+          failure_code?: string | null
+          failure_reason?: string | null
           id?: string
           liveness_score?: number | null
           liveness_session_id?: string | null
