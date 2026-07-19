@@ -42,7 +42,6 @@ export const saveScopes = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       auth = created;
     }
-    // Replace scopes
     await supabase.from("authorization_scopes").delete().eq("authorization_id", auth.id);
     const rows = SCOPE_KEYS.map((k) => ({ authorization_id: auth!.id, user_id: userId, scope_key: k, granted: !!data.scopes[k] }));
     await supabase.from("authorization_scopes").insert(rows);
@@ -97,7 +96,7 @@ async function renderPdf(snapshot: any, opts: { signed?: boolean; signatureSvg?:
   line("ETERNA — CLIENT AUTHORIZATION LETTER", bold, 16, rgb(0.05, 0.1, 0.35));
   line(`Authorization ID: ${snapshot.auth?.auth_number}   Version: ${snapshot.auth?.version}`, bold, 10);
   line(`Client ID: ${snapshot.profile?.client_id ?? ""}`);
-  line(`Legal Name: ${snapshot.profile?.legal_name ?? ""}`);
+  line(`Legal Name: ${snapshot.profile?.legal_name ?? snapshot.profile?.full_name ?? ""}`);
   line(`Display Name: ${snapshot.profile?.display_name ?? ""}`);
   line(`Company: ${snapshot.profile?.company_name ?? ""}`);
   line(`Role: ${snapshot.profile?.role_title ?? ""}`);
@@ -162,96 +161,190 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
     return { url, sha256 };
   });
 
-// simple OTP storage in signatures.otp_verified_at flag; OTP itself in memory-safe crypto random emailed via Supabase auth email OTP is out of scope — we implement a signed 6-digit code stored in the signature draft row
-export const requestSignatureOtp = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data: auth } = await supabase.from("client_authorizations").select("*").eq("user_id", userId).order("version", { ascending: false }).limit(1).maybeSingle();
-    if (!auth) throw new Error("No authorization draft");
-    const code = String(randomBytes(3).readUIntBE(0, 3) % 1000000).padStart(6, "0");
-    const hash = createHash("sha256").update(code).digest("hex");
-    // Store hashed OTP in draft signature row
-    await supabase.from("authorization_signatures").delete().eq("authorization_id", auth.id).eq("status", "AWAITING_OTP");
-    await supabase.from("authorization_signatures").insert({
-      authorization_id: auth.id, user_id: userId, version: auth.version, status: "AWAITING_OTP",
-      document_sha256: hash,
-    });
-    // Send code via supabase email? Skipping email delivery; return via secure server-only echo in dev to allow completion.
-    // In production, wire an email sender. We surface a masked hint only.
-    return { sent: true, dev_hint: process.env.NODE_ENV !== "production" ? code : null };
-  });
-
+/**
+ * Sign the authorization letter and immediately activate the account.
+ * OTP has been removed. Duplicate submissions are prevented by checking for
+ * an existing SIGNED signature at the current auth version; if found, the
+ * existing certificate is returned instead of re-signing.
+ */
 export const finalizeSignature = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: {
-    otp: string; typed_name: string; role_title?: string; drawn_signature_svg?: string;
+    typed_name: string; role_title?: string; drawn_signature_svg: string;
     confirmations: Record<string, boolean>;
   }) => z.object({
-    otp: z.string().length(6),
     typed_name: z.string().min(2),
     role_title: z.string().optional(),
-    drawn_signature_svg: z.string().optional(),
+    drawn_signature_svg: z.string().min(32, "Drawn signature is required"),
     confirmations: z.record(z.string(), z.boolean()),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const required = ["reviewed", "owner", "assets_mine", "accurate", "false_claims", "scope_only", "final_approval"];
     for (const k of required) if (!data.confirmations[k]) throw new Error(`Confirmation required: ${k}`);
+
     const { data: auth } = await supabase.from("client_authorizations").select("*").eq("user_id", userId).order("version", { ascending: false }).limit(1).maybeSingle();
     if (!auth) throw new Error("No authorization draft");
-    const { data: sig } = await supabase.from("authorization_signatures").select("*").eq("authorization_id", auth.id).eq("status", "AWAITING_OTP").maybeSingle();
-    if (!sig) throw new Error("Request an OTP first");
-    const hash = createHash("sha256").update(data.otp).digest("hex");
-    if (hash !== sig.document_sha256) throw new Error("Invalid OTP");
+
+    // Duplicate submission guard — if already SIGNED at this version, return the current certificate.
+    const { data: existingSig } = await supabase
+      .from("authorization_signatures")
+      .select("*")
+      .eq("authorization_id", auth.id)
+      .eq("version", auth.version)
+      .eq("status", "SIGNED")
+      .maybeSingle();
+    if (existingSig && (auth.status === "ACTIVE" || auth.status === "SIGNED" || auth.status === "UNDER_ADMIN_REVIEW")) {
+      const { data: cert } = await supabase
+        .from("verification_certificates")
+        .select("*")
+        .eq("authorization_id", auth.id)
+        .order("issued_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cert) return { ok: true, duplicate: true, certificate_id: cert.id, certificate_number: cert.certificate_number };
+    }
+
+    const request = (await import("@tanstack/react-start/server")).getRequest();
+    const ipAddress = request?.headers?.get("x-forwarded-for") || null;
+    const userAgent = request?.headers?.get("user-agent") || null;
 
     const snap = await buildSnapshot(supabase, userId, auth.id);
-    const bytes = await renderPdf(snap, { signed: true, signerName: data.typed_name, signatureSvg: data.drawn_signature_svg ?? null, signedAt: new Date().toISOString() });
+    const bytes = await renderPdf(snap, { signed: true, signerName: data.typed_name, signatureSvg: data.drawn_signature_svg, signedAt: new Date().toISOString() });
     const doc_sha = createHash("sha256").update(bytes).digest("hex");
+    const signature_sha = createHash("sha256").update(data.drawn_signature_svg).digest("hex");
     const { putObject } = await import("@/lib/aws/s3.server");
     const key = `clients/${userId}/authorization/${auth.auth_number}-v${auth.version}-signed.pdf`;
     await putObject({ key, body: Buffer.from(bytes), contentType: "application/pdf" });
     await supabase.from("authorization_documents").insert({ authorization_id: auth.id, user_id: userId, kind: "signed", version: auth.version, s3_key: key, sha256: doc_sha });
 
-    await supabase.from("authorization_signatures").update({
-      status: "SIGNED", typed_name: data.typed_name, role_title: data.role_title ?? null,
-      drawn_signature_svg: data.drawn_signature_svg ?? null, otp_verified_at: new Date().toISOString(),
-      signed_at: new Date().toISOString(), document_sha256: doc_sha,
-    }).eq("id", sig.id);
+    // Clean up any stale draft signature rows for this version.
+    await supabase.from("authorization_signatures").delete()
+      .eq("authorization_id", auth.id)
+      .eq("version", auth.version)
+      .neq("status", "SIGNED");
 
-    // Update status to UNDER_ADMIN_REVIEW
-    await supabase.from("client_authorizations").update({ 
-      status: "UNDER_ADMIN_REVIEW", 
-      snapshot: snap 
+    await supabase.from("authorization_signatures").insert({
+      authorization_id: auth.id,
+      user_id: userId,
+      version: auth.version,
+      status: "SIGNED",
+      typed_name: data.typed_name,
+      role_title: data.role_title ?? null,
+      drawn_signature_svg: data.drawn_signature_svg,
+      signed_at: new Date().toISOString(),
+      document_sha256: doc_sha,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
+
+    // Score computation (no admin bonus — admin review removed from onboarding).
+    const kycOk = snap.kyc?.verification_status === "APPROVED";
+    const faceOk = snap.face?.status === "FACE_VERIFIED";
+    const emailOk = !!snap.profile?.email_verified_at;
+    const assetOk = (snap.assets ?? []).some((a: any) => a.verification_status === "VERIFIED");
+    let score = 0;
+    if (kycOk) score += 30;
+    if (faceOk) score += 25;
+    if (emailOk) score += 10;
+    if (assetOk) score += 25;
+    score += 10; // signed
+    const enforcementReady = kycOk && assetOk;
+
+    await supabase.from("client_authorizations").update({
+      status: "ACTIVE",
+      enforcement_enabled: enforcementReady,
+      snapshot: snap,
     }).eq("id", auth.id);
-    
-    await supabase.from("authorization_versions").insert({ 
-      authorization_id: auth.id, 
-      user_id: userId, 
-      version: auth.version, 
-      snapshot: snap 
-    });
-    
-    await supabase.from("authorization_audit_logs").insert({ 
-      user_id: userId, 
-      actor_id: userId, 
-      action: "signed", 
-      target: auth.auth_number 
+
+    await supabase.from("authorization_versions").insert({
+      authorization_id: auth.id,
+      user_id: userId,
+      version: auth.version,
+      snapshot: snap,
     });
 
+    // Issue verification certificate + QR + S3 PDF.
+    const cert_number = `ETC-${new Date().getUTCFullYear()}-${randomBytes(3).toString("hex").toUpperCase()}`;
+    const public_slug = randomBytes(6).toString("hex");
+    const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+    const certDoc = await PDFDocument.create();
+    const cFont = await certDoc.embedFont(StandardFonts.Helvetica);
+    const cBold = await certDoc.embedFont(StandardFonts.HelveticaBold);
+    const cPage = certDoc.addPage([612, 792]);
+    const { height } = cPage.getSize();
+    let cy = height - 60;
+    const cline = (t: string, f = cFont, sz = 11) => { cPage.drawText(t, { x: 60, y: cy, size: sz, font: f, color: rgb(0.05, 0.1, 0.35) }); cy -= sz + 8; };
+    cline("ETERNA VERIFICATION CERTIFICATE", cBold, 18);
+    cline(`Certificate: ${cert_number}`, cBold);
+    cline(`Authorization: ${auth.auth_number}`);
+    cline(`Client ID: ${snap.profile?.client_id ?? ""}`);
+    cline(`Name: ${snap.profile?.display_name ?? snap.profile?.legal_name ?? snap.profile?.full_name ?? ""}`);
+    cline(`Company: ${snap.profile?.company_name ?? ""}`);
+    cline(`Verification Score: ${score}/100`);
+    cline(`Status: ACTIVE`);
+    cline(`Issued: ${new Date().toISOString().slice(0, 10)}`);
+    cline(`Expires: ${auth.expiry_date}`);
+    cy -= 10;
+    if (kycOk) cline("✓ Identity Verified (Veriff)", cBold);
+    if (faceOk) cline("✓ Real Human Verified (Rekognition Liveness)", cBold);
+    if (faceOk) cline("✓ Face Protected Profile Created", cBold);
+    if (assetOk) cline("✓ Asset Ownership Verified", cBold);
+    cline("✓ Authorization Signed", cBold);
+    try {
+      const QR = await import("qrcode");
+      const publicBase = process.env.PUBLIC_APP_URL ?? "https://eternally-defend.lovable.app";
+      const dataUrl = await QR.toDataURL(`${publicBase}/verify/${public_slug}`);
+      const png = await certDoc.embedPng(Buffer.from(dataUrl.split(",")[1], "base64"));
+      cPage.drawImage(png, { x: 420, y: 90, width: 120, height: 120 });
+      cPage.drawText(`Verify: /verify/${public_slug}`, { x: 380, y: 78, size: 8, font: cFont, color: rgb(0.3, 0.3, 0.3) });
+    } catch { /* ignore */ }
+    const certBytes = await certDoc.save();
+    const certSha = createHash("sha256").update(certBytes).digest("hex");
+    const certKey = `clients/${userId}/certificates/${cert_number}.pdf`;
+    await putObject({ key: certKey, body: Buffer.from(certBytes), contentType: "application/pdf" });
+    const { data: insertedCert, error: certErr } = await supabase.from("verification_certificates").insert({
+      user_id: userId,
+      authorization_id: auth.id,
+      certificate_number: cert_number,
+      public_slug,
+      score,
+      status: "ACTIVE",
+      expires_at: new Date(auth.expiry_date ?? Date.now() + 365 * 86400_000).toISOString(),
+      s3_key: certKey,
+      sha256: certSha,
+      snapshot: snap,
+    }).select().single();
+    if (certErr) throw new Error(`Failed to issue certificate: ${certErr.message}`);
+    await supabase.from("authorization_documents").insert({
+      authorization_id: auth.id, user_id: userId, kind: "certificate", version: auth.version, s3_key: certKey, sha256: certSha,
+    });
+
+    // Audit trail — one row per action for immutable history.
+    await supabase.from("authorization_audit_logs").insert([
+      { user_id: userId, actor_id: userId, action: "signed", target: auth.auth_number },
+      { user_id: userId, actor_id: userId, action: "authorization_activated", target: auth.auth_number },
+      { user_id: userId, actor_id: userId, action: "certificate_issued", target: cert_number },
+    ]);
+
+    // Mark onboarding complete: Steps 7 (signature) + 8 (certificate) + 9 (complete).
     const { data: progress } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
     const states = {
       ...(progress?.step_states as Record<string, string> ?? {}),
-      "7": "COMPLETED"
+      "7": "COMPLETED",
+      "8": "COMPLETED",
+      "9": "COMPLETED",
     };
     await supabase.from("onboarding_progress").upsert({
       user_id: userId,
-      current_step: Math.max(progress?.current_step ?? 1, 8),
+      current_step: 9,
       step_states: states,
-      overall_status: "IN_PROGRESS"
+      overall_status: "COMPLETED",
     }, { onConflict: "user_id" });
 
-    return { ok: true };
+    await supabase.from("client_profiles").update({ onboarding_completed: true } as any).eq("user_id", userId);
+
+    return { ok: true, duplicate: false, certificate_id: insertedCert.id, certificate_number: cert_number, signature_sha256: signature_sha, document_sha256: doc_sha };
   });
 
 export const getSignedDocUrl = createServerFn({ method: "POST" })
