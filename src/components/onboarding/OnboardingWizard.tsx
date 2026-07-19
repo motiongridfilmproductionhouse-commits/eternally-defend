@@ -20,7 +20,6 @@ import { AssetVerificationStep } from "@/components/onboarding/AssetVerification
 import { AuthorizationScopeStep } from "@/components/onboarding/AuthorizationScopeStep";
 import { AuthorizationReviewStep } from "@/components/onboarding/AuthorizationReviewStep";
 import { SignatureStep } from "@/components/onboarding/SignatureStep";
-import { AdminReviewStatusStep } from "@/components/onboarding/AdminReviewStatusStep";
 import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
 
@@ -31,8 +30,7 @@ const STEP_TITLES = [
   "Digital Asset Verification",
   "Authorization Scope",
   "Authorization Letter Review",
-  "Electronic Signature & OTP",
-  "Admin Review",
+  "Electronic Signature",
   "Verification Certificate",
   "Onboarding Complete",
 ];
@@ -146,15 +144,14 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
             {STEP_TITLES.map((title, i) => {
               const isActive = i === stepIndex;
               const isPast = i < stepIndex;
-              const isLocked = 
-                (i >= 2 && !isKycApproved) || 
-                (i >= 3 && !isFaceHandled) || 
-                (i >= 4 && !hasVerifiedAsset) || 
+              const isLocked =
+                (i >= 2 && !isKycApproved) ||
+                (i >= 3 && !isFaceHandled) ||
+                (i >= 4 && !hasVerifiedAsset) ||
                 (i >= 5 && !hasScopes) ||
                 (i >= 6 && !isDraftReady) ||
                 (i >= 7 && !isReviewVisible) ||
-                (i >= 8 && !isApproved) ||
-                (i >= 9 && !isApproved);
+                (i >= 8 && !isApproved);
 
               return (
                 <li key={title} className="relative flex items-center gap-4 py-3">
@@ -182,7 +179,7 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
         </div>
 
         <div className="relative z-10 text-xs text-white/50 pt-4 border-t border-white/10">
-          Step {step} of 9 · Enterprise Security
+          Step {step} of {STEP_TITLES.length} · Enterprise Security
         </div>
       </aside>
 
@@ -191,26 +188,26 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
           <div className="w-full max-w-2xl mx-auto">
             <div className="mb-8">
               <div className="text-[11px] font-semibold tracking-[0.24em] text-blue-400 mb-2">
-                STEP {step} / 9
+                STEP {step} / {STEP_TITLES.length}
               </div>
               <h2 className="font-display text-3xl font-bold">{STEP_TITLES[stepIndex]}</h2>
             </div>
 
             <div className="animate-fade-in">
               {step === 1 && (
-                <Step1Profile 
-                  profile={profile} 
+                <Step1Profile
+                  profile={profile}
                   onRefetch={refetchProfile}
-                  onNext={() => advanceStep(2)} 
+                  onNext={() => advanceStep(2)}
                 />
               )}
               {step === 2 && (
-                <Step2Kyc 
-                  kyc={kyc} 
+                <Step2Kyc
+                  kyc={kyc}
                   profile={profile}
                   onRefetch={refetchKyc}
-                  onBack={goBack} 
-                  onNext={() => advanceStep(3)} 
+                  onBack={goBack}
+                  onNext={() => advanceStep(3)}
                 />
               )}
               {step === 3 && (
@@ -235,41 +232,31 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
               {step === 7 && (
                 <SignatureStep onBack={goBack} onNext={() => advanceStep(8)} />
               )}
-              {step === 8 && (
-                <AdminReviewStatusStep 
-                  onBack={goBack} 
-                  onNext={() => advanceStep(9)} 
-                  onGoToStep={(s) => setStep(s)}
+              {step === 8 && isApproved && (
+                <CertificateStep
+                  onBack={goBack}
+                  onNext={() => advanceStep(9)}
                   kycStatus={kyc?.verification_status ?? "NOT_STARTED"}
                   faceStatus={faceEnrollment?.status ?? "NOT_STARTED"}
                   assetStatus={hasVerifiedAsset ? "VERIFIED" : "UNVERIFIED"}
                 />
               )}
               {step === 9 && isApproved && (
-                <CertificateStep 
-                  onBack={goBack} 
-                  onNext={() => advanceStep(10)} 
-                  kycStatus={kyc?.verification_status ?? "NOT_STARTED"}
-                  faceStatus={faceEnrollment?.status ?? "NOT_STARTED"}
-                  assetStatus={hasVerifiedAsset ? "VERIFIED" : "UNVERIFIED"}
+                <OnboardingCompleteStep
+                  onGoToStep={advanceStep}
                 />
               )}
-              {step === 10 && isApproved && (
-                <OnboardingCompleteStep 
-                  onGoToStep={advanceStep} 
-                />
-              )}
-              {step >= 9 && step <= 10 && !isApproved && (
-                <StepLockedPlaceholder 
-                  step={step} 
-                  isKycApproved={isKycApproved} 
-                  isFaceVerified={isFaceVerified} 
+              {step >= 8 && step <= 9 && !isApproved && (
+                <StepLockedPlaceholder
+                  step={step}
+                  isKycApproved={isKycApproved}
+                  isFaceVerified={isFaceVerified}
                   hasVerifiedAsset={hasVerifiedAsset}
                   hasScopes={hasScopes}
                   isDraftReady={isDraftReady}
                   isReviewVisible={!!isReviewVisible}
                   isApproved={isApproved}
-                  onBack={goBack} 
+                  onBack={goBack}
                 />
               )}
             </div>
@@ -574,8 +561,8 @@ function StepLockedPlaceholder({
             <p className="text-sm text-red-400">You must generate and review your Authorization Draft (Step 6) to unlock this section.</p>
           ) : !isReviewVisible && step >= 8 ? (
             <p className="text-sm text-red-400">You must securely sign the Authorization Letter (Step 7) to unlock this section.</p>
-          ) : !isApproved && step >= 9 ? (
-            <p className="text-sm text-red-400">Admin approval is required (Step 8) to unlock this section.</p>
+          ) : !isApproved && step >= 8 ? (
+            <p className="text-sm text-red-400">Signing the authorization is required to issue your certificate.</p>
           ) : (
             <p className="text-sm text-white/50">This section is under construction. Development will continue in future phases.</p>
           )}

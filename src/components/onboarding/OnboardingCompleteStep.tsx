@@ -131,7 +131,7 @@ export function OnboardingCompleteStep({ onGoToStep }: { onGoToStep: (step: numb
               <div className="flex items-center gap-3"><CheckCircle2 className="size-5 text-emerald-400" /> Protected Face Profile Created</div>
               <div className="flex items-center gap-3"><CheckCircle2 className={`size-5 ${snapAsset ? 'text-emerald-400' : 'text-white/30'}`} /> YouTube Ownership Verified</div>
               <div className="flex items-center gap-3"><CheckCircle2 className={`size-5 ${snapSig ? 'text-emerald-400' : 'text-white/30'}`} /> Authorization Signed</div>
-              <div className="flex items-center gap-3"><CheckCircle2 className="size-5 text-emerald-400" /> Admin Approved</div>
+              
               <div className="flex items-center gap-3 sm:col-span-2"><CheckCircle2 className="size-5 text-emerald-400" /> Verification Certificate Issued</div>
             </div>
           </div>

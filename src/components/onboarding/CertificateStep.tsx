@@ -194,7 +194,7 @@ export function CertificateStep({
               <div className="flex items-center gap-2"><ShieldCheck className={`size-4 text-emerald-400`} /> Face Protected Profile Created</div>
               <div className="flex items-center gap-2"><ShieldCheck className={`size-4 ${snapAsset ? 'text-emerald-400' : 'text-white/30'}`} /> YouTube Ownership Verified</div>
               <div className="flex items-center gap-2"><ShieldCheck className={`size-4 ${snapSig ? 'text-emerald-400' : 'text-white/30'}`} /> Authorization Signed</div>
-              <div className="flex items-center gap-2"><ShieldCheck className={`size-4 text-emerald-400`} /> Admin Approved</div>
+              
             </div>
           </div>
           
