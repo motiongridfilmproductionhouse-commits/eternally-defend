@@ -374,21 +374,24 @@ export function FaceEnrollmentStep({
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
       <CardHeader>
         <CardTitle className="text-xl">
-          {failedTech ? "Face Protection Temporarily Unavailable" : status === "LIVENESS_FAILED" ? "Verification Failed" : "Biometric Scan Ready"}
+          {failedTech ? "Face Protection Temporarily Unavailable" : status === "LIVENESS_FAILED" || status === "QUALITY_FAILED" ? "Verification Failed" : "Biometric Scan Ready"}
         </CardTitle>
         <CardDescription className="text-white/60">
           {failedTech
             ? "Face Protection is temporarily unavailable. You can retry or complete this setup later."
-            : status === "LIVENESS_FAILED"
-            ? "We couldn't verify your liveness. Please ensure you are in a well-lit area and remove masks or heavy glasses."
+            : status === "LIVENESS_FAILED" || status === "QUALITY_FAILED"
+            ? (enrollmentStatus?.failure_reason ?? "We couldn't verify your liveness. Please ensure you are in a well-lit area and remove masks or heavy glasses.")
             : "Your consent is recorded. You are ready to perform the secure liveness scan."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {failedTech && (
+        {(failedTech || enrollmentStatus?.failure_code) && (enrollmentStatus?.failure_reason || technicalError) && (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex gap-2">
             <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-            <span>{technicalError}</span>
+            <div className="space-y-0.5">
+              {enrollmentStatus?.failure_code && <div className="font-mono text-[10px] opacity-70">{enrollmentStatus.failure_code}</div>}
+              <div>{technicalError || enrollmentStatus?.failure_reason}</div>
+            </div>
           </div>
         )}
         <div className="border border-white/10 rounded-xl p-8 bg-white/5 flex flex-col items-center text-center space-y-4">
