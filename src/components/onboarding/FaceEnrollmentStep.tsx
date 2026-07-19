@@ -140,18 +140,24 @@ export function FaceEnrollmentStep({
     setBusy(true);
     setProcessingText("Analyzing liveness and securing face profile...");
     try {
-      const res = await finalize({ data: { sessionId: livenessData.sessionId } });
+      const res: any = await finalize({ data: { sessionId: livenessData.sessionId } });
       if (res.ok) {
         toast.success("Face Protection Profile established!");
         await onRefetch();
         onNext();
       } else {
-        toast.error("Liveness verification failed. Please try again.");
+        const reason = res.reason || "Liveness verification failed. Please try again.";
+        if (res.technical) {
+          setTechnicalError(reason);
+        }
+        toast.error(reason);
         setLivenessData(null);
         await onRefetch();
       }
     } catch (e: any) {
-      toast.error(e?.message ?? "Error finalizing liveness");
+      const msg = e?.message ?? "Error finalizing liveness";
+      setTechnicalError(msg);
+      toast.error(msg);
       setLivenessData(null);
       await onRefetch();
     } finally {
