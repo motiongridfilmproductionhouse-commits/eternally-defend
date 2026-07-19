@@ -561,8 +561,8 @@ function StepLockedPlaceholder({
             <p className="text-sm text-red-400">You must generate and review your Authorization Draft (Step 6) to unlock this section.</p>
           ) : !isReviewVisible && step >= 8 ? (
             <p className="text-sm text-red-400">You must securely sign the Authorization Letter (Step 7) to unlock this section.</p>
-          ) : !isApproved && step >= 9 ? (
-            <p className="text-sm text-red-400">Admin approval is required (Step 8) to unlock this section.</p>
+          ) : !isApproved && step >= 8 ? (
+            <p className="text-sm text-red-400">Signing the authorization is required to issue your certificate.</p>
           ) : (
             <p className="text-sm text-white/50">This section is under construction. Development will continue in future phases.</p>
           )}
