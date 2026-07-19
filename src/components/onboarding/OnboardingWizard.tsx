@@ -144,15 +144,14 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
             {STEP_TITLES.map((title, i) => {
               const isActive = i === stepIndex;
               const isPast = i < stepIndex;
-              const isLocked = 
-                (i >= 2 && !isKycApproved) || 
-                (i >= 3 && !isFaceHandled) || 
-                (i >= 4 && !hasVerifiedAsset) || 
+              const isLocked =
+                (i >= 2 && !isKycApproved) ||
+                (i >= 3 && !isFaceHandled) ||
+                (i >= 4 && !hasVerifiedAsset) ||
                 (i >= 5 && !hasScopes) ||
                 (i >= 6 && !isDraftReady) ||
                 (i >= 7 && !isReviewVisible) ||
-                (i >= 8 && !isApproved) ||
-                (i >= 9 && !isApproved);
+                (i >= 8 && !isApproved);
 
               return (
                 <li key={title} className="relative flex items-center gap-4 py-3">
@@ -180,9 +179,93 @@ export function OnboardingWizard({ initialProgress }: { initialProgress: any }) 
         </div>
 
         <div className="relative z-10 text-xs text-white/50 pt-4 border-t border-white/10">
-          Step {step} of 9 · Enterprise Security
+          Step {step} of {STEP_TITLES.length} · Enterprise Security
         </div>
       </aside>
+
+      <section className="relative flex-1 lg:h-full h-auto overflow-y-auto bg-[#050A18]">
+        <div className="relative min-h-full flex flex-col justify-center px-6 md:px-12 lg:px-20 py-14">
+          <div className="w-full max-w-2xl mx-auto">
+            <div className="mb-8">
+              <div className="text-[11px] font-semibold tracking-[0.24em] text-blue-400 mb-2">
+                STEP {step} / {STEP_TITLES.length}
+              </div>
+              <h2 className="font-display text-3xl font-bold">{STEP_TITLES[stepIndex]}</h2>
+            </div>
+
+            <div className="animate-fade-in">
+              {step === 1 && (
+                <Step1Profile
+                  profile={profile}
+                  onRefetch={refetchProfile}
+                  onNext={() => advanceStep(2)}
+                />
+              )}
+              {step === 2 && (
+                <Step2Kyc
+                  kyc={kyc}
+                  profile={profile}
+                  onRefetch={refetchKyc}
+                  onBack={goBack}
+                  onNext={() => advanceStep(3)}
+                />
+              )}
+              {step === 3 && (
+                <FaceEnrollmentStep
+                  enrollmentStatus={faceEnrollment}
+                  isKycApproved={isKycApproved}
+                  onRefetch={async () => { await refetchFaceEnrollment(); }}
+                  onBack={goBack}
+                  onNext={() => advanceStep(4)}
+                  onDefer={() => advanceStep(4, "DEFERRED")}
+                />
+              )}
+              {step === 4 && (
+                <AssetVerificationStep onBack={goBack} onNext={() => advanceStep(5)} />
+              )}
+              {step === 5 && (
+                <AuthorizationScopeStep onBack={goBack} onNext={() => advanceStep(6)} />
+              )}
+              {step === 6 && (
+                <AuthorizationReviewStep onBack={goBack} onNext={() => advanceStep(7)} onGoToStep={advanceStep} />
+              )}
+              {step === 7 && (
+                <SignatureStep onBack={goBack} onNext={() => advanceStep(8)} />
+              )}
+              {step === 8 && isApproved && (
+                <CertificateStep
+                  onBack={goBack}
+                  onNext={() => advanceStep(9)}
+                  kycStatus={kyc?.verification_status ?? "NOT_STARTED"}
+                  faceStatus={faceEnrollment?.status ?? "NOT_STARTED"}
+                  assetStatus={hasVerifiedAsset ? "VERIFIED" : "UNVERIFIED"}
+                />
+              )}
+              {step === 9 && isApproved && (
+                <OnboardingCompleteStep
+                  onGoToStep={advanceStep}
+                />
+              )}
+              {step >= 8 && step <= 9 && !isApproved && (
+                <StepLockedPlaceholder
+                  step={step}
+                  isKycApproved={isKycApproved}
+                  isFaceVerified={isFaceVerified}
+                  hasVerifiedAsset={hasVerifiedAsset}
+                  hasScopes={hasScopes}
+                  isDraftReady={isDraftReady}
+                  isReviewVisible={!!isReviewVisible}
+                  isApproved={isApproved}
+                  onBack={goBack}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
 
       <section className="relative flex-1 lg:h-full h-auto overflow-y-auto bg-[#050A18]">
         <div className="relative min-h-full flex flex-col justify-center px-6 md:px-12 lg:px-20 py-14">
