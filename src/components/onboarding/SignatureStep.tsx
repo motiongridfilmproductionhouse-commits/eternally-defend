@@ -50,6 +50,7 @@ export function SignatureStep({
   const [confirmations, setConfirmations] = useState<Record<string, boolean>>({});
   const [hasStrokes, setHasStrokes] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [signError, setSignError] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,7 +61,16 @@ export function SignatureStep({
   }, [profile]);
 
   const allConfirmed = DECLARATIONS.every((d) => confirmations[d.key]);
-  const canSign = allConfirmed && typedName.trim().length >= 2 && hasStrokes && !busy;
+  const nameOk = typedName.trim().length >= 2;
+  const canSign = allConfirmed && nameOk && hasStrokes && !busy;
+
+  const missingReason = !allConfirmed
+    ? "Please check all declarations above."
+    : !nameOk
+    ? "Enter your full legal name."
+    : !hasStrokes
+    ? "Draw your signature in the box."
+    : null;
 
   const handleClearSig = () => {
     sigCanvas.current?.clear();
@@ -68,12 +78,13 @@ export function SignatureStep({
   };
 
   const handleSign = async () => {
-    if (busy) return; // duplicate submission guard
-    if (!canSign) {
-      toast.error("Confirm all declarations, enter your legal name, and draw your signature.");
+    setSignError(null);
+    if (busy) return;
+    if (missingReason) {
+      toast.error(missingReason);
       return;
     }
-    if (sigCanvas.current?.isEmpty()) {
+    if (sigCanvas.current?.isEmpty?.()) {
       toast.error("Signature cannot be empty");
       return;
     }
@@ -89,21 +100,27 @@ export function SignatureStep({
           confirmations,
         },
       });
-      if (res.duplicate) {
+      if (res?.duplicate) {
         toast.success("Authorization already signed — restoring your certificate.");
       } else {
         toast.success("Authorization signed and certificate issued.");
       }
-      await refetch();
-      await qc.invalidateQueries({ queryKey: ["my_certificate"] });
-      await qc.invalidateQueries({ queryKey: ["onboarding-progress"] });
+      await Promise.all([
+        refetch(),
+        qc.invalidateQueries({ queryKey: ["my_certificate"] }),
+        qc.invalidateQueries({ queryKey: ["onboarding-progress"] }),
+        qc.invalidateQueries({ queryKey: ["auth_bundle"] }),
+        qc.invalidateQueries({ queryKey: ["client_profile"] }),
+      ]);
       onNext();
     } catch (e: any) {
-      toast.error(e?.message ?? "Signature failed. Please try again.");
+      const msg = e?.message ?? "Signature failed. Please try again.";
+      console.error("[SignatureStep] finalizeSignature failed", e);
+      setSignError(msg);
+      toast.error(msg);
+    } finally {
       setBusy(false);
-      return;
     }
-    setBusy(false);
   };
 
   const handleViewPdf = async (docId: string, download: boolean = false) => {
