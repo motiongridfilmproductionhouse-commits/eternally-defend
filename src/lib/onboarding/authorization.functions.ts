@@ -327,19 +327,19 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       { user_id: userId, actor_id: userId, action: "certificate_issued", target: cert_number },
     ]);
 
-    // Mark onboarding complete: Steps 7 (signature) + 8 (certificate) + 9 (complete).
+    // Mark onboarding steps 7 (signature) + 8 (certificate) COMPLETED, land on step 8
+    // so the user sees the Verification Certificate screen next.
     const { data: progress } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
     const states = {
       ...(progress?.step_states as Record<string, string> ?? {}),
       "7": "COMPLETED",
       "8": "COMPLETED",
-      "9": "COMPLETED",
     };
     await supabase.from("onboarding_progress").upsert({
       user_id: userId,
-      current_step: 9,
+      current_step: 8,
       step_states: states,
-      overall_status: "COMPLETED",
+      overall_status: "IN_PROGRESS",
     }, { onConflict: "user_id" });
 
     await supabase.from("client_profiles").update({ onboarding_completed: true } as any).eq("user_id", userId);
