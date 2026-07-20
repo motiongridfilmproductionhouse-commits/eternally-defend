@@ -67,6 +67,23 @@ export function FaceEnrollmentStep({
   const finalize = useServerFn(finalizeLiveness);
   const revoke = useServerFn(revokeBiometrics);
   const defer = useServerFn(deferFaceEnrollment);
+  const resume = useServerFn(resumeFaceEnrollment);
+
+  const handleResume = async () => {
+    setBusy(true);
+    setTechnicalError(null);
+    setProcessingText("Preparing face scan...");
+    try {
+      await resume();
+      await onRefetch();
+      toast.success("Face Protection ready. Please complete the scan.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to resume face enrollment");
+    } finally {
+      setBusy(false);
+      setProcessingText("");
+    }
+  };
 
   const handleDefer = async () => {
     if (!isKycApproved) {
