@@ -329,3 +329,54 @@ export const deferFaceEnrollment = createServerFn({ method: "POST" })
 
     return { ok: true, status: "DEFERRED" as const };
   });
+
+/**
+ * Resume face enrollment for a user whose profile is DEFERRED, LIVENESS_FAILED,
+ * QUALITY_FAILED, or otherwise stuck. Resets the profile to a scan-ready state
+ * without deleting existing biometric consent. Onboarding progress step 3 is
+ * moved back to IN_PROGRESS so the user must actually pass before advancing.
+ */
+export const resumeFaceEnrollment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
+    const { data: consent } = await supabase
+      .from("biometric_consents")
+      .select("id")
+      .eq("user_id", userId)
+      .is("revoked_at", null)
+      .order("signed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextStatus = consent ? "CAMERA_PERMISSION_REQUIRED" : "CONSENT_REQUIRED";
+
+    await supabase.from("protected_face_profiles").upsert({
+      user_id: userId,
+      collection_id: collectionIdForUser(userId),
+      status: nextStatus,
+      liveness_session_id: null,
+      failure_code: null,
+      failure_reason: null,
+      failure_at: null,
+    } as any, { onConflict: "user_id" });
+
+    const { data: progress } = await supabase
+      .from("onboarding_progress")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const states = {
+      ...((progress?.step_states as Record<string, string>) ?? {}),
+      "3": "IN_PROGRESS",
+    };
+    await supabase.from("onboarding_progress").upsert({
+      user_id: userId,
+      current_step: 3,
+      step_states: states,
+      overall_status: "IN_PROGRESS",
+    }, { onConflict: "user_id" });
+
+    return { ok: true, status: nextStatus };
+  });
