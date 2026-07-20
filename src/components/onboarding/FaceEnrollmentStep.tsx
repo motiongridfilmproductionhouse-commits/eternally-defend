@@ -12,6 +12,7 @@ import {
   finalizeLiveness,
   revokeBiometrics,
   deferFaceEnrollment,
+  resumeFaceEnrollment,
 } from "@/lib/onboarding/face-enrollment.functions";
 
 const LazyFaceLivenessDetector = lazy(async () => {
