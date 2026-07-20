@@ -285,18 +285,31 @@ export function SignatureStep({
           </div>
         </div>
 
-        <div className="flex justify-between pt-4 border-t border-white/10 gap-3">
+        {signError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+            <div className="font-semibold mb-0.5">We couldn't finalize your signature</div>
+            <div className="opacity-80">{signError}</div>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row justify-between pt-4 border-t border-white/10 gap-3">
           <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10" disabled={busy}>
             <ChevronLeft className="size-4 mr-1" /> Back
           </Button>
-          <Button
-            onClick={handleSign}
-            disabled={!canSign}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white border-0"
-          >
-            {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : <ShieldCheck className="size-4 mr-2" />}
-            Sign &amp; Complete Onboarding
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              onClick={handleSign}
+              disabled={busy}
+              aria-disabled={!canSign}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white border-0 disabled:opacity-70"
+            >
+              {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : <ShieldCheck className="size-4 mr-2" />}
+              Sign &amp; Complete Onboarding
+            </Button>
+            {missingReason && !busy && (
+              <div className="text-[10px] text-amber-300/80">{missingReason}</div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
