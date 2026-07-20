@@ -50,6 +50,7 @@ export function SignatureStep({
   const [confirmations, setConfirmations] = useState<Record<string, boolean>>({});
   const [hasStrokes, setHasStrokes] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [signError, setSignError] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,7 +61,16 @@ export function SignatureStep({
   }, [profile]);
 
   const allConfirmed = DECLARATIONS.every((d) => confirmations[d.key]);
-  const canSign = allConfirmed && typedName.trim().length >= 2 && hasStrokes && !busy;
+  const nameOk = typedName.trim().length >= 2;
+  const canSign = allConfirmed && nameOk && hasStrokes && !busy;
+
+  const missingReason = !allConfirmed
+    ? "Please check all declarations above."
+    : !nameOk
+    ? "Enter your full legal name."
+    : !hasStrokes
+    ? "Draw your signature in the box."
+    : null;
 
   const handleClearSig = () => {
     sigCanvas.current?.clear();
@@ -68,12 +78,13 @@ export function SignatureStep({
   };
 
   const handleSign = async () => {
-    if (busy) return; // duplicate submission guard
-    if (!canSign) {
-      toast.error("Confirm all declarations, enter your legal name, and draw your signature.");
+    setSignError(null);
+    if (busy) return;
+    if (missingReason) {
+      toast.error(missingReason);
       return;
     }
-    if (sigCanvas.current?.isEmpty()) {
+    if (sigCanvas.current?.isEmpty?.()) {
       toast.error("Signature cannot be empty");
       return;
     }
@@ -89,21 +100,27 @@ export function SignatureStep({
           confirmations,
         },
       });
-      if (res.duplicate) {
+      if (res?.duplicate) {
         toast.success("Authorization already signed — restoring your certificate.");
       } else {
         toast.success("Authorization signed and certificate issued.");
       }
-      await refetch();
-      await qc.invalidateQueries({ queryKey: ["my_certificate"] });
-      await qc.invalidateQueries({ queryKey: ["onboarding-progress"] });
+      await Promise.all([
+        refetch(),
+        qc.invalidateQueries({ queryKey: ["my_certificate"] }),
+        qc.invalidateQueries({ queryKey: ["onboarding-progress"] }),
+        qc.invalidateQueries({ queryKey: ["auth_bundle"] }),
+        qc.invalidateQueries({ queryKey: ["client_profile"] }),
+      ]);
       onNext();
     } catch (e: any) {
-      toast.error(e?.message ?? "Signature failed. Please try again.");
+      const msg = e?.message ?? "Signature failed. Please try again.";
+      console.error("[SignatureStep] finalizeSignature failed", e);
+      setSignError(msg);
+      toast.error(msg);
+    } finally {
       setBusy(false);
-      return;
     }
-    setBusy(false);
   };
 
   const handleViewPdf = async (docId: string, download: boolean = false) => {
@@ -268,18 +285,31 @@ export function SignatureStep({
           </div>
         </div>
 
-        <div className="flex justify-between pt-4 border-t border-white/10 gap-3">
+        {signError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+            <div className="font-semibold mb-0.5">We couldn't finalize your signature</div>
+            <div className="opacity-80">{signError}</div>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row justify-between pt-4 border-t border-white/10 gap-3">
           <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10" disabled={busy}>
             <ChevronLeft className="size-4 mr-1" /> Back
           </Button>
-          <Button
-            onClick={handleSign}
-            disabled={!canSign}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white border-0"
-          >
-            {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : <ShieldCheck className="size-4 mr-2" />}
-            Sign &amp; Complete Onboarding
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              onClick={handleSign}
+              disabled={busy}
+              aria-disabled={!canSign}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white border-0 disabled:opacity-70"
+            >
+              {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : <ShieldCheck className="size-4 mr-2" />}
+              Sign &amp; Complete Onboarding
+            </Button>
+            {missingReason && !busy && (
+              <div className="text-[10px] text-amber-300/80">{missingReason}</div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
