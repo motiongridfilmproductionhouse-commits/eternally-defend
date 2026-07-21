@@ -812,7 +812,7 @@ async function runYouTube(
   targetResults: number,
   monthWindow: MonthWindow,
 ): Promise<{ raw: RawHit[]; error?: string; queriesUsed: number; pagesScanned: number; apiErrors: number; quotaExhausted: boolean; quotaReason?: string }> {
-  const key = process.env.GOOGLE_API_KEY;
+  const key = process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY;
   if (!key) return { raw: [], error: "GOOGLE_API_KEY missing", queriesUsed: 0, pagesScanned: 0, apiErrors: 0, quotaExhausted: false };
 
   const nameForms = Array.from(new Set([query, ...aliases, ...variations].map((s) => s.trim()).filter(Boolean)));
