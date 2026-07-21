@@ -388,14 +388,73 @@ function fcItemToRaw(item: Record<string, unknown>): RawHit {
 }
 
 /** Run a single Firecrawl search query and return parsed RawHit array. */
-async function fcSearch(fc: { search(q: string, opts: { limit: number }): Promise<unknown> }, q: string, limit: number): Promise<RawHit[]> {
-  const res = await fc.search(q, { limit });
-  const r = res as { web?: unknown[]; news?: unknown[] };
-  const items = [
-    ...(Array.isArray(r.web)  ? r.web  : []),
-    ...(Array.isArray(r.news) ? r.news : []),
-  ] as Array<Record<string, unknown>>;
-  return items.map(fcItemToRaw);
+async function fcSearch(
+  fc: { search(q: string, opts: { limit: number }): Promise<unknown> },
+  q: string,
+  limit: number,
+): Promise<RawHit[]> {
+  const response = await fc.search(q, { limit });
+  const root = response as Record<string, unknown>;
+
+  if (root.success === false) {
+    throw new Error(
+      typeof root.error === "string"
+        ? root.error
+        : "Firecrawl search request failed"
+    );
+  }
+
+  const nested =
+    root.data && typeof root.data === "object" && !Array.isArray(root.data)
+      ? root.data as Record<string, unknown>
+      : {};
+
+  const candidates: unknown[] = [
+    ...(Array.isArray(root.web) ? root.web : []),
+    ...(Array.isArray(root.news) ? root.news : []),
+    ...(Array.isArray(nested.web) ? nested.web : []),
+    ...(Array.isArray(nested.news) ? nested.news : []),
+    ...(Array.isArray(root.data) ? root.data : []),
+  ];
+
+  const unique = new Map<string, Record<string, unknown>>();
+
+  for (const item of candidates) {
+    if (!item || typeof item !== "object") continue;
+
+    const record = item as Record<string, unknown>;
+    const metadata =
+      record.metadata && typeof record.metadata === "object"
+        ? record.metadata as Record<string, unknown>
+        : {};
+
+    const normalized: Record<string, unknown> = {
+      ...record,
+      title: record.title ?? metadata.title,
+      description:
+        record.description ??
+        record.snippet ??
+        metadata.description,
+      url:
+        record.url ??
+        record.sourceURL ??
+        metadata.sourceURL ??
+        metadata.url,
+    };
+
+    const url = typeof normalized.url === "string" ? normalized.url : "";
+    if (url) unique.set(url, normalized);
+  }
+
+  const parsed = Array.from(unique.values())
+    .map(fcItemToRaw)
+    .filter(hit => Boolean(hit.url));
+
+  console.log(
+    `[firecrawl] query="${q}" candidates=${candidates.length} parsed=${parsed.length}`
+  );
+
+  return parsed;
 }
 
 async function runFirecrawl(query: string, sources: SourceKey[], limit: number): Promise<{ runs: { source: string; raw: RawHit[] }[]; error?: string }> {
