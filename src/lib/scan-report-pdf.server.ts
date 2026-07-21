@@ -1,7 +1,11 @@
 import "regenerator-runtime/runtime.js";
 import { PDFDocument, PDFName, PDFString, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { createHash } from "crypto";
-import { embedUnicodeFontStack, drawUnicodeText, measureUnicodeText } from "@/lib/pdf/unicode-fonts.server";
+import {
+  embedUnicodeFontStack,
+  drawUnicodeText,
+  measureUnicodeText as measureUnicodeTextUnsafe,
+} from "@/lib/pdf/unicode-fonts.server";
 
 export interface ScanReportInput {
   subject: string;
@@ -40,12 +44,42 @@ function safeDate(value?: string | null) {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? value : d.toISOString();
 }
+function pdfSafe(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFC")
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[\uFE0E\uFE0F\u200D]/g, "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .trim();
+}
+
+function safeMeasure(
+  value: string,
+  size: number,
+  fonts: PDFFont[],
+): number {
+  const safe = pdfSafe(value);
+
+  try {
+    const measured = measureUnicodeTextUnsafe(safe, size, fonts);
+    return Number.isFinite(measured)
+      ? measured
+      : safe.length * size * 0.55;
+  } catch (error) {
+    console.warn(
+      "[scan-pdf] Unicode measurement fallback:",
+      error instanceof Error ? error.message : String(error)
+    );
+    return safe.length * size * 0.55;
+  }
+}
+
 function wrap(text: string, size: number, fonts: PDFFont[], width: number): string[] {
-  const words = String(text ?? "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const words = pdfSafe(text).replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   const out: string[] = []; let current = "";
   for (const word of words) {
     const candidate = current ? current + " " + word : word;
-    if (measureUnicodeText(candidate, size, fonts) <= width) current = candidate;
+    if (safeMeasure(candidate, size, fonts) <= width) current = candidate;
     else { if (current) out.push(current); current = word; }
   }
   if (current) out.push(current);
@@ -72,7 +106,7 @@ export async function buildScanReportPdf(input: ScanReportInput): Promise<{ byte
   const margin = 46, contentWidth = A4[0] - margin * 2;
 
   const text = (page: PDFPage, value: string, x: number, y: number, size = 10, isBold = false, color = ink) =>
-    drawUnicodeText(page, value, { x, y, size, stack: isBold ? bold : regular, color });
+    drawUnicodeText(page, pdfSafe(value), { x, y, size, stack: isBold ? bold : regular, color });
   const paragraph = (page: PDFPage, value: string, x: number, y: number, width: number, size = 9.5, color = ink, leading = 13) => {
     for (const row of wrap(value, size, regular, width)) { text(page, row, x, y, size, false, color); y -= leading; }
     return y;
@@ -154,7 +188,7 @@ export async function buildScanReportPdf(input: ScanReportInput): Promise<{ byte
     if (h.description && y>155) { text(page,"PUBLIC DESCRIPTION / EXCERPT",margin,y,7,true,muted); y-=14; y=paragraph(page,h.description,margin,y,contentWidth,9,ink,13)-8; }
     if (y<100) { page=pdf.addPage(A4); header(page,"EVIDENCE RECORD "+id+" CONTINUED"); y=770; }
     text(page,"SOURCE URL",margin,y,7,true,muted); y-=14;
-    const urlLines=wrap(h.url,8,regular,contentWidth); for(const row of urlLines){ text(page,row,margin,y,8,false,blue); addLink(pdf,page,h.url,margin,y-2,Math.min(contentWidth,measureUnicodeText(row,8,regular)),11); y-=12; }
+    const urlLines=wrap(h.url,8,regular,contentWidth); for(const row of urlLines){ text(page,row,margin,y,8,false,blue); addLink(pdf,page,h.url,margin,y-2,Math.min(contentWidth,safeMeasure(row,8,regular)),11); y-=12; }
     y-=12; page.drawLine({start:{x:margin,y},end:{x:margin+contentWidth,y},thickness:.7,color:line}); y-=18;
     paragraph(page,"Review note: This item was collected from a public source. Its presence in this report does not establish that allegations are true. Preserve original files, screenshots, timestamps, headers, and platform responses separately when available.",margin,y,contentWidth,8.5,muted,12);
   }
