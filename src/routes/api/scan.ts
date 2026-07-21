@@ -210,7 +210,7 @@ const RISK_TERMS: RiskRule[] = [
   { kw: ["exposed", "expose", "exposé", "truth about", "real story", "real truth", "investigation into", "undercover report", "whistleblower"], category: "Exposé", sev: "High", score: 83, legalTakedown: 56, copyrightEnforce: 15, reputation: 88 },
   { kw: ["controversy", "controversial", "scandal", "outrage over", "public outrage"], category: "Controversy", sev: "High", score: 79, legalTakedown: 32, copyrightEnforce: 8, reputation: 84 },
   { kw: ["copyright infringement", "stolen content", "unauthorized reupload", "DMCA strike", "pirated"], category: "Copyright", sev: "High", score: 78, legalTakedown: 72, copyrightEnforce: 96, reputation: 42 },
-  { kw: ["breaking news", "exclusive report", "news update", "news today", "developing story"], category: "News", sev: "High", score: 72, legalTakedown: 18, copyrightEnforce: 8, reputation: 78 },
+  { kw: ["breaking news", "exclusive report", "news update", "news today", "developing story"], category: "News", sev: "Low", score: 24, legalTakedown: 4, copyrightEnforce: 2, reputation: 12 },
 
   // ── MEDIUM ──────────────────────────────────────────────────────────────
   { kw: ["criticism", "criticised", "criticized", "slammed", "backlash", "called out", "trolled", "dragged"], category: "Criticism", sev: "Medium", score: 62, legalTakedown: 14, copyrightEnforce: 5, reputation: 60 },
@@ -1172,26 +1172,78 @@ function buildReport(
     duplicates,
   };
 
-  // ── Score breakdown ───────────────────────────────────────────────────────
-  const risk = (arr: ScanHit[]) => arr.length ? Math.round(arr.reduce((a, h) => a + h.threatScore, 0) / arr.length) : 0;
+  // ── Calibrated observed-risk score ────────────────────────────────────────
+  // This is an evidence-based risk index, not a popularity score. Missing
+  // platform metrics never become invented reach or engagement.
+  const risk = (arr: ScanHit[]) => arr.length
+    ? Math.round(arr.reduce((a, h) => a + h.threatScore, 0) / arr.length)
+    : 0;
   const scoreBreakdown = [
-    { key: "news",         label: "News Risk",          value: risk(buckets.news) },
-    { key: "social",       label: "Social Media Risk",  value: risk([...buckets.facebook, ...buckets.instagram, ...hits.filter(h => h.source === "X" || h.source === "TikTok")]) },
-    { key: "youtube",      label: "YouTube Risk",        value: risk(buckets.youtube) },
-    { key: "reddit",       label: "Reddit Risk",         value: risk(buckets.reddit) },
-    { key: "impersonation",label: "Impersonation Risk",  value: risk(buckets.impersonation) },
-    { key: "deepfake",     label: "Deepfake Risk",       value: risk(buckets.deepfake) },
-    { key: "legal",        label: "Legal Risk",          value: risk(buckets.legal) },
-    { key: "virality",     label: "Virality Risk",       value: hits.length ? Math.round(hits.reduce((a, h) => a + h.viralityScore, 0) / hits.length) : 0 },
+    { key: "news",          label: "News Risk",          value: risk(buckets.news) },
+    { key: "social",        label: "Social Media Risk",  value: risk([...buckets.facebook, ...buckets.instagram, ...hits.filter(h => h.source === "X" || h.source === "TikTok")]) },
+    { key: "youtube",       label: "YouTube Risk",       value: risk(buckets.youtube) },
+    { key: "reddit",        label: "Reddit Risk",        value: risk(buckets.reddit) },
+    { key: "impersonation", label: "Impersonation Risk", value: risk(buckets.impersonation) },
+    { key: "deepfake",      label: "Deepfake Risk",      value: risk(buckets.deepfake) },
+    { key: "legal",         label: "Legal Risk",         value: risk(buckets.legal) },
+    { key: "virality",      label: "Virality Risk",      value: hits.length ? Math.round(hits.reduce((a, h) => a + h.viralityScore, 0) / hits.length) : 0 },
   ];
 
-  const riskAvg = scoreBreakdown.filter(s => s.value > 0).reduce((a, s) => a + s.value, 0) / Math.max(1, scoreBreakdown.filter(s => s.value > 0).length);
-  const reputationScore = Math.max(0, Math.min(100, Math.round(100 - riskAvg * 0.85 - critical.length * 4 - negative.length * 1.2)));
-  const reputationLevel =
+  const severityFactor: Record<Severity, number> = { Critical: 1, High: 0.74, Medium: 0.42, Low: 0.16 };
+  const categoryFactor: Partial<Record<Category, number>> = {
+    Deepfake: 1, Defamation: 1, Leak: 0.96, Impersonation: 0.92,
+    "Fake Endorsement": 0.88, Harassment: 0.86, "Legal Dispute": 0.84,
+    Allegation: 0.72, "Exposé": 0.68, Boycott: 0.62, Controversy: 0.58,
+    Criticism: 0.38, Complaint: 0.36, Copyright: 0.30,
+    "Reaction/Reupload": 0.24, Viral: 0.22, News: 0.14, Review: 0.12, Mention: 0.08,
+  };
+  const sourceCredibility: Record<string, number> = {
+    News: 1, YouTube: 0.78, Reddit: 0.58, Facebook: 0.62,
+    Instagram: 0.62, X: 0.60, TikTok: 0.56, Web: 0.68,
+  };
+
+  const hitRisks = hits.map((h) => {
+    const age = ageDaysOf(h.published);
+    const recency = age < 0 ? 0.55 : age <= 3 ? 1 : age <= 7 ? 0.90 : age <= 30 ? 0.76 : age <= 180 ? 0.58 : 0.42;
+    const sourceWeight = sourceCredibility[h.source] ?? 0.62;
+    const verifiedReach = h.reachEstimate > 0 ? Math.min(1, Math.log10(h.reachEstimate + 1) / 7) : 0;
+    const sentiment = h.sentiment === "Negative" ? 1 : h.sentiment === "Neutral" ? 0.78 : 0.42;
+    const severity = severityFactor[h.severity] ?? 0.16;
+    const category = categoryFactor[h.category] ?? 0.18;
+    return Math.min(100, 100 * severity * category * sentiment * (0.56 + 0.20 * recency + 0.16 * sourceWeight + 0.08 * verifiedReach));
+  }).sort((a, b) => b - a);
+
+  // Diminishing weights prevent hundreds of copied/reposted stories from
+  // overwhelming a few independently verified high-risk findings.
+  const topRisks = hitRisks.slice(0, 30);
+  let weightedTotal = 0;
+  let weightTotal = 0;
+  topRisks.forEach((value, index) => {
+    const weight = 1 / Math.sqrt(index + 1);
+    weightedTotal += value * weight;
+    weightTotal += weight;
+  });
+  const evidenceRisk = weightTotal ? weightedTotal / weightTotal : 0;
+  const volumePressure = Math.min(16, Math.log2(hits.length + 1) * 2.8);
+  const criticalPressure = Math.min(14, critical.length * 4);
+  const observedRisk = Math.min(100, evidenceRisk * 0.76 + volumePressure + criticalPressure);
+
+  const datedCount = hits.filter(h => Boolean(h.published)).length;
+  const metricCount = hits.filter(h => h.reachEstimate > 0).length;
+  const sourceCount = new Set(hits.map(h => h.source)).size;
+  const coverageConfidence = hits.length ? Math.round(Math.min(100,
+    Math.min(1, hits.length / 50) * 35 +
+    Math.min(1, sourceCount / 6) * 30 +
+    (datedCount / hits.length) * 20 +
+    (metricCount / hits.length) * 15
+  )) : 0;
+  const confidenceFactor = coverageConfidence >= 70 ? 1 : coverageConfidence >= 45 ? 0.88 : 0.72;
+  const reputationScore = Math.max(0, Math.min(100, Math.round(100 - observedRisk * confidenceFactor)));
+  const reputationLevel = coverageConfidence < 35 ? "Insufficient Data" :
     reputationScore >= 90 ? "Excellent" :
-    reputationScore >= 75 ? "Strong"    :
-    reputationScore >= 60 ? "Stable"    :
-    reputationScore >= 40 ? "At Risk"   :
+    reputationScore >= 75 ? "Strong" :
+    reputationScore >= 60 ? "Stable" :
+    reputationScore >= 40 ? "At Risk" :
     reputationScore >= 20 ? "High Risk" : "Critical";
 
   // ── Executive summary ─────────────────────────────────────────────────────
@@ -1222,7 +1274,7 @@ function buildReport(
     totals: { total: totalRaw, unique: hits.length, duplicatesRemoved: duplicates.length, critical: critical.length, high: high.length, negative: negative.length, viral: viral.length, avgThreat, totalReach },
     reputationScore, reputationLevel, scoreBreakdown,
     executiveSummary: {
-      headline: `${reputationLevel} reputation posture (${reputationScore}/100) · ${critical.length} critical, ${high.length} high-priority across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${buckets.breaking.length} breaking (last 24h).`,
+      headline: `${reputationLevel} observed reputation risk (${reputationScore}/100, ${coverageConfidence}% coverage confidence) · ${critical.length} critical, ${high.length} high-priority across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${buckets.breaking.length} breaking (last 24h).`,
       mostDamagingTopic, mostInfluentialSource, fastestGrowing, trend,
       immediateActions,
       longTerm: [
