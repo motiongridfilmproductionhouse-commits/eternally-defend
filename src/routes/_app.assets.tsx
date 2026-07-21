@@ -44,8 +44,11 @@ function AssetsPage() {
     if (!upload.ok) throw new Error(`Image upload failed (${upload.status}).`);
     return register({ data: { key: prepared.key, name: name.trim(), platform: platform.trim() || undefined, sourceUrl: sourceUrl.trim(), contentType: file.type as "image/jpeg" | "image/png" | "image/webp" } });
   }, onSuccess: (data) => {
+    const scanName = name.trim();
     setResult(data as SearchResult); setOpen(false); setFile(null); setName(""); setPlatform(""); setSourceUrl("");
     qc.invalidateQueries({ queryKey: ["protected_assets", userId] }); toast.success(`Asset protected. ${data.matchCount} web matches found.`);
+    const params = new URLSearchParams({ assetId: data.id, query: scanName, auto: "1" });
+    window.location.assign(`/scan?${params.toString()}`);
   }, onError: (e: Error) => toast.error(e.message) });
 
   const remove = useMutation({ mutationFn: async (id: string) => { const { error } = await supabase.from("protected_assets").delete().eq("id", id); if (error) throw error; }, onSuccess: () => qc.invalidateQueries({ queryKey: ["protected_assets", userId] }) });

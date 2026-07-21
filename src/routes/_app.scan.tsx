@@ -134,6 +134,38 @@ function ScanPage() {
   const [persistSummary, setPersistSummary] = useState<{ newHits: number; updatedHits: number; duplicatesRemoved: number; uniqueHits: number } | null>(null);
 
   const m = useMutation({ mutationFn: runScan });
+  const autoScanStarted = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || autoScanStarted.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auto") !== "1") return;
+    const query = (params.get("query") ?? "").trim();
+    const assetId = (params.get("assetId") ?? "").trim();
+    if (!query || !assetId) return;
+
+    autoScanStarted.current = true;
+    setQ(query);
+    setSources(DEFAULT_SOURCES);
+    setMonthFilter("this");
+    setAdded(new Set());
+    m.mutate({
+      query,
+      aliases: [],
+      variations: [],
+      hashtags: [],
+      handles: [],
+      monthFilter: "this",
+      sources: DEFAULT_SOURCES,
+      limit: 10,
+      youtubeTarget: 300,
+      resultCap: 300,
+      assetId,
+      context: "person; uploaded identity reference",
+    });
+    window.history.replaceState({}, "", "/scan");
+  }, [m]);
+
   const report = m.data as ReportWithDiagnostics | undefined;
   const persistFn = useServerFn(persistScan);
   const analyzeFn = useServerFn(analyzeYoutubeVideo);
