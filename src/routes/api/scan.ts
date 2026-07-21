@@ -746,8 +746,8 @@ async function fetchYTWindow(
   nameForms: string[],
   hashtags: string[],
   handles: string[],
-  publishedAfter: string,   // ISO
-  publishedBefore: string,  // ISO
+  publishedAfter: string,
+  publishedBefore: string,
   key: string,
   idToItem: Map<string, YtSearchItem>,
   counters: { pages: number; errors: number },
@@ -755,56 +755,58 @@ async function fetchYTWindow(
 ): Promise<void> {
   if (quotaFlag.exhausted) return;
 
-  // Build queries: T1 (controversy-first) then T2 (broader risk)
-  const querySet = new Set<string>();
-  for (const b of nameForms) {
-    querySet.add(b);
-    querySet.add(`"${b}"`);
-    for (const t of YT_CONTROVERSY_TERMS) querySet.add(`${b} ${t}`);
+  // YouTube search.list costs 100 quota units per request. The previous
+  // implementation launched as many as 360 requests concurrently and could
+  // consume the daily quota during one scan. Use a small ordered plan instead.
+  const forms = Array.from(new Set(nameForms.map(s => s.trim()).filter(Boolean))).slice(0, 4);
+  const jobs: { q: string; order: "date" | "relevance"; pages: number }[] = [];
+  const riskGroups = [
+    "controversy|scandal|backlash|exposed|allegation|accused",
+    "defamation|leaked|deepfake|impersonation|harassment",
+    "police|court|arrest|lawsuit|complaint|legal",
+    "trolled|criticism|boycott|fake|rumour|rumor",
+  ];
+
+  for (const name of forms) {
+    const exact = name.includes(" ") ? `"${name}"` : name;
+    // General exact-name search finds fresh coverage even when titles do not
+    // contain one of our English risk keywords.
+    jobs.push({ q: exact, order: "date", pages: name === forms[0] ? 3 : 1 });
+    for (const group of riskGroups) {
+      jobs.push({ q: `${exact} ${group}`, order: "date", pages: 1 });
+    }
+    // One relevance pass recovers important results whose upload date is less recent.
+    jobs.push({ q: `${exact} controversy|defamation|exposed|legal`, order: "relevance", pages: 1 });
   }
-  for (const h of hashtags) querySet.add(h.startsWith("#") ? h : `#${h}`);
-  for (const h of handles)  querySet.add(h.startsWith("@") ? h : `@${h}`);
-  for (const b of nameForms) {
-    for (const t of YT_RISK_TERMS) querySet.add(`${b} ${t}`);
+  for (const value of [...hashtags, ...handles].slice(0, 4)) {
+    jobs.push({ q: value, order: "date", pages: 1 });
   }
 
-  const queries = Array.from(querySet).slice(0, 60);
-  const jobs: { q: string; order: "date" | "relevance" }[] = [];
-  for (const q of queries) {
-    jobs.push({ q, order: "date" });       // freshness-first
-    jobs.push({ q, order: "relevance" });  // broader relevance
-  }
-
-  await Promise.allSettled(jobs.map(async ({ q, order }) => {
-    if (quotaFlag.exhausted) return;
+  // Sequential requests make the quota circuit breaker reliable and retain
+  // deterministic newest-first insertion order.
+  for (const job of jobs) {
+    if (quotaFlag.exhausted || idToItem.size >= 300) break;
     let pageToken: string | undefined;
-    let pagesDone = 0;
-    while (pagesDone < 3 && idToItem.size < YT_HARD_CAP && !quotaFlag.exhausted) {
-      if (idToItem.size >= YT_MAX_PER_WINDOW * 4) break;
+    for (let page = 0; page < job.pages; page++) {
+      if (quotaFlag.exhausted || idToItem.size >= 300) break;
       const params: Record<string, string> = {
-        part: "snippet", q, type: "video", maxResults: "50",
-        order, safeSearch: "none",
-        publishedAfter,
-        publishedBefore,
+        part: "snippet", q: job.q, type: "video", maxResults: "50",
+        order: job.order, safeSearch: "none", publishedAfter, publishedBefore,
         regionCode: "IN",
-        relevanceLanguage: "ml",
       };
       if (pageToken) params.pageToken = pageToken;
       const data = await ytFetch<{ items?: YtSearchItem[]; nextPageToken?: string }>("search", params, key, quotaFlag);
       counters.pages++;
       if (!data) { counters.errors++; break; }
-      if (!data.items?.length) break;
-      for (const it of data.items) {
-        const vid = it.id?.videoId;
-        if (vid && !idToItem.has(vid)) idToItem.set(vid, it);
+      for (const item of data.items ?? []) {
+        const videoId = item.id?.videoId;
+        if (videoId && !idToItem.has(videoId)) idToItem.set(videoId, item);
       }
-      pagesDone++;
-      if (!data.nextPageToken) break;
       pageToken = data.nextPageToken;
+      if (!pageToken) break;
     }
-  }));
+  }
 }
-
 
 async function runYouTube(
   query: string,
@@ -849,16 +851,11 @@ async function runYouTube(
   }
 
   if (quotaFlag.exhausted) {
-    console.warn("[youtube] quota exhausted — skipping metadata fetch, returning partial results");
-    return {
-      raw: [], error: `YouTube API quota exhausted (${quotaFlag.reason})`,
-      queriesUsed: counters.pages, pagesScanned: counters.pages,
-      apiErrors: counters.errors, quotaExhausted: true, quotaReason: quotaFlag.reason,
-    };
+    console.warn(`[youtube] quota exhausted after ${idToItem.size} discoveries; returning partial results`);
   }
 
   // ── Fetch full video metadata for all discovered IDs ────────────────────
-  const targetCount = Math.min(YT_HARD_CAP, Math.max(targetResults, idToItem.size));
+  const targetCount = Math.min(300, Math.max(25, targetResults), idToItem.size);
   const ids = Array.from(idToItem.keys()).slice(0, targetCount);
   const statsById = new Map<string, YtVideoItem>();
   for (let i = 0; i < ids.length; i += 50) {
