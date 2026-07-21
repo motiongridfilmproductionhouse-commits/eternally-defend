@@ -82,19 +82,19 @@ async function buildSnapshot(supabase: any, userId: string, authId: string) {
 }
 
 async function renderPdf(snapshot: any, opts: { signed?: boolean; signatureSvg?: string | null; signerName?: string; signedAt?: string }) {
-  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+  const { PDFDocument, rgb } = await import("pdf-lib");
+  const { embedUnicodeFontStack, drawUnicodeText } = await import("@/lib/pdf/unicode-fonts.server");
   const doc = await PDFDocument.create();
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const stack = await embedUnicodeFontStack(doc);
   const page = doc.addPage([612, 792]);
   const { height } = page.getSize();
   let y = height - 60;
-  const line = (t: string, f = font, size = 10, color = rgb(0.1, 0.1, 0.15)) => {
-    page.drawText(t, { x: 50, y, size, font: f, color });
+  const line = (t: string, bold = false, size = 10, color = rgb(0.1, 0.1, 0.15)) => {
+    drawUnicodeText(page, t, { x: 50, y, size, stack: bold ? stack.bold : stack.regular, color });
     y -= size + 6;
   };
-  line("ETERNA — CLIENT AUTHORIZATION LETTER", bold, 16, rgb(0.05, 0.1, 0.35));
-  line(`Authorization ID: ${snapshot.auth?.auth_number}   Version: ${snapshot.auth?.version}`, bold, 10);
+  line("ETERNA — CLIENT AUTHORIZATION LETTER", true, 16, rgb(0.05, 0.1, 0.35));
+  line(`Authorization ID: ${snapshot.auth?.auth_number}   Version: ${snapshot.auth?.version}`, true, 10);
   line(`Client ID: ${snapshot.profile?.client_id ?? ""}`);
   line(`Legal Name: ${snapshot.profile?.legal_name ?? snapshot.profile?.full_name ?? ""}`);
   line(`Display Name: ${snapshot.profile?.display_name ?? ""}`);
@@ -106,17 +106,17 @@ async function renderPdf(snapshot: any, opts: { signed?: boolean; signatureSvg?:
   line(`Face liveness: ${snapshot.face?.status ?? "NOT_STARTED"}`);
   line(`Effective: ${snapshot.auth?.effective_date}   Expires: ${snapshot.auth?.expiry_date}   Territory: ${snapshot.auth?.territory}`);
   y -= 8;
-  line("Verified Assets:", bold, 11);
+  line("Verified Assets:", true, 11);
   for (const a of (snapshot.assets ?? []).filter((x: any) => x.verification_status === "VERIFIED")) {
     line(`  • ${a.kind.toUpperCase()} — ${a.name ?? a.handle ?? a.channel_id} (${a.verification_method})`);
   }
   y -= 8;
-  line("Authorized Scopes:", bold, 11);
+  line("Authorized Scopes:", true, 11);
   for (const s of (snapshot.scopes ?? []).filter((x: any) => x.granted)) {
     line(`  ✓ ${s.scope_key}`);
   }
   y -= 10;
-  line("Client Declarations:", bold, 11);
+  line("Client Declarations:", true, 11);
   for (const t of [
     "I own the listed rights or am legally authorized to represent the owner.",
     "The listed accounts and assets belong to me or my organization.",
@@ -130,7 +130,7 @@ async function renderPdf(snapshot: any, opts: { signed?: boolean; signatureSvg?:
 
   if (opts.signed) {
     y -= 20;
-    line("SIGNATURE", bold, 12);
+    line("SIGNATURE", true, 12);
     line(`Signer: ${opts.signerName ?? ""}`);
     line(`Signed at: ${opts.signedAt ?? ""}`);
     if (opts.signatureSvg && opts.signatureSvg.startsWith("data:image/png;base64,")) {
