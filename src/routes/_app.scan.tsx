@@ -431,7 +431,11 @@ function ScanPage() {
           </form>
 
           {m.isError && <div className="mt-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">Scan failed: {(m.error as Error).message}</div>}
-          {report?.error && <div className="mt-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">Scan warning: {report.error}</div>}
+          {report?.error &&
+            report.error !== "YouTube quota exhausted; Firecrawl discovery active" &&
+            <div className="mt-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              Scan warning: {report.error}
+            </div>}
         </div>
       </div>
 
