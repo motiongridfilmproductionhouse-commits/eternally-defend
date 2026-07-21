@@ -2,10 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createHash } from "node:crypto";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { GoogleAuth } from "google-auth-library";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getBucket, getS3 } from "@/lib/aws/clients.server";
-import { getSignedPutUrl } from "@/lib/aws/s3.server";
+import { getSignedGetUrl, getSignedPutUrl } from "@/lib/aws/s3.server";
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"] as const;
 
@@ -22,40 +21,72 @@ export const prepareAssetUpload = createServerFn({ method: "POST" })
     return { key, uploadUrl: await getSignedPutUrl(key, data.contentType, 300) };
   });
 
-type VisionPage = { url?: string; pageTitle?: string; fullMatchingImages?: Array<{ url?: string }>; partialMatchingImages?: Array<{ url?: string }> };
-type VisionImage = { url?: string; score?: number };
+type LensMatch = {
+  link?: string;
+  source?: string;
+  title?: string;
+  thumbnail?: string;
+  image?: string;
+  image_url?: string;
+};
 
-async function webDetection(bytes: Uint8Array) {
-  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  if (!raw) throw new Error("Google Vision credentials are not configured.");
-  let credentials: Record<string, unknown>;
-  try { credentials = JSON.parse(raw); } catch { throw new Error("Google Vision credentials JSON is invalid."); }
+async function lensSearch(imageUrl: string) {
+  const apiKey = process.env.SERPAPI_API_KEY;
+  if (!apiKey) throw new Error("SerpApi credentials are not configured.");
 
-  const auth = new GoogleAuth({ credentials, scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
-  const client = await auth.getClient();
-  const tokenResult = await client.getAccessToken();
-  const token = typeof tokenResult === "string" ? tokenResult : tokenResult?.token;
-  if (!token) throw new Error("Google Vision authentication failed.");
-
-  const response = await fetch("https://vision.googleapis.com/v1/images:annotate", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ requests: [{ image: { content: Buffer.from(bytes).toString("base64") }, features: [{ type: "WEB_DETECTION", maxResults: 50 }] }] }),
+  const params = new URLSearchParams({
+    engine: "google_lens",
+    url: imageUrl,
+    api_key: apiKey,
+    no_cache: "true",
+  });
+  const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`, {
+    headers: { Accept: "application/json" },
   });
   const payload = await response.json() as any;
-  if (!response.ok || payload?.responses?.[0]?.error) {
-    throw new Error(payload?.responses?.[0]?.error?.message || payload?.error?.message || "Google Vision reverse search failed.");
+  if (!response.ok || payload?.error) {
+    throw new Error(payload?.error || `SerpApi reverse search failed (${response.status}).`);
   }
-  const web = payload?.responses?.[0]?.webDetection ?? {};
+
+  const matches: LensMatch[] = [
+    ...(payload.visual_matches ?? []),
+    ...(payload.exact_matches ?? []),
+    ...(payload.image_sources ?? []),
+  ];
+  const seen = new Set<string>();
+  const unique = matches.filter((match) => {
+    const url = match.link ?? match.image_url ?? match.image ?? "";
+    if (!url || seen.has(url)) return false;
+    seen.add(url);
+    return true;
+  }).slice(0, 50);
+
+  const pages = unique
+    .filter((match) => match.link)
+    .map((match) => ({
+      url: match.link!,
+      title: match.title ?? match.source ?? "Visual match",
+      fullMatches: 0,
+      partialMatches: 1,
+      thumbnail: match.thumbnail ?? match.image ?? match.image_url ?? null,
+      source: match.source ?? null,
+    }));
+  const images = unique
+    .map((match) => match.image_url ?? match.image ?? match.thumbnail ?? "")
+    .filter(Boolean)
+    .map((url) => ({ url, score: null }));
+
   return {
-    pages: (web.pagesWithMatchingImages ?? []).slice(0, 30).map((p: VisionPage) => ({
-      url: p.url ?? "", title: p.pageTitle ?? "Matching page",
-      fullMatches: p.fullMatchingImages?.length ?? 0, partialMatches: p.partialMatchingImages?.length ?? 0,
-    })).filter((p: { url: string }) => p.url),
-    fullMatchingImages: (web.fullMatchingImages ?? []).slice(0, 30).map((i: VisionImage) => ({ url: i.url ?? "", score: i.score ?? null })).filter((i: { url: string }) => i.url),
-    partialMatchingImages: (web.partialMatchingImages ?? []).slice(0, 30).map((i: VisionImage) => ({ url: i.url ?? "", score: i.score ?? null })).filter((i: { url: string }) => i.url),
-    visuallySimilarImages: (web.visuallySimilarImages ?? []).slice(0, 30).map((i: VisionImage) => ({ url: i.url ?? "", score: i.score ?? null })).filter((i: { url: string }) => i.url),
-    bestGuessLabels: (web.bestGuessLabels ?? []).map((x: { label?: string }) => x.label).filter(Boolean),
+    pages,
+    fullMatchingImages: images,
+    partialMatchingImages: [],
+    visuallySimilarImages: images,
+    bestGuessLabels: payload.knowledge_graph?.title ? [payload.knowledge_graph.title] : [],
+    searchMetadata: {
+      id: payload.search_metadata?.id ?? null,
+      status: payload.search_metadata?.status ?? "Success",
+      processedAt: new Date().toISOString(),
+    },
   };
 }
 
@@ -73,12 +104,13 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
     const bytes = new Uint8Array(await object.Body!.transformToByteArray());
     if (!bytes.length || bytes.length > 10 * 1024 * 1024) throw new Error("Uploaded image is empty or too large.");
     const sha256 = createHash("sha256").update(bytes).digest("hex");
-    const reverse = await webDetection(bytes);
+    const signedImageUrl = await getSignedGetUrl(data.key, 600);
+    const reverse = await lensSearch(signedImageUrl);
     const matchCount = reverse.pages.length + reverse.fullMatchingImages.length + reverse.partialMatchingImages.length;
     const { data: inserted, error } = await context.supabase.from("protected_assets").insert({
       user_id: context.userId, name: data.name.trim(), kind: "image", source_url: data.sourceUrl || null,
       storage_path: data.key, active: true,
-      metadata: { platform: data.platform || null, status: "Monitoring", content_type: data.contentType, sha256, reverse_search: reverse, reverse_search_match_count: matchCount, reverse_search_at: new Date().toISOString(), reverse_search_provider: "google_vision_web_detection" },
+      metadata: { platform: data.platform || null, status: "Monitoring", content_type: data.contentType, sha256, reverse_search: reverse, reverse_search_match_count: matchCount, reverse_search_at: new Date().toISOString(), reverse_search_provider: "serpapi_google_lens" },
     }).select("id").single();
     if (error) throw new Error(error.message);
     return { id: inserted.id, sha256, matchCount, reverse };
