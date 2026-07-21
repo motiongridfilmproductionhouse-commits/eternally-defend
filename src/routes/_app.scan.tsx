@@ -126,7 +126,7 @@ function ScanPage() {
   const [site, setSite] = useState("");
   const [country, setCountry] = useState("");
   const [industry, setIndustry] = useState("");
-  const [monthFilter, setMonthFilter] = useState<"this"|"previous"|"twoAgo">("this");
+  const [monthFilter, setMonthFilter] = useState<"24h"|"7d"|"30d"|"12m"|"all">("12m");
 
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
@@ -147,7 +147,7 @@ function ScanPage() {
     autoScanStarted.current = true;
     setQ(query);
     setSources(DEFAULT_SOURCES);
-    setMonthFilter("this");
+    setMonthFilter("12m");
     setAdded(new Set());
     m.mutate({
       query,
@@ -155,7 +155,7 @@ function ScanPage() {
       variations: [],
       hashtags: [],
       handles: [],
-      monthFilter: "this",
+      monthFilter: "12m",
       sources: DEFAULT_SOURCES,
       limit: 10,
       youtubeTarget: 300,
@@ -663,7 +663,7 @@ function AdminDiagnosticsPanel({ report }: { report: ReportWithDiagnostics }) {
         />
         {(diag as { monthWindow?: { filter: string; label: string; startIso: string; endIso: string } }).monthWindow && (
           <div className="mt-3 text-[11px] text-muted-foreground">
-            Month window: {(diag as { monthWindow?: { label: string; startIso: string; endIso: string } }).monthWindow?.label} · {(diag as { monthWindow?: { startIso: string; endIso: string } }).monthWindow?.startIso} → {(diag as { monthWindow?: { endIso: string } }).monthWindow?.endIso}
+            Scan range: {(diag as { monthWindow?: { label: string; startIso: string; endIso: string } }).monthWindow?.label} · {(diag as { monthWindow?: { startIso: string; endIso: string } }).monthWindow?.startIso} → {(diag as { monthWindow?: { endIso: string } }).monthWindow?.endIso}
           </div>
         )}
       </div>
@@ -693,36 +693,34 @@ function MonthFilterButtons({
   value,
   onChange,
 }: {
-  value: "this" | "previous" | "twoAgo";
-  onChange: (v: "this" | "previous" | "twoAgo") => void;
+  value: "24h" | "7d" | "30d" | "12m" | "all";
+  onChange: (value: "24h" | "7d" | "30d" | "12m" | "all") => void;
 }) {
-  const filters: Array<"this" | "previous" | "twoAgo"> = ["this", "previous", "twoAgo"];
-  const titles: Record<"this"|"previous"|"twoAgo", string> = {
-    this: "This Month",
-    previous: "Previous Month",
-    twoAgo: "Two Months Ago",
-  };
+  const ranges = [
+    { value: "24h", title: "Latest", detail: "24 hours" },
+    { value: "7d", title: "Recent", detail: "7 days" },
+    { value: "30d", title: "Monthly", detail: "30 days" },
+    { value: "12m", title: "Recommended", detail: "12 months" },
+    { value: "all", title: "Archive", detail: "All time" },
+  ] as const;
   return (
     <div className="flex flex-wrap gap-2">
-      {filters.map((f) => {
-        const { label, sub } = getClientMonthLabel(f);
-        const active = value === f;
+      {ranges.map((range) => {
+        const active = value === range.value;
         return (
           <button
-            key={f}
+            key={range.value}
             type="button"
-            onClick={() => onChange(f)}
+            onClick={() => onChange(range.value)}
             className="flex flex-col items-start px-4 py-2.5 rounded-xl border transition-all text-left"
             style={active
               ? { background: "var(--gradient-brand)", borderColor: "transparent", color: "#fff" }
-              : { background: "var(--color-card)", borderColor: "var(--color-border)" }
-            }
+              : { background: "var(--color-card)", borderColor: "var(--color-border)" }}
           >
             <span className="text-[11px] font-bold tracking-wide" style={active ? { opacity: 0.85 } : { color: "var(--color-muted-foreground)" }}>
-              {titles[f]}
+              {range.title}
             </span>
-            <span className="text-[13px] font-semibold leading-tight">{label}</span>
-            <span className="text-[10px] mt-0.5" style={active ? { opacity: 0.7 } : { color: "var(--color-muted-foreground)" }}>{sub}</span>
+            <span className="text-[13px] font-semibold leading-tight">{range.detail}</span>
           </button>
         );
       })}

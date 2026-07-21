@@ -25,55 +25,50 @@ export type ContentLabel =
 
 export type FreshnessWindow = "24h" | "3d" | "7d" | "30d" | "older";
 
-/** Which calendar month the scan is scoped to. Default: current month. */
-export type MonthFilter = "this" | "previous" | "twoAgo";
+/** Rolling time range used by every discovery provider. */
+export type MonthFilter = "24h" | "7d" | "30d" | "12m" | "all";
 
 export interface MonthWindow {
   filter: MonthFilter;
-  startIso: string;   // ISO start-of-month
-  endIso: string;     // ISO end-of-month (or midnight tonight for current month)
+  startIso: string;
+  endIso: string;
   startMs: number;
   endMs: number;
-  label: string;      // e.g. "July 2026"
-  ytPublishedAfter: string;  // ready for YouTube API
-  ytPublishedBefore: string; // ready for YouTube API
+  label: string;
+  ytPublishedAfter: string;
+  ytPublishedBefore: string;
 }
 
-const MONTH_NAMES = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
-];
-
-/** Dynamically compute the calendar-month window for any MonthFilter. Never hardcodes month names. */
-export function getMonthWindow(filter: MonthFilter = "this"): MonthWindow {
-  const now = new Date();
-  const yr  = now.getFullYear();
-  const mo  = now.getMonth(); // 0-indexed
-
-  let y: number, m: number;
-  const isCurrentMonth = filter === "this";
-  if (filter === "this")     { y = yr; m = mo; }
-  else if (filter === "previous") { m = mo === 0 ? 11 : mo - 1; y = mo === 0 ? yr - 1 : yr; }
-  else /* twoAgo */          { m = mo <= 1 ? mo + 10 : mo - 2; y = mo <= 1 ? yr - 1 : yr; }
-
-  const start = new Date(y, m, 1, 0, 0, 0, 0);
-  // End = last moment of the last day of the target month (or end-of-today for current month)
-  const end = isCurrentMonth
-    ? new Date(yr, mo, now.getDate(), 23, 59, 59, 999)
-    : new Date(y, m + 1, 0, 23, 59, 59, 999); // day-0 of next month = last day of current month
-
+/** Compute a rolling window. Default: last 12 months. */
+export function getMonthWindow(filter: MonthFilter = "12m"): MonthWindow {
+  const end = new Date();
+  const durations: Record<Exclude<MonthFilter, "all">, number> = {
+    "24h": 24 * 60 * 60 * 1000,
+    "7d": 7 * 24 * 60 * 60 * 1000,
+    "30d": 30 * 24 * 60 * 60 * 1000,
+    "12m": 365 * 24 * 60 * 60 * 1000,
+  };
+  const start = filter === "all"
+    ? new Date("2005-04-23T00:00:00.000Z")
+    : new Date(end.getTime() - durations[filter]);
+  const labels: Record<MonthFilter, string> = {
+    "24h": "Latest 24 hours",
+    "7d": "Last 7 days",
+    "30d": "Last 30 days",
+    "12m": "Last 12 months",
+    all: "All time",
+  };
   return {
     filter,
     startIso: start.toISOString(),
-    endIso:   end.toISOString(),
-    startMs:  start.getTime(),
-    endMs:    end.getTime(),
-    label:    `${MONTH_NAMES[m]} ${y}`,
-    ytPublishedAfter:  start.toISOString(),
+    endIso: end.toISOString(),
+    startMs: start.getTime(),
+    endMs: end.getTime(),
+    label: labels[filter],
+    ytPublishedAfter: start.toISOString(),
     ytPublishedBefore: end.toISOString(),
   };
 }
-
 
 export interface MediaMeta {
   videoId?: string; thumbnail?: string; thumbnailHi?: string;
@@ -837,7 +832,7 @@ async function runYouTube(
   // ── Pass 2 (this month only): inner 7-day window to boost most-recent content ──
   // For "This Month" we also run a tighter 7-day sub-window (date-ordered) so
   // breaking controversies from the last week appear at the very top.
-  if (monthWindow.filter === "this" && !quotaFlag.exhausted) {
+  if (monthWindow.filter === "30d" && !quotaFlag.exhausted) {
     const day7Ago = new Date(Date.now() - 7 * 86_400_000).toISOString();
     const today   = monthWindow.ytPublishedBefore;
     // Only run the sub-window if the month started > 7 days ago
@@ -1085,7 +1080,7 @@ function buildReport(
     acc[h.source] = (acc[h.source] ?? 0) + 1;
     return acc;
   }, {} as Record<string, number>);
-  console.log(`[scan:filter] query="${query}" month=${monthWindow.label}`);
+  console.log(`[scan:filter] query="${query}" range=${monthWindow.label}`);
   console.log(`[scan:filter]   raw dedupe total  : ${totalBeforeFilter}`);
   console.log(`[scan:filter]   kept (dated)       : ${keptDated}`);
   console.log(`[scan:filter]   kept (undated)      : ${keptUndated}`);
@@ -1307,13 +1302,14 @@ export const Route = createFileRoute("/api/scan")({
             ? body.sources.filter((s: unknown): s is SourceKey => typeof s === "string" && s in SOURCE_QUERY)
             : ["web", "reddit", "youtube", "news", "x", "blogs", "forums", "reviews"];
 
-          // Compute month window — default is "this" (current calendar month)
+          // Rolling scan range — defaults to the last 12 months.
           const rawMonthFilter = body?.monthFilter as string | undefined;
           const monthFilter: MonthFilter =
-            rawMonthFilter === "previous" ? "previous" :
-            rawMonthFilter === "twoAgo"   ? "twoAgo"   : "this";
+            rawMonthFilter === "24h" || rawMonthFilter === "7d" ||
+            rawMonthFilter === "30d" || rawMonthFilter === "all"
+              ? rawMonthFilter : "12m";
           const monthWindow = getMonthWindow(monthFilter);
-          console.log(`[scan] month window: ${monthWindow.label} (${monthWindow.startIso} → ${monthWindow.endIso})`);
+          console.log(`[scan] range: ${monthWindow.label} (${monthWindow.startIso} → ${monthWindow.endIso})`);
 
           const wantYouTube      = sources.includes("youtube");
           const nonYtSources     = sources.filter(s => s !== "youtube") as SourceKey[];
