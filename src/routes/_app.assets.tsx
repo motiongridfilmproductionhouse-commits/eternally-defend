@@ -91,7 +91,16 @@ function AssetsPage() {
     {open && <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={() => !add.isPending && setOpen(false)}><div className="card-surface p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
       <div className="text-lg font-bold">Upload and protect an image</div><div className="text-sm text-muted-foreground mb-4">The image will be stored, fingerprinted and reverse searched.</div>
       <div className="space-y-3">
-        <label className="block text-xs font-semibold">Image (JPG, PNG or WebP; maximum 10 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { const f=e.target.files?.[0] ?? null; setFile(f); if (f && !name) setName(f.name.replace(/\.[^.]+$/, "")); }} className="mt-1 block w-full text-sm"/></label>
+        <label className="block text-xs font-semibold">Image (JPG, PNG or WebP; maximum 10 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { const f=e.target.files?.[0] ?? null; setFile(f); if (f && !name) {
+          const cleanName = f.name
+            .replace(/\.[^.]+$/, "")
+            .replace(/[_-]+/g, " ")
+            .replace(/\b(?:19|20)\d{2}\b/g, " ")
+            .replace(/\b(?:img|image|photo|screenshot|in)\b/gi, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+          setName(cleanName);
+        } }} className="mt-1 block w-full text-sm"/></label>
         <label className="block text-xs font-semibold">Asset name<input value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg border border-border"/></label>
         <label className="block text-xs font-semibold">Original source URL (optional)<input value={sourceUrl} onChange={e=>setSourceUrl(e.target.value)} placeholder="https://..." className="mt-1 w-full px-3 py-2 rounded-lg border border-border"/></label>
         <label className="block text-xs font-semibold">Platform (optional)<input value={platform} onChange={e=>setPlatform(e.target.value)} placeholder="Instagram, YouTube..." className="mt-1 w-full px-3 py-2 rounded-lg border border-border"/></label>

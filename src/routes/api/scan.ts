@@ -961,6 +961,17 @@ function buildReport(
   const sourcesReturned = new Set<string>();
   let totalRaw = 0;
   let idx = 0;
+  const normalizeEntity = (value: string) => value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/[^a-zA-Z0-9\u0D00-\u0D7F ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  const entityForms = Array.from(new Set([query, ...aliases]
+    .map(normalizeEntity)
+    .filter((value) => value.length >= 3)));
 
   for (const run of runs) {
     if (run.raw.length) sourcesReturned.add(run.source);
@@ -971,8 +982,13 @@ function buildReport(
       const title       = (o.title ?? url).slice(0, 240);
       const description = (o.description ?? o.snippet ?? "").slice(0, 800);
       const { platform, source } = platformFromUrl(url);
+      const haystack = normalizeEntity(`${title} ${description} ${o.author ?? o.media?.channelTitle ?? ""}`);
+      const entityMatched = entityForms.some((form) => haystack.includes(form));
+      if (!entityMatched) continue;
       const c    = classify(title, description);
       const sent = sentimentOf(`${title} ${description}`);
+      const riskMatched = c.keywords.length > 0 || sent === "Negative";
+      if (!riskMatched) continue;
       const cred = credibilityScore(source, platform);
       const realViews = o.media?.views ?? 0;
       const reach     = realViews > 0 ? realViews : synthReach(platform, c.sev, idx++);
@@ -1328,7 +1344,7 @@ export const Route = createFileRoute("/api/scan")({
             ? (ytQuotaExhausted ? "YouTube quota exhausted; Firecrawl discovery active" : "No results returned")
             : undefined;
 
-          const report = buildReport(query, aliases, monthWindow, sources, mergedRuns, overallErr);
+          const report = buildReport(query, [...aliases, ...variations, ...handles], monthWindow, sources, mergedRuns, overallErr);
 
           // ══════════════════════════════════════════════════════════════════════
           // Diagnostics
