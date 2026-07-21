@@ -1385,8 +1385,8 @@ export const Route = createFileRoute("/api/scan")({
             else mergedRuns.push({ source: "YouTube", raw: yt.raw });
           }
 
-          const overallErr = !mergedRuns.some(r => r.raw.length > 0)
-            ? (ytQuotaExhausted ? "YouTube quota exhausted; Firecrawl discovery active" : "No results returned")
+          const overallErr = !mergedRuns.some(r => r.raw.length > 0) && !ytQuotaExhausted
+            ? "No results returned"
             : undefined;
 
           const report = buildReport(query, [...aliases, ...variations, ...handles], monthWindow, sources, mergedRuns, overallErr);
