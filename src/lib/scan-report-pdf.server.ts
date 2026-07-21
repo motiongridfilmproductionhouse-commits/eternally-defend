@@ -1,3 +1,4 @@
+import "regenerator-runtime/runtime.js";
 import { PDFDocument, PDFName, PDFString, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { createHash } from "crypto";
 import { embedUnicodeFontStack, drawUnicodeText, measureUnicodeText } from "@/lib/pdf/unicode-fonts.server";
