@@ -45,7 +45,7 @@ export interface AuthorizationInput {
   requestSummary: string;
 }
 
-function makePainter(pdf: PDFDocument, font: import("pdf-lib").PDFFont, bold: import("pdf-lib").PDFFont) {
+function makePainter(pdf: PDFDocument, regular: PDFFont[], bold: PDFFont[]) {
   let page = pdf.addPage([595.28, 841.89]); // A4
   const margin = 50;
   let y = 800;
@@ -55,13 +55,13 @@ function makePainter(pdf: PDFDocument, font: import("pdf-lib").PDFFont, bold: im
 
   const heading = (text: string, size = 16) => {
     ensure(size + 12);
-    page.drawText(text, { x: margin, y, size, font: bold, color: rgb(0.08, 0.08, 0.15) });
+    drawUnicodeText(page, text, { x: margin, y, size, stack: bold, color: rgb(0.08, 0.08, 0.15) });
     y -= size + 8;
   };
   const subheading = (text: string) => {
     ensure(20);
     y -= 4;
-    page.drawText(text, { x: margin, y, size: 11, font: bold, color: rgb(0.25, 0.25, 0.4) });
+    drawUnicodeText(page, text, { x: margin, y, size: 11, stack: bold, color: rgb(0.25, 0.25, 0.4) });
     y -= 14;
   };
   const line = (text: string, opts?: { small?: boolean; muted?: boolean; indent?: number }) => {
@@ -69,14 +69,13 @@ function makePainter(pdf: PDFDocument, font: import("pdf-lib").PDFFont, bold: im
     const color = opts?.muted ? rgb(0.45, 0.45, 0.5) : rgb(0.1, 0.1, 0.15);
     const indent = opts?.indent ?? 0;
     const maxWidth = 495 - indent;
-    // basic word wrap
     const words = (text ?? "").split(/\s+/);
     let buf = "";
     for (const w of words) {
       const test = buf ? `${buf} ${w}` : w;
-      if (font.widthOfTextAtSize(test, size) > maxWidth) {
+      if (measureUnicodeText(test, size, regular) > maxWidth) {
         ensure(size + 4);
-        page.drawText(buf, { x: margin + indent, y, size, font, color });
+        drawUnicodeText(page, buf, { x: margin + indent, y, size, stack: regular, color });
         y -= size + 3;
         buf = w;
       } else {
@@ -85,7 +84,7 @@ function makePainter(pdf: PDFDocument, font: import("pdf-lib").PDFFont, bold: im
     }
     if (buf) {
       ensure(size + 4);
-      page.drawText(buf, { x: margin + indent, y, size, font, color });
+      drawUnicodeText(page, buf, { x: margin + indent, y, size, stack: regular, color });
       y -= size + 3;
     }
   };
@@ -100,9 +99,8 @@ async function baseDoc(title: string) {
   pdf.setTitle(title);
   pdf.setProducer("Eterna AI");
   pdf.setCreator("Eterna AI Enforcement");
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  return { pdf, font, bold };
+  const stack = await embedUnicodeFontStack(pdf);
+  return { pdf, regular: stack.regular, bold: stack.bold };
 }
 
 export async function buildEvidencePdf(input: EvidenceInput): Promise<Uint8Array> {
