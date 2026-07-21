@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getBucket, getS3 } from "@/lib/aws/clients.server";
-import { getSignedGetUrl, getSignedPutUrl } from "@/lib/aws/s3.server";
+import { fetchImageBytes, getSignedGetUrl, getSignedPutUrl } from "@/lib/aws/s3.server";
+import { collectionIdForUser, searchFacesByImage } from "@/lib/aws/rekognition.server";
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"] as const;
 
@@ -30,13 +31,14 @@ type LensMatch = {
   image_url?: string;
 };
 
-async function lensSearch(imageUrl: string) {
+async function lensSearch(imageUrl: string, personName: string, userId: string) {
   const apiKey = process.env.SERPAPI_API_KEY;
   if (!apiKey) throw new Error("SerpApi credentials are not configured.");
 
   const params = new URLSearchParams({
     engine: "google_lens",
     url: imageUrl,
+    q: personName,
     api_key: apiKey,
     no_cache: "true",
   });
@@ -59,9 +61,35 @@ async function lensSearch(imageUrl: string) {
     if (!url || seen.has(url)) return false;
     seen.add(url);
     return true;
-  }).slice(0, 50);
+  }).slice(0, 40);
 
-  const pages = unique
+  // Lens finds visually related images, not verified identities. Require a
+  // high-confidence match against this user's enrolled Rekognition collection.
+  const verified: LensMatch[] = [];
+  for (let offset = 0; offset < unique.length; offset += 5) {
+    const batch = unique.slice(offset, offset + 5);
+    const checked = await Promise.all(batch.map(async (match) => {
+      const candidateUrl = match.image_url ?? match.image ?? match.thumbnail;
+      if (!candidateUrl) return null;
+      const downloaded = await fetchImageBytes(candidateUrl);
+      if (!downloaded) return null;
+      try {
+        const found = await searchFacesByImage({
+          collectionId: collectionIdForUser(userId),
+          bytes: downloaded.bytes,
+          threshold: 92,
+          maxFaces: 3,
+        });
+        const best = found.matches.reduce((score, item) => Math.max(score, item.similarity), 0);
+        return best >= 92 ? { ...match, faceSimilarity: best } : null;
+      } catch {
+        return null;
+      }
+    }));
+    verified.push(...checked.filter((match): match is LensMatch => Boolean(match)));
+  }
+
+  const pages = verified
     .filter((match) => match.link)
     .map((match) => ({
       url: match.link!,
@@ -70,8 +98,9 @@ async function lensSearch(imageUrl: string) {
       partialMatches: 1,
       thumbnail: match.thumbnail ?? match.image ?? match.image_url ?? null,
       source: match.source ?? null,
+      faceSimilarity: (match as LensMatch & { faceSimilarity?: number }).faceSimilarity ?? null,
     }));
-  const images = unique
+  const images = verified
     .map((match) => match.image_url ?? match.image ?? match.thumbnail ?? "")
     .filter(Boolean)
     .map((url) => ({ url, score: null }));
@@ -86,6 +115,9 @@ async function lensSearch(imageUrl: string) {
       id: payload.search_metadata?.id ?? null,
       status: payload.search_metadata?.status ?? "Success",
       processedAt: new Date().toISOString(),
+      lensCandidates: unique.length,
+      identityVerifiedMatches: verified.length,
+      faceThreshold: 92,
     },
   };
 }
@@ -105,10 +137,10 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
     if (!bytes.length || bytes.length > 10 * 1024 * 1024) throw new Error("Uploaded image is empty or too large.");
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     const signedImageUrl = await getSignedGetUrl(data.key, 600);
-    const reverse = await lensSearch(signedImageUrl);
+    const reverse = await lensSearch(signedImageUrl, data.name.trim(), context.userId);
     const matchCount = reverse.pages.length + reverse.fullMatchingImages.length + reverse.partialMatchingImages.length;
     const { data: inserted, error } = await context.supabase.from("protected_assets").insert({
-      user_id: context.userId, name: data.name.trim(), kind: "photo", source_url: data.sourceUrl || null,
+      user_id: context.userId, name: data.name.trim(), kind: "image", source_url: data.sourceUrl || null,
       storage_path: data.key, active: true,
       metadata: { platform: data.platform || null, status: "Monitoring", content_type: data.contentType, sha256, reverse_search: reverse, reverse_search_match_count: matchCount, reverse_search_at: new Date().toISOString(), reverse_search_provider: "serpapi_google_lens" },
     }).select("id").single();
