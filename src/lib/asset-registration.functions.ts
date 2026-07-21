@@ -2,10 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createHash } from "node:crypto";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { CompareFacesCommand } from "@aws-sdk/client-rekognition";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getBucket, getS3 } from "@/lib/aws/clients.server";
+import { getBucket, getRekognition, getS3 } from "@/lib/aws/clients.server";
 import { fetchImageBytes, getSignedGetUrl, getSignedPutUrl } from "@/lib/aws/s3.server";
-import { collectionIdForUser, searchFacesByImage } from "@/lib/aws/rekognition.server";
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"] as const;
 
@@ -31,7 +31,7 @@ type LensMatch = {
   image_url?: string;
 };
 
-async function lensSearch(imageUrl: string, personName: string, userId: string) {
+async function lensSearch(imageUrl: string, personName: string, referenceBytes: Uint8Array) {
   const apiKey = process.env.SERPAPI_API_KEY;
   if (!apiKey) throw new Error("SerpApi credentials are not configured.");
 
@@ -63,8 +63,8 @@ async function lensSearch(imageUrl: string, personName: string, userId: string) 
     return true;
   }).slice(0, 40);
 
-  // Lens finds visually related images, not verified identities. Require a
-  // high-confidence match against this user's enrolled Rekognition collection.
+  // Lens finds visually related images, not verified identities. Compare each
+  // candidate directly with the user-supplied reference photo.
   const verified: LensMatch[] = [];
   for (let offset = 0; offset < unique.length; offset += 5) {
     const batch = unique.slice(offset, offset + 5);
@@ -74,14 +74,14 @@ async function lensSearch(imageUrl: string, personName: string, userId: string) 
       const downloaded = await fetchImageBytes(candidateUrl);
       if (!downloaded) return null;
       try {
-        const found = await searchFacesByImage({
-          collectionId: collectionIdForUser(userId),
-          bytes: downloaded.bytes,
-          threshold: 92,
-          maxFaces: 3,
-        });
-        const best = found.matches.reduce((score, item) => Math.max(score, item.similarity), 0);
-        return best >= 92 ? { ...match, faceSimilarity: best } : null;
+        const found = await getRekognition().send(new CompareFacesCommand({
+          SourceImage: { Bytes: referenceBytes },
+          TargetImage: { Bytes: downloaded.bytes },
+          SimilarityThreshold: 90,
+          QualityFilter: "AUTO",
+        }));
+        const best = (found.FaceMatches ?? []).reduce((score, item) => Math.max(score, item.Similarity ?? 0), 0);
+        return best >= 90 ? { ...match, faceSimilarity: best } : null;
       } catch {
         return null;
       }
@@ -117,7 +117,8 @@ async function lensSearch(imageUrl: string, personName: string, userId: string) 
       processedAt: new Date().toISOString(),
       lensCandidates: unique.length,
       identityVerifiedMatches: verified.length,
-      faceThreshold: 92,
+      faceThreshold: 90,
+      identityReference: "uploaded_asset",
     },
   };
 }
@@ -137,7 +138,7 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
     if (!bytes.length || bytes.length > 10 * 1024 * 1024) throw new Error("Uploaded image is empty or too large.");
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     const signedImageUrl = await getSignedGetUrl(data.key, 600);
-    const reverse = await lensSearch(signedImageUrl, data.name.trim(), context.userId);
+    const reverse = await lensSearch(signedImageUrl, data.name.trim(), bytes);
     const matchCount = reverse.pages.length + reverse.fullMatchingImages.length + reverse.partialMatchingImages.length;
     const { data: inserted, error } = await context.supabase.from("protected_assets").insert({
       user_id: context.userId, name: data.name.trim(), kind: "photo", source_url: data.sourceUrl || null,
