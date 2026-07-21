@@ -174,3 +174,28 @@ export function drawUnicodeText(
   }
   return x;
 }
+
+/** Measure a mixed-script string using the per-character font from the stack. */
+export function measureUnicodeText(
+  text: string,
+  size: number,
+  stack: PDFFont[]
+): number {
+  const chars = Array.from(text);
+  let w = 0;
+  let i = 0;
+  while (i < chars.length) {
+    const cp = chars[i].codePointAt(0) ?? 0;
+    const font = pickFont(stack, cp);
+    let run = chars[i];
+    i++;
+    while (i < chars.length) {
+      const nextCp = chars[i].codePointAt(0) ?? 0;
+      if (pickFont(stack, nextCp) !== font) break;
+      run += chars[i];
+      i++;
+    }
+    w += font.widthOfTextAtSize(run, size);
+  }
+  return w;
+}
