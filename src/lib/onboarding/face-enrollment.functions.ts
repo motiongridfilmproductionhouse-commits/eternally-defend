@@ -198,26 +198,56 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
       return { ok: false, status: "LIVENESS_FAILED" as const, code: detail.code, reason: detail.message, confidence: conf, technical: false };
     }
 
-    const collectionId = collectionIdForUser(userId);
+    const collectionId = await ensureCollection(userId);
     const ref = res.ReferenceImage?.Bytes;
     const savedFaceIds: string[] = [];
     try {
-      if (ref) {
-        const { indexFace } = await import("@/lib/aws/rekognition.server");
-        const { putObject } = await import("@/lib/aws/s3.server");
-        const bytes = ref as Uint8Array;
-        const key = `clients/${userId}/reference/liveness/${data.sessionId}.jpg`;
-        await putObject({ key, body: Buffer.from(bytes), contentType: "image/jpeg" });
-        const faces = await indexFace({ collectionId, bytes, externalImageId: `user_${userId.replace(/-/g, "")}` });
-        const profileId = prof.id;
-        if (profileId) {
-          for (const f of faces) {
-            await supabase.from("protected_face_references").insert({
-              profile_id: profileId, user_id: userId, s3_key: key, face_id: f.faceId, quality_scores: { confidence: f.confidence } as never,
-            });
-            if (f.faceId) savedFaceIds.push(f.faceId);
-          }
+      if (!ref) {
+        throw new Error("AWS returned no reference image. Please repeat the face scan.");
+      }
+
+      const { indexFace } = await import("@/lib/aws/rekognition.server");
+      const { putObject } = await import("@/lib/aws/s3.server");
+      const bytes = ref as Uint8Array;
+      const key = `clients/${userId}/reference/liveness/${data.sessionId}.jpg`;
+      const stored = await putObject({ key, body: Buffer.from(bytes), contentType: "image/jpeg" });
+      const faces = await indexFace({ collectionId, bytes, externalImageId: `user_${userId.replace(/-/g, "")}` });
+
+      if (faces.length === 0) {
+        throw new Error("AWS did not index a valid face. Please repeat the face scan.");
+      }
+
+      for (const f of faces) {
+        const { data: existing, error: lookupError } = await supabase
+          .from("protected_faces")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("face_id", f.faceId)
+          .maybeSingle();
+        if (lookupError) throw lookupError;
+
+        if (!existing) {
+          const { error: insertError } = await supabase.from("protected_faces").insert({
+            user_id: userId,
+            collection_id: collectionId,
+            platform: "onboarding",
+            label: "Verified liveness reference",
+            s3_bucket: stored.bucket,
+            s3_key: stored.key,
+            face_id: f.faceId,
+            image_id: f.imageId ?? null,
+            external_image_id: f.externalImageId ?? null,
+            confidence: f.confidence ?? null,
+            bounding_box: (f.boundingBox ?? null) as never,
+          });
+          if (insertError) throw insertError;
         }
+
+        savedFaceIds.push(f.faceId);
+      }
+
+      if (savedFaceIds.length === 0) {
+        throw new Error("Face indexing did not create a protected face.");
       }
     } catch (e: any) {
       const info = classifyAwsError(e);
