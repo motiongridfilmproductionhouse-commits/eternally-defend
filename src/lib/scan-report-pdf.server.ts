@@ -1,5 +1,5 @@
 import "regenerator-runtime/runtime.js";
-import { PDFDocument, PDFName, PDFString, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, rgb, type PDFFont, type PDFPage, type PDFImage } from "pdf-lib";
 import { createHash } from "crypto";
 import {
   embedUnicodeFontStack,
@@ -23,7 +23,7 @@ export interface ScanReportInput {
     author?: string | null; published?: string | null; category: string; contentLabel: string;
     severity: string; sentiment: string; threatScore: number; credibilityScore: number;
     reachEstimate: number; engagement: number; detectionReason?: string | null;
-    recommendedAction: string; discoveredAt?: string | null;
+    recommendedAction: string; discoveredAt?: string | null; thumbnailUrl?: string | null;
   }>;
 }
 
@@ -93,6 +93,98 @@ function addLink(pdf: PDFDocument, page: PDFPage, url: string, x: number, y: num
     }));
     page.node.addAnnot(annot);
   } catch { /* printed URL remains usable */ }
+}
+
+const TRUSTED_IMAGE_HOSTS = [
+  "ytimg.com",
+  "googleusercontent.com",
+  "ggpht.com",
+  "twimg.com",
+  "fbcdn.net",
+  "cdninstagram.com",
+  "redd.it",
+  "redditmedia.com",
+  "tiktokcdn.com",
+  "licdn.com",
+];
+
+function trustedImageUrl(value?: string | null): string | null {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return null;
+
+    const host = url.hostname.toLowerCase();
+    const trusted = TRUSTED_IMAGE_HOSTS.some(
+      allowed => host === allowed || host.endsWith("." + allowed)
+    );
+
+    return trusted ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function loadEvidenceImage(
+  pdf: PDFDocument,
+  value?: string | null,
+): Promise<{ image: PDFImage; hash: string } | null> {
+  const url = trustedImageUrl(value);
+  if (!url) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Eterna-Evidence-Collector/1.0" },
+    });
+
+    if (!response.ok) return null;
+
+    const declaredLength = Number(response.headers.get("content-length") || 0);
+    if (declaredLength > 8 * 1024 * 1024) return null;
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!bytes.length || bytes.length > 8 * 1024 * 1024) return null;
+
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+
+    try {
+      if (
+        contentType.includes("png") ||
+        (bytes[0] === 0x89 && bytes[1] === 0x50)
+      ) {
+        return { image: await pdf.embedPng(bytes), hash };
+      }
+
+      if (
+        contentType.includes("jpeg") ||
+        contentType.includes("jpg") ||
+        (bytes[0] === 0xff && bytes[1] === 0xd8)
+      ) {
+        return { image: await pdf.embedJpg(bytes), hash };
+      }
+    } catch (error) {
+      console.warn(
+        "[scan-pdf] Thumbnail embedding failed:",
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+
+    return null;
+  } catch (error) {
+    console.warn(
+      "[scan-pdf] Thumbnail fetch failed:",
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function buildScanReportPdf(input: ScanReportInput): Promise<{ bytes: Uint8Array; reportId: string; hash: string }> {
@@ -191,6 +283,100 @@ export async function buildScanReportPdf(input: ScanReportInput): Promise<{ byte
     const urlLines=wrap(h.url,8,regular,contentWidth); for(const row of urlLines){ text(page,row,margin,y,8,false,blue); addLink(pdf,page,h.url,margin,y-2,Math.min(contentWidth,safeMeasure(row,8,regular)),11); y-=12; }
     y-=12; page.drawLine({start:{x:margin,y},end:{x:margin+contentWidth,y},thickness:.7,color:line}); y-=18;
     paragraph(page,"Review note: This item was collected from a public source. Its presence in this report does not establish that allegations are true. Preserve original files, screenshots, timestamps, headers, and platform responses separately when available.",margin,y,contentWidth,8.5,muted,12);
+
+    // Separate visual-evidence page for this record.
+    page = pdf.addPage(A4);
+    header(page, "VISUAL EVIDENCE " + id);
+    y = 770;
+
+    text(page, "Visual Evidence Preview", margin, y, 20, true, navy);
+    y -= 28;
+    text(page, id + " · " + h.platform + " · " + h.severity, margin, y, 10, true, muted);
+    y -= 22;
+
+    const visual = await loadEvidenceImage(pdf, h.thumbnailUrl);
+
+    if (visual) {
+      const maxWidth = contentWidth;
+      const maxHeight = 350;
+      const scale = Math.min(
+        maxWidth / visual.image.width,
+        maxHeight / visual.image.height,
+        1
+      );
+      const imageWidth = visual.image.width * scale;
+      const imageHeight = visual.image.height * scale;
+      const imageX = margin + (contentWidth - imageWidth) / 2;
+
+      page.drawRectangle({
+        x: imageX - 4,
+        y: y - imageHeight - 4,
+        width: imageWidth + 8,
+        height: imageHeight + 8,
+        borderColor: line,
+        borderWidth: 1,
+        color: rgb(0.98, 0.98, 0.99),
+      });
+
+      page.drawImage(visual.image, {
+        x: imageX,
+        y: y - imageHeight,
+        width: imageWidth,
+        height: imageHeight,
+      });
+
+      y -= imageHeight + 28;
+      text(page, "IMAGE SHA-256", margin, y, 7, true, muted);
+      y -= 13;
+      text(page, visual.hash, margin, y, 8, false, ink);
+      y -= 24;
+    } else {
+      page.drawRectangle({
+        x: margin,
+        y: y - 120,
+        width: contentWidth,
+        height: 120,
+        color: rgb(0.96, 0.97, 0.99),
+        borderColor: line,
+        borderWidth: 1,
+      });
+      text(page, "Visual preview unavailable", margin + 18, y - 48, 13, true, muted);
+      paragraph(
+        page,
+        "No trusted JPG/PNG thumbnail was available at report-generation time. Preserve a full-page screenshot separately before submission.",
+        margin + 18,
+        y - 70,
+        contentWidth - 36,
+        9,
+        muted,
+        13
+      );
+      y -= 145;
+    }
+
+    text(page, "EVIDENCE TITLE", margin, y, 7, true, muted);
+    y -= 14;
+    y = paragraph(page, h.title, margin, y, contentWidth, 11, ink, 15) - 8;
+
+    text(page, "SOURCE URL", margin, y, 7, true, muted);
+    y -= 14;
+    for (const row of wrap(h.url, 8, regular, contentWidth)) {
+      text(page, row, margin, y, 8, false, blue);
+      addLink(pdf, page, h.url, margin, y - 2, Math.min(contentWidth, safeMeasure(row, 8, regular)), 11);
+      y -= 12;
+    }
+
+    y -= 12;
+    paragraph(
+      page,
+      "Important: this visual is a platform thumbnail or preview and is not represented as a complete webpage screenshot. The original source must be opened, captured and preserved separately for evidentiary submission.",
+      margin,
+      y,
+      contentWidth,
+      8.5,
+      muted,
+      12
+    );
   }
 
   // Submission and methodology

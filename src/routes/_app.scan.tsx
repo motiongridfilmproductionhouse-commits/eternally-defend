@@ -330,7 +330,7 @@ function ScanPage() {
         immediateActions: report.executiveSummary.immediateActions,
         longTerm: report.executiveSummary.longTerm,
         hits: report.hits.map(h => ({
-          title:h.title,url:h.url,description:h.description,platform:h.platform,source:h.source,author:h.author,published:h.published,category:h.category,contentLabel:h.contentLabel,severity:h.severity,sentiment:h.sentiment,threatScore:h.threatScore,credibilityScore:h.credibilityScore,reachEstimate:h.reachEstimate,engagement:h.engagement,detectionReason:h.detectionReason,recommendedAction:h.recommendedAction,discoveredAt:h.discoveredAt,
+          title:h.title,url:h.url,description:h.description,platform:h.platform,source:h.source,author:h.author,published:h.published,category:h.category,contentLabel:h.contentLabel,severity:h.severity,sentiment:h.sentiment,threatScore:h.threatScore,credibilityScore:h.credibilityScore,reachEstimate:h.reachEstimate,engagement:h.engagement,detectionReason:h.detectionReason,recommendedAction:h.recommendedAction,discoveredAt:h.discoveredAt,thumbnailUrl:h.media?.thumbnailHi ?? h.media?.thumbnail ?? null,
         })),
       }});
       const binary=atob(result.base64); const bytes=new Uint8Array(binary.length);
