@@ -308,6 +308,14 @@ function ScanPage() {
 
   const exportPdf = async () => {
     if (!report || pdfPending) return;
+
+    const pdfWindow = window.open("", "_blank");
+    if (pdfWindow) {
+      pdfWindow.document.write(
+        "<title>Preparing Evidence PDF</title><p style='font-family:Arial;padding:30px'>Preparing professional evidence PDF...</p>"
+      );
+    }
+
     setPdfPending(true);
     try {
       const result = await generateReportPdf({ data: {
@@ -329,18 +337,28 @@ function ScanPage() {
       for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
       const blob = new Blob([bytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = result.fileName || "Eterna-Evidence-Report.pdf";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      window.setTimeout(() => {
+
+      if (pdfWindow) {
+        pdfWindow.location.href = url;
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = result.fileName || "Eterna-Evidence-Report.pdf";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
         a.remove();
-        URL.revokeObjectURL(url);
-      }, 30000);
-      toast.success("Evidence PDF download started");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "PDF generation failed"); }
+      }
+
+      window.setTimeout(() => URL.revokeObjectURL(url), 300000);
+      toast.success("Evidence PDF opened — use the download button in the PDF viewer");
+    } catch (error) {
+      if (pdfWindow) pdfWindow.close();
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("Evidence PDF generation failed:", error);
+      alert("PDF generation failed: " + message);
+      toast.error("PDF generation failed: " + message);
+    }
     finally { setPdfPending(false); }
   };
 
@@ -433,7 +451,7 @@ function ScanPage() {
                   <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">EXECUTIVE SUMMARY</div>
                   <div className="text-lg font-display font-bold mt-1">{report.executiveSummary.headline}</div>
                 </div>
-                <button onClick={exportPdf} disabled={pdfPending} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent inline-flex items-center gap-1.5 disabled:opacity-60">{pdfPending ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />} {pdfPending ? "Building PDF..." : "Download Evidence PDF"}</button>
+                <button onClick={exportPdf} disabled={pdfPending} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent inline-flex items-center gap-1.5 disabled:opacity-60">{pdfPending ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />} {pdfPending ? "Building PDF..." : "Open / Download Evidence PDF"}</button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-xs">
                 <Fact label="Most damaging topic" value={report.executiveSummary.mostDamagingTopic} />
