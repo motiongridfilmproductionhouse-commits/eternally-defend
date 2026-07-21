@@ -101,16 +101,19 @@ export const decideAuthorization = createServerFn({ method: "POST" })
       // Generate certificate PDF + QR
       const cert_number = `ETC-${new Date().getUTCFullYear()}-${randomBytes(3).toString("hex").toUpperCase()}`;
       const public_slug = randomBytes(6).toString("hex");
-      const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+      const { PDFDocument, rgb } = await import("pdf-lib");
+      const { embedUnicodeFontStack, drawUnicodeText } = await import("@/lib/pdf/unicode-fonts.server");
       const doc = await PDFDocument.create();
-      const font = await doc.embedFont(StandardFonts.Helvetica);
-      const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+      const stack = await embedUnicodeFontStack(doc);
       const page = doc.addPage([612, 792]);
       const { height } = page.getSize();
       let y = height - 60;
-      const line = (t: string, f = font, sz = 11) => { page.drawText(t, { x: 60, y, size: sz, font: f, color: rgb(0.05, 0.1, 0.35) }); y -= sz + 8; };
-      line("ETERNA VERIFICATION CERTIFICATE", bold, 18);
-      line(`Certificate: ${cert_number}`, bold);
+      const line = (t: string, bold = false, sz = 11) => {
+        drawUnicodeText(page, t, { x: 60, y, size: sz, stack: bold ? stack.bold : stack.regular, color: rgb(0.05, 0.1, 0.35) });
+        y -= sz + 8;
+      };
+      line("ETERNA VERIFICATION CERTIFICATE", true, 18);
+      line(`Certificate: ${cert_number}`, true);
       line(`Authorization: ${auth.auth_number}`);
       line(`Client ID: ${profile?.client_id ?? ""}`);
       line(`Name: ${profile?.display_name ?? (profile as { full_name?: string } | null)?.full_name ?? ""}`);
@@ -120,12 +123,12 @@ export const decideAuthorization = createServerFn({ method: "POST" })
       line(`Issued: ${new Date().toISOString().slice(0, 10)}`);
       line(`Expires: ${auth.expiry_date}`);
       y -= 10;
-      line("✓ Identity Verified (Veriff)", bold);
-      line("✓ Real Human Verified (Rekognition Liveness)", bold);
-      line("✓ Face Protected Profile Created", bold);
-      line("✓ Asset Ownership Verified", bold);
-      line("✓ Authorization Signed", bold);
-      line("✓ Admin Approved", bold);
+      line("✓ Identity Verified (Veriff)", true);
+      line("✓ Real Human Verified (Rekognition Liveness)", true);
+      line("✓ Face Protected Profile Created", true);
+      line("✓ Asset Ownership Verified", true);
+      line("✓ Authorization Signed", true);
+      line("✓ Admin Approved", true);
       // QR
       try {
         const QR = await import("qrcode");
@@ -133,7 +136,7 @@ export const decideAuthorization = createServerFn({ method: "POST" })
         const dataUrl = await QR.toDataURL(`${publicBase}/verify/${public_slug}`);
         const png = await doc.embedPng(Buffer.from(dataUrl.split(",")[1], "base64"));
         page.drawImage(png, { x: 420, y: 90, width: 120, height: 120 });
-        page.drawText(`Verify: /verify/${public_slug}`, { x: 380, y: 78, size: 8, font, color: rgb(0.3, 0.3, 0.3) });
+        drawUnicodeText(page, `Verify: /verify/${public_slug}`, { x: 380, y: 78, size: 8, stack: stack.regular, color: rgb(0.3, 0.3, 0.3) });
       } catch { /* ignore */ }
       const bytes = await doc.save();
       const sha = createHash("sha256").update(bytes).digest("hex");
