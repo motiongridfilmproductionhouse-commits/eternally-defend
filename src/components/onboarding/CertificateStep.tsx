@@ -213,7 +213,11 @@ export function CertificateStep({
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
-          <Button variant="outline" onClick={() => handleDownloadCert()} disabled={loadingUrl === cert.id} className="border-white/20 text-white hover:bg-white/10 flex-1">
+          <Button variant="outline" onClick={() => handleDownloadCert(true)} disabled={loadingUrl === cert.id} className="border-white/20 text-white hover:bg-white/10 flex-1">
+            {loadingUrl === cert.id ? <Loader2 className="size-4 animate-spin mr-2" /> : <ExternalLink className="size-4 mr-2" />}
+            View Certificate
+          </Button>
+          <Button variant="outline" onClick={() => handleDownloadCert(false)} disabled={loadingUrl === cert.id} className="border-white/20 text-white hover:bg-white/10 flex-1">
             {loadingUrl === cert.id ? <Loader2 className="size-4 animate-spin mr-2" /> : <Download className="size-4 mr-2" />}
             Download Certificate
           </Button>
