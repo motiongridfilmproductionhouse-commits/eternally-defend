@@ -108,7 +108,7 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
     const reverse = await lensSearch(signedImageUrl);
     const matchCount = reverse.pages.length + reverse.fullMatchingImages.length + reverse.partialMatchingImages.length;
     const { data: inserted, error } = await context.supabase.from("protected_assets").insert({
-      user_id: context.userId, name: data.name.trim(), kind: "image", source_url: data.sourceUrl || null,
+      user_id: context.userId, name: data.name.trim(), kind: "photo", source_url: data.sourceUrl || null,
       storage_path: data.key, active: true,
       metadata: { platform: data.platform || null, status: "Monitoring", content_type: data.contentType, sha256, reverse_search: reverse, reverse_search_match_count: matchCount, reverse_search_at: new Date().toISOString(), reverse_search_provider: "serpapi_google_lens" },
     }).select("id").single();
