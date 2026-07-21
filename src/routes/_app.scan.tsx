@@ -327,9 +327,19 @@ function ScanPage() {
       }});
       const binary=atob(result.base64); const bytes=new Uint8Array(binary.length);
       for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-      const url=URL.createObjectURL(new Blob([bytes],{type:"application/pdf"}));
-      const a=document.createElement("a"); a.href=url; a.download=result.fileName; a.click(); URL.revokeObjectURL(url);
-      toast.success("Professional evidence PDF downloaded");
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.fileName || "Eterna-Evidence-Report.pdf";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      window.setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 30000);
+      toast.success("Evidence PDF download started");
     } catch (error) { toast.error(error instanceof Error ? error.message : "PDF generation failed"); }
     finally { setPdfPending(false); }
   };
@@ -468,8 +478,6 @@ function ScanPage() {
           {/* ── Eterna Intelligence Status Card — user-facing clean view ── */}
           <EternaStatusCard report={report} />
 
-          <EvidenceRegister hits={report.hits} />
-
           {/* ── Admin Diagnostics — hidden from users, visible in dev or ?diag=1 ── */}
           <AdminDiagnosticsPanel report={report} />
 
@@ -559,17 +567,6 @@ function ScanPage() {
 // NO provider names, quota details, API errors, or internal architecture exposed.
 // ---------------------------------------------------------------------------
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
-
-function EvidenceRegister({ hits }: { hits: ScanHit[] }) {
-  const ranked=hits.slice().sort((a,b)=>({Critical:0,High:1,Medium:2,Low:3}[a.severity]??9)-({Critical:0,High:1,Medium:2,Low:3}[b.severity]??9)||b.threatScore-a.threatScore);
-  return <div className="rounded-2xl border border-border bg-card overflow-hidden">
-    <div className="px-6 py-5 border-b border-border bg-muted/30"><div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">CONSOLIDATED EVIDENCE REGISTER</div><h2 className="text-lg font-display font-bold mt-1">Numbered, source-linked findings</h2><p className="text-xs text-muted-foreground mt-1">Each unique item appears once here. Automated labels require human review.</p></div>
-    <div className="divide-y divide-border">{ranked.map((h,i)=><div key={h.url} className="p-4 md:p-5 grid grid-cols-[70px_1fr] gap-3">
-      <div><div className="text-xs font-bold text-primary">EV-{String(i+1).padStart(3,"0")}</div><div className="text-[10px] mt-1 font-semibold" style={{color:severityColor(h.severity)}}>{h.severity}</div><div className="text-[10px] text-muted-foreground mt-1">{h.threatScore}/100</div></div>
-      <div className="min-w-0"><div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground"><span className="px-2 py-0.5 rounded-full bg-muted">{h.platform}</span><span className="px-2 py-0.5 rounded-full bg-muted">{h.category}</span><span>{h.published ? new Date(h.published).toLocaleDateString() : "Date unavailable"}</span></div><h3 className="font-semibold text-sm mt-2">{h.title}</h3>{h.description&&<p className="text-xs text-muted-foreground mt-1 line-clamp-2">{h.description}</p>}<div className="mt-2 flex flex-wrap items-center gap-3 text-xs"><span><b>Account:</b> {h.author||"Unknown"}</span><span><b>Reason:</b> {h.detectionReason||"Entity match"}</span><a href={h.url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1">Open original <ExternalLink className="size-3" /></a></div></div>
-    </div>)}</div>
-  </div>;
-}
 
 function EternaStatusCard({ report }: { report: ReportWithDiagnostics }) {
   const diag = report.diagnostics;
