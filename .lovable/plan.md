@@ -1,99 +1,111 @@
-## Eterna Verified Client Onboarding — Implementation Plan
 
-Build the full 10-step verified onboarding journey on top of existing integrations (Veriff, AWS Rekognition/S3, YouTube, Supabase). No new secrets, no frontend AWS/Veriff calls.
+# Impersonation Intelligence & Identity Protection Engine
 
-### Scope
+Build a continuous digital identity protection layer on top of Eterna's existing scanning, AWS Rekognition, YouTube, evidence, and enforcement infrastructure. No Reddit. No mocks.
 
-Replace the current onboarding wizard with a premium multi-step flow that gates each step on real verification results, culminating in an admin-reviewed Authorization Letter, signed PDF, Verification Certificate, and public verify page.
+## Scope decisions
 
-### Database (single migration)
+- Reuse: Supabase auth + RLS, onboarding/KYC, AWS Face Liveness enrollment, `rekognition_collections` / `protected_face_profiles`, YouTube Data API, existing scan orchestration (`scans`, `scan_hits`), `evidence_vault_items`, `enforcement_requests` / `_targets`, alerts/notifications, S3 evidence bucket.
+- New only where Eterna has no equivalent (identity fingerprint, candidate lifecycle, explainable score, allowlist decisions, side-by-side compare).
+- Skip: Reddit adapter, any CAPTCHA bypass, any biometric exposure to frontend.
 
-New tables (RLS: owner-only for clients, `has_role(_,'admin')` for admins; all with GRANTs):
+## Data model (new tables, all `public`, RLS scoped to `auth.uid()` via `client_profiles`; standard grants + service_role)
 
-- `onboarding_progress` — per-user step status map, current_step, overall status enum
-- `kyc_verifications` — veriff_session_id, provider_reference, status, country, document_type, review_reason (no images)
-- `biometric_consents` — consent_version, ip, ua, checkboxes, revoked_at
-- `protected_face_profiles` — collection_id, rekognition_user_id, liveness_score, status
-- `protected_face_references` — profile_id, s3_key, face_id, quality scores
-- `digital_assets` — kind (youtube/…), channel_id, handle, name, verified, method, verified_at
-- `youtube_verification_challenges` — code, asset_id, expires_at, used_at, evidence
-- `asset_verification_events` — audit trail per asset
-- `authorization_scopes` — auth_id, scope_key, granted
-- `client_authorizations` — auth_number (AUTH-YYYY-NNNNNN), version, status enum, effective/expiry, enforcement_enabled
-- `authorization_versions` — snapshot json per version
-- `authorization_signatures` — signer name/role, drawn_signature_svg, typed_name, otp_verified_at, ip, ua, sha256
-- `authorization_documents` — kind (draft/signed/certificate/package), s3_key, sha256
-- `authorization_admin_reviews` — reviewer_id, decision, notes, decided_at
-- `verification_certificates` — cert_number (ETC-…), score, issued_at, expires_at, sha256, public_slug
-- `authorization_audit_logs` — actor, action, target, payload, ip, ua
-- Extend `client_profiles` with: `client_id` (ET-#####), `display_name`, `role_title`, `address`, `phone_verified_at`, `email_verified_at`
+- `protected_identities` — one per client. Legal name, stage name, aliases[], bio keywords[], org names[], face_ref_id (FK to `protected_face_profiles`, nullable), biometric_consent bool, created/updated.
+- `protected_identity_aliases` — normalized name/username variants + mutation type (typo, unicode, handle_variant, added_word).
+- `official_accounts` — platform, handle, canonical_url, account_id, status enum(`OFFICIAL|AUTHORIZED|FAN|PARODY|SAFE|IMPERSONATOR|UNKNOWN`), verified_by_client bool, verified_at.
+- `protected_identity_assets` — asset kind (photo, logo, domain), sha256, phash, s3_key, embedding_ref (nullable), source.
+- `impersonation_scan_jobs` — identity_id, status, started/finished, provider health snapshot, dedupe cursor.
+- `impersonation_candidates` — stable_key (platform + external_id), platform, url, handle, display_name, avatar_ref, bio_text, discovered_via, first_seen, last_checked, raw_payload jsonb.
+- `impersonation_findings` — candidate_id, identity_id, score (0-100), classification enum, signal_breakdown jsonb (per-signal score + evidence pointer), decision enum(`PENDING|SAFE|FAN|PARODY|IMPERSONATOR|MONITOR`), decided_by, decided_at.
+- `impersonation_evidence` — finding_id, kind, s3_key, hash, captured_at (thin wrapper linking into `evidence_vault_items`).
+- `suspicious_domains` — domain, identity_id, homograph_of, whois jsonb, ssl jsonb, risk_score, evidence_ref.
+- `fake_endorsement_analyses` — candidate_id, product_category, transcript_ref, ocr_ref, manipulation_signals jsonb, score.
 
-Add `has_role(_,'admin')` policies alongside owner policies. Reuse existing `user_roles`/`app_role` enum.
+Migration also adds triggers for `updated_at` and unique `(identity_id, stable_key)` on candidates for dedupe.
 
-Sequences for `client_id`, authorization number, certificate number.
+## Server functions (all `createServerFn` + `requireSupabaseAuth`; admin client only inside handlers)
 
-### Server functions (all server-only, using existing env)
+Location: `src/lib/impersonation/*.functions.ts` + `.server.ts` helpers.
 
-`src/lib/onboarding/`:
+- `identity.functions.ts`: `createFingerprint`, `updateFingerprint`, `listOfficialAccounts`, `upsertOfficialAccount`, `markCandidateDecision`.
+- `discovery.server.ts`: `generateIdentityQueries` (name/handle mutations, unicode confusables via `unicode/confusables` map, typo substitution), `discoverCandidates` (YouTube channel/video search, Firecrawl web search, Google web search where configured — provider registry with health tracking, per-provider timeout + retry).
+- `similarity.server.ts`: Levenshtein, Jaro-Winkler, token, unicode-normalized, handle mutation scoring. Pure TS, unit-testable.
+- `image-analysis.server.ts`: sha256 exact, pHash (blockhash pure-JS), Rekognition `SearchFacesByImage` against client collection when consent present, OCR via existing multimedia pipeline.
+- `bio-behavior.server.ts`: deterministic rule pack for identity-claim / fraud / fan / parody / external-contact signals; returns structured booleans + supporting spans. Optional LLM assist via Lovable AI (Gemini) with strict JSON schema for edge cases.
+- `domain-analysis.server.ts`: homograph + typosquat + added-word detection, whois/DNS/SSL via existing web providers where available.
+- `endorsement-analysis.server.ts`: keyframes + OCR + transcript reuse from existing multimedia jobs; product/financial category classifier; manipulation flag pass-through.
+- `scoring.server.ts`: weighted score with modifiers, returns `{ score, level, reasons: [{signal, weight, contribution, evidence}] }`. CRITICAL requires ≥2 independent identity signals + ≥1 deception signal.
+- `scan.functions.ts`: `impersonationScan` orchestrator running the required pipeline; writes findings, calls existing evidence + alert systems for HIGH/CRITICAL only.
+- `evidence.functions.ts`: `captureFindingEvidence` — screenshot via existing capture path, upload to S3 evidence bucket, hash, insert into `evidence_vault_items` + `impersonation_evidence`.
+- `enforce.functions.ts`: `startEnforcement` — creates `enforcement_requests` + `enforcement_targets` reusing existing takedown workflow; requires explicit user confirm + authorization check.
 
-- `progress.functions.ts` — get/update step status, resume
-- `profile.functions.ts` — save profile, mint `ET-#####`, send email OTP (via Supabase auth OTP)
-- `kyc.functions.ts` — `createVeriffSession` (POST to `${VERIFF_BASE_URL}/sessions` with `X-AUTH-CLIENT`, HMAC signed), `getKycStatus`
-- `src/routes/api/public/veriff-webhook.ts` — verify `x-hmac-signature` with `VERIFF_SHARED_SECRET`, update `kyc_verifications`
-- `face-enrollment.functions.ts` — `recordBiometricConsent`, `createLivenessSession` (Rekognition `CreateFaceLivenessSession`), `finalizeLiveness` (calls `GetFaceLivenessSessionResults`, stores reference image + audit frames to S3 private, `IndexFaces` into per-user collection, associates to Rekognition UserId, persists face_ids); `revokeBiometrics` (DeleteFaces + S3 delete)
-- `assets.functions.ts` — add asset, list, remove, `generateYouTubeChallenge` (crypto-random `ETERNA-XXXX-YYYY`), `verifyYouTubeChallenge` (YouTube Data API v3: channels.list snippet+description; search channel's latest videos & community posts for the code), Google OAuth path via existing `lovable.auth.signInWithOAuth('google', scopes: youtube.readonly)` then `youtube.channels.list?mine=true`
-- `authorization.functions.ts` — `buildDraft`, `generateDraftPdf`, `sendSignatureOtp`, `verifySignatureAndSeal` (renders final PDF, SHA-256, uploads to S3, creates `authorization_documents`, `authorization_signatures`), version bump on edits
-- `admin.functions.ts` — `listPendingReviews`, `decideAuthorization` (approve/reject/suspend/revoke/request-info), guarded by `has_role(admin)`
-- `certificate.functions.ts` — `issueCertificate` (score calc, PDF w/ QR to public page, SHA-256, S3), `getPublicVerification(slug)`
-- `package.functions.ts` — `buildAuthorizationPackage` (concat cert + summary + signed letter + audit → PDF, S3)
+Provider failures are recorded in `provider_health_checks` and surfaced; never silently succeed.
 
-PDF generation: reuse `src/lib/enforcement/pdf.server.ts` pattern (pdf-lib). QR: `qrcode` package.
+## Server routes (public API surface)
 
-### Frontend routes/components
+All under `src/routes/api/identity/` and `src/routes/api/impersonation/` as file routes calling the server functions above; auth enforced via bearer + `requireSupabaseAuth` inside handlers. No `/api/public/*` — this is tenant data.
 
-- Rewrite `src/routes/onboarding.tsx` shell with stepper (10 steps, statuses)
-- `src/components/onboarding/steps/` — one component per step:
-  1. `AccountProfileStep` (form + email OTP)
-  2. `KycStep` (Veriff hosted URL iframe/redirect, polls status)
-  3. `FaceEnrollmentStep` (consent screen → premium liveness UI using AWS Amplify `FaceLivenessDetector` React component, which talks to backend session tokens only; framer-motion overlays for mesh/scan-line/particles; guidance messages)
-  4. `AssetVerificationStep` (YouTube: OAuth or code challenge UI)
-  5. `AuthorizationScopeStep` (checkbox list)
-  6. `AuthorizationReviewStep` (PDF preview iframe of signed URL)
-  7. `SignatureStep` (typed name + `react-signature-canvas` + email OTP)
-  8. `AdminReviewWaitingStep` (status card, polling)
-  9. `CertificateStep` (view/download cert + package + public link)
-  10. `CompleteStep` (summary + dashboard CTAs)
-- `src/routes/_app.admin.onboarding-reviews.tsx` — admin review queue + detail (uses existing `AdminGuard`)
-- `src/routes/verify.$authId.tsx` — public route (top-level, no auth), shows sanitized status only via `getPublicVerification`
+## Frontend
 
-### Packages to add
+New route group under `src/routes/_authenticated/identity/`:
 
-`@aws-sdk/client-rekognitionstreaming` (for FaceLiveness types), `@aws-amplify/ui-react-liveness`, `aws-amplify`, `qrcode`, `pdf-lib` (may already be present), `react-signature-canvas`.
+- `index.tsx` — Overview: identity status, counts by level, new-since-last-scan, last/next scan, scan-now button.
+- `impersonation.tsx` — candidate list with filters + `CandidateCard` component (score, matches breakdown, actions).
+- `fake-accounts.tsx`, `fake-endorsements.tsx`, `suspicious-domains.tsx` — filtered views over findings.
+- `evidence.tsx` — links into existing Evidence Vault filtered to identity findings.
+- `enforcement.tsx` — filtered enforcement queue.
+- `$candidateId.tsx` — side-by-side identity comparison (Official vs Suspected), full signal breakdown, action bar.
 
-### Security
+Components: `CandidateCard`, `SignalBreakdown`, `IdentityCompare`, `ScoreBadge`, `DecisionMenu`, `ScanStatusBar`. Reuse existing DetailDrawer / ActionDrawer patterns from scan results.
 
-- All AWS/Veriff/Google-secret calls inside `.server.ts` or handler bodies
-- Webhook signature verification (HMAC-SHA256) with timing-safe compare
-- Signed S3 URLs, 5-min expiry, never returned to public verify page
-- RLS: owner-only + admin role; public verify uses server-publishable client with narrow anon SELECT on a `public_verifications` view exposing only safe columns
-- Audit log on every sensitive action
-- Immutable signed docs; version bump on any post-sign change
+Sidebar: add "Identity Protection" section with the sub-nav above.
 
-### Gating rules
+## Pipeline (matches spec §19)
 
-Step N cannot start until N-1 status ∈ {VERIFIED, COMPLETED}. `enforcement_enabled` only when all conditions in spec are true. Certificate score computed server-side.
+`impersonationScan(identityId)`:
+1. loadProtectedIdentity
+2. generateIdentityQueries
+3. discoverCandidates (parallel providers, health-tracked)
+4. deduplicateCandidates (stable_key upsert)
+5. checkOfficialAllowlist (skip / auto-classify)
+6. analyzeNameAndUsername
+7. analyzeImages (hash + phash + Vision Web if configured)
+8. analyzeFaceIfAuthorized (Rekognition only when consent)
+9. analyzeBioAndBehavior
+10. analyzeDomains (candidate-linked)
+11. analyzeFakeEndorsementSignals (video/ad candidates)
+12. calculateExplainableRisk
+13. saveFinding (upsert per candidate)
+14. captureHighRiskEvidence (HIGH/CRITICAL only)
+15. triggerAlerts (existing notifications)
+16. monitorStatus (schedule next check)
 
-### Explicitly deferred (per spec)
+Scheduling via `pg_cron` → `/api/public/hooks/impersonation-rescan` route which iterates due identities and calls `impersonationScan`. Route verifies apikey header.
 
-Continuous scanning, deepfake, adult content, auto-takedowns, mass reporting, scheduler.
+## Guardrails (spec §20)
 
-### Delivery order (single build)
+- No Reddit provider registered.
+- Provider errors classified and surfaced; distinct from zero results.
+- Face/image similarity alone caps score at SUSPICIOUS unless deception signal present.
+- Fan/parody disclosure downgrades classification and blocks auto-enforcement.
+- Enforcement requires human confirm + existing authorization check.
+- No new secrets required — reuses AWS, YouTube, Google, Firecrawl secrets already configured. Lovable AI used for bio classification via existing `LOVABLE_API_KEY`.
 
-1. Migration (tables, enums, sequences, RLS, GRANTs, admin policies)
-2. Server functions + webhook route + package installs
-3. Onboarding shell + steps 1–4
-4. Steps 5–7 (scope, letter, signature)
-5. Admin review + certificate + package + public verify
-6. Wire completion screen and dashboard entry points
+## Test coverage
 
-This is a large single delivery (~30 files). No mocks: every status comes from Veriff/Rekognition/YouTube/DB.
+Deterministic unit tests for similarity, unicode confusables, mutation generator, scoring (each spec case: official exclusion, look-alike handle, unicode, stolen photo, face match, fan, parody, fake WhatsApp, fake investment, fake endorsement, suspicious domain, provider failure, zero results, duplicate, removed content, rescan). Integration test for pipeline with mocked providers.
+
+## Delivery order
+
+1. Migration (tables + grants + RLS + triggers).
+2. Similarity + scoring pure modules + unit tests.
+3. Provider adapters + discovery + dedupe.
+4. Analysis modules (name, image, face, bio, domain, endorsement).
+5. Orchestrator + evidence + alerts + enforcement wiring.
+6. Server functions + routes.
+7. UI: overview → candidate list → compare view → sub-tabs.
+8. Cron rescan route + schedule.
+9. Typecheck + build + test pass.
+
+Given the size, this ships in the above order across the turn; UI sub-tabs beyond Overview/Impersonation/Compare land as thin filtered views over the same finding store.
