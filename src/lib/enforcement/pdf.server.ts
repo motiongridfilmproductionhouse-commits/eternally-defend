@@ -6,7 +6,8 @@
  *   3. Platform Complaint Package — narrative + fields from platform templates.
  */
 
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, rgb, type PDFFont } from "pdf-lib";
+import { embedUnicodeFontStack, drawUnicodeText, measureUnicodeText } from "@/lib/pdf/unicode-fonts.server";
 import type { ComplaintPayload } from "./platform-templates.server";
 
 export interface EvidenceInput {
