@@ -73,7 +73,7 @@ export async function pollOneWatch(supabase: Supa, watchId: string, opts: { base
     if (existing) {
       const previous = (existing.mention_match ?? {}) as Record<string, unknown>;
       const alreadyAnalyzed =
-        previous.transcript_analysis_version === 2;
+        previous.transcript_analysis_version === 3;
 
       if (isBaseline && !alreadyAnalyzed && analyzed < analysisBudget) {
         try {

@@ -103,7 +103,7 @@ export const analyzeCurrentChannelVideos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({
     watchId: z.string().uuid(),
-    count: z.number().int().min(1).max(100).default(50),
+    count: z.number().int().min(1).max(200).default(200),
   }).parse(raw))
   .handler(async ({ data, context }) => {
     const { data: watch } = await context.supabase

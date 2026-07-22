@@ -65,7 +65,19 @@ function scanAliases(text: string, aliases: string[]): AliasHit[] {
       continue;
     }
     const latinNeedle = normLatin(alias);
-    if (norm.includes(latinNeedle)) {
+
+    // Match spaced names against hashtags and compact forms:
+    // "Renu Sudhi" -> "#renusudhi", "renu_sudhi", "renu-sudhi".
+    const compactText = norm.replace(/[\s_#.-]+/g, "");
+    const compactNeedle = latinNeedle.replace(/[\s_#.-]+/g, "");
+
+    if (
+      norm.includes(latinNeedle) ||
+      (
+        compactNeedle.length >= 3 &&
+        compactText.includes(compactNeedle)
+      )
+    ) {
       out.push({ alias, where: "title", script: "latin" });
       continue;
     }
@@ -237,7 +249,7 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
     mention_match: {
       hits: aliasHits,
       alias_count: aliases.length,
-      transcript_analysis_version: 2,
+      transcript_analysis_version: 3,
       caption_state: captionAnalysis.state,
       caption_language: captionAnalysis.language,
       caption_source: captionAnalysis.source,

@@ -253,7 +253,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
     mutationFn: () => historyFn({
       data: {
         watchId: watch.id,
-        count: 50,
+        count: 200,
       },
     }),
     onSuccess: (result) => {
@@ -289,6 +289,14 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
       video.classification !== "not_relevant" &&
       video.classification !== "informational" &&
       video.classification !== "commentary_no_violation",
+  );
+
+  // Mentions include informational subject matches. They are displayed
+  // separately and are not automatically treated as violations.
+  const subjectMentions = analyzed.filter(
+    (video) =>
+      video.classification &&
+      video.classification !== "not_relevant",
   );
 
   const suspectedViolations = relevant.filter(
@@ -394,13 +402,21 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         </div>
       </div>
       <div className="mt-3 rounded-lg border border-slate-700/60 bg-slate-950/45 p-3">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div>
+            <div className="text-lg font-semibold text-cyan-200">
+              {subjectMentions.length}
+            </div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">
+              Subject mentions
+            </div>
+          </div>
           <div>
             <div className="text-lg font-semibold text-orange-200">
               {suspectedViolations.length}
             </div>
             <div className="text-[8px] uppercase tracking-wider text-slate-500">
-              Suspected IP
+              Suspected risk
             </div>
           </div>
           <div>
@@ -455,7 +471,12 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         <Button
           size="sm"
           variant="outline"
-          className="h-8 !border-cyan-500/60 !bg-cyan-950/80 !text-cyan-200 hover:!bg-cyan-900 hover:!text-white disabled:!border-slate-700 disabled:!bg-slate-900 disabled:!text-slate-500 disabled:opacity-70 text-[11px] font-semibold shadow-sm"
+          className="h-8 border text-[11px] font-semibold shadow-sm hover:brightness-125 disabled:opacity-50"
+          style={{
+            backgroundColor: "#083344",
+            color: "#a5f3fc",
+            borderColor: "#0891b2",
+          }}
           disabled={scanMut.isPending || historyMut.isPending}
           onClick={() => scanMut.mutate()}
         >
@@ -466,12 +487,17 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         <Button
           size="sm"
           variant="outline"
-          className="h-8 !border-violet-500/60 !bg-violet-950/80 !text-violet-200 hover:!bg-violet-900 hover:!text-white disabled:!border-slate-700 disabled:!bg-slate-900 disabled:!text-slate-500 disabled:opacity-70 text-[11px] font-semibold shadow-sm"
+          className="h-8 border text-[11px] font-semibold shadow-sm hover:brightness-125 disabled:opacity-50"
+          style={{
+            backgroundColor: "#2e1065",
+            color: "#ddd6fe",
+            borderColor: "#8b5cf6",
+          }}
           disabled={historyMut.isPending || scanMut.isPending}
           onClick={() => historyMut.mutate()}
         >
           <Radar className={`size-3 mr-1 ${historyMut.isPending ? "animate-pulse" : ""}`} />
-          {historyMut.isPending ? "Analyzing captions…" : "Analyze current"}
+          {historyMut.isPending ? "Analyzing captions…" : "Analyze next 10"}
         </Button>
         {watch.status === "active" ? (
           <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={() => statusMut.mutate("paused")}>
