@@ -183,8 +183,8 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
     classification: decision.classification,
     risk_score: decision.risk,
     review_status: decision.requiresReview ? "pending" : "not_required",
-    mention_match: { hits: aliasHits, alias_count: aliases.length },
-    protected_asset_similarity: { face_matches: faceMatches },
+    mention_match: { hits: aliasHits, alias_count: aliases.length } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["mention_match"],
+    protected_asset_similarity: { face_matches: faceMatches } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["protected_asset_similarity"],
   }).eq("id", v.id);
 
   await supabase.from("channel_watch_events").insert({
