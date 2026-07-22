@@ -97,6 +97,7 @@ function ChannelWatchPage() {
                   watch={w}
                   isSelected={selectedWatch === w.id}
                   onSelect={() => setSelectedWatch(selectedWatch === w.id ? undefined : w.id)}
+                  videos={(videos.data ?? []).filter((video) => video.watch_id === w.id)}
                 />
               ))}
             </div>
@@ -230,10 +231,11 @@ function SkeletonRow() {
   return <Card className="p-6 bg-slate-900/30 border-slate-700/40 text-slate-500 text-sm">Loading…</Card>;
 }
 
-function MonitoredChannelCard({ watch, isSelected, onSelect }: {
+function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
   watch: Awaited<ReturnType<typeof listChannelWatches>>[number];
   isSelected: boolean;
   onSelect: () => void;
+  videos: Awaited<ReturnType<typeof listWatchVideos>>;
 }) {
   const qc = useQueryClient();
   const scanFn = useServerFn(scanChannelNow);
@@ -257,6 +259,81 @@ function MonitoredChannelCard({ watch, isSelected, onSelect }: {
   const statusColor = watch.status === "active" ? "text-emerald-300 border-emerald-500/40"
     : watch.status === "paused" ? "text-slate-400 border-slate-500/40"
       : "text-orange-300 border-orange-500/40";
+
+  const analyzed = videos.filter((video) => video.analysis_status === "completed");
+  const relevant = analyzed.filter(
+    (video) =>
+      video.classification &&
+      video.classification !== "not_relevant" &&
+      video.classification !== "informational" &&
+      video.classification !== "commentary_no_violation",
+  );
+
+  const suspectedViolations = relevant.filter(
+    (video) =>
+      video.classification === "potential_impersonation" ||
+      video.classification === "potential_harm" ||
+      (video.risk_score ?? 0) >= 55,
+  );
+
+  const confirmedViolations = relevant.filter(
+    (video) =>
+      video.review_status === "approved" ||
+      video.review_status === "escalated",
+  );
+
+  const criticalCount = relevant.filter((video) => (video.risk_score ?? 0) >= 85).length;
+  const highCount = relevant.filter((video) => {
+    const score = video.risk_score ?? 0;
+    return score >= 70 && score < 85;
+  }).length;
+  const mediumCount = relevant.filter((video) => {
+    const score = video.risk_score ?? 0;
+    return score >= 40 && score < 70;
+  }).length;
+  const lowCount = relevant.filter((video) => {
+    const score = video.risk_score ?? 0;
+    return score > 0 && score < 40;
+  }).length;
+
+  const maximumRisk = relevant.reduce(
+    (maximum, video) => Math.max(maximum, video.risk_score ?? 0),
+    0,
+  );
+
+  // Evidence-based enforcement readiness. This is not a removal guarantee.
+  const removalStrength = Math.min(
+    100,
+    Math.round(
+      maximumRisk * 0.35 +
+      confirmedViolations.length * 14 +
+      suspectedViolations.length * 5 +
+      criticalCount * 8 +
+      highCount * 4,
+    ),
+  );
+
+  const strengthLevel =
+    removalStrength >= 85 ? "Critical" :
+    removalStrength >= 70 ? "Very Strong" :
+    removalStrength >= 50 ? "Strong" :
+    removalStrength >= 30 ? "Moderate" :
+    "Low";
+
+  const strengthColor =
+    removalStrength >= 85 ? "bg-red-800" :
+    removalStrength >= 70 ? "bg-red-500" :
+    removalStrength >= 50 ? "bg-orange-400" :
+    removalStrength >= 30 ? "bg-yellow-400" :
+    "bg-slate-500";
+
+  const latestViolation = [...relevant]
+    .filter((video) => video.detected_at)
+    .sort(
+      (a, b) =>
+        new Date(b.detected_at).getTime() -
+        new Date(a.detected_at).getTime(),
+    )[0];
 
   return (
     <Card className={`relative bg-slate-900/40 backdrop-blur border p-4 transition-colors ${isSelected ? "border-cyan-400/60" : "border-slate-700/40"}`}>
@@ -293,6 +370,61 @@ function MonitoredChannelCard({ watch, isSelected, onSelect }: {
           )}
         </div>
       </div>
+      <div className="mt-3 rounded-lg border border-slate-700/60 bg-slate-950/45 p-3">
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <div className="text-lg font-semibold text-orange-200">
+              {suspectedViolations.length}
+            </div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">
+              Suspected IP
+            </div>
+          </div>
+          <div>
+            <div className="text-lg font-semibold text-red-300">
+              {confirmedViolations.length}
+            </div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">
+              Confirmed
+            </div>
+          </div>
+          <div>
+            <div className="text-lg font-semibold text-cyan-200">
+              {removalStrength}
+              <span className="text-[10px] text-slate-500">/100</span>
+            </div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">
+              Removal strength
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+          <div
+            className={`h-full rounded-full transition-all ${strengthColor}`}
+            style={{ width: `${removalStrength}%` }}
+          />
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[9px]">
+          <span className="font-semibold uppercase tracking-wider text-slate-300">
+            {strengthLevel}
+          </span>
+          <span className="text-slate-500">
+            Critical {criticalCount} · High {highCount} · Medium {mediumCount} · Low {lowCount}
+          </span>
+        </div>
+
+        {latestViolation && (
+          <div className="mt-1 text-[9px] text-slate-500">
+            Latest relevant risk{" "}
+            {formatDistanceToNow(new Date(latestViolation.detected_at), {
+              addSuffix: true,
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="mt-3 flex flex-wrap gap-1.5">
         <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={onSelect}>
           <Eye className="size-3 mr-1" />{isSelected ? "Hide" : "View"} videos
