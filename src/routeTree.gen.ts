@@ -28,6 +28,7 @@ import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
 import { Route as AppFaceProtectionRouteImport } from './routes/_app.face-protection'
 import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vault'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
+import { Route as AppChannelWatchRouteImport } from './routes/_app.channel-watch'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
@@ -41,6 +42,7 @@ import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.adm
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
+import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
 import { Route as AppSensitiveProtectionResultsIdRouteImport } from './routes/_app.sensitive-protection.results.$id'
 
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -138,6 +140,11 @@ const AppEnforcementRoute = AppEnforcementRouteImport.update({
   path: '/enforcement',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChannelWatchRoute = AppChannelWatchRouteImport.update({
+  id: '/channel-watch',
+  path: '/channel-watch',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCasesRoute = AppCasesRouteImport.update({
   id: '/cases',
   path: '/cases',
@@ -211,6 +218,12 @@ const AppSensitiveProtectionResultsIndexRoute =
     path: '/sensitive-protection/results/',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiPublicHooksChannelWatchPollRoute =
+  ApiPublicHooksChannelWatchPollRouteImport.update({
+    id: '/api/public/hooks/channel-watch-poll',
+    path: '/api/public/hooks/channel-watch-poll',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppSensitiveProtectionResultsIdRoute =
   AppSensitiveProtectionResultsIdRouteImport.update({
     id: '/sensitive-protection/results/$id',
@@ -225,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
+  '/channel-watch': typeof AppChannelWatchRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
   '/face-protection': typeof AppFaceProtectionRoute
@@ -250,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -258,6 +273,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
+  '/channel-watch': typeof AppChannelWatchRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
   '/face-protection': typeof AppFaceProtectionRoute
@@ -284,6 +300,7 @@ export interface FileRoutesByTo {
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
@@ -294,6 +311,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/_app/assets': typeof AppAssetsRoute
   '/_app/cases': typeof AppCasesRoute
+  '/_app/channel-watch': typeof AppChannelWatchRoute
   '/_app/enforcement': typeof AppEnforcementRoute
   '/_app/evidence-vault': typeof AppEvidenceVaultRoute
   '/_app/face-protection': typeof AppFaceProtectionRoute
@@ -320,6 +338,7 @@ export interface FileRoutesById {
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -331,6 +350,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/assets'
     | '/cases'
+    | '/channel-watch'
     | '/enforcement'
     | '/evidence-vault'
     | '/face-protection'
@@ -356,6 +376,7 @@ export interface FileRouteTypes {
     | '/api/public/veriff-webhook'
     | '/sensitive-protection/'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/channel-watch-poll'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -364,6 +385,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/assets'
     | '/cases'
+    | '/channel-watch'
     | '/enforcement'
     | '/evidence-vault'
     | '/face-protection'
@@ -390,6 +412,7 @@ export interface FileRouteTypes {
     | '/api/public/veriff-webhook'
     | '/sensitive-protection'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/channel-watch-poll'
     | '/sensitive-protection/results'
   id:
     | '__root__'
@@ -399,6 +422,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/_app/assets'
     | '/_app/cases'
+    | '/_app/channel-watch'
     | '/_app/enforcement'
     | '/_app/evidence-vault'
     | '/_app/face-protection'
@@ -425,6 +449,7 @@ export interface FileRouteTypes {
     | '/api/public/veriff-webhook'
     | '/_app/sensitive-protection/'
     | '/_app/sensitive-protection/results/$id'
+    | '/api/public/hooks/channel-watch-poll'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
@@ -437,6 +462,7 @@ export interface RootRouteChildren {
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
   ApiPublicVeriffWebhookRoute: typeof ApiPublicVeriffWebhookRoute
+  ApiPublicHooksChannelWatchPollRoute: typeof ApiPublicHooksChannelWatchPollRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -574,6 +600,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEnforcementRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/channel-watch': {
+      id: '/_app/channel-watch'
+      path: '/channel-watch'
+      fullPath: '/channel-watch'
+      preLoaderRoute: typeof AppChannelWatchRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cases': {
       id: '/_app/cases'
       path: '/cases'
@@ -665,6 +698,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/hooks/channel-watch-poll': {
+      id: '/api/public/hooks/channel-watch-poll'
+      path: '/api/public/hooks/channel-watch-poll'
+      fullPath: '/api/public/hooks/channel-watch-poll'
+      preLoaderRoute: typeof ApiPublicHooksChannelWatchPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/sensitive-protection/results/$id': {
       id: '/_app/sensitive-protection/results/$id'
       path: '/sensitive-protection/results/$id'
@@ -678,6 +718,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAssetsRoute: typeof AppAssetsRoute
   AppCasesRoute: typeof AppCasesRoute
+  AppChannelWatchRoute: typeof AppChannelWatchRoute
   AppEnforcementRoute: typeof AppEnforcementRoute
   AppEvidenceVaultRoute: typeof AppEvidenceVaultRoute
   AppFaceProtectionRoute: typeof AppFaceProtectionRoute
@@ -706,6 +747,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAssetsRoute: AppAssetsRoute,
   AppCasesRoute: AppCasesRoute,
+  AppChannelWatchRoute: AppChannelWatchRoute,
   AppEnforcementRoute: AppEnforcementRoute,
   AppEvidenceVaultRoute: AppEvidenceVaultRoute,
   AppFaceProtectionRoute: AppFaceProtectionRoute,
@@ -744,17 +786,8 @@ const rootRouteChildren: RootRouteChildren = {
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
   ApiPublicVeriffWebhookRoute: ApiPublicVeriffWebhookRoute,
+  ApiPublicHooksChannelWatchPollRoute: ApiPublicHooksChannelWatchPollRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

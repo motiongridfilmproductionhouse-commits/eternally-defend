@@ -29,6 +29,7 @@ type LensMatch = {
   thumbnail?: string;
   image?: string;
   image_url?: string;
+  faceSimilarity?: number;
 };
 
 async function lensSearch(imageUrl: string, personName: string, referenceBytes: Uint8Array) {
@@ -81,12 +82,12 @@ async function lensSearch(imageUrl: string, personName: string, referenceBytes: 
           QualityFilter: "AUTO",
         }));
         const best = (found.FaceMatches ?? []).reduce((score, item) => Math.max(score, item.Similarity ?? 0), 0);
-        return best >= 90 ? { ...match, faceSimilarity: best } : null;
+        return best >= 90 ? ({ ...match, faceSimilarity: best } as LensMatch) : null;
       } catch {
         return null;
       }
     }));
-    verified.push(...checked.filter((match): match is LensMatch => Boolean(match)));
+    verified.push(...checked.filter((match): match is LensMatch => match !== null));
   }
 
   const pages = verified

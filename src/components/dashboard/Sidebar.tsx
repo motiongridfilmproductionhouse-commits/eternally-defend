@@ -24,6 +24,7 @@ const mainNav: NavItem[] = [
   { icon: Activity, label: "Threat Monitoring", to: "/threat-monitoring" },
   { icon: Brain, label: "Evidence Analysis", to: "/intelligence" },
   { icon: Network, label: "Narrative Intelligence", to: "/narrative-intelligence" },
+  { icon: Radar, label: "Channel Watch", to: "/channel-watch" },
   { icon: ScanFace, label: "Face Protection", to: "/face-protection" },
   { icon: Lock, label: "Intimate Image & Deepfake Protection", to: "/sensitive-protection" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
