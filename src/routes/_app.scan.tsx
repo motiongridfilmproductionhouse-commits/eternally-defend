@@ -245,11 +245,26 @@ function ScanPage() {
   const report = m.data as ReportWithDiagnostics | undefined;
   const persistFn = useServerFn(persistScan);
   const analyzeFn = useServerFn(analyzeYoutubeVideo);
+  const persistedReportKeyRef = useRef<string | null>(null);
   const [analyzingVideos, setAnalyzingVideos] = useState<Set<string>>(new Set());
 
   // Persist to DB once the report lands. Runs once per report identity.
   useEffect(() => {
     if (!report || !report.hits.length) return;
+
+    const firstUrl = report.hits[0]?.url ?? "";
+    const lastUrl = report.hits[report.hits.length - 1]?.url ?? "";
+    const reportKey = [
+      report.query,
+      report.period,
+      report.hits.length,
+      firstUrl,
+      lastUrl,
+    ].join("::");
+
+    if (persistedReportKeyRef.current === reportKey) return;
+    persistedReportKeyRef.current = reportKey;
+
     let cancelled = false;
     (async () => {
       try {
@@ -346,6 +361,9 @@ function ScanPage() {
           void Promise.all([runOne(), runOne(), runOne()]);
         }
       } catch (e) {
+        if (persistedReportKeyRef.current === reportKey) {
+          persistedReportKeyRef.current = null;
+        }
         console.error("[scan] persist failed:", e);
       }
     })();

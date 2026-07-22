@@ -209,7 +209,7 @@ function ThreatRadarPage() {
     queryFn: async (): Promise<RadarScan[]> => {
       const { data, error } = await supabase
         .from("scans")
-        .select("id,name,query,protection_profile_id,created_at,status,total_hits")
+        .select("id,name,query,protection_profile_id,created_at,status,total_hits,scan_hits!inner(id)")
         .eq("user_id", userId!)
         .order("created_at", { ascending: false })
         .limit(100);
