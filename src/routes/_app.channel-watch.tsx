@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Play, Pause, Search, Trash2, ExternalLink, ShieldCheck, Activity, Users, Radar, RefreshCw, AlertTriangle, Eye } from "lucide-react";
 import {
   addChannelWatch, getVerifiedUserSummary, listChannelWatches, listRecentEvents,
@@ -96,6 +96,11 @@ function ChannelWatchPage() {
           ).length}
         />
 
+        <LiveMonitoringAnimation
+          watches={watches.data ?? []}
+          videos={allVideos.data ?? []}
+        />
+
         {/* Monitored channels */}
         <section>
           <SectionHeader title="Monitored Creator Channels" subtitle="Persistent YouTube watch — historical baseline plus continuous future upload monitoring." />
@@ -166,6 +171,319 @@ function ChannelWatchPage() {
 }
 
 // -------- Sub-components --------
+
+
+function LiveMonitoringAnimation({
+  watches,
+  videos,
+}: {
+  watches: Awaited<ReturnType<typeof listChannelWatches>>;
+  videos: Awaited<ReturnType<typeof listWatchVideos>>;
+}) {
+  const stream = useMemo(
+    () =>
+      [...videos]
+        .sort(
+          (a, b) =>
+            new Date(b.detected_at).getTime() -
+            new Date(a.detected_at).getTime(),
+        )
+        .slice(0, 30),
+    [videos],
+  );
+
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (stream.length <= 1) return;
+
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % stream.length);
+    }, 2400);
+
+    return () => window.clearInterval(timer);
+  }, [stream.length]);
+
+  useEffect(() => {
+    if (activeIndex >= stream.length) setActiveIndex(0);
+  }, [activeIndex, stream.length]);
+
+  const current = stream[activeIndex];
+  const watch = watches.find((item) => item.id === current?.watch_id);
+
+  const isScanning =
+    current?.analysis_status === "pending" ||
+    current?.analysis_status === "running";
+
+  const isFailed = current?.analysis_status === "failed";
+
+  const isReview =
+    current?.review_status === "pending" ||
+    current?.review_status === "escalated" ||
+    (current?.risk_score ?? 0) >= 55;
+
+  const state = isFailed
+    ? "failed"
+    : isScanning
+      ? "scanning"
+      : isReview
+        ? "review"
+        : "safe";
+
+  const stateLabel =
+    state === "failed"
+      ? "Analysis failed"
+      : state === "scanning"
+        ? "Scanning"
+        : state === "review"
+          ? "Review"
+          : "Safe";
+
+  const stateDescription =
+    state === "failed"
+      ? current?.analysis_error ?? "Analysis could not be completed"
+      : state === "scanning"
+        ? "Checking title, aliases, captions and identity signals"
+        : state === "review"
+          ? "Potential subject risk routed for human review"
+          : current?.classification === "informational"
+            ? "Subject mention detected — no actionable risk confirmed"
+            : "No actionable subject risk detected";
+
+  const activeCount = watches.filter(
+    (item) => item.status === "active",
+  ).length;
+
+  const completedCount = videos.filter(
+    (video) => video.analysis_status === "completed",
+  ).length;
+
+  const reviewCount = videos.filter(
+    (video) =>
+      video.review_status === "pending" ||
+      video.review_status === "escalated",
+  ).length;
+
+  const recent = stream.slice(0, 5);
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/55 p-5 shadow-[0_0_50px_rgba(8,145,178,0.08)]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-[0.24em] text-slate-400">
+              Live threat monitoring
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-emerald-300">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
+              </span>
+              {activeCount > 0 ? "Monitoring active" : "Monitoring paused"}
+            </span>
+          </div>
+
+          <p className="mt-2 text-xs text-slate-500">
+            Real fetched videos move through subject analysis and review.
+          </p>
+        </div>
+
+        <div className="flex gap-5 text-right">
+          <div>
+            <div className="text-xl font-semibold text-cyan-200">
+              {completedCount}
+            </div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">
+              Analyzed
+            </div>
+          </div>
+          <div>
+            <div className="text-xl font-semibold text-amber-300">
+              {reviewCount}
+            </div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">
+              Review
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative mt-5 grid min-h-[260px] grid-cols-1 items-center gap-5 lg:grid-cols-[1fr_1.1fr_1fr]">
+        <div className="relative flex min-h-[210px] flex-col items-center justify-center rounded-2xl border border-cyan-500/15 bg-cyan-950/10">
+          <div className="absolute inset-6 animate-pulse rounded-full border border-cyan-400/10" />
+          <div className="absolute inset-10 rounded-full border border-dashed border-cyan-300/20" />
+
+          <div className="relative grid size-24 place-items-center rounded-full border border-cyan-300/40 bg-cyan-500/10 shadow-[0_0_45px_rgba(34,211,238,0.25)]">
+            <div className="absolute inset-2 animate-ping rounded-full border border-cyan-300/20" />
+            <ShieldCheck className="size-10 text-cyan-300" />
+          </div>
+
+          <div className="relative mt-4 text-center">
+            <div className="text-[9px] uppercase tracking-[0.2em] text-cyan-300/70">
+              Protected identity
+            </div>
+            <div className="mt-1 text-xs text-slate-400">
+              Continuous subject protection
+            </div>
+          </div>
+        </div>
+
+        <div className="relative flex min-h-[230px] flex-col items-center justify-center">
+          <div className="absolute left-0 right-0 top-1/2 h-px overflow-hidden bg-cyan-400/20">
+            <div className="h-full w-1/3 animate-pulse bg-gradient-to-r from-transparent via-cyan-300 to-transparent" />
+          </div>
+
+          <div className="absolute left-3 top-[42%] size-2 animate-ping rounded-full bg-cyan-300" />
+          <div className="absolute right-3 top-[57%] size-2 animate-ping rounded-full bg-blue-400 [animation-delay:700ms]" />
+
+          <div className="relative z-10 flex items-center gap-3">
+            {stream.slice(activeIndex, activeIndex + 3).map((video, index) => (
+              <div
+                key={`${video.id}-${index}`}
+                className={`overflow-hidden rounded-lg border bg-slate-900 shadow-lg transition-all duration-700 ${
+                  index === 0
+                    ? "size-16 scale-110 border-cyan-300/70 shadow-cyan-500/20"
+                    : "size-12 border-slate-600/50 opacity-60"
+                }`}
+              >
+                {video.thumbnail_url ? (
+                  <img
+                    src={video.thumbnail_url}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <div className="grid size-full place-items-center">
+                    <Play className="size-4 text-slate-500" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="relative z-10 mt-5 max-w-[300px] text-center">
+            <div className="truncate text-sm font-semibold text-slate-100">
+              {watch?.channel_title ?? "Waiting for fetched videos"}
+            </div>
+            <div className="mt-1 truncate text-[10px] text-slate-500">
+              {current?.title ?? "New uploads will enter the analysis stream"}
+            </div>
+          </div>
+        </div>
+
+        <div className="relative flex min-h-[210px] flex-col items-center justify-center rounded-2xl border border-slate-700/50 bg-slate-900/35">
+          <div className="relative grid size-28 place-items-center rounded-full border border-cyan-400/30">
+            <div className="absolute inset-2 animate-spin rounded-full border border-dashed border-cyan-300/30 [animation-duration:5s]" />
+            <div className="absolute inset-5 animate-ping rounded-full border border-blue-400/20" />
+            <Radar className="size-10 animate-pulse text-cyan-300" />
+          </div>
+
+          <div className="mt-4 text-center">
+            <div className="text-[9px] uppercase tracking-[0.2em] text-slate-500">
+              AI analysis engine
+            </div>
+            <div className="mt-1 text-xs text-slate-300">
+              Alias + identity + captions
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className={`mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4 transition-colors duration-500 ${
+          state === "review"
+            ? "border-amber-400/30 bg-amber-500/10"
+            : state === "failed"
+              ? "border-red-400/30 bg-red-500/10"
+              : state === "scanning"
+                ? "border-cyan-400/30 bg-cyan-500/10"
+                : "border-emerald-400/30 bg-emerald-500/10"
+        }`}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className={`grid size-10 shrink-0 place-items-center rounded-full ${
+              state === "review"
+                ? "bg-amber-400/15 text-amber-300"
+                : state === "failed"
+                  ? "bg-red-400/15 text-red-300"
+                  : state === "scanning"
+                    ? "bg-cyan-400/15 text-cyan-300"
+                    : "bg-emerald-400/15 text-emerald-300"
+            }`}
+          >
+            {state === "review" || state === "failed" ? (
+              <AlertTriangle className="size-5" />
+            ) : state === "scanning" ? (
+              <Radar className="size-5 animate-spin" />
+            ) : (
+              <ShieldCheck className="size-5" />
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <div className="text-sm font-semibold uppercase tracking-wider text-slate-100">
+              {stateLabel}
+            </div>
+            <div className="truncate text-[10px] text-slate-400">
+              {stateDescription}
+            </div>
+          </div>
+        </div>
+
+        <div className="text-right">
+          <div className="text-lg font-semibold text-slate-100">
+            {current?.risk_score ?? 0}
+            <span className="text-[10px] text-slate-500">/100</span>
+          </div>
+          <div className="text-[8px] uppercase tracking-wider text-slate-500">
+            Current risk
+          </div>
+        </div>
+      </div>
+
+      {recent.length > 0 && (
+        <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-5">
+          {recent.map((video) => {
+            const needsReview =
+              video.review_status === "pending" ||
+              video.review_status === "escalated" ||
+              (video.risk_score ?? 0) >= 55;
+
+            return (
+              <div
+                key={video.id}
+                className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 p-2"
+              >
+                <span
+                  className={`size-2 shrink-0 rounded-full ${
+                    needsReview
+                      ? "bg-amber-400"
+                      : video.analysis_status === "completed"
+                        ? "bg-emerald-400"
+                        : "animate-pulse bg-cyan-400"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <div className="truncate text-[9px] text-slate-300">
+                    {video.title ?? "Untitled video"}
+                  </div>
+                  <div className="text-[8px] uppercase tracking-wider text-slate-600">
+                    {needsReview
+                      ? "Review"
+                      : video.analysis_status === "completed"
+                        ? "Cleared"
+                        : video.analysis_status}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function VerifiedUserCard({ summary, className }: { summary: Awaited<ReturnType<typeof getVerifiedUserSummary>> | undefined; className?: string }) {
   return (
