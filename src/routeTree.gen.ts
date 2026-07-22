@@ -41,6 +41,7 @@ import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.adm
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
+import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
 import { Route as AppSensitiveProtectionResultsIdRouteImport } from './routes/_app.sensitive-protection.results.$id'
 
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -211,6 +212,12 @@ const AppSensitiveProtectionResultsIndexRoute =
     path: '/sensitive-protection/results/',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiPublicHooksChannelWatchPollRoute =
+  ApiPublicHooksChannelWatchPollRouteImport.update({
+    id: '/api/public/hooks/channel-watch-poll',
+    path: '/api/public/hooks/channel-watch-poll',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppSensitiveProtectionResultsIdRoute =
   AppSensitiveProtectionResultsIdRouteImport.update({
     id: '/sensitive-protection/results/$id',
@@ -250,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -284,6 +292,7 @@ export interface FileRoutesByTo {
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
@@ -320,6 +329,7 @@ export interface FileRoutesById {
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/api/public/veriff-webhook'
     | '/sensitive-protection/'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/channel-watch-poll'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -390,6 +401,7 @@ export interface FileRouteTypes {
     | '/api/public/veriff-webhook'
     | '/sensitive-protection'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/channel-watch-poll'
     | '/sensitive-protection/results'
   id:
     | '__root__'
@@ -425,6 +437,7 @@ export interface FileRouteTypes {
     | '/api/public/veriff-webhook'
     | '/_app/sensitive-protection/'
     | '/_app/sensitive-protection/results/$id'
+    | '/api/public/hooks/channel-watch-poll'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
@@ -437,6 +450,7 @@ export interface RootRouteChildren {
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
   ApiPublicVeriffWebhookRoute: typeof ApiPublicVeriffWebhookRoute
+  ApiPublicHooksChannelWatchPollRoute: typeof ApiPublicHooksChannelWatchPollRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -665,6 +679,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/hooks/channel-watch-poll': {
+      id: '/api/public/hooks/channel-watch-poll'
+      path: '/api/public/hooks/channel-watch-poll'
+      fullPath: '/api/public/hooks/channel-watch-poll'
+      preLoaderRoute: typeof ApiPublicHooksChannelWatchPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/sensitive-protection/results/$id': {
       id: '/_app/sensitive-protection/results/$id'
       path: '/sensitive-protection/results/$id'
@@ -744,6 +765,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
   ApiPublicVeriffWebhookRoute: ApiPublicVeriffWebhookRoute,
+  ApiPublicHooksChannelWatchPollRoute: ApiPublicHooksChannelWatchPollRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
