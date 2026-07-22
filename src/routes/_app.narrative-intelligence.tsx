@@ -2,12 +2,29 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { clusterFindings, listNarrativeClusters, getClusterDetail } from "@/lib/mm/narrative.functions";
+import {
+  clusterFindings,
+  listNarrativeClusters,
+  getClusterDetail,
+  reviewNarrativeFinding,
+  createNarrativeRemovalDraft,
+} from "@/lib/mm/narrative.functions";
 import { PageCard, StatCard } from "@/components/dashboard/PageCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/hooks/use-session";
-import { Network, Sparkles, TrendingUp, Radio, Clock } from "lucide-react";
+import {
+  Network,
+  Sparkles,
+  TrendingUp,
+  Radio,
+  Clock,
+  CheckCircle2,
+  SearchCheck,
+  XCircle,
+  Send,
+  ShieldCheck,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_app/narrative-intelligence")({
   head: () => ({ meta: [{ title: "Narrative Intelligence — Eterna AI" }] }),
@@ -110,8 +127,38 @@ function ThreatDot({ score }: { score: number }) {
 
 function ClusterDetail({ clusterId }: { clusterId: string }) {
   const { session } = useSession();
+  const qc = useQueryClient();
   const getFn = useServerFn(getClusterDetail);
-  const q = useQuery({ queryKey: ["cluster", clusterId], queryFn: () => getFn({ data: { clusterId } }), enabled: !!session });
+  const reviewFn = useServerFn(reviewNarrativeFinding);
+  const removalFn = useServerFn(createNarrativeRemovalDraft);
+
+  const q = useQuery({
+    queryKey: ["cluster", clusterId],
+    queryFn: () => getFn({ data: { clusterId } }),
+    enabled: !!session,
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: ({
+      videoId,
+      decision,
+    }: {
+      videoId: string;
+      decision: "confirmed" | "not_relevant" | "needs_investigation";
+    }) => reviewFn({ data: { videoId, decision } }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["cluster", clusterId] });
+      await qc.invalidateQueries({ queryKey: ["narrative-clusters"] });
+    },
+  });
+
+  const removalMutation = useMutation({
+    mutationFn: (videoId: string) =>
+      removalFn({ data: { videoId, clusterId } }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["cluster", clusterId] });
+    },
+  });
   if (q.isLoading) return <div className="border border-border rounded-xl p-4 text-sm text-muted-foreground">Loading…</div>;
   const c: any = q.data?.cluster;
   if (!c) return null;
@@ -165,6 +212,123 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
 
               <div className="mt-1 text-[10px] text-muted-foreground">
                 Risk {finding.risk_score ?? 0} · {finding.classification} · {finding.review_status}
+              </div>
+
+              <div className="mt-2 rounded-md border border-border bg-muted/30 p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1 text-[10px] font-medium">
+                    <ShieldCheck className="size-3" />
+                    Evidence strength
+                  </span>
+                  <span className="text-[10px] font-semibold">
+                    {finding.evidence_strength ?? 0}/100
+                  </span>
+                </div>
+
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={`h-full rounded-full ${
+                      (finding.evidence_strength ?? 0) >= 70
+                        ? "bg-emerald-500"
+                        : (finding.evidence_strength ?? 0) >= 40
+                          ? "bg-amber-500"
+                          : "bg-slate-400"
+                    }`}
+                    style={{
+                      width: `${Math.min(100, finding.evidence_strength ?? 0)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-2 grid grid-cols-1 gap-1.5">
+                <div className="grid grid-cols-3 gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={finding.review_status === "confirmed" ? "default" : "outline"}
+                    className="h-7 px-1 text-[9px]"
+                    disabled={reviewMutation.isPending}
+                    onClick={() =>
+                      reviewMutation.mutate({
+                        videoId: finding.id,
+                        decision: "confirmed",
+                      })
+                    }
+                  >
+                    <CheckCircle2 className="mr-1 size-3" />
+                    Confirm
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={finding.review_status === "needs_investigation" ? "default" : "outline"}
+                    className="h-7 px-1 text-[9px]"
+                    disabled={reviewMutation.isPending}
+                    onClick={() =>
+                      reviewMutation.mutate({
+                        videoId: finding.id,
+                        decision: "needs_investigation",
+                      })
+                    }
+                  >
+                    <SearchCheck className="mr-1 size-3" />
+                    Investigate
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={finding.review_status === "not_relevant" ? "destructive" : "outline"}
+                    className="h-7 px-1 text-[9px]"
+                    disabled={reviewMutation.isPending}
+                    onClick={() =>
+                      reviewMutation.mutate({
+                        videoId: finding.id,
+                        decision: "not_relevant",
+                      })
+                    }
+                  >
+                    <XCircle className="mr-1 size-3" />
+                    Not relevant
+                  </Button>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 text-[10px]"
+                  disabled={
+                    finding.review_status !== "confirmed" ||
+                    removalMutation.isPending
+                  }
+                  onClick={() => removalMutation.mutate(finding.id)}
+                >
+                  <Send className="mr-1 size-3" />
+                  {removalMutation.isPending
+                    ? "Creating draft…"
+                    : "Send to Removal Center"}
+                </Button>
+
+                {finding.review_status !== "confirmed" && (
+                  <div className="text-[9px] text-muted-foreground">
+                    Human confirmation is required before creating a removal draft.
+                  </div>
+                )}
+
+                {removalMutation.isSuccess && (
+                  <div className="text-[9px] text-emerald-600">
+                    Removal Center draft created. Submission still requires approval.
+                  </div>
+                )}
+
+                {(reviewMutation.error || removalMutation.error) && (
+                  <div className="text-[9px] text-destructive">
+                    {(reviewMutation.error as Error | null)?.message ??
+                      (removalMutation.error as Error | null)?.message}
+                  </div>
+                )}
               </div>
 
               {finding.url && (

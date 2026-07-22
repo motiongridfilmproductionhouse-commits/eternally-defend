@@ -305,10 +305,10 @@ export const clusterFindings = createServerFn({ method: "POST" })
         if (!summary) continue;
 
         addToGroup(groups, {
-          key: claimKey(summary),
-          kind: "channel_watch_claim",
+          key: `subject-risk:${hashText(normalizeClaim(target))}:${video.classification}`,
+          kind: "channel_watch_campaign",
           target,
-          summary,
+          summary: `${target} — ${String(video.classification).replaceAll("_", " ")}`,
           finding: {
             id: `${video.id}:${findingIndex}`,
             origin: "channel_watch",
@@ -563,7 +563,55 @@ export const getClusterDetail = createServerFn({ method: "GET" })
         throw new Error(channelResult.error.message);
       }
 
-      channelWatchFindings = channelResult.data ?? [];
+      channelWatchFindings = (channelResult.data ?? []).map((finding: any) => {
+        const mention =
+          finding.mention_match &&
+          typeof finding.mention_match === "object"
+            ? finding.mention_match as Record<string, unknown>
+            : {};
+
+        const timestamps = Array.isArray(mention.timestamp_findings)
+          ? mention.timestamp_findings
+          : [];
+
+        const hasTranscript =
+          Boolean(mention.transcript) ||
+          Boolean(mention.transcript_text) ||
+          timestamps.length > 0;
+
+        const hasSubjectMatch =
+          Boolean(mention.matched) ||
+          Boolean(mention.subject_matched) ||
+          Boolean(mention.match_count) ||
+          timestamps.length > 0;
+
+        const riskScore = Math.max(
+          0,
+          Math.min(100, Number(finding.risk_score ?? 0)),
+        );
+
+        const evidenceStrength = Math.min(
+          100,
+          Math.round(
+            riskScore * 0.45 +
+            (hasSubjectMatch ? 20 : 0) +
+            (hasTranscript ? 15 : 0) +
+            (finding.url ? 10 : 0) +
+            (finding.review_status === "confirmed" ? 10 : 0),
+          ),
+        );
+
+        return {
+          ...finding,
+          evidence_strength: evidenceStrength,
+          evidence_signals: {
+            subject_match: hasSubjectMatch,
+            transcript_or_timestamps: hasTranscript,
+            source_url: Boolean(finding.url),
+            human_confirmed: finding.review_status === "confirmed",
+          },
+        };
+      });
     }
 
     return {
@@ -572,3 +620,202 @@ export const getClusterDetail = createServerFn({ method: "GET" })
       channelWatchFindings,
     };
   });
+
+const NarrativeReviewInput = z.object({
+  videoId: z.string().uuid(),
+  decision: z.enum([
+    "confirmed",
+    "not_relevant",
+    "needs_investigation",
+  ]),
+});
+
+export const reviewNarrativeFinding = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => NarrativeReviewInput.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const result = await supabase
+      .from("channel_watch_videos")
+      .update({
+        review_status: data.decision,
+      } as any)
+      .eq("id", data.videoId)
+      .eq("user_id", userId)
+      .select("id,review_status")
+      .maybeSingle();
+
+    if (result.error) throw new Error(result.error.message);
+    if (!result.data) throw new Error("Channel Watch finding not found");
+
+    return {
+      ok: true,
+      finding: result.data,
+    };
+  });
+
+const NarrativeRemovalInput = z.object({
+  videoId: z.string().uuid(),
+  clusterId: z.string().uuid(),
+});
+
+export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => NarrativeRemovalInput.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const videoResult = await supabase
+      .from("channel_watch_videos")
+      .select(
+        "id,watch_id,video_id,title,description,url,published_at,detected_at,view_count,risk_score,classification,review_status,mention_match",
+      )
+      .eq("id", data.videoId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (videoResult.error) {
+      throw new Error(videoResult.error.message);
+    }
+
+    const video: any = videoResult.data;
+    if (!video) throw new Error("Channel Watch finding not found");
+
+    if (video.review_status !== "confirmed") {
+      throw new Error(
+        "Human confirmation is required before creating a removal draft",
+      );
+    }
+
+    const watchResult = await supabase
+      .from("channel_watches")
+      .select("id,channel_title,handle,channel_url,reason")
+      .eq("id", video.watch_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (watchResult.error) {
+      throw new Error(watchResult.error.message);
+    }
+
+    const watch: any = watchResult.data;
+    const targetUrl =
+      video.url ||
+      `https://www.youtube.com/watch?v=${video.video_id}`;
+
+    const existingResult = await supabase
+      .from("enforcement_requests")
+      .select("id,status")
+      .eq("user_id", userId)
+      .eq("target_url", targetUrl)
+      .in("status", [
+        "Draft",
+        "Evidence Review",
+        "Authorization Pending",
+        "Ready for Approval",
+      ])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingResult.error) {
+      throw new Error(existingResult.error.message);
+    }
+
+    let requestId = existingResult.data?.id ?? null;
+
+    if (!requestId) {
+      const requestResult = await supabase
+        .from("enforcement_requests")
+        .insert({
+          user_id: userId,
+          scan_hit_id: null,
+          platform: "YouTube",
+          method: "Narrative Intelligence Review",
+          target_url: targetUrl,
+          status: "Draft",
+          submission_status: "not_submitted",
+          metadata: {
+            created_from: "narrative_intelligence",
+            narrative_cluster_id: data.clusterId,
+            channel_watch_video_id: video.id,
+            classification: video.classification,
+            risk_score: video.risk_score,
+            review_status: video.review_status,
+            channel_title: watch?.channel_title ?? null,
+            channel_handle: watch?.handle ?? null,
+            protected_subject: watch?.reason ?? null,
+            human_approval_required: true,
+          },
+        } as any)
+        .select("id")
+        .single();
+
+      if (requestResult.error || !requestResult.data) {
+        throw new Error(
+          requestResult.error?.message ??
+          "Unable to create Removal Center draft",
+        );
+      }
+
+      requestId = requestResult.data.id;
+    }
+
+    const capturedAt = new Date().toISOString();
+    const evidencePayload = {
+      captured_at: capturedAt,
+      narrative_cluster_id: data.clusterId,
+      channel_watch_video_id: video.id,
+      youtube_video_id: video.video_id,
+      title: video.title,
+      description: video.description,
+      target_url: targetUrl,
+      published_at: video.published_at,
+      detected_at: video.detected_at,
+      view_count: video.view_count,
+      risk_score: video.risk_score,
+      classification: video.classification,
+      review_status: video.review_status,
+      mention_match: video.mention_match,
+      channel_title: watch?.channel_title ?? null,
+      channel_handle: watch?.handle ?? null,
+      channel_url: watch?.channel_url ?? null,
+      protected_subject: watch?.reason ?? null,
+    };
+
+    const bytes = new TextEncoder().encode(
+      JSON.stringify(evidencePayload),
+    );
+
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+
+    const sha256 = Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    const evidenceResult = await supabase
+      .from("enforcement_evidence")
+      .insert({
+        user_id: userId,
+        enforcement_request_id: requestId,
+        evidence_type: "channel_watch_narrative",
+        reference: targetUrl,
+        payload: {
+          ...evidencePayload,
+          sha256,
+        },
+      } as any);
+
+    if (evidenceResult.error) {
+      throw new Error(evidenceResult.error.message);
+    }
+
+    return {
+      ok: true,
+      enforcementRequestId: requestId,
+      sha256,
+      submissionStatus: "not_submitted",
+    };
+  });
+
