@@ -49,8 +49,19 @@ function ChannelWatchPage() {
   const [addOpen, setAddOpen] = useState(false);
   const summary = useQuery(summaryQO());
   const watches = useQuery(watchesQO());
-  const videos = useQuery(videosQO(selectedWatch));
+  // Keep the complete video collection for per-channel card statistics.
+  const allVideos = useQuery(videosQO());
+
+  // Load a separate result set only for the channel whose videos are open.
+  const selectedVideos = useQuery({
+    ...videosQO(selectedWatch),
+    enabled: Boolean(selectedWatch),
+  });
+
   const events = useQuery(eventsQO());
+  const selectedChannel = (watches.data ?? []).find(
+    (watch) => watch.id === selectedWatch,
+  );
 
   return (
     <div className="min-h-full text-slate-100" style={{
@@ -79,8 +90,10 @@ function ChannelWatchPage() {
         {/* Flow graph */}
         <FlowGraph
           channelCount={watches.data?.length ?? 0}
-          videoCount={videos.data?.length ?? 0}
-          reviewCount={(videos.data ?? []).filter((v) => v.review_status === "pending").length}
+          videoCount={allVideos.data?.length ?? 0}
+          reviewCount={(allVideos.data ?? []).filter(
+            (video) => video.review_status === "pending",
+          ).length}
         />
 
         {/* Monitored channels */}
@@ -98,22 +111,47 @@ function ChannelWatchPage() {
                   watch={w}
                   isSelected={selectedWatch === w.id}
                   onSelect={() => setSelectedWatch(selectedWatch === w.id ? undefined : w.id)}
-                  videos={(videos.data ?? []).filter((video) => video.watch_id === w.id)}
+                  videos={(allVideos.data ?? []).filter(
+                    (video) => video.watch_id === w.id,
+                  )}
                 />
               ))}
             </div>
           )}
         </section>
 
-        {/* Fetched videos */}
-        <section>
-          <SectionHeader
-            title={selectedWatch ? "Fetched Videos — Filtered" : "Fetched Videos — All channels"}
-            subtitle={selectedWatch ? "Showing videos for the selected channel." : "Baseline videos and newly detected uploads across every watch."}
-            action={selectedWatch ? <Button variant="ghost" size="sm" onClick={() => setSelectedWatch(undefined)}>Clear filter</Button> : null}
-          />
-          <VideosTable rows={videos.data ?? []} loading={videos.isLoading} />
-        </section>
+        {/* Selected channel videos only */}
+        {selectedWatch && (
+          <section
+            key={selectedWatch}
+            className="scroll-mt-24 rounded-xl border border-cyan-500/20 bg-slate-950/30 p-4"
+          >
+            <SectionHeader
+              title={`Fetched Videos — ${
+                selectedChannel?.channel_title ??
+                selectedChannel?.handle ??
+                "Selected channel"
+              }`}
+              subtitle="Only videos fetched from this monitored channel are shown below."
+              action={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-600 bg-slate-900 text-slate-200"
+                  onClick={() => setSelectedWatch(undefined)}
+                >
+                  Hide channel videos
+                </Button>
+              }
+            />
+            <VideosTable
+              rows={(selectedVideos.data ?? []).filter(
+                (video) => video.watch_id === selectedWatch,
+              )}
+              loading={selectedVideos.isLoading}
+            />
+          </section>
+        )}
 
         {/* Activity feed */}
         <section>
