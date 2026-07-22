@@ -45,14 +45,14 @@ function NarrativeIntelligencePage() {
         </Button>}>
         {mut.data && (
           <div className="mb-3 text-xs text-emerald-600">
-            Clustered {mut.data.linked} findings into {mut.data.clusters} narratives ({mut.data.created} new, {mut.data.updated} updated).
+            Clustered {mut.data.linked} multimedia findings and {mut.data.importedChannelWatch} Channel Watch findings into {mut.data.clusters} narratives ({mut.data.created} new, {mut.data.updated} updated).
           </div>
         )}
         {q.isLoading ? <div className="text-sm text-muted-foreground">Loading…</div> :
          clusters.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
             <Network className="size-8 mx-auto mb-2 opacity-50" />
-            No narratives clustered yet. Run one or more analyses in Intelligence, then click <b>Recompute clusters</b>.
+            No eligible narratives clustered yet. Analyze review-level content in Channel Watch or Intelligence, then click <b>Recompute clusters</b>.
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
@@ -116,6 +116,7 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
   const c: any = q.data?.cluster;
   if (!c) return null;
   const findings = q.data?.findings ?? [];
+  const channelWatchFindings = q.data?.channelWatchFindings ?? [];
   return (
     <div className="border border-border rounded-xl p-4 space-y-3">
       <div>
@@ -139,12 +140,62 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
         </ul>
       </div>
       <div>
-        <div className="text-[10px] uppercase text-muted-foreground mb-1">Findings in cluster ({findings.length})</div>
-        <ul className="text-xs space-y-1 max-h-64 overflow-auto">
-          {findings.map((f: any) => (
-            <li key={f.id} className="border border-border rounded p-1.5">
-              <div className="font-medium">{f.title}</div>
-              <div className="text-[10px] text-muted-foreground">{f.severity} · {f.human_review_status}</div>
+        <div className="text-[10px] uppercase text-muted-foreground mb-1">
+          Evidence in cluster ({findings.length + channelWatchFindings.length})
+        </div>
+
+        <ul className="text-xs space-y-1 max-h-80 overflow-auto">
+          {channelWatchFindings.map((finding: any) => (
+            <li
+              key={`channel-${finding.id}`}
+              className="border border-border rounded p-2"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <Badge variant="outline" className="text-[9px]">
+                  Channel Watch
+                </Badge>
+                <span className="text-[9px] text-amber-600">
+                  Unverified — human review required
+                </span>
+              </div>
+
+              <div className="mt-1 font-medium">
+                {finding.title ?? "Untitled video"}
+              </div>
+
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                Risk {finding.risk_score ?? 0} · {finding.classification} · {finding.review_status}
+              </div>
+
+              {finding.url && (
+                <a
+                  href={finding.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 block truncate text-[10px] text-primary hover:underline"
+                >
+                  {finding.url}
+                </a>
+              )}
+            </li>
+          ))}
+
+          {findings.map((finding: any) => (
+            <li
+              key={`multimedia-${finding.id}`}
+              className="border border-border rounded p-2"
+            >
+              <Badge variant="outline" className="text-[9px]">
+                Multimedia Intelligence
+              </Badge>
+
+              <div className="mt-1 font-medium">
+                {finding.title}
+              </div>
+
+              <div className="text-[10px] text-muted-foreground">
+                {finding.severity} · {finding.human_review_status}
+              </div>
             </li>
           ))}
         </ul>
