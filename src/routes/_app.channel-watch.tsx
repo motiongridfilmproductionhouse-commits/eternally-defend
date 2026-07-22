@@ -258,7 +258,13 @@ function MonitoredChannelCard({ watch, isSelected, onSelect }: {
       : "text-orange-300 border-orange-500/40";
 
   return (
-    <Card className={`bg-slate-900/40 backdrop-blur border p-4 transition-colors ${isSelected ? "border-cyan-400/60" : "border-slate-700/40"}`}>
+    <Card className={`relative bg-slate-900/40 backdrop-blur border p-4 transition-colors ${isSelected ? "border-cyan-400/60" : "border-slate-700/40"}`}>
+      {scanMut.isPending && (
+        <ChannelScanOverlay
+          channelName={watch.channel_title ?? watch.channel_id}
+          subject={watch.reason}
+        />
+      )}
       <div className="flex items-start gap-3">
         <div className="size-11 rounded-lg overflow-hidden bg-slate-800 shrink-0">
           {watch.avatar_url ? <img src={watch.avatar_url} alt="" className="size-full object-cover" /> : <Users className="size-full p-2 text-slate-500" />}
@@ -312,6 +318,123 @@ function MonitoredChannelCard({ watch, isSelected, onSelect }: {
         </Button>
       </div>
     </Card>
+  );
+}
+
+function ChannelScanOverlay({
+  channelName,
+  subject,
+}: {
+  channelName: string;
+  subject: string;
+}) {
+  const dots = Array.from({ length: 48 });
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#030712]/95 backdrop-blur-xl">
+      <div className="absolute inset-0 opacity-30" style={{
+        background:
+          "radial-gradient(circle at 50% 45%, rgba(34,211,238,.18), transparent 32%)," +
+          "radial-gradient(circle at 35% 60%, rgba(59,130,246,.13), transparent 30%)",
+      }} />
+
+      <div className="relative flex w-full max-w-4xl flex-col items-center px-6 text-center">
+        <div className="mb-6 text-[10px] uppercase tracking-[0.4em] text-cyan-300/70">
+          Eterna continuous intelligence
+        </div>
+
+        <div className="relative size-[330px] sm:size-[430px]">
+          <div className="absolute inset-0 rounded-full border border-cyan-300/10" />
+          <div className="absolute inset-5 animate-[spin_14s_linear_infinite] rounded-full border border-dashed border-cyan-300/30" />
+          <div className="absolute inset-10 animate-[spin_9s_linear_infinite_reverse] rounded-full border border-blue-400/25" />
+
+          <div
+            className="absolute inset-16 animate-pulse rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle at 40% 35%, rgba(255,255,255,.18), transparent 8%)," +
+                "radial-gradient(circle at 45% 45%, rgba(34,211,238,.30), rgba(30,64,175,.20) 42%, rgba(2,6,23,.94) 72%)",
+              boxShadow:
+                "0 0 80px rgba(34,211,238,.18), inset 0 0 55px rgba(59,130,246,.22)",
+            }}
+          />
+
+          <div className="absolute inset-12 animate-[spin_24s_linear_infinite]">
+            {dots.map((_, index) => {
+              const angle = (index / dots.length) * 360;
+              const size = index % 5 === 0 ? 4 : 2;
+              return (
+                <span
+                  key={index}
+                  className="absolute left-1/2 top-1/2 rounded-full bg-cyan-200"
+                  style={{
+                    width: size,
+                    height: size,
+                    opacity: 0.25 + (index % 7) * 0.08,
+                    transform:
+                      `rotate(${angle}deg) translateY(-135px) rotate(-${angle}deg)`,
+                    boxShadow: "0 0 8px rgba(103,232,249,.8)",
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          <div className="absolute inset-[27%] animate-[spin_4s_linear_infinite] rounded-full border-t-2 border-r border-cyan-300/80" />
+          <div className="absolute inset-[31%] animate-[spin_3s_linear_infinite_reverse] rounded-full border-b-2 border-l border-blue-400/70" />
+
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-16">
+            <ShieldCheck className="mb-3 size-8 animate-pulse text-cyan-200" />
+            <div className="text-[10px] uppercase tracking-[0.32em] text-cyan-300/70">
+              Live channel scan
+            </div>
+            <div className="mt-3 max-w-[210px] truncate text-lg font-semibold text-white">
+              {channelName}
+            </div>
+            <div className="mt-1 max-w-[220px] truncate text-xs text-cyan-100/70">
+              Detecting content about {subject}
+            </div>
+          </div>
+
+          <div className="absolute left-1/2 top-0 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-slate-950 px-3 py-1 text-[9px] uppercase tracking-widest text-cyan-200">
+            Upload discovery
+          </div>
+          <div className="absolute bottom-8 left-0 rounded-full border border-blue-400/30 bg-slate-950 px-3 py-1 text-[9px] uppercase tracking-widest text-blue-200">
+            Identity match
+          </div>
+          <div className="absolute bottom-8 right-0 rounded-full border border-violet-400/30 bg-slate-950 px-3 py-1 text-[9px] uppercase tracking-widest text-violet-200">
+            Risk analysis
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-5 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+          <span className="flex items-center gap-2">
+            <span className="size-1.5 animate-pulse rounded-full bg-cyan-300" />
+            Fetching newest uploads
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-1.5 animate-pulse rounded-full bg-blue-400 [animation-delay:300ms]" />
+            Matching protected identity
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-1.5 animate-pulse rounded-full bg-violet-400 [animation-delay:600ms]" />
+            Preparing risk evidence
+          </span>
+        </div>
+
+        <div className="mt-6 h-1 w-full max-w-md overflow-hidden rounded-full bg-slate-800">
+          <div className="h-full w-1/2 animate-[scan-progress_2s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500" />
+        </div>
+
+        <style>{`
+          @keyframes scan-progress {
+            0% { transform: translateX(-110%); }
+            50% { transform: translateX(100%); }
+            100% { transform: translateX(220%); }
+          }
+        `}</style>
+      </div>
+    </div>
   );
 }
 
