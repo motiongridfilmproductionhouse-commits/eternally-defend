@@ -164,6 +164,13 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
   const textBlob = `${v.title ?? ""}\n${v.description ?? ""}`;
   const aliasHits = scanAliases(textBlob, aliases);
 
+  // Analyze real captions/spoken content with exact timestamps.
+  const { analyzeChannelWatchCaptions } = await import("./captions.server");
+  const captionAnalysis = await analyzeChannelWatchCaptions(
+    v.video_id,
+    aliases,
+  );
+
   // Best-effort face match — reuses existing helper so we stay consistent with
   // the rest of the scan pipeline.
   let faceMatches = 0;
@@ -196,7 +203,30 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
     console.warn("[channel-watch] face analysis failed", (err as Error).message);
   }
 
-  const decision = classify({ aliasHits, faceMatches, isBaseline: !!v.is_baseline });
+  let decision = classify({
+    aliasHits,
+    faceMatches,
+    isBaseline: !!v.is_baseline,
+  });
+
+  // Caption findings are stronger than metadata-only matches. A simple name
+  // mention remains informational; risky classified speech enters review.
+  if (captionAnalysis.maxRisk > decision.risk) {
+    decision = {
+      classification: "potential_harm",
+      risk: captionAnalysis.maxRisk,
+      requiresReview: captionAnalysis.maxRisk >= 55,
+    };
+  } else if (
+    captionAnalysis.mentionCount > 0 &&
+    decision.classification === "not_relevant"
+  ) {
+    decision = {
+      classification: "informational",
+      risk: 20,
+      requiresReview: false,
+    };
+  }
 
   await supabase.from("channel_watch_videos").update({
     analysis_status: "completed",
@@ -204,7 +234,18 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
     classification: decision.classification,
     risk_score: decision.risk,
     review_status: decision.requiresReview ? "pending" : "not_required",
-    mention_match: { hits: aliasHits, alias_count: aliases.length } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["mention_match"],
+    mention_match: {
+      hits: aliasHits,
+      alias_count: aliases.length,
+      transcript_analysis_version: 2,
+      caption_state: captionAnalysis.state,
+      caption_language: captionAnalysis.language,
+      caption_source: captionAnalysis.source,
+      caption_segment_count: captionAnalysis.segmentCount,
+      transcript_mention_count: captionAnalysis.mentionCount,
+      timestamp_findings: captionAnalysis.findings,
+      caption_error: captionAnalysis.reason ?? null,
+    } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["mention_match"],
     protected_asset_similarity: { face_matches: faceMatches } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["protected_asset_similarity"],
   }).eq("id", v.id);
 
@@ -227,6 +268,11 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
         risk_score: decision.risk,
         alias_hits: aliasHits,
         face_matches: faceMatches,
+        caption_state: captionAnalysis.state,
+        caption_language: captionAnalysis.language,
+        transcript_mention_count: captionAnalysis.mentionCount,
+        timestamp_findings: captionAnalysis.findings,
+        caption_error: captionAnalysis.reason ?? null,
         captured_at: new Date().toISOString(),
       },
     });
@@ -237,9 +283,8 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
   // Relevant new uploads with review-level risk enter the takedown workflow
   // as a Draft. Submission always requires human approval.
   if (
-    !v.is_baseline &&
     decision.requiresReview &&
-    decision.risk >= 55 &&
+    decision.risk >= (v.is_baseline ? 70 : 55) &&
     decision.classification !== "not_relevant"
   ) {
     const { data: existing } = await supabase
@@ -311,6 +356,9 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
       requires_review: decision.requiresReview,
       alias_hits: aliasHits.length,
       face_matches: faceMatches,
+      caption_state: captionAnalysis.state,
+      transcript_mentions: captionAnalysis.mentionCount,
+      timestamp_findings: captionAnalysis.findings.length,
       enforcement_request_id: enforcementRequestId,
     },
   });

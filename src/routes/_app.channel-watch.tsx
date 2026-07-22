@@ -253,12 +253,14 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
     mutationFn: () => historyFn({
       data: {
         watchId: watch.id,
-        count: 10,
+        count: 50,
       },
     }),
     onSuccess: (result) => {
       toast.success(
-        `Current videos analyzed — ${
+        `Analysis complete — ${
+          (result as { analyzed?: number }).analyzed ?? 0
+        } new video(s) analyzed from ${
           (result as { checked?: number }).checked ?? 0
         } checked`,
       );
@@ -453,7 +455,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         <Button
           size="sm"
           variant="outline"
-          className="border-cyan-500/30 text-cyan-100 h-7 text-[11px]"
+          className="h-8 !border-cyan-500/60 !bg-cyan-950/80 !text-cyan-200 hover:!bg-cyan-900 hover:!text-white disabled:!border-slate-700 disabled:!bg-slate-900 disabled:!text-slate-500 disabled:opacity-70 text-[11px] font-semibold shadow-sm"
           disabled={scanMut.isPending || historyMut.isPending}
           onClick={() => scanMut.mutate()}
         >
@@ -464,12 +466,12 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         <Button
           size="sm"
           variant="outline"
-          className="border-violet-500/30 text-violet-100 h-7 text-[11px]"
+          className="h-8 !border-violet-500/60 !bg-violet-950/80 !text-violet-200 hover:!bg-violet-900 hover:!text-white disabled:!border-slate-700 disabled:!bg-slate-900 disabled:!text-slate-500 disabled:opacity-70 text-[11px] font-semibold shadow-sm"
           disabled={historyMut.isPending || scanMut.isPending}
           onClick={() => historyMut.mutate()}
         >
           <Radar className={`size-3 mr-1 ${historyMut.isPending ? "animate-pulse" : ""}`} />
-          {historyMut.isPending ? "Analyzing 10…" : "Analyze current"}
+          {historyMut.isPending ? "Analyzing captions…" : "Analyze current"}
         </Button>
         {watch.status === "active" ? (
           <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={() => statusMut.mutate("paused")}>
