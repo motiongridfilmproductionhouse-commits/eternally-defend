@@ -786,7 +786,7 @@ export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
           user_id: userId,
           scan_hit_id: null,
           platform: "YouTube",
-          method: "Narrative Intelligence Review",
+          method: "Platform Report",
           target_url: targetUrl,
           status: "Draft",
           submission_status: "not_submitted",
