@@ -102,6 +102,52 @@ function shortDate(iso: string) {
 const SEV_SET: Severity[] = ["Critical", "High", "Medium", "Low"];
 const VIR_SET: Virality[] = ["Normal", "Growing", "Viral", "Exploding"];
 const RISK_SET: RiskType[] = ["Defamation", "Impersonation", "Deepfake", "Copyright", "Fraud", "Scam", "Brand Abuse", "News Attack"];
+
+const RISK_DB_VALUES: Record<RiskType, string[]> = {
+  Defamation: [
+    "Defamation",
+    "Harassment",
+    "Allegation",
+    "Criticism",
+    "Complaint",
+    "Controversy",
+    "Exposé",
+    "Boycott",
+    "Legal Dispute",
+  ],
+  Impersonation: [
+    "Impersonation",
+    "Fake Endorsement",
+  ],
+  Deepfake: [
+    "Deepfake",
+  ],
+  Copyright: [
+    "Copyright",
+    "Reaction/Reupload",
+    "Leak",
+  ],
+  Fraud: [
+    "Fraud",
+    "Fake Endorsement",
+  ],
+  Scam: [
+    "Scam",
+  ],
+  "Brand Abuse": [
+    "Brand Abuse",
+    "Fake Endorsement",
+    "Impersonation",
+  ],
+  "News Attack": [
+    "News Attack",
+    "News",
+    "Review",
+    "Viral",
+    "Mention",
+  ],
+};
+
 const STATUS_SET: Status[] = ["Detected", "In Review", "Takedown Sent", "Resolved"];
 
 function normSeverity(s: string | null, threatScore: number): Severity {
@@ -128,8 +174,16 @@ function normVirality(v: string | null, growth: number): Virality {
 }
 
 function normRiskType(r: string | null): RiskType {
-  const match = RISK_SET.find((x) => x.toLowerCase() === (r ?? "").toLowerCase());
-  return match ?? "News Attack";
+  const raw = (r ?? "").trim().toLowerCase();
+
+  for (const riskType of RISK_SET) {
+    const values = RISK_DB_VALUES[riskType];
+    if (values.some((value) => value.toLowerCase() === raw)) {
+      return riskType;
+    }
+  }
+
+  return "News Attack";
 }
 
 function normStatus(row: HitRow): Status {
@@ -225,17 +279,24 @@ function ThreatRadarPage() {
     availableScans.find((scan) => scan.id === selectedScanId) ?? null;
 
   const hitsQuery = useQuery({
-    queryKey: ["threat_radar_hits", userId, selectedScanId],
+    queryKey: ["threat_radar_hits", userId, selectedScanId, risk],
     enabled: ready && !!userId && !!selectedScanId,
     queryFn: async (): Promise<HitRow[]> => {
-      const { data, error } = await supabase
+      let hitsRequest = supabase
         .from("scan_hits")
         .select("id,title,description,source,source_type,country,permalink,canonical_url,reach,threat_score,risk_score,severity,velocity,risk_type,growth_pct,narrative_claim,first_seen_at,last_seen_at,times_detected,tags,metrics,source_metadata,evidence_refs")
         .eq("user_id", userId!)
-        .eq("scan_id", selectedScanId)
+        .eq("scan_id", selectedScanId);
+
+      if (risk !== "All") {
+        hitsRequest = hitsRequest.in("risk_type", RISK_DB_VALUES[risk]);
+      }
+
+      const { data, error } = await hitsRequest
         .order("threat_score", { ascending: false, nullsFirst: false })
         .order("last_seen_at", { ascending: false })
-        .limit(200);
+        .limit(500);
+
       if (error) throw error;
       return (data ?? []) as HitRow[];
     },
@@ -250,7 +311,7 @@ function ThreatRadarPage() {
     onSuccess: () => {
       toast.success("Status updated");
       qc.invalidateQueries({
-        queryKey: ["threat_radar_hits", userId, selectedScanId],
+        queryKey: ["threat_radar_hits", userId, selectedScanId, risk],
       });
     },
     onError: (e: Error) => toast.error(e.message),
