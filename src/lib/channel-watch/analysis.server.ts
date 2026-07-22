@@ -76,22 +76,43 @@ function scanAliases(text: string, aliases: string[]): AliasHit[] {
   return out;
 }
 
-async function loadAliases(supabase: Supa, userId: string): Promise<string[]> {
+async function loadAliases(
+  supabase: Supa,
+  userId: string,
+  watchId: string,
+): Promise<string[]> {
+  const { data: watch } = await supabase
+    .from("channel_watches")
+    .select("reason")
+    .eq("id", watchId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const configured = (watch?.reason ?? "")
+    .split(/[,;\n]/)
+    .map((value) => value.trim())
+    .filter((value) => value.length >= 2);
+
+  // A watch-specific subject always takes priority. This prevents one
+  // monitored channel from matching unrelated account identities.
+  if (configured.length > 0) {
+    return Array.from(new Set(configured));
+  }
+
   const { data } = await supabase
     .from("client_profiles")
     .select("display_name, full_name, company_name")
     .eq("user_id", userId)
     .maybeSingle();
+
   const aliases = new Set<string>();
   for (const key of ["display_name", "full_name", "company_name"] as const) {
-    const v = (data as Record<string, unknown> | null)?.[key];
-    if (typeof v === "string" && v.trim().length >= 2) aliases.add(v.trim());
+    const value = (data as Record<string, unknown> | null)?.[key];
+    if (typeof value === "string" && value.trim().length >= 2) {
+      aliases.add(value.trim());
+    }
   }
-  // known_aliases is optional and may not exist on every deployment
-  const extra = (data as Record<string, unknown> | null)?.["known_aliases"];
-  if (Array.isArray(extra)) {
-    for (const a of extra) if (typeof a === "string" && a.trim().length >= 2) aliases.add(a.trim());
-  }
+
   return Array.from(aliases);
 }
 
@@ -131,7 +152,7 @@ function classify(input: {
 export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Promise<void> {
   const { data: v, error } = await supabase
     .from("channel_watch_videos")
-    .select("id, user_id, watch_id, video_id, title, description, thumbnail_url, is_baseline, analysis_status")
+    .select("id, user_id, watch_id, video_id, title, description, thumbnail_url, url, is_baseline, analysis_status")
     .eq("id", videoRowId)
     .maybeSingle();
   if (error || !v) throw new Error("video row not found");
@@ -139,7 +160,7 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
 
   await supabase.from("channel_watch_videos").update({ analysis_status: "running" }).eq("id", v.id);
 
-  const aliases = await loadAliases(supabase, v.user_id);
+  const aliases = await loadAliases(supabase, v.user_id, v.watch_id);
   const textBlob = `${v.title ?? ""}\n${v.description ?? ""}`;
   const aliasHits = scanAliases(textBlob, aliases);
 
@@ -187,15 +208,86 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
     protected_asset_similarity: { face_matches: faceMatches } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["protected_asset_similarity"],
   }).eq("id", v.id);
 
+  let enforcementRequestId: string | null = null;
+
+  // Relevant new uploads with review-level risk enter the takedown workflow
+  // as a Draft. Submission always requires human approval.
+  if (
+    !v.is_baseline &&
+    decision.requiresReview &&
+    decision.risk >= 55 &&
+    decision.classification !== "not_relevant"
+  ) {
+    const { data: existing } = await supabase
+      .from("enforcement_requests")
+      .select("id")
+      .eq("user_id", v.user_id)
+      .contains("metadata", { channel_watch_video_id: v.id })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      enforcementRequestId = existing.id;
+    } else {
+      const { data: created, error: requestError } = await supabase
+        .from("enforcement_requests")
+        .insert({
+          user_id: v.user_id,
+          platform: "YouTube",
+          method: "Channel Watch Review",
+          target_url: v.url ?? `https://www.youtube.com/watch?v=${v.video_id}`,
+          status: "Draft",
+          metadata: {
+            created_from: "channel_watch",
+            channel_watch_video_id: v.id,
+            watch_id: v.watch_id,
+            classification: decision.classification,
+            risk_score: decision.risk,
+            human_approval_required: true,
+          },
+        })
+        .select("id")
+        .single();
+
+      if (!requestError && created?.id) {
+        enforcementRequestId = created.id;
+
+        await supabase.from("enforcement_evidence").insert({
+          user_id: v.user_id,
+          enforcement_request_id: created.id,
+          evidence_type: "channel_watch_snapshot",
+          reference: v.url ?? `https://www.youtube.com/watch?v=${v.video_id}`,
+          payload: {
+            channel_watch_video_id: v.id,
+            watch_id: v.watch_id,
+            video_id: v.video_id,
+            title: v.title,
+            description: v.description,
+            thumbnail_url: v.thumbnail_url,
+            classification: decision.classification,
+            risk_score: decision.risk,
+            alias_hits: aliasHits,
+            face_matches: faceMatches,
+            captured_at: new Date().toISOString(),
+          },
+        });
+      }
+    }
+  }
+
   await supabase.from("channel_watch_events").insert({
     user_id: v.user_id, watch_id: v.watch_id, video_id: v.id,
-    event_type: "analysis_completed",
+    event_type: enforcementRequestId
+      ? "enforcement_draft_created"
+      : "analysis_completed",
     payload: {
       classification: decision.classification,
       risk_score: decision.risk,
       requires_review: decision.requiresReview,
       alias_hits: aliasHits.length,
       face_matches: faceMatches,
+      enforcement_request_id: enforcementRequestId,
     },
   });
 }
