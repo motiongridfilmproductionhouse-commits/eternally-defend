@@ -455,7 +455,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         <Button
           size="sm"
           variant="outline"
-          className="border-cyan-500/30 text-cyan-100 h-7 text-[11px]"
+          className="h-8 border-cyan-400/60 bg-slate-950 text-cyan-300 hover:bg-cyan-400/15 hover:text-cyan-100 disabled:bg-slate-900 disabled:text-slate-500 disabled:border-slate-700 disabled:opacity-70 text-[11px] font-semibold"
           disabled={scanMut.isPending || historyMut.isPending}
           onClick={() => scanMut.mutate()}
         >
@@ -466,7 +466,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         <Button
           size="sm"
           variant="outline"
-          className="border-violet-500/30 text-violet-100 h-7 text-[11px]"
+          className="h-8 border-violet-400/60 bg-slate-950 text-violet-300 hover:bg-violet-400/15 hover:text-violet-100 disabled:bg-slate-900 disabled:text-slate-500 disabled:border-slate-700 disabled:opacity-70 text-[11px] font-semibold"
           disabled={historyMut.isPending || scanMut.isPending}
           onClick={() => historyMut.mutate()}
         >
