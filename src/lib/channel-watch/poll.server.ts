@@ -65,7 +65,21 @@ export async function pollOneWatch(supabase: Supa, watchId: string, opts: { base
       .eq("watch_id", watch.id)
       .eq("video_id", v.videoId)
       .maybeSingle();
-    if (existing) continue;
+    if (existing) {
+      // A historical/current-channel analysis intentionally re-runs analysis
+      // so updated protected names, aliases and evidence rules are applied.
+      if (isBaseline) {
+        try {
+          await analyzeWatchVideo(supabase, existing.id);
+        } catch (err) {
+          await supabase.from("channel_watch_videos").update({
+            analysis_status: "failed",
+            analysis_error: (err as Error).message ?? String(err),
+          }).eq("id", existing.id);
+        }
+      }
+      continue;
+    }
 
     const { data: ins, error: eIns } = await supabase.from("channel_watch_videos").insert({
       user_id: watch.user_id,
