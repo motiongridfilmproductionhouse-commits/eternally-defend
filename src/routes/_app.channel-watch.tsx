@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 import { Plus, Play, Pause, Search, Trash2, ExternalLink, ShieldCheck, Activity, Users, Radar, RefreshCw, AlertTriangle, Eye } from "lucide-react";
 import {
   addChannelWatch, getVerifiedUserSummary, listChannelWatches, listRecentEvents,
-  listWatchVideos, removeChannelWatch, resolveChannelSearch, scanChannelNow, setWatchStatus, submitReviewDecision,
+  addWatchVideoToRemovalCenter, listWatchVideos, removeChannelWatch,
+  resolveChannelSearch, scanChannelNow, setWatchStatus, submitReviewDecision,
 } from "@/lib/channel-watch/channel-watch.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -475,6 +476,21 @@ function VideosTable({ rows, loading }: { rows: Awaited<ReturnType<typeof listWa
 function VideoRow({ v }: { v: Awaited<ReturnType<typeof listWatchVideos>>[number] }) {
   const qc = useQueryClient();
   const reviewFn = useServerFn(submitReviewDecision);
+  const removalFn = useServerFn(addWatchVideoToRemovalCenter);
+
+  const removalMut = useMutation({
+    mutationFn: () => removalFn({ data: { videoRowId: v.id } }),
+    onSuccess: (result) => {
+      toast.success(
+        result.existing
+          ? "Already available in Removal Center"
+          : "Added to Removal Center with evidence",
+      );
+      qc.invalidateQueries({ queryKey: ["cw"] });
+    },
+    onError: (error) => toast.error((error as Error).message),
+  });
+
   const reviewMut = useMutation({
     mutationFn: (decision: "approved" | "dismissed" | "escalated") => reviewFn({ data: { videoRowId: v.id, decision } }),
     onSuccess: () => { toast.success("Review saved"); qc.invalidateQueries({ queryKey: ["cw"] }); },
@@ -504,6 +520,33 @@ function VideoRow({ v }: { v: Awaited<ReturnType<typeof listWatchVideos>>[number
           Analysis: <span className="text-slate-300">{v.analysis_status}</span>
           {v.analysis_error && <span className="text-orange-300"> — {v.analysis_error}</span>}
         </div>
+        {v.analysis_status === "completed" &&
+          v.classification &&
+          v.classification !== "not_relevant" && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                className="h-7 bg-cyan-500/20 border border-cyan-400/30 text-[10px] text-cyan-100 hover:bg-cyan-500/30"
+                disabled={removalMut.isPending}
+                onClick={() => removalMut.mutate()}
+              >
+                <ShieldCheck className="mr-1 size-3" />
+                {removalMut.isPending
+                  ? "Adding evidence…"
+                  : "Add to Removal Center"}
+              </Button>
+              <a href="/removals">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 border-slate-700 text-[10px]"
+                >
+                  Open Removal Center
+                </Button>
+              </a>
+            </div>
+          )}
+
         {v.review_status === "pending" && (
           <div className="mt-2 flex gap-2">
             <Button size="sm" className="h-6 text-[10px] bg-emerald-500/20 border border-emerald-400/30 text-emerald-100 hover:bg-emerald-500/30" onClick={() => reviewMut.mutate("approved")}>Confirm violation</Button>
@@ -713,6 +756,7 @@ function humanizeEvent(t: string): string {
     review_approved: "Human review confirmed violation",
     review_dismissed: "Human review dismissed",
     review_escalated: "Escalated to legal review",
+    added_to_removal_center: "Monitored evidence added to Removal Center",
   };
   return map[t] ?? t;
 }

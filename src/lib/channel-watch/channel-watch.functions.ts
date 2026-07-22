@@ -176,6 +176,114 @@ export const submitReviewDecision = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const addWatchVideoToRemovalCenter = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({
+    videoRowId: z.string().uuid(),
+  }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: video, error: videoError } = await supabase
+      .from("channel_watch_videos")
+      .select("id,watch_id,video_id,title,description,thumbnail_url,url,published_at,classification,risk_score,analysis_status")
+      .eq("id", data.videoRowId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (videoError) throw new Error(videoError.message);
+    if (!video) throw new Error("Monitored video not found");
+    if (video.analysis_status !== "completed") {
+      throw new Error("Wait until analysis completes before adding this video.");
+    }
+    if (video.classification === "not_relevant") {
+      throw new Error("This video is marked Not Relevant.");
+    }
+
+    const targetUrl =
+      video.url ?? `https://www.youtube.com/watch?v=${video.video_id}`;
+
+    const { data: existing } = await supabase
+      .from("enforcement_requests")
+      .select("id,status")
+      .eq("user_id", userId)
+      .contains("metadata", { channel_watch_video_id: video.id })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      return {
+        ok: true,
+        enforcementRequestId: existing.id,
+        status: existing.status,
+        existing: true,
+      };
+    }
+
+    const { data: created, error: requestError } = await supabase
+      .from("enforcement_requests")
+      .insert({
+        user_id: userId,
+        platform: "YouTube",
+        method: "Channel Watch Review",
+        target_url: targetUrl,
+        status: "Draft",
+        metadata: {
+          created_from: "channel_watch_manual",
+          channel_watch_video_id: video.id,
+          watch_id: video.watch_id,
+          youtube_video_id: video.video_id,
+          classification: video.classification,
+          risk_score: video.risk_score,
+          human_approval_required: true,
+        },
+      })
+      .select("id,status")
+      .single();
+
+    if (requestError || !created) {
+      throw new Error(requestError?.message ?? "Failed to create removal draft");
+    }
+
+    await supabase.from("enforcement_evidence").insert({
+      user_id: userId,
+      enforcement_request_id: created.id,
+      evidence_type: "channel_watch_snapshot",
+      reference: targetUrl,
+      payload: {
+        channel_watch_video_id: video.id,
+        watch_id: video.watch_id,
+        youtube_video_id: video.video_id,
+        title: video.title,
+        description: video.description,
+        thumbnail_url: video.thumbnail_url,
+        published_at: video.published_at,
+        classification: video.classification,
+        risk_score: video.risk_score,
+        captured_at: new Date().toISOString(),
+      },
+    });
+
+    await supabase.from("channel_watch_events").insert({
+      user_id: userId,
+      watch_id: video.watch_id,
+      video_id: video.id,
+      event_type: "added_to_removal_center",
+      payload: {
+        enforcement_request_id: created.id,
+        target_url: targetUrl,
+      },
+    });
+
+    return {
+      ok: true,
+      enforcementRequestId: created.id,
+      status: created.status,
+      existing: false,
+    };
+  });
+
 export const listRecentEvents = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
