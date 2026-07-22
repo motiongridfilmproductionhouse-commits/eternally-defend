@@ -17,16 +17,15 @@
 import fontkit from "@pdf-lib/fontkit";
 import type { PDFDocument, PDFFont, PDFPage, RGB } from "pdf-lib";
 
-const CDN =
-  "https://cdn.jsdelivr.net/gh/notofonts/notofonts.github.io@main/fonts";
+const CDN = "https://cdn.jsdelivr.net/gh/notofonts/notofonts.github.io@main/fonts";
 
 const SOURCES = {
   latinRegular: `${CDN}/NotoSans/hinted/ttf/NotoSans-Regular.ttf`,
   latinBold: `${CDN}/NotoSans/hinted/ttf/NotoSans-Bold.ttf`,
   arabicRegular: `${CDN}/NotoSansArabic/hinted/ttf/NotoSansArabic-Regular.ttf`,
   arabicBold: `${CDN}/NotoSansArabic/hinted/ttf/NotoSansArabic-Bold.ttf`,
-  malayalamRegular: `${CDN}/NotoSansMalayalam/hinted/ttf/NotoSansMalayalam-Regular.ttf`,
-  malayalamBold: `${CDN}/NotoSansMalayalam/hinted/ttf/NotoSansMalayalam-Bold.ttf`,
+  malayalamRegular: `${CDN}/NotoSerifMalayalam/unhinted/ttf/NotoSerifMalayalam-Regular.ttf`,
+  malayalamBold: `${CDN}/NotoSerifMalayalam/unhinted/ttf/NotoSerifMalayalam-Bold.ttf`,
 } as const;
 
 const bufferCache = new Map<string, Uint8Array>();
@@ -75,9 +74,11 @@ function collectCoverage(font: PDFFont): Set<number> {
 function fontSupports(font: PDFFont, cp: number): boolean {
   const set = collectCoverage(font);
   if (set.has(cp)) return true;
-  const fk = (set as unknown as {
-    __fk?: { hasGlyphForCodePoint?: (cp: number) => boolean };
-  }).__fk;
+  const fk = (
+    set as unknown as {
+      __fk?: { hasGlyphForCodePoint?: (cp: number) => boolean };
+    }
+  ).__fk;
   const ok = fk?.hasGlyphForCodePoint?.(cp) ?? false;
   if (ok) set.add(cp);
   return ok;
@@ -88,9 +89,7 @@ function fontSupports(font: PDFFont, cp: number): boolean {
  * Safe to call once per PDFDocument. Fonts are subset by default so unused
  * glyphs do not bloat the resulting PDF.
  */
-export async function embedUnicodeFontStack(
-  doc: PDFDocument
-): Promise<UnicodeFontStack> {
+export async function embedUnicodeFontStack(doc: PDFDocument): Promise<UnicodeFontStack> {
   doc.registerFontkit(fontkit);
   const [rL, bL, rA, bA, rM, bM] = await Promise.all([
     loadTTF(SOURCES.latinRegular),
@@ -103,19 +102,76 @@ export async function embedUnicodeFontStack(
   const regular = [
     await doc.embedFont(rL, { subset: true }),
     await doc.embedFont(rA, { subset: true }),
-    await doc.embedFont(rM, { subset: true }),
+    // Malayalam shaping can reference contextual glyphs outside a naïve subset.
+    await doc.embedFont(rM, { subset: false }),
   ];
   const bold = [
     await doc.embedFont(bL, { subset: true }),
     await doc.embedFont(bA, { subset: true }),
-    await doc.embedFont(bM, { subset: true }),
+    await doc.embedFont(bM, { subset: false }),
   ];
   return { regular, bold, coverage: { supports: fontSupports } };
 }
 
 function pickFont(stack: PDFFont[], cp: number): PDFFont {
+  if (cp >= 0x0d00 && cp <= 0x0d7f && stack[2]) return stack[2];
+  if (((cp >= 0x0600 && cp <= 0x06ff) || (cp >= 0x0750 && cp <= 0x077f)) && stack[1])
+    return stack[1];
   for (const f of stack) if (fontSupports(f, cp)) return f;
   return stack[0];
+}
+
+function graphemes(text: string): string[] {
+  if (typeof Intl.Segmenter === "function") {
+    return Array.from(
+      new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text),
+      (part) => part.segment,
+    );
+  }
+  return Array.from(text);
+}
+
+function pickFontForGrapheme(stack: PDFFont[], value: string): PDFFont {
+  const points = Array.from(value, (character) => character.codePointAt(0) ?? 0);
+  if (points.some((cp) => cp >= 0x0d00 && cp <= 0x0d7f) && stack[2]) return stack[2];
+  if (
+    points.some((cp) => (cp >= 0x0600 && cp <= 0x06ff) || (cp >= 0x0750 && cp <= 0x077f)) &&
+    stack[1]
+  )
+    return stack[1];
+  return pickFont(stack, points.find((cp) => cp > 32) ?? points[0] ?? 0);
+}
+
+function drawGlyphOutlineFallback(
+  page: PDFPage,
+  font: PDFFont,
+  value: string,
+  opts: { x: number; y: number; size: number; color?: RGB },
+): number | null {
+  const embedded = font as unknown as {
+    embedder?: {
+      font?: {
+        unitsPerEm?: number;
+        glyphForCodePoint?: (cp: number) => {
+          advanceWidth?: number;
+          path?: { toSVG?: () => string };
+        };
+      };
+    };
+  };
+  const source = embedded.embedder?.font;
+  if (!source?.glyphForCodePoint) return null;
+  const units = source.unitsPerEm || 1000;
+  const scale = opts.size / units;
+  let cursor = opts.x;
+  for (const character of Array.from(value)) {
+    const glyph = source.glyphForCodePoint(character.codePointAt(0) ?? 0);
+    const path = glyph.path?.toSVG?.();
+    if (path) page.drawSvgPath(path, { x: cursor, y: opts.y, scale, color: opts.color });
+    const isCombiningMark = /\p{Mark}/u.test(character);
+    cursor += (isCombiningMark ? 0 : (glyph.advanceWidth ?? units * 0.5)) * scale;
+  }
+  return cursor;
 }
 
 /**
@@ -133,20 +189,18 @@ export function drawUnicodeText(
     size: number;
     stack: PDFFont[];
     color?: RGB;
-  }
+  },
 ): number {
-  const chars = Array.from(text);
+  const chars = graphemes(text);
   let x = opts.x;
   let i = 0;
   while (i < chars.length) {
     const ch = chars[i];
-    const cp = ch.codePointAt(0) ?? 0;
-    const font = pickFont(opts.stack, cp);
+    const font = pickFontForGrapheme(opts.stack, ch);
     let run = ch;
     i++;
     while (i < chars.length) {
-      const nextCp = chars[i].codePointAt(0) ?? 0;
-      if (pickFont(opts.stack, nextCp) !== font) break;
+      if (pickFontForGrapheme(opts.stack, chars[i]) !== font) break;
       run += chars[i];
       i++;
     }
@@ -158,40 +212,52 @@ export function drawUnicodeText(
         font,
         color: opts.color,
       });
-      x += font.widthOfTextAtSize(run, opts.size);
     } catch {
-      // Last-resort: strip unencodable characters. Should not fire with custom fonts.
-      const safe = run.replace(/[^\x20-\x7E]/g, "?");
-      page.drawText(safe, {
+      const outlined = drawGlyphOutlineFallback(page, font, run, {
+        x,
+        y: opts.y,
+        size: opts.size,
+        color: opts.color,
+      });
+      if (outlined != null) {
+        x = outlined;
+        continue;
+      }
+      // Preserve evidence text semantics: never replace unsupported source text with question marks.
+      const replacement = "\uFFFD".repeat(Math.max(1, graphemes(run).length));
+      page.drawText(replacement, {
         x,
         y: opts.y,
         size: opts.size,
         font: opts.stack[0],
         color: opts.color,
       });
-      x += opts.stack[0].widthOfTextAtSize(safe, opts.size);
+      x += opts.stack[0].widthOfTextAtSize(replacement, opts.size);
+      continue;
+    }
+    try {
+      x += font.widthOfTextAtSize(run, opts.size);
+    } catch {
+      // Some complex-script fonts draw correctly but cannot expose advance
+      // coordinates through fontkit. Use a conservative advance without
+      // altering or overdrawing the source text.
+      x += graphemes(run).length * opts.size * 0.65;
     }
   }
   return x;
 }
 
 /** Measure a mixed-script string using the per-character font from the stack. */
-export function measureUnicodeText(
-  text: string,
-  size: number,
-  stack: PDFFont[]
-): number {
-  const chars = Array.from(text);
+export function measureUnicodeText(text: string, size: number, stack: PDFFont[]): number {
+  const chars = graphemes(text);
   let w = 0;
   let i = 0;
   while (i < chars.length) {
-    const cp = chars[i].codePointAt(0) ?? 0;
-    const font = pickFont(stack, cp);
+    const font = pickFontForGrapheme(stack, chars[i]);
     let run = chars[i];
     i++;
     while (i < chars.length) {
-      const nextCp = chars[i].codePointAt(0) ?? 0;
-      if (pickFont(stack, nextCp) !== font) break;
+      if (pickFontForGrapheme(stack, chars[i]) !== font) break;
       run += chars[i];
       i++;
     }
