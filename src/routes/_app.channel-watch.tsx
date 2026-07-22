@@ -291,6 +291,14 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
       video.classification !== "commentary_no_violation",
   );
 
+  // Mentions include informational subject matches. They are displayed
+  // separately and are not automatically treated as violations.
+  const subjectMentions = analyzed.filter(
+    (video) =>
+      video.classification &&
+      video.classification !== "not_relevant",
+  );
+
   const suspectedViolations = relevant.filter(
     (video) =>
       video.classification === "potential_impersonation" ||
@@ -394,13 +402,21 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         </div>
       </div>
       <div className="mt-3 rounded-lg border border-slate-700/60 bg-slate-950/45 p-3">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div>
+            <div className="text-lg font-semibold text-cyan-200">
+              {subjectMentions.length}
+            </div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">
+              Subject mentions
+            </div>
+          </div>
           <div>
             <div className="text-lg font-semibold text-orange-200">
               {suspectedViolations.length}
             </div>
             <div className="text-[8px] uppercase tracking-wider text-slate-500">
-              Suspected IP
+              Suspected risk
             </div>
           </div>
           <div>
