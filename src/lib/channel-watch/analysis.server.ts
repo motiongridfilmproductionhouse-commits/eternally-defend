@@ -208,6 +208,30 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
     protected_asset_similarity: { face_matches: faceMatches } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["protected_asset_similarity"],
   }).eq("id", v.id);
 
+  // Capture an automatic metadata evidence snapshot for every relevant item.
+  // This is preserved even when the risk does not meet enforcement thresholds.
+  if (decision.classification !== "not_relevant") {
+    await supabase.from("channel_watch_evidence").insert({
+      user_id: v.user_id,
+      video_id: v.id,
+      kind: "automatic_monitoring_snapshot",
+      metadata: {
+        watch_id: v.watch_id,
+        youtube_video_id: v.video_id,
+        url: v.url ?? `https://www.youtube.com/watch?v=${v.video_id}`,
+        title: v.title,
+        description: v.description,
+        thumbnail_url: v.thumbnail_url,
+        is_baseline: v.is_baseline,
+        classification: decision.classification,
+        risk_score: decision.risk,
+        alias_hits: aliasHits,
+        face_matches: faceMatches,
+        captured_at: new Date().toISOString(),
+      },
+    });
+  }
+
   let enforcementRequestId: string | null = null;
 
   // Relevant new uploads with review-level risk enter the takedown workflow
