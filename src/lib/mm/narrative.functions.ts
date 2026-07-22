@@ -337,6 +337,59 @@ export const clusterFindings = createServerFn({ method: "POST" })
       }
     }
 
+    // Remove obsolete claim-text clusters replaced by the merged
+    // subject-risk Channel Watch clusters. Only clusters sharing one of
+    // the currently imported Channel Watch source URLs are removed.
+    const activeClusterKeys = new Set(groups.keys());
+
+    const channelSourceRefs = new Set(
+      (channelVideos as any[]).map(
+        (video) =>
+          video.url ||
+          `https://www.youtube.com/watch?v=${video.video_id}`,
+      ),
+    );
+
+    const existingClustersResult = await supabase
+      .from("narrative_clusters")
+      .select("id,cluster_key,sources")
+      .eq("user_id", userId);
+
+    if (existingClustersResult.error) {
+      throw new Error(existingClustersResult.error.message);
+    }
+
+    const obsoleteClusterIds = (existingClustersResult.data ?? [])
+      .filter((existing: any) => {
+        if (activeClusterKeys.has(existing.cluster_key)) return false;
+        if (!String(existing.cluster_key).startsWith("claim-text:")) {
+          return false;
+        }
+
+        const existingSources = Array.isArray(existing.sources)
+          ? existing.sources
+          : [];
+
+        return existingSources.some(
+          (source: unknown) =>
+            typeof source === "string" &&
+            channelSourceRefs.has(source),
+        );
+      })
+      .map((existing: any) => existing.id);
+
+    if (obsoleteClusterIds.length > 0) {
+      const deleteResult = await supabase
+        .from("narrative_clusters")
+        .delete()
+        .eq("user_id", userId)
+        .in("id", obsoleteClusterIds);
+
+      if (deleteResult.error) {
+        throw new Error(deleteResult.error.message);
+      }
+    }
+
     let created = 0;
     let updated = 0;
     let linked = 0;
