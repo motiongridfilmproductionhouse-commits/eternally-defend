@@ -788,7 +788,7 @@ export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
           platform: "YouTube",
           method: "Platform Report",
           target_url: targetUrl,
-          status: "Draft",
+          status: "Queued",
           submission_status: "not_submitted",
           metadata: {
             created_from: "narrative_intelligence",
