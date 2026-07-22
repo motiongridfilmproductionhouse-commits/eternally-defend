@@ -28,6 +28,7 @@ import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
 import { Route as AppFaceProtectionRouteImport } from './routes/_app.face-protection'
 import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vault'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
+import { Route as AppChannelWatchRouteImport } from './routes/_app.channel-watch'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
@@ -139,6 +140,11 @@ const AppEnforcementRoute = AppEnforcementRouteImport.update({
   path: '/enforcement',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChannelWatchRoute = AppChannelWatchRouteImport.update({
+  id: '/channel-watch',
+  path: '/channel-watch',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCasesRoute = AppCasesRouteImport.update({
   id: '/cases',
   path: '/cases',
@@ -232,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
+  '/channel-watch': typeof AppChannelWatchRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
   '/face-protection': typeof AppFaceProtectionRoute
@@ -266,6 +273,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
+  '/channel-watch': typeof AppChannelWatchRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
   '/face-protection': typeof AppFaceProtectionRoute
@@ -303,6 +311,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/_app/assets': typeof AppAssetsRoute
   '/_app/cases': typeof AppCasesRoute
+  '/_app/channel-watch': typeof AppChannelWatchRoute
   '/_app/enforcement': typeof AppEnforcementRoute
   '/_app/evidence-vault': typeof AppEvidenceVaultRoute
   '/_app/face-protection': typeof AppFaceProtectionRoute
@@ -341,6 +350,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/assets'
     | '/cases'
+    | '/channel-watch'
     | '/enforcement'
     | '/evidence-vault'
     | '/face-protection'
@@ -375,6 +385,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/assets'
     | '/cases'
+    | '/channel-watch'
     | '/enforcement'
     | '/evidence-vault'
     | '/face-protection'
@@ -411,6 +422,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/_app/assets'
     | '/_app/cases'
+    | '/_app/channel-watch'
     | '/_app/enforcement'
     | '/_app/evidence-vault'
     | '/_app/face-protection'
@@ -588,6 +600,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEnforcementRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/channel-watch': {
+      id: '/_app/channel-watch'
+      path: '/channel-watch'
+      fullPath: '/channel-watch'
+      preLoaderRoute: typeof AppChannelWatchRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cases': {
       id: '/_app/cases'
       path: '/cases'
@@ -699,6 +718,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAssetsRoute: typeof AppAssetsRoute
   AppCasesRoute: typeof AppCasesRoute
+  AppChannelWatchRoute: typeof AppChannelWatchRoute
   AppEnforcementRoute: typeof AppEnforcementRoute
   AppEvidenceVaultRoute: typeof AppEvidenceVaultRoute
   AppFaceProtectionRoute: typeof AppFaceProtectionRoute
@@ -727,6 +747,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAssetsRoute: AppAssetsRoute,
   AppCasesRoute: AppCasesRoute,
+  AppChannelWatchRoute: AppChannelWatchRoute,
   AppEnforcementRoute: AppEnforcementRoute,
   AppEvidenceVaultRoute: AppEvidenceVaultRoute,
   AppFaceProtectionRoute: AppFaceProtectionRoute,
