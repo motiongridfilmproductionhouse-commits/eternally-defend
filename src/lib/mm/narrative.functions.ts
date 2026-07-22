@@ -150,6 +150,7 @@ export const clusterFindings = createServerFn({ method: "POST" })
           "potential_harm",
           "potential_impersonation",
         ])
+        .neq("review_status", "dismissed")
         .limit(1000),
 
       supabase
@@ -650,7 +651,7 @@ export const getClusterDetail = createServerFn({ method: "GET" })
             (hasSubjectMatch ? 20 : 0) +
             (hasTranscript ? 15 : 0) +
             (finding.url ? 10 : 0) +
-            (finding.review_status === "confirmed" ? 10 : 0),
+            (finding.review_status === "approved" ? 10 : 0),
           ),
         );
 
@@ -661,7 +662,7 @@ export const getClusterDetail = createServerFn({ method: "GET" })
             subject_match: hasSubjectMatch,
             transcript_or_timestamps: hasTranscript,
             source_url: Boolean(finding.url),
-            human_confirmed: finding.review_status === "confirmed",
+            human_confirmed: finding.review_status === "approved",
           },
         };
       });
@@ -677,9 +678,9 @@ export const getClusterDetail = createServerFn({ method: "GET" })
 const NarrativeReviewInput = z.object({
   videoId: z.string().uuid(),
   decision: z.enum([
-    "confirmed",
-    "not_relevant",
-    "pending",
+    "approved",
+    "dismissed",
+    "escalated",
   ]),
 });
 
@@ -735,7 +736,7 @@ export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
     const video: any = videoResult.data;
     if (!video) throw new Error("Channel Watch finding not found");
 
-    if (video.review_status !== "confirmed") {
+    if (video.review_status !== "approved") {
       throw new Error(
         "Human confirmation is required before creating a removal draft",
       );
