@@ -82,7 +82,7 @@ async function lensSearch(imageUrl: string, personName: string, referenceBytes: 
           QualityFilter: "AUTO",
         }));
         const best = (found.FaceMatches ?? []).reduce((score, item) => Math.max(score, item.Similarity ?? 0), 0);
-        return best >= 90 ? { ...match, faceSimilarity: best } : null;
+        return best >= 90 ? ({ ...match, faceSimilarity: best } as LensMatch) : null;
       } catch {
         return null;
       }
