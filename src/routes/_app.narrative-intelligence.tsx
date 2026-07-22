@@ -144,7 +144,7 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
       decision,
     }: {
       videoId: string;
-      decision: "confirmed" | "not_relevant" | "needs_investigation";
+      decision: "confirmed" | "not_relevant" | "pending";
     }) => reviewFn({ data: { videoId, decision } }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["cluster", clusterId] });
@@ -263,13 +263,13 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
                   <Button
                     type="button"
                     size="sm"
-                    variant={finding.review_status === "needs_investigation" ? "default" : "outline"}
+                    variant={finding.review_status === "pending" ? "default" : "outline"}
                     className="h-7 px-1 text-[9px]"
                     disabled={reviewMutation.isPending}
                     onClick={() =>
                       reviewMutation.mutate({
                         videoId: finding.id,
-                        decision: "needs_investigation",
+                        decision: "pending",
                       })
                     }
                   >

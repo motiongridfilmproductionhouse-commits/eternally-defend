@@ -626,7 +626,7 @@ const NarrativeReviewInput = z.object({
   decision: z.enum([
     "confirmed",
     "not_relevant",
-    "needs_investigation",
+    "pending",
   ]),
 });
 
