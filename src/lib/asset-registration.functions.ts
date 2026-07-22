@@ -87,7 +87,7 @@ async function lensSearch(imageUrl: string, personName: string, referenceBytes: 
         return null;
       }
     }));
-    verified.push(...checked.filter((match): match is LensMatch => Boolean(match)));
+    verified.push(...checked.filter((match): match is LensMatch => match !== null));
   }
 
   const pages = verified
