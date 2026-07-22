@@ -670,6 +670,284 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_watch_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          user_id: string
+          video_id: string | null
+          watch_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          user_id: string
+          video_id?: string | null
+          watch_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          user_id?: string
+          video_id?: string | null
+          watch_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_watch_events_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "channel_watch_videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_watch_events_watch_id_fkey"
+            columns: ["watch_id"]
+            isOneToOne: false
+            referencedRelation: "channel_watches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_watch_evidence: {
+        Row: {
+          created_at: string
+          evidence_vault_item_id: string | null
+          id: string
+          kind: string
+          metadata: Json
+          s3_bucket: string | null
+          s3_key: string | null
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          evidence_vault_item_id?: string | null
+          id?: string
+          kind: string
+          metadata?: Json
+          s3_bucket?: string | null
+          s3_key?: string | null
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          evidence_vault_item_id?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          s3_bucket?: string | null
+          s3_key?: string | null
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_watch_evidence_evidence_vault_item_id_fkey"
+            columns: ["evidence_vault_item_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_vault_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_watch_evidence_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "channel_watch_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_watch_videos: {
+        Row: {
+          analysis_error: string | null
+          analysis_status: Database["public"]["Enums"]["channel_watch_analysis_status"]
+          classification:
+            | Database["public"]["Enums"]["channel_watch_classification"]
+            | null
+          comment_count: number | null
+          created_at: string
+          deepfake_indicators: Json
+          description: string | null
+          detected_at: string
+          duration_seconds: number | null
+          id: string
+          is_baseline: boolean
+          like_count: number | null
+          mention_match: Json
+          protected_asset_similarity: Json
+          published_at: string | null
+          reupload_of_video_id: string | null
+          review_note: string | null
+          review_status: Database["public"]["Enums"]["channel_watch_review_status"]
+          risk_score: number | null
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          url: string | null
+          user_id: string
+          video_id: string
+          view_count: number | null
+          virality_score: number | null
+          watch_id: string
+        }
+        Insert: {
+          analysis_error?: string | null
+          analysis_status?: Database["public"]["Enums"]["channel_watch_analysis_status"]
+          classification?:
+            | Database["public"]["Enums"]["channel_watch_classification"]
+            | null
+          comment_count?: number | null
+          created_at?: string
+          deepfake_indicators?: Json
+          description?: string | null
+          detected_at?: string
+          duration_seconds?: number | null
+          id?: string
+          is_baseline?: boolean
+          like_count?: number | null
+          mention_match?: Json
+          protected_asset_similarity?: Json
+          published_at?: string | null
+          reupload_of_video_id?: string | null
+          review_note?: string | null
+          review_status?: Database["public"]["Enums"]["channel_watch_review_status"]
+          risk_score?: number | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id: string
+          video_id: string
+          view_count?: number | null
+          virality_score?: number | null
+          watch_id: string
+        }
+        Update: {
+          analysis_error?: string | null
+          analysis_status?: Database["public"]["Enums"]["channel_watch_analysis_status"]
+          classification?:
+            | Database["public"]["Enums"]["channel_watch_classification"]
+            | null
+          comment_count?: number | null
+          created_at?: string
+          deepfake_indicators?: Json
+          description?: string | null
+          detected_at?: string
+          duration_seconds?: number | null
+          id?: string
+          is_baseline?: boolean
+          like_count?: number | null
+          mention_match?: Json
+          protected_asset_similarity?: Json
+          published_at?: string | null
+          reupload_of_video_id?: string | null
+          review_note?: string | null
+          review_status?: Database["public"]["Enums"]["channel_watch_review_status"]
+          risk_score?: number | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+          video_id?: string
+          view_count?: number | null
+          virality_score?: number | null
+          watch_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_watch_videos_watch_id_fkey"
+            columns: ["watch_id"]
+            isOneToOne: false
+            referencedRelation: "channel_watches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_watches: {
+        Row: {
+          avatar_url: string | null
+          channel_id: string
+          channel_title: string | null
+          channel_url: string | null
+          created_at: string
+          description: string | null
+          firecrawl_monitor_id: string | null
+          handle: string | null
+          id: string
+          last_checked_at: string | null
+          last_error: string | null
+          last_video_published_at: string | null
+          next_check_at: string | null
+          notes: string | null
+          priority: Database["public"]["Enums"]["channel_watch_priority"]
+          reason: string | null
+          status: Database["public"]["Enums"]["channel_watch_status"]
+          subscriber_count: number | null
+          updated_at: string
+          uploads_playlist_id: string | null
+          user_id: string
+          video_count: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          channel_id: string
+          channel_title?: string | null
+          channel_url?: string | null
+          created_at?: string
+          description?: string | null
+          firecrawl_monitor_id?: string | null
+          handle?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          last_video_published_at?: string | null
+          next_check_at?: string | null
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["channel_watch_priority"]
+          reason?: string | null
+          status?: Database["public"]["Enums"]["channel_watch_status"]
+          subscriber_count?: number | null
+          updated_at?: string
+          uploads_playlist_id?: string | null
+          user_id: string
+          video_count?: number | null
+        }
+        Update: {
+          avatar_url?: string | null
+          channel_id?: string
+          channel_title?: string | null
+          channel_url?: string | null
+          created_at?: string
+          description?: string | null
+          firecrawl_monitor_id?: string | null
+          handle?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          last_video_published_at?: string | null
+          next_check_at?: string | null
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["channel_watch_priority"]
+          reason?: string | null
+          status?: Database["public"]["Enums"]["channel_watch_status"]
+          subscriber_count?: number | null
+          updated_at?: string
+          uploads_playlist_id?: string | null
+          user_id?: string
+          video_count?: number | null
+        }
+        Relationships: []
+      }
       client_authorizations: {
         Row: {
           auth_number: string
@@ -4205,6 +4483,31 @@ export type Database = {
         | "pending"
         | "authorized"
         | "enterprise_authorized"
+      channel_watch_analysis_status:
+        | "pending"
+        | "running"
+        | "completed"
+        | "failed"
+        | "skipped"
+      channel_watch_classification:
+        | "not_relevant"
+        | "informational"
+        | "commentary_no_violation"
+        | "potential_harm"
+        | "potential_copyright"
+        | "potential_impersonation"
+        | "potential_privacy"
+        | "potential_manipulated"
+        | "potential_harassment"
+        | "potential_false_allegation"
+      channel_watch_priority: "critical" | "high" | "standard" | "low"
+      channel_watch_review_status:
+        | "not_required"
+        | "pending"
+        | "approved"
+        | "dismissed"
+        | "escalated"
+      channel_watch_status: "active" | "paused" | "error"
       client_type_enum:
         | "individual"
         | "celebrity"
@@ -4470,6 +4773,34 @@ export const Constants = {
         "authorized",
         "enterprise_authorized",
       ],
+      channel_watch_analysis_status: [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
+      ],
+      channel_watch_classification: [
+        "not_relevant",
+        "informational",
+        "commentary_no_violation",
+        "potential_harm",
+        "potential_copyright",
+        "potential_impersonation",
+        "potential_privacy",
+        "potential_manipulated",
+        "potential_harassment",
+        "potential_false_allegation",
+      ],
+      channel_watch_priority: ["critical", "high", "standard", "low"],
+      channel_watch_review_status: [
+        "not_required",
+        "pending",
+        "approved",
+        "dismissed",
+        "escalated",
+      ],
+      channel_watch_status: ["active", "paused", "error"],
       client_type_enum: [
         "individual",
         "celebrity",
