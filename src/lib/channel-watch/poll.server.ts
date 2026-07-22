@@ -53,6 +53,11 @@ export async function pollOneWatch(supabase: Supa, watchId: string, opts: { base
 
   const nowIso = new Date().toISOString();
   let inserted = 0;
+  let analyzed = 0;
+
+  // Historical analysis processes ten previously unanalysed videos per click.
+  // The version marker prevents every click from repeating the same batch.
+  const analysisBudget = isBaseline ? 10 : Number.MAX_SAFE_INTEGER;
   let latestPublished = watch.last_video_published_at ?? null;
 
   for (const v of videos) {
@@ -61,16 +66,19 @@ export async function pollOneWatch(supabase: Supa, watchId: string, opts: { base
     }
     const { data: existing } = await supabase
       .from("channel_watch_videos")
-      .select("id")
+      .select("id, mention_match")
       .eq("watch_id", watch.id)
       .eq("video_id", v.videoId)
       .maybeSingle();
     if (existing) {
-      // A historical/current-channel analysis intentionally re-runs analysis
-      // so updated protected names, aliases and evidence rules are applied.
-      if (isBaseline) {
+      const previous = (existing.mention_match ?? {}) as Record<string, unknown>;
+      const alreadyAnalyzed =
+        previous.transcript_analysis_version === 2;
+
+      if (isBaseline && !alreadyAnalyzed && analyzed < analysisBudget) {
         try {
           await analyzeWatchVideo(supabase, existing.id);
+          analyzed += 1;
         } catch (err) {
           await supabase.from("channel_watch_videos").update({
             analysis_status: "failed",
@@ -108,10 +116,14 @@ export async function pollOneWatch(supabase: Supa, watchId: string, opts: { base
       payload: { video_id: v.videoId, title: v.title, published_at: v.publishedAt },
     });
 
-    if (!v.isPrivateOrDeleted) {
+    if (
+      !v.isPrivateOrDeleted &&
+      (!isBaseline || analyzed < analysisBudget)
+    ) {
       // Best-effort inline analysis; failures are recorded per-row, never silent.
       try {
         await analyzeWatchVideo(supabase, ins.id);
+        analyzed += 1;
       } catch (err) {
         await supabase.from("channel_watch_videos").update({
           analysis_status: "failed", analysis_error: (err as Error).message ?? String(err),
@@ -129,5 +141,10 @@ export async function pollOneWatch(supabase: Supa, watchId: string, opts: { base
     last_video_published_at: latestPublished,
   }).eq("id", watch.id);
 
-  return { inserted, checked: videos.length };
+  return {
+    inserted,
+    checked: videos.length,
+    analyzed,
+    batchSize: isBaseline ? analysisBudget : videos.length,
+  };
 }

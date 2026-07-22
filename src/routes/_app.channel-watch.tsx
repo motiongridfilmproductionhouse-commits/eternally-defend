@@ -253,12 +253,14 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
     mutationFn: () => historyFn({
       data: {
         watchId: watch.id,
-        count: 10,
+        count: 50,
       },
     }),
     onSuccess: (result) => {
       toast.success(
-        `Current videos analyzed — ${
+        `Analysis complete — ${
+          (result as { analyzed?: number }).analyzed ?? 0
+        } new video(s) analyzed from ${
           (result as { checked?: number }).checked ?? 0
         } checked`,
       );
@@ -469,7 +471,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
           onClick={() => historyMut.mutate()}
         >
           <Radar className={`size-3 mr-1 ${historyMut.isPending ? "animate-pulse" : ""}`} />
-          {historyMut.isPending ? "Analyzing 10…" : "Analyze current"}
+          {historyMut.isPending ? "Analyzing captions…" : "Analyze current"}
         </Button>
         {watch.status === "active" ? (
           <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={() => statusMut.mutate("paused")}>
