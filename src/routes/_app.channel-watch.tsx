@@ -253,7 +253,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
     mutationFn: () => historyFn({
       data: {
         watchId: watch.id,
-        count: 50,
+        count: 10,
       },
     }),
     onSuccess: (result) => {
@@ -357,10 +357,11 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
 
   return (
     <Card className={`relative bg-slate-900/40 backdrop-blur border p-4 transition-colors ${isSelected ? "border-cyan-400/60" : "border-slate-700/40"}`}>
-      {scanMut.isPending && (
+      {(scanMut.isPending || historyMut.isPending) && (
         <ChannelScanOverlay
           channelName={watch.channel_title ?? watch.channel_id}
           subject={watch.reason}
+          mode={historyMut.isPending ? "historical" : "new"}
         />
       )}
       <div className="flex items-start gap-3">
@@ -468,7 +469,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
           onClick={() => historyMut.mutate()}
         >
           <Radar className={`size-3 mr-1 ${historyMut.isPending ? "animate-pulse" : ""}`} />
-          {historyMut.isPending ? "Analyzing…" : "Analyze current"}
+          {historyMut.isPending ? "Analyzing 10…" : "Analyze current"}
         </Button>
         {watch.status === "active" ? (
           <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={() => statusMut.mutate("paused")}>
@@ -495,9 +496,11 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
 function ChannelScanOverlay({
   channelName,
   subject,
+  mode,
 }: {
   channelName: string;
   subject: string;
+  mode: "new" | "historical";
 }) {
   const dots = Array.from({ length: 48 });
 
@@ -557,7 +560,7 @@ function ChannelScanOverlay({
           <div className="absolute inset-0 flex flex-col items-center justify-center px-16">
             <ShieldCheck className="mb-3 size-8 animate-pulse text-cyan-200" />
             <div className="text-[10px] uppercase tracking-[0.32em] text-cyan-300/70">
-              Live channel scan
+              {mode === "historical" ? "Historical channel analysis" : "Live channel scan"}
             </div>
             <div className="mt-3 max-w-[210px] truncate text-lg font-semibold text-white">
               {channelName}
@@ -581,7 +584,9 @@ function ChannelScanOverlay({
         <div className="mt-5 flex flex-wrap items-center justify-center gap-5 text-[10px] uppercase tracking-[0.18em] text-slate-400">
           <span className="flex items-center gap-2">
             <span className="size-1.5 animate-pulse rounded-full bg-cyan-300" />
-            Fetching newest uploads
+            {mode === "historical"
+              ? "Fetching current channel videos"
+              : "Fetching newest uploads"}
           </span>
           <span className="flex items-center gap-2">
             <span className="size-1.5 animate-pulse rounded-full bg-blue-400 [animation-delay:300ms]" />
