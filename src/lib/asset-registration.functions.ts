@@ -29,6 +29,7 @@ type LensMatch = {
   thumbnail?: string;
   image?: string;
   image_url?: string;
+  faceSimilarity?: number;
 };
 
 async function lensSearch(imageUrl: string, personName: string, referenceBytes: Uint8Array) {
