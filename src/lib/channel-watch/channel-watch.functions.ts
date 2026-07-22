@@ -261,9 +261,9 @@ export const addWatchVideoToRemovalCenter = createServerFn({ method: "POST" })
       .insert({
         user_id: userId,
         platform: "YouTube",
-        method: "Channel Watch Review",
+        method: "Platform Report",
         target_url: targetUrl,
-        status: "Draft",
+        status: "Queued",
         metadata: {
           created_from: "channel_watch_manual",
           channel_watch_video_id: video.id,
