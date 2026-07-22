@@ -65,7 +65,7 @@ function ChannelWatchPage() {
           <Card className="col-span-12 lg:col-span-4 bg-slate-900/40 backdrop-blur border-slate-700/40 p-4 flex flex-col justify-between">
             <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Add creator channel</div>
             <div className="mt-2 text-sm text-slate-300 leading-relaxed">
-              Track commentary, reaction, review or potential-risk channels. YouTube is the authoritative source; nothing is auto-classified as defamation.
+              Monitor new uploads only when they concern the assigned protected person or brand. Relevant risks are analyzed and routed into human-approved enforcement.
             </div>
             <Button onClick={() => setAddOpen(true)} className="mt-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-100 border border-cyan-400/30">
               <Plus className="size-4 mr-2" /> Add Risk Channel
@@ -273,6 +273,9 @@ function MonitoredChannelCard({ watch, isSelected, onSelect }: {
             <div>Subs: <span className="text-slate-200">{formatNumber(watch.subscriber_count)}</span></div>
             <div>Videos: <span className="text-slate-200">{formatNumber(watch.video_count)}</span></div>
             <div>Priority: <span className="text-slate-200 uppercase">{watch.priority}</span></div>
+          </div>
+          <div className="mt-2 text-[10px] text-cyan-200/80 truncate" title={watch.reason}>
+            Monitoring for: {watch.reason}
           </div>
           <div className="mt-1 text-[10px] text-slate-500">
             Last checked {watch.last_checked_at ? formatDistanceToNow(new Date(watch.last_checked_at), { addSuffix: true }) : "never"}
@@ -505,8 +508,17 @@ function AddChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
               <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>Change</Button>
             </div>
             <div>
-              <Label>Monitoring reason</Label>
-              <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Commentary channel with history of my videos" className="bg-slate-900 border-slate-700" />
+              <Label>Protected person/brand and aliases</Label>
+              <Input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Renu Sudhi, Renu, രേണു സുധി"
+                className="bg-slate-900 border-slate-700"
+              />
+              <div className="mt-1 text-[10px] text-slate-500">
+                Separate English, Malayalam, Manglish names, brand names and handles with commas.
+                Only uploads matching these identities will enter risk analysis.
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -571,6 +583,7 @@ function humanizeEvent(t: string): string {
     baseline_video_fetched: "Existing video fetched (baseline)",
     new_video_detected: "Creator uploaded new video",
     analysis_completed: "Analysis completed",
+    enforcement_draft_created: "Relevant risk analyzed — takedown draft created",
     poll_failed: "Poll failed",
     watch_paused: "Monitoring paused",
     watch_resumed: "Monitoring resumed",
