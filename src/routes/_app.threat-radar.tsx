@@ -182,6 +182,16 @@ function toThreat(row: HitRow): Threat {
   };
 }
 
+type RadarScan = {
+  id: string;
+  name: string | null;
+  query: string | null;
+  protection_profile_id: string | null;
+  created_at: string;
+  status: string;
+  total_hits: number;
+};
+
 function ThreatRadarPage() {
   const { session, ready } = useSession();
   const userId = session?.user.id;
@@ -190,15 +200,39 @@ function ThreatRadarPage() {
   const [risk, setRisk] = useState<(typeof RISK_TYPES)[number]>("All");
   const [sev, setSev] = useState<Severity | "All">("All");
   const [vir, setVir] = useState<(typeof VIRALITIES)[number]>("All");
+  const [activeScanId, setActiveScanId] = useState("");
   const [selected, setSelected] = useState<Threat | null>(null);
 
-  const hitsQuery = useQuery({
-    queryKey: ["threat_radar_hits", userId],
+  const scansQuery = useQuery({
+    queryKey: ["threat_radar_scans", userId],
     enabled: ready && !!userId,
+    queryFn: async (): Promise<RadarScan[]> => {
+      const { data, error } = await supabase
+        .from("scans")
+        .select("id,name,query,protection_profile_id,created_at,status,total_hits")
+        .eq("user_id", userId!)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      return (data ?? []) as RadarScan[];
+    },
+  });
+
+  const availableScans = scansQuery.data ?? [];
+  const selectedScanId = activeScanId || availableScans[0]?.id || "";
+  const selectedScan =
+    availableScans.find((scan) => scan.id === selectedScanId) ?? null;
+
+  const hitsQuery = useQuery({
+    queryKey: ["threat_radar_hits", userId, selectedScanId],
+    enabled: ready && !!userId && !!selectedScanId,
     queryFn: async (): Promise<HitRow[]> => {
       const { data, error } = await supabase
         .from("scan_hits")
         .select("id,title,description,source,source_type,country,permalink,canonical_url,reach,threat_score,risk_score,severity,velocity,risk_type,growth_pct,narrative_claim,first_seen_at,last_seen_at,times_detected,tags,metrics,source_metadata,evidence_refs")
+        .eq("user_id", userId!)
+        .eq("scan_id", selectedScanId)
         .order("threat_score", { ascending: false, nullsFirst: false })
         .order("last_seen_at", { ascending: false })
         .limit(200);
@@ -215,7 +249,9 @@ function ThreatRadarPage() {
     },
     onSuccess: () => {
       toast.success("Status updated");
-      qc.invalidateQueries({ queryKey: ["threat_radar_hits", userId] });
+      qc.invalidateQueries({
+        queryKey: ["threat_radar_hits", userId, selectedScanId],
+      });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -254,10 +290,66 @@ function ThreatRadarPage() {
     statusMut.mutate({ id: t.id, status: s, current: row?.metrics ?? null });
   };
 
-  const loading = !ready || hitsQuery.isLoading;
+  const loading =
+    !ready ||
+    scansQuery.isLoading ||
+    (!!selectedScanId && hitsQuery.isLoading);
 
   return (
     <div className="space-y-5">
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
+              Showing results for
+            </div>
+            <div className="mt-1 truncate text-lg font-bold">
+              {selectedScan?.name ||
+                selectedScan?.query ||
+                "Select a completed search"}
+            </div>
+            {selectedScan && (
+              <div className="mt-1 text-xs text-muted-foreground">
+                Search: {selectedScan.query || selectedScan.name || "Unnamed search"}
+                {" · "}
+                {new Date(selectedScan.created_at).toLocaleString()}
+                {" · "}
+                {selectedScan.total_hits} findings
+              </div>
+            )}
+          </div>
+
+          <label className="w-full lg:w-96">
+            <span className="mb-1 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+              Person / search
+            </span>
+            <select
+              value={selectedScanId}
+              onChange={(event) => {
+                setActiveScanId(event.target.value);
+                setSelected(null);
+              }}
+              disabled={availableScans.length === 0}
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium"
+            >
+              {availableScans.length === 0 ? (
+                <option value="">No searches available</option>
+              ) : (
+                availableScans.map((scan) => (
+                  <option key={scan.id} value={scan.id}>
+                    {scan.name || scan.query || "Unnamed search"}
+                    {" — "}
+                    {new Date(scan.created_at).toLocaleDateString()}
+                    {" — "}
+                    {scan.total_hits} results
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="ACTIVE THREATS" value={totals.active} accent="oklch(0.63 0.24 25)" sub="Across all platforms" />
         <StatCard label="CRITICAL THREATS" value={totals.critical} accent="oklch(0.63 0.24 25)" sub="Require immediate action" />
@@ -302,7 +394,7 @@ function ThreatRadarPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-5">
             {list.map((t) => (
               <ThreatCard key={t.id} t={t} onOpen={() => setSelected(t)} onStatus={(s) => handleStatus(t, s)} />
             ))}
@@ -342,9 +434,9 @@ function ThreatCard({ t, onOpen, onStatus }: { t: Threat; onOpen: () => void; on
   const VIcon = v.icon;
 
   return (
-    <div className="border border-border rounded-xl p-4 hover:border-primary/40 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+    <div className="min-w-0 overflow-hidden border border-border rounded-xl p-4 hover:border-primary/40 transition-colors">
+      <div className="flex items-start gap-3 min-w-0">
+        <div className="flex items-start gap-2 min-w-0 flex-1">
           <div
             className="size-9 rounded-lg grid place-items-center shrink-0"
             style={{
@@ -354,35 +446,41 @@ function ThreatCard({ t, onOpen, onStatus }: { t: Threat; onOpen: () => void; on
           >
             <PIcon className="size-4" />
           </div>
-          <div className="min-w-0">
-            <button onClick={onOpen} className="text-sm font-semibold leading-tight text-left hover:underline truncate block">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <button
+              onClick={onOpen}
+              title={t.title}
+              className="block w-full min-w-0 text-sm font-semibold leading-snug text-left hover:underline line-clamp-2 break-words overflow-hidden"
+            >
               {t.title}
             </button>
-            <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
-              <span>{t.platform}</span>
-              <span>·</span>
-              <span>{t.sourceType}</span>
-              <span>·</span>
-              <span>{t.location}</span>
+            <div className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden text-[11px] text-muted-foreground">
+              <span className="shrink-0">{t.platform}</span>
+              <span className="shrink-0">·</span>
+              <span className="min-w-0 truncate">{t.sourceType}</span>
+              <span className="shrink-0">·</span>
+              <span className="min-w-0 truncate">{t.location}</span>
             </div>
           </div>
         </div>
-        <Pill color={severityColor(t.severity)}>{t.severity}</Pill>
+        <div className="shrink-0">
+          <Pill color={severityColor(t.severity)}>{t.severity}</Pill>
+        </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-4 gap-2">
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Metric label="Score" value={`${t.threatScore}`} strong />
         <Metric label="Reach" value={formatReach(t.reach)} />
         <Metric label="Sources" value={`${t.sources}`} />
         <Metric label="Evidence" value={`${t.evidence}`} />
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 items-center gap-2 text-[11px]">
         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full font-semibold" style={{ background: `color-mix(in oklab, ${v.color} 14%, white)`, color: v.color }}>
           <VIcon className="size-3" /> {v.label}
         </span>
-        <span className="text-muted-foreground">{t.riskType}</span>
-        <span className="text-muted-foreground">
+        <span className="text-muted-foreground sm:text-center truncate">{t.riskType}</span>
+        <span className="text-muted-foreground sm:text-right whitespace-nowrap">
           {t.firstDetected} → {t.latestActivity}
           <span className="ml-1 font-semibold" style={{ color: t.growthPct > 50 ? "oklch(0.63 0.24 25)" : "oklch(0.55 0.15 260)" }}>
             +{t.growthPct}%
@@ -390,7 +488,7 @@ function ThreatCard({ t, onOpen, onStatus }: { t: Threat; onOpen: () => void; on
         </span>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-[11px]">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px]">
         <span className="text-muted-foreground">
           {t.caseId ? (<>Case <Link to="/cases" className="text-primary font-semibold">#{t.caseId}</Link></>) : (<span className="italic">Not assigned</span>)}
         </span>
@@ -403,7 +501,7 @@ function ThreatCard({ t, onOpen, onStatus }: { t: Threat; onOpen: () => void; on
         </select>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <div className="mt-4 border-t border-border/60 pt-3 flex flex-wrap items-center gap-2">
         <ActionBtn icon={Eye} onClick={onOpen}>View Evidence</ActionBtn>
         <ActionBtn icon={FileSearch} to="/intelligence">Investigate</ActionBtn>
         <ActionBtn icon={FolderPlus} to="/cases">Send to Case</ActionBtn>
