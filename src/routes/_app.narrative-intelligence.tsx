@@ -144,7 +144,7 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
       decision,
     }: {
       videoId: string;
-      decision: "confirmed" | "not_relevant" | "pending";
+      decision: "approved" | "dismissed" | "escalated";
     }) => reviewFn({ data: { videoId, decision } }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["cluster", clusterId] });
@@ -246,13 +246,13 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
                   <Button
                     type="button"
                     size="sm"
-                    variant={finding.review_status === "confirmed" ? "default" : "outline"}
+                    variant={finding.review_status === "approved" ? "default" : "outline"}
                     className="h-7 px-1 text-[9px]"
                     disabled={reviewMutation.isPending}
                     onClick={() =>
                       reviewMutation.mutate({
                         videoId: finding.id,
-                        decision: "confirmed",
+                        decision: "approved",
                       })
                     }
                   >
@@ -263,13 +263,13 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
                   <Button
                     type="button"
                     size="sm"
-                    variant={finding.review_status === "pending" ? "default" : "outline"}
+                    variant={finding.review_status === "escalated" ? "default" : "outline"}
                     className="h-7 px-1 text-[9px]"
                     disabled={reviewMutation.isPending}
                     onClick={() =>
                       reviewMutation.mutate({
                         videoId: finding.id,
-                        decision: "pending",
+                        decision: "escalated",
                       })
                     }
                   >
@@ -280,13 +280,13 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
                   <Button
                     type="button"
                     size="sm"
-                    variant={finding.review_status === "not_relevant" ? "destructive" : "outline"}
+                    variant={finding.review_status === "dismissed" ? "destructive" : "outline"}
                     className="h-7 px-1 text-[9px]"
                     disabled={reviewMutation.isPending}
                     onClick={() =>
                       reviewMutation.mutate({
                         videoId: finding.id,
-                        decision: "not_relevant",
+                        decision: "dismissed",
                       })
                     }
                   >
@@ -300,7 +300,7 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
                   size="sm"
                   className="h-8 text-[10px]"
                   disabled={
-                    finding.review_status !== "confirmed" ||
+                    finding.review_status !== "approved" ||
                     removalMutation.isPending
                   }
                   onClick={() => removalMutation.mutate(finding.id)}
@@ -311,7 +311,7 @@ function ClusterDetail({ clusterId }: { clusterId: string }) {
                     : "Send to Removal Center"}
                 </Button>
 
-                {finding.review_status !== "confirmed" && (
+                {finding.review_status !== "approved" && (
                   <div className="text-[9px] text-muted-foreground">
                     Human confirmation is required before creating a removal draft.
                   </div>
