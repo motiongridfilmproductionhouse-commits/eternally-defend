@@ -455,7 +455,12 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         <Button
           size="sm"
           variant="outline"
-          className="h-8 !border-cyan-500/60 !bg-cyan-950/80 !text-cyan-200 hover:!bg-cyan-900 hover:!text-white disabled:!border-slate-700 disabled:!bg-slate-900 disabled:!text-slate-500 disabled:opacity-70 text-[11px] font-semibold shadow-sm"
+          className="h-8 border text-[11px] font-semibold shadow-sm hover:brightness-125 disabled:opacity-50"
+          style={{
+            backgroundColor: "#083344",
+            color: "#a5f3fc",
+            borderColor: "#0891b2",
+          }}
           disabled={scanMut.isPending || historyMut.isPending}
           onClick={() => scanMut.mutate()}
         >
@@ -466,7 +471,12 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         <Button
           size="sm"
           variant="outline"
-          className="h-8 !border-violet-500/60 !bg-violet-950/80 !text-violet-200 hover:!bg-violet-900 hover:!text-white disabled:!border-slate-700 disabled:!bg-slate-900 disabled:!text-slate-500 disabled:opacity-70 text-[11px] font-semibold shadow-sm"
+          className="h-8 border text-[11px] font-semibold shadow-sm hover:brightness-125 disabled:opacity-50"
+          style={{
+            backgroundColor: "#2e1065",
+            color: "#ddd6fe",
+            borderColor: "#8b5cf6",
+          }}
           disabled={historyMut.isPending || scanMut.isPending}
           onClick={() => historyMut.mutate()}
         >
