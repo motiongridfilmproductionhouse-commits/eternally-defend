@@ -99,6 +99,41 @@ export const addChannelWatch = createServerFn({ method: "POST" })
     return { id: inserted.id, channelId: c.channelId };
   });
 
+export const analyzeCurrentChannelVideos = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({
+    watchId: z.string().uuid(),
+    count: z.number().int().min(1).max(100).default(50),
+  }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { data: watch } = await context.supabase
+      .from("channel_watches")
+      .select("id,user_id")
+      .eq("id", data.watchId)
+      .maybeSingle();
+
+    if (!watch || watch.user_id !== context.userId) {
+      throw new Error("Channel watch not found");
+    }
+
+    const result = await pollOneWatch(context.supabase, data.watchId, {
+      baseline: true,
+      baselineCount: data.count,
+    });
+
+    await context.supabase.from("channel_watch_events").insert({
+      user_id: context.userId,
+      watch_id: data.watchId,
+      event_type: "historical_analysis_completed",
+      payload: {
+        requested_count: data.count,
+        checked: "checked" in result ? result.checked : 0,
+      },
+    });
+
+    return result;
+  });
+
 export const scanChannelNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ watchId: z.string().uuid() }).parse(raw))

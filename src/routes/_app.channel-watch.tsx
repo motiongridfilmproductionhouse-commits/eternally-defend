@@ -5,8 +5,9 @@ import { useMemo, useState } from "react";
 import { Plus, Play, Pause, Search, Trash2, ExternalLink, ShieldCheck, Activity, Users, Radar, RefreshCw, AlertTriangle, Eye } from "lucide-react";
 import {
   addChannelWatch, getVerifiedUserSummary, listChannelWatches, listRecentEvents,
-  addWatchVideoToRemovalCenter, listWatchVideos, removeChannelWatch,
-  resolveChannelSearch, scanChannelNow, setWatchStatus, submitReviewDecision,
+  addWatchVideoToRemovalCenter, analyzeCurrentChannelVideos,
+  listWatchVideos, removeChannelWatch, resolveChannelSearch,
+  scanChannelNow, setWatchStatus, submitReviewDecision,
 } from "@/lib/channel-watch/channel-watch.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,7 +40,7 @@ const summaryQO = () => queryOptions({ queryKey: ["cw", "summary"], queryFn: () 
 const watchesQO = () => queryOptions({ queryKey: ["cw", "watches"], queryFn: () => listChannelWatches() });
 const videosQO = (watchId?: string) => queryOptions({
   queryKey: ["cw", "videos", watchId ?? "all"],
-  queryFn: () => listWatchVideos({ data: { watchId, limit: 120 } }),
+  queryFn: () => listWatchVideos({ data: { watchId, limit: 200 } }),
 });
 const eventsQO = () => queryOptions({ queryKey: ["cw", "events"], queryFn: () => listRecentEvents() });
 
@@ -239,6 +240,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
 }) {
   const qc = useQueryClient();
   const scanFn = useServerFn(scanChannelNow);
+  const historyFn = useServerFn(analyzeCurrentChannelVideos);
   const statusFn = useServerFn(setWatchStatus);
   const removeFn = useServerFn(removeChannelWatch);
 
@@ -247,6 +249,24 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
     onSuccess: (r) => { toast.success(`Scan complete — ${(r as { inserted?: number }).inserted ?? 0} new video(s)`); qc.invalidateQueries({ queryKey: ["cw"] }); },
     onError: (e) => toast.error((e as Error).message),
   });
+  const historyMut = useMutation({
+    mutationFn: () => historyFn({
+      data: {
+        watchId: watch.id,
+        count: 50,
+      },
+    }),
+    onSuccess: (result) => {
+      toast.success(
+        `Current videos analyzed — ${
+          (result as { checked?: number }).checked ?? 0
+        } checked`,
+      );
+      qc.invalidateQueries({ queryKey: ["cw"] });
+    },
+    onError: (error) => toast.error((error as Error).message),
+  });
+
   const statusMut = useMutation({
     mutationFn: (status: "active" | "paused") => statusFn({ data: { watchId: watch.id, status } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cw"] }),
@@ -429,8 +449,26 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
         <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={onSelect}>
           <Eye className="size-3 mr-1" />{isSelected ? "Hide" : "View"} videos
         </Button>
-        <Button size="sm" variant="outline" className="border-cyan-500/30 text-cyan-100 h-7 text-[11px]" disabled={scanMut.isPending} onClick={() => scanMut.mutate()}>
-          <RefreshCw className={`size-3 mr-1 ${scanMut.isPending ? "animate-spin" : ""}`} />Scan now
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-cyan-500/30 text-cyan-100 h-7 text-[11px]"
+          disabled={scanMut.isPending || historyMut.isPending}
+          onClick={() => scanMut.mutate()}
+        >
+          <RefreshCw className={`size-3 mr-1 ${scanMut.isPending ? "animate-spin" : ""}`} />
+          Scan new
+        </Button>
+
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-violet-500/30 text-violet-100 h-7 text-[11px]"
+          disabled={historyMut.isPending || scanMut.isPending}
+          onClick={() => historyMut.mutate()}
+        >
+          <Radar className={`size-3 mr-1 ${historyMut.isPending ? "animate-pulse" : ""}`} />
+          {historyMut.isPending ? "Analyzing…" : "Analyze current"}
         </Button>
         {watch.status === "active" ? (
           <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={() => statusMut.mutate("paused")}>
@@ -881,6 +919,7 @@ function humanizeEvent(t: string): string {
     baseline_video_fetched: "Existing video fetched (baseline)",
     new_video_detected: "Creator uploaded new video",
     analysis_completed: "Analysis completed",
+    historical_analysis_completed: "Current channel videos analyzed and scoring updated",
     enforcement_draft_created: "Relevant risk analyzed — takedown draft created",
     poll_failed: "Poll failed",
     watch_paused: "Monitoring paused",
