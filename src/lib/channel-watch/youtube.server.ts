@@ -8,8 +8,12 @@
 const YT = "https://www.googleapis.com/youtube/v3";
 
 function key(): string {
-  const k = process.env.GOOGLE_API_KEY;
-  if (!k) throw new Error("GOOGLE_API_KEY is not configured");
+  const k = process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY;
+  if (!k) {
+    throw new Error(
+      "YouTube API key is not configured. Set YOUTUBE_API_KEY or GOOGLE_API_KEY.",
+    );
+  }
   return k;
 }
 
@@ -53,7 +57,9 @@ async function ytGet<T>(path: string, params: Record<string, string>): Promise<T
   const url = new URL(`${YT}${path}`);
   for (const [k2, v] of Object.entries(params)) url.searchParams.set(k2, v);
   url.searchParams.set("key", key());
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), {
+    signal: AbortSignal.timeout(15_000),
+  });
   const text = await res.text();
   if (!res.ok) {
     // Preserve provider status for callers to distinguish quotaExceeded/403 from 404 etc.
@@ -164,7 +170,10 @@ export async function resolveChannelCandidates(query: string): Promise<ResolvedC
   if (ids.size === 0 && (freeform || handle)) {
     // Bounded search.list fallback — only for freeform text; user must confirm.
     const j = await ytGet<{ items?: Array<{ snippet?: { channelId?: string } }> }>("/search", {
-      part: "snippet", type: "channel", maxResults: "5", q: freeform ?? handle ?? "",
+      part: "snippet",
+      type: "channel",
+      maxResults: "5",
+      q: (freeform ?? handle ?? "").replace(/^@/, ""),
     });
     for (const it of j.items ?? []) if (it.snippet?.channelId) ids.add(it.snippet.channelId);
   }
