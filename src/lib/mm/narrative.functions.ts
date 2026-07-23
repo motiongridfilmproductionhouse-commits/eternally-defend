@@ -297,9 +297,9 @@ export const clusterFindings = createServerFn({ method: "POST" })
         const finding = eligibleFindings[findingIndex];
 
         const summary = String(
-          finding.claimSummary ??
-          finding.translatedText ??
-          finding.text ??
+          (finding as Record<string, unknown>).claimSummary ??
+          (finding as Record<string, unknown>).translatedText ??
+          (finding as Record<string, unknown>).text ??
           fallbackSummary,
         ).trim();
 
