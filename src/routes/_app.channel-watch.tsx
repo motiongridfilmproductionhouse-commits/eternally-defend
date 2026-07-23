@@ -726,7 +726,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
       {(scanMut.isPending || historyMut.isPending) && (
         <ChannelScanOverlay
           channelName={watch.channel_title ?? watch.channel_id}
-          subject={watch.reason}
+          subject={watch.reason ?? ""}
           mode={historyMut.isPending ? "historical" : "new"}
         />
       )}
