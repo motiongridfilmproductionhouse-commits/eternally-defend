@@ -66,15 +66,22 @@ function PartnerApplyPage() {
     (async () => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) {
-        navigate({ to: "/auth" });
+        // The application page is public. Authentication is required only
+        // when the visitor uploads documents or submits the application.
+        setChecking(false);
         return;
       }
+
       const existing = await loadExisting({});
       if (existing.application) {
         navigate({ to: "/partner-status" });
         return;
       }
-      setForm((f) => ({ ...f, business_email: session.session?.user.email ?? "" }));
+
+      setForm((f) => ({
+        ...f,
+        business_email: session.session.user.email ?? "",
+      }));
       setChecking(false);
     })();
   }, [loadExisting, navigate]);
