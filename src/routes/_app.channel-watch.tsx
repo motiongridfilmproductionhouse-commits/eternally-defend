@@ -745,7 +745,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
             <div>Videos: <span className="text-slate-200">{formatNumber(watch.video_count)}</span></div>
             <div>Priority: <span className="text-slate-200 uppercase">{watch.priority}</span></div>
           </div>
-          <div className="mt-2 text-[10px] text-cyan-200/80 truncate" title={watch.reason}>
+          <div className="mt-2 text-[10px] text-cyan-200/80 truncate" title={watch.reason ?? undefined}>
             Monitoring for: {watch.reason}
           </div>
           <div className="mt-1 text-[10px] text-slate-500">
