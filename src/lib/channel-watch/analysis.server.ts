@@ -351,7 +351,7 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
             alias_hits: aliasHits,
             face_matches: faceMatches,
             captured_at: new Date().toISOString(),
-          },
+          } as never,
         });
       }
     }
