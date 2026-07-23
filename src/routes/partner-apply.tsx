@@ -106,7 +106,6 @@ function PartnerApplyPage() {
   const canSubmit =
     form.legal_company_name && form.country && form.founder_name && form.rep_name &&
     form.business_email && form.signature_text &&
-    tradeLicKey && idDocKey &&
     decl.authority && decl.accurate && decl.commercial_terms && decl.no_incentives && decl.data_protection;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -225,15 +224,13 @@ function PartnerApplyPage() {
           <Section icon={ShieldCheck} title="Verification Documents">
             <div className="grid md:grid-cols-2 gap-4">
               <UploadTile
-                label="Trade licence (PDF / image)"
-                required
+                label="Trade licence (Optional)"
                 busy={uploading === "trade_licence"}
                 uploadedName={tradeLicKey?.split("/").pop() ?? null}
                 onFile={(f) => upload("trade_licence", f)}
               />
               <UploadTile
-                label="Representative ID document"
-                required
+                label="Representative ID document (Optional)"
                 busy={uploading === "id_document"}
                 uploadedName={idDocKey?.split("/").pop() ?? null}
                 onFile={(f) => upload("id_document", f)}
