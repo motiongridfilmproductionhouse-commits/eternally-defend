@@ -113,6 +113,25 @@ function PartnerApplyPage() {
     if (!canSubmit || submitting) return;
     setSubmitting(true); setError(null);
     try {
+      // Public application UX with a secure anonymous Supabase identity.
+      // The visitor does not see a login screen, while authenticated
+      // server middleware and per-user database ownership remain intact.
+      const { data: currentAuth, error: sessionError } =
+        await supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+
+      if (!currentAuth.session) {
+        const { error: anonymousError } =
+          await supabase.auth.signInAnonymously();
+
+        if (anonymousError) {
+          throw new Error(
+            `Unable to start application session: ${anonymousError.message}`
+          );
+        }
+      }
+
       await submit({
         data: {
           legal_company_name: form.legal_company_name.trim(),
