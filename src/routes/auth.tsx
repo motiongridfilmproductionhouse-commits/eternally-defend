@@ -157,6 +157,19 @@ function AuthPage() {
               {mode === "signin" ? "Create one" : "Sign in"}
             </button>
           </p>
+
+          <div className="pt-4 border-t border-border">
+            <a
+              href="/partner-apply"
+              className="block text-center text-sm font-semibold px-4 py-2.5 rounded-md border border-slate-300 hover:bg-slate-50 transition"
+            >
+              Become a Partner →
+            </a>
+            <p className="mt-2 text-[11px] text-center text-muted-foreground">
+              Refer clients and earn 25% commission on Eterna Protection sales.
+            </p>
+          </div>
+
         </div>
       </div>
     </div>

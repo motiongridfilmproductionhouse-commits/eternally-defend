@@ -1021,6 +1021,7 @@ export type Database = {
           onboarding_version: string
           phone: string | null
           phone_verified_at: string | null
+          referred_by: string | null
           role_title: string | null
           sidebar_collapsed: boolean
           social_profiles: Json
@@ -1055,6 +1056,7 @@ export type Database = {
           onboarding_version?: string
           phone?: string | null
           phone_verified_at?: string | null
+          referred_by?: string | null
           role_title?: string | null
           sidebar_collapsed?: boolean
           social_profiles?: Json
@@ -1089,6 +1091,7 @@ export type Database = {
           onboarding_version?: string
           phone?: string | null
           phone_verified_at?: string | null
+          referred_by?: string | null
           role_title?: string | null
           sidebar_collapsed?: boolean
           social_profiles?: Json
@@ -2910,6 +2913,364 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_agreements: {
+        Row: {
+          application_id: string
+          created_at: string
+          draft_s3_key: string
+          eterna_signed_at: string | null
+          eterna_signer_id: string | null
+          generated_at: string
+          id: string
+          sha256: string | null
+          signed_s3_key: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          draft_s3_key: string
+          eterna_signed_at?: string | null
+          eterna_signer_id?: string | null
+          generated_at?: string
+          id?: string
+          sha256?: string | null
+          signed_s3_key?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          draft_s3_key?: string
+          eterna_signed_at?: string | null
+          eterna_signer_id?: string | null
+          generated_at?: string
+          id?: string
+          sha256?: string | null
+          signed_s3_key?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_agreements_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_applications: {
+        Row: {
+          address: string | null
+          assigned_partner_id: string | null
+          business_email: string
+          country: string
+          created_at: string
+          declarations: Json
+          expected_monthly_clients: number | null
+          founder_name: string
+          id: string
+          id_document_s3_key: string | null
+          industry: string | null
+          ip_address: string | null
+          legal_company_name: string
+          partnership_type: string
+          phone: string | null
+          registration_number: string | null
+          rep_name: string
+          rep_title: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          signature_hash: string
+          signature_text: string
+          signed_at: string
+          status: string
+          territory: string | null
+          trade_licence_s3_key: string | null
+          trading_name: string | null
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+          website: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          assigned_partner_id?: string | null
+          business_email: string
+          country: string
+          created_at?: string
+          declarations?: Json
+          expected_monthly_clients?: number | null
+          founder_name: string
+          id?: string
+          id_document_s3_key?: string | null
+          industry?: string | null
+          ip_address?: string | null
+          legal_company_name: string
+          partnership_type: string
+          phone?: string | null
+          registration_number?: string | null
+          rep_name: string
+          rep_title?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          signature_hash: string
+          signature_text: string
+          signed_at?: string
+          status?: string
+          territory?: string | null
+          trade_licence_s3_key?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          assigned_partner_id?: string | null
+          business_email?: string
+          country?: string
+          created_at?: string
+          declarations?: Json
+          expected_monthly_clients?: number | null
+          founder_name?: string
+          id?: string
+          id_document_s3_key?: string | null
+          industry?: string | null
+          ip_address?: string | null
+          legal_company_name?: string
+          partnership_type?: string
+          phone?: string | null
+          registration_number?: string | null
+          rep_name?: string
+          rep_title?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          signature_hash?: string
+          signature_text?: string
+          signed_at?: string
+          status?: string
+          territory?: string | null
+          trade_licence_s3_key?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      partner_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          application_id: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          partner_id: string | null
+          payload: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          partner_id?: string | null
+          payload?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          partner_id?: string | null
+          payload?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      partner_commissions: {
+        Row: {
+          commission_inr: number
+          created_at: string
+          earned_at: string
+          gross_inr: number
+          id: string
+          paid_at: string | null
+          partner_id: string
+          payout_ref: string | null
+          referred_client_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          commission_inr?: number
+          created_at?: string
+          earned_at?: string
+          gross_inr?: number
+          id?: string
+          paid_at?: string | null
+          partner_id: string
+          payout_ref?: string | null
+          referred_client_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          commission_inr?: number
+          created_at?: string
+          earned_at?: string
+          gross_inr?: number
+          id?: string
+          paid_at?: string | null
+          partner_id?: string
+          payout_ref?: string | null
+          referred_client_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_commissions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_commissions_referred_client_id_fkey"
+            columns: ["referred_client_id"]
+            isOneToOne: true
+            referencedRelation: "partner_referred_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_profiles: {
+        Row: {
+          activated_at: string
+          commission_pct: number
+          created_at: string
+          id: string
+          legal_company_name: string
+          partner_id: string
+          referral_code: string
+          status: string
+          territory: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          legal_company_name: string
+          partner_id: string
+          referral_code: string
+          status?: string
+          territory?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activated_at?: string
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          legal_company_name?: string
+          partner_id?: string
+          referral_code?: string
+          status?: string
+          territory?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      partner_referred_clients: {
+        Row: {
+          cleared_at: string | null
+          client_user_id: string | null
+          commission_amount_inr: number | null
+          created_at: string
+          id: string
+          lead_email: string
+          lead_name: string | null
+          lead_phone: string | null
+          notes: string | null
+          partner_id: string
+          referral_code: string
+          sale_amount_inr: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cleared_at?: string | null
+          client_user_id?: string | null
+          commission_amount_inr?: number | null
+          created_at?: string
+          id?: string
+          lead_email: string
+          lead_name?: string | null
+          lead_phone?: string | null
+          notes?: string | null
+          partner_id: string
+          referral_code: string
+          sale_amount_inr?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cleared_at?: string | null
+          client_user_id?: string | null
+          commission_amount_inr?: number | null
+          created_at?: string
+          id?: string
+          lead_email?: string
+          lead_name?: string | null
+          lead_phone?: string | null
+          notes?: string | null
+          partner_id?: string
+          referral_code?: string
+          sale_amount_inr?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_referred_clients_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["partner_id"]
+          },
+        ]
+      }
       platform_reports: {
         Row: {
           created_at: string
@@ -4725,7 +5086,7 @@ export type Database = {
     }
     Enums: {
       account_type_enum: "personal" | "business"
-      app_role: "admin" | "analyst" | "user" | "super_admin"
+      app_role: "admin" | "analyst" | "user" | "super_admin" | "partner"
       asset_kind_enum:
         | "name"
         | "brand"
@@ -5031,7 +5392,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type_enum: ["personal", "business"],
-      app_role: ["admin", "analyst", "user", "super_admin"],
+      app_role: ["admin", "analyst", "user", "super_admin", "partner"],
       asset_kind_enum: [
         "name",
         "brand",
