@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, type PDFPage } from "pdf-lib";
-import { embedUnicodeFontStack, drawUnicodeText, type UnicodeFontStack } from "@/lib/pdf/unicode-fonts.server";
+import { embedUnicodeFontStack, drawUnicodeText, measureUnicodeText, type UnicodeFontStack } from "@/lib/pdf/unicode-fonts.server";
 
 export interface MouInput {
   partnerCompany: string;
