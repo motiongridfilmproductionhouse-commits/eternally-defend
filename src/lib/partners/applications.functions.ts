@@ -322,12 +322,12 @@ export const decidePartnerApplication = createServerFn({ method: "POST" })
         } as never).eq("id", agreement.id);
       }
 
-      // Grant partner role
-      await supabase.from("user_roles").insert({
-        user_id: app.user_id,
-        role: "partner",
-      } as never).select().maybeSingle().then(() => undefined).catch(() => undefined);
+      // Grant partner role (ignore duplicates)
+      try {
+        await supabase.from("user_roles").insert({ user_id: app.user_id, role: "partner" } as never);
+      } catch { /* ignore */ }
     }
+
 
     await supabase.from("partner_audit_log").insert({
       actor_id: userId,
