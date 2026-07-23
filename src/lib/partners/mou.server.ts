@@ -52,7 +52,7 @@ function paragraph(doc: PDFDocument, c: Cursor, text: string, size = 10.5): Curs
   let line = "";
   for (const w of words) {
     const test = line ? line + " " + w : w;
-    const width = c.stack.regular.font.widthOfTextAtSize(test, size);
+    const width = measureUnicodeText(test, size, c.stack.regular);
     if (width > maxWidth && line) {
       c = ensureRoom(doc, c, size + 6);
       drawUnicodeText(c.page, line, { x: 60, y: c.y, size, stack: c.stack.regular, color: rgb(0.1, 0.12, 0.2) });
