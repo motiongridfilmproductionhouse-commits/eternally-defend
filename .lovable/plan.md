@@ -1,135 +1,114 @@
-## Persistent Channel Watch — Implementation Plan
+# Eterna Partner Portal
 
-Build `/channel-watch` as a single-user (the signed-in verified Eterna user) command surface for monitoring external YouTube channels for content concerning them. Reuse existing YouTube, multimedia, evidence, and auth infrastructure. Nothing is auto-classified as defamation — everything flagged goes to human review.
+Premium white-themed partner program built on the existing Eterna stack (Supabase, TanStack Start server functions, S3 for document storage, pdf-lib + Unicode font stack for agreements). No mocks — everything wired to real tables and real PDF generation.
 
-### 1. Data model (one migration)
+## 1. Database (single migration)
 
-New tables, all `user_id` scoped with RLS `auth.uid() = user_id`:
+New tables (all with `authenticated` + `service_role` GRANTs, RLS on):
 
-- `channel_watches` — one row per creator channel the user monitors
-  - `channel_id` (permanent YT ID), `channel_title`, `handle`, `avatar_url`, `subscriber_count`, `video_count`, `channel_url`
-  - `reason`, `priority` (`critical|high|standard|low`), `notes`
-  - `status` (`active|paused|error`), `last_error`
-  - `uploads_playlist_id`, `last_checked_at`, `next_check_at`, `last_video_published_at`
-  - `firecrawl_monitor_id` (nullable)
-  - unique `(user_id, channel_id)` — dedupe
-- `channel_watch_videos` — one row per fetched video
-  - `watch_id`, `video_id`, `title`, `thumbnail_url`, `url`, `published_at`, `detected_at`
-  - `is_baseline` (bool — historical vs new upload)
-  - `view_count`, `like_count`, `comment_count`, `duration_seconds`
-  - `mention_match` (jsonb: names/aliases hit, malayalam/manglish/english)
-  - `protected_asset_similarity` (jsonb)
-  - `analysis_status` (`pending|running|completed|failed|skipped`), `analysis_error`
-  - `classification` (enum below), `risk_score` (0-100), `virality_score`
-  - `review_status` (`not_required|pending|approved|dismissed|escalated`)
-  - `reupload_of_video_id` (nullable), `deepfake_indicators` (jsonb)
-  - unique `(watch_id, video_id)`
-- `channel_watch_events` — activity feed
-  - `watch_id` (nullable), `video_id` (nullable), `event_type`, `payload jsonb`
-- `channel_watch_evidence` — links to `evidence_vault_items` for captured screenshots/transcripts
-- Enum `channel_watch_classification`:
-  `not_relevant | informational | commentary_no_violation | potential_harm | potential_copyright | potential_impersonation | potential_privacy | potential_manipulated | potential_harassment | potential_false_allegation`
+- **partner_applications** — one row per submission. Fields: user_id, status (`PENDING_REVIEW`|`APPROVED`|`REJECTED`|`INFO_REQUESTED`), legal_company_name, trading_name, registration_number, country, address, website, industry, founder_name, rep_name, rep_title, business_email, phone, whatsapp, territory, expected_monthly_clients, partnership_type, trade_licence_s3_key, id_document_s3_key, signature_text, signature_hash, signed_at, ip, ua, declarations jsonb, review_notes, reviewed_by, reviewed_at, partner_id (assigned on approval, e.g. `EP-2026-XXXX`).
+- **partner_agreements** — status (`DRAFT_AWAITING_ETERNA`|`ETERNA_SIGNED`|`ACTIVE`|`TERMINATED`), version, s3_key (draft), signed_s3_key, sha256, generated_at, eterna_signer_id, eterna_signed_at.
+- **partner_profiles** — activated partners. partner_id (unique), user_id, referral_code (unique), territory, commission_pct (default 25), status (`ACTIVE`|`SUSPENDED`), activated_at.
+- **partner_referred_clients** — referral_code, partner_id, client_user_id (nullable until claimed), lead_email, lead_name, status (`LEAD`|`ONBOARDING`|`ACTIVE`|`PAID`|`REFUNDED`|`REJECTED`), sale_amount_inr, commission_amount_inr, cleared_at, notes. Unique(partner_id, client_user_id) prevents duplicate claims.
+- **partner_commissions** — referred_client_id, partner_id, gross_inr (500000), commission_inr (125000), status (`PENDING`|`PAYABLE`|`PAID`|`VOID`), earned_at, paid_at, payout_ref.
+- **partner_audit_log** — actor_id, partner_id, action, payload, ip, ua.
 
-All tables: `GRANT` for authenticated + service_role, RLS enabled, `auth.uid() = user_id` policies, `updated_at` triggers.
+New storage bucket **partner-documents** (private) for licence, ID, agreement PDFs, signed uploads. RLS: owner user_id or admin.
 
-### 2. Server functions — `src/lib/channel-watch/*.functions.ts`
+`app_role` already exists — reuse `admin` for reviewers. Add helper `has_partner(_user_id)` = exists in partner_profiles ACTIVE.
 
-- `resolveChannelCandidates({ query })` — accepts `@handle`, URL, channel ID, or free text. Uses `channels.list` (by id / forHandle) plus a bounded `search.list` fallback only for freeform names. Returns 1–5 candidates with avatar/title/handle/desc/subs/videoCount + 4 recent thumbnails. Requires user confirmation.
-- `addChannelWatch({ channelId, reason, priority, notes, analyzeExisting, existingCount })` — verifies unique per user, fetches channel + `uploads` playlist, seeds `channel_watches`, enqueues baseline fetch, optionally creates Firecrawl monitor.
-- `listChannelWatches()` / `getChannelWatch({ id })` / `listWatchVideos({ watchId, cursor })`
-- `scanChannelNow({ watchId })` — manual poll; ignores schedule
-- `pauseWatch` / `resumeWatch` / `removeWatch` / `updateWatch`
-- `getVerifiedUserSummary()` — top-card stats (monitored channels, videos analyzed, new matches, exposure)
-- `submitReviewDecision({ videoId, decision, note })` — routes to human-review workflow
+## 2. Server functions (`src/lib/partners/*.functions.ts`)
 
-### 3. Poll worker + scheduling
+Public:
+- `submitPartnerApplication` — validates zod schema, computes signature_hash, inserts application (PENDING_REVIEW), generates draft agreement PDF via pdf-lib + Unicode fonts (embeds Eterna Sentinel Defence LLC address, commission table, applicant details), uploads to S3, inserts `partner_agreements` (DRAFT_AWAITING_ETERNA). Idempotent per user.
+- `getMyPartnerApplication` — for logged-in user.
+- `getPartnerAgreementUrl` — signed S3 GET.
 
-- `src/lib/channel-watch/poll.server.ts` — for one watch:
-  1. Load `uploads_playlist_id`; `playlistItems.list` newest-first, page while `snippet.publishedAt > last_video_published_at`
-  2. Batch `videos.list` for metadata + stats
-  3. Insert new rows (`is_baseline=false` for uploads discovered after seeding); dedupe on `(watch_id, video_id)`
-  4. Enqueue analysis; update `last_checked_at`, `next_check_at` from priority, advance `last_video_published_at`
-  5. Handle `403 quotaExceeded`, `404`, private/deleted — mark row `skipped` with reason; never silently succeed
-  6. Advisory lock per `watch_id` (idempotency); exponential backoff on transient errors
-- Baseline fetch: same pipeline, `is_baseline=true`, capped at `existingCount`.
-- Public server route `src/routes/api/public/hooks/channel-watch-poll.ts` — auth via bearer secret, iterates due watches. Scheduled by `pg_cron` calling the endpoint every 5 min; each watch runs on its own priority cadence (15m/30m/2h/6h).
+Partner (requires ACTIVE partner_profile):
+- `getPartnerDashboardStats` — pipeline counts, commission totals by status.
+- `registerReferredClient` — creates `partner_referred_clients` LEAD.
+- `getReferralLink` — returns `${PUBLIC_APP_URL}/auth?ref=<code>`.
+- `listPartnerClients`, `listPartnerCommissions`, `listPartnerAgreements`.
+- `generateProposalPdf` — ₹5,00,000 proposal PDF for a lead.
 
-### 4. Analysis pipeline
+Admin (`has_role admin`):
+- `listPartnerApplications` (filter by status).
+- `getPartnerApplicationDetail`.
+- `decidePartnerApplication({ id, decision, notes, territory?, commission_pct? })` — on `approve`: assign `partner_id`, create `partner_profiles` row with unique `referral_code`, upsert `user_roles` (new role `partner`), regenerate agreement with Eterna signatory block, mark agreement `ETERNA_SIGNED` + `ACTIVE`, write audit log. On `reject`/`info_requested`: update status, notes.
+- `markCommissionPaid`.
 
-Reuse existing multimedia infrastructure (`src/lib/mm/*`): captions/translation, claim extraction, face-scan (`analyzeHitForFaces`), video-classify, risk scoring. Add a thin orchestrator `analyzeWatchVideo({ videoRowId })` that:
-- Loads user aliases (Malayalam/Manglish/English) from `client_profiles`; runs name/alias regex on title + description + captions
-- Runs thumbnail face-match against user's Rekognition collection
-- Runs caption transcription/translation if captions absent
-- Runs claim extraction + deepfake/manipulation heuristics
-- Computes `risk_score`, chooses `classification` from the enum; anything `potential_*` sets `review_status='pending'` and inserts `channel_watch_events` + evidence link
-- Never labels as defamation; `potential_false_allegation` explicitly routes to legal review
+Commission trigger: when a `partner_referred_clients` row moves to `PAID` (cleared payment), insert one `partner_commissions` row (gross 500000, commission 125000). Duplicate guarded by unique(referred_client_id).
 
-### 5. Firecrawl secondary monitor
+## 3. Routes
 
-- `src/lib/channel-watch/firecrawl.server.ts` — installs `firecrawl` (`bun add firecrawl`), creates the monitor on channel confirmation, stores `monitor.id`, deletes on remove.
-- `src/routes/api/public/hooks/firecrawl-monitor.ts` — verifies `Authorization: Bearer FIRECRAWL_WEBHOOK_SECRET`, timing-safe compare, inserts `channel_watch_events` and triggers a `scanChannelNow` for that watch (YouTube API remains authoritative).
-- New secrets: `FIRECRAWL_WEBHOOK_SECRET`, `CHANNEL_WATCH_POLL_SECRET`. `PUBLIC_APP_URL` derived from request origin at monitor-create time.
+Public:
+- `src/routes/auth.tsx` — add third card **Become a Partner** alongside Client / Partner login. Captures optional `?ref=<code>` and stores on new client_profiles as `referred_by`.
+- `src/routes/partner-apply.tsx` — multi-section form (Company, Representative, Contact, Territory, Documents, Declarations & Signature). Uses S3 signed upload for trade licence + ID. On submit calls `submitPartnerApplication`, shows success screen with agreement download.
+- `src/routes/partner-status.tsx` — logged-in view: current application status, draft agreement download.
 
-### 6. UI — `/channel-watch` under `_app`
+Partner (gated by `partner` role, layout `_partner/route.tsx` with beforeLoad that checks `partner_profiles` ACTIVE, redirects to `/partner-status` otherwise):
+- `_partner.dashboard.tsx` — stats, referral link, register-client CTA.
+- `_partner.clients.tsx` — pipeline table.
+- `_partner.proposals.tsx` — generate ₹5L proposals.
+- `_partner.agreements.tsx` — download active agreement.
+- `_partner.commissions.tsx` — payable + paid table.
+- `_partner.payments.tsx` — payout history.
+- `_partner.marketing.tsx` — static downloadable assets list.
 
-Route file `src/routes/_app.channel-watch.tsx`. Follows the SOC/command-center visual language already introduced (smoky blue-grey, frosted panels, muted cyan/coral).
+Admin:
+- `_app.admin.partners.tsx` — list + detail drawer with approve/reject/info/set territory + commission %.
 
-Layout:
+## 4. Agreement PDF
 
-```text
-┌──────────────────────────────────────────────────────────────┐
-│ Verified User card  │  [+ ADD RISK CHANNEL]  │  Global stats │
-├──────────────────────────────────────────────────────────────┤
-│  Node graph: user → channels → videos → analysis → review    │
-│  (SVG, thin curved lines, loop back to channels)             │
-├──────────────────────────────────────────────────────────────┤
-│  Monitored Creator Channels (grid of compact cards)          │
-├──────────────────────────────────────────────────────────────┤
-│  Fetched Videos (table w/ Baseline / New tab, filters)       │
-├──────────────────────────────────────────────────────────────┤
-│  Creator Upload Activity (waveform graph, recent events)     │
-└──────────────────────────────────────────────────────────────┘
+Uses `@/lib/pdf/unicode-fonts.server` (existing). Template:
+
+```
+ETERNA PARTNER AGREEMENT (MOU)
+Between: Eterna Sentinel Defence LLC
+         Meydan Grandstand, 6th Floor, Al Meydan Road,
+         Nad Al Sheba, Nadd Al Shiba First, Dubai, UAE
+And:     {legal_company_name} ({trading_name})
+         {address}, {country}
+
+Commission Structure
+  Eterna service price per client:  ₹5,00,000
+  Partner commission rate:          25%
+  Partner earning per sale:         ₹1,25,000
+  Eterna gross balance:             ₹3,75,000
+
+Payment: commission payable only after Eterna receives client's
+cleared payment. Taxes, discounts, refunds, cancellations and
+chargebacks excluded. Every client tracked via partner_id / referral
+link; duplicate claims are rejected.
+
+Declarations, Territory, Signatures, Effective date.
 ```
 
-Components in `src/components/channel-watch/`:
-- `VerifiedUserCard.tsx`
-- `AddRiskChannelDialog.tsx` (search → candidate list → confirm)
-- `ChannelWatchGraph.tsx` (SVG, no react-flow)
-- `MonitoredChannelCard.tsx` (Scan Now / Pause / Edit / Remove)
-- `WatchVideosTable.tsx` with `VideoDetailDrawer.tsx`
-- `CreatorActivityGraph.tsx` (sparkline + event feed)
-- `ReviewDecisionDialog.tsx`
+Draft has applicant signature only; approved version adds Eterna signatory block + partner_id.
 
-Data loading uses TanStack Query (loader `ensureQueryData` + `useSuspenseQuery`); protected server fns via `useServerFn`.
+## 5. Design system
 
-### 7. Sidebar + head metadata
+White base, `#0A0A0A` primary text, `#E5E7EB` borders, subtle `shadow-sm`, single Eterna blue accent `hsl(214 100% 48%)` for CTAs/badges. Existing shadcn tokens reused; new `.partner-*` utility classes only if needed. Fully responsive (mobile stacks form sections, dashboard tables become cards).
 
-- Add "Channel Watch" entry in `Sidebar.tsx`
-- Route `head()` sets a unique title/description/og
+## 6. Anti-abuse & audit
 
-### 8. Security & correctness
+- Every state change writes `partner_audit_log` (actor, action, payload, ip, ua).
+- Duplicate claim: unique(partner_id, client_user_id) + unique(referral_code, lead_email while LEAD).
+- Referral capture at signup writes `client_profiles.referred_by` (new column).
+- Admin actions require `has_role(admin)`; partner actions require ACTIVE profile.
 
-- All server fns use `requireSupabaseAuth`; queries filter by `context.userId`; RLS enforces
-- Webhook routes under `/api/public/*` verify bearer secrets with `timingSafeEqual`
-- Poll worker uses Postgres advisory locks per watch_id for idempotency
-- API keys read inside handlers (`process.env`), never module-scope
-- Provider failures set `analysis_status='failed'` with reason — never silently converted to "no findings"
-- No automatic takedowns; enforcement remains manual through existing flow
+## Technical section
 
-### 9. Verification
+Files added:
+- migration (tables, GRANTs, RLS, bucket, `referred_by` column on client_profiles, `partner` enum value on app_role).
+- `src/lib/partners/{applications,agreements,partner,admin,commissions}.functions.ts`
+- `src/lib/partners/agreement-pdf.server.ts`
+- `src/routes/auth.tsx` (edit — add third CTA + ref capture)
+- `src/routes/partner-apply.tsx`, `partner-status.tsx`
+- `src/routes/_partner/route.tsx` + 7 child routes
+- `src/routes/_app.admin.partners.tsx`
+- Sidebar entry for admin.
 
-- `tsgo` typecheck + build after wiring
-- Manual flow with Playwright once running: add by handle → confirm → baseline fetches → simulate new upload via `scanChannelNow` → analysis → review dialog
-- Quota-exceeded and private-video paths exercised via injected errors in poll worker unit test
+Reuses: pdf-lib Unicode stack, S3 helpers (`putObject`, `getSignedGetUrl`), `requireSupabaseAuth`, existing shadcn UI.
 
-### 10. Out of scope for this pass
-
-- Real re-upload perceptual-hash matching against user's protected library (schema field reserved; heuristic-only detection first)
-- Malayalam speech-to-text tuning beyond existing provider defaults
-- Multi-tenant client selector (explicitly a single verified user)
-
-### Open questions before I build
-
-1. Priority defaults for `next_check_at`: should "critical" really poll every 15 min for every user, or should we start conservative (30/60/240/720) to protect YouTube quota, then let the user opt into aggressive polling per watch?
-2. Baseline analysis: for `analyzeExisting=yes` with e.g. 50 recent videos, do you want full multimedia analysis (captions + face-match) on all of them upfront, or metadata + thumbnail match now and defer heavy analysis until a match hint fires?
-3. Firecrawl: enable by default on every added watch, or only when the user opts in per channel? (It costs credits and is secondary to YouTube API.)
+No mock data. No hardcoded partners. No auto-approvals.
