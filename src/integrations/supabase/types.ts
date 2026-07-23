@@ -1686,6 +1686,62 @@ export type Database = {
         }
         Relationships: []
       }
+      evidence_chain_of_custody: {
+        Row: {
+          action: string
+          actor: string
+          created_at: string
+          destination_location: string | null
+          event_at: string
+          event_number: number
+          evidence_object_id: string
+          hash_after: string | null
+          hash_before: string | null
+          id: string
+          signature_log_reference: string | null
+          source_location: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          actor: string
+          created_at?: string
+          destination_location?: string | null
+          event_at?: string
+          event_number?: never
+          evidence_object_id: string
+          hash_after?: string | null
+          hash_before?: string | null
+          id?: string
+          signature_log_reference?: string | null
+          source_location?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          actor?: string
+          created_at?: string
+          destination_location?: string | null
+          event_at?: string
+          event_number?: never
+          evidence_object_id?: string
+          hash_after?: string | null
+          hash_before?: string | null
+          id?: string
+          signature_log_reference?: string | null
+          source_location?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_chain_of_custody_evidence_object_id_fkey"
+            columns: ["evidence_object_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_objects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evidence_frames: {
         Row: {
           created_at: string
@@ -1729,6 +1785,235 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_item_reviews: {
+        Row: {
+          alleged_violation_type: string[]
+          confidence_score: number | null
+          content_context: string | null
+          content_position: Database["public"]["Enums"]["evidence_content_position"]
+          created_at: string
+          exact_original_statement: string | null
+          falsity_basis: string | null
+          id: string
+          legal_review_required: boolean
+          recommended_action: string | null
+          review_status: Database["public"]["Enums"]["evidence_review_status"]
+          reviewed_at: string | null
+          reviewer_declaration_signed: boolean
+          reviewer_name: string | null
+          reviewer_notes: string | null
+          reviewer_role: string | null
+          scan_hit_id: string
+          speaker_identity: string | null
+          statement_language: string | null
+          statement_type: Database["public"]["Enums"]["evidence_statement_type"]
+          supersedes_review_id: string | null
+          supporting_facts: string | null
+          target_person: string | null
+          user_id: string
+          verified_english_translation: string | null
+          victim_impact: string | null
+          video_end_timestamp: number | null
+          video_start_timestamp: number | null
+          violation_reason: string | null
+        }
+        Insert: {
+          alleged_violation_type?: string[]
+          confidence_score?: number | null
+          content_context?: string | null
+          content_position?: Database["public"]["Enums"]["evidence_content_position"]
+          created_at?: string
+          exact_original_statement?: string | null
+          falsity_basis?: string | null
+          id?: string
+          legal_review_required?: boolean
+          recommended_action?: string | null
+          review_status?: Database["public"]["Enums"]["evidence_review_status"]
+          reviewed_at?: string | null
+          reviewer_declaration_signed?: boolean
+          reviewer_name?: string | null
+          reviewer_notes?: string | null
+          reviewer_role?: string | null
+          scan_hit_id: string
+          speaker_identity?: string | null
+          statement_language?: string | null
+          statement_type?: Database["public"]["Enums"]["evidence_statement_type"]
+          supersedes_review_id?: string | null
+          supporting_facts?: string | null
+          target_person?: string | null
+          user_id: string
+          verified_english_translation?: string | null
+          victim_impact?: string | null
+          video_end_timestamp?: number | null
+          video_start_timestamp?: number | null
+          violation_reason?: string | null
+        }
+        Update: {
+          alleged_violation_type?: string[]
+          confidence_score?: number | null
+          content_context?: string | null
+          content_position?: Database["public"]["Enums"]["evidence_content_position"]
+          created_at?: string
+          exact_original_statement?: string | null
+          falsity_basis?: string | null
+          id?: string
+          legal_review_required?: boolean
+          recommended_action?: string | null
+          review_status?: Database["public"]["Enums"]["evidence_review_status"]
+          reviewed_at?: string | null
+          reviewer_declaration_signed?: boolean
+          reviewer_name?: string | null
+          reviewer_notes?: string | null
+          reviewer_role?: string | null
+          scan_hit_id?: string
+          speaker_identity?: string | null
+          statement_language?: string | null
+          statement_type?: Database["public"]["Enums"]["evidence_statement_type"]
+          supersedes_review_id?: string | null
+          supporting_facts?: string | null
+          target_person?: string | null
+          user_id?: string
+          verified_english_translation?: string | null
+          victim_impact?: string | null
+          video_end_timestamp?: number | null
+          video_start_timestamp?: number | null
+          violation_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_item_reviews_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_item_reviews_supersedes_review_id_fkey"
+            columns: ["supersedes_review_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_item_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_objects: {
+        Row: {
+          acquisition_method: string | null
+          captured_at: string
+          collector_identity: string | null
+          created_at: string
+          file_size: number | null
+          hash_generated_at: string | null
+          hashing_algorithm: string
+          id: string
+          metadata: Json
+          mime_type: string | null
+          object_type: string
+          original_filename: string | null
+          previous_hash: string | null
+          scan_hit_id: string | null
+          sha256: string | null
+          source_url: string | null
+          storage_object_path: string | null
+          user_id: string
+        }
+        Insert: {
+          acquisition_method?: string | null
+          captured_at: string
+          collector_identity?: string | null
+          created_at?: string
+          file_size?: number | null
+          hash_generated_at?: string | null
+          hashing_algorithm?: string
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          object_type: string
+          original_filename?: string | null
+          previous_hash?: string | null
+          scan_hit_id?: string | null
+          sha256?: string | null
+          source_url?: string | null
+          storage_object_path?: string | null
+          user_id: string
+        }
+        Update: {
+          acquisition_method?: string | null
+          captured_at?: string
+          collector_identity?: string | null
+          created_at?: string
+          file_size?: number | null
+          hash_generated_at?: string | null
+          hashing_algorithm?: string
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          object_type?: string
+          original_filename?: string | null
+          previous_hash?: string | null
+          scan_hit_id?: string | null
+          sha256?: string | null
+          source_url?: string | null
+          storage_object_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_objects_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_report_exports: {
+        Row: {
+          created_at: string
+          export_type: string
+          final_pdf_sha256: string | null
+          id: string
+          manifest_path: string | null
+          readiness_failures: string[]
+          report_id: string
+          scan_id: string | null
+          storage_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          export_type: string
+          final_pdf_sha256?: string | null
+          id?: string
+          manifest_path?: string | null
+          readiness_failures?: string[]
+          report_id: string
+          scan_id?: string | null
+          storage_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          export_type?: string
+          final_pdf_sha256?: string | null
+          id?: string
+          manifest_path?: string | null
+          readiness_failures?: string[]
+          report_id?: string
+          scan_id?: string | null
+          storage_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_report_exports_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
             referencedColumns: ["id"]
           },
         ]
@@ -4549,6 +4834,27 @@ export type Database = {
         | "agency_agreement"
         | "power_of_attorney"
         | "brand_protection"
+      evidence_content_position:
+        | "SUPPORTIVE"
+        | "NEUTRAL"
+        | "CRITICAL"
+        | "HOSTILE"
+        | "UNKNOWN"
+      evidence_review_status:
+        | "AUTOMATED_LEAD"
+        | "REVIEW_REQUIRED"
+        | "REVIEWED_NO_VIOLATION"
+        | "REVIEWED_POTENTIAL_VIOLATION"
+        | "ESCALATION_RECOMMENDED"
+        | "LEGAL_REVIEW_REQUIRED"
+      evidence_statement_type:
+        | "FACT"
+        | "OPINION"
+        | "INSULT"
+        | "THREAT"
+        | "SATIRE"
+        | "NEWS_REPORT"
+        | "UNKNOWN"
       face_profile_status:
         | "NOT_STARTED"
         | "CONSENT_REQUIRED"
@@ -4847,6 +5153,30 @@ export const Constants = {
         "agency_agreement",
         "power_of_attorney",
         "brand_protection",
+      ],
+      evidence_content_position: [
+        "SUPPORTIVE",
+        "NEUTRAL",
+        "CRITICAL",
+        "HOSTILE",
+        "UNKNOWN",
+      ],
+      evidence_review_status: [
+        "AUTOMATED_LEAD",
+        "REVIEW_REQUIRED",
+        "REVIEWED_NO_VIOLATION",
+        "REVIEWED_POTENTIAL_VIOLATION",
+        "ESCALATION_RECOMMENDED",
+        "LEGAL_REVIEW_REQUIRED",
+      ],
+      evidence_statement_type: [
+        "FACT",
+        "OPINION",
+        "INSULT",
+        "THREAT",
+        "SATIRE",
+        "NEWS_REPORT",
+        "UNKNOWN",
       ],
       face_profile_status: [
         "NOT_STARTED",
