@@ -12,6 +12,7 @@ const serverEnvSchema = z.object({
   // Optional integrations
   FIRECRAWL_API_KEY: z.string().optional(),
   GOOGLE_API_KEY: z.string().optional(),
+  GOOGLE_PLACES_API_KEY: z.string().optional(),
   YOUTUBE_API_KEY: z.string().optional(),
   
   AWS_REGION: z.string().optional(),

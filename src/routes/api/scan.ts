@@ -31,9 +31,19 @@ export type Category =
   | "Reputation Risk";
 
 export type ContentLabel =
+  | "Neutral mention"
+  | "Complaint"
+  | "Negative review"
+  | "Allegation"
+  | "Potential misinformation"
+  | "Potential defamation"
+  | "Impersonation"
+  | "Scam/Fraud"
+  | "Trademark/Copyright abuse"
+  | "News/Legal dispute"
+  | "Needs human review"
   | "Breaking news"
   | "News report"
-  | "Allegation"
   | "Exposé"
   | "Controversy"
   | "Criticism"
@@ -247,6 +257,17 @@ export interface ReputationReport {
     reviews: ScanHit[];
     emerging: ScanHit[];
     duplicates: ScanHit[];
+  };
+  brandResolution?: {
+    subjectType: "Auto" | "Person" | "Brand/Business";
+    resolvedBrandName: string | null;
+    placeId: string | null;
+    website: string | null;
+    formattedAddress: string | null;
+    businessTypes: string[] | null;
+    resolutionConfidence: number;
+    resolutionReason: string | null;
+    warning?: string | null;
   };
 }
 
@@ -628,6 +649,356 @@ const TRUSTED_NEWS =
 /* ═══════════════════════════════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════════════════════════════ */
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 10000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return res;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+}
+
+async function fetchPlacesNew(textQuery: string, apiKey: string, countryCode?: string): Promise<any> {
+  const url = "https://places.googleapis.com/v1/places:searchText";
+  const body: any = {
+    textQuery,
+    languageCode: "en"
+  };
+  if (countryCode && countryCode.length === 2) {
+    body.regionCode = countryCode.toUpperCase();
+  }
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.types,places.googleMapsUri"
+    },
+    body: JSON.stringify(body)
+  }, 10000);
+  if (!res.ok) {
+    throw new Error(`Google Places API (New) returned ${res.status}: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+async function fetchPlacesClassic(query: string, apiKey: string, countryCode?: string): Promise<any> {
+  let url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${apiKey}`;
+  if (countryCode) {
+    url += `&region=${countryCode.toLowerCase()}`;
+  }
+  const res = await fetchWithTimeout(url, {}, 10000);
+  if (!res.ok) {
+    throw new Error(`Google Places API (Classic) returned ${res.status}: ${await res.text()}`);
+  }
+  const data = await res.json();
+  if (data.status === "REQUEST_DENIED") {
+    throw new Error(`Google Places API (Classic) request denied: ${data.error_message || ""}`);
+  }
+  return data;
+}
+
+async function fetchPlaceDetailsClassic(placeId: string, apiKey: string): Promise<any> {
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,website,url,types,place_id&key=${apiKey}`;
+  try {
+    const res = await fetchWithTimeout(url, {}, 10000);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.result;
+  } catch {
+    return null;
+  }
+}
+
+function computeResolutionConfidence(
+  candidate: { name: string; website?: string; address?: string; types?: string[] },
+  query: string,
+  userWebsite?: string,
+  userCountry?: string,
+  userIndustry?: string
+): { confidence: number; reasons: string[] } {
+  let score = 0;
+  const reasons: string[] = [];
+
+  // 1. Name Similarity
+  const normCandName = candidate.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normQuery = query.toLowerCase().replace(/[^a-z0-9]/g, "");
+  
+  if (normCandName === normQuery) {
+    score += 45;
+    reasons.push("Exact name match");
+  } else if (normCandName.includes(normQuery) || normQuery.includes(normCandName)) {
+    score += 25;
+    reasons.push("Partial name match");
+  } else {
+    const candWords = candidate.name.toLowerCase().split(/\s+/);
+    const queryWords = query.toLowerCase().split(/\s+/);
+    const overlap = candWords.filter(w => queryWords.includes(w) && w.length > 2);
+    if (overlap.length > 0) {
+      score += 15;
+      reasons.push("Word overlap in name");
+    }
+  }
+
+  // 2. Website Match
+  if (userWebsite && candidate.website) {
+    try {
+      const userHost = new URL(userWebsite.startsWith("http") ? userWebsite : `http://${userWebsite}`).hostname.replace(/^www\./, "");
+      const candHost = new URL(candidate.website).hostname.replace(/^www\./, "");
+      if (userHost === candHost) {
+        score += 45;
+        reasons.push("Exact official website domain match");
+      } else {
+        score -= 20;
+        reasons.push("Website mismatch with provided URL");
+      }
+    } catch {
+      // Ignored
+    }
+  } else if (userWebsite && !candidate.website) {
+    score -= 10;
+  } else if (!userWebsite && candidate.website) {
+    score += 5;
+  }
+
+  // 3. Location/Country Match
+  if (userCountry && candidate.address) {
+    const uc = userCountry.toLowerCase().trim();
+    const addr = candidate.address.toLowerCase();
+    if (addr.includes(uc)) {
+      score += 20;
+      reasons.push("Location matches country context");
+    }
+  }
+
+  // 4. Category/Industry Match
+  if (userIndustry && candidate.types) {
+    const ind = userIndustry.toLowerCase().trim();
+    const matchesType = candidate.types.some(t => {
+      const typeStr = t.replace(/_/g, " ").toLowerCase();
+      return typeStr.includes(ind) || ind.includes(typeStr);
+    });
+    if (matchesType) {
+      score += 10;
+      reasons.push("Category matches industry context");
+    }
+  }
+
+  const finalScore = Math.max(0, Math.min(100, score));
+  return { confidence: finalScore, reasons };
+}
+
+function isOwnedSource(urlStr: string, website?: string | null, handles?: string[] | null): boolean {
+  try {
+    const url = new URL(urlStr);
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+
+    // Check website match
+    if (website) {
+      const webHost = new URL(website.startsWith("http") ? website : `http://${website}`).hostname.replace(/^www\./, "").toLowerCase();
+      if (host === webHost) return true;
+    }
+
+    // Check handles match
+    if (handles && handles.length > 0) {
+      for (const h of handles) {
+        const normH = h.replace(/^@/, "").toLowerCase().trim();
+        if (!normH) continue;
+        
+        const path = url.pathname.toLowerCase();
+        if (
+          (host.includes("youtube.com") && (path.includes(`/${normH}`) || path.includes(`@${normH}`))) ||
+          ((host.includes("twitter.com") || host.includes("x.com")) && path.startsWith(`/${normH}`)) ||
+          (host.includes("instagram.com") && path.startsWith(`/${normH}`)) ||
+          (host.includes("facebook.com") && path.startsWith(`/${normH}`)) ||
+          (host.includes("linkedin.com") && path.includes(`/${normH}`)) ||
+          (host.includes("tiktok.com") && path.startsWith(`/@${normH}`))
+        ) {
+          return true;
+        }
+      }
+    }
+  } catch {
+    // Ignore URL parse errors
+  }
+  return false;
+}
+
+interface ResolutionResult {
+  resolved: boolean;
+  subjectType: "Auto" | "Person" | "Brand/Business";
+  resolvedBrandName: string | null;
+  placeId: string | null;
+  website: string | null;
+  formattedAddress: string | null;
+  businessTypes: string[] | null;
+  googleMapsUrl: string | null;
+  resolutionConfidence: number;
+  resolutionReason: string | null;
+  status: "resolved" | "not_resolved" | "key_missing" | "request_denied" | "insufficient_confidence" | "disabled" | "bypassed";
+  error: string | null;
+}
+
+async function resolveBrandWithPlaces(
+  query: string,
+  subjectType: "Auto" | "Person" | "Brand/Business" = "Auto",
+  userWebsite?: string,
+  userCountry?: string,
+  userIndustry?: string
+): Promise<ResolutionResult> {
+  const defaultRes: ResolutionResult = {
+    resolved: false,
+    subjectType,
+    resolvedBrandName: null,
+    placeId: null,
+    website: null,
+    formattedAddress: null,
+    businessTypes: null,
+    googleMapsUrl: null,
+    resolutionConfidence: 0,
+    resolutionReason: null,
+    status: "not_resolved",
+    error: null
+  };
+
+  if (subjectType === "Person") {
+    defaultRes.status = "bypassed";
+    return defaultRes;
+  }
+
+  // Auto-mode Brand likelihood heuristics
+  if (subjectType === "Auto") {
+    const normQuery = query.toLowerCase();
+    const hasSite = !!userWebsite;
+    const hasIndustry = !!userIndustry;
+    const commonCorpSuffix = /\b(inc|llc|corp|ltd|co|group|agency|holding|ventures|partners|software|tech|solutions|systems|store|shop|restaurant|cafe|hotel|clinic|hospital|academy|school|university|foundation|trust)\b/.test(normQuery);
+    
+    const likelyBusiness = hasSite || hasIndustry || commonCorpSuffix;
+    if (!likelyBusiness) {
+      defaultRes.status = "bypassed";
+      return defaultRes;
+    }
+  }
+
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY || process.env.YOUTUBE_API_KEY;
+  if (!apiKey) {
+    defaultRes.status = "key_missing";
+    defaultRes.error = "Google Places API key is missing";
+    return defaultRes;
+  }
+
+  // Country code resolution context (e.g. "US" if user provided it)
+  let countryCode: string | undefined;
+  if (userCountry && userCountry.trim().length === 2) {
+    countryCode = userCountry.trim().toUpperCase();
+  }
+
+  try {
+    let places: any[] = [];
+    let methodUsed = "New API";
+
+    try {
+      // 1. Try New Places API Text Search
+      const data = await fetchPlacesNew(query, apiKey, countryCode);
+      places = data.places || [];
+    } catch (e: any) {
+      console.warn(`[places:resolve] New Places API failed, falling back to Classic API: ${e.message}`);
+      // 2. Fallback to Classic Places API
+      methodUsed = "Classic API";
+      const classicData = await fetchPlacesClassic(query, apiKey, countryCode);
+      if (classicData.results && classicData.results.length > 0) {
+        // Retrieve full details for the top classic candidates (max 3 to limit api overhead)
+        for (const candidate of classicData.results.slice(0, 3)) {
+          const details = await fetchPlaceDetailsClassic(candidate.place_id, apiKey);
+          if (details) {
+            places.push({
+              id: details.place_id,
+              displayName: { text: details.name },
+              formattedAddress: details.formatted_address,
+              websiteUri: details.website,
+              googleMapsUri: details.url,
+              types: details.types
+            });
+          } else {
+            places.push({
+              id: candidate.place_id,
+              displayName: { text: candidate.name },
+              formattedAddress: candidate.formatted_address,
+              types: candidate.types
+            });
+          }
+        }
+      }
+    }
+
+    if (places.length === 0) {
+      defaultRes.status = "not_resolved";
+      defaultRes.error = `No candidates returned from Google Places API (${methodUsed}).`;
+      return defaultRes;
+    }
+
+    // Score all candidates
+    const scoredCandidates = places.map((p: any) => {
+      const cand = {
+        id: p.id || p.place_id,
+        name: p.displayName?.text || p.name,
+        website: p.websiteUri || p.website,
+        address: p.formattedAddress || p.formatted_address,
+        googleMapsUrl: p.googleMapsUri || p.url,
+        types: p.types || []
+      };
+      const { confidence, reasons } = computeResolutionConfidence(
+        cand,
+        query,
+        userWebsite,
+        userCountry,
+        userIndustry
+      );
+      return { cand, confidence, reasons };
+    });
+
+    // Find candidate with highest score
+    scoredCandidates.sort((a, b) => b.confidence - a.confidence);
+    const best = scoredCandidates[0];
+
+    const threshold = subjectType === "Brand/Business" ? 50 : 65;
+    if (best.confidence < threshold) {
+      defaultRes.status = "insufficient_confidence";
+      defaultRes.error = `Google Places top match confidence was insufficient (${best.confidence}/${threshold}).`;
+      return defaultRes;
+    }
+
+    // Success!
+    return {
+      resolved: true,
+      subjectType,
+      resolvedBrandName: best.cand.name,
+      placeId: best.cand.id,
+      website: best.cand.website || null,
+      formattedAddress: best.cand.address || null,
+      businessTypes: best.cand.types || null,
+      googleMapsUrl: best.cand.googleMapsUrl || null,
+      resolutionConfidence: best.confidence,
+      resolutionReason: best.reasons.join(", ") || "Confidence threshold met",
+      status: "resolved",
+      error: null
+    };
+
+  } catch (err: any) {
+    console.error("[places:resolve] Places resolution encountered error:", err);
+    defaultRes.status = "request_denied";
+    defaultRes.error = `Google Places API request failed: ${err.message || String(err)}`;
+    return defaultRes;
+  }
+}
+
 function platformFromUrl(url: string): { platform: string; source: string } {
   try {
     const h = new URL(url).hostname.replace(/^www\./, "");
