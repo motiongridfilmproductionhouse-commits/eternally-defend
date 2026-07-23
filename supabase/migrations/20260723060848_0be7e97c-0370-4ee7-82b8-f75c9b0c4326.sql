@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.issue_partner_commission() FROM PUBLIC, anon, authenticated;
