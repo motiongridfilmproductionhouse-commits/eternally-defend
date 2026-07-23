@@ -96,7 +96,7 @@ export async function analyzeChannelWatchCaptions(
     );
 
     const findings: ChannelCaptionFinding[] = classified.findings
-      .map((finding) => {
+      .map((finding): ChannelCaptionFinding | null => {
         const segment = segments[finding.segmentIndex];
         if (!segment) return null;
 
@@ -110,10 +110,10 @@ export async function analyzeChannelWatchCaptions(
           translatedText: finding.translatedText ?? null,
           matchedEntity: finding.matchedEntity || null,
           claimSummary: finding.claimSummary || null,
-          contextType: finding.contextType,
-          speakerStance: finding.speakerStance,
-          riskCategory: finding.riskCategory,
-          severity: finding.severity,
+          contextType: String(finding.contextType),
+          speakerStance: String(finding.speakerStance),
+          riskCategory: String(finding.riskCategory),
+          severity: String(finding.severity),
           confidence: finding.confidence,
           watchUrl:
             `https://www.youtube.com/watch?v=${videoId}` +
