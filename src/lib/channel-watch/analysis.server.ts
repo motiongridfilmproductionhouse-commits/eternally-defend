@@ -286,7 +286,7 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
         timestamp_findings: captionAnalysis.findings,
         caption_error: captionAnalysis.reason ?? null,
         captured_at: new Date().toISOString(),
-      },
+      } as never,
     });
   }
 
