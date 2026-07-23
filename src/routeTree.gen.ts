@@ -10,12 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PartnerStatusRouteImport } from './routes/partner-status'
+import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as PartnerRouteImport } from './routes/_partner'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
+import { Route as PartnerPartnerRouteImport } from './routes/_partner.partner'
 import { Route as AppThreatRadarRouteImport } from './routes/_app.threat-radar'
 import { Route as AppThreatMonitoringRouteImport } from './routes/_app.threat-monitoring'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
@@ -50,6 +54,16 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartnerStatusRoute = PartnerStatusRouteImport.update({
+  id: '/partner-status',
+  path: '/partner-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnerApplyRoute = PartnerApplyRouteImport.update({
+  id: '/partner-apply',
+  path: '/partner-apply',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -58,6 +72,10 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnerRoute = PartnerRouteImport.update({
+  id: '/_partner',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -78,6 +96,11 @@ const ApiScanRoute = ApiScanRouteImport.update({
   id: '/api/scan',
   path: '/api/scan',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PartnerPartnerRoute = PartnerPartnerRouteImport.update({
+  id: '/partner',
+  path: '/partner',
+  getParentRoute: () => PartnerRoute,
 } as any)
 const AppThreatRadarRoute = AppThreatRadarRouteImport.update({
   id: '/threat-radar',
@@ -235,6 +258,8 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/partner-apply': typeof PartnerApplyRoute
+  '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
@@ -251,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
+  '/partner': typeof PartnerPartnerRoute
   '/api/scan': typeof ApiScanRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -268,8 +294,11 @@ export interface FileRoutesByFullPath {
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/partner-apply': typeof PartnerApplyRoute
+  '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
@@ -286,9 +315,9 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
+  '/partner': typeof PartnerPartnerRoute
   '/api/scan': typeof ApiScanRoute
   '/verify/$slug': typeof VerifySlugRoute
-  '/': typeof AppIndexRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
@@ -306,8 +335,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/_partner': typeof PartnerRouteWithChildren
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/partner-apply': typeof PartnerApplyRoute
+  '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/_app/assets': typeof AppAssetsRoute
   '/_app/cases': typeof AppCasesRoute
@@ -324,6 +356,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/threat-monitoring': typeof AppThreatMonitoringRoute
   '/_app/threat-radar': typeof AppThreatRadarRoute
+  '/_partner/partner': typeof PartnerPartnerRoute
   '/api/scan': typeof ApiScanRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/_app/': typeof AppIndexRoute
@@ -347,6 +380,8 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/onboarding'
+    | '/partner-apply'
+    | '/partner-status'
     | '/privacy'
     | '/assets'
     | '/cases'
@@ -363,6 +398,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/threat-monitoring'
     | '/threat-radar'
+    | '/partner'
     | '/api/scan'
     | '/verify/$slug'
     | '/admin/diagnostics'
@@ -380,8 +416,11 @@ export interface FileRouteTypes {
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/auth'
     | '/onboarding'
+    | '/partner-apply'
+    | '/partner-status'
     | '/privacy'
     | '/assets'
     | '/cases'
@@ -398,9 +437,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/threat-monitoring'
     | '/threat-radar'
+    | '/partner'
     | '/api/scan'
     | '/verify/$slug'
-    | '/'
     | '/admin/diagnostics'
     | '/admin/multimedia-health'
     | '/admin/onboarding-reviews'
@@ -417,8 +456,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/_partner'
     | '/auth'
     | '/onboarding'
+    | '/partner-apply'
+    | '/partner-status'
     | '/privacy'
     | '/_app/assets'
     | '/_app/cases'
@@ -435,6 +477,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/threat-monitoring'
     | '/_app/threat-radar'
+    | '/_partner/partner'
     | '/api/scan'
     | '/verify/$slug'
     | '/_app/'
@@ -455,8 +498,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  PartnerRoute: typeof PartnerRouteWithChildren
   AuthRoute: typeof AuthRoute
   OnboardingRoute: typeof OnboardingRoute
+  PartnerApplyRoute: typeof PartnerApplyRoute
+  PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
   ApiScanRoute: typeof ApiScanRoute
   VerifySlugRoute: typeof VerifySlugRoute
@@ -474,6 +520,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/partner-status': {
+      id: '/partner-status'
+      path: '/partner-status'
+      fullPath: '/partner-status'
+      preLoaderRoute: typeof PartnerStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partner-apply': {
+      id: '/partner-apply'
+      path: '/partner-apply'
+      fullPath: '/partner-apply'
+      preLoaderRoute: typeof PartnerApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -486,6 +546,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_partner': {
+      id: '/_partner'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof PartnerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -515,6 +582,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/scan'
       preLoaderRoute: typeof ApiScanRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_partner/partner': {
+      id: '/_partner/partner'
+      path: '/partner'
+      fullPath: '/partner'
+      preLoaderRoute: typeof PartnerPartnerRouteImport
+      parentRoute: typeof PartnerRoute
     }
     '/_app/threat-radar': {
       id: '/_app/threat-radar'
@@ -777,10 +851,24 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface PartnerRouteChildren {
+  PartnerPartnerRoute: typeof PartnerPartnerRoute
+}
+
+const PartnerRouteChildren: PartnerRouteChildren = {
+  PartnerPartnerRoute: PartnerPartnerRoute,
+}
+
+const PartnerRouteWithChildren =
+  PartnerRoute._addFileChildren(PartnerRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  PartnerRoute: PartnerRouteWithChildren,
   AuthRoute: AuthRoute,
   OnboardingRoute: OnboardingRoute,
+  PartnerApplyRoute: PartnerApplyRoute,
+  PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
   ApiScanRoute: ApiScanRoute,
   VerifySlugRoute: VerifySlugRoute,
@@ -791,3 +879,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

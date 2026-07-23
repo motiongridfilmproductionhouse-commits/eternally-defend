@@ -9,7 +9,7 @@ import { getPartnerDashboard, registerPartnerLead, generatePartnerProposalUrl } 
 import { getPartnerAgreementUrl } from "@/lib/partners/applications.functions";
 import { Copy, IndianRupee, Users, CheckCircle2, FileText, Link as LinkIcon } from "lucide-react";
 
-export const Route = createFileRoute("/_partner/")({
+export const Route = createFileRoute("/_partner/partner")({
   head: () => ({ meta: [{ title: "Partner Dashboard — Eterna" }] }),
   component: PartnerDashboard,
 });
