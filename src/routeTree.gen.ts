@@ -47,6 +47,8 @@ import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admi
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
 import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
+import { Route as ApiPublicHooksAutomationStatusRouteImport } from './routes/api/public/hooks/automation-status'
+import { Route as ApiPublicHooksAutomationFetchRouteImport } from './routes/api/public/hooks/automation-fetch'
 import { Route as AppSensitiveProtectionResultsIdRouteImport } from './routes/_app.sensitive-protection.results.$id'
 
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -247,6 +249,18 @@ const ApiPublicHooksChannelWatchPollRoute =
     path: '/api/public/hooks/channel-watch-poll',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksAutomationStatusRoute =
+  ApiPublicHooksAutomationStatusRouteImport.update({
+    id: '/api/public/hooks/automation-status',
+    path: '/api/public/hooks/automation-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksAutomationFetchRoute =
+  ApiPublicHooksAutomationFetchRouteImport.update({
+    id: '/api/public/hooks/automation-fetch',
+    path: '/api/public/hooks/automation-fetch',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppSensitiveProtectionResultsIdRoute =
   AppSensitiveProtectionResultsIdRouteImport.update({
     id: '/sensitive-protection/results/$id',
@@ -290,6 +304,8 @@ export interface FileRoutesByFullPath {
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
+  '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
@@ -329,6 +345,8 @@ export interface FileRoutesByTo {
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
+  '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
@@ -371,6 +389,8 @@ export interface FileRoutesById {
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
+  '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
@@ -412,6 +432,8 @@ export interface FileRouteTypes {
     | '/api/public/veriff-webhook'
     | '/sensitive-protection/'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/automation-fetch'
+    | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
@@ -451,6 +473,8 @@ export interface FileRouteTypes {
     | '/api/public/veriff-webhook'
     | '/sensitive-protection'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/automation-fetch'
+    | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
     | '/sensitive-protection/results'
   id:
@@ -492,6 +516,8 @@ export interface FileRouteTypes {
     | '/api/public/veriff-webhook'
     | '/_app/sensitive-protection/'
     | '/_app/sensitive-protection/results/$id'
+    | '/api/public/hooks/automation-fetch'
+    | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
@@ -508,6 +534,8 @@ export interface RootRouteChildren {
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
   ApiPublicVeriffWebhookRoute: typeof ApiPublicVeriffWebhookRoute
+  ApiPublicHooksAutomationFetchRoute: typeof ApiPublicHooksAutomationFetchRoute
+  ApiPublicHooksAutomationStatusRoute: typeof ApiPublicHooksAutomationStatusRoute
   ApiPublicHooksChannelWatchPollRoute: typeof ApiPublicHooksChannelWatchPollRoute
 }
 
@@ -779,6 +807,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksChannelWatchPollRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/automation-status': {
+      id: '/api/public/hooks/automation-status'
+      path: '/api/public/hooks/automation-status'
+      fullPath: '/api/public/hooks/automation-status'
+      preLoaderRoute: typeof ApiPublicHooksAutomationStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/automation-fetch': {
+      id: '/api/public/hooks/automation-fetch'
+      path: '/api/public/hooks/automation-fetch'
+      fullPath: '/api/public/hooks/automation-fetch'
+      preLoaderRoute: typeof ApiPublicHooksAutomationFetchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/sensitive-protection/results/$id': {
       id: '/_app/sensitive-protection/results/$id'
       path: '/sensitive-protection/results/$id'
@@ -874,18 +916,10 @@ const rootRouteChildren: RootRouteChildren = {
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
   ApiPublicVeriffWebhookRoute: ApiPublicVeriffWebhookRoute,
+  ApiPublicHooksAutomationFetchRoute: ApiPublicHooksAutomationFetchRoute,
+  ApiPublicHooksAutomationStatusRoute: ApiPublicHooksAutomationStatusRoute,
   ApiPublicHooksChannelWatchPollRoute: ApiPublicHooksChannelWatchPollRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
