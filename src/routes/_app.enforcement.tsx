@@ -53,6 +53,8 @@ interface EnforcementRow {
   authorization_pdf_path: string | null;
   platform_complaint_pdf_path: string | null;
   package_generated_at: string | null;
+  automation_job_id: string | null;
+  automation_status: string | null;
 }
 
 function detectPlatform(hit: HitRow): Platform {
