@@ -13,6 +13,8 @@ import { useAuthorization } from "@/hooks/use-authorization";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { generateEnforcementPackages, signPackageUrl } from "@/lib/enforcement-packages.functions";
+import { AutomationDrawer } from "@/components/enforcement/AutomationDrawer";
+import { Bot } from "lucide-react";
 
 export const Route = createFileRoute("/_app/enforcement")({
   head: () => ({ meta: [{ title: "Enforcement Center — Eterna AI" }] }),
