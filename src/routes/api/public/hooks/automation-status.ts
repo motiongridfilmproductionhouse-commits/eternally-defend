@@ -71,7 +71,8 @@ export const Route = createFileRoute("/api/public/hooks/automation-status")({
         if (parsed.worker_id) patch.worker_id = parsed.worker_id;
 
         if (Object.keys(patch).length > 0) {
-          await supabaseAdmin.from("automation_jobs").update(patch).eq("id", job.id);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await supabaseAdmin.from("automation_jobs").update(patch as any).eq("id", job.id);
           if (parsed.status) {
             await supabaseAdmin
               .from("enforcement_requests")
@@ -87,7 +88,8 @@ export const Route = createFileRoute("/api/public/hooks/automation-status")({
           platform: job.platform,
           duration_ms: parsed.duration_ms ?? null,
           result: parsed.result ?? null,
-          payload_json: parsed.payload ?? {},
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          payload_json: (parsed.payload ?? {}) as any,
           screenshot_path: parsed.screenshot_path ?? null,
         });
 
