@@ -466,11 +466,15 @@ function EnforcementPage() {
                   <th className="py-2.5 pr-4 font-medium">Target</th>
                   <th className="py-2.5 pr-4 font-medium">Status</th>
                   <th className="py-2.5 pr-4 font-medium">Packages</th>
+                  <th className="py-2.5 pr-4 font-medium">Automation</th>
                   <th className="py-2.5 pr-4 font-medium">Created</th>
                 </tr>
               </thead>
               <tbody>
-                {requests.map((r) => (
+                {requests.map((r) => {
+                  const isYT = (r.platform ?? "").toLowerCase().includes("youtube");
+                  const packagesReady = !!r.evidence_pdf_path && !!r.authorization_pdf_path;
+                  return (
                   <tr key={r.id} className="border-b border-border/60 hover:bg-accent/30">
                     <td className="py-3 pr-4">{r.platform ?? "—"}</td>
                     <td className="py-3 pr-4 text-muted-foreground">{r.method}</td>
@@ -485,14 +489,41 @@ function EnforcementPage() {
                         <PackageBtn label="Complaint" path={r.platform_complaint_pdf_path} onOpen={openPackage} />
                       </div>
                     </td>
+                    <td className="py-3 pr-4">
+                      {isYT && packagesReady ? (
+                        <button
+                          onClick={() => setAutomationTarget(r)}
+                          className="inline-flex items-center gap-1.5 text-xs border border-border rounded-lg px-2.5 py-1.5 hover:bg-accent"
+                          title="Run browser automation"
+                        >
+                          <Bot className="size-3.5" />
+                          {r.automation_status ?? (r.automation_job_id ? "View" : "Automate")}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {!isYT ? "Manual only" : "Generate package first"}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 pr-4 text-muted-foreground text-xs">{new Date(r.created_at).toLocaleString()}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </PageCard>
+
+      {automationTarget && (
+        <AutomationDrawer
+          enforcementRequestId={automationTarget.id}
+          platform={automationTarget.platform}
+          method={automationTarget.method}
+          existingJobId={automationTarget.automation_job_id}
+          onClose={() => setAutomationTarget(null)}
+        />
+      )}
 
       <PageCard title="AUDIT LOG" sub="Every enforcement action is logged with actor, target, platform and files">
         {actionsQuery.isLoading ? (
