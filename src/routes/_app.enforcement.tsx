@@ -128,7 +128,7 @@ function EnforcementPage() {
     queryFn: async (): Promise<EnforcementRow[]> => {
       const { data, error } = await supabase
         .from("enforcement_requests")
-        .select("id,scan_hit_id,platform,method,status,submission_status,target_url,submitted_at,responded_at,created_at,evidence_pdf_path,authorization_pdf_path,platform_complaint_pdf_path,package_generated_at")
+        .select("id,scan_hit_id,platform,method,status,submission_status,target_url,submitted_at,responded_at,created_at,evidence_pdf_path,authorization_pdf_path,platform_complaint_pdf_path,package_generated_at,automation_job_id,automation_status")
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
