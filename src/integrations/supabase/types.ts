@@ -494,6 +494,127 @@ export type Database = {
           },
         ]
       }
+      automation_events: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          event: string
+          id: string
+          job_id: string
+          payload_json: Json
+          platform: Database["public"]["Enums"]["automation_platform"] | null
+          result: string | null
+          screenshot_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          event: string
+          id?: string
+          job_id: string
+          payload_json?: Json
+          platform?: Database["public"]["Enums"]["automation_platform"] | null
+          result?: string | null
+          screenshot_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          event?: string
+          id?: string
+          job_id?: string
+          payload_json?: Json
+          platform?: Database["public"]["Enums"]["automation_platform"] | null
+          result?: string | null
+          screenshot_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "automation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_jobs: {
+        Row: {
+          adapter: Database["public"]["Enums"]["automation_adapter"]
+          attempts: number
+          cdp_expires_at: string | null
+          cdp_ws_url: string | null
+          completed_at: string | null
+          created_at: string
+          enforcement_request_id: string
+          error_json: Json | null
+          id: string
+          input_json: Json
+          last_screenshot_path: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          review_bundle_path: string | null
+          review_summary_json: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["automation_job_status"]
+          updated_at: string
+          user_id: string
+          worker_id: string | null
+        }
+        Insert: {
+          adapter: Database["public"]["Enums"]["automation_adapter"]
+          attempts?: number
+          cdp_expires_at?: string | null
+          cdp_ws_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          enforcement_request_id: string
+          error_json?: Json | null
+          id?: string
+          input_json?: Json
+          last_screenshot_path?: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          review_bundle_path?: string | null
+          review_summary_json?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["automation_job_status"]
+          updated_at?: string
+          user_id: string
+          worker_id?: string | null
+        }
+        Update: {
+          adapter?: Database["public"]["Enums"]["automation_adapter"]
+          attempts?: number
+          cdp_expires_at?: string | null
+          cdp_ws_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          enforcement_request_id?: string
+          error_json?: Json | null
+          id?: string
+          input_json?: Json
+          last_screenshot_path?: string | null
+          platform?: Database["public"]["Enums"]["automation_platform"]
+          review_bundle_path?: string | null
+          review_summary_json?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["automation_job_status"]
+          updated_at?: string
+          user_id?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_jobs_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       biometric_consents: {
         Row: {
           consent_version: string
@@ -1484,9 +1605,15 @@ export type Database = {
       enforcement_requests: {
         Row: {
           authorization_pdf_path: string | null
+          automation_job_id: string | null
+          automation_status:
+            | Database["public"]["Enums"]["automation_job_status"]
+            | null
           created_at: string
           evidence_pdf_path: string | null
           evidence_refs: Json
+          human_submitted_at: string | null
+          human_submitted_by: string | null
           id: string
           metadata: Json
           method: string
@@ -1507,9 +1634,15 @@ export type Database = {
         }
         Insert: {
           authorization_pdf_path?: string | null
+          automation_job_id?: string | null
+          automation_status?:
+            | Database["public"]["Enums"]["automation_job_status"]
+            | null
           created_at?: string
           evidence_pdf_path?: string | null
           evidence_refs?: Json
+          human_submitted_at?: string | null
+          human_submitted_by?: string | null
           id?: string
           metadata?: Json
           method: string
@@ -1530,9 +1663,15 @@ export type Database = {
         }
         Update: {
           authorization_pdf_path?: string | null
+          automation_job_id?: string | null
+          automation_status?:
+            | Database["public"]["Enums"]["automation_job_status"]
+            | null
           created_at?: string
           evidence_pdf_path?: string | null
           evidence_refs?: Json
+          human_submitted_at?: string | null
+          human_submitted_by?: string | null
           id?: string
           metadata?: Json
           method?: string
@@ -1552,6 +1691,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "enforcement_requests_automation_job_id_fkey"
+            columns: ["automation_job_id"]
+            isOneToOne: false
+            referencedRelation: "automation_jobs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "enforcement_requests_scan_hit_id_fkey"
             columns: ["scan_hit_id"]
@@ -3270,6 +3416,48 @@ export type Database = {
             referencedColumns: ["partner_id"]
           },
         ]
+      }
+      platform_credentials: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          last_verified_at: string | null
+          login_email_ciphertext: string | null
+          mfa_hint: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          status: Database["public"]["Enums"]["platform_credential_status"]
+          storage_state_ciphertext: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_verified_at?: string | null
+          login_email_ciphertext?: string | null
+          mfa_hint?: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          status?: Database["public"]["Enums"]["platform_credential_status"]
+          storage_state_ciphertext: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_verified_at?: string | null
+          login_email_ciphertext?: string | null
+          mfa_hint?: string | null
+          platform?: Database["public"]["Enums"]["automation_platform"]
+          status?: Database["public"]["Enums"]["platform_credential_status"]
+          storage_state_ciphertext?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       platform_reports: {
         Row: {
@@ -5129,6 +5317,15 @@ export type Database = {
         | "pending"
         | "authorized"
         | "enterprise_authorized"
+      automation_adapter: "youtube_copyright" | "youtube_community"
+      automation_job_status:
+        | "queued"
+        | "running"
+        | "review_ready"
+        | "submitted"
+        | "failed"
+        | "cancelled"
+      automation_platform: "youtube"
       channel_watch_analysis_status:
         | "pending"
         | "running"
@@ -5247,6 +5444,7 @@ export type Database = {
         | "VERIFIED"
         | "REJECTED"
         | "COMPLETED"
+      platform_credential_status: "active" | "expired" | "login_required"
       signature_status:
         | "DRAFT"
         | "READY_FOR_REVIEW"
@@ -5440,6 +5638,16 @@ export const Constants = {
         "authorized",
         "enterprise_authorized",
       ],
+      automation_adapter: ["youtube_copyright", "youtube_community"],
+      automation_job_status: [
+        "queued",
+        "running",
+        "review_ready",
+        "submitted",
+        "failed",
+        "cancelled",
+      ],
+      automation_platform: ["youtube"],
       channel_watch_analysis_status: [
         "pending",
         "running",
@@ -5573,6 +5781,7 @@ export const Constants = {
         "REJECTED",
         "COMPLETED",
       ],
+      platform_credential_status: ["active", "expired", "login_required"],
       signature_status: [
         "DRAFT",
         "READY_FOR_REVIEW",
