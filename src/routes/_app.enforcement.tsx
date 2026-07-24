@@ -107,6 +107,7 @@ function EnforcementPage() {
 
   const [selected, setSelected] = useState<string[]>([]);
   const [openModal, setOpenModal] = useState<Method | null>(null);
+  const [automationTarget, setAutomationTarget] = useState<EnforcementRow | null>(null);
 
   const hitsQuery = useQuery({
     queryKey: ["enforcement_eligible_hits", userId],
