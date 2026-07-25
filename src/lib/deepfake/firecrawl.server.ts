@@ -57,7 +57,7 @@ export async function firecrawlSearch(
     },
     body: JSON.stringify({
       query,
-      limit: Math.min(Math.max(maxResults, 1), 100),
+      limit: Math.min(Math.max(maxResults, 1),3),
       sources: ["web", "images"],
     }),
   });

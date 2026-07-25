@@ -106,11 +106,31 @@ const plan = {
           })),
         );
 
+        const { enrichHitsWithMedia } =
+          await import("./deepfake/media-discovery.server");
+
+        /*
+         * Scrape high-risk result pages and extract direct image/video URLs.
+         * Hive cannot analyse an ordinary webpage URL.
+         */
+        const mediaCandidates = await enrichHitsWithMedia(
+          candidateFilter.accepted,
+          20,
+        );
+
+        console.log("[DEEPFAKE] Hive input:", {
+          acceptedPages: candidateFilter.accepted.length,
+          mediaCandidates: mediaCandidates.length,
+          directMedia: mediaCandidates.filter(
+            (item) => Boolean(item.media_url || item.image_url),
+          ).length,
+        });
+
         const { classifyHitsWithHive } =
           await import("./deepfake/hive.server");
 
         const hiveResults = await classifyHitsWithHive(
-          candidateFilter.accepted,
+          mediaCandidates,
         );
 
         const primaryResults = hiveResults.filter(
