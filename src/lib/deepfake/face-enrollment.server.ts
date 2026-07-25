@@ -1,0 +1,160 @@
+import {
+  CreateCollectionCommand,
+  DescribeCollectionCommand,
+  IndexFacesCommand,
+  RekognitionClient,
+} from "@aws-sdk/client-rekognition";
+
+const region =
+  process.env.AWS_REKOGNITION_REGION ??
+  process.env.AWS_REGION ??
+  "eu-north-1";
+
+const collectionId =
+  process.env.REKOGNITION_DEEPFAKE_COLLECTION ??
+  "eterna-protected-identities";
+
+const rekognition = new RekognitionClient({
+  region,
+  credentials:
+    process.env.AWS_ACCESS_KEY_ID &&
+    process.env.AWS_SECRET_ACCESS_KEY
+      ? {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey:
+            process.env.AWS_SECRET_ACCESS_KEY,
+          sessionToken:
+            process.env.AWS_SESSION_TOKEN,
+        }
+      : undefined,
+});
+
+function cleanExternalImageId(value: string): string {
+  return value
+    .replace(/[^a-zA-Z0-9_.-]/g, "_")
+    .slice(0, 255);
+}
+
+export async function ensureDeepfakeFaceCollection(): Promise<string> {
+  try {
+    await rekognition.send(
+      new DescribeCollectionCommand({
+        CollectionId: collectionId,
+      }),
+    );
+
+    return collectionId;
+  } catch (error: any) {
+    if (
+      error?.name !== "ResourceNotFoundException"
+    ) {
+      throw error;
+    }
+  }
+
+  try {
+    await rekognition.send(
+      new CreateCollectionCommand({
+        CollectionId: collectionId,
+      }),
+    );
+
+    return collectionId;
+  } catch (error: any) {
+    /*
+     * Two simultaneous requests may both try to create it.
+     * Treat "already exists" as success.
+     */
+    if (
+      error?.name ===
+      "ResourceAlreadyExistsException"
+    ) {
+      return collectionId;
+    }
+
+    throw error;
+  }
+}
+
+export type IndexedReferenceFace = {
+  faceId: string;
+  externalImageId: string;
+  confidence: number;
+  collectionId: string;
+  boundingBox?: {
+    width?: number;
+    height?: number;
+    left?: number;
+    top?: number;
+  };
+};
+
+export async function indexDeepfakeReferenceFace(input: {
+  imageBytes: Uint8Array;
+  targetProfileId: string;
+  referenceFaceId: string;
+}): Promise<IndexedReferenceFace> {
+  if (!input.imageBytes.byteLength) {
+    throw new Error("Reference image is empty.");
+  }
+
+  if (
+    input.imageBytes.byteLength >
+    10 * 1024 * 1024
+  ) {
+    throw new Error(
+      "Reference image exceeds the 10 MB limit.",
+    );
+  }
+
+  await ensureDeepfakeFaceCollection();
+
+  const externalImageId = cleanExternalImageId(
+    `target_${input.targetProfileId}_${input.referenceFaceId}`,
+  );
+
+  const response = await rekognition.send(
+    new IndexFacesCommand({
+      CollectionId: collectionId,
+      Image: {
+        Bytes: input.imageBytes,
+      },
+      ExternalImageId: externalImageId,
+      MaxFaces: 1,
+      QualityFilter: "HIGH",
+      DetectionAttributes: ["DEFAULT"],
+    }),
+  );
+
+  const faceRecord = response.FaceRecords?.[0];
+  const unindexed = response.UnindexedFaces ?? [];
+
+  if (!faceRecord?.Face?.FaceId) {
+    const reasons = unindexed
+      .flatMap((item) => item.Reasons ?? [])
+      .filter(Boolean)
+      .join(", ");
+
+    throw new Error(
+      reasons
+        ? `Reference face could not be indexed: ${reasons}`
+        : "No usable face was detected. Upload a clear, front-facing photograph with one person.",
+    );
+  }
+
+  return {
+    faceId: faceRecord.Face.FaceId,
+    externalImageId:
+      faceRecord.Face.ExternalImageId ??
+      externalImageId,
+    confidence:
+      faceRecord.Face.Confidence ?? 0,
+    collectionId,
+    boundingBox:
+      faceRecord.Face.BoundingBox,
+  };
+}
+
+export function getDeepfakeFaceCollectionId(): string {
+  return collectionId;
+}

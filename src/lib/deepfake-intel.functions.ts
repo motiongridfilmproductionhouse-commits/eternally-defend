@@ -13,6 +13,7 @@ type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
 
 const RunInput = z.object({
   target_name: z.string().trim().min(1).max(200),
+  profile_id: z.string().uuid().optional(),
   aliases: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
   handles: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
   max_queries: z.number().int().min(1).max(40).optional(),
@@ -118,20 +119,54 @@ const plan = {
           20,
         );
 
+        let hiveCandidates = mediaCandidates;
+
+        /*
+         * When a face profile is selected, only media containing the
+         * enrolled target identity may continue to Hive.
+         */
+        if (data.profile_id) {
+          const { filterCandidatesByTargetFace } =
+            await import("./deepfake/face-filter.server");
+
+          const faceResults =
+            await filterCandidatesByTargetFace({
+              supabase,
+              userId,
+              profileId: data.profile_id,
+              candidates: mediaCandidates,
+              similarityThreshold: 88,
+            });
+
+          hiveCandidates = faceResults.matched;
+        }
+
         console.log("[DEEPFAKE] Hive input:", {
-          acceptedPages: candidateFilter.accepted.length,
-          mediaCandidates: mediaCandidates.length,
-          directMedia: mediaCandidates.filter(
-            (item) => Boolean(item.media_url || item.image_url),
-          ).length,
+          acceptedPages:
+            candidateFilter.accepted.length,
+          mediaCandidates:
+            mediaCandidates.length,
+          faceProfileEnabled:
+            Boolean(data.profile_id),
+          hiveCandidates:
+            hiveCandidates.length,
+          directMedia:
+            hiveCandidates.filter(
+              (item) =>
+                Boolean(
+                  item.media_url ||
+                  item.image_url,
+                ),
+            ).length,
         });
 
         const { classifyHitsWithHive } =
           await import("./deepfake/hive.server");
 
-        const hiveResults = await classifyHitsWithHive(
-          mediaCandidates,
-        );
+        const hiveResults =
+          await classifyHitsWithHive(
+            hiveCandidates,
+          );
 
         const primaryResults = hiveResults.filter(
           (item) =>
@@ -226,6 +261,12 @@ const plan = {
             is_synthetic: c.is_synthetic,
             face_referenced: c.face_referenced,
             takedown_recommended: c.takedown_recommended,
+            target_face_match:
+              (c as any).target_face_match ?? false,
+            face_similarity:
+              (c as any).face_similarity ?? null,
+            matched_face_id:
+              (c as any).matched_face_id ?? null,
             ai_reasoning: c.ai_reasoning,
           };
         });
