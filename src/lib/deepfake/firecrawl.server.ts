@@ -48,25 +48,73 @@ export async function firecrawlSearch(
     throw new Error("FIRECRAWL_API_KEY is missing");
   }
 
-  const response = await fetch("https://api.firecrawl.dev/v2/search", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
+  let response: Response | null = null;
+  let rawBody = "";
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    response = await fetch(
+      "https://api.firecrawl.dev/v2/search",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          limit: Math.min(
+            Math.max(maxResults, 1),
+            3,
+          ),
+          sources: ["web", "images"],
+        }),
+      },
+    );
+
+    rawBody = await response.text();
+
+    if (response.ok) {
+      break;
+    }
+
+    if (response.status !== 429 || attempt === 2) {
+      throw new Error(
+        `Firecrawl search failed (${response.status}): ` +
+          rawBody.slice(0, 500),
+      );
+    }
+
+    const retryAfterHeader =
+      response.headers.get("retry-after");
+
+    const retrySeconds = retryAfterHeader
+      ? Number.parseInt(retryAfterHeader, 10)
+      : 4 * (attempt + 1);
+
+    const safeDelayMs =
+      Number.isFinite(retrySeconds)
+        ? Math.min(
+            Math.max(retrySeconds, 2),
+            12,
+          ) * 1_000
+        : 4_000;
+
+    console.warn("[DEEPFAKE:FIRECRAWL] Rate limited", {
       query,
-      limit: Math.min(Math.max(maxResults, 1),3),
-      sources: ["web", "images"],
-    }),
-  });
+      attempt: attempt + 1,
+      retryInMs: safeDelayMs,
+    });
 
-  const rawBody = await response.text();
+    await new Promise((resolve) =>
+      setTimeout(resolve, safeDelayMs),
+    );
+  }
 
-  if (!response.ok) {
+  if (!response?.ok) {
     throw new Error(
-      `Firecrawl search failed (${response.status}): ${rawBody.slice(0, 500)}`,
+      `Firecrawl search failed (${response?.status ?? "unknown"}): ` +
+        rawBody.slice(0, 500),
     );
   }
 

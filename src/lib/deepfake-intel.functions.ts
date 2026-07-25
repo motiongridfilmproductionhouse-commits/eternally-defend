@@ -62,12 +62,28 @@ const plan = {
       // 2. Firecrawl searches (bounded concurrency)
       const { firecrawlSearch } = await import("./deepfake/firecrawl.server");
       const perQuery = data.per_query_limit ?? 6;
-      const CONCURRENCY = 4;
+      const CONCURRENCY = 2;
       const allHits: { url: string; title?: string; description?: string; query: string }[] = [];
       const seenUrl = new Set<string>();
       for (let i = 0; i < plan.queries.length; i += CONCURRENCY) {
         const batch = plan.queries.slice(i, i + CONCURRENCY);
-        const results = await Promise.all(batch.map((q) => firecrawlSearch(q, perQuery)));
+        const results = await Promise.all(
+          batch.map(async (q) => {
+            try {
+              return await firecrawlSearch(q, perQuery);
+            } catch (error) {
+              console.warn("[DEEPFAKE] Search query skipped:", {
+                query: q,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              });
+              return [];
+            }
+          }),
+        );
+
         for (const arr of results) {
           for (const h of arr) {
             if (!h.url) continue;
