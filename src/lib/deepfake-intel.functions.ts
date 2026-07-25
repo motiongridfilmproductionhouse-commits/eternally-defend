@@ -162,13 +162,18 @@ try {
           });
 
         if (discoveryError) {
-          console.warn(
+          console.error(
             "[DEEPFAKE] Discovery storage failed:",
-            discoveryError.message,
+            discoveryError,
+          );
+
+          throw new Error(
+            `Unable to store discovered URLs: ${discoveryError.message}`,
           );
         }
 
         console.log("[DEEPFAKE] Raw discoveries saved:", {
+          scanId: scan.id,
           count: discoveryRows.length,
         });
       }

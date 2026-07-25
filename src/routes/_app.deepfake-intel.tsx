@@ -221,14 +221,13 @@ function DeepfakeIntelPage() {
       return;
     }
 
-    if (!selectedProfileId) {
-      toast.error("Create or select a protected identity profile");
-      return;
-    }
+    const hasGoogleImagesLink = Boolean(googleImagesUrl.trim());
+    const hasFaceProfile =
+      Boolean(selectedProfileId) && enrolledFaces.length >= 3;
 
-    if (enrolledFaces.length < 3) {
+    if (!hasGoogleImagesLink && !hasFaceProfile) {
       toast.error(
-        "Upload at least three clear reference photos before scanning",
+        "Paste a Google Images link or select a profile with at least three reference photos",
       );
       return;
     }
@@ -245,7 +244,7 @@ function DeepfakeIntelPage() {
 
     run.mutate({
       target_name: name,
-      profile_id: selectedProfileId,
+      profile_id: selectedProfileId || undefined,
       aliases,
       handles,
       google_images_url: googleImagesUrl.trim() || undefined,
@@ -555,8 +554,13 @@ function DeepfakeIntelPage() {
               onClick={onRun}
               disabled={
                 run.isPending ||
-                !selectedProfileId ||
-                enrolledFaces.length < 3
+                (
+                  !googleImagesUrl.trim() &&
+                  (
+                    !selectedProfileId ||
+                    enrolledFaces.length < 3
+                  )
+                )
               }
             >
               {run.isPending ? (
@@ -567,7 +571,10 @@ function DeepfakeIntelPage() {
               ) : (
                 <>
                   <Radar className="size-4 mr-2" />
-                  Run Face-Verified Sweep
+                  {googleImagesUrl.trim() &&
+                  (!selectedProfileId || enrolledFaces.length < 3)
+                    ? "Run Discovery Sweep"
+                    : "Run Face-Verified Sweep"}
                 </>
               )}
             </Button>
