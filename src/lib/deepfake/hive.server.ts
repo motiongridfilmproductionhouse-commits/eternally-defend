@@ -241,28 +241,28 @@ async function callHive(
 }
 
 const EXPLICIT_SEXUAL_PATTERNS = [
-  /\\bnude(?:s)?\\b/i,
-  /\\bnaked\\b/i,
-  /\\bporn(?:ography|ographic)?\\b/i,
-  /\\bsex(?:ual)?\\b/i,
-  /\\bxxx\\b/i,
-  /\\bleak(?:ed|s)?\\b/i,
-  /\\bintimate\\b/i,
-  /\\bdeepthroat\\b/i,
-  /\\bdoggystyle\\b/i,
-  /\\bcum\\b/i,
-  /\\bfacial\\b/i,
-  /\\bhardcore\\b/i,
-  /\\bescort\\b/i,
+  /\bnude(?:s)?\b/i,
+  /\bnaked\b/i,
+  /\bporn(?:ography|ographic)?\b/i,
+  /\bsex(?:ual)?\b/i,
+  /\bxxx\b/i,
+  /\bleak(?:ed|s)?\b/i,
+  /\bintimate\b/i,
+  /\bdeepthroat\b/i,
+  /\bdoggystyle\b/i,
+  /\bcum\b/i,
+  /\bfacial\b/i,
+  /\bhardcore\b/i,
+  /\bescort\b/i,
 ];
 
 const SYNTHETIC_ABUSE_PATTERNS = [
-  /\\bdeepfake\\b/i,
-  /\\bface[ -]?swap\\b/i,
-  /\\bai[ -]?(?:generated|created|fake)\\b/i,
-  /\\bmorph(?:ed|ing)?\\b/i,
-  /\\bfake nude\\b/i,
-  /\\bsynthetic media\\b/i,
+  /\bdeepfake\b/i,
+  /\bface[ -]?swap\b/i,
+  /\bai[ -]?(?:generated|created|fake)\b/i,
+  /\bmorph(?:ed|ing)?\b/i,
+  /\bfake nude\b/i,
+  /\bsynthetic media\b/i,
 ];
 
 function fallbackThreatClassification(hit: RawHit): {
