@@ -333,7 +333,46 @@ const plan = {
         const { error: fErr } = await supabase
           .from("deepfake_findings")
           .upsert(rows, { onConflict: "scan_id,url" });
-        if (fErr) console.warn("[deepfake] findings insert:", fErr.message);
+        if (fErr) {
+          console.warn(
+            "[deepfake] findings insert:",
+            fErr.message,
+          );
+        }
+
+        /*
+         * Preserve exact page/media URLs, metadata and SHA-256 hashes
+         * for review and takedown preparation.
+         */
+        try {
+          const { captureAndStoreEvidence } =
+            await import(
+              "./deepfake/evidence-capture.server"
+            );
+
+          const evidenceResult =
+            await captureAndStoreEvidence({
+              supabase,
+              userId,
+              scanId: scan.id,
+              candidates: classified as any[],
+            });
+
+          console.log(
+            "[DEEPFAKE:EVIDENCE] Capture summary:",
+            evidenceResult,
+          );
+        } catch (evidenceError) {
+          /*
+           * Evidence failure must not destroy the scan or findings.
+           */
+          console.warn(
+            "[DEEPFAKE:EVIDENCE] Capture failed:",
+            evidenceError instanceof Error
+              ? evidenceError.message
+              : String(evidenceError),
+          );
+        }
       }
 
       await supabase
