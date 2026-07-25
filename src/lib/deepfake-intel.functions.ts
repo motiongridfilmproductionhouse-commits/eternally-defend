@@ -4,6 +4,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildQueryPlan, isBlockedHost } from "./deepfake/queries";
 import type { Database } from "@/integrations/supabase/types";
 import { filterDeepfakeCandidates } from "./deepfake/filter.server";
+import {
+  generateDeepfakeQueries,
+} from "./deepfake/query-generator.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
@@ -41,14 +44,19 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (sErr || !scan) throw new Error(sErr?.message ?? "failed to create scan");
+try {
+    const generatedQueries = generateDeepfakeQueries({
+  name: data.target_name,
+  aliases: data.aliases ?? [],
+  handles: data.handles ?? [],
+});
 
-    try {
-      const plan = buildQueryPlan({
-        name: data.target_name,
-        aliases: data.aliases ?? [],
-        handles: data.handles ?? [],
-        maxQueries: data.max_queries ?? 20,
-      });
+const plan = {
+  queries: generatedQueries.slice(
+    0,
+    data.max_queries ?? 60,
+  ),
+};
 
       // 2. Firecrawl searches (bounded concurrency)
       const { firecrawlSearch } = await import("./deepfake/firecrawl.server");
@@ -145,7 +153,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
          * Triage results are logged for now and can later be stored in a
          * dedicated triage table.
          */
-        classified = primaryResults;
+        classified = [...primaryResults, ...triageResults];
       }
 
       // 4. persist findings
