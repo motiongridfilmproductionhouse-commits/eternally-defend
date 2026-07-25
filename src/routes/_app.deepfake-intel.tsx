@@ -58,6 +58,7 @@ function DeepfakeIntelPage() {
   const qc = useQueryClient();
 
   const [targetName, setTargetName] = useState("");
+  const [googleImagesUrl, setGoogleImagesUrl] = useState("");
   const [aliasesText, setAliasesText] = useState("");
   const [handlesText, setHandlesText] = useState("");
   const [selectedProfileId, setSelectedProfileId] = useState("");
@@ -102,6 +103,7 @@ function DeepfakeIntelPage() {
       profile_id: string;
       aliases: string[];
       handles: string[];
+      google_images_url?: string;
     }) => runFn({ data: input }),
     onSuccess: (res) => {
       toast.success(`Scan complete — ${res.total_results} public results classified`);
@@ -246,6 +248,7 @@ function DeepfakeIntelPage() {
       profile_id: selectedProfileId,
       aliases,
       handles,
+      google_images_url: googleImagesUrl.trim() || undefined,
     });
   };
 
@@ -316,6 +319,28 @@ function DeepfakeIntelPage() {
                 placeholder="Full name, brand, or protected identity"
               />
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">
+                Google Images search link
+                <span className="ml-1 font-normal text-muted-foreground">
+                  Optional
+                </span>
+              </label>
+
+              <Input
+                type="url"
+                value={googleImagesUrl}
+                onChange={(e) => setGoogleImagesUrl(e.target.value)}
+                placeholder="Paste Google Images search URL"
+              />
+
+              <p className="text-[10px] text-muted-foreground">
+                Open Google Images, search the protected identity, then paste
+                the search-page URL here.
+              </p>
+            </div>
+
             <div className="rounded-lg border border-border/70 bg-secondary/20 p-3 space-y-3">
               <div className="flex items-center gap-2">
                 <UserRoundCheck className="size-4 text-primary" />
