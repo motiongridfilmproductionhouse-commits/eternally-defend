@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -7,7 +7,6 @@ import {
   listDeepfakeScans,
   getDeepfakeScan,
   updateDeepfakeFinding,
-  getDeepfakeTargetSuggestion,
 } from "@/lib/deepfake-intel.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,26 +44,13 @@ function DeepfakeIntelPage() {
   const listFn = useServerFn(listDeepfakeScans);
   const getFn = useServerFn(getDeepfakeScan);
   const updFn = useServerFn(updateDeepfakeFinding);
-  const suggestFn = useServerFn(getDeepfakeTargetSuggestion);
   const qc = useQueryClient();
-
-  const suggest = useQuery({
-    queryKey: ["deepfake-target-suggest"],
-    queryFn: () => suggestFn({}),
-    staleTime: 60_000,
-  });
 
   const [targetName, setTargetName] = useState("");
   const [aliasesText, setAliasesText] = useState("");
   const [handlesText, setHandlesText] = useState("");
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
-
-  useEffect(() => {
-    if (!targetName && suggest.data?.target_name) {
-      setTargetName(suggest.data.target_name);
-    }
-  }, [suggest.data, targetName]);
 
   const scans = useQuery({
     queryKey: ["deepfake-scans"],
