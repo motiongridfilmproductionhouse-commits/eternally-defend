@@ -16,6 +16,7 @@ const RunInput = z.object({
   profile_id: z.string().uuid().optional(),
   aliases: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
   handles: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
+  google_images_url: z.string().trim().max(5000).optional(),
   max_queries: z.number().int().min(1).max(40).optional(),
   per_query_limit: z.number().int().min(1).max(10).optional(),
 });
@@ -47,17 +48,54 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
     if (sErr || !scan) throw new Error(sErr?.message ?? "failed to create scan");
 try {
     const generatedQueries = generateDeepfakeQueries({
-  name: data.target_name,
-  aliases: data.aliases ?? [],
-  handles: data.handles ?? [],
-});
+      name: data.target_name,
+      aliases: data.aliases ?? [],
+      handles: data.handles ?? [],
+    });
 
-const plan = {
-  queries: generatedQueries.slice(
-    0,
-    data.max_queries ?? 60,
-  ),
-};
+    let importedQueries: string[] = [];
+
+    if (data.google_images_url) {
+      const {
+        parseGoogleImagesUrl,
+        createImportedImageQueries,
+      } = await import(
+        "./deepfake/google-images-import.server"
+      );
+
+      const imported = parseGoogleImagesUrl(
+        data.google_images_url,
+      );
+
+      importedQueries = createImportedImageQueries(
+        imported.query,
+      );
+    }
+
+    /*
+     * Imported Google search terms are placed first.
+     * Google itself is not scraped. Existing Firecrawl search
+     * discovers the public source pages for these terms.
+     */
+    const combinedQueries = [
+      ...importedQueries,
+      ...generatedQueries,
+    ];
+
+    const uniqueQueries = Array.from(
+      new Set(
+        combinedQueries
+          .map((query) => query.trim())
+          .filter(Boolean),
+      ),
+    );
+
+    const plan = {
+      queries: uniqueQueries.slice(
+        0,
+        data.max_queries ?? 20,
+      ),
+    };
 
       // 2. Firecrawl searches (bounded concurrency)
       const { firecrawlSearch } = await import("./deepfake/firecrawl.server");
@@ -94,6 +132,45 @@ const plan = {
             allHits.push(h);
           }
         }
+      }
+
+      /*
+       * Save every public URL before candidate filtering.
+       * A discovery is a lead, not a confirmed deepfake.
+       */
+      if (allHits.length) {
+        const discoveryRows = allHits.map((hit) => ({
+          user_id: userId,
+          scan_id: scan.id,
+          source: "firecrawl",
+          search_query: hit.query,
+          page_url: hit.url,
+          canonical_url: hit.url,
+          source_host: hostOf(hit.url),
+          page_title: hit.title ?? null,
+          snippet: hit.description ?? null,
+          analysis_status: "discovered",
+          updated_at: new Date().toISOString(),
+        }));
+
+        const { error: discoveryError } = await (
+          supabase as any
+        )
+          .from("deepfake_discoveries")
+          .upsert(discoveryRows, {
+            onConflict: "scan_id,page_url",
+          });
+
+        if (discoveryError) {
+          console.warn(
+            "[DEEPFAKE] Discovery storage failed:",
+            discoveryError.message,
+          );
+        }
+
+        console.log("[DEEPFAKE] Raw discoveries saved:", {
+          count: discoveryRows.length,
+        });
       }
 
       // 3. pre-filter and classify
@@ -389,7 +466,11 @@ const plan = {
         })
         .eq("id", scan.id);
 
-      return { scan_id: scan.id, total_results: classified.length };
+      return {
+        scan_id: scan.id,
+        total_results: classified.length,
+        discovered_results: allHits.length,
+      };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "unknown error";
       await supabase.from("deepfake_scans").update({
@@ -415,17 +496,52 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ scan_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const [scanRes, findingsRes] = await Promise.all([
-      context.supabase.from("deepfake_scans").select("*").eq("id", data.scan_id).maybeSingle(),
-      context.supabase.from("deepfake_findings").select("*").eq("scan_id", data.scan_id)
-        .order("risk_level", { ascending: true })
-        .order("confidence", { ascending: false }),
-    ]);
-    if (scanRes.error) throw new Error(scanRes.error.message);
-    if (findingsRes.error) throw new Error(findingsRes.error.message);
+    const [scanRes, findingsRes, discoveriesRes] =
+      await Promise.all([
+        context.supabase
+          .from("deepfake_scans")
+          .select("*")
+          .eq("id", data.scan_id)
+          .maybeSingle(),
+
+        context.supabase
+          .from("deepfake_findings")
+          .select("*")
+          .eq("scan_id", data.scan_id)
+          .order("risk_level", { ascending: true })
+          .order("confidence", { ascending: false }),
+
+        (context.supabase as any)
+          .from("deepfake_discoveries")
+          .select("*")
+          .eq("scan_id", data.scan_id)
+          .order("discovered_at", {
+            ascending: false,
+          })
+          .limit(500),
+      ]);
+
+    if (scanRes.error) {
+      throw new Error(scanRes.error.message);
+    }
+
+    if (findingsRes.error) {
+      throw new Error(findingsRes.error.message);
+    }
+
+    if (discoveriesRes.error) {
+      console.warn(
+        "[DEEPFAKE] Unable to load discoveries:",
+        discoveriesRes.error.message,
+      );
+    }
+
     return {
       scan: scanRes.data as ScanRow | null,
-      findings: (findingsRes.data ?? []) as FindingRow[],
+      findings:
+        (findingsRes.data ?? []) as FindingRow[],
+      discoveries:
+        discoveriesRes.data ?? [],
     };
   });
 
