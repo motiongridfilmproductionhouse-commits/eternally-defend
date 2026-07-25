@@ -1222,6 +1222,131 @@ export type Database = {
         }
         Relationships: []
       }
+      deepfake_findings: {
+        Row: {
+          ai_reasoning: string | null
+          confidence: number
+          content_category: string | null
+          created_at: string
+          face_referenced: boolean
+          id: string
+          is_synthetic: boolean
+          page_title: string | null
+          query: string | null
+          review_status: string
+          risk_level: string
+          scan_id: string
+          snippet: string | null
+          source_host: string | null
+          takedown_recommended: boolean
+          url: string
+          user_id: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          confidence?: number
+          content_category?: string | null
+          created_at?: string
+          face_referenced?: boolean
+          id?: string
+          is_synthetic?: boolean
+          page_title?: string | null
+          query?: string | null
+          review_status?: string
+          risk_level?: string
+          scan_id: string
+          snippet?: string | null
+          source_host?: string | null
+          takedown_recommended?: boolean
+          url: string
+          user_id: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          confidence?: number
+          content_category?: string | null
+          created_at?: string
+          face_referenced?: boolean
+          id?: string
+          is_synthetic?: boolean
+          page_title?: string | null
+          query?: string | null
+          review_status?: string
+          risk_level?: string
+          scan_id?: string
+          snippet?: string | null
+          source_host?: string | null
+          takedown_recommended?: boolean
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deepfake_findings_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deepfake_scans: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          critical_count: number
+          error_message: string | null
+          finished_at: string | null
+          handles: string[]
+          high_count: number
+          id: string
+          low_count: number
+          medium_count: number
+          started_at: string
+          status: string
+          target_name: string
+          total_queries: number
+          total_results: number
+          user_id: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          critical_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          handles?: string[]
+          high_count?: number
+          id?: string
+          low_count?: number
+          medium_count?: number
+          started_at?: string
+          status?: string
+          target_name: string
+          total_queries?: number
+          total_results?: number
+          user_id: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          critical_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          handles?: string[]
+          high_count?: number
+          id?: string
+          low_count?: number
+          medium_count?: number
+          started_at?: string
+          status?: string
+          target_name?: string
+          total_queries?: number
+          total_results?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       digital_assets: {
         Row: {
           channel_id: string | null
