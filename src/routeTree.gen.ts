@@ -32,6 +32,7 @@ import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
 import { Route as AppFaceProtectionRouteImport } from './routes/_app.face-protection'
 import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vault'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
+import { Route as AppDeepfakeIntelRouteImport } from './routes/_app.deepfake-intel'
 import { Route as AppChannelWatchRouteImport } from './routes/_app.channel-watch'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
@@ -165,6 +166,11 @@ const AppEnforcementRoute = AppEnforcementRouteImport.update({
   path: '/enforcement',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDeepfakeIntelRoute = AppDeepfakeIntelRouteImport.update({
+  id: '/deepfake-intel',
+  path: '/deepfake-intel',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppChannelWatchRoute = AppChannelWatchRouteImport.update({
   id: '/channel-watch',
   path: '/channel-watch',
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/channel-watch': typeof AppChannelWatchRoute
+  '/deepfake-intel': typeof AppDeepfakeIntelRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
   '/face-protection': typeof AppFaceProtectionRoute
@@ -319,6 +326,7 @@ export interface FileRoutesByTo {
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/channel-watch': typeof AppChannelWatchRoute
+  '/deepfake-intel': typeof AppDeepfakeIntelRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
   '/face-protection': typeof AppFaceProtectionRoute
@@ -362,6 +370,7 @@ export interface FileRoutesById {
   '/_app/assets': typeof AppAssetsRoute
   '/_app/cases': typeof AppCasesRoute
   '/_app/channel-watch': typeof AppChannelWatchRoute
+  '/_app/deepfake-intel': typeof AppDeepfakeIntelRoute
   '/_app/enforcement': typeof AppEnforcementRoute
   '/_app/evidence-vault': typeof AppEvidenceVaultRoute
   '/_app/face-protection': typeof AppFaceProtectionRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
     | '/assets'
     | '/cases'
     | '/channel-watch'
+    | '/deepfake-intel'
     | '/enforcement'
     | '/evidence-vault'
     | '/face-protection'
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/assets'
     | '/cases'
     | '/channel-watch'
+    | '/deepfake-intel'
     | '/enforcement'
     | '/evidence-vault'
     | '/face-protection'
@@ -489,6 +500,7 @@ export interface FileRouteTypes {
     | '/_app/assets'
     | '/_app/cases'
     | '/_app/channel-watch'
+    | '/_app/deepfake-intel'
     | '/_app/enforcement'
     | '/_app/evidence-vault'
     | '/_app/face-protection'
@@ -702,6 +714,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEnforcementRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/deepfake-intel': {
+      id: '/_app/deepfake-intel'
+      path: '/deepfake-intel'
+      fullPath: '/deepfake-intel'
+      preLoaderRoute: typeof AppDeepfakeIntelRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/channel-watch': {
       id: '/_app/channel-watch'
       path: '/channel-watch'
@@ -835,6 +854,7 @@ interface AppRouteChildren {
   AppAssetsRoute: typeof AppAssetsRoute
   AppCasesRoute: typeof AppCasesRoute
   AppChannelWatchRoute: typeof AppChannelWatchRoute
+  AppDeepfakeIntelRoute: typeof AppDeepfakeIntelRoute
   AppEnforcementRoute: typeof AppEnforcementRoute
   AppEvidenceVaultRoute: typeof AppEvidenceVaultRoute
   AppFaceProtectionRoute: typeof AppFaceProtectionRoute
@@ -864,6 +884,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsRoute: AppAssetsRoute,
   AppCasesRoute: AppCasesRoute,
   AppChannelWatchRoute: AppChannelWatchRoute,
+  AppDeepfakeIntelRoute: AppDeepfakeIntelRoute,
   AppEnforcementRoute: AppEnforcementRoute,
   AppEvidenceVaultRoute: AppEvidenceVaultRoute,
   AppFaceProtectionRoute: AppFaceProtectionRoute,
@@ -923,13 +944,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
