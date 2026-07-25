@@ -240,22 +240,126 @@ async function callHive(
   }
 }
 
+const EXPLICIT_SEXUAL_PATTERNS = [
+  /\\bnude(?:s)?\\b/i,
+  /\\bnaked\\b/i,
+  /\\bporn(?:ography|ographic)?\\b/i,
+  /\\bsex(?:ual)?\\b/i,
+  /\\bxxx\\b/i,
+  /\\bleak(?:ed|s)?\\b/i,
+  /\\bintimate\\b/i,
+  /\\bdeepthroat\\b/i,
+  /\\bdoggystyle\\b/i,
+  /\\bcum\\b/i,
+  /\\bfacial\\b/i,
+  /\\bhardcore\\b/i,
+  /\\bescort\\b/i,
+];
+
+const SYNTHETIC_ABUSE_PATTERNS = [
+  /\\bdeepfake\\b/i,
+  /\\bface[ -]?swap\\b/i,
+  /\\bai[ -]?(?:generated|created|fake)\\b/i,
+  /\\bmorph(?:ed|ing)?\\b/i,
+  /\\bfake nude\\b/i,
+  /\\bsynthetic media\\b/i,
+];
+
+function fallbackThreatClassification(hit: RawHit): {
+  riskLevel: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  category: string;
+  confidence: number;
+  takedownRecommended: boolean;
+  reasoning: string;
+} {
+  const text = [
+    hit.title ?? "",
+    hit.description ?? "",
+    hit.url ?? "",
+    hit.query ?? "",
+  ].join(" ");
+
+  const explicitMatches = EXPLICIT_SEXUAL_PATTERNS.filter(
+    (pattern) => pattern.test(text),
+  ).length;
+
+  const syntheticMatches = SYNTHETIC_ABUSE_PATTERNS.filter(
+    (pattern) => pattern.test(text),
+  ).length;
+
+  if (explicitMatches >= 2 && syntheticMatches >= 1) {
+    return {
+      riskLevel: "CRITICAL",
+      category: "suspected_explicit_deepfake",
+      confidence: 92,
+      takedownRecommended: true,
+      reasoning:
+        "Hive analysis was unavailable, but the page contains multiple explicit-sexual and synthetic-media abuse indicators. Treat as a critical suspected deepfake pending visual verification.",
+    };
+  }
+
+  if (explicitMatches >= 2) {
+    return {
+      riskLevel: "CRITICAL",
+      category: "explicit_content_page",
+      confidence: 88,
+      takedownRecommended: true,
+      reasoning:
+        "Hive analysis was unavailable, but the page explicitly advertises sexual or intimate content using the protected identity. Immediate review and preservation are recommended.",
+    };
+  }
+
+  if (explicitMatches === 1 || syntheticMatches >= 1) {
+    return {
+      riskLevel: "HIGH",
+      category:
+        explicitMatches > 0
+          ? "suspected_explicit_impersonation"
+          : "suspected_synthetic_media",
+      confidence: 72,
+      takedownRecommended: true,
+      reasoning:
+        "Hive analysis was unavailable, but strong textual threat indicators were detected. Manual media verification is required.",
+    };
+  }
+
+  return {
+    riskLevel: "LOW",
+    category: "unclassified",
+    confidence: 0,
+    takedownRecommended: false,
+    reasoning:
+      "Hive analysis was unavailable and no strong fallback threat indicators were detected.",
+  };
+}
+
 function createUnclassifiedResult(
   hit: RawHit,
   status: HiveClassificationStatus,
   reasoning: string,
 ): ClassifiedHit {
+  const fallback = fallbackThreatClassification(hit);
+
   return {
     ...hit,
-    risk_level: "LOW",
-    content_category: "unclassified",
-    confidence: 0,
+    risk_level: fallback.riskLevel,
+    content_category: fallback.category,
+    confidence: fallback.confidence,
     is_synthetic: false,
-    face_referenced: false,
-    takedown_recommended: false,
-    ai_reasoning: reasoning,
+    face_referenced:
+      fallback.category === "suspected_explicit_deepfake" ||
+      fallback.category === "suspected_synthetic_media",
+    takedown_recommended: fallback.takedownRecommended,
+    ai_reasoning:
+      fallback.riskLevel === "LOW"
+        ? reasoning
+        : `${fallback.reasoning} Provider status: ${reasoning}`,
     classification_status: status,
-    visibility: "triage",
+    visibility:
+      fallback.riskLevel === "CRITICAL" ||
+      fallback.riskLevel === "HIGH"
+        ? "primary"
+        : "triage",
     hive_deepfake_score: 0,
     hive_ai_generated_score: 0,
   } as ClassifiedHit;
