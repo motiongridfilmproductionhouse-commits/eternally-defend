@@ -8,6 +8,12 @@ import {
   getDeepfakeScan,
   updateDeepfakeFinding,
 } from "@/lib/deepfake-intel.functions";
+import {
+  createDeepfakeTargetProfile,
+  listDeepfakeTargetProfiles,
+  uploadDeepfakeReferenceFace,
+  deleteDeepfakeReferenceFace,
+} from "@/lib/deepfake/face-profile.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   ScanFace, ShieldAlert, ExternalLink, Loader2, AlertTriangle,
-  CheckCircle2, XCircle, Filter, Radar,
+  CheckCircle2, XCircle, Filter, Radar, Upload, Trash2,
+  UserRoundCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
@@ -44,13 +51,31 @@ function DeepfakeIntelPage() {
   const listFn = useServerFn(listDeepfakeScans);
   const getFn = useServerFn(getDeepfakeScan);
   const updFn = useServerFn(updateDeepfakeFinding);
+  const createProfileFn = useServerFn(createDeepfakeTargetProfile);
+  const listProfilesFn = useServerFn(listDeepfakeTargetProfiles);
+  const uploadReferenceFn = useServerFn(uploadDeepfakeReferenceFace);
+  const deleteReferenceFn = useServerFn(deleteDeepfakeReferenceFace);
   const qc = useQueryClient();
 
   const [targetName, setTargetName] = useState("");
   const [aliasesText, setAliasesText] = useState("");
   const [handlesText, setHandlesText] = useState("");
+  const [selectedProfileId, setSelectedProfileId] = useState("");
+  const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
+
+  const profiles = useQuery({
+    queryKey: ["deepfake-target-profiles"],
+    queryFn: () => listProfilesFn({}),
+  });
+
+  const selectedProfile = (profiles.data ?? []).find(
+    (profile) => profile.id === selectedProfileId,
+  );
+
+  const enrolledFaces =
+    selectedProfile?.deepfake_reference_faces ?? [];
 
   const scans = useQuery({
     queryKey: ["deepfake-scans"],
@@ -72,14 +97,110 @@ function DeepfakeIntelPage() {
   });
 
   const run = useMutation({
-    mutationFn: (input: { target_name: string; aliases: string[]; handles: string[] }) =>
-      runFn({ data: input }),
+    mutationFn: (input: {
+      target_name: string;
+      profile_id: string;
+      aliases: string[];
+      handles: string[];
+    }) => runFn({ data: input }),
     onSuccess: (res) => {
       toast.success(`Scan complete — ${res.total_results} public results classified`);
       setSelectedScanId(res.scan_id);
       qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
+  });
+
+  const createProfile = useMutation({
+    mutationFn: (target_name: string) =>
+      createProfileFn({
+        data: {
+          target_name,
+          authorization_status: "authorized",
+        },
+      }),
+    onSuccess: (profile) => {
+      setSelectedProfileId(profile.id);
+      qc.invalidateQueries({
+        queryKey: ["deepfake-target-profiles"],
+      });
+      toast.success("Protected identity profile created");
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Profile creation failed",
+      ),
+  });
+
+  const uploadReferences = useMutation({
+    mutationFn: async (files: File[]) => {
+      if (!selectedProfileId) {
+        throw new Error("Select or create a target profile first.");
+      }
+
+      const uploaded = [];
+
+      for (const file of files) {
+        const image_base64 = await fileToDataUrl(file);
+
+        uploaded.push(
+          await uploadReferenceFn({
+            data: {
+              profile_id: selectedProfileId,
+              filename: file.name,
+              content_type: file.type as
+                | "image/jpeg"
+                | "image/png"
+                | "image/webp",
+              image_base64,
+            },
+          }),
+        );
+      }
+
+      return uploaded;
+    },
+    onSuccess: (uploaded) => {
+      setReferenceFiles([]);
+      qc.invalidateQueries({
+        queryKey: ["deepfake-target-profiles"],
+      });
+      toast.success(
+        `${uploaded.length} reference photo${
+          uploaded.length === 1 ? "" : "s"
+        } enrolled`,
+      );
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Reference photo upload failed",
+      ),
+  });
+
+  const deleteReference = useMutation({
+    mutationFn: (reference_face_id: string) =>
+      deleteReferenceFn({
+        data: {
+          profile_id: selectedProfileId,
+          reference_face_id,
+        },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ["deepfake-target-profiles"],
+      });
+      toast.success("Reference photo removed");
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to remove reference photo",
+      ),
   });
 
   const upd = useMutation({
@@ -92,10 +213,73 @@ function DeepfakeIntelPage() {
 
   const onRun = () => {
     const name = targetName.trim();
-    if (!name) { toast.error("Enter a target name"); return; }
-    const aliases = aliasesText.split(/\r?\n|,/).map((s) => s.trim()).filter(Boolean);
-    const handles = handlesText.split(/\r?\n|,/).map((s) => s.trim()).filter(Boolean);
-    run.mutate({ target_name: name, aliases, handles });
+
+    if (!name) {
+      toast.error("Enter a target name");
+      return;
+    }
+
+    if (!selectedProfileId) {
+      toast.error("Create or select a protected identity profile");
+      return;
+    }
+
+    if (enrolledFaces.length < 3) {
+      toast.error(
+        "Upload at least three clear reference photos before scanning",
+      );
+      return;
+    }
+
+    const aliases = aliasesText
+      .split(/\r?\n|,/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    const handles = handlesText
+      .split(/\r?\n|,/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    run.mutate({
+      target_name: name,
+      profile_id: selectedProfileId,
+      aliases,
+      handles,
+    });
+  };
+
+  const onCreateProfile = () => {
+    const name = targetName.trim();
+
+    if (!name) {
+      toast.error("Enter the protected person's name first");
+      return;
+    }
+
+    createProfile.mutate(name);
+  };
+
+  const onReferenceFilesSelected = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const selected = Array.from(event.target.files ?? []);
+    event.target.value = "";
+
+    const allowed = selected.filter((file) =>
+      ["image/jpeg", "image/png", "image/webp"].includes(file.type),
+    );
+
+    if (allowed.length !== selected.length) {
+      toast.error("Only JPEG, PNG and WebP photos are supported");
+    }
+
+    const remainingSlots = Math.max(
+      0,
+      5 - enrolledFaces.length,
+    );
+
+    setReferenceFiles(allowed.slice(0, remainingSlots));
   };
 
   const scan = selected.data?.scan ?? null;
@@ -132,6 +316,197 @@ function DeepfakeIntelPage() {
                 placeholder="Full name, brand, or protected identity"
               />
             </div>
+            <div className="rounded-lg border border-border/70 bg-secondary/20 p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <UserRoundCheck className="size-4 text-primary" />
+                <div>
+                  <div className="text-xs font-semibold">
+                    Protected identity verification
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Face matching removes results showing a different person.
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">
+                  Identity profile
+                </label>
+
+                <select
+                  value={selectedProfileId}
+                  onChange={(event) => {
+                    const profileId = event.target.value;
+                    setSelectedProfileId(profileId);
+
+                    const profile = (profiles.data ?? []).find(
+                      (item) => item.id === profileId,
+                    );
+
+                    if (profile?.target_name) {
+                      setTargetName(profile.target_name);
+                    }
+                  }}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">Select protected identity</option>
+                  {(profiles.data ?? []).map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.target_name} · {
+                        profile.deepfake_reference_faces?.length ?? 0
+                      }/5 photos
+                    </option>
+                  ))}
+                </select>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={
+                    createProfile.isPending ||
+                    !targetName.trim()
+                  }
+                  onClick={onCreateProfile}
+                >
+                  {createProfile.isPending ? (
+                    <>
+                      <Loader2 className="size-4 mr-2 animate-spin" />
+                      Creating profile…
+                    </>
+                  ) : (
+                    <>
+                      <UserRoundCheck className="size-4 mr-2" />
+                      Create Profile for This Target
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {selectedProfileId && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium">
+                      Reference photos
+                    </label>
+                    <Badge
+                      variant={
+                        enrolledFaces.length >= 3
+                          ? "default"
+                          : "secondary"
+                      }
+                    >
+                      {enrolledFaces.length}/5 enrolled
+                    </Badge>
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground">
+                    Upload 3–5 clear photos of the same person. Use front,
+                    left-angle and right-angle photographs. Avoid group photos,
+                    sunglasses and heavily edited images.
+                  </p>
+
+                  {enrolledFaces.length > 0 && (
+                    <div className="space-y-1.5">
+                      {enrolledFaces.map(
+                        (
+                          face: {
+                            id: string;
+                            face_confidence?: number | null;
+                          },
+                          index: number,
+                        ) => (
+                          <div
+                            key={face.id}
+                            className="flex items-center justify-between rounded-md border border-border/60 px-2.5 py-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="size-3.5 text-emerald-500" />
+                              <span className="text-xs">
+                                Reference photo {index + 1}
+                              </span>
+                              {typeof face.face_confidence === "number" && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {face.face_confidence.toFixed(1)}% quality
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              aria-label="Delete reference photo"
+                              disabled={deleteReference.isPending}
+                              onClick={() =>
+                                deleteReference.mutate(face.id)
+                              }
+                              className="rounded p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  )}
+
+                  {enrolledFaces.length < 5 && (
+                    <>
+                      <label className="flex cursor-pointer items-center justify-center rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-3 text-xs text-primary hover:bg-primary/10">
+                        <Upload className="size-4 mr-2" />
+                        Choose reference photos
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          multiple
+                          className="hidden"
+                          onChange={onReferenceFilesSelected}
+                        />
+                      </label>
+
+                      {referenceFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-[10px] text-muted-foreground">
+                            {referenceFiles.length} photo{
+                              referenceFiles.length === 1 ? "" : "s"
+                            } selected
+                          </div>
+
+                          <Button
+                            type="button"
+                            className="w-full"
+                            disabled={uploadReferences.isPending}
+                            onClick={() =>
+                              uploadReferences.mutate(referenceFiles)
+                            }
+                          >
+                            {uploadReferences.isPending ? (
+                              <>
+                                <Loader2 className="size-4 mr-2 animate-spin" />
+                                Enrolling faces…
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="size-4 mr-2" />
+                                Upload and Enrol Faces
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {enrolledFaces.length >= 3 && (
+                    <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-2 text-[11px] text-emerald-500">
+                      <CheckCircle2 className="size-4 shrink-0" />
+                      Face-verified scanning is ready.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-xs font-medium">Aliases / nicknames / prior names</label>
               <Textarea
@@ -150,8 +525,26 @@ function DeepfakeIntelPage() {
                 rows={3}
               />
             </div>
-            <Button className="w-full" onClick={onRun} disabled={run.isPending}>
-              {run.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Scanning…</> : <><Radar className="size-4 mr-2" /> Run Intelligence Sweep</>}
+            <Button
+              className="w-full"
+              onClick={onRun}
+              disabled={
+                run.isPending ||
+                !selectedProfileId ||
+                enrolledFaces.length < 3
+              }
+            >
+              {run.isPending ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Face-verifying and scanning…
+                </>
+              ) : (
+                <>
+                  <Radar className="size-4 mr-2" />
+                  Run Face-Verified Sweep
+                </>
+              )}
             </Button>
             <p className="text-[11px] text-muted-foreground">
               Reddit is excluded. Site-scoped queries cover X, Twitter, Instagram, TikTok,
@@ -270,6 +663,26 @@ function DeepfakeIntelPage() {
       </section>
     </div>
   );
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("Unable to read selected image."));
+        return;
+      }
+
+      resolve(reader.result);
+    };
+
+    reader.onerror = () =>
+      reject(new Error("Unable to read selected image."));
+
+    reader.readAsDataURL(file);
+  });
 }
 
 function StatusBadge({ status }: { status: string }) {
