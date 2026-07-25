@@ -27,6 +27,7 @@ const mainNav: NavItem[] = [
   { icon: Radar, label: "Channel Watch", to: "/channel-watch" },
   { icon: ScanFace, label: "Face Protection", to: "/face-protection" },
   { icon: Lock, label: "Intimate Image & Deepfake Protection", to: "/sensitive-protection" },
+  { icon: ScanFace, label: "Deepfake Intel", to: "/deepfake-intel", badge: "AI" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
   { icon: Briefcase, label: "Cases", to: "/cases" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
