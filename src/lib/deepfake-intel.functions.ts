@@ -116,7 +116,7 @@ const plan = {
          */
         const mediaCandidates = await enrichHitsWithMedia(
           candidateFilter.accepted,
-          60,
+          20,
         );
 
         let hiveCandidates = mediaCandidates;

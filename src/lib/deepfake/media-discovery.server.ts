@@ -346,7 +346,7 @@ export async function scrapeMediaFromPage(
     }
 
     return Array.from(unique.values())
-      .slice(0, 20)
+      .slice(0, 8)
       .map((candidate) => ({
         ...hit,
         url: candidate.media_url,
