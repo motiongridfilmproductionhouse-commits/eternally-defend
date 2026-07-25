@@ -242,6 +242,18 @@ const plan = {
       // 4. persist findings
       let critical = 0, high = 0, medium = 0, low = 0;
       if (classified.length) {
+        console.log(
+          "[FINAL CLASSIFIED RESULTS]",
+          classified.map((c) => ({
+            title: c.title,
+            risk: c.risk_level,
+            category: c.content_category,
+            confidence: c.confidence,
+            status: c.classification_status,
+            reasoning: c.ai_reasoning,
+          })),
+        );
+
         const rows = classified.map((c) => {
           if (c.risk_level === "CRITICAL") critical++;
           else if (c.risk_level === "HIGH") high++;
