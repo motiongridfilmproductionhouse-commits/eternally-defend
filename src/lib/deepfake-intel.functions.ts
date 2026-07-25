@@ -116,7 +116,7 @@ const plan = {
          */
         const mediaCandidates = await enrichHitsWithMedia(
           candidateFilter.accepted,
-          20,
+          60,
         );
 
         let hiveCandidates = mediaCandidates;
@@ -138,7 +138,38 @@ const plan = {
               similarityThreshold: 88,
             });
 
-          hiveCandidates = faceResults.matched;
+          /*
+           * Keep verified face matches as primary media.
+           * Also preserve explicit video/page leads when face verification
+           * cannot run because no accessible thumbnail or image exists.
+           */
+          const explicitUnavailable = faceResults.errors.filter(
+            (item) => {
+              const text = [
+                item.title ?? "",
+                item.description ?? "",
+                item.url ?? "",
+                item.query ?? "",
+              ].join(" ");
+
+              return (
+                item.media_type === "video" ||
+                /\b(?:video|porn|xxx|sex|nude|naked|deepfake|fake nude|leaked)\b/i.test(
+                  text,
+                )
+              );
+            },
+          );
+
+          hiveCandidates = [
+            ...faceResults.matched,
+            ...explicitUnavailable.map((item) => ({
+              ...item,
+              target_face_match: false,
+              face_similarity: 0,
+              matched_face_id: null,
+            })),
+          ];
         }
 
         console.log("[DEEPFAKE] Hive input:", {
