@@ -173,7 +173,35 @@ const plan = {
          * Triage results are logged for now and can later be stored in a
          * dedicated triage table.
          */
-        classified = [...primaryResults, ...triageResults];
+        const relevantTriageResults = triageResults.filter(
+          (item: any) => {
+            const signals = Array.isArray(item.threat_signals)
+              ? item.threat_signals
+              : [];
+
+            const explicitCategory =
+              item.content_category ===
+              "explicit_content_page";
+
+            const analysedRisk =
+              item.classification_status === "completed" &&
+              (
+                item.content_category === "deepfake" ||
+                item.content_category === "synthetic_media"
+              );
+
+            return (
+              signals.length > 0 ||
+              explicitCategory ||
+              analysedRisk
+            );
+          },
+        );
+
+        classified = [
+          ...primaryResults,
+          ...relevantTriageResults,
+        ];
       }
 
       // 4. persist findings
