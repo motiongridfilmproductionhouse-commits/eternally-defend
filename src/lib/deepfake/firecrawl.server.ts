@@ -1,57 +1,134 @@
-// Server-only Firecrawl v2 /search wrapper for deepfake intelligence.
-// Uses direct-API mode (FIRECRAWL_API_KEY starts with fc-*) — same as
-// src/lib/discovery/firecrawl.server.ts.
-
-export interface SearchHit {
+export interface FirecrawlSearchHit {
   url: string;
+  title: string;
+  description: string;
+  source: "firecrawl_web" | "firecrawl_image";
+  thumbnail_url?: string;
+  image_url?: string;
+  is_sensitive?: boolean;
+}
+
+interface FirecrawlWebResult {
+  url?: string;
   title?: string;
   description?: string;
-  query: string;
+}
+
+interface FirecrawlImageResult {
+  url?: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  title?: string;
+  description?: string;
+  sourceUrl?: string;
 }
 
 interface FirecrawlSearchResponse {
-  data?: Array<{ url?: string; title?: string; description?: string }>;
-  web?: Array<{ url?: string; title?: string; description?: string }>;
-  news?: Array<{ url?: string; title?: string; description?: string }>;
+  success?: boolean;
+  data?: {
+    web?: FirecrawlWebResult[];
+    images?: FirecrawlImageResult[];
+  };
   error?: string;
 }
 
-const FC = "https://api.firecrawl.dev/v2";
-
-function requireKey(): string {
-  const k = process.env.FIRECRAWL_API_KEY;
-  if (!k) throw new Error("FIRECRAWL_API_KEY is not configured");
-  return k;
+function looksSensitive(text: string): boolean {
+  return /\b(nude|nudes|naked|porn|xxx|sex tape|deepfake|fake nude|ai nude|morphed|leak)\b/i.test(
+    text,
+  );
 }
 
-export async function firecrawlSearch(query: string, limit = 6): Promise<SearchHit[]> {
-  const key = requireKey();
-  const res = await fetch(`${FC}/search`, {
+export async function firecrawlSearch(
+  query: string,
+  maxResults = 20,
+): Promise<FirecrawlSearchHit[]> {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("FIRECRAWL_API_KEY is missing");
+  }
+
+  const response = await fetch("https://api.firecrawl.dev/v2/search", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ query, limit }),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    console.warn(`[deepfake:firecrawl] ${res.status}: ${text.slice(0, 200)}`);
-    return [];
-  }
-  let json: FirecrawlSearchResponse;
-  try { json = JSON.parse(text); } catch { return []; }
-  const raw = [
-    ...(Array.isArray(json.data) ? json.data : []),
-    ...(Array.isArray(json.web) ? json.web : []),
-    ...(Array.isArray(json.news) ? json.news : []),
-  ];
-  const out: SearchHit[] = [];
-  for (const item of raw) {
-    if (!item?.url) continue;
-    out.push({
-      url: item.url,
-      title: typeof item.title === "string" ? item.title : undefined,
-      description: typeof item.description === "string" ? item.description : undefined,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
       query,
-    });
+      limit: Math.min(Math.max(maxResults, 1), 100),
+      sources: ["web", "images"],
+    }),
+  });
+
+  const rawBody = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      `Firecrawl search failed (${response.status}): ${rawBody.slice(0, 500)}`,
+    );
   }
-  return out;
+
+  let data: FirecrawlSearchResponse;
+
+  try {
+    data = JSON.parse(rawBody) as FirecrawlSearchResponse;
+  } catch {
+    throw new Error("Firecrawl returned invalid JSON");
+  }
+
+  if (!data.success) {
+    throw new Error(data.error || "Firecrawl search was unsuccessful");
+  }
+
+  const webHits: FirecrawlSearchHit[] = (data.data?.web ?? [])
+    .filter(
+      (result): result is FirecrawlWebResult & { url: string } =>
+        Boolean(result.url),
+    )
+    .map((result) => ({
+      url: result.url,
+      title: result.title ?? "",
+      description: result.description ?? "",
+      source: "firecrawl_web",
+      is_sensitive: looksSensitive(
+        `${result.title ?? ""} ${result.description ?? ""} ${result.url}`,
+      ),
+    }));
+
+  const imageHits: FirecrawlSearchHit[] = (data.data?.images ?? [])
+    .map((result) => {
+      const pageUrl = result.sourceUrl ?? result.url ?? "";
+      const imageUrl =
+        result.imageUrl ??
+        result.url ??
+        result.thumbnailUrl ??
+        "";
+
+      return {
+        url: pageUrl || imageUrl,
+        title: result.title ?? "Image search result",
+        description: result.description ?? "",
+        source: "firecrawl_image" as const,
+        thumbnail_url: result.thumbnailUrl ?? result.imageUrl ?? result.url,
+        image_url: imageUrl,
+        is_sensitive: looksSensitive(
+          `${result.title ?? ""} ${result.description ?? ""} ${pageUrl} ${imageUrl}`,
+        ),
+      };
+    })
+    .filter((result) => Boolean(result.url));
+
+  const deduped = new Map<string, FirecrawlSearchHit>();
+
+  for (const hit of [...webHits, ...imageHits]) {
+    const key = hit.image_url || hit.url;
+
+    if (!deduped.has(key)) {
+      deduped.set(key, hit);
+    }
+  }
+
+  return Array.from(deduped.values()).slice(0, maxResults * 2);
 }

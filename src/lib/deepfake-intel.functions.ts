@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildQueryPlan, isBlockedHost } from "./deepfake/queries";
 import type { Database } from "@/integrations/supabase/types";
+import { filterDeepfakeCandidates } from "./deepfake/filter.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
@@ -70,15 +71,81 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         }
       }
 
-      // 3. classify
+      // 3. pre-filter and classify
       let classified: Awaited<ReturnType<typeof import("./deepfake/classify.server").classifyHits>> = [];
+
       if (allHits.length) {
-        const { classifyHits } = await import("./deepfake/classify.server");
-        classified = await classifyHits(allHits, {
+        const target = {
           name: data.target_name,
           aliases: data.aliases ?? [],
           handles: data.handles ?? [],
+        };
+
+        const candidateFilter = filterDeepfakeCandidates(allHits, target);
+
+        console.log("[DEEPFAKE] Candidate filter:", {
+          accepted: candidateFilter.accepted.length,
+          triage: candidateFilter.triage.length,
+          rejected: candidateFilter.rejected.length,
         });
+
+        console.log(
+          "[DEEPFAKE] Rejected candidate sample:",
+          candidateFilter.rejected.slice(0, 5).map((item) => ({
+            url: item.url,
+            score: item.content_match_score,
+            reason: item.rejection_reason,
+          })),
+        );
+
+        const { classifyHitsWithHive } =
+          await import("./deepfake/hive.server");
+
+        const hiveResults = await classifyHitsWithHive(
+          candidateFilter.accepted,
+        );
+
+        const primaryResults = hiveResults.filter(
+          (item) =>
+            (item.content_match_score ?? 0) >= 50 &&
+            item.classification_status === "completed" &&
+            item.confidence >= 10 &&
+            item.content_category !== "unclassified" &&
+            item.visibility === "primary",
+        );
+
+        const triageResults = [
+          ...candidateFilter.triage.map((item) => ({
+            ...item,
+            risk_level: "LOW" as const,
+            content_category: "unclassified",
+            confidence: 0,
+            is_synthetic: false,
+            face_referenced: false,
+            takedown_recommended: false,
+            ai_reasoning:
+              item.rejection_reason ??
+              "Weak target-content match; manual review required.",
+            classification_status: "no_media" as const,
+            visibility: "triage" as const,
+          })),
+          ...hiveResults.filter(
+            (item) => item.visibility !== "primary",
+          ),
+        ];
+
+        console.log("[DEEPFAKE] Result routing:", {
+          primary: primaryResults.length,
+          triage: triageResults.length,
+          rejected: candidateFilter.rejected.length,
+        });
+
+        /*
+         * Keep only verified Hive results in the primary findings table.
+         * Triage results are logged for now and can later be stored in a
+         * dedicated triage table.
+         */
+        classified = primaryResults;
       }
 
       // 4. persist findings

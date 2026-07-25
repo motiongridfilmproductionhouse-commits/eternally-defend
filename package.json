@@ -19,6 +19,7 @@
     "@aws-sdk/client-s3": "^3.1085.0",
     "@aws-sdk/client-sts": "^3.1089.0",
     "@aws-sdk/s3-request-presigner": "^3.1085.0",
+    "@google/genai": "^2.13.0",
     "@hookform/resolvers": "^5.2.2",
     "@lovable.dev/cloud-auth-js": "^1.1.2",
     "@mendable/firecrawl-js": "^4.30.0",

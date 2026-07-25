@@ -72,19 +72,29 @@ export function buildQueryPlan(input: {
   handles?: string[];
   maxQueries?: number;
 }): QueryPlan {
-  const targets = dedupe([input.name, ...(input.aliases ?? []), ...(input.handles ?? [])]);
-  const quoted = targets.map((t) => (t.includes(" ") ? `"${t}"` : `"${t}"`));
+  const targets = dedupe([input.name, ...(input.aliases ?? []), ...(input.handles ?? [])])
+    .map((t) =>
+      t
+        .replace(/^actress\s+/i, "")
+        .replace(/^actor\s+/i, "")
+        .replace(/^celebrity\s+/i, "")
+        .replace(/^creator\s+/i, "")
+        .trim(),
+    )
+    .filter(Boolean);
+
+  const searchableTargets = targets;
   const max = input.maxQueries ?? 24;
 
   const queries: string[] = [];
   // 1. per-target modifier queries (core signal)
-  for (const q of quoted) {
+  for (const q of searchableTargets) {
     for (const m of DEEPFAKE_MODIFIERS) {
       queries.push(`${q} ${m}`);
     }
   }
   // 2. site-scoped queries against the primary name
-  const primary = quoted[0];
+  const primary = searchableTargets[0];
   if (primary) {
     for (const s of SITE_FILTERS) {
       queries.push(`${s} ${primary} deepfake OR fake OR leaked OR nude`);
