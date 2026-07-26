@@ -2746,6 +2746,22 @@ export const Route = createFileRoute("/api/scan")({
             runFirecrawl(expansionQuery, nonYtSources, limit),
           ]);
 
+          console.log("[scan-debug] YouTube stage result", {
+            discovered: yt.raw.length,
+            quotaExhausted: yt.quotaExhausted,
+            apiErrors: yt.apiErrors,
+            queriesUsed: yt.queriesUsed,
+            pagesScanned: yt.pagesScanned,
+            error: yt.error,
+          });
+
+          console.log("[scan-debug] Initial Firecrawl result", {
+            controversyHits: fcControversy.runs.flatMap((run) => run.raw).length,
+            generalHits: fcGeneral.runs.flatMap((run) => run.raw).length,
+            controversyRuns: fcControversy.runs.length,
+            generalRuns: fcGeneral.runs.length,
+          });
+
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 2 — Firecrawl Discovery Mode (always runs if quota exhausted;
           //           also supplements when YT returns 0 results for any reason)
@@ -2770,6 +2786,17 @@ export const Route = createFileRoute("/api/scan")({
             ...(fcDiscovery?.runs ?? []).flatMap((r) => r.raw),
             ...fcControversy.runs.flatMap((r) => r.raw),
           ];
+
+          console.log("[scan-debug] First-pass discovery totals", {
+            youtube: yt.raw.length,
+            firecrawlDiscovery:
+              fcDiscovery?.runs.flatMap((run) => run.raw).length ?? 0,
+            firecrawlControversy:
+              fcControversy.runs.flatMap((run) => run.raw).length,
+            firecrawlGeneral:
+              fcGeneral.runs.flatMap((run) => run.raw).length,
+            firstPassRaw: firstPassRaw.length,
+          });
           let expansionRuns: { source: string; raw: RawHit[] }[] = [];
           if (firstPassRaw.length >= 3) {
             const trendingTerms = extractExpansionTerms(firstPassRaw, query, aliases);
