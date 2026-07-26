@@ -225,26 +225,20 @@ export async function scrapeMediaFromPage(
   }
 
   try {
-    const response = await fetch(
-      "https://api.firecrawl.dev/v2/scrape",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          url: hit.url,
-          formats: ["images", "html", "rawHtml"],
-          onlyMainContent: false,
-          removeBase64Images: true,
-          blockAds: true,
-          timeout: 20_000,
-          waitFor: 1_000,
-        }),
-      },
+    const { firecrawlFetch } = await import(
+      "@/lib/firecrawl-client.server"
     );
+
+    const response = await firecrawlFetch("/scrape", {
+      url: hit.url,
+      formats: ["html", "rawHtml"],
+      onlyMainContent: false,
+      removeBase64Images: true,
+      blockAds: true,
+      timeout: 20_000,
+      waitFor: 1_000,
+    });
+
 
     const rawBody = await response.text();
 
