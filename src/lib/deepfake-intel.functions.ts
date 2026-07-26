@@ -292,7 +292,7 @@ try {
             hiveCandidates,
           );
 
-        const primaryResults = hiveResults.filter(
+        let primaryResults = hiveResults.filter(
           (item) =>
             (item.content_match_score ?? 0) >= 50 &&
             item.classification_status === "completed" &&
@@ -300,6 +300,61 @@ try {
             item.content_category !== "unclassified" &&
             item.visibility === "primary",
         );
+
+        /*
+         * When the media classifier is unavailable (no key, provider error),
+         * fall back to the cautious text classifier so accepted leads are
+         * still surfaced for manual review instead of vanishing.
+         */
+        const hiveUsable = hiveResults.some(
+          (item) => item.classification_status === "completed",
+        );
+
+        if (!primaryResults.length && !hiveUsable) {
+          const { classifyHits } = await import(
+            "./deepfake/classify.server"
+          );
+
+          const textPool = (
+            hiveCandidates.length
+              ? hiveCandidates
+              : candidateFilter.accepted
+          ).slice(0, 40);
+
+          try {
+            const textResults = await classifyHits(
+              textPool.map((item) => ({
+                url: item.url,
+                title: item.title,
+                description: item.description,
+                query: item.query,
+              })),
+              target,
+            );
+
+            primaryResults = textResults.map((item, index) => ({
+              ...item,
+              content_match_score:
+                (textPool[index] as any)?.content_match_score ?? 0,
+              classification_status: "completed" as const,
+              visibility: "primary" as const,
+              ai_reasoning:
+                `${item.ai_reasoning} (Text-only triage: media analysis unavailable.)`.trim(),
+            }));
+
+            console.log("[DEEPFAKE] Text-classifier fallback:", {
+              classified: primaryResults.length,
+            });
+          } catch (fallbackError) {
+            console.warn(
+              "[DEEPFAKE] Text-classifier fallback failed:",
+              fallbackError instanceof Error
+                ? fallbackError.message
+                : String(fallbackError),
+            );
+          }
+        }
+
 
         const triageResults = [
           ...candidateFilter.triage.map((item) => ({
