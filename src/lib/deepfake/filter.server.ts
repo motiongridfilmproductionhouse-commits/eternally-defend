@@ -110,7 +110,7 @@ const SYNTHETIC_PATTERNS: Array<{
   {
     label: "synthetic-media",
     pattern:
-      /\b(?:synthetic\s+media|ai[-\s]generated\s+(?:image|video|photo)|fake\s+video)\b/i,
+      /\b(?:synthetic\s+media|ai[-\s]generated\s+(?:image|video|photo))\b/i,
   },
 ];
 
@@ -434,11 +434,25 @@ export function filterDeepfakeCandidates(
     }
 
     /*
-     * Strong combination: target + explicit/synthetic signal.
+     * Sensitive synthetic-media mode:
+     * accept explicit/intimate threats or strong AI/deepfake manipulation.
+     *
+     * Do not accept an ordinary page merely because its text contains
+     * a weak phrase such as "fake video".
      */
+    else if (threat.hasStrongExplicitSignal) {
+      decision = "accepted";
+    }
+
     else if (
-      threat.hasSyntheticSignal ||
-      threat.hasStrongExplicitSignal
+      threat.hasSyntheticSignal &&
+      threat.signals.some((signal) =>
+        [
+          "deepfake",
+          "ai-nude",
+          "morphed-media",
+        ].includes(signal),
+      )
     ) {
       decision = "accepted";
     }

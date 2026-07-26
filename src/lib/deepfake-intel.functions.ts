@@ -99,7 +99,7 @@ try {
 
       // 2. Firecrawl searches (bounded concurrency)
       const { firecrawlSearch } = await import("./deepfake/firecrawl.server");
-      const perQuery = data.per_query_limit ?? 6;
+      const perQuery = data.per_query_limit ?? 10;
       const CONCURRENCY = 2;
       const allHits: { url: string; title?: string; description?: string; query: string }[] = [];
       const seenUrl = new Set<string>();
@@ -129,7 +129,14 @@ try {
             if (!host || isBlockedHost(host)) continue;
             if (seenUrl.has(h.url)) continue;
             seenUrl.add(h.url);
-            allHits.push(h);
+
+            allHits.push({
+              ...h,
+              query:
+                typeof h.query === "string" && h.query.trim()
+                  ? h.query.trim()
+                  : batch[0] ?? data.target_name,
+            });
           }
         }
       }
@@ -143,7 +150,10 @@ try {
           user_id: userId,
           scan_id: scan.id,
           source: "firecrawl",
-          search_query: hit.query,
+          search_query:
+            typeof hit.query === "string" && hit.query.trim()
+              ? hit.query.trim()
+              : data.target_name,
           page_url: hit.url,
           canonical_url: hit.url,
           source_host: hostOf(hit.url),
@@ -214,7 +224,7 @@ try {
          */
         const mediaCandidates = await enrichHitsWithMedia(
           candidateFilter.accepted,
-          20,
+          60,
         );
 
         let hiveCandidates = mediaCandidates;
@@ -398,19 +408,34 @@ try {
               ? item.threat_signals
               : [];
 
+            const strongSignals = signals.some(
+              (signal: string) =>
+                [
+                  "nude",
+                  "pornographic",
+                  "sexual-content",
+                  "leaked-intimate-media",
+                  "undressing",
+                  "deepfake",
+                  "ai-nude",
+                  "morphed-media",
+                ].includes(signal),
+            );
+
             const explicitCategory =
               item.content_category ===
               "explicit_content_page";
 
             const analysedRisk =
               item.classification_status === "completed" &&
-              (
-                item.content_category === "deepfake" ||
-                item.content_category === "synthetic_media"
-              );
+              [
+                "deepfake",
+                "synthetic_media",
+                "explicit_content_page",
+              ].includes(item.content_category);
 
             return (
-              signals.length > 0 ||
+              strongSignals ||
               explicitCategory ||
               analysedRisk
             );
