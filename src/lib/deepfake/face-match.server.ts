@@ -183,7 +183,12 @@ export async function compareReferenceFace(input: {
     faceConfidence:
       bestMatch?.Face?.Confidence ?? 0,
     boundingBox: bestMatch?.Face?.BoundingBox
-      ? { ...bestMatch.Face.BoundingBox }
+      ? {
+          width: bestMatch.Face.BoundingBox.Width,
+          height: bestMatch.Face.BoundingBox.Height,
+          left: bestMatch.Face.BoundingBox.Left,
+          top: bestMatch.Face.BoundingBox.Top,
+        }
       : undefined,
     unmatchedFaces:
       response.UnmatchedFaces?.length ?? 0,
