@@ -24,6 +24,8 @@ export interface ClassifiedHit extends RawHit {
   classification_status?: "completed" | "no_media" | "provider_error" | "failed";
   visibility?: "primary" | "triage";
   media_url?: string;
+  content_match_score?: number;
+  threat_signals?: string[];
   hive_deepfake_score?: number;
   hive_ai_generated_score?: number;
   hive_raw?: unknown;

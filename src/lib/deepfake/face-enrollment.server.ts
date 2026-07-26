@@ -150,8 +150,14 @@ export async function indexDeepfakeReferenceFace(input: {
     confidence:
       faceRecord.Face.Confidence ?? 0,
     collectionId,
-    boundingBox:
-      faceRecord.Face.BoundingBox,
+    boundingBox: faceRecord.Face.BoundingBox
+      ? {
+          width: faceRecord.Face.BoundingBox.Width,
+          height: faceRecord.Face.BoundingBox.Height,
+          left: faceRecord.Face.BoundingBox.Left,
+          top: faceRecord.Face.BoundingBox.Top,
+        }
+      : undefined,
   };
 }
 

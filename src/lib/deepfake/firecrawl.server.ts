@@ -1,12 +1,16 @@
+import { firecrawlFetch } from "@/lib/firecrawl-client.server";
+
 export interface FirecrawlSearchHit {
   url: string;
   title: string;
   description: string;
+  query: string;
   source: "firecrawl_web" | "firecrawl_image";
   thumbnail_url?: string;
   image_url?: string;
   is_sensitive?: boolean;
 }
+
 
 interface FirecrawlWebResult {
   url?: string;
@@ -42,9 +46,7 @@ export async function firecrawlSearch(
   query: string,
   maxResults = 20,
 ): Promise<FirecrawlSearchHit[]> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
-
-  if (!apiKey) {
+  if (!process.env.FIRECRAWL_API_KEY) {
     throw new Error("FIRECRAWL_API_KEY is missing");
   }
 
@@ -52,25 +54,12 @@ export async function firecrawlSearch(
   let rawBody = "";
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    response = await fetch(
-      "https://api.firecrawl.dev/v2/search",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          query,
-          limit: Math.min(
-            Math.max(maxResults, 1),
-            3,
-          ),
-          sources: ["web", "images"],
-        }),
-      },
-    );
+    response = await firecrawlFetch("/search", {
+      query,
+      limit: Math.min(Math.max(maxResults, 1), 10),
+      sources: ["web", "images"],
+    });
+
 
     rawBody = await response.text();
 
@@ -139,7 +128,9 @@ export async function firecrawlSearch(
       url: result.url,
       title: result.title ?? "",
       description: result.description ?? "",
+      query,
       source: "firecrawl_web",
+
       is_sensitive: looksSensitive(
         `${result.title ?? ""} ${result.description ?? ""} ${result.url}`,
       ),
@@ -158,7 +149,9 @@ export async function firecrawlSearch(
         url: pageUrl || imageUrl,
         title: result.title ?? "Image search result",
         description: result.description ?? "",
+        query,
         source: "firecrawl_image" as const,
+
         thumbnail_url: result.thumbnailUrl ?? result.imageUrl ?? result.url,
         image_url: imageUrl,
         is_sensitive: looksSensitive(
