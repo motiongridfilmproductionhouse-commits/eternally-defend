@@ -521,6 +521,17 @@ export async function classifyHitsWithHive(
   hits: RawHit[],
 ): Promise<ClassifiedHit[]> {
   if (!process.env.HIVE_API_KEY?.trim()) {
+    const { classifyHitsWithVision, isVisionClassifierConfigured } =
+      await import("./vision-classify.server");
+
+    if (isVisionClassifierConfigured()) {
+      console.warn(
+        "[DEEPFAKE:HIVE] HIVE_API_KEY is missing. Falling back to AI vision media analysis.",
+      );
+
+      return classifyHitsWithVision(hits);
+    }
+
     console.warn(
       "[DEEPFAKE:HIVE] HIVE_API_KEY is missing. Results will be routed to triage.",
     );
@@ -533,6 +544,7 @@ export async function classifyHitsWithHive(
       ),
     );
   }
+
 
   const output: ClassifiedHit[] = [];
 
