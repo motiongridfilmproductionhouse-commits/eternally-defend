@@ -2552,25 +2552,36 @@ function buildReport(
         ),
       )
     : 0;
-  const confidenceFactor = coverageConfidence >= 70 ? 1 : coverageConfidence >= 45 ? 0.88 : 0.72;
-  const reputationScore = Math.max(
-    0,
-    Math.min(100, Math.round(100 - observedRisk * confidenceFactor)),
-  );
-  const reputationLevel =
-    coverageConfidence < 35
-      ? "Insufficient Data"
-      : reputationScore >= 90
-        ? "Excellent"
-        : reputationScore >= 75
-          ? "Strong"
-          : reputationScore >= 60
-            ? "Stable"
-            : reputationScore >= 40
-              ? "At Risk"
-              : reputationScore >= 20
-                ? "High Risk"
-                : "Critical";
+  /*
+   * Do not convert weak discovery coverage into an artificially high
+   * reputation score. A small result set from only one source cannot
+   * reliably represent a person's overall online reputation.
+   */
+  const hasReliableCoverage =
+    hits.length >= 20 &&
+    sourceCount >= 3 &&
+    coverageConfidence >= 60;
+
+  const reputationScore = hasReliableCoverage
+    ? Math.max(
+        0,
+        Math.min(100, Math.round(100 - observedRisk)),
+      )
+    : 50;
+
+  const reputationLevel = !hasReliableCoverage
+    ? "Insufficient Data"
+    : reputationScore >= 90
+      ? "Excellent"
+      : reputationScore >= 75
+        ? "Strong"
+        : reputationScore >= 60
+          ? "Stable"
+          : reputationScore >= 40
+            ? "At Risk"
+            : reputationScore >= 20
+              ? "High Risk"
+              : "Critical";
 
   // ── Executive summary ─────────────────────────────────────────────────────
   const topicCounts = new Map<Category, number>();
@@ -2642,7 +2653,9 @@ function buildReport(
     reputationLevel,
     scoreBreakdown,
     executiveSummary: {
-      headline: `${reputationLevel} observed reputation risk (${reputationScore}/100, ${coverageConfidence}% coverage confidence) · ${critical.length} critical, ${high.length} high-priority across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${buckets.breaking.length} breaking (last 24h).`,
+      headline: hasReliableCoverage
+        ? `${reputationLevel} observed reputation risk (${reputationScore}/100, ${coverageConfidence}% coverage confidence) · ${critical.length} critical, ${high.length} high-priority across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${buckets.breaking.length} breaking (last 24h).`
+        : `Insufficient coverage for a reliable overall reputation score · ${hits.length} results across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${coverageConfidence}% coverage confidence. Continue discovery before making a reputation assessment.`,
       mostDamagingTopic,
       mostInfluentialSource,
       fastestGrowing,
