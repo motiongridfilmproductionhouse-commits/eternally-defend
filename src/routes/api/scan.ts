@@ -1892,12 +1892,6 @@ async function runYouTube(
   targetResults: number,
   monthWindow: MonthWindow,
 ): Promise<{
-  console.log("[youtube-debug] Runtime environment", {
-    hasKey: Boolean(process.env.YOUTUBE_API_KEY),
-    keyLength: process.env.YOUTUBE_API_KEY?.length ?? 0,
-    nodeEnv: process.env.NODE_ENV ?? "unknown",
-  });
-
   raw: RawHit[];
   error?: string;
   queriesUsed: number;
@@ -1906,6 +1900,18 @@ async function runYouTube(
   quotaExhausted: boolean;
   quotaReason?: string;
 }> {
+  console.log("[youtube-debug] Runtime environment", {
+    hasKey: Boolean(
+      process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY
+    ),
+    keyLength: (
+      process.env.YOUTUBE_API_KEY ??
+      process.env.GOOGLE_API_KEY ??
+      ""
+    ).length,
+    nodeEnv: process.env.NODE_ENV ?? "unknown",
+  });
+
   const key = process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY;
   if (!key)
     return {
