@@ -1222,6 +1222,169 @@ export type Database = {
         }
         Relationships: []
       }
+      deepfake_discoveries: {
+        Row: {
+          analysis_status: string
+          canonical_url: string | null
+          discovered_at: string
+          id: string
+          image_url: string | null
+          media_type: string | null
+          page_title: string | null
+          page_url: string
+          scan_id: string
+          search_query: string
+          snippet: string | null
+          source: string
+          source_host: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_status?: string
+          canonical_url?: string | null
+          discovered_at?: string
+          id?: string
+          image_url?: string | null
+          media_type?: string | null
+          page_title?: string | null
+          page_url: string
+          scan_id: string
+          search_query: string
+          snippet?: string | null
+          source?: string
+          source_host?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_status?: string
+          canonical_url?: string | null
+          discovered_at?: string
+          id?: string
+          image_url?: string | null
+          media_type?: string | null
+          page_title?: string | null
+          page_url?: string
+          scan_id?: string
+          search_query?: string
+          snippet?: string | null
+          source?: string
+          source_host?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deepfake_discoveries_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deepfake_evidence: {
+        Row: {
+          canonical_url: string | null
+          capture_error: string | null
+          confidence: number | null
+          content_category: string | null
+          content_length: number | null
+          content_type: string | null
+          created_at: string
+          direct_media_url: string | null
+          discovered_at: string
+          evidence_page_url: string | null
+          evidence_status: string
+          face_match: boolean
+          face_similarity: number | null
+          finding_url: string
+          http_status: number | null
+          id: string
+          last_verified_at: string | null
+          matched_face_id: string | null
+          media_sha256: string | null
+          media_type: string | null
+          page_description: string | null
+          page_title: string | null
+          risk_level: string | null
+          scan_id: string
+          source_host: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          canonical_url?: string | null
+          capture_error?: string | null
+          confidence?: number | null
+          content_category?: string | null
+          content_length?: number | null
+          content_type?: string | null
+          created_at?: string
+          direct_media_url?: string | null
+          discovered_at?: string
+          evidence_page_url?: string | null
+          evidence_status?: string
+          face_match?: boolean
+          face_similarity?: number | null
+          finding_url: string
+          http_status?: number | null
+          id?: string
+          last_verified_at?: string | null
+          matched_face_id?: string | null
+          media_sha256?: string | null
+          media_type?: string | null
+          page_description?: string | null
+          page_title?: string | null
+          risk_level?: string | null
+          scan_id: string
+          source_host?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          canonical_url?: string | null
+          capture_error?: string | null
+          confidence?: number | null
+          content_category?: string | null
+          content_length?: number | null
+          content_type?: string | null
+          created_at?: string
+          direct_media_url?: string | null
+          discovered_at?: string
+          evidence_page_url?: string | null
+          evidence_status?: string
+          face_match?: boolean
+          face_similarity?: number | null
+          finding_url?: string
+          http_status?: number | null
+          id?: string
+          last_verified_at?: string | null
+          matched_face_id?: string | null
+          media_sha256?: string | null
+          media_type?: string | null
+          page_description?: string | null
+          page_title?: string | null
+          risk_level?: string | null
+          scan_id?: string
+          source_host?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deepfake_evidence_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deepfake_findings: {
         Row: {
           ai_reasoning: string | null
@@ -1229,8 +1392,10 @@ export type Database = {
           content_category: string | null
           created_at: string
           face_referenced: boolean
+          face_similarity: number | null
           id: string
           is_synthetic: boolean
+          matched_face_id: string | null
           page_title: string | null
           query: string | null
           review_status: string
@@ -1239,6 +1404,7 @@ export type Database = {
           snippet: string | null
           source_host: string | null
           takedown_recommended: boolean
+          target_face_match: boolean | null
           url: string
           user_id: string
         }
@@ -1248,8 +1414,10 @@ export type Database = {
           content_category?: string | null
           created_at?: string
           face_referenced?: boolean
+          face_similarity?: number | null
           id?: string
           is_synthetic?: boolean
+          matched_face_id?: string | null
           page_title?: string | null
           query?: string | null
           review_status?: string
@@ -1258,6 +1426,7 @@ export type Database = {
           snippet?: string | null
           source_host?: string | null
           takedown_recommended?: boolean
+          target_face_match?: boolean | null
           url: string
           user_id: string
         }
@@ -1267,8 +1436,10 @@ export type Database = {
           content_category?: string | null
           created_at?: string
           face_referenced?: boolean
+          face_similarity?: number | null
           id?: string
           is_synthetic?: boolean
+          matched_face_id?: string | null
           page_title?: string | null
           query?: string | null
           review_status?: string
@@ -1277,6 +1448,7 @@ export type Database = {
           snippet?: string | null
           source_host?: string | null
           takedown_recommended?: boolean
+          target_face_match?: boolean | null
           url?: string
           user_id?: string
         }
@@ -1286,6 +1458,44 @@ export type Database = {
             columns: ["scan_id"]
             isOneToOne: false
             referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deepfake_reference_faces: {
+        Row: {
+          created_at: string
+          external_image_id: string | null
+          face_confidence: number | null
+          id: string
+          profile_id: string
+          rekognition_face_id: string | null
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          external_image_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          profile_id: string
+          rekognition_face_id?: string | null
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          external_image_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          profile_id?: string
+          rekognition_face_id?: string | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deepfake_reference_faces_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_target_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1343,6 +1553,33 @@ export type Database = {
           target_name?: string
           total_queries?: number
           total_results?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      deepfake_target_profiles: {
+        Row: {
+          authorization_status: string
+          created_at: string
+          id: string
+          rekognition_collection_id: string | null
+          target_name: string
+          user_id: string
+        }
+        Insert: {
+          authorization_status?: string
+          created_at?: string
+          id?: string
+          rekognition_collection_id?: string | null
+          target_name: string
+          user_id: string
+        }
+        Update: {
+          authorization_status?: string
+          created_at?: string
+          id?: string
+          rekognition_collection_id?: string | null
+          target_name?: string
           user_id?: string
         }
         Relationships: []
