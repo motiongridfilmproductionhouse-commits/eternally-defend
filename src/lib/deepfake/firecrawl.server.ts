@@ -128,7 +128,9 @@ export async function firecrawlSearch(
       url: result.url,
       title: result.title ?? "",
       description: result.description ?? "",
+      query,
       source: "firecrawl_web",
+
       is_sensitive: looksSensitive(
         `${result.title ?? ""} ${result.description ?? ""} ${result.url}`,
       ),
