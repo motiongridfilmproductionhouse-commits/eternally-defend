@@ -149,7 +149,9 @@ export async function firecrawlSearch(
         url: pageUrl || imageUrl,
         title: result.title ?? "Image search result",
         description: result.description ?? "",
+        query,
         source: "firecrawl_image" as const,
+
         thumbnail_url: result.thumbnailUrl ?? result.imageUrl ?? result.url,
         image_url: imageUrl,
         is_sensitive: looksSensitive(
