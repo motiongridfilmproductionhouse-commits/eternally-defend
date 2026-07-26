@@ -218,12 +218,12 @@ export async function scrapeMediaFromPage(
     ];
   }
 
-  const apiKey = process.env.FIRECRAWL_API_KEY?.trim();
-
-  if (!apiKey) {
-    return [];
-  }
-
+  /*
+   * Always use the shared Firecrawl transport.
+   * It supports both Lovable gateway mode and direct API-key mode.
+   * Do not require FIRECRAWL_API_KEY here because gateway-backed
+   * projects may not expose a direct key.
+   */
   try {
     const { firecrawlFetch } = await import(
       "@/lib/firecrawl-client.server"
