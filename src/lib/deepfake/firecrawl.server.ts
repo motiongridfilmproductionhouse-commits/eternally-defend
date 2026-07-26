@@ -1,12 +1,16 @@
+import { firecrawlFetch } from "@/lib/firecrawl-client.server";
+
 export interface FirecrawlSearchHit {
   url: string;
   title: string;
   description: string;
+  query: string;
   source: "firecrawl_web" | "firecrawl_image";
   thumbnail_url?: string;
   image_url?: string;
   is_sensitive?: boolean;
 }
+
 
 interface FirecrawlWebResult {
   url?: string;
