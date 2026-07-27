@@ -100,7 +100,7 @@ function DeepfakeIntelPage() {
   const run = useMutation({
     mutationFn: (input: {
       target_name: string;
-      profile_id: string;
+      profile_id?: string;
       aliases: string[];
       handles: string[];
       google_images_url?: string;
@@ -288,6 +288,7 @@ function DeepfakeIntelPage() {
 
   const scan = selected.data?.scan ?? null;
   const findings = selected.data?.findings ?? [];
+  const discoveries = selected.data?.discoveries ?? [];
   const filtered = riskFilter === "ALL" ? findings : findings.filter((f) => f.risk_level === riskFilter);
 
   return (
