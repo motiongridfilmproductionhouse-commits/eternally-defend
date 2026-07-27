@@ -1316,13 +1316,17 @@ async function runFirecrawl(
       }),
     );
     const runs: { source: string; raw: RawHit[] }[] = [];
+    const errors: string[] = [];
     for (const r of results) {
       if (r.status === "fulfilled") runs.push(r.value);
-      else
-        console.error(
-          "[scan] firecrawl rejected:",
-          r.reason instanceof Error ? r.reason.message : String(r.reason),
-        );
+      else {
+        const errMsg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+        errors.push(errMsg);
+        console.error("[scan] firecrawl rejected:", errMsg);
+      }
+    }
+    if (runs.length === 0 && nonYt.length > 0) {
+      return { runs: [], error: errors.join("; ") || "Firecrawl search failed" };
     }
     return { runs };
   } catch (e) {
