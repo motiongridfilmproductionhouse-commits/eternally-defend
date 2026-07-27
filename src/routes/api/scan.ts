@@ -2837,22 +2837,6 @@ export const Route = createFileRoute("/api/scan")({
             runReddit(query, aliases, monthWindow),
           ]);
 
-          console.log("[scan-debug] YouTube stage result", {
-            discovered: yt.raw.length,
-            quotaExhausted: yt.quotaExhausted,
-            apiErrors: yt.apiErrors,
-            queriesUsed: yt.queriesUsed,
-            pagesScanned: yt.pagesScanned,
-            error: yt.error,
-          });
-
-          console.log("[scan-debug] Initial Firecrawl result", {
-            controversyHits: fcControversy.runs.flatMap((run) => run.raw).length,
-            generalHits: fcGeneral.runs.flatMap((run) => run.raw).length,
-            controversyRuns: fcControversy.runs.length,
-            generalRuns: fcGeneral.runs.length,
-          });
-
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 1b — Provider-specific logging & success state checks
           // ══════════════════════════════════════════════════════════════════════
@@ -2930,6 +2914,22 @@ export const Route = createFileRoute("/api/scan")({
             console.error(`[scan] Reddit: error - ${redditError}`);
           }
 
+          console.log("[scan-debug] YouTube stage result", {
+            discovered: ytRaw.length,
+            quotaExhausted: ytQuotaExhausted,
+            apiErrors: ytApiErrors,
+            queriesUsed: ytQueriesUsed,
+            pagesScanned: ytPagesScanned,
+            error: ytError ?? null,
+          });
+
+          console.log("[scan-debug] Initial Firecrawl result", {
+            controversyHits: fcControversyRuns.flatMap((run) => run.raw).length,
+            generalHits: fcGeneralRuns.flatMap((run) => run.raw).length,
+            controversyRuns: fcControversyRuns.length,
+            generalRuns: fcGeneralRuns.length,
+          });
+
           // Return HTTP 500 if every active provider failed
           const activeProvidersCount = (wantYouTube ? 1 : 0) + 1 + 1; // YouTube (if enabled) + Firecrawl + Reddit
           const failedProvidersCount = 
@@ -2975,13 +2975,13 @@ export const Route = createFileRoute("/api/scan")({
           ];
 
           console.log("[scan-debug] First-pass discovery totals", {
-            youtube: yt.raw.length,
+            youtube: ytRaw.length,
             firecrawlDiscovery:
               fcDiscovery?.runs.flatMap((run) => run.raw).length ?? 0,
             firecrawlControversy:
-              fcControversy.runs.flatMap((run) => run.raw).length,
+              fcControversyRuns.flatMap((run) => run.raw).length,
             firecrawlGeneral:
-              fcGeneral.runs.flatMap((run) => run.raw).length,
+              fcGeneralRuns.flatMap((run) => run.raw).length,
             firstPassRaw: firstPassRaw.length,
           });
           let expansionRuns: { source: string; raw: RawHit[] }[] = [];
