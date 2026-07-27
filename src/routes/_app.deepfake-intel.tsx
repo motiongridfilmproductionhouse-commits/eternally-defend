@@ -32,6 +32,8 @@ export const Route = createFileRoute("/_app/deepfake-intel")({
       { name: "description", content: "Scan the public web for deepfakes, AI-generated intimate imagery, face swaps, and synthetic media targeting protected identities." },
       { property: "og:title", content: "Deepfake & Synthetic Media Intelligence — Eterna" },
       { property: "og:description", content: "Cautious, evidence-graded intelligence sweeps for deepfake and synthetic media abuse." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: DeepfakeIntelPage,

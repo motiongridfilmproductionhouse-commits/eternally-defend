@@ -409,20 +409,32 @@ try {
 
 
         const triageResults = [
-          ...candidateFilter.triage.map((item) => ({
-            ...item,
-            risk_level: "LOW" as const,
-            content_category: "unclassified",
-            confidence: 0,
-            is_synthetic: false,
-            face_referenced: false,
-            takedown_recommended: false,
-            ai_reasoning:
-              item.rejection_reason ??
-              "Weak target-content match; manual review required.",
-            classification_status: "no_media" as const,
-            visibility: "triage" as const,
-          })),
+          ...candidateFilter.triage.map((item) => {
+            const reputationSignals = (item.threat_signals ?? []).filter(
+              (signal) => ["defamation", "harassment"].includes(signal),
+            );
+            const isReputationAbuse = reputationSignals.length > 0;
+
+            return {
+              ...item,
+              risk_level: isReputationAbuse ? "MEDIUM" as const : "LOW" as const,
+              content_category: isReputationAbuse
+                ? "reputation_abuse"
+                : "unclassified",
+              confidence: isReputationAbuse ? 60 : 0,
+              is_synthetic: false,
+              face_referenced: isReputationAbuse,
+              takedown_recommended: false,
+              ai_reasoning: isReputationAbuse
+                ? `The indexed content contains ${reputationSignals.join(" and ")} indicators naming the protected identity. This is an unverified reputation-risk lead requiring human review.`
+                : item.rejection_reason ??
+                  "Weak target-content match; manual review required.",
+              classification_status: isReputationAbuse
+                ? "completed" as const
+                : "no_media" as const,
+              visibility: "triage" as const,
+            };
+          }),
           ...hiveResults.filter(
             (item) => item.visibility !== "primary",
           ),
