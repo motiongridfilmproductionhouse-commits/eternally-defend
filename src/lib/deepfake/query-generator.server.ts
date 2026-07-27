@@ -46,6 +46,11 @@ export function generateDeepfakeQueries(
     "leaked video fake",
     "viral fake video",
     "fabricated intimate video",
+    "defamation",
+    "defamatory post",
+    "false allegation",
+    "harassment",
+    "impersonation",
   ];
 
   const mediaPhrases = [
@@ -61,6 +66,16 @@ export function generateDeepfakeQueries(
 
   for (const identity of identities) {
     const person = quote(identity);
+
+    // Put source-specific and fresh-content queries first so they survive
+    // the bounded query cap used by each scan.
+    queries.push(
+      `${person} site:x.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
+      `${person} site:twitter.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
+      `${person} site:youtube.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
+      `${person} (deepfake OR morphed OR impersonation OR defamation OR harassment)`,
+      `${person} latest`,
+    );
 
     for (const phrase of riskPhrases) {
       queries.push(`${person} "${phrase}"`);

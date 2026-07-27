@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { buildQueryPlan, isBlockedHost } from "./deepfake/queries";
+import { isBlockedHost } from "./deepfake/queries";
 import type { Database } from "@/integrations/supabase/types";
 import { filterDeepfakeCandidates } from "./deepfake/filter.server";
 import {
@@ -91,9 +91,9 @@ try {
     );
 
     const plan = {
-      queries: uniqueQueries.slice(
+       queries: uniqueQueries.slice(
         0,
-        data.max_queries ?? 20,
+         data.max_queries ?? 28,
       ),
     };
 
@@ -101,8 +101,41 @@ try {
       const { firecrawlSearch } = await import("./deepfake/firecrawl.server");
       const perQuery = data.per_query_limit ?? 10;
       const CONCURRENCY = 2;
-      const allHits: { url: string; title?: string; description?: string; query: string }[] = [];
+      const allHits: Array<{
+        url: string;
+        title?: string;
+        description?: string;
+        query: string;
+        source?: string;
+        thumbnail_url?: string;
+        image_url?: string;
+        is_sensitive?: boolean;
+      }> = [];
       const seenUrl = new Set<string>();
+
+      // The official YouTube Data API supplies newest-first video mentions.
+      // This complements web indexing, which can lag behind new uploads.
+      try {
+        const { searchRecentYouTubeMentions } = await import(
+          "./deepfake/youtube-discovery.server"
+        );
+        const youtubeHits = await searchRecentYouTubeMentions({
+          name: data.target_name,
+          aliases: data.aliases,
+          handles: data.handles,
+          maxResults: 25,
+        });
+        for (const hit of youtubeHits) {
+          if (seenUrl.has(hit.url)) continue;
+          seenUrl.add(hit.url);
+          allHits.push(hit);
+        }
+      } catch (error) {
+        console.warn("[DEEPFAKE:YOUTUBE] Latest mentions skipped:", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
       for (let i = 0; i < plan.queries.length; i += CONCURRENCY) {
         const batch = plan.queries.slice(i, i + CONCURRENCY);
         const results = await Promise.all(
@@ -149,7 +182,7 @@ try {
         const discoveryRows = allHits.map((hit) => ({
           user_id: userId,
           scan_id: scan.id,
-          source: "firecrawl",
+          source: hit.source ?? "firecrawl",
           search_query:
             typeof hit.query === "string" && hit.query.trim()
               ? hit.query.trim()
@@ -159,6 +192,10 @@ try {
           source_host: hostOf(hit.url),
           page_title: hit.title ?? null,
           snippet: hit.description ?? null,
+          image_url: hit.image_url ?? null,
+          thumbnail_url: hit.thumbnail_url ?? null,
+          media_type:
+            hit.image_url || hit.thumbnail_url ? "image" : null,
           analysis_status: "discovered",
           updated_at: new Date().toISOString(),
         }));
@@ -419,6 +456,8 @@ try {
                   "deepfake",
                   "ai-nude",
                   "morphed-media",
+                   "defamation",
+                   "harassment",
                 ].includes(signal),
             );
 

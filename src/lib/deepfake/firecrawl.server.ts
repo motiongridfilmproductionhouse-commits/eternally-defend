@@ -5,7 +5,7 @@ export interface FirecrawlSearchHit {
   title: string;
   description: string;
   query: string;
-  source: "firecrawl_web" | "firecrawl_image";
+  source: "firecrawl_web" | "firecrawl_image" | "youtube_api";
   thumbnail_url?: string;
   image_url?: string;
   is_sensitive?: boolean;
@@ -58,6 +58,7 @@ export async function firecrawlSearch(
       query,
       limit: Math.min(Math.max(maxResults, 1), 10),
       sources: ["web", "images"],
+      tbs: "qdr:m",
     });
 
 

@@ -106,7 +106,9 @@ function DeepfakeIntelPage() {
       google_images_url?: string;
     }) => runFn({ data: input }),
     onSuccess: (res) => {
-      toast.success(`Scan complete — ${res.total_results} public results classified`);
+      toast.success(
+        `Scan complete — ${res.total_results} threats classified from ${res.discovered_results} latest public leads`,
+      );
       setSelectedScanId(res.scan_id);
       qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
     },
@@ -638,7 +640,7 @@ function DeepfakeIntelPage() {
                     <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">TARGET</div>
                     <div className="text-lg font-semibold">{scan.target_name}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {scan.total_queries} queries · {scan.total_results} classified results
+                      {scan.total_queries} fresh queries · {scan.total_results} classified threats · {discoveries.length} public leads
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -688,6 +690,59 @@ function DeepfakeIntelPage() {
                     </li>
                   ))}
                 </ul>
+              )}
+
+              {discoveries.length > 0 && (
+                <div className="card-surface p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground">
+                        LATEST PUBLIC LEADS
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Newest web, YouTube, and indexed social mentions. Leads are unverified until reviewed.
+                      </p>
+                    </div>
+                    <Badge variant="outline">{discoveries.length}</Badge>
+                  </div>
+                  <ul className="divide-y divide-border/60">
+                    {discoveries.slice(0, 30).map((lead: {
+                      id: string;
+                      page_url: string;
+                      page_title: string | null;
+                      snippet: string | null;
+                      source: string;
+                      source_host: string | null;
+                    }) => (
+                      <li key={lead.id} className="py-2.5 first:pt-0 last:pb-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <a
+                              href={lead.page_url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="block truncate text-sm font-medium hover:text-primary"
+                            >
+                              {lead.page_title || lead.page_url}
+                            </a>
+                            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <ExternalLink className="size-3" />
+                              {lead.source_host ?? lead.page_url}
+                            </div>
+                            {lead.snippet && (
+                              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                {lead.snippet}
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="shrink-0 text-[9px] uppercase">
+                            {lead.source.replaceAll("_", " ")}
+                          </Badge>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </>
           )}
