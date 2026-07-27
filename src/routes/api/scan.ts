@@ -1909,6 +1909,18 @@ async function runYouTube(
   quotaExhausted: boolean;
   quotaReason?: string;
 }> {
+  console.log("[youtube-debug] Runtime environment", {
+    hasKey: Boolean(
+      process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY
+    ),
+    keyLength: (
+      process.env.YOUTUBE_API_KEY ??
+      process.env.GOOGLE_API_KEY ??
+      ""
+    ).length,
+    nodeEnv: process.env.NODE_ENV ?? "unknown",
+  });
+
   const key = process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY;
   if (!key)
     return {
@@ -2629,25 +2641,36 @@ function buildReport(
         ),
       )
     : 0;
-  const confidenceFactor = coverageConfidence >= 70 ? 1 : coverageConfidence >= 45 ? 0.88 : 0.72;
-  const reputationScore = Math.max(
-    0,
-    Math.min(100, Math.round(100 - observedRisk * confidenceFactor)),
-  );
-  const reputationLevel =
-    coverageConfidence < 35
-      ? "Insufficient Data"
-      : reputationScore >= 90
-        ? "Excellent"
-        : reputationScore >= 75
-          ? "Strong"
-          : reputationScore >= 60
-            ? "Stable"
-            : reputationScore >= 40
-              ? "At Risk"
-              : reputationScore >= 20
-                ? "High Risk"
-                : "Critical";
+  /*
+   * Do not convert weak discovery coverage into an artificially high
+   * reputation score. A small result set from only one source cannot
+   * reliably represent a person's overall online reputation.
+   */
+  const hasReliableCoverage =
+    hits.length >= 20 &&
+    sourceCount >= 3 &&
+    coverageConfidence >= 60;
+
+  const reputationScore = hasReliableCoverage
+    ? Math.max(
+        0,
+        Math.min(100, Math.round(100 - observedRisk)),
+      )
+    : 50;
+
+  const reputationLevel = !hasReliableCoverage
+    ? "Insufficient Data"
+    : reputationScore >= 90
+      ? "Excellent"
+      : reputationScore >= 75
+        ? "Strong"
+        : reputationScore >= 60
+          ? "Stable"
+          : reputationScore >= 40
+            ? "At Risk"
+            : reputationScore >= 20
+              ? "High Risk"
+              : "Critical";
 
   // ── Executive summary ─────────────────────────────────────────────────────
   const topicCounts = new Map<Category, number>();
@@ -2719,7 +2742,9 @@ function buildReport(
     reputationLevel,
     scoreBreakdown,
     executiveSummary: {
-      headline: `${reputationLevel} observed reputation risk (${reputationScore}/100, ${coverageConfidence}% coverage confidence) · ${critical.length} critical, ${high.length} high-priority across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${buckets.breaking.length} breaking (last 24h).`,
+      headline: hasReliableCoverage
+        ? `${reputationLevel} observed reputation risk (${reputationScore}/100, ${coverageConfidence}% coverage confidence) · ${critical.length} critical, ${high.length} high-priority across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${buckets.breaking.length} breaking (last 24h).`
+        : `Insufficient coverage for a reliable overall reputation score · ${hits.length} results across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${coverageConfidence}% coverage confidence. Continue discovery before making a reputation assessment.`,
       mostDamagingTopic,
       mostInfluentialSource,
       fastestGrowing,
@@ -2811,6 +2836,22 @@ export const Route = createFileRoute("/api/scan")({
             runFirecrawl(expansionQuery, nonYtOrRedditSources, limit),
             runReddit(query, aliases, monthWindow),
           ]);
+
+          console.log("[scan-debug] YouTube stage result", {
+            discovered: yt.raw.length,
+            quotaExhausted: yt.quotaExhausted,
+            apiErrors: yt.apiErrors,
+            queriesUsed: yt.queriesUsed,
+            pagesScanned: yt.pagesScanned,
+            error: yt.error,
+          });
+
+          console.log("[scan-debug] Initial Firecrawl result", {
+            controversyHits: fcControversy.runs.flatMap((run) => run.raw).length,
+            generalHits: fcGeneral.runs.flatMap((run) => run.raw).length,
+            controversyRuns: fcControversy.runs.length,
+            generalRuns: fcGeneral.runs.length,
+          });
 
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 1b — Provider-specific logging & success state checks
@@ -2932,6 +2973,17 @@ export const Route = createFileRoute("/api/scan")({
             ...(fcDiscovery?.runs ?? []).flatMap((r) => r.raw),
             ...fcControversyRuns.flatMap((r) => r.raw),
           ];
+
+          console.log("[scan-debug] First-pass discovery totals", {
+            youtube: yt.raw.length,
+            firecrawlDiscovery:
+              fcDiscovery?.runs.flatMap((run) => run.raw).length ?? 0,
+            firecrawlControversy:
+              fcControversy.runs.flatMap((run) => run.raw).length,
+            firecrawlGeneral:
+              fcGeneral.runs.flatMap((run) => run.raw).length,
+            firstPassRaw: firstPassRaw.length,
+          });
           let expansionRuns: { source: string; raw: RawHit[] }[] = [];
           if (firstPassRaw.length >= 3) {
             const trendingTerms = extractExpansionTerms(firstPassRaw, query, aliases);

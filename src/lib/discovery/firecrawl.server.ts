@@ -35,21 +35,13 @@ interface FirecrawlScrapeResponse {
   error?: string;
 }
 
-const FC = "https://api.firecrawl.dev/v2";
-
-function requireKey(): string {
-  const k = process.env.FIRECRAWL_API_KEY;
-  if (!k) throw new Error("FIRECRAWL_API_KEY is not configured");
-  return k;
-}
+import { firecrawlFetch } from "@/lib/firecrawl-client.server";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const key = requireKey();
-  const res = await fetch(`${FC}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify(body),
-  });
+  if (!process.env.FIRECRAWL_API_KEY) {
+    throw new Error("FIRECRAWL_API_KEY is not configured");
+  }
+  const res = await firecrawlFetch(path, body);
   const text = await res.text();
   if (!res.ok) {
     throw new Error(`Firecrawl ${path} [${res.status}]: ${text.slice(0, 400)}`);
@@ -57,6 +49,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   try { return JSON.parse(text) as T; }
   catch { throw new Error(`Firecrawl ${path} returned non-JSON`); }
 }
+
 
 export interface CandidateSeed {
   platform: Platform;

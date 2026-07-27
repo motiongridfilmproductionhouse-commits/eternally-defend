@@ -494,6 +494,127 @@ export type Database = {
           },
         ]
       }
+      automation_events: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          event: string
+          id: string
+          job_id: string
+          payload_json: Json
+          platform: Database["public"]["Enums"]["automation_platform"] | null
+          result: string | null
+          screenshot_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          event: string
+          id?: string
+          job_id: string
+          payload_json?: Json
+          platform?: Database["public"]["Enums"]["automation_platform"] | null
+          result?: string | null
+          screenshot_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          event?: string
+          id?: string
+          job_id?: string
+          payload_json?: Json
+          platform?: Database["public"]["Enums"]["automation_platform"] | null
+          result?: string | null
+          screenshot_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "automation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_jobs: {
+        Row: {
+          adapter: Database["public"]["Enums"]["automation_adapter"]
+          attempts: number
+          cdp_expires_at: string | null
+          cdp_ws_url: string | null
+          completed_at: string | null
+          created_at: string
+          enforcement_request_id: string
+          error_json: Json | null
+          id: string
+          input_json: Json
+          last_screenshot_path: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          review_bundle_path: string | null
+          review_summary_json: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["automation_job_status"]
+          updated_at: string
+          user_id: string
+          worker_id: string | null
+        }
+        Insert: {
+          adapter: Database["public"]["Enums"]["automation_adapter"]
+          attempts?: number
+          cdp_expires_at?: string | null
+          cdp_ws_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          enforcement_request_id: string
+          error_json?: Json | null
+          id?: string
+          input_json?: Json
+          last_screenshot_path?: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          review_bundle_path?: string | null
+          review_summary_json?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["automation_job_status"]
+          updated_at?: string
+          user_id: string
+          worker_id?: string | null
+        }
+        Update: {
+          adapter?: Database["public"]["Enums"]["automation_adapter"]
+          attempts?: number
+          cdp_expires_at?: string | null
+          cdp_ws_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          enforcement_request_id?: string
+          error_json?: Json | null
+          id?: string
+          input_json?: Json
+          last_screenshot_path?: string | null
+          platform?: Database["public"]["Enums"]["automation_platform"]
+          review_bundle_path?: string | null
+          review_summary_json?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["automation_job_status"]
+          updated_at?: string
+          user_id?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_jobs_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       biometric_consents: {
         Row: {
           consent_version: string
@@ -1101,6 +1222,368 @@ export type Database = {
         }
         Relationships: []
       }
+      deepfake_discoveries: {
+        Row: {
+          analysis_status: string
+          canonical_url: string | null
+          discovered_at: string
+          id: string
+          image_url: string | null
+          media_type: string | null
+          page_title: string | null
+          page_url: string
+          scan_id: string
+          search_query: string
+          snippet: string | null
+          source: string
+          source_host: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_status?: string
+          canonical_url?: string | null
+          discovered_at?: string
+          id?: string
+          image_url?: string | null
+          media_type?: string | null
+          page_title?: string | null
+          page_url: string
+          scan_id: string
+          search_query: string
+          snippet?: string | null
+          source?: string
+          source_host?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_status?: string
+          canonical_url?: string | null
+          discovered_at?: string
+          id?: string
+          image_url?: string | null
+          media_type?: string | null
+          page_title?: string | null
+          page_url?: string
+          scan_id?: string
+          search_query?: string
+          snippet?: string | null
+          source?: string
+          source_host?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deepfake_discoveries_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deepfake_evidence: {
+        Row: {
+          canonical_url: string | null
+          capture_error: string | null
+          confidence: number | null
+          content_category: string | null
+          content_length: number | null
+          content_type: string | null
+          created_at: string
+          direct_media_url: string | null
+          discovered_at: string
+          evidence_page_url: string | null
+          evidence_status: string
+          face_match: boolean
+          face_similarity: number | null
+          finding_url: string
+          http_status: number | null
+          id: string
+          last_verified_at: string | null
+          matched_face_id: string | null
+          media_sha256: string | null
+          media_type: string | null
+          page_description: string | null
+          page_title: string | null
+          risk_level: string | null
+          scan_id: string
+          source_host: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          canonical_url?: string | null
+          capture_error?: string | null
+          confidence?: number | null
+          content_category?: string | null
+          content_length?: number | null
+          content_type?: string | null
+          created_at?: string
+          direct_media_url?: string | null
+          discovered_at?: string
+          evidence_page_url?: string | null
+          evidence_status?: string
+          face_match?: boolean
+          face_similarity?: number | null
+          finding_url: string
+          http_status?: number | null
+          id?: string
+          last_verified_at?: string | null
+          matched_face_id?: string | null
+          media_sha256?: string | null
+          media_type?: string | null
+          page_description?: string | null
+          page_title?: string | null
+          risk_level?: string | null
+          scan_id: string
+          source_host?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          canonical_url?: string | null
+          capture_error?: string | null
+          confidence?: number | null
+          content_category?: string | null
+          content_length?: number | null
+          content_type?: string | null
+          created_at?: string
+          direct_media_url?: string | null
+          discovered_at?: string
+          evidence_page_url?: string | null
+          evidence_status?: string
+          face_match?: boolean
+          face_similarity?: number | null
+          finding_url?: string
+          http_status?: number | null
+          id?: string
+          last_verified_at?: string | null
+          matched_face_id?: string | null
+          media_sha256?: string | null
+          media_type?: string | null
+          page_description?: string | null
+          page_title?: string | null
+          risk_level?: string | null
+          scan_id?: string
+          source_host?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deepfake_evidence_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deepfake_findings: {
+        Row: {
+          ai_reasoning: string | null
+          confidence: number
+          content_category: string | null
+          created_at: string
+          face_referenced: boolean
+          face_similarity: number | null
+          id: string
+          is_synthetic: boolean
+          matched_face_id: string | null
+          page_title: string | null
+          query: string | null
+          review_status: string
+          risk_level: string
+          scan_id: string
+          snippet: string | null
+          source_host: string | null
+          takedown_recommended: boolean
+          target_face_match: boolean | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          confidence?: number
+          content_category?: string | null
+          created_at?: string
+          face_referenced?: boolean
+          face_similarity?: number | null
+          id?: string
+          is_synthetic?: boolean
+          matched_face_id?: string | null
+          page_title?: string | null
+          query?: string | null
+          review_status?: string
+          risk_level?: string
+          scan_id: string
+          snippet?: string | null
+          source_host?: string | null
+          takedown_recommended?: boolean
+          target_face_match?: boolean | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          confidence?: number
+          content_category?: string | null
+          created_at?: string
+          face_referenced?: boolean
+          face_similarity?: number | null
+          id?: string
+          is_synthetic?: boolean
+          matched_face_id?: string | null
+          page_title?: string | null
+          query?: string | null
+          review_status?: string
+          risk_level?: string
+          scan_id?: string
+          snippet?: string | null
+          source_host?: string | null
+          takedown_recommended?: boolean
+          target_face_match?: boolean | null
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deepfake_findings_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deepfake_reference_faces: {
+        Row: {
+          created_at: string
+          external_image_id: string | null
+          face_confidence: number | null
+          id: string
+          profile_id: string
+          rekognition_face_id: string | null
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          external_image_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          profile_id: string
+          rekognition_face_id?: string | null
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          external_image_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          profile_id?: string
+          rekognition_face_id?: string | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deepfake_reference_faces_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_target_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deepfake_scans: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          critical_count: number
+          error_message: string | null
+          finished_at: string | null
+          handles: string[]
+          high_count: number
+          id: string
+          low_count: number
+          medium_count: number
+          started_at: string
+          status: string
+          target_name: string
+          total_queries: number
+          total_results: number
+          user_id: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          critical_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          handles?: string[]
+          high_count?: number
+          id?: string
+          low_count?: number
+          medium_count?: number
+          started_at?: string
+          status?: string
+          target_name: string
+          total_queries?: number
+          total_results?: number
+          user_id: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          critical_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          handles?: string[]
+          high_count?: number
+          id?: string
+          low_count?: number
+          medium_count?: number
+          started_at?: string
+          status?: string
+          target_name?: string
+          total_queries?: number
+          total_results?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      deepfake_target_profiles: {
+        Row: {
+          authorization_status: string
+          created_at: string
+          id: string
+          rekognition_collection_id: string | null
+          target_name: string
+          user_id: string
+        }
+        Insert: {
+          authorization_status?: string
+          created_at?: string
+          id?: string
+          rekognition_collection_id?: string | null
+          target_name: string
+          user_id: string
+        }
+        Update: {
+          authorization_status?: string
+          created_at?: string
+          id?: string
+          rekognition_collection_id?: string | null
+          target_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       digital_assets: {
         Row: {
           channel_id: string | null
@@ -1484,9 +1967,15 @@ export type Database = {
       enforcement_requests: {
         Row: {
           authorization_pdf_path: string | null
+          automation_job_id: string | null
+          automation_status:
+            | Database["public"]["Enums"]["automation_job_status"]
+            | null
           created_at: string
           evidence_pdf_path: string | null
           evidence_refs: Json
+          human_submitted_at: string | null
+          human_submitted_by: string | null
           id: string
           metadata: Json
           method: string
@@ -1507,9 +1996,15 @@ export type Database = {
         }
         Insert: {
           authorization_pdf_path?: string | null
+          automation_job_id?: string | null
+          automation_status?:
+            | Database["public"]["Enums"]["automation_job_status"]
+            | null
           created_at?: string
           evidence_pdf_path?: string | null
           evidence_refs?: Json
+          human_submitted_at?: string | null
+          human_submitted_by?: string | null
           id?: string
           metadata?: Json
           method: string
@@ -1530,9 +2025,15 @@ export type Database = {
         }
         Update: {
           authorization_pdf_path?: string | null
+          automation_job_id?: string | null
+          automation_status?:
+            | Database["public"]["Enums"]["automation_job_status"]
+            | null
           created_at?: string
           evidence_pdf_path?: string | null
           evidence_refs?: Json
+          human_submitted_at?: string | null
+          human_submitted_by?: string | null
           id?: string
           metadata?: Json
           method?: string
@@ -1552,6 +2053,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "enforcement_requests_automation_job_id_fkey"
+            columns: ["automation_job_id"]
+            isOneToOne: false
+            referencedRelation: "automation_jobs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "enforcement_requests_scan_hit_id_fkey"
             columns: ["scan_hit_id"]
@@ -3270,6 +3778,48 @@ export type Database = {
             referencedColumns: ["partner_id"]
           },
         ]
+      }
+      platform_credentials: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          last_verified_at: string | null
+          login_email_ciphertext: string | null
+          mfa_hint: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          status: Database["public"]["Enums"]["platform_credential_status"]
+          storage_state_ciphertext: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_verified_at?: string | null
+          login_email_ciphertext?: string | null
+          mfa_hint?: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          status?: Database["public"]["Enums"]["platform_credential_status"]
+          storage_state_ciphertext: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_verified_at?: string | null
+          login_email_ciphertext?: string | null
+          mfa_hint?: string | null
+          platform?: Database["public"]["Enums"]["automation_platform"]
+          status?: Database["public"]["Enums"]["platform_credential_status"]
+          storage_state_ciphertext?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       platform_reports: {
         Row: {
@@ -5129,6 +5679,15 @@ export type Database = {
         | "pending"
         | "authorized"
         | "enterprise_authorized"
+      automation_adapter: "youtube_copyright" | "youtube_community"
+      automation_job_status:
+        | "queued"
+        | "running"
+        | "review_ready"
+        | "submitted"
+        | "failed"
+        | "cancelled"
+      automation_platform: "youtube"
       channel_watch_analysis_status:
         | "pending"
         | "running"
@@ -5247,6 +5806,7 @@ export type Database = {
         | "VERIFIED"
         | "REJECTED"
         | "COMPLETED"
+      platform_credential_status: "active" | "expired" | "login_required"
       signature_status:
         | "DRAFT"
         | "READY_FOR_REVIEW"
@@ -5440,6 +6000,16 @@ export const Constants = {
         "authorized",
         "enterprise_authorized",
       ],
+      automation_adapter: ["youtube_copyright", "youtube_community"],
+      automation_job_status: [
+        "queued",
+        "running",
+        "review_ready",
+        "submitted",
+        "failed",
+        "cancelled",
+      ],
+      automation_platform: ["youtube"],
       channel_watch_analysis_status: [
         "pending",
         "running",
@@ -5573,6 +6143,7 @@ export const Constants = {
         "REJECTED",
         "COMPLETED",
       ],
+      platform_credential_status: ["active", "expired", "login_required"],
       signature_status: [
         "DRAFT",
         "READY_FOR_REVIEW",
