@@ -130,6 +130,20 @@ const IMPERSONATION_PATTERNS: Array<{
   },
 ];
 
+const REPUTATION_ABUSE_PATTERNS: Array<{
+  label: string;
+  pattern: RegExp;
+}> = [
+  {
+    label: "defamation",
+    pattern: /\b(?:defam(?:e|ed|ation|atory)|false\s+allegation|false\s+claim|fabricated\s+claim|malicious\s+rumou?r)\b/i,
+  },
+  {
+    label: "harassment",
+    pattern: /\b(?:harass(?:ment|ed|ing)?|cyberbully(?:ing)?|abusive\s+post|targeted\s+abuse|hate\s+campaign)\b/i,
+  },
+];
+
 const NORMAL_NEWS_PATTERNS = [
   /\b(?:interview|movie\s+news|film\s+news|box\s+office|review|trailer|teaser|song|photoshoot|award|event|birthday|biography)\b/i,
   /\b(?:stalked|police|complaint|remarks|controversy|statement|revealed|said|says)\b/i,
@@ -226,6 +240,7 @@ function collectThreatSignals(text: string): {
   hasStrongExplicitSignal: boolean;
   hasSyntheticSignal: boolean;
   hasImpersonationSignal: boolean;
+  hasReputationAbuseSignal: boolean;
 } {
   const signals: string[] = [];
   let score = 0;
@@ -251,6 +266,13 @@ function collectThreatSignals(text: string): {
     }
   }
 
+  for (const item of REPUTATION_ABUSE_PATTERNS) {
+    if (item.pattern.test(text)) {
+      signals.push(item.label);
+      score += 40;
+    }
+  }
+
   return {
     signals: Array.from(new Set(signals)),
     score: Math.min(score, 100),
@@ -264,6 +286,10 @@ function collectThreatSignals(text: string): {
       ),
     hasImpersonationSignal:
       IMPERSONATION_PATTERNS.some((item) =>
+        item.pattern.test(text),
+      ),
+    hasReputationAbuseSignal:
+      REPUTATION_ABUSE_PATTERNS.some((item) =>
         item.pattern.test(text),
       ),
   };
@@ -310,6 +336,10 @@ export function scoreDeepfakeCandidate(
 
   if (threat.hasImpersonationSignal) {
     score += 25;
+  }
+
+  if (threat.hasReputationAbuseSignal) {
+    score += 30;
   }
 
   if (!visibleTargetMatch) {
@@ -415,7 +445,8 @@ export function filterDeepfakeCandidates(
       normalNewsSignal &&
       !threat.hasStrongExplicitSignal &&
       !threat.hasSyntheticSignal &&
-      !threat.hasImpersonationSignal
+       !threat.hasImpersonationSignal &&
+       !threat.hasReputationAbuseSignal
     ) {
       decision = "rejected";
       rejectionReason =
@@ -430,7 +461,7 @@ export function filterDeepfakeCandidates(
     ) {
       decision = "rejected";
       rejectionReason =
-        "No deepfake, explicit-content or impersonation threat signal";
+       "No deepfake, explicit-content, impersonation or reputation-abuse signal";
     }
 
     /*
@@ -461,12 +492,12 @@ export function filterDeepfakeCandidates(
      * Impersonation-only results can go to triage.
      */
     else if (
-      threat.hasImpersonationSignal &&
+      (threat.hasImpersonationSignal || threat.hasReputationAbuseSignal) &&
       !listing
     ) {
       decision = "triage";
       rejectionReason =
-        "Possible impersonation risk requires verification";
+        "Possible impersonation or reputation-abuse risk requires verification";
     } else {
       decision = "rejected";
       rejectionReason =
