@@ -269,6 +269,15 @@ export interface ReputationReport {
     resolutionReason: string | null;
     warning?: string | null;
   };
+  results?: {
+    source: string;
+    title: string;
+    url: string;
+    snippet: string;
+    publishedAt: string;
+    author: string;
+    thumbnail: string;
+  }[];
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2059,6 +2068,74 @@ async function runYouTube(
   };
 }
 
+async function runReddit(
+  query: string,
+  aliases: string[],
+  monthWindow: MonthWindow
+): Promise<{ raw: RawHit[]; error?: string }> {
+  try {
+    const nameForms = Array.from(
+      new Set([query, ...aliases].map((s) => s.trim()).filter(Boolean))
+    );
+    if (!nameForms.length) return { raw: [] };
+
+    // Build search query: e.g., "query" OR "alias1" OR "alias2"
+    const searchTerms = nameForms.map(n => n.includes(" ") ? `"${n}"` : n).join(" OR ");
+    
+    // Map MonthFilter to Reddit's "t" query param
+    let t = "all";
+    if (monthWindow.filter === "24h") t = "day";
+    else if (monthWindow.filter === "7d") t = "week";
+    else if (monthWindow.filter === "30d") t = "month";
+    else if (monthWindow.filter === "12m") t = "year";
+
+    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(searchTerms)}&sort=new&t=${t}&limit=100`;
+    
+    // Descriptive User-Agent to prevent Reddit rate-limiting/blocking
+    const res = await fetchWithTimeout(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 EternallyDefend/1.0"
+      }
+    }, 15000); // 15 seconds timeout
+
+    if (!res.ok) {
+      throw new Error(`Reddit API returned status ${res.status}`);
+    }
+
+    const data = await res.json();
+    const children = data?.data?.children || [];
+    
+    const raw: RawHit[] = [];
+    for (const child of children) {
+      const item = child.data;
+      if (!item) continue;
+      
+      const permalink = item.permalink ? `https://www.reddit.com${item.permalink}` : "";
+      if (!permalink) continue;
+
+      const published = item.created_utc ? new Date(item.created_utc * 1000).toISOString() : undefined;
+      const snippet = item.selftext || item.title || "";
+      const thumb = item.thumbnail && item.thumbnail.startsWith("http") ? item.thumbnail : undefined;
+
+      raw.push({
+        url: permalink,
+        title: item.title || "",
+        description: snippet.slice(0, 800),
+        snippet: snippet.slice(0, 800),
+        author: item.author || "anonymous",
+        date: published,
+        publishedDate: published,
+        media: thumb ? { thumbnail: thumb, thumbnailHi: thumb } : undefined
+      });
+    }
+
+    return { raw };
+  } catch (err: any) {
+    const errMsg = err?.message || String(err);
+    return { raw: [], error: errMsg };
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    SECOND-STAGE KEYWORD EXTRACTION
    Pulls trending terms from the first-pass results so we can run an expansion
@@ -2734,16 +2811,17 @@ export const Route = createFileRoute("/api/scan")({
           );
 
           const wantYouTube = sources.includes("youtube");
-          const nonYtSources = sources.filter((s) => s !== "youtube") as SourceKey[];
+          const wantReddit = sources.includes("reddit");
+          const nonYtOrRedditSources = sources.filter((s) => s !== "youtube" && s !== "reddit") as SourceKey[];
           const expansionQuery = aliases.length
             ? `${query} OR ${aliases.map((a) => `"${a}"`).join(" OR ")}`
             : query;
           const controversyQuery = `${expansionQuery} controversy OR allegations OR scandal OR expose OR leaked`;
 
           // ══════════════════════════════════════════════════════════════════════
-          // STAGE 1 — Run YouTube API + baseline Firecrawl concurrently
+          // STAGE 1 — Run YouTube, baseline Firecrawl, and Reddit concurrently
           // ══════════════════════════════════════════════════════════════════════
-          const [yt, fcControversy, fcGeneral] = await Promise.all([
+          const [ytSettled, fcControversySettled, fcGeneralSettled, redditSettled] = await Promise.allSettled([
             wantYouTube
               ? runYouTube(query, aliases, variations, hashtags, handles, ytTarget, monthWindow)
               : Promise.resolve({
@@ -2754,25 +2832,121 @@ export const Route = createFileRoute("/api/scan")({
                   apiErrors: 0,
                   quotaExhausted: false,
                 }),
-            runFirecrawl(controversyQuery, nonYtSources, Math.min(limit, 5)),
-            runFirecrawl(expansionQuery, nonYtSources, limit),
+            runFirecrawl(controversyQuery, nonYtOrRedditSources, Math.min(limit, 5)),
+            runFirecrawl(expansionQuery, nonYtOrRedditSources, limit),
+            runReddit(query, aliases, monthWindow),
           ]);
 
+          // ══════════════════════════════════════════════════════════════════════
+          // STAGE 1b — Provider-specific logging & success state checks
+          // ══════════════════════════════════════════════════════════════════════
+          let ytSuccess = false;
+          let ytRaw: RawHit[] = [];
+          let ytQuotaExhausted = false;
+          let ytQueriesUsed = 0;
+          let ytPagesScanned = 0;
+          let ytApiErrors = 0;
+          let ytError: string | undefined = undefined;
+
+          if (ytSettled.status === "fulfilled") {
+            const val = ytSettled.value;
+            ytRaw = val.raw;
+            ytQueriesUsed = val.queriesUsed;
+            ytPagesScanned = val.pagesScanned;
+            ytApiErrors = val.apiErrors;
+            ytError = val.error;
+            ytQuotaExhausted = val.quotaExhausted || (wantYouTube && val.raw.length === 0 && val.apiErrors > 5);
+            if (wantYouTube) {
+              if (val.error) {
+                console.error(`[scan] YouTube: error - ${val.error}`);
+              } else {
+                console.log(`[scan] YouTube: success (${val.raw.length} results)`);
+                ytSuccess = true;
+              }
+            } else {
+              ytSuccess = true;
+            }
+          } else {
+            ytError = ytSettled.reason?.message || String(ytSettled.reason);
+            console.error(`[scan] YouTube: error - ${ytError}`);
+          }
+
+          let fcSuccess = false;
+          let fcControversyRuns: { source: string; raw: RawHit[] }[] = [];
+          let fcGeneralRuns: { source: string; raw: RawHit[] }[] = [];
+          let fcError: string | undefined = undefined;
+
+          const fcCSuccess = fcControversySettled.status === "fulfilled" && !fcControversySettled.value.error;
+          const fcGSuccess = fcGeneralSettled.status === "fulfilled" && !fcGeneralSettled.value.error;
+
+          if (fcCSuccess || fcGSuccess) {
+            fcSuccess = true;
+            if (fcControversySettled.status === "fulfilled") {
+              fcControversyRuns = fcControversySettled.value.runs;
+            }
+            if (fcGeneralSettled.status === "fulfilled") {
+              fcGeneralRuns = fcGeneralSettled.value.runs;
+            }
+            console.log("[scan] Firecrawl: success");
+          } else {
+            const err1 = fcControversySettled.status === "rejected" ? fcControversySettled.reason?.message : fcControversySettled.value?.error;
+            const err2 = fcGeneralSettled.status === "rejected" ? fcGeneralSettled.reason?.message : fcGeneralSettled.value?.error;
+            fcError = `Controversy error: ${err1}, General error: ${err2}`;
+            console.error(`[scan] Firecrawl: error - ${fcError}`);
+          }
+
+          let redditSuccess = false;
+          let redditRaw: RawHit[] = [];
+          let redditError: string | undefined = undefined;
+
+          if (redditSettled.status === "fulfilled") {
+            const val = redditSettled.value;
+            if (val.error) {
+              redditError = val.error;
+              console.error(`[scan] Reddit: error - ${val.error}`);
+            } else {
+              redditSuccess = true;
+              redditRaw = val.raw;
+              console.log(`[scan] Reddit: success (${val.raw.length} results)`);
+            }
+          } else {
+            redditError = redditSettled.reason?.message || String(redditSettled.reason);
+            console.error(`[scan] Reddit: error - ${redditError}`);
+          }
+
           console.log("[scan-debug] YouTube stage result", {
-            discovered: yt.raw.length,
-            quotaExhausted: yt.quotaExhausted,
-            apiErrors: yt.apiErrors,
-            queriesUsed: yt.queriesUsed,
-            pagesScanned: yt.pagesScanned,
-            error: yt.error,
+            discovered: ytRaw.length,
+            quotaExhausted: ytQuotaExhausted,
+            apiErrors: ytApiErrors,
+            queriesUsed: ytQueriesUsed,
+            pagesScanned: ytPagesScanned,
+            error: ytError ?? null,
           });
 
           console.log("[scan-debug] Initial Firecrawl result", {
-            controversyHits: fcControversy.runs.flatMap((run) => run.raw).length,
-            generalHits: fcGeneral.runs.flatMap((run) => run.raw).length,
-            controversyRuns: fcControversy.runs.length,
-            generalRuns: fcGeneral.runs.length,
+            controversyHits: fcControversyRuns.flatMap((run) => run.raw).length,
+            generalHits: fcGeneralRuns.flatMap((run) => run.raw).length,
+            controversyRuns: fcControversyRuns.length,
+            generalRuns: fcGeneralRuns.length,
           });
+
+          // Return HTTP 500 if every active provider failed
+          const activeProvidersCount = (wantYouTube ? 1 : 0) + 1 + 1; // YouTube (if enabled) + Firecrawl + Reddit
+          const failedProvidersCount = 
+            (wantYouTube && !ytSuccess ? 1 : 0) + 
+            (!fcSuccess ? 1 : 0) + 
+            (!redditSuccess ? 1 : 0);
+
+          if (failedProvidersCount === activeProvidersCount) {
+            console.error("[scan] All active search providers failed.");
+            return Response.json(
+              {
+                ok: false,
+                error: `Every search provider failed to execute. YouTube: ${ytError || "none"}, Firecrawl: ${fcError || "none"}, Reddit: ${redditError || "none"}`
+              },
+              { status: 500 }
+            );
+          }
 
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 2 — Firecrawl Discovery Mode (always runs if quota exhausted;
@@ -2782,10 +2956,10 @@ export const Route = createFileRoute("/api/scan")({
             runs: { source: string; raw: RawHit[] }[];
             diagnostics: FcDiscoveryDiagnostics;
           } | null = null;
-          const ytQuotaExhausted =
-            yt.quotaExhausted || (wantYouTube && yt.raw.length === 0 && yt.apiErrors > 5);
+          const ytQuotaExhaustedFinal =
+            ytQuotaExhausted || (wantYouTube && ytRaw.length === 0 && ytApiErrors > 5);
 
-          if (ytQuotaExhausted) {
+          if (ytQuotaExhaustedFinal) {
             console.log("[scan] YouTube quota exhausted — activating Firecrawl Discovery Mode");
             fcDiscovery = await runFirecrawlDiscoveryMode(query, aliases, sources);
           }
@@ -2794,19 +2968,20 @@ export const Route = createFileRoute("/api/scan")({
           // STAGE 3 — Keyword expansion from whatever results we have so far
           // ══════════════════════════════════════════════════════════════════════
           const firstPassRaw = [
-            ...yt.raw,
+            ...ytRaw,
+            ...redditRaw,
             ...(fcDiscovery?.runs ?? []).flatMap((r) => r.raw),
-            ...fcControversy.runs.flatMap((r) => r.raw),
+            ...fcControversyRuns.flatMap((r) => r.raw),
           ];
 
           console.log("[scan-debug] First-pass discovery totals", {
-            youtube: yt.raw.length,
+            youtube: ytRaw.length,
             firecrawlDiscovery:
               fcDiscovery?.runs.flatMap((run) => run.raw).length ?? 0,
             firecrawlControversy:
-              fcControversy.runs.flatMap((run) => run.raw).length,
+              fcControversyRuns.flatMap((run) => run.raw).length,
             firecrawlGeneral:
-              fcGeneral.runs.flatMap((run) => run.raw).length,
+              fcGeneralRuns.flatMap((run) => run.raw).length,
             firstPassRaw: firstPassRaw.length,
           });
           let expansionRuns: { source: string; raw: RawHit[] }[] = [];
@@ -2820,16 +2995,115 @@ export const Route = createFileRoute("/api/scan")({
                 (["news", "web", "reddit"] as SourceKey[]).filter((s) => sources.includes(s)),
                 4,
               );
-              expansionRuns = fcExp.runs;
+              if (fcExp.runs) {
+                expansionRuns = fcExp.runs;
+              }
             }
           }
+
+          // ══════════════════════════════════════════════════════════════════════
+          // Stage 3b — Normalize all provider responses
+          // ══════════════════════════════════════════════════════════════════════
+          interface NormalizedHit {
+            source: string;
+            title: string;
+            url: string;
+            snippet: string;
+            publishedAt: string;
+            author: string;
+            thumbnail: string;
+          }
+
+          const allNormalized: NormalizedHit[] = [];
+
+          if (ytSuccess && ytRaw.length) {
+            for (const item of ytRaw) {
+              allNormalized.push({
+                source: "YouTube",
+                title: item.title || "",
+                url: item.url || "",
+                snippet: item.description || item.snippet || "",
+                publishedAt: item.publishedDate || item.date || "",
+                author: item.author || "",
+                thumbnail: item.media?.thumbnail || "",
+              });
+            }
+          }
+
+          if (redditSuccess && redditRaw.length) {
+            for (const item of redditRaw) {
+              allNormalized.push({
+                source: "Reddit",
+                title: item.title || "",
+                url: item.url || "",
+                snippet: item.description || item.snippet || "",
+                publishedAt: item.publishedDate || item.date || "",
+                author: item.author || "",
+                thumbnail: item.media?.thumbnail || "",
+              });
+            }
+          }
+
+          if (fcSuccess) {
+            const combinedFcRuns = [
+              ...fcControversyRuns,
+              ...fcGeneralRuns,
+              ...expansionRuns,
+              ...(fcDiscovery?.runs ?? []),
+            ];
+            for (const run of combinedFcRuns) {
+              for (const item of run.raw) {
+                const { platform, source } = platformFromUrl(item.url || "");
+                allNormalized.push({
+                  source: source || run.source || "Web",
+                  title: item.title || "",
+                  url: item.url || "",
+                  snippet: item.description || item.snippet || "",
+                  publishedAt: item.publishedDate || item.date || "",
+                  author: item.author || "",
+                  thumbnail: item.media?.thumbnail || "",
+                });
+              }
+            }
+          }
+
+          // Deduplicate by URL
+          const cleanUrl = (urlStr: string): string => {
+            try {
+              const parsed = new URL(urlStr);
+              let pathname = parsed.pathname;
+              if (pathname.endsWith("/") && pathname.length > 1) {
+                pathname = pathname.slice(0, -1);
+              }
+              return `${parsed.protocol}//${parsed.hostname}${pathname}${parsed.search}`;
+            } catch {
+              return urlStr.trim().toLowerCase();
+            }
+          };
+
+          const seenUrls = new Set<string>();
+          const uniqueNormalized: NormalizedHit[] = [];
+          for (const hit of allNormalized) {
+            if (!hit.url) continue;
+            const cleaned = cleanUrl(hit.url);
+            if (seenUrls.has(cleaned)) continue;
+            seenUrls.add(cleaned);
+            uniqueNormalized.push(hit);
+          }
+
+          // Sort by publishedAt (newest first)
+          uniqueNormalized.sort((a, b) => {
+            const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+            const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+            return dateB - dateA;
+          });
 
           // ══════════════════════════════════════════════════════════════════════
           // Merge all runs — accumulate per source, deduplicate by URL in buildReport
           // ══════════════════════════════════════════════════════════════════════
           const allRuns = [
-            ...fcControversy.runs,
-            ...fcGeneral.runs,
+            ...fcControversyRuns,
+            ...fcGeneralRuns,
             ...expansionRuns,
             ...(fcDiscovery?.runs ?? []),
           ];
@@ -2841,14 +3115,21 @@ export const Route = createFileRoute("/api/scan")({
           }
           const mergedRuns = Array.from(runMap.values());
           // YouTube API results (if any) always take priority — add last so they're not dropped
-          if (yt.raw.length) {
+          if (ytRaw.length) {
             const ytRun = mergedRuns.find((r) => r.source === "YouTube");
-            if (ytRun) ytRun.raw.unshift(...yt.raw);
-            else mergedRuns.push({ source: "YouTube", raw: yt.raw });
+            if (ytRun) ytRun.raw.unshift(...ytRaw);
+            else mergedRuns.push({ source: "YouTube", raw: ytRaw });
+          }
+
+          // Reddit results (if any) — add to mergedRuns so they flow into buildReport and buckets
+          if (redditRaw.length) {
+            const redditRun = mergedRuns.find((r) => r.source === "Reddit");
+            if (redditRun) redditRun.raw.unshift(...redditRaw);
+            else mergedRuns.push({ source: "Reddit", raw: redditRaw });
           }
 
           const overallErr =
-            !mergedRuns.some((r) => r.raw.length > 0) && !ytQuotaExhausted
+            !mergedRuns.some((r) => r.raw.length > 0) && !ytQuotaExhaustedFinal
               ? "No results returned"
               : undefined;
 
@@ -2861,6 +3142,9 @@ export const Route = createFileRoute("/api/scan")({
             overallErr,
           );
 
+          // Add the normalized unique results feed to the report
+          report.results = uniqueNormalized;
+
           // ══════════════════════════════════════════════════════════════════════
           // Diagnostics
           // ══════════════════════════════════════════════════════════════════════
@@ -2870,17 +3154,17 @@ export const Route = createFileRoute("/api/scan")({
 
           (report as unknown as Record<string, unknown>).diagnostics = {
             youtube: {
-              queriesRun: yt.queriesUsed,
-              pagesScanned: yt.pagesScanned,
-              videosFound: yt.raw.length,
-              apiErrors: yt.apiErrors,
-              quotaExhausted: ytQuotaExhausted,
-              quotaReason: (yt as { quotaReason?: string }).quotaReason ?? null,
-              error: yt.error ?? null,
+              queriesRun: ytQueriesUsed,
+              pagesScanned: ytPagesScanned,
+              videosFound: ytRaw.length,
+              apiErrors: ytApiErrors,
+              quotaExhausted: ytQuotaExhaustedFinal,
+              quotaReason: null,
+              error: ytError ?? null,
               target: ytTarget,
-              status: ytQuotaExhausted
+              status: ytQuotaExhaustedFinal
                 ? "quota_exhausted"
-                : yt.raw.length > 0
+                : ytRaw.length > 0
                   ? "ok"
                   : wantYouTube
                     ? "no_results"
