@@ -71,6 +71,8 @@ export function generateDeepfakeQueries(
     // the bounded query cap used by each scan.
     queries.push(
       `${person} site:reddit.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation OR leaked)`,
+      `${person} site:reddit.com ("fake nude" OR "AI nude" OR "face swap" OR deepfake)`,
+      `${person} site:reddit.com (defamation OR harassment OR impersonation OR "false allegation")`,
       `${person} site:x.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
       `${person} site:twitter.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
       `${person} site:youtube.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
