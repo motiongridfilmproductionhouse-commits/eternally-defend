@@ -2846,6 +2846,7 @@ export const Route = createFileRoute("/api/scan")({
                   pagesScanned: 0,
                   apiErrors: 0,
                   quotaExhausted: false,
+                  quotaReason: undefined as string | undefined,
                 }),
             runFirecrawl(controversyQuery, nonYtOrRedditSources, Math.min(limit, 5)),
             runFirecrawl(expansionQuery, nonYtOrRedditSources, limit),
