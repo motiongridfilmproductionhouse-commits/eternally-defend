@@ -136,6 +136,30 @@ try {
         });
       }
 
+      // Reddit's public search supplies newest-first discussions that may not
+      // yet be present in general web indexes. Firecrawl site queries remain
+      // in the plan as a fallback when Reddit limits public API access.
+      try {
+        const { searchRecentRedditMentions } = await import(
+          "./deepfake/reddit-discovery.server"
+        );
+        const redditHits = await searchRecentRedditMentions({
+          name: data.target_name,
+          aliases: data.aliases,
+          handles: data.handles,
+          maxResults: 50,
+        });
+        for (const hit of redditHits) {
+          if (seenUrl.has(hit.url)) continue;
+          seenUrl.add(hit.url);
+          allHits.push(hit);
+        }
+      } catch (error) {
+        console.warn("[DEEPFAKE:REDDIT] Latest discussions skipped:", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
       for (let i = 0; i < plan.queries.length; i += CONCURRENCY) {
         const batch = plan.queries.slice(i, i + CONCURRENCY);
         const results = await Promise.all(

@@ -70,6 +70,7 @@ export function generateDeepfakeQueries(
     // Put source-specific and fresh-content queries first so they survive
     // the bounded query cap used by each scan.
     queries.push(
+      `${person} site:reddit.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation OR leaked)`,
       `${person} site:x.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
       `${person} site:twitter.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
       `${person} site:youtube.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
