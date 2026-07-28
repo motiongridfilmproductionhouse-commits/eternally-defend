@@ -2274,7 +2274,16 @@ function buildReport(
         };
       }
       const riskMatched = c.keywords.length > 0 || sent === "Negative";
-      if (!riskMatched) continue;
+      /*
+       * Official YouTube API results are already exact entity-search leads.
+       * Keep neutral matching videos as low-risk monitoring leads instead of
+       * silently dropping them just because their title lacks a risk keyword.
+       * Web results still require an explicit risk or negative-sentiment signal.
+       */
+      const isOfficialYouTubeLead =
+        (source === "YouTube" || run.source === "YouTube") &&
+        Boolean(o.media?.videoId);
+      if (!riskMatched && !isOfficialYouTubeLead) continue;
       const cred = credibilityScore(source, platform);
       const realViews = o.media?.views ?? 0;
       const viewsAvailable = o.media?.viewsAvailable === true;
@@ -2312,7 +2321,9 @@ function buildReport(
         ? `Matched: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
         : sent === "Negative"
           ? "Negative sentiment in title/description"
-          : "Named-entity match";
+          : isOfficialYouTubeLead
+            ? "Official YouTube API · named-entity monitoring lead"
+            : "Named-entity match";
 
       const hit: ScanHit = {
         id: `hit-${idx}`,
@@ -2851,6 +2862,7 @@ export const Route = createFileRoute("/api/scan")({
           let ytPagesScanned = 0;
           let ytApiErrors = 0;
           let ytError: string | undefined = undefined;
+          let ytQuotaReason: string | undefined = undefined;
 
           if (ytSettled.status === "fulfilled") {
             const val = ytSettled.value;
@@ -2859,6 +2871,7 @@ export const Route = createFileRoute("/api/scan")({
             ytPagesScanned = val.pagesScanned;
             ytApiErrors = val.apiErrors;
             ytError = val.error;
+            ytQuotaReason = val.quotaReason;
             ytQuotaExhausted = val.quotaExhausted || (wantYouTube && val.raw.length === 0 && val.apiErrors > 5);
             if (wantYouTube) {
               if (val.error) {
@@ -3163,7 +3176,7 @@ export const Route = createFileRoute("/api/scan")({
               videosFound: ytRaw.length,
               apiErrors: ytApiErrors,
               quotaExhausted: ytQuotaExhaustedFinal,
-              quotaReason: null,
+              quotaReason: ytQuotaReason ?? null,
               error: ytError ?? null,
               target: ytTarget,
               status: ytQuotaExhaustedFinal
