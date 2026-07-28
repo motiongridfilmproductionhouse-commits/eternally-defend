@@ -584,8 +584,8 @@ function DeepfakeIntelPage() {
               )}
             </Button>
             <p className="text-[11px] text-muted-foreground">
-              Reddit is excluded. Site-scoped queries cover X, Twitter, Instagram, TikTok,
-              YouTube, Vimeo, Facebook, Threads, Imgur, Medium, and GitHub.
+              Fresh-source discovery covers Reddit, YouTube, X, Twitter, Instagram, TikTok,
+              Vimeo, Facebook, Threads, Imgur, Medium, and GitHub.
             </p>
           </div>
 
@@ -703,7 +703,7 @@ function DeepfakeIntelPage() {
                         LATEST PUBLIC LEADS
                       </div>
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        Newest web, YouTube, and indexed social mentions. Leads are unverified until reviewed.
+                        Newest web, YouTube, Reddit, and indexed social mentions. Leads are unverified until reviewed.
                       </p>
                     </div>
                     <Badge variant="outline">{discoveries.length}</Badge>

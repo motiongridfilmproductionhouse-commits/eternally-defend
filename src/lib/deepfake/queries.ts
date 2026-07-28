@@ -28,8 +28,9 @@ export const DEEPFAKE_MODIFIERS: string[] = [
   "imageboard",
 ];
 
-// Sites that host most of the abuse / discussion (Reddit intentionally excluded).
+// Sites that host most of the abuse / discussion.
 export const SITE_FILTERS: string[] = [
+  "site:reddit.com",
   "site:x.com",
   "site:twitter.com",
   "site:imgur.com",
@@ -104,13 +105,7 @@ export function buildQueryPlan(input: {
   return { targets, queries: dedupe(queries).slice(0, max) };
 }
 
-const BLOCKED_HOSTS = new Set<string>([
-  "reddit.com", "www.reddit.com", "old.reddit.com", "np.reddit.com", "redd.it",
-]);
-
 export function isBlockedHost(host: string): boolean {
-  const h = host.replace(/^www\./, "").toLowerCase();
-  if (BLOCKED_HOSTS.has(h)) return true;
-  if (h.endsWith(".reddit.com")) return true;
+  void host;
   return false;
 }
