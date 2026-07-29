@@ -1222,6 +1222,119 @@ export type Database = {
         }
         Relationships: []
       }
+      copyright_matches: {
+        Row: {
+          confidence: number
+          confidence_band: string
+          contact: Json
+          created_at: string
+          detection_type: string
+          evidence: Json
+          id: string
+          ocr_text: string | null
+          page_title: string | null
+          platform: string | null
+          reason: string | null
+          review_status: string
+          scan_id: string
+          source_url: string
+          thumbnail_url: string | null
+          transformations: Json
+          user_id: string
+        }
+        Insert: {
+          confidence?: number
+          confidence_band?: string
+          contact?: Json
+          created_at?: string
+          detection_type?: string
+          evidence?: Json
+          id?: string
+          ocr_text?: string | null
+          page_title?: string | null
+          platform?: string | null
+          reason?: string | null
+          review_status?: string
+          scan_id: string
+          source_url: string
+          thumbnail_url?: string | null
+          transformations?: Json
+          user_id: string
+        }
+        Update: {
+          confidence?: number
+          confidence_band?: string
+          contact?: Json
+          created_at?: string
+          detection_type?: string
+          evidence?: Json
+          id?: string
+          ocr_text?: string | null
+          page_title?: string | null
+          platform?: string | null
+          reason?: string | null
+          review_status?: string
+          scan_id?: string
+          source_url?: string
+          thumbnail_url?: string | null
+          transformations?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copyright_matches_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copyright_scans: {
+        Row: {
+          created_at: string
+          error: string | null
+          frame_paths: Json
+          id: string
+          reference_kind: string
+          sha256: string | null
+          stats: Json
+          status: string
+          storage_path: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          frame_paths?: Json
+          id?: string
+          reference_kind?: string
+          sha256?: string | null
+          stats?: Json
+          status?: string
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          frame_paths?: Json
+          id?: string
+          reference_kind?: string
+          sha256?: string | null
+          stats?: Json
+          status?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deepfake_discoveries: {
         Row: {
           analysis_status: string
