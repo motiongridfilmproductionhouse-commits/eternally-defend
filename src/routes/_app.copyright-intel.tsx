@@ -68,7 +68,9 @@ async function extractFrames(file: File, count = 4): Promise<Blob[]> {
     });
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 360;
-    canvas.getContext("2d")!.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not prepare video frame extraction.");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.9));
     if (blob) frames.push(blob);
   }
@@ -104,7 +106,10 @@ function CopyrightIntelPage() {
   const scans = useQuery({ queryKey: ["copyright-scans"], queryFn: () => listFn({}) });
   const detail = useQuery({
     queryKey: ["copyright-scan", selectedScanId],
-    queryFn: () => getFn({ data: { scanId: selectedScanId! } }),
+    queryFn: () => {
+      if (!selectedScanId) throw new Error("No scan selected.");
+      return getFn({ data: { scanId: selectedScanId } });
+    },
     enabled: !!selectedScanId,
   });
 
