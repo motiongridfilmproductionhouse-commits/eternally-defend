@@ -1208,7 +1208,14 @@ interface RawHit {
   date?: string;
   publishedDate?: string;
   media?: MediaMeta;
+  /** Reddit-only reputation-risk classification (see classifyRedditRisk). */
+  redditRisk?: {
+    categories: string[];
+    score: number;
+    reason: string;
+  };
 }
+
 
 /** Parse a single Firecrawl search result item into a RawHit. */
 function fcItemToRaw(item: Record<string, unknown>): RawHit {
