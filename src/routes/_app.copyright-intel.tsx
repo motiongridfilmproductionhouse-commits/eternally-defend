@@ -225,6 +225,49 @@ function CopyrightIntelPage() {
         </Button>
       </section>
 
+      {scan.isPending && scanMeta && (
+        <div className="animate-fade-in">
+          <ScanProgress
+            previews={previews}
+            title={scanMeta.title}
+            kind={scanMeta.kind}
+            stageIndex={stageIndex}
+            note={stage}
+          />
+        </div>
+      )}
+
+      {!scan.isPending && summary && scanMeta && (
+        <section className="animate-fade-in rounded-xl border border-primary/30 bg-card/60 p-5 backdrop-blur">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Analysis complete · {scanMeta.title}</h2>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {[
+              { label: "Sources checked", value: summary.candidates },
+              { label: "Evidence graded", value: summary.graded },
+              { label: "Matches found", value: summary.matches },
+            ].map((s) => (
+              <div key={s.label} className="rounded-lg border border-border/50 bg-background/30 p-3">
+                <div className="text-lg font-semibold">{s.value}</div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</div>
+              </div>
+            ))}
+          </div>
+          {previews.length > 0 && (
+            <div className="mt-3 flex gap-1.5">
+              {previews.map((src) => (
+                <img key={src} src={src} alt={`Reference frame for ${scanMeta.title}`}
+                  className="h-12 w-16 rounded border border-border/50 object-cover" />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+
+
       <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
         <DialogContent className="max-w-3xl overflow-hidden border-border/60 bg-card/95 p-0 backdrop-blur">
           <div className="grid md:grid-cols-[0.85fr_1fr]">
