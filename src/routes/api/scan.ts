@@ -2136,7 +2136,7 @@ async function runReddit(
 
   /* Reddit blocks unauthenticated JSON from many cloud IPs. Fall back to the
      indexed public web instead of coupling Reddit coverage to YouTube state. */
-  if (!raw.length) {
+  if (raw.length < 5) {
     const redditQueries = [
       `site:reddit.com ${searchTerms}`,
       `site:reddit.com ${searchTerms} (controversy OR allegation OR defamation OR harassment OR impersonation OR scam OR leaked OR fake)`,

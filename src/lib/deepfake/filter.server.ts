@@ -239,6 +239,18 @@ function hostMatches(
   );
 }
 
+function isLikelyNewsHost(host: string): boolean {
+  if (hostMatches(host, GENERAL_NEWS_HOSTS)) return true;
+
+  return host
+    .split(".")
+    .some((label) =>
+      /^(?:news|times|daily|herald|tribune|journal|chronicle|observer|newspaper|press|bulletin)$/i.test(
+        label,
+      ),
+    );
+}
+
 function isListingUrl(url: string): boolean {
   return LISTING_PATTERNS.some((pattern) =>
     pattern.test(url),
@@ -422,10 +434,7 @@ export function filterDeepfakeCandidates(
       STOCK_MEDIA_HOSTS,
     );
 
-    const generalNewsHost = hostMatches(
-      host,
-      GENERAL_NEWS_HOSTS,
-    );
+    const generalNewsHost = isLikelyNewsHost(host);
 
     const normalNewsSignal =
       NORMAL_NEWS_PATTERNS.some((pattern) =>
