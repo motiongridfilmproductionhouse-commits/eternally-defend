@@ -91,8 +91,14 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const sha256 = await sha256Hex(firstBytes);
       const referenceDataUrl = bytesToDataUrl(firstBytes, data.contentType);
 
-      // 1. AI-vision analysis of the reference frame (title, OCR, watermark, features).
-      const analysis = await analyzeReference(referenceDataUrl, data.title);
+      // 1. AI-vision analysis + AWS Rekognition fingerprint of the reference material.
+      const allFrames = await Promise.all(
+        data.keys.slice(0, 4).map(async (k, i) => (i === 0 ? firstBytes : await readStoredObject(k).catch(() => new Uint8Array()))),
+      );
+      const [analysis, fingerprint] = await Promise.all([
+        analyzeReference(referenceDataUrl, data.title),
+        buildMovieFingerprint(allFrames.filter((b) => b.length > 0), data.title),
+      ]);
 
       // 2. Firecrawl reverse discovery, seeded by that analysis.
       const byUrl = new Map<string, DiscoveryCandidate>();
