@@ -9,6 +9,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   Copyright, Upload, Loader2, ExternalLink, ShieldCheck, AlertTriangle,
@@ -91,6 +94,7 @@ function CopyrightIntelPage() {
   const [file, setFile] = useState<File | null>(null);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [stage, setStage] = useState("");
+  const [registerOpen, setRegisterOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const blobToBase64 = async (blob: Blob): Promise<string> => {
@@ -149,6 +153,7 @@ function CopyrightIntelPage() {
     onSuccess: (res) => {
       setStage("");
       setSelectedScanId(res.scanId);
+      setRegisterOpen(false);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       toast.success(`${res.stats.matches} evidence-backed match(es) from ${res.stats.candidates} candidates`);
     },
@@ -173,42 +178,90 @@ function CopyrightIntelPage() {
         </div>
       </header>
 
-      <section className="rounded-xl border border-border/60 bg-card/60 p-5 backdrop-blur">
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-          <div className="space-y-1.5">
-            <label className="text-xs uppercase tracking-wide text-muted-foreground">Protected work</label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Vasantham — Official Poster" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs uppercase tracking-wide text-muted-foreground">Upload Original Copyright Material</label>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,video/*"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-            <Button variant="outline" className="w-full justify-start" onClick={() => fileRef.current?.click()}>
-              {file
-                ? <>{file.type.startsWith("video/") ? <Film className="mr-2 h-4 w-4" /> : <ImageIcon className="mr-2 h-4 w-4" />}{file.name}</>
-                : <><Upload className="mr-2 h-4 w-4" />Upload Reference File</>}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Upload the original poster, artwork, image, or video you want to protect. This file will be used as a reference sample to identify possible unauthorized copies and matches.
-            </p>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Poster • Artwork • Image • Video</p>
-          </div>
-          <Button onClick={() => scan.mutate()} disabled={scan.isPending}>
-            {scan.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSearch className="mr-2 h-4 w-4" />}
-            Run detection
-          </Button>
+      <section className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card/60 p-5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">Register a protected work</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Register your original poster, artwork, image or video, then run evidence-graded detection for unauthorized copies.
+          </p>
         </div>
-        {stage && <p className="mt-3 text-xs text-muted-foreground">{stage}</p>}
-        <p className="mt-3 text-xs text-muted-foreground">
-          You must upload the original copyrighted content as the reference source for detection. Videos are sampled into 4 keyframes in your browser before upload. Matches below 50% confidence, plus reviews, news and commentary, are discarded automatically.
-        </p>
-
+        <Button className="shrink-0" onClick={() => setRegisterOpen(true)}>
+          <Copyright className="mr-2 h-4 w-4" />Register copyright work
+        </Button>
       </section>
+
+      <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
+        <DialogContent className="max-w-3xl overflow-hidden border-border/60 bg-card/95 p-0 backdrop-blur">
+          <div className="grid md:grid-cols-[0.85fr_1fr]">
+            <aside className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-primary/30 via-primary/10 to-transparent p-6 md:flex">
+              <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/25 blur-3xl" />
+              <div className="relative space-y-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-primary">Eterna</span>
+                </div>
+                <h3 className="text-2xl font-semibold leading-tight tracking-tight">Register your copyright material</h3>
+                <p className="text-xs text-muted-foreground">
+                  Movie posters, artwork, trailers and full videos are supported as reference sources.
+                </p>
+              </div>
+              <ol className="relative mt-6 space-y-2">
+                {["Name the protected work", "Upload the original file", "Run evidence-graded detection"].map((s, i) => (
+                  <li key={s} className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-xs backdrop-blur">
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/20 text-[10px] font-semibold text-primary">{i + 1}</span>
+                    <span className="min-w-0 truncate">{s}</span>
+                  </li>
+                ))}
+              </ol>
+            </aside>
+
+            <div className="space-y-4 p-6">
+              <DialogHeader className="space-y-1 text-left">
+                <DialogTitle className="text-lg">Upload Original Copyright Material</DialogTitle>
+                <DialogDescription className="text-xs">
+                  Upload the original poster, artwork, image, or video you want to protect. This file will be used as a reference sample to identify possible unauthorized copies and matches.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-1.5">
+                <label className="text-xs uppercase tracking-wide text-muted-foreground">Protected work</label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Vasantham — Official Poster" />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs uppercase tracking-wide text-muted-foreground">Reference file</label>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,video/*"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+                <Button variant="outline" className="w-full justify-start" onClick={() => fileRef.current?.click()}>
+                  {file
+                    ? <>{file.type.startsWith("video/") ? <Film className="mr-2 h-4 w-4" /> : <ImageIcon className="mr-2 h-4 w-4" />}<span className="truncate">{file.name}</span></>
+                    : <><Upload className="mr-2 h-4 w-4" />Upload Reference File</>}
+                </Button>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Poster • Artwork • Image • Video</p>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                You must upload the original copyrighted content as the reference source for detection. Videos are sampled into 4 keyframes in your browser before upload. Matches below 50% confidence, plus reviews, news and commentary, are discarded automatically.
+              </p>
+              {stage && <p className="text-xs text-muted-foreground">{stage}</p>}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="ghost" onClick={() => setRegisterOpen(false)}>Cancel</Button>
+                <Button onClick={() => scan.mutate()} disabled={scan.isPending}>
+                  {scan.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSearch className="mr-2 h-4 w-4" />}
+                  Run detection
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <aside className="space-y-2">
