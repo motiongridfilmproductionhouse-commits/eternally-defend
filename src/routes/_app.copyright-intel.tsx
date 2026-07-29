@@ -1,0 +1,305 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  prepareCopyrightUpload, runCopyrightScan, listCopyrightScans,
+  getCopyrightScan, updateCopyrightMatch,
+} from "@/lib/copyright.functions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import {
+  Copyright, Upload, Loader2, ExternalLink, ShieldCheck, AlertTriangle,
+  Eye, XCircle, FileSearch, Film, Image as ImageIcon, Mail,
+} from "lucide-react";
+
+export const Route = createFileRoute("/_app/copyright-intel")({
+  head: () => ({
+    meta: [
+      { title: "Copyright Intelligence Detection — Eterna" },
+      { name: "description", content: "Detect unauthorized re-uploads, ripped copies, screenshots and edited derivatives of your protected artwork and video, with graded evidence for takedown preparation." },
+      { property: "og:title", content: "Copyright Intelligence Detection — Eterna" },
+      { property: "og:description", content: "Evidence-graded detection of unauthorized copies of your protected visual works." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: CopyrightIntelPage,
+});
+
+const BAND: Record<string, { label: string; cls: string }> = {
+  confirmed: { label: "90-100% EXACT", cls: "bg-red-600/15 text-red-400 border-red-600/40" },
+  probable: { label: "70-89% PROBABLE", cls: "bg-orange-500/15 text-orange-400 border-orange-500/40" },
+  review: { label: "50-69% REVIEW", cls: "bg-amber-400/15 text-amber-300 border-amber-400/40" },
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  reuploaded_artwork: "Re-uploaded artwork",
+  poster_copy: "Poster copy",
+  movie_screenshot: "Movie screenshot",
+  trailer_copy: "Trailer copy",
+  video_clip: "Video clip",
+  cam_recording: "Leaked cam recording",
+  ripped_copy: "Ripped copy",
+  edited_derivative: "Edited derivative",
+};
+
+/** Sample frames from a video file entirely in the browser. */
+async function extractFrames(file: File, count = 4): Promise<Blob[]> {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.src = url;
+  video.muted = true;
+  video.crossOrigin = "anonymous";
+  await new Promise<void>((resolve, reject) => {
+    video.onloadedmetadata = () => resolve();
+    video.onerror = () => reject(new Error("Could not read the video file."));
+  });
+  const duration = Number.isFinite(video.duration) ? video.duration : 0;
+  const canvas = document.createElement("canvas");
+  const frames: Blob[] = [];
+  for (let i = 0; i < count; i++) {
+    const t = duration > 0 ? ((i + 1) * duration) / (count + 1) : 0;
+    await new Promise<void>((resolve) => {
+      video.onseeked = () => resolve();
+      video.currentTime = t;
+    });
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 360;
+    canvas.getContext("2d")!.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.9));
+    if (blob) frames.push(blob);
+  }
+  URL.revokeObjectURL(url);
+  if (!frames.length) throw new Error("No frames could be extracted from this video.");
+  return frames;
+}
+
+function CopyrightIntelPage() {
+  const prepareFn = useServerFn(prepareCopyrightUpload);
+  const runFn = useServerFn(runCopyrightScan);
+  const listFn = useServerFn(listCopyrightScans);
+  const getFn = useServerFn(getCopyrightScan);
+  const updFn = useServerFn(updateCopyrightMatch);
+  const qc = useQueryClient();
+
+  const [title, setTitle] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
+  const [stage, setStage] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const scans = useQuery({ queryKey: ["copyright-scans"], queryFn: () => listFn({}) });
+  const detail = useQuery({
+    queryKey: ["copyright-scan", selectedScanId],
+    queryFn: () => getFn({ data: { scanId: selectedScanId! } }),
+    enabled: !!selectedScanId,
+  });
+
+  const scan = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error("Upload a reference image or video first.");
+      if (!title.trim()) throw new Error("Name the protected work.");
+      const isVideo = file.type.startsWith("video/");
+      setStage(isVideo ? "Extracting video frames…" : "Preparing reference…");
+
+      const blobs: Blob[] = isVideo ? await extractFrames(file) : [file];
+      const keys: string[] = [];
+      for (let i = 0; i < blobs.length; i++) {
+        setStage(`Uploading reference ${i + 1}/${blobs.length}…`);
+        const contentType = isVideo ? "image/jpeg" : (file.type as "image/jpeg");
+        const { key, uploadUrl } = await prepareFn({
+          data: {
+            fileName: isVideo ? `frame-${i}.jpg` : file.name,
+            contentType,
+            size: blobs[i].size,
+          },
+        });
+        const put = await fetch(uploadUrl, { method: "PUT", body: blobs[i], headers: { "Content-Type": contentType } });
+        if (!put.ok) throw new Error("Upload to secure storage failed.");
+        keys.push(key);
+      }
+
+      setStage("Reverse-image discovery and evidence grading…");
+      return runFn({
+        data: {
+          title: title.trim(),
+          referenceKind: isVideo ? "video" : "image",
+          contentType: isVideo ? "image/jpeg" : (file.type as "image/jpeg"),
+          keys,
+        },
+      });
+    },
+    onSuccess: (res) => {
+      setStage("");
+      setSelectedScanId(res.scanId);
+      qc.invalidateQueries({ queryKey: ["copyright-scans"] });
+      toast.success(`${res.stats.matches} evidence-backed match(es) from ${res.stats.candidates} candidates`);
+    },
+    onError: (e: Error) => { setStage(""); toast.error(e.message); },
+  });
+
+  const review = useMutation({
+    mutationFn: (v: { matchId: string; reviewStatus: "pending" | "evidence_ready" | "dismissed" }) => updFn({ data: v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["copyright-scan", selectedScanId] }),
+  });
+
+  const matches = detail.data?.matches ?? [];
+
+  return (
+    <div className="space-y-6">
+      <header className="flex items-start gap-3">
+        <div className="rounded-xl border border-primary/30 bg-primary/10 p-2.5">
+          <Copyright className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Copyright Intelligence Detection</h1>
+          <p className="text-sm text-muted-foreground">
+            Reverse-image discovery, frame &amp; scene matching, OCR and watermark analysis. Evidence only — no takedown is ever sent from here.
+          </p>
+        </div>
+      </header>
+
+      <section className="rounded-xl border border-border/60 bg-card/60 p-5 backdrop-blur">
+        <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+          <div className="space-y-1.5">
+            <label className="text-xs uppercase tracking-wide text-muted-foreground">Protected work</label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Vasantham — Official Poster" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs uppercase tracking-wide text-muted-foreground">Reference image or video</label>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,video/*"
+              className="hidden"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+            <Button variant="outline" className="w-full justify-start" onClick={() => fileRef.current?.click()}>
+              {file
+                ? <>{file.type.startsWith("video/") ? <Film className="mr-2 h-4 w-4" /> : <ImageIcon className="mr-2 h-4 w-4" />}{file.name}</>
+                : <><Upload className="mr-2 h-4 w-4" />Choose file</>}
+            </Button>
+          </div>
+          <Button onClick={() => scan.mutate()} disabled={scan.isPending}>
+            {scan.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSearch className="mr-2 h-4 w-4" />}
+            Run detection
+          </Button>
+        </div>
+        {stage && <p className="mt-3 text-xs text-muted-foreground">{stage}</p>}
+        <p className="mt-3 text-xs text-muted-foreground">
+          Videos are sampled into 4 keyframes in your browser before upload. Matches below 50% confidence, plus reviews, news and commentary, are discarded automatically.
+        </p>
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <aside className="space-y-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Scans</h2>
+          {(scans.data ?? []).map((s) => {
+            const st = (s.stats ?? {}) as Record<string, number>;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setSelectedScanId(s.id)}
+                className={`w-full rounded-lg border p-3 text-left text-sm transition ${
+                  selectedScanId === s.id ? "border-primary/50 bg-primary/10" : "border-border/60 bg-card/50 hover:border-primary/30"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-medium">{s.title}</span>
+                  <Badge variant="outline" className="shrink-0 text-[10px]">{s.status}</Badge>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {s.reference_kind} · {st.matches ?? 0} matches · {new Date(s.created_at).toLocaleDateString()}
+                </div>
+              </button>
+            );
+          })}
+          {!scans.isLoading && !(scans.data ?? []).length && (
+            <p className="text-xs text-muted-foreground">No detections yet.</p>
+          )}
+        </aside>
+
+        <section className="space-y-3">
+          {!selectedScanId && <p className="text-sm text-muted-foreground">Select a scan to review graded evidence.</p>}
+          {detail.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          {selectedScanId && !detail.isLoading && !matches.length && (
+            <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
+              No match cleared the 50% evidence threshold for this reference.
+            </div>
+          )}
+
+          {matches.map((m) => {
+            const band = BAND[m.confidence_band] ?? BAND.review;
+            const ev = (m.evidence ?? {}) as Record<string, unknown>;
+            const contact = (m.contact ?? {}) as Record<string, string | null>;
+            return (
+              <article key={m.id} className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur">
+                <div className="flex gap-4">
+                  {m.thumbnail_url && (
+                    <img src={m.thumbnail_url} alt={`Matched evidence frame from ${m.platform ?? "source"}`} loading="lazy"
+                      className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover" />
+                  )}
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className={band.cls}>{m.confidence}% · {band.label}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{TYPE_LABEL[m.detection_type] ?? m.detection_type}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{m.platform ?? "Unknown platform"}</Badge>
+                      {String(ev.lens_bucket) === "exact_match" && (
+                        <Badge variant="outline" className="text-[10px] text-primary">exact-match bucket</Badge>
+                      )}
+                      {m.review_status !== "pending" && (
+                        <Badge variant="outline" className="text-[10px]">{m.review_status.replace("_", " ")}</Badge>
+                      )}
+                    </div>
+                    <a href={m.source_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 truncate text-sm text-primary hover:underline">
+                      {m.page_title || m.source_url} <ExternalLink className="h-3 w-3 shrink-0" />
+                    </a>
+                    {m.reason && <p className="text-xs text-muted-foreground">{m.reason}</p>}
+                    {Array.isArray(m.transformations) && m.transformations.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {(m.transformations as string[]).map((t) => (
+                          <span key={t} className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
+                        ))}
+                      </div>
+                    )}
+                    {m.ocr_text && (
+                      <p className="line-clamp-2 text-[11px] text-muted-foreground">
+                        <span className="font-medium">OCR:</span> {m.ocr_text}
+                      </p>
+                    )}
+                    {typeof ev.watermark === "string" && ev.watermark && (
+                      <p className="text-[11px] text-muted-foreground"><span className="font-medium">Watermark:</span> {ev.watermark}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                      {contact.abuseEmail && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{contact.abuseEmail}</span>}
+                      {contact.reportUrl && (
+                        <a href={contact.reportUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline">
+                          <ShieldCheck className="h-3 w-3" />Abuse / DMCA page
+                        </a>
+                      )}
+                      {contact.note && <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{contact.note}</span>}
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button size="sm" variant="outline"
+                        onClick={() => review.mutate({ matchId: m.id, reviewStatus: "evidence_ready" })}>
+                        <Eye className="mr-1.5 h-3.5 w-3.5" />Mark evidence ready
+                      </Button>
+                      <Button size="sm" variant="ghost"
+                        onClick={() => review.mutate({ matchId: m.id, reviewStatus: "dismissed" })}>
+                        <XCircle className="mr-1.5 h-3.5 w-3.5" />Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      </div>
+    </div>
+  );
+}
