@@ -218,13 +218,16 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const stats = {
         candidates: byUrl.size,
         graded: ordered.length,
-        matches: rows.length,
+        matches: allRows.length,
+        leads: leads.length,
+        queries_language: analysis.language,
+        release_date: analysis.releaseDate,
         ignored,
         frames: data.keys.length,
         sha256,
-        confirmed: rows.filter((r) => r.confidence_band === "confirmed").length,
-        probable: rows.filter((r) => r.confidence_band === "probable").length,
-        review: rows.filter((r) => r.confidence_band === "review").length,
+        confirmed: allRows.filter((r) => r.confidence_band === "confirmed").length,
+        probable: allRows.filter((r) => r.confidence_band === "probable").length,
+        review: allRows.filter((r) => r.confidence_band === "review").length,
       };
       await supabase.from("copyright_scans").update({ status: "completed", sha256, stats }).eq("id", scan.id);
       return { scanId: scan.id as string, stats };
