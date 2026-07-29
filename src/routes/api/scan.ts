@@ -2394,7 +2394,16 @@ async function runReddit(
     }
   }
 
-  const results = Array.from(unique.values()).slice(0, 80);
+  /* Classify every collected Reddit result by reputation risk, then rank
+     risk-bearing discussions above neutral mentions. */
+  const results = Array.from(unique.values())
+    .map((hit) => ({ ...hit, redditRisk: classifyRedditRisk(hit) }))
+    .sort(
+      (a, b) =>
+        b.redditRisk.score - a.redditRisk.score ||
+        relevance(b) - relevance(a),
+    )
+    .slice(0, 80);
   return results.length
     ? { raw: results }
     : { raw: [], error: errors.join("; ") || "No indexed Reddit discussions found" };
