@@ -152,7 +152,14 @@ try {
           for (const h of arr) {
             if (!h.url) continue;
             const host = hostOf(h.url);
-            if (!host || isBlockedHost(host)) continue;
+            const imageHost = h.image_url ? hostOf(h.image_url) : null;
+            const thumbnailHost = h.thumbnail_url ? hostOf(h.thumbnail_url) : null;
+            if (
+              !host ||
+              isBlockedHost(host) ||
+              (imageHost !== null && isBlockedHost(imageHost)) ||
+              (thumbnailHost !== null && isBlockedHost(thumbnailHost))
+            ) continue;
             const canonical = canonicalUrl(h.url);
             if (seenUrl.has(canonical)) continue;
             seenUrl.add(canonical);
