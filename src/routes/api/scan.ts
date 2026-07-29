@@ -2645,14 +2645,19 @@ function buildReport(
         credibilityScore: cred,
         viralityScore: virality,
         copyrightRisk: c.copyrightEnforce,
-        reputationRisk: Math.min(100, c.reputation + (sent === "Negative" ? 8 : 0)),
+        reputationRisk: Math.max(
+          redditRisk?.score ?? 0,
+          Math.min(100, c.reputation + (sent === "Negative" ? 8 : 0)),
+        ),
         reachEstimate: reach,
         engagement,
         recommendedAction:
           contentPosition === "SUPPORTIVE" || onlyContextSignals
             ? "Preserve and review; no apparent violation from title or metadata alone"
             : "Preserve and conduct human review before selecting any platform or legal action",
-        keywords: c.keywords,
+        keywords: redditRisk?.categories.length
+          ? Array.from(new Set([...redditRisk.categories, ...c.keywords]))
+          : c.keywords,
         language: "en",
         viral: reach > 250000 || c.sev === "Critical",
         media: o.media,
