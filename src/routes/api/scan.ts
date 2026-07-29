@@ -2608,7 +2608,14 @@ function buildReport(
         ),
       );
 
-      const detectionReason = c.keywords.length
+      /* Reddit results carry their own reputation-risk classification. */
+      const redditRisk = isRedditEntityLead ? o.redditRisk : undefined;
+
+      const detectionReason = redditRisk
+        ? redditRisk.categories.length
+          ? `Reddit risk ${redditRisk.score}/100 · ${redditRisk.categories.join(", ")} · ${redditRisk.reason}`
+          : `Reddit risk ${redditRisk.score}/100 · ${redditRisk.reason}`
+        : c.keywords.length
         ? `Matched: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
         : sent === "Negative"
           ? "Negative sentiment in title/description"
