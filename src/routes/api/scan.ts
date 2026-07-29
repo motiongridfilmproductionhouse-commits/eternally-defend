@@ -2369,6 +2369,9 @@ function buildReport(
   const entityForms = Array.from(
     new Set([query, ...aliases].map(normalizeEntity).filter((value) => value.length >= 3)),
   );
+  const entityTokenSets = entityForms.map((form) =>
+    form.split(" ").filter((token) => token.length >= 4),
+  );
 
   for (const run of runs) {
     if (run.raw.length) sourcesReturned.add(run.source);
@@ -2382,8 +2385,25 @@ function buildReport(
       const haystack = normalizeEntity(
         `${title} ${description} ${o.author ?? o.media?.channelTitle ?? ""}`,
       );
-      const entityMatched = entityForms.some((form) => haystack.includes(form));
+      const isRedditResult = source === "Reddit" || run.source === "Reddit";
+      let entityMatched = entityForms.some((form) => haystack.includes(form));
+      /*
+       * Reddit threads often reference the identity partially (first name,
+       * surname, handle) or only in the URL slug. Keep those discussions
+       * instead of requiring an exact full-name string.
+       */
+      if (!entityMatched && isRedditResult) {
+        const redditHaystack = `${haystack} ${normalizeEntity(url)}`;
+        entityMatched =
+          entityForms.some((form) => redditHaystack.includes(form)) ||
+          entityTokenSets.some(
+            (tokens) =>
+              tokens.length > 0 &&
+              tokens.some((token) => redditHaystack.includes(token)),
+          );
+      }
       if (!entityMatched) continue;
+
       let c = classify(title, description);
       const sent = sentimentOf(`${title} ${description}`);
       const contentPosition = inferAutomatedContentPosition(title, description);
