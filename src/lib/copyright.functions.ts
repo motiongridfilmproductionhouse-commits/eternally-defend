@@ -87,8 +87,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         .sort((a, b) => Number(b.exact) - Number(a.exact))
         .slice(0, 28);
 
-
-      // 2. Evidence grading with a multimodal comparison.
+      // 3. Evidence grading with a multimodal comparison.
       const rows: MatchInsert[] = [];
       let ignored = 0;
       for (let offset = 0; offset < ordered.length; offset += 4) {
@@ -102,10 +101,13 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             candidateTitle: candidate.title,
             platform: candidate.source,
             workTitle: data.title,
-            lensExact: candidate.exact,
+            highSignal: candidate.exact,
+            referenceOcrText: analysis.ocrText,
+            referenceWatermark: analysis.watermark,
           });
           return { candidate, result };
         }));
+
 
         for (const { candidate, result } of graded) {
           if (!result || result.falsePositive || result.detectionType === "unrelated" || result.confidence < 50) {
