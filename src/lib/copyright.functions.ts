@@ -5,6 +5,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getBucket, getS3 } from "@/lib/aws/clients.server";
 import { getSignedGetUrl, getSignedPutUrl, sha256Hex } from "@/lib/aws/s3.server";
 import { lensLookup, hostOf, canonicalUrl, type LensCandidate } from "@/lib/copyright/lens.server";
+import { firecrawlDiscover } from "@/lib/copyright/discover.server";
+
 import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
 import type { Database } from "@/integrations/supabase/types";
