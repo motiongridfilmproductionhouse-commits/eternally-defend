@@ -3,7 +3,7 @@ import { z } from "zod";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getBucket, getS3 } from "@/lib/aws/clients.server";
-import { getSignedPutUrl, sha256Hex } from "@/lib/aws/s3.server";
+import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
 import { analyzeReference, firecrawlDiscover } from "@/lib/copyright/discover.server";
 
@@ -31,16 +31,42 @@ export const prepareCopyrightUpload = createServerFn({ method: "POST" })
 
 async function readObject(key: string): Promise<Uint8Array> {
   const obj = await getS3().send(new GetObjectCommand({ Bucket: getBucket(), Key: key }));
-  return new Uint8Array(await obj.Body!.transformToByteArray());
+  if (!obj.Body) {
+    throw new Error("Reference file could not be read from storage.");
+  }
+  return new Uint8Array(await obj.Body.transformToByteArray());
 }
 
 function toDataUrl(bytes: Uint8Array, contentType: string): string {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return `data:${contentType};base64,${btoa(binary)}`;
+  const base64 = Buffer.from(bytes).toString("base64");
+  return `data:${contentType};base64,${base64}`;
 }
+
+/** Same-origin fallback upload used by the Copyright scanner to avoid fragile browser-to-S3 PUT failures. */
+export const uploadCopyrightReference = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({
+    fileName: z.string().min(1).max(180),
+    contentType: z.enum(imageTypes),
+    base64: z.string().min(1).max(20 * 1024 * 1024),
+  }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const safe = data.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
+    const bytes = Buffer.from(data.base64, "base64");
+    if (!bytes.length) throw new Error("Reference file is empty.");
+    if (bytes.length > 12 * 1024 * 1024) throw new Error("Reference file exceeds the 12 MB limit.");
+    const key = `clients/${context.userId}/copyright/${crypto.randomUUID()}-${safe}`;
+    await putObject({
+      key,
+      body: bytes,
+      contentType: data.contentType,
+      metadata: {
+        user_id: context.userId,
+        source: "copyright_intel",
+      },
+    });
+    return { key };
+  });
 
 export const runCopyrightScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
