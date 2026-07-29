@@ -170,9 +170,6 @@ function CopyrightIntelPage() {
         </div>
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Copyright Intelligence Detection</h1>
-          <p className="text-sm text-muted-foreground">
-            Reverse-image discovery, frame &amp; scene matching, OCR and watermark analysis. Evidence only — no takedown is ever sent from here.
-          </p>
         </div>
       </header>
 
@@ -183,7 +180,7 @@ function CopyrightIntelPage() {
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Vasantham — Official Poster" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs uppercase tracking-wide text-muted-foreground">Reference image or video</label>
+            <label className="text-xs uppercase tracking-wide text-muted-foreground">Upload Original Copyright Material</label>
             <input
               ref={fileRef}
               type="file"
@@ -194,8 +191,12 @@ function CopyrightIntelPage() {
             <Button variant="outline" className="w-full justify-start" onClick={() => fileRef.current?.click()}>
               {file
                 ? <>{file.type.startsWith("video/") ? <Film className="mr-2 h-4 w-4" /> : <ImageIcon className="mr-2 h-4 w-4" />}{file.name}</>
-                : <><Upload className="mr-2 h-4 w-4" />Choose file</>}
+                : <><Upload className="mr-2 h-4 w-4" />Upload Reference File</>}
             </Button>
+            <p className="text-xs text-muted-foreground">
+              Upload the original poster, artwork, image, or video you want to protect. This file will be used as a reference sample to identify possible unauthorized copies and matches.
+            </p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Poster • Artwork • Image • Video</p>
           </div>
           <Button onClick={() => scan.mutate()} disabled={scan.isPending}>
             {scan.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSearch className="mr-2 h-4 w-4" />}
@@ -204,8 +205,9 @@ function CopyrightIntelPage() {
         </div>
         {stage && <p className="mt-3 text-xs text-muted-foreground">{stage}</p>}
         <p className="mt-3 text-xs text-muted-foreground">
-          Videos are sampled into 4 keyframes in your browser before upload. Matches below 50% confidence, plus reviews, news and commentary, are discarded automatically.
+          You must upload the original copyrighted content as the reference source for detection. Videos are sampled into 4 keyframes in your browser before upload. Matches below 50% confidence, plus reviews, news and commentary, are discarded automatically.
         </p>
+
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
