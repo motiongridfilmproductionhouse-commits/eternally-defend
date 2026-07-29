@@ -8,6 +8,14 @@ import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.ser
 import { readStoredObject } from "@/lib/copyright/storage.server";
 
 import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
+import {
+  buildMovieFingerprint,
+  matchCandidateAgainstFingerprint,
+  blendConfidence,
+  EMPTY_MATCH,
+  type FingerprintMatch,
+} from "@/lib/copyright/fingerprint.server";
+import { fetchImageBytes } from "@/lib/aws/s3.server";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
 import type { Database } from "@/integrations/supabase/types";
 
