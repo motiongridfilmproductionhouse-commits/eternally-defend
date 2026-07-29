@@ -2077,67 +2077,113 @@ async function runReddit(
   aliases: string[],
   monthWindow: MonthWindow
 ): Promise<{ raw: RawHit[]; error?: string }> {
+  const nameForms = Array.from(
+    new Set([query, ...aliases].map((s) => s.trim()).filter(Boolean)),
+  );
+  if (!nameForms.length) return { raw: [] };
+
+  const searchTerms = nameForms
+    .map((name) => name.includes(" ") ? `"${name.replaceAll('"', "")}"` : name)
+    .join(" OR ");
+  const errors: string[] = [];
+  const raw: RawHit[] = [];
+
+  let t = "all";
+  if (monthWindow.filter === "24h") t = "day";
+  else if (monthWindow.filter === "7d") t = "week";
+  else if (monthWindow.filter === "30d") t = "month";
+  else if (monthWindow.filter === "12m") t = "year";
+
   try {
-    const nameForms = Array.from(
-      new Set([query, ...aliases].map((s) => s.trim()).filter(Boolean))
-    );
-    if (!nameForms.length) return { raw: [] };
-
-    // Build search query: e.g., "query" OR "alias1" OR "alias2"
-    const searchTerms = nameForms.map(n => n.includes(" ") ? `"${n}"` : n).join(" OR ");
-    
-    // Map MonthFilter to Reddit's "t" query param
-    let t = "all";
-    if (monthWindow.filter === "24h") t = "day";
-    else if (monthWindow.filter === "7d") t = "week";
-    else if (monthWindow.filter === "30d") t = "month";
-    else if (monthWindow.filter === "12m") t = "year";
-
-    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(searchTerms)}&sort=new&t=${t}&limit=100`;
-    
-    // Descriptive User-Agent to prevent Reddit rate-limiting/blocking
+    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(searchTerms)}&sort=relevance&t=${t}&limit=100&raw_json=1`;
     const res = await fetchWithTimeout(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 EternallyDefend/1.0"
-      }
-    }, 15000); // 15 seconds timeout
+        Accept: "application/json",
+        "User-Agent": "EternaSentinel/1.0 public-reputation-monitoring",
+      },
+    }, 10_000);
 
-    if (!res.ok) {
-      throw new Error(`Reddit API returned status ${res.status}`);
+    if (!res.ok || !res.headers.get("content-type")?.includes("json")) {
+      throw new Error(`Reddit public search returned ${res.status}`);
     }
 
     const data = await res.json();
-    const children = data?.data?.children || [];
-    
-    const raw: RawHit[] = [];
-    for (const child of children) {
-      const item = child.data;
-      if (!item) continue;
-      
-      const permalink = item.permalink ? `https://www.reddit.com${item.permalink}` : "";
-      if (!permalink) continue;
-
-      const published = item.created_utc ? new Date(item.created_utc * 1000).toISOString() : undefined;
-      const snippet = item.selftext || item.title || "";
-      const thumb = item.thumbnail && item.thumbnail.startsWith("http") ? item.thumbnail : undefined;
+    for (const child of data?.data?.children ?? []) {
+      const item = child?.data;
+      if (!item?.permalink || item.removed_by_category) continue;
+      const published = item.created_utc
+        ? new Date(item.created_utc * 1000).toISOString()
+        : undefined;
+      const snippet = String(item.selftext || item.title || "").slice(0, 800);
+      const thumb = typeof item.thumbnail === "string" && item.thumbnail.startsWith("http")
+        ? item.thumbnail
+        : undefined;
 
       raw.push({
-        url: permalink,
-        title: item.title || "",
-        description: snippet.slice(0, 800),
-        snippet: snippet.slice(0, 800),
-        author: item.author || "anonymous",
+        url: new URL(item.permalink, "https://www.reddit.com").toString(),
+        title: String(item.title || "Reddit discussion"),
+        description: snippet,
+        snippet,
+        author: String(item.author || "anonymous"),
         date: published,
         publishedDate: published,
-        media: thumb ? { thumbnail: thumb, thumbnailHi: thumb } : undefined
+        media: thumb ? { thumbnail: thumb, thumbnailHi: thumb } : undefined,
       });
     }
-
-    return { raw };
-  } catch (err: any) {
-    const errMsg = err?.message || String(err);
-    return { raw: [], error: errMsg };
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
   }
+
+  /* Reddit blocks unauthenticated JSON from many cloud IPs. Fall back to the
+     indexed public web instead of coupling Reddit coverage to YouTube state. */
+  if (!raw.length) {
+    const redditQueries = [
+      `site:reddit.com ${searchTerms}`,
+      `site:reddit.com ${searchTerms} (controversy OR allegation OR defamation OR harassment OR impersonation OR scam OR leaked OR fake)`,
+    ];
+    const settled = await Promise.allSettled(
+      redditQueries.map((redditQuery) => fcSearch(redditQuery, 10)),
+    );
+    for (const result of settled) {
+      if (result.status === "fulfilled") raw.push(...result.value);
+      else errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
+    }
+  }
+
+  const normalize = (value: string) => value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const identities = nameForms.map(normalize);
+  const riskPattern = /\b(?:controversy|allegation|defam|harass|impersonat|scam|fraud|fake|deepfake|leak|abuse|complaint)\b/i;
+  const relevance = (hit: RawHit) => {
+    const title = normalize(hit.title ?? "");
+    const description = normalize(hit.description ?? hit.snippet ?? "");
+    return Math.max(...identities.map((identity) =>
+      (title.includes(identity) ? 100 : 0) +
+      (description.includes(identity) ? 45 : 0),
+    )) + (riskPattern.test(`${hit.title ?? ""} ${hit.description ?? ""}`) ? 30 : 0);
+  };
+  const unique = new Map<string, RawHit>();
+  for (const hit of raw.sort((a, b) => relevance(b) - relevance(a))) {
+    if (!hit.url || relevance(hit) < 45) continue;
+    try {
+      const parsed = new URL(hit.url);
+      parsed.hash = "";
+      for (const key of [...parsed.searchParams.keys()]) {
+        if (/^(?:utm_|ref$|share_id$)/i.test(key)) parsed.searchParams.delete(key);
+      }
+      const key = `${parsed.hostname.replace(/^www\./, "").toLowerCase()}${parsed.pathname.replace(/\/$/, "")}`;
+      if (!unique.has(key)) unique.set(key, { ...hit, url: parsed.toString() });
+    } catch {
+      continue;
+    }
+  }
+
+  const results = Array.from(unique.values()).slice(0, 50);
+  return results.length
+    ? { raw: results }
+    : { raw: [], error: errors.join("; ") || "No indexed Reddit discussions found" };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2283,7 +2329,8 @@ function buildReport(
       const isOfficialYouTubeLead =
         (source === "YouTube" || run.source === "YouTube") &&
         Boolean(o.media?.videoId);
-      if (!riskMatched && !isOfficialYouTubeLead) continue;
+      const isRedditEntityLead = source === "Reddit" || run.source === "Reddit";
+      if (!riskMatched && !isOfficialYouTubeLead && !isRedditEntityLead) continue;
       const cred = credibilityScore(source, platform);
       const realViews = o.media?.views ?? 0;
       const viewsAvailable = o.media?.viewsAvailable === true;
@@ -2321,8 +2368,10 @@ function buildReport(
         ? `Matched: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
         : sent === "Negative"
           ? "Negative sentiment in title/description"
-          : isOfficialYouTubeLead
+            : isOfficialYouTubeLead
             ? "Official YouTube API · named-entity monitoring lead"
+              : isRedditEntityLead
+                ? "Indexed Reddit discussion · exact named-entity match"
             : "Named-entity match";
 
       const hit: ScanHit = {
@@ -2850,7 +2899,9 @@ export const Route = createFileRoute("/api/scan")({
                 }),
             runFirecrawl(controversyQuery, nonYtOrRedditSources, Math.min(limit, 5)),
             runFirecrawl(expansionQuery, nonYtOrRedditSources, limit),
-            runReddit(query, aliases, monthWindow),
+            wantReddit
+              ? runReddit(query, aliases, monthWindow)
+              : Promise.resolve({ raw: [] as RawHit[] }),
           ]);
 
           // ══════════════════════════════════════════════════════════════════════
@@ -2949,11 +3000,11 @@ export const Route = createFileRoute("/api/scan")({
           });
 
           // Return HTTP 500 if every active provider failed
-          const activeProvidersCount = (wantYouTube ? 1 : 0) + 1 + 1; // YouTube (if enabled) + Firecrawl + Reddit
+          const activeProvidersCount = (wantYouTube ? 1 : 0) + 1 + (wantReddit ? 1 : 0);
           const failedProvidersCount = 
             (wantYouTube && !ytSuccess ? 1 : 0) + 
             (!fcSuccess ? 1 : 0) + 
-            (!redditSuccess ? 1 : 0);
+            (wantReddit && !redditSuccess ? 1 : 0);
 
           if (failedProvidersCount === activeProvidersCount) {
             console.error("[scan] All active search providers failed.");
