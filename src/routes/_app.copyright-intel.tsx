@@ -94,6 +94,10 @@ function CopyrightIntelPage() {
   const [file, setFile] = useState<File | null>(null);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [stage, setStage] = useState("");
+  const [stageIndex, setStageIndex] = useState(0);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [scanMeta, setScanMeta] = useState<{ title: string; kind: "image" | "video" } | null>(null);
+  const [summary, setSummary] = useState<{ candidates: number; matches: number; graded: number } | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -122,9 +126,21 @@ function CopyrightIntelPage() {
       if (!file) throw new Error("Upload a reference image or video first.");
       if (!title.trim()) throw new Error("Name the protected work.");
       const isVideo = file.type.startsWith("video/");
+
+      // Close the registration modal and switch to the live scanning interface.
+      setRegisterOpen(false);
+      setSelectedScanId(null);
+      setSummary(null);
+      setScanMeta({ title: title.trim(), kind: isVideo ? "video" : "image" });
+      setStageIndex(0);
       setStage(isVideo ? "Extracting video frames…" : "Preparing reference…");
 
       const blobs: Blob[] = isVideo ? await extractFrames(file) : [file];
+      setPreviews((old) => {
+        old.forEach((u) => URL.revokeObjectURL(u));
+        return blobs.map((b) => URL.createObjectURL(b));
+      });
+
       const keys: string[] = [];
       for (let i = 0; i < blobs.length; i++) {
         setStage(`Uploading reference ${i + 1}/${blobs.length}…`);
@@ -140,25 +156,43 @@ function CopyrightIntelPage() {
         keys.push(key);
       }
 
-      setStage("Reverse-image discovery and evidence grading…");
-      return runFn({
-        data: {
-          title: title.trim(),
-          referenceKind: isVideo ? "video" : "image",
-          contentType: isVideo ? "image/jpeg" : (file.type as "image/jpeg"),
-          keys,
-        },
-      });
+      setStageIndex(1);
+      setStage("Analyzing visual content…");
+      // Advance the visible stage while the server call runs.
+      const timers = [
+        setTimeout(() => { setStageIndex(2); setStage("Extracting important details…"); }, 4000),
+        setTimeout(() => { setStageIndex(3); setStage("Comparing online matches…"); }, 12000),
+        setTimeout(() => { setStageIndex(4); setStage("Generating report…"); }, 30000),
+      ];
+
+      try {
+        return await runFn({
+          data: {
+            title: title.trim(),
+            referenceKind: isVideo ? "video" : "image",
+            contentType: isVideo ? "image/jpeg" : (file.type as "image/jpeg"),
+            keys,
+          },
+        });
+      } finally {
+        timers.forEach(clearTimeout);
+      }
     },
     onSuccess: (res) => {
       setStage("");
+      setStageIndex(SCAN_STAGES.length);
+      setSummary({
+        candidates: res.stats.candidates ?? 0,
+        matches: res.stats.matches ?? 0,
+        graded: res.stats.graded ?? 0,
+      });
       setSelectedScanId(res.scanId);
-      setRegisterOpen(false);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       toast.success(`${res.stats.matches} evidence-backed match(es) from ${res.stats.candidates} candidates`);
     },
-    onError: (e: Error) => { setStage(""); toast.error(e.message); },
+    onError: (e: Error) => { setStage(""); setScanMeta(null); toast.error(e.message); },
   });
+
 
   const review = useMutation({
     mutationFn: (v: { matchId: string; reviewStatus: "pending" | "evidence_ready" | "dismissed" }) => updFn({ data: v }),
