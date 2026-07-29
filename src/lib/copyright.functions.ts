@@ -72,34 +72,21 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const sha256 = await sha256Hex(firstBytes);
       const referenceDataUrl = toDataUrl(firstBytes, data.contentType);
 
-      // 1. Reverse-image discovery per frame (Lens when configured, else Firecrawl).
-      const byUrl = new Map<string, LensCandidate>();
-      const useLens = Boolean(process.env.SERPAPI_API_KEY);
-      let lensErrors = 0;
-      let lastError: unknown = null;
-      for (let i = 0; i < data.keys.length; i++) {
-        try {
-          if (useLens) {
-            const signed = await getSignedGetUrl(data.keys[i], 900);
-            const { candidates } = await lensLookup(signed, data.title, i);
-            for (const c of candidates) if (!byUrl.has(c.url)) byUrl.set(c.url, c);
-          } else if (i === 0) {
-            const candidates = await firecrawlDiscover(referenceDataUrl, data.title, i);
-            for (const c of candidates) if (!byUrl.has(c.url)) byUrl.set(c.url, c);
-          }
-        } catch (e) {
-          lensErrors++;
-          lastError = e;
-          if (lensErrors === data.keys.length || !useLens) throw lastError;
-        }
+      // 1. AI-vision analysis of the reference frame (title, OCR, watermark, features).
+      const analysis = await analyzeReference(referenceDataUrl, data.title);
+
+      // 2. Firecrawl reverse discovery, seeded by that analysis.
+      const byUrl = new Map<string, DiscoveryCandidate>();
+      for (const c of await firecrawlDiscover(referenceDataUrl, data.title, 0, analysis)) {
+        if (!byUrl.has(c.url)) byUrl.set(c.url, c);
       }
 
-
-      // Prioritise exact-bucket hits, keep the grading budget bounded.
+      // Prioritise high-signal piracy leads, keep the grading budget bounded.
       const ordered = [...byUrl.values()]
         .filter((c) => c.thumbnail || c.imageUrl)
         .sort((a, b) => Number(b.exact) - Number(a.exact))
         .slice(0, 28);
+
 
       // 2. Evidence grading with a multimodal comparison.
       const rows: MatchInsert[] = [];
