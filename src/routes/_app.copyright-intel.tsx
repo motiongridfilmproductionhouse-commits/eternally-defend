@@ -456,7 +456,11 @@ function CopyrightIntelPage() {
               </article>
             );
           })}
+              </TabsContent>
+            </Tabs>
+          )}
         </section>
+
       </div>
     </div>
   );
