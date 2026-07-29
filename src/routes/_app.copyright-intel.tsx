@@ -153,6 +153,7 @@ function CopyrightIntelPage() {
     onSuccess: (res) => {
       setStage("");
       setSelectedScanId(res.scanId);
+      setRegisterOpen(false);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       toast.success(`${res.stats.matches} evidence-backed match(es) from ${res.stats.candidates} candidates`);
     },
