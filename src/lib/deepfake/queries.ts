@@ -106,6 +106,22 @@ export function buildQueryPlan(input: {
 }
 
 export function isBlockedHost(host: string): boolean {
-  void host;
-  return false;
+  const normalized = host.replace(/^www\./, "").toLowerCase();
+  const blockedDomains = [
+    "youtube.com",
+    "youtu.be",
+    "vimeo.com",
+    "tiktok.com",
+    "instagram.com",
+    "facebook.com",
+    "fb.com",
+    "linkedin.com",
+    "x.com",
+    "twitter.com",
+    "threads.net",
+  ];
+
+  return blockedDomains.some(
+    (domain) => normalized === domain || normalized.endsWith(`.${domain}`),
+  );
 }

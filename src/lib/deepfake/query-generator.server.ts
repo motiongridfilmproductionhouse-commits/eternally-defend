@@ -24,42 +24,18 @@ export function generateDeepfakeQueries(
 
   const riskPhrases = [
     "deepfake",
-    "deep fake",
-    "AI generated",
-    "AI image",
-    "AI video",
+    "AI deepfake",
     "face swap",
-    "faceswap",
-    "synthetic media",
-    "fake video",
-    "fake photo",
-    "morphed image",
-    "morphed video",
-    "edited explicit image",
-    "fake intimate image",
-    "non consensual intimate image",
-    "NCII",
     "fake nude",
     "AI nude",
-    "deepfake nude",
-    "explicit deepfake",
-    "leaked video fake",
-    "viral fake video",
-    "fabricated intimate video",
-    "defamation",
-    "defamatory post",
-    "false allegation",
-    "harassment",
-    "impersonation",
-  ];
-
-  const mediaPhrases = [
-    "image",
-    "photo",
-    "video",
-    "gallery",
-    "watch",
-    "clip",
+    "nudity",
+    "explicit image",
+    "explicit video",
+    "NSFW",
+    "leaked photo",
+    "leaked video",
+    "porn",
+    "synthetic media",
   ];
 
   const queries: string[] = [];
@@ -67,42 +43,17 @@ export function generateDeepfakeQueries(
   for (const identity of identities) {
     const person = quote(identity);
 
-    // Put source-specific and fresh-content queries first so they survive
-    // the bounded query cap used by each scan.
-    queries.push(
-      `${person} site:reddit.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation OR leaked)`,
-      `${person} site:reddit.com ("fake nude" OR "AI nude" OR "face swap" OR deepfake)`,
-      `${person} site:reddit.com (defamation OR harassment OR impersonation OR "false allegation")`,
-      `${person} site:x.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
-      `${person} site:twitter.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
-      `${person} site:youtube.com (deepfake OR fake OR morphed OR defamation OR harassment OR impersonation)`,
-      `${person} (deepfake OR morphed OR impersonation OR defamation OR harassment)`,
-      `${person} latest`,
-    );
-
     for (const phrase of riskPhrases) {
-      queries.push(`${person} "${phrase}"`);
+      queries.push(
+        `${person} "${phrase}" -site:youtube.com -site:youtu.be -site:vimeo.com -site:tiktok.com -site:instagram.com -site:facebook.com -site:linkedin.com -site:x.com -site:twitter.com`,
+      );
     }
 
-    for (const risk of [
-      "deepfake",
-      "face swap",
-      "AI nude",
-      "fake nude",
-      "explicit deepfake",
-    ]) {
-      for (const media of mediaPhrases) {
-        queries.push(`${person} "${risk}" ${media}`);
-      }
-    }
-
-    // Search indexed image/video pages while suppressing ordinary profiles.
+    // High-signal combinations favour pages hosting or advertising the media,
+    // rather than general reporting and social/video platform mentions.
     queries.push(
-      `${person} deepfake -site:instagram.com -site:facebook.com`,
-      `${person} "AI nude" -site:instagram.com -site:facebook.com`,
-      `${person} "fake intimate image" -site:instagram.com -site:facebook.com`,
-      `${person} "morphed video" -site:instagram.com -site:facebook.com`,
-      `${person} "face swap video" -site:instagram.com -site:facebook.com`,
+      `${person} (deepfake OR "face swap" OR "AI nude") (gallery OR images OR video) -site:youtube.com -site:vimeo.com -site:tiktok.com -site:instagram.com -site:facebook.com -site:linkedin.com -site:x.com -site:twitter.com`,
+      `${person} (nude OR porn OR NSFW OR explicit) (deepfake OR AI OR fake OR synthetic) -site:youtube.com -site:vimeo.com -site:tiktok.com -site:instagram.com -site:facebook.com -site:linkedin.com -site:x.com -site:twitter.com`,
     );
   }
 

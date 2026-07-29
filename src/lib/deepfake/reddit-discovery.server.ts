@@ -15,6 +15,9 @@ type RedditPost = {
   permalink?: unknown;
   url_overridden_by_dest?: unknown;
   thumbnail?: unknown;
+  created_utc?: unknown;
+  score?: unknown;
+  num_comments?: unknown;
 };
 
 type RedditSearchResponse = {
@@ -70,26 +73,24 @@ export async function searchRecentRedditMentions(input: {
   endpoint.searchParams.set("limit", String(limit));
   endpoint.searchParams.set("raw_json", "1");
 
-  const response = await fetch(endpoint, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "EternaSentinel/1.0 public-reputation-monitoring",
-    },
-    signal: AbortSignal.timeout(15_000),
-  });
-
-  const rawBody = await response.text();
-  if (!response.ok) {
-    throw new Error(
-      `Reddit public search failed (${response.status}): ${rawBody.slice(0, 300)}`,
-    );
-  }
-
-  let payload: RedditSearchResponse;
+  let payload: RedditSearchResponse = {};
   try {
-    payload = JSON.parse(rawBody) as RedditSearchResponse;
-  } catch {
-    throw new Error("Reddit public search returned invalid JSON");
+    const response = await fetch(endpoint, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "EternaSentinel/1.0 public-reputation-monitoring",
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    const rawBody = await response.text();
+    if (response.ok && response.headers.get("content-type")?.includes("json")) {
+      payload = JSON.parse(rawBody) as RedditSearchResponse;
+    }
+  } catch (error) {
+    console.warn("[REDDIT] Direct public search unavailable", {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   const hits: RedditDiscoveryHit[] = [];
@@ -122,5 +123,8 @@ export async function searchRecentRedditMentions(input: {
     });
   }
 
-  return hits;
+  return hits.sort((a, b) =>
+    Number(b.is_sensitive) - Number(a.is_sensitive) ||
+    b.description.length - a.description.length,
+  );
 }

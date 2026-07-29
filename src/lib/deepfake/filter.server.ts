@@ -57,6 +57,28 @@ const STOCK_MEDIA_HOSTS = [
   "pinterest.com",
 ];
 
+const GENERAL_NEWS_HOSTS = [
+  "bbc.com",
+  "bbc.co.uk",
+  "cnn.com",
+  "reuters.com",
+  "apnews.com",
+  "theguardian.com",
+  "nytimes.com",
+  "washingtonpost.com",
+  "hindustantimes.com",
+  "indiatimes.com",
+  "timesofindia.indiatimes.com",
+  "indianexpress.com",
+  "news18.com",
+  "ndtv.com",
+  "thehindu.com",
+  "firstpost.com",
+  "deccanherald.com",
+  "onmanorama.com",
+  "mathrubhumi.com",
+];
+
 const STRONG_EXPLICIT_PATTERNS: Array<{
   label: string;
   pattern: RegExp;
@@ -400,6 +422,11 @@ export function filterDeepfakeCandidates(
       STOCK_MEDIA_HOSTS,
     );
 
+    const generalNewsHost = hostMatches(
+      host,
+      GENERAL_NEWS_HOSTS,
+    );
+
     const normalNewsSignal =
       NORMAL_NEWS_PATTERNS.some((pattern) =>
         pattern.test(visibleText),
@@ -435,6 +462,13 @@ export function filterDeepfakeCandidates(
       decision = "rejected";
       rejectionReason =
         "Reference or stock-media page without a deepfake or explicit-content signal";
+    }
+
+    /* Deepfake Intelligence is an abuse-source monitor, not a news feed. */
+    else if (generalNewsHost) {
+      decision = "rejected";
+      rejectionReason =
+        "General news coverage is excluded from synthetic-media findings";
     }
 
     /*
@@ -522,9 +556,13 @@ export function filterDeepfakeCandidates(
     }
   }
 
+  const byRelevance = (a: FilteredCandidate, b: FilteredCandidate) =>
+    b.content_match_score - a.content_match_score ||
+    (b.threat_signal_score ?? 0) - (a.threat_signal_score ?? 0);
+
   return {
-    accepted,
-    triage,
+    accepted: accepted.sort(byRelevance),
+    triage: triage.sort(byRelevance),
     rejected,
   };
 }
