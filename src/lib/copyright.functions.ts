@@ -7,6 +7,9 @@ import { getSignedGetUrl, getSignedPutUrl, sha256Hex } from "@/lib/aws/s3.server
 import { lensLookup, hostOf, canonicalUrl, type LensCandidate } from "@/lib/copyright/lens.server";
 import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
+import type { Database } from "@/integrations/supabase/types";
+
+type MatchInsert = Database["public"]["Tables"]["copyright_matches"]["Insert"];
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"] as const;
 
@@ -88,7 +91,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         .slice(0, 28);
 
       // 2. Evidence grading with a multimodal comparison.
-      const rows: Array<Record<string, unknown>> = [];
+      const rows: MatchInsert[] = [];
       let ignored = 0;
       for (let offset = 0; offset < ordered.length; offset += 4) {
         const batch = ordered.slice(offset, offset + 4);
@@ -133,7 +136,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             },
             ocr_text: result.ocrText,
             reason: result.reason,
-            contact: contact as unknown as Record<string, unknown>,
+            contact: contact as unknown as MatchInsert["contact"],
           });
         }
       }
