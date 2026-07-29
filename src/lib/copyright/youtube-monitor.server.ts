@@ -296,3 +296,174 @@ export async function corroborateThumbnail(
 }
 
 export { buildMovieFingerprint };
+
+/* ------------------------------------------------------------------ *
+ * Release Day Review & Reputation Analysis
+ * ------------------------------------------------------------------ */
+
+export type ReviewType =
+  | "same_day_release" | "first_reaction" | "early_access" | "influencer_critic"
+  | "regional_language" | "general_review" | "not_a_review";
+export type ReputationImpact = "high" | "medium" | "low";
+
+export interface KeyStatement {
+  statement: string;
+  kind: "fact_claim" | "opinion" | "misleading" | "exaggerated" | "spoiler";
+  timestamp?: string | null;
+}
+
+export interface ReleaseReviewIntel {
+  isReview: boolean;
+  reviewType: ReviewType;
+  sentiment: Sentiment;
+  sentimentScore: number;
+  keyStatements: KeyStatement[];
+  misleadingSignals: string[];
+  copyrightUsage: CopyrightUsage;
+  copyrightSignals: string[];
+  evidenceTimestamps: string[];
+  summary: string;
+}
+
+/** Fetch a small sample of public top-level comments for reputation context. */
+export async function fetchVideoComments(videoId: string, max = 12): Promise<string[]> {
+  try {
+    const json = await ytFetch("commentThreads", {
+      part: "snippet", videoId, maxResults: String(Math.min(max, 50)),
+      order: "relevance", textFormat: "plainText",
+    });
+    return ((json.items ?? []) as any[])
+      .map((it) => String(it?.snippet?.topLevelComment?.snippet?.textDisplay ?? "").trim())
+      .filter(Boolean)
+      .map((t) => t.slice(0, 300))
+      .slice(0, max);
+  } catch {
+    return [];
+  }
+}
+
+const REVIEW_SYSTEM = `You analyse a public YouTube movie review / reaction video for a rights holder's reputation monitoring desk.
+You receive video metadata, a sample of public comments, the protected work's REFERENCE frame and the video THUMBNAIL.
+
+Report strictly as JSON:
+{
+  "isReview": boolean,               // true if the video reviews, reacts to or discusses the movie
+  "reviewType": string,              // same_day_release | first_reaction | early_access | influencer_critic | regional_language | general_review | not_a_review
+  "sentiment": string,               // positive | neutral | negative
+  "sentimentScore": number,          // -100 .. 100
+  "keyStatements": [                 // max 6 concrete statements made about the movie
+    { "statement": string, "kind": string, "timestamp": string|null }  // kind: fact_claim | opinion | misleading | exaggerated | spoiler
+  ],
+  "misleadingSignals": string[],     // false_factual_claim | misleading_statement | exaggerated_negative | coordinated_campaign | spoiler_exposure
+  "copyrightUsage": string,          // none | poster_or_screenshot | trailer_footage | movie_footage | promotional_material
+  "copyrightSignals": string[],
+  "evidenceTimestamps": string[],    // timestamps mentioned in the description/comments that point to the claims, e.g. "01:24"
+  "summary": string                  // two sentences: what is claimed and why it matters
+}
+Distinguish opinion from statements presented as fact. Only mark misleading signals with concrete textual evidence.`;
+
+export async function analyzeReleaseReview(opts: {
+  video: YtVideo;
+  workTitle: string;
+  referenceDataUrl: string;
+  comments: string[];
+}): Promise<ReleaseReviewIntel | null> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return null;
+  try {
+    const content: any[] = [{
+      type: "text",
+      text:
+        `Protected work: ${opts.workTitle}\n` +
+        `Video title: ${opts.video.title}\n` +
+        `Channel: ${opts.video.channelTitle ?? "unknown"}\n` +
+        `Published: ${opts.video.publishedAt ?? "unknown"}\n` +
+        `Views: ${opts.video.viewCount ?? "unknown"} · Likes: ${opts.video.likeCount ?? "unknown"} · Comments: ${opts.video.commentCount ?? "unknown"}\n` +
+        `Description: ${opts.video.description.slice(0, 1500)}\n\n` +
+        `Public comments sample:\n${opts.comments.map((c) => `- ${c}`).join("\n").slice(0, 2500)}\n\n` +
+        `First image = REFERENCE work. Second image = video THUMBNAIL.`,
+    }, { type: "image_url", image_url: { url: opts.referenceDataUrl } }];
+    if (opts.video.thumbnailUrl) content.push({ type: "image_url", image_url: { url: opts.video.thumbnailUrl } });
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Lovable-API-Key": key,
+        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3.6-flash",
+        messages: [{ role: "system", content: REVIEW_SYSTEM }, { role: "user", content }],
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!res.ok) {
+      console.warn("[yt-release-review] gateway", res.status, (await res.text().catch(() => "")).slice(0, 200));
+      return null;
+    }
+    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const p = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<string, any>;
+    const usage = String(p.copyrightUsage ?? "none") as CopyrightUsage;
+    const sentiment = String(p.sentiment ?? "neutral");
+    const score = Number(p.sentimentScore);
+    const kinds = ["fact_claim", "opinion", "misleading", "exaggerated", "spoiler"];
+    return {
+      isReview: p.isReview !== false,
+      reviewType: String(p.reviewType ?? "general_review").slice(0, 32) as ReviewType,
+      sentiment: (["positive", "neutral", "negative"].includes(sentiment) ? sentiment : "neutral") as Sentiment,
+      sentimentScore: Number.isFinite(score) ? Math.max(-100, Math.min(100, Math.round(score))) : 0,
+      keyStatements: Array.isArray(p.keyStatements)
+        ? p.keyStatements.slice(0, 6).map((s: any) => ({
+            statement: String(s?.statement ?? "").slice(0, 300),
+            kind: (kinds.includes(String(s?.kind)) ? String(s.kind) : "opinion") as KeyStatement["kind"],
+            timestamp: s?.timestamp ? String(s.timestamp).slice(0, 12) : null,
+          })).filter((s: KeyStatement) => s.statement)
+        : [],
+      misleadingSignals: Array.isArray(p.misleadingSignals)
+        ? p.misleadingSignals.map((s: unknown) => String(s).slice(0, 48)).slice(0, 8) : [],
+      copyrightUsage: USAGES.includes(usage) ? usage : "none",
+      copyrightSignals: Array.isArray(p.copyrightSignals)
+        ? p.copyrightSignals.map((s: unknown) => String(s).slice(0, 48)).slice(0, 10) : [],
+      evidenceTimestamps: Array.isArray(p.evidenceTimestamps)
+        ? p.evidenceTimestamps.map((s: unknown) => String(s).slice(0, 12)).slice(0, 10) : [],
+      summary: String(p.summary ?? "").slice(0, 600),
+    };
+  } catch (e) {
+    console.warn("[yt-release-review] failed", (e as Error).message);
+    return null;
+  }
+}
+
+/** Reputation impact = reach x negativity x misleading-information signals. */
+export function scoreReputationImpact(opts: {
+  intel: ReleaseReviewIntel;
+  video: YtVideo;
+  sameDayRelease: boolean;
+}): { score: number; impact: ReputationImpact } {
+  const views = opts.video.viewCount ?? 0;
+  let reach = 0;
+  if (views >= 1_000_000) reach = 40;
+  else if (views >= 250_000) reach = 32;
+  else if (views >= 50_000) reach = 22;
+  else if (views >= 10_000) reach = 12;
+  else reach = 5;
+
+  const negativity = opts.intel.sentiment === "negative"
+    ? Math.min(30, Math.round(Math.abs(opts.intel.sentimentScore) * 0.3))
+    : 0;
+
+  const misleading = Math.min(25, opts.intel.misleadingSignals.length * 9);
+  const claims = Math.min(10, opts.intel.keyStatements.filter(
+    (s) => s.kind === "misleading" || s.kind === "fact_claim" || s.kind === "exaggerated",
+  ).length * 4);
+  const timing = opts.sameDayRelease ? 8 : 0;
+
+  const score = Math.max(0, Math.min(100, reach + negativity + misleading + claims + timing));
+  const highReach = views >= 100_000;
+  const impact: ReputationImpact =
+    highReach && negativity > 0 && (misleading > 0 || score >= 75) ? "high"
+      : negativity > 0 || misleading > 0 ? "medium"
+        : "low";
+  return { score, impact };
+}
