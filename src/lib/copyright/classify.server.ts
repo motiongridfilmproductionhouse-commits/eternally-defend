@@ -73,8 +73,12 @@ export async function gradeCandidate(opts: {
   candidateTitle: string | null;
   platform: string | null;
   workTitle: string;
-  lensExact: boolean;
+  /** discovery layer flagged this as a strong piracy/re-upload lead */
+  highSignal: boolean;
+  referenceOcrText?: string | null;
+  referenceWatermark?: string | null;
 }): Promise<GradedMatch | null> {
+
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return null;
 
@@ -96,7 +100,9 @@ export async function gradeCandidate(opts: {
                   `Candidate page: ${opts.candidatePageUrl}\n` +
                   `Candidate platform: ${opts.platform ?? "unknown"}\n` +
                   `Candidate title: ${opts.candidateTitle ?? "(none)"}\n` +
-                  `Reverse-image engine bucket: ${opts.lensExact ? "exact match" : "visually similar"}\n\n` +
+                  `Discovery signal: ${opts.highSignal ? "strong piracy/re-upload lead" : "general web lead"}\n` +
+                  `Reference OCR text: ${opts.referenceOcrText?.slice(0, 500) || "(none)"}\n` +
+                  `Reference watermark: ${opts.referenceWatermark || "(none)"}\n\n` +
                   `First image = REFERENCE. Second image = CANDIDATE.\n` +
                   `Respond as JSON: { "confidence": number, "detectionType": string, "transformations": string[], "ocrText": string, "watermark": string, "reason": string, "falsePositive": boolean }`,
               },

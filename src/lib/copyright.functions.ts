@@ -3,9 +3,9 @@ import { z } from "zod";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getBucket, getS3 } from "@/lib/aws/clients.server";
-import { getSignedGetUrl, getSignedPutUrl, sha256Hex } from "@/lib/aws/s3.server";
-import { lensLookup, hostOf, canonicalUrl, type LensCandidate } from "@/lib/copyright/lens.server";
-import { firecrawlDiscover } from "@/lib/copyright/discover.server";
+import { getSignedPutUrl, sha256Hex } from "@/lib/aws/s3.server";
+import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
+import { analyzeReference, firecrawlDiscover } from "@/lib/copyright/discover.server";
 
 import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
@@ -72,36 +72,22 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const sha256 = await sha256Hex(firstBytes);
       const referenceDataUrl = toDataUrl(firstBytes, data.contentType);
 
-      // 1. Reverse-image discovery per frame (Lens when configured, else Firecrawl).
-      const byUrl = new Map<string, LensCandidate>();
-      const useLens = Boolean(process.env.SERPAPI_API_KEY);
-      let lensErrors = 0;
-      let lastError: unknown = null;
-      for (let i = 0; i < data.keys.length; i++) {
-        try {
-          if (useLens) {
-            const signed = await getSignedGetUrl(data.keys[i], 900);
-            const { candidates } = await lensLookup(signed, data.title, i);
-            for (const c of candidates) if (!byUrl.has(c.url)) byUrl.set(c.url, c);
-          } else if (i === 0) {
-            const candidates = await firecrawlDiscover(referenceDataUrl, data.title, i);
-            for (const c of candidates) if (!byUrl.has(c.url)) byUrl.set(c.url, c);
-          }
-        } catch (e) {
-          lensErrors++;
-          lastError = e;
-          if (lensErrors === data.keys.length || !useLens) throw lastError;
-        }
+      // 1. AI-vision analysis of the reference frame (title, OCR, watermark, features).
+      const analysis = await analyzeReference(referenceDataUrl, data.title);
+
+      // 2. Firecrawl reverse discovery, seeded by that analysis.
+      const byUrl = new Map<string, DiscoveryCandidate>();
+      for (const c of await firecrawlDiscover(referenceDataUrl, data.title, 0, analysis)) {
+        if (!byUrl.has(c.url)) byUrl.set(c.url, c);
       }
 
-
-      // Prioritise exact-bucket hits, keep the grading budget bounded.
+      // Prioritise high-signal piracy leads, keep the grading budget bounded.
       const ordered = [...byUrl.values()]
         .filter((c) => c.thumbnail || c.imageUrl)
         .sort((a, b) => Number(b.exact) - Number(a.exact))
         .slice(0, 28);
 
-      // 2. Evidence grading with a multimodal comparison.
+      // 3. Evidence grading with a multimodal comparison.
       const rows: MatchInsert[] = [];
       let ignored = 0;
       for (let offset = 0; offset < ordered.length; offset += 4) {
@@ -115,10 +101,13 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             candidateTitle: candidate.title,
             platform: candidate.source,
             workTitle: data.title,
-            lensExact: candidate.exact,
+            highSignal: candidate.exact,
+            referenceOcrText: analysis.ocrText,
+            referenceWatermark: analysis.watermark,
           });
           return { candidate, result };
         }));
+
 
         for (const { candidate, result } of graded) {
           if (!result || result.falsePositive || result.detectionType === "unrelated" || result.confidence < 50) {
@@ -141,7 +130,11 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
               reference_frame_index: candidate.frameIndex,
               reference_frame_path: data.keys[candidate.frameIndex] ?? data.keys[0],
               candidate_image_url: candidate.imageUrl ?? candidate.thumbnail,
-              lens_bucket: candidate.exact ? "exact_match" : "visual_match",
+              discovery: candidate.exact ? "piracy_lead" : "visual_match",
+              discovery_query: candidate.query ?? null,
+              reference_ocr_text: analysis.ocrText,
+              reference_watermark: analysis.watermark,
+              reference_media_type: analysis.mediaType,
               watermark: result.watermark,
               host: hostOf(candidate.url),
             },
