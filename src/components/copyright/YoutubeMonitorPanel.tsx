@@ -60,7 +60,7 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const rows = videos.data ?? [];
+  const rows = (videos.data ?? []).filter((v) => !v.is_release_review);
 
   return (
     <div className="space-y-3">
