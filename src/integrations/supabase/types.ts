@@ -1342,6 +1342,7 @@ export type Database = {
           channel_title: string | null
           channel_url: string | null
           comment_count: number | null
+          comment_samples: Json
           content_category: string | null
           copyright_signals: Json
           copyright_usage: string
@@ -1349,11 +1350,18 @@ export type Database = {
           description: string | null
           duration_seconds: number | null
           evidence: Json
+          evidence_timestamps: Json
           id: string
+          is_release_review: boolean
+          key_statements: Json
           like_count: number | null
           matched_query: string | null
+          misleading_signals: Json
           published_at: string | null
+          reputation_impact: string
+          reputation_impact_score: number
           review_status: string
+          review_type: string | null
           risk_score: number
           same_day_release: boolean
           scan_id: string
@@ -1373,6 +1381,7 @@ export type Database = {
           channel_title?: string | null
           channel_url?: string | null
           comment_count?: number | null
+          comment_samples?: Json
           content_category?: string | null
           copyright_signals?: Json
           copyright_usage?: string
@@ -1380,11 +1389,18 @@ export type Database = {
           description?: string | null
           duration_seconds?: number | null
           evidence?: Json
+          evidence_timestamps?: Json
           id?: string
+          is_release_review?: boolean
+          key_statements?: Json
           like_count?: number | null
           matched_query?: string | null
+          misleading_signals?: Json
           published_at?: string | null
+          reputation_impact?: string
+          reputation_impact_score?: number
           review_status?: string
+          review_type?: string | null
           risk_score?: number
           same_day_release?: boolean
           scan_id: string
@@ -1404,6 +1420,7 @@ export type Database = {
           channel_title?: string | null
           channel_url?: string | null
           comment_count?: number | null
+          comment_samples?: Json
           content_category?: string | null
           copyright_signals?: Json
           copyright_usage?: string
@@ -1411,11 +1428,18 @@ export type Database = {
           description?: string | null
           duration_seconds?: number | null
           evidence?: Json
+          evidence_timestamps?: Json
           id?: string
+          is_release_review?: boolean
+          key_statements?: Json
           like_count?: number | null
           matched_query?: string | null
+          misleading_signals?: Json
           published_at?: string | null
+          reputation_impact?: string
+          reputation_impact_score?: number
           review_status?: string
+          review_type?: string | null
           risk_score?: number
           same_day_release?: boolean
           scan_id?: string

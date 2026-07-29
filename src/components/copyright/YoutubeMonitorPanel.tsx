@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   runYoutubeMonitor, listYoutubeMonitor, updateYoutubeMonitorReview,
 } from "@/lib/copyright/youtube-monitor.functions";
+import { ReleaseDayReviewPanel } from "@/components/copyright/ReleaseDayReviewPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -59,7 +60,7 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const rows = videos.data ?? [];
+  const rows = (videos.data ?? []).filter((v) => !v.is_release_review);
 
   return (
     <div className="space-y-3">
@@ -164,6 +165,10 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
           </article>
         );
       })}
+
+      <div className="pt-2">
+        <ReleaseDayReviewPanel scanId={scanId} />
+      </div>
     </div>
   );
 }
