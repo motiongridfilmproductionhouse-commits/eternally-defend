@@ -214,6 +214,14 @@ const LOCAL_TERMS: Record<string, string[]> = {
 const PIRACY_SITE_FILTER =
   "(site:telegram.me OR site:t.me OR site:archive.org OR site:ok.ru OR site:dailymotion.com OR site:rumble.com OR site:vk.com OR site:pastebin.com OR site:reddit.com OR site:x.com OR site:facebook.com)";
 
+/** File lockers and embed hosts that typically carry unauthorized copies. */
+const FILE_HOST_FILTER =
+  "(site:mega.nz OR site:mediafire.com OR site:gofile.io OR site:pixeldrain.com OR site:doodstream.com OR site:streamtape.com OR site:mixdrop.co OR site:filemoon.sx OR site:1fichier.com)";
+
+/** Known unauthorized streaming / index domains. */
+const STREAM_SITE_FILTER =
+  "(site:movierulz.vc OR site:ibomma.bet OR site:tamilrockers.ws OR site:123movies.ai OR site:fmovies.to OR site:soap2day.day OR site:vegamovies.nl OR site:mp4moviez.ink OR site:9xmovies.gold) full movie";
+
 function localTermsFor(langs: string[]): string[] {
   const out: string[] = [];
   for (const l of langs) {
