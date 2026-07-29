@@ -55,6 +55,14 @@ interface GatewayResponse {
   choices?: Array<{ message?: { content?: string } }>;
 }
 
+function getAiGatewayHeaders(key: string) {
+  return {
+    "Content-Type": "application/json",
+    "Lovable-API-Key": key,
+    "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+  };
+}
+
 function clampScore(v: unknown): number {
   const n = Number(v);
   if (!Number.isFinite(n)) return 0;
@@ -85,9 +93,9 @@ export async function gradeCandidate(opts: {
   try {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: getAiGatewayHeaders(key),
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3.6-flash",
         messages: [
           { role: "system", content: SYSTEM },
           {

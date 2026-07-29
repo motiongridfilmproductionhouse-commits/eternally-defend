@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  prepareCopyrightUpload, runCopyrightScan, listCopyrightScans,
+  uploadCopyrightReference, runCopyrightScan, listCopyrightScans,
   getCopyrightScan, updateCopyrightMatch,
 } from "@/lib/copyright.functions";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,9 @@ async function extractFrames(file: File, count = 4): Promise<Blob[]> {
     });
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 360;
-    canvas.getContext("2d")!.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not prepare video frame extraction.");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.9));
     if (blob) frames.push(blob);
   }
@@ -78,7 +80,7 @@ async function extractFrames(file: File, count = 4): Promise<Blob[]> {
 }
 
 function CopyrightIntelPage() {
-  const prepareFn = useServerFn(prepareCopyrightUpload);
+  const uploadFn = useServerFn(uploadCopyrightReference);
   const runFn = useServerFn(runCopyrightScan);
   const listFn = useServerFn(listCopyrightScans);
   const getFn = useServerFn(getCopyrightScan);
@@ -91,10 +93,23 @@ function CopyrightIntelPage() {
   const [stage, setStage] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const blobToBase64 = async (blob: Blob): Promise<string> => {
+    const buffer = await blob.arrayBuffer();
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(binary);
+  };
+
   const scans = useQuery({ queryKey: ["copyright-scans"], queryFn: () => listFn({}) });
   const detail = useQuery({
     queryKey: ["copyright-scan", selectedScanId],
-    queryFn: () => getFn({ data: { scanId: selectedScanId! } }),
+    queryFn: () => {
+      if (!selectedScanId) throw new Error("No scan selected.");
+      return getFn({ data: { scanId: selectedScanId } });
+    },
     enabled: !!selectedScanId,
   });
 
@@ -109,16 +124,15 @@ function CopyrightIntelPage() {
       const keys: string[] = [];
       for (let i = 0; i < blobs.length; i++) {
         setStage(`Uploading reference ${i + 1}/${blobs.length}…`);
-        const contentType = isVideo ? "image/jpeg" : (file.type as "image/jpeg");
-        const { key, uploadUrl } = await prepareFn({
+        const contentType = isVideo ? "image/jpeg" : (file.type as "image/jpeg" | "image/png" | "image/webp");
+        const base64 = await blobToBase64(blobs[i]);
+        const { key } = await uploadFn({
           data: {
             fileName: isVideo ? `frame-${i}.jpg` : file.name,
             contentType,
-            size: blobs[i].size,
+            base64,
           },
         });
-        const put = await fetch(uploadUrl, { method: "PUT", body: blobs[i], headers: { "Content-Type": contentType } });
-        if (!put.ok) throw new Error("Upload to secure storage failed.");
         keys.push(key);
       }
 
