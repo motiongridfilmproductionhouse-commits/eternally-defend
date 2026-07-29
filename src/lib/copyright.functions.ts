@@ -70,19 +70,28 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const sha256 = await sha256Hex(firstBytes);
       const referenceDataUrl = toDataUrl(firstBytes, data.contentType);
 
-      // 1. Reverse-image discovery per frame.
+      // 1. Reverse-image discovery per frame (Lens when configured, else Firecrawl).
       const byUrl = new Map<string, LensCandidate>();
+      const useLens = Boolean(process.env.SERPAPI_API_KEY);
       let lensErrors = 0;
+      let lastError: unknown = null;
       for (let i = 0; i < data.keys.length; i++) {
         try {
-          const signed = await getSignedGetUrl(data.keys[i], 900);
-          const { candidates } = await lensLookup(signed, data.title, i);
-          for (const c of candidates) if (!byUrl.has(c.url)) byUrl.set(c.url, c);
+          if (useLens) {
+            const signed = await getSignedGetUrl(data.keys[i], 900);
+            const { candidates } = await lensLookup(signed, data.title, i);
+            for (const c of candidates) if (!byUrl.has(c.url)) byUrl.set(c.url, c);
+          } else if (i === 0) {
+            const candidates = await firecrawlDiscover(referenceDataUrl, data.title, i);
+            for (const c of candidates) if (!byUrl.has(c.url)) byUrl.set(c.url, c);
+          }
         } catch (e) {
           lensErrors++;
-          if (lensErrors === data.keys.length) throw e;
+          lastError = e;
+          if (lensErrors === data.keys.length || !useLens) throw lastError;
         }
       }
+
 
       // Prioritise exact-bucket hits, keep the grading budget bounded.
       const ordered = [...byUrl.values()]
