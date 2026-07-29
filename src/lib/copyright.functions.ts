@@ -281,6 +281,10 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const stats = {
         candidates: byUrl.size,
         graded: ordered.length,
+        rekognition: fingerprint.available,
+        recognized_actors: fingerprint.celebrities,
+        scene_labels: fingerprint.labels.slice(0, 12),
+        reference_faces: fingerprint.faceCount,
         matches: allRows.length,
         leads: leads.length,
         queries_language: analysis.language,
