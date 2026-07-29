@@ -1335,6 +1335,110 @@ export type Database = {
         }
         Relationships: []
       }
+      copyright_youtube_videos: {
+        Row: {
+          ai_summary: string | null
+          channel_id: string | null
+          channel_title: string | null
+          channel_url: string | null
+          comment_count: number | null
+          content_category: string | null
+          copyright_signals: Json
+          copyright_usage: string
+          created_at: string
+          description: string | null
+          duration_seconds: number | null
+          evidence: Json
+          id: string
+          like_count: number | null
+          matched_query: string | null
+          published_at: string | null
+          review_status: string
+          risk_score: number
+          same_day_release: boolean
+          scan_id: string
+          sentiment: string
+          sentiment_score: number | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          video_id: string
+          video_url: string
+          view_count: number | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          channel_url?: string | null
+          comment_count?: number | null
+          content_category?: string | null
+          copyright_signals?: Json
+          copyright_usage?: string
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          evidence?: Json
+          id?: string
+          like_count?: number | null
+          matched_query?: string | null
+          published_at?: string | null
+          review_status?: string
+          risk_score?: number
+          same_day_release?: boolean
+          scan_id: string
+          sentiment?: string
+          sentiment_score?: number | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          video_id: string
+          video_url: string
+          view_count?: number | null
+        }
+        Update: {
+          ai_summary?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          channel_url?: string | null
+          comment_count?: number | null
+          content_category?: string | null
+          copyright_signals?: Json
+          copyright_usage?: string
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          evidence?: Json
+          id?: string
+          like_count?: number | null
+          matched_query?: string | null
+          published_at?: string | null
+          review_status?: string
+          risk_score?: number
+          same_day_release?: boolean
+          scan_id?: string
+          sentiment?: string
+          sentiment_score?: number | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+          video_url?: string
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copyright_youtube_videos_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deepfake_discoveries: {
         Row: {
           analysis_status: string
