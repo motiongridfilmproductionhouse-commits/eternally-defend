@@ -9,7 +9,14 @@
  */
 
 import { firecrawlFetch, isFirecrawlConfigured } from "@/lib/firecrawl-client.server";
-import { canonicalUrl, hostOf, type DiscoveryCandidate } from "./url.server";
+import {
+  canonicalUrl,
+  hostOf,
+  isExcludedHost,
+  isSuspiciousType,
+  websiteTypeFor,
+  type DiscoveryCandidate,
+} from "./url.server";
 
 export interface ReferenceAnalysis {
   title: string | null;
