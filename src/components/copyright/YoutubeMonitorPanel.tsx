@@ -165,6 +165,10 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
           </article>
         );
       })}
+
+      <div className="pt-2">
+        <ReleaseDayReviewPanel scanId={scanId} />
+      </div>
     </div>
   );
 }
