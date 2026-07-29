@@ -2072,6 +2072,31 @@ async function runYouTube(
   };
 }
 
+const REDDIT_RISK_TERMS = [
+  "scam",
+  "fraud",
+  "expose",
+  "exposed",
+  "controversy",
+  "allegation",
+  "allegations",
+  "leak",
+  "leaked",
+  "deepfake",
+  "impersonation",
+  "fake account",
+  "harassment",
+  "abuse",
+  "defamation",
+  "explicit",
+  "nsfw",
+  "nude",
+  "porn",
+];
+
+const REDDIT_RISK_PATTERN =
+  /\b(?:scam|fraud|expos(?:e|ed|ing)|controvers(?:y|ial)|allegation|alleged|defam\w*|leak(?:ed|s)?|deep\s?fake|deepfake|impersonat\w*|fake\s+(?:account|profile|video|photos?)|harass\w*|abus(?:e|ive)|explicit|nsfw|nude|naked|porn|xxx|sex\s+tape|morphed|face\s?swap|complaint|cheat\w*|troll\w*|hate)\b/i;
+
 async function runReddit(
   query: string,
   aliases: string[],
@@ -2094,9 +2119,29 @@ async function runReddit(
   else if (monthWindow.filter === "30d") t = "month";
   else if (monthWindow.filter === "12m") t = "year";
 
-  try {
-    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(searchTerms)}&sort=relevance&t=${t}&limit=100&raw_json=1`;
-    const res = await fetchWithTimeout(url, {
+  const riskGroup = `(${REDDIT_RISK_TERMS.map((term) =>
+    term.includes(" ") ? `"${term}"` : term,
+  ).join(" OR ")})`;
+
+  /* Direct public Reddit search: posts (relevance + newest) and comments. */
+  const redditRequests: Array<{ q: string; sort: string; type?: string; t: string }> = [
+    { q: searchTerms, sort: "relevance", t },
+    { q: searchTerms, sort: "new", t: "all" },
+    { q: `(${searchTerms}) AND ${riskGroup}`, sort: "relevance", t: "all" },
+    { q: `(${searchTerms}) AND ${riskGroup}`, sort: "new", t: "all" },
+    { q: `(${searchTerms}) AND ${riskGroup}`, sort: "relevance", t: "all", type: "comment" },
+  ];
+
+  const fetchReddit = async (req: (typeof redditRequests)[number]) => {
+    const url = new URL("https://www.reddit.com/search.json");
+    url.searchParams.set("q", req.q);
+    url.searchParams.set("sort", req.sort);
+    url.searchParams.set("t", req.t);
+    url.searchParams.set("limit", "100");
+    url.searchParams.set("raw_json", "1");
+    if (req.type) url.searchParams.set("type", req.type);
+
+    const res = await fetchWithTimeout(url.toString(), {
       headers: {
         Accept: "application/json",
         "User-Agent": "EternaSentinel/1.0 public-reputation-monitoring",
@@ -2108,20 +2153,25 @@ async function runReddit(
     }
 
     const data = await res.json();
+    const out: RawHit[] = [];
     for (const child of data?.data?.children ?? []) {
       const item = child?.data;
       if (!item?.permalink || item.removed_by_category) continue;
       const published = item.created_utc
         ? new Date(item.created_utc * 1000).toISOString()
         : undefined;
-      const snippet = String(item.selftext || item.title || "").slice(0, 800);
+      const isComment = child?.kind === "t1" || Boolean(item.body);
+      const title = String(
+        item.title || item.link_title || (isComment ? "Reddit comment" : "Reddit discussion"),
+      );
+      const snippet = String(item.body || item.selftext || item.title || "").slice(0, 800);
       const thumb = typeof item.thumbnail === "string" && item.thumbnail.startsWith("http")
         ? item.thumbnail
         : undefined;
 
-      raw.push({
+      out.push({
         url: new URL(item.permalink, "https://www.reddit.com").toString(),
-        title: String(item.title || "Reddit discussion"),
+        title,
         description: snippet,
         snippet,
         author: String(item.author || "anonymous"),
@@ -2130,16 +2180,23 @@ async function runReddit(
         media: thumb ? { thumbnail: thumb, thumbnailHi: thumb } : undefined,
       });
     }
-  } catch (error) {
-    errors.push(error instanceof Error ? error.message : String(error));
+    return out;
+  };
+
+  const directSettled = await Promise.allSettled(redditRequests.map(fetchReddit));
+  for (const result of directSettled) {
+    if (result.status === "fulfilled") raw.push(...result.value);
+    else errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
   }
 
   /* Reddit blocks unauthenticated JSON from many cloud IPs. Fall back to the
      indexed public web instead of coupling Reddit coverage to YouTube state. */
-  if (raw.length < 5) {
+  if (raw.length < 10) {
     const redditQueries = [
       `site:reddit.com ${searchTerms}`,
-      `site:reddit.com ${searchTerms} (controversy OR allegation OR defamation OR harassment OR impersonation OR scam OR leaked OR fake)`,
+      `site:reddit.com ${searchTerms} (scam OR fraud OR expose OR controversy OR allegations OR leaked OR deepfake OR impersonation)`,
+      `site:reddit.com ${searchTerms} (harassment OR abuse OR defamation OR explicit OR nsfw OR nude OR porn)`,
+      `site:reddit.com ${searchTerms} comments`,
     ];
     const settled = await Promise.allSettled(
       redditQueries.map((redditQuery) => fcSearch(redditQuery, 10)),
@@ -2153,20 +2210,52 @@ async function runReddit(
   const normalize = (value: string) => value
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-  const identities = nameForms.map(normalize);
-  const riskPattern = /\b(?:controversy|allegation|defam|harass|impersonat|scam|fraud|fake|deepfake|leak|abuse|complaint)\b/i;
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+  const identities = nameForms.map((name) => {
+    const normalized = normalize(name);
+    return {
+      full: normalized,
+      tokens: normalized.split(" ").filter((token) => token.length >= 4),
+    };
+  });
+
+  /*
+   * Relevance keeps every discussion that plausibly concerns the monitored
+   * identity — full-name matches rank highest, but partial/token matches and
+   * risk-topic threads are retained too instead of being dropped.
+   */
   const relevance = (hit: RawHit) => {
     const title = normalize(hit.title ?? "");
     const description = normalize(hit.description ?? hit.snippet ?? "");
-    return Math.max(...identities.map((identity) =>
-      (title.includes(identity) ? 100 : 0) +
-      (description.includes(identity) ? 45 : 0),
-    )) + (riskPattern.test(`${hit.title ?? ""} ${hit.description ?? ""}`) ? 30 : 0);
+    const urlText = normalize(hit.url ?? "");
+    const haystack = `${title} ${description} ${urlText}`;
+
+    let score = 0;
+    for (const identity of identities) {
+      if (!identity.full) continue;
+      if (title.includes(identity.full)) score = Math.max(score, 100);
+      else if (description.includes(identity.full) || urlText.includes(identity.full)) {
+        score = Math.max(score, 75);
+      } else if (identity.tokens.length) {
+        const matched = identity.tokens.filter((token) => haystack.includes(token));
+        if (matched.length === identity.tokens.length) score = Math.max(score, 70);
+        else if (matched.length) score = Math.max(score, 45);
+      }
+    }
+
+    if (REDDIT_RISK_PATTERN.test(`${hit.title ?? ""} ${hit.description ?? ""} ${hit.snippet ?? ""}`)) {
+      score += 30;
+    }
+
+    return score;
   };
+
   const unique = new Map<string, RawHit>();
   for (const hit of raw.sort((a, b) => relevance(b) - relevance(a))) {
-    if (!hit.url || relevance(hit) < 45) continue;
+    if (!hit.url || relevance(hit) < 40) continue;
     try {
       const parsed = new URL(hit.url);
       parsed.hash = "";
@@ -2180,11 +2269,12 @@ async function runReddit(
     }
   }
 
-  const results = Array.from(unique.values()).slice(0, 50);
+  const results = Array.from(unique.values()).slice(0, 80);
   return results.length
     ? { raw: results }
     : { raw: [], error: errors.join("; ") || "No indexed Reddit discussions found" };
 }
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    SECOND-STAGE KEYWORD EXTRACTION
