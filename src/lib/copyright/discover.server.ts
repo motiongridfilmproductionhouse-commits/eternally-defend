@@ -2,9 +2,10 @@
  * Reference analysis + reverse-discovery for the Copyright Intelligence engine.
  *
  * No SerpApi / Google Lens. The reference frame is analysed with AI vision
- * (title, OCR text, watermarks, visual descriptors), and those signals drive
- * Firecrawl web + image search to surface possible re-uploads, screenshots,
- * trailer copies, clips and piracy sources.
+ * (title, alternative titles, language, cast, studio, release date, OCR text,
+ * watermarks, visual descriptors), and those signals drive a multilingual
+ * Firecrawl web + image search that hunts streaming sites, file lockers,
+ * piracy indexes, forums, social platforms and video hosts.
  */
 
 import { firecrawlFetch, isFirecrawlConfigured } from "@/lib/firecrawl-client.server";
@@ -12,6 +13,18 @@ import { canonicalUrl, hostOf, type DiscoveryCandidate } from "./url.server";
 
 export interface ReferenceAnalysis {
   title: string | null;
+  /** alternate / translated / transliterated titles */
+  altTitles: string[];
+  /** original language of the work, e.g. Malayalam */
+  language: string | null;
+  /** additional audience languages likely to carry pirated copies */
+  audienceLanguages: string[];
+  /** country / region of origin */
+  region: string | null;
+  actors: string[];
+  productionCompany: string | null;
+  /** ISO-ish release date string when visible, else null */
+  releaseDate: string | null;
   /** short search phrases describing the exact frame */
   descriptors: string[];
   /** visible on-screen / printed text */
@@ -36,14 +49,22 @@ function getAiGatewayHeaders(key: string) {
 }
 
 const ANALYSIS_SYSTEM = `You analyse a rights-holder's reference frame (poster, artwork, still or video frame).
+Identify the work as precisely as you can, using visible text, logos, cast faces and design language.
 Return JSON:
 {
-  "title": string,            // the film/show/artwork it belongs to, "" if unsure
-  "descriptors": string[],    // 4-8 short search phrases describing this exact frame
-  "ocrText": string,          // ALL visible text, verbatim ("" if none)
-  "watermark": string,        // any burned-in watermark / studio / site brand ("" if none)
-  "visualFeatures": string[], // 3-6 notes: palette, composition, subjects, framing
-  "mediaType": string         // poster | artwork | still | screenshot | trailer_frame | unknown
+  "title": string,              // the film/show/artwork it belongs to, "" if unsure
+  "altTitles": string[],        // 0-6 alternate, translated or transliterated titles (native script welcome)
+  "language": string,           // primary/original language, "" if unsure
+  "audienceLanguages": string[],// 0-5 other languages dubbed/subbed audiences would search in
+  "region": string,             // country or region of origin, "" if unsure
+  "actors": string[],           // 0-6 recognisable actor names
+  "productionCompany": string,  // studio / production house / distributor, "" if unsure
+  "releaseDate": string,        // release date if visible or known, "" otherwise
+  "descriptors": string[],      // 4-8 short search phrases describing this exact frame
+  "ocrText": string,            // ALL visible text, verbatim ("" if none)
+  "watermark": string,          // any burned-in watermark / studio / site brand ("" if none)
+  "visualFeatures": string[],   // 3-6 notes: palette, composition, subjects, framing
+  "mediaType": string           // poster | artwork | still | screenshot | trailer_frame | unknown
 }
 Respond with JSON only.`;
 
@@ -55,6 +76,13 @@ export async function analyzeReference(
   const key = process.env.LOVABLE_API_KEY;
   const fallback: ReferenceAnalysis = {
     title: workTitle,
+    altTitles: [],
+    language: null,
+    audienceLanguages: [],
+    region: null,
+    actors: [],
+    productionCompany: null,
+    releaseDate: null,
     descriptors: [],
     ocrText: null,
     watermark: null,
@@ -87,13 +115,21 @@ export async function analyzeReference(
     const parsed = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
     const list = (v: unknown, n: number) =>
       Array.isArray(v) ? v.map((d) => String(d).slice(0, 80)).filter(Boolean).slice(0, n) : [];
+    const str = (v: unknown, n: number) => (v ? String(v).slice(0, n) : null);
     return {
-      title: parsed.title ? String(parsed.title).slice(0, 120) : workTitle,
+      title: str(parsed.title, 120) ?? workTitle,
+      altTitles: list(parsed.altTitles, 6),
+      language: str(parsed.language, 40),
+      audienceLanguages: list(parsed.audienceLanguages, 5),
+      region: str(parsed.region, 60),
+      actors: list(parsed.actors, 6),
+      productionCompany: str(parsed.productionCompany, 80),
+      releaseDate: str(parsed.releaseDate, 40),
       descriptors: list(parsed.descriptors, 8),
-      ocrText: parsed.ocrText ? String(parsed.ocrText).slice(0, 1500) : null,
-      watermark: parsed.watermark ? String(parsed.watermark).slice(0, 200) : null,
+      ocrText: str(parsed.ocrText, 1500),
+      watermark: str(parsed.watermark, 200),
       visualFeatures: list(parsed.visualFeatures, 6),
-      mediaType: parsed.mediaType ? String(parsed.mediaType).slice(0, 40) : null,
+      mediaType: str(parsed.mediaType, 40),
     };
   } catch {
     return fallback;
@@ -110,12 +146,13 @@ interface FcImage {
 interface FcWeb { url?: string; title?: string; description?: string }
 interface FcResponse { data?: { web?: FcWeb[]; images?: FcImage[] }; error?: string }
 
-async function search(query: string): Promise<{ query: string; payload: FcResponse | null }> {
+async function search(query: string, recent: boolean): Promise<{ query: string; payload: FcResponse | null }> {
   try {
     const res = await firecrawlFetch("/search", {
       query,
       limit: 10,
       sources: ["web", "images"],
+      ...(recent ? { tbs: "qdr:m" } : {}),
     });
     if (!res.ok) return { query, payload: null };
     return { query, payload: (await res.json()) as FcResponse };
@@ -147,27 +184,137 @@ async function screenshot(url: string): Promise<string | null> {
   }
 }
 
-const PIRACY_HINTS = /(download|watch|free|full[- ]?movie|hdrip|camrip|webrip|torrent|telegram|leak|1080p|720p|dual[- ]?audio|filmy|movierulz|tamilrockers)/i;
+const PIRACY_HINTS =
+  /(download|watch\s*online|watch\s*free|free\s*stream|streaming|full[- ]?movie|full[- ]?video|hdrip|dvdrip|predvd|hq|hdts|hdcam|camrip|cam[- ]?print|theatre[- ]?print|theater[- ]?print|webrip|web[- ]?dl|torrent|magnet|telegram|leak|leaked|1080p|720p|480p|dual[- ]?audio|filmy|movierulz|tamilrockers|ibomma|123movies|fmovies|mkv|isaimini|kuttymovies|tamilyogi|9xmovies|katmovie|vegamovies|mp4moviez|uwatchfree|primewire|soap2day)/i;
 
-function buildQueries(a: ReferenceAnalysis, workTitle: string): string[] {
+/** Piracy-term dictionaries per language, used to build native-script queries. */
+const LOCAL_TERMS: Record<string, string[]> = {
+  malayalam: ["മുഴുവൻ സിനിമ", "ഓൺലൈൻ", "ഡൗൺലോഡ്", "ചോർന്നു"],
+  tamil: ["முழு படம்", "ஆன்லைன்", "பதிவிறக்கம்", "கசிந்தது"],
+  telugu: ["పూర్తి సినిమా", "ఆన్‌లైన్", "డౌన్‌లోడ్", "లీక్"],
+  kannada: ["ಪೂರ್ಣ ಚಲನಚಿತ್ರ", "ಆನ್‌ಲೈನ್", "ಡೌನ್‌ಲೋಡ್"],
+  hindi: ["फुल मूवी", "ऑनलाइन देखें", "डाउनलोड", "लीक"],
+  bengali: ["সম্পূর্ণ সিনেমা", "অনলাইন", "ডাউনলোড"],
+  arabic: ["فيلم كامل", "مشاهدة اون لاين", "تحميل", "مسرب"],
+  spanish: ["pelicula completa", "ver online gratis", "descargar"],
+  french: ["film complet", "voir en streaming", "telecharger"],
+  portuguese: ["filme completo", "assistir online", "download"],
+  russian: ["смотреть онлайн", "скачать", "полный фильм"],
+  indonesian: ["film lengkap", "nonton online", "unduh"],
+  english: ["full movie", "watch online free", "download"],
+};
+
+const PIRACY_SITE_FILTER =
+  "(site:telegram.me OR site:t.me OR site:archive.org OR site:ok.ru OR site:dailymotion.com OR site:rumble.com OR site:vk.com OR site:pastebin.com OR site:reddit.com OR site:x.com OR site:facebook.com)";
+
+function localTermsFor(langs: string[]): string[] {
+  const out: string[] = [];
+  for (const l of langs) {
+    const terms = LOCAL_TERMS[l.trim().toLowerCase()];
+    if (terms) out.push(...terms);
+  }
+  return [...new Set(out)];
+}
+
+function daysSince(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const t = Date.parse(dateStr);
+  if (!Number.isFinite(t)) return null;
+  return Math.floor((Date.now() - t) / 86_400_000);
+}
+
+interface QueryPlan {
+  query: string;
+  /** restrict to recent results */
+  recent: boolean;
+}
+
+function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
   const base = (a.title || workTitle).trim();
+  const names = [...new Set([base, ...a.altTitles].filter(Boolean))].slice(0, 4);
   const ocrPhrase = (a.ocrText ?? "")
     .split(/\n+/)
     .map((l) => l.trim())
     .filter((l) => l.length > 6 && l.length < 60)[0];
 
-  const queries = [
-    `"${base}" poster hd image download`,
-    `"${base}" full movie watch online free download`,
-    `${base} hdrip webrip 1080p download`,
-    `${base} movie screenshot still frame`,
-    `${base} trailer clip mp4 download`,
-    ...a.descriptors.slice(0, 3).map((d) => `${base} ${d}`),
-    ...a.visualFeatures.slice(0, 2).map((f) => `${base} ${f}`),
+  const age = daysSince(a.releaseDate);
+  const isFresh = age !== null && age <= 30;
+
+  const general = [
+    "online", "watch online", "streaming online", "free streaming",
+    "full movie", "full video", "download", "leaked", "HD print",
+    "cam print", "CAM", "torrent", "telegram", "movie file download",
   ];
-  if (ocrPhrase) queries.push(`"${ocrPhrase}" ${base}`);
-  if (a.watermark) queries.push(`${base} ${a.watermark}`);
-  return [...new Set(queries.filter(Boolean))].slice(0, 12);
+  const fresh = [
+    "released today", "online today", "full movie leaked",
+    "theatre print", "cinema recording", "first day collection leak",
+    "hdcam 720p download", "day 1 print",
+  ];
+
+  const plans: QueryPlan[] = [];
+  const push = (query: string, recent = false) => plans.push({ query, recent });
+
+  // 1. Core piracy phrasing on the primary title.
+  for (const term of general) push(`"${base}" ${term}`, isFresh);
+
+  // 2. Fresh-release urgency terms.
+  if (isFresh || !a.releaseDate) for (const term of fresh) push(`"${base}" ${term}`, true);
+
+  // 3. Alternate / translated titles.
+  for (const n of names.slice(1)) {
+    push(`"${n}" full movie download`, isFresh);
+    push(`"${n}" watch online free`, isFresh);
+  }
+
+  // 4. Language-native piracy terms.
+  const langs = [a.language, ...a.audienceLanguages].filter(Boolean) as string[];
+  for (const term of localTermsFor(langs).slice(0, 10)) push(`${base} ${term}`, isFresh);
+  if (a.language) push(`${base} ${a.language} full movie download`, isFresh);
+  if (a.region) push(`${base} ${a.region} movie download hd`, isFresh);
+
+  // 5. Cast / studio correlation.
+  for (const actor of a.actors.slice(0, 2)) push(`${actor} "${base}" movie download`, isFresh);
+  if (a.productionCompany) push(`${a.productionCompany} "${base}" leaked print`);
+
+  // 6. Platform-scoped piracy hosts, forums and social.
+  push(`${base} full movie ${PIRACY_SITE_FILTER}`, isFresh);
+  push(`${base} download link forum thread`, isFresh);
+
+  // 7. Visual / artwork reuse.
+  push(`"${base}" poster hd image download`);
+  push(`${base} movie screenshot still frame`);
+  push(`${base} trailer clip mp4 download`);
+  for (const d of a.descriptors.slice(0, 3)) push(`${base} ${d}`);
+  for (const f of a.visualFeatures.slice(0, 2)) push(`${base} ${f}`);
+  if (ocrPhrase) push(`"${ocrPhrase}" ${base}`);
+  if (a.watermark) push(`${base} ${a.watermark}`);
+
+  const seen = new Set<string>();
+  return plans
+    .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
+    .slice(0, 34);
+}
+
+/** Coarse piracy taxonomy used for evidence labelling. */
+export function piracyCategory(text: string): string {
+  const t = text.toLowerCase();
+  if (/(hdcam|camrip|cam[- ]?print|theatre[- ]?print|theater|cinema recording|hdts)/.test(t)) return "cam_theatre_leak";
+  if (/(torrent|magnet|1337x|yts|rarbg)/.test(t)) return "torrent";
+  if (/(t\.me|telegram)/.test(t)) return "telegram_channel";
+  if (/(hdrip|webrip|web[- ]?dl|dvdrip|480p|720p|1080p|mkv|mp4)/.test(t)) return "ripped_copy";
+  if (/(watch online|streaming|free stream|full movie|full video)/.test(t)) return "streaming_site";
+  if (/(download|file|drive\.google|mega\.nz|mediafire)/.test(t)) return "file_sharing";
+  if (/(forum|thread|community|reddit)/.test(t)) return "forum_post";
+  if (/(poster|artwork|wallpaper|still|screenshot)/.test(t)) return "artwork_reupload";
+  return "web_lead";
+}
+
+/** Language guess for a candidate, based on the analysis + candidate text. */
+function detectLanguage(text: string, a: ReferenceAnalysis): string | null {
+  for (const [lang, terms] of Object.entries(LOCAL_TERMS)) {
+    if (terms.some((t) => text.includes(t))) return lang;
+  }
+  return a.language ?? null;
 }
 
 /**
@@ -187,13 +334,14 @@ export async function firecrawlDiscover(
   }
 
   const a = analysis ?? (await analyzeReference(referenceDataUrl, workTitle));
-  const queries = buildQueries(a, workTitle);
+  const plans = buildQueries(a, workTitle);
 
   const seen = new Set<string>();
   const out: DiscoveryCandidate[] = [];
-  const webLeads: Array<{ url: string; title: string | null; query: string }> = [];
+  const strongLeads: Array<{ url: string; title: string | null; query: string; text: string }> = [];
+  const weakLeads: Array<{ url: string; title: string | null; query: string; text: string }> = [];
 
-  const results = await Promise.all(queries.map(search));
+  const results = await Promise.all(plans.map((p) => search(p.query, p.recent)));
 
   for (const { query, payload } of results) {
     for (const img of payload?.data?.images ?? []) {
@@ -203,15 +351,19 @@ export async function firecrawlDiscover(
       const key = canonicalUrl(page);
       if (seen.has(key)) continue;
       seen.add(key);
+      const text = `${img.title ?? ""} ${key}`;
       out.push({
         url: key,
         title: img.title ?? null,
         source: hostOf(key),
         thumbnail: img.thumbnailUrl ?? image,
         imageUrl: image,
-        exact: PIRACY_HINTS.test(`${img.title ?? ""} ${key}`),
+        exact: PIRACY_HINTS.test(text),
         frameIndex,
         query,
+        category: piracyCategory(`${text} ${query}`),
+        language: detectLanguage(text, a),
+        keywordMatch: query,
       });
     }
 
@@ -220,30 +372,42 @@ export async function firecrawlDiscover(
       const key = canonicalUrl(web.url);
       if (seen.has(key)) continue;
       const text = `${web.title ?? ""} ${web.description ?? ""} ${key}`;
-      if (!PIRACY_HINTS.test(text)) continue;
       seen.add(key);
-      webLeads.push({ url: key, title: web.title ?? null, query });
+      const lead = { url: key, title: web.title ?? null, query, text };
+      if (PIRACY_HINTS.test(text)) strongLeads.push(lead);
+      else weakLeads.push(lead);
     }
   }
 
-  // Capture screenshots for the strongest page-only piracy leads so the
-  // grader always has visual evidence to compare against.
+  // Capture screenshots for page-only leads so the grader always has visual
+  // evidence. Strong piracy leads first; weak leads only top the list up when
+  // discovery would otherwise return almost nothing.
+  const needed = Math.max(0, 14 - out.length);
+  const toShoot = [
+    ...strongLeads.slice(0, 10),
+    ...(out.length + strongLeads.length < 14 ? weakLeads.slice(0, needed) : []),
+  ];
+
   const shots = await Promise.all(
-    webLeads.slice(0, 6).map(async (lead) => ({ lead, shot: await screenshot(lead.url) })),
+    toShoot.map(async (lead) => ({ lead, shot: await screenshot(lead.url) })),
   );
   for (const { lead, shot } of shots) {
     if (!shot) continue;
+    const strong = PIRACY_HINTS.test(lead.text);
     out.push({
       url: lead.url,
       title: lead.title,
       source: hostOf(lead.url),
       thumbnail: shot,
       imageUrl: shot,
-      exact: true,
+      exact: strong,
       frameIndex,
       query: lead.query,
+      category: piracyCategory(`${lead.text} ${lead.query}`),
+      language: detectLanguage(lead.text, a),
+      keywordMatch: lead.query,
     });
   }
 
-  return out.slice(0, 40);
+  return out.slice(0, 60);
 }

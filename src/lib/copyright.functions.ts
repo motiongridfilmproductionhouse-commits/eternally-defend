@@ -96,11 +96,60 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const ordered = [...byUrl.values()]
         .filter((c) => c.thumbnail || c.imageUrl)
         .sort((a, b) => Number(b.exact) - Number(a.exact))
-        .slice(0, 28);
+        .slice(0, 40);
 
       // 3. Evidence grading with a multimodal comparison.
       const rows: MatchInsert[] = [];
+      const fallbackRows: MatchInsert[] = [];
       let ignored = 0;
+
+      const buildRow = (
+        candidate: DiscoveryCandidate,
+        confidence: number,
+        detectionType: string,
+        transformations: string[],
+        ocrText: string | null,
+        watermark: string | null,
+        reason: string,
+      ): MatchInsert => {
+        const contact = resolveAbuseContact(candidate.url);
+        return {
+          scan_id: scan.id,
+          user_id: userId,
+          source_url: canonicalUrl(candidate.url),
+          platform: contact.platform,
+          page_title: candidate.title,
+          thumbnail_url: candidate.thumbnail ?? candidate.imageUrl,
+          confidence,
+          confidence_band: bandFor(confidence),
+          detection_type: detectionType,
+          transformations,
+          evidence: {
+            reference_frame_index: candidate.frameIndex,
+            reference_frame_path: data.keys[candidate.frameIndex] ?? data.keys[0],
+            candidate_image_url: candidate.imageUrl ?? candidate.thumbnail,
+            discovery: candidate.exact ? "piracy_lead" : "visual_match",
+            discovery_query: candidate.query ?? null,
+            keyword_match: candidate.keywordMatch ?? candidate.query ?? null,
+            piracy_category: candidate.category ?? null,
+            detected_language: candidate.language ?? analysis.language ?? null,
+            reference_ocr_text: analysis.ocrText,
+            reference_watermark: analysis.watermark,
+            reference_media_type: analysis.mediaType,
+            reference_language: analysis.language,
+            reference_alt_titles: analysis.altTitles,
+            reference_release_date: analysis.releaseDate,
+            reference_actors: analysis.actors,
+            reference_region: analysis.region,
+            watermark,
+            host: hostOf(candidate.url),
+          },
+          ocr_text: ocrText,
+          reason,
+          contact: contact as unknown as MatchInsert["contact"],
+        };
+      };
+
       for (let offset = 0; offset < ordered.length; offset += 4) {
         const batch = ordered.slice(offset, offset + 4);
         const graded = await Promise.all(batch.map(async (candidate) => {
@@ -121,56 +170,64 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
 
         for (const { candidate, result } of graded) {
-          if (!result || result.falsePositive || result.detectionType === "unrelated" || result.confidence < 50) {
-            ignored++;
+          const isMatch =
+            result && !result.falsePositive && result.detectionType !== "unrelated" && result.confidence >= 50;
+
+          if (isMatch) {
+            rows.push(buildRow(
+              candidate,
+              result.confidence,
+              result.detectionType,
+              result.transformations,
+              result.ocrText,
+              result.watermark,
+              result.reason,
+            ));
             continue;
           }
-          const contact = resolveAbuseContact(candidate.url);
-          rows.push({
-            scan_id: scan.id,
-            user_id: userId,
-            source_url: canonicalUrl(candidate.url),
-            platform: contact.platform,
-            page_title: candidate.title,
-            thumbnail_url: candidate.thumbnail ?? candidate.imageUrl,
-            confidence: result.confidence,
-            confidence_band: bandFor(result.confidence),
-            detection_type: result.detectionType,
-            transformations: result.transformations,
-            evidence: {
-              reference_frame_index: candidate.frameIndex,
-              reference_frame_path: data.keys[candidate.frameIndex] ?? data.keys[0],
-              candidate_image_url: candidate.imageUrl ?? candidate.thumbnail,
-              discovery: candidate.exact ? "piracy_lead" : "visual_match",
-              discovery_query: candidate.query ?? null,
-              reference_ocr_text: analysis.ocrText,
-              reference_watermark: analysis.watermark,
-              reference_media_type: analysis.mediaType,
-              watermark: result.watermark,
-              host: hostOf(candidate.url),
-            },
-            ocr_text: result.ocrText,
-            reason: result.reason,
-            contact: contact as unknown as MatchInsert["contact"],
-          });
+
+          ignored++;
+          // Keep strong discovery signals as reviewable leads so a scan with
+          // real piracy signals never reports an empty result set.
+          if (candidate.exact && !(result?.falsePositive && result.confidence < 20)) {
+            fallbackRows.push(buildRow(
+              candidate,
+              Math.max(35, Math.min(49, result?.confidence ?? 35)),
+              result?.detectionType && result.detectionType !== "unrelated"
+                ? result.detectionType
+                : "ripped_copy",
+              result?.transformations ?? [],
+              result?.ocrText ?? null,
+              result?.watermark ?? null,
+              result?.reason ||
+                `Piracy-signal lead (${candidate.category ?? "web_lead"}) surfaced by "${candidate.keywordMatch ?? candidate.query ?? data.title}" — requires human review.`,
+            ));
+          }
         }
       }
 
-      if (rows.length) {
-        const { error: mErr } = await supabase.from("copyright_matches").upsert(rows, { onConflict: "scan_id,source_url" });
+      const leads = rows.length ? [] : fallbackRows.slice(0, 12);
+      const allRows = [...rows, ...leads];
+
+      if (allRows.length) {
+        const { error: mErr } = await supabase.from("copyright_matches").upsert(allRows, { onConflict: "scan_id,source_url" });
         if (mErr) throw new Error(mErr.message);
       }
+
 
       const stats = {
         candidates: byUrl.size,
         graded: ordered.length,
-        matches: rows.length,
+        matches: allRows.length,
+        leads: leads.length,
+        queries_language: analysis.language,
+        release_date: analysis.releaseDate,
         ignored,
         frames: data.keys.length,
         sha256,
-        confirmed: rows.filter((r) => r.confidence_band === "confirmed").length,
-        probable: rows.filter((r) => r.confidence_band === "probable").length,
-        review: rows.filter((r) => r.confidence_band === "review").length,
+        confirmed: allRows.filter((r) => r.confidence_band === "confirmed").length,
+        probable: allRows.filter((r) => r.confidence_band === "probable").length,
+        review: allRows.filter((r) => r.confidence_band === "review").length,
       };
       await supabase.from("copyright_scans").update({ status: "completed", sha256, stats }).eq("id", scan.id);
       return { scanId: scan.id as string, stats };
