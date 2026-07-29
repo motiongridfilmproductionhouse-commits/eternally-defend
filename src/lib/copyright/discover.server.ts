@@ -248,47 +248,59 @@ function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
   const isFresh = age !== null && age <= 30;
 
   const general = [
-    "online", "watch online", "streaming online", "free streaming",
-    "full movie", "full video", "download", "leaked", "HD print",
+    "online", "watch online", "stream online", "streaming online", "free streaming",
+    "online free", "full movie", "full video", "full movie online free",
+    "download", "movie download", "movie download hd", "leaked", "HD print",
     "cam print", "CAM", "torrent", "telegram", "movie file download",
+    "watch online free hd", "embedded player watch", "mp4 download link",
+    "google drive link", "mega.nz link", "index of movie",
   ];
   const fresh = [
     "released today", "online today", "full movie leaked",
     "theatre print", "cinema recording", "first day collection leak",
     "hdcam 720p download", "day 1 print",
   ];
+  // Negative terms keep licensed/news/review pages out of the result set.
+  const NEG =
+    "-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -review -trailer_reaction -\"box office\" -news";
 
   const plans: QueryPlan[] = [];
   const push = (query: string, recent = false) => plans.push({ query, recent });
 
   // 1. Core piracy phrasing on the primary title.
-  for (const term of general) push(`"${base}" ${term}`, isFresh);
+  for (const term of general) push(`"${base}" ${term} ${NEG}`, isFresh);
 
   // 2. Fresh-release urgency terms.
-  if (isFresh || !a.releaseDate) for (const term of fresh) push(`"${base}" ${term}`, true);
+  if (isFresh || !a.releaseDate) for (const term of fresh) push(`"${base}" ${term} ${NEG}`, true);
 
   // 3. Alternate / translated titles.
   for (const n of names.slice(1)) {
-    push(`"${n}" full movie download`, isFresh);
-    push(`"${n}" watch online free`, isFresh);
+    push(`"${n}" full movie download ${NEG}`, isFresh);
+    push(`"${n}" watch online free ${NEG}`, isFresh);
   }
 
   // 4. Language-native piracy terms.
   const langs = [a.language, ...a.audienceLanguages].filter(Boolean) as string[];
   for (const term of localTermsFor(langs).slice(0, 10)) push(`${base} ${term}`, isFresh);
-  if (a.language) push(`${base} ${a.language} full movie download`, isFresh);
-  if (a.region) push(`${base} ${a.region} movie download hd`, isFresh);
+  if (a.language) push(`${base} ${a.language} full movie download ${NEG}`, isFresh);
+  if (a.region) push(`${base} ${a.region} movie download hd ${NEG}`, isFresh);
 
   // 5. Cast / studio correlation.
-  for (const actor of a.actors.slice(0, 2)) push(`${actor} "${base}" movie download`, isFresh);
+  for (const actor of a.actors.slice(0, 2)) {
+    push(`${actor} "${base}" movie download ${NEG}`, isFresh);
+    push(`${actor} "${base}" watch online free ${NEG}`, isFresh);
+  }
   if (a.productionCompany) push(`${a.productionCompany} "${base}" leaked print`);
+  if (a.releaseDate) push(`"${base}" ${a.releaseDate.slice(0, 4)} full movie download ${NEG}`, isFresh);
 
-  // 6. Platform-scoped piracy hosts, forums and social.
+  // 6. Platform-scoped piracy hosts, forums, file lockers and social.
   push(`${base} full movie ${PIRACY_SITE_FILTER}`, isFresh);
-  push(`${base} download link forum thread`, isFresh);
+  push(`${base} download link forum thread ${NEG}`, isFresh);
+  push(`${base} ${FILE_HOST_FILTER}`, isFresh);
+  push(`${base} ${STREAM_SITE_FILTER}`, isFresh);
 
   // 7. Visual / artwork reuse.
-  push(`"${base}" poster hd image download`);
+  push(`"${base}" poster hd image download ${NEG}`);
   push(`${base} movie screenshot still frame`);
   push(`${base} trailer clip mp4 download`);
   for (const d of a.descriptors.slice(0, 3)) push(`${base} ${d}`);
@@ -299,7 +311,7 @@ function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
   const seen = new Set<string>();
   return plans
     .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
-    .slice(0, 34);
+    .slice(0, 44);
 }
 
 /** Coarse piracy taxonomy used for evidence labelling. */
