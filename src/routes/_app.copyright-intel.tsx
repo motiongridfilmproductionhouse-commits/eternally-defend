@@ -94,6 +94,7 @@ function CopyrightIntelPage() {
   const [file, setFile] = useState<File | null>(null);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [stage, setStage] = useState("");
+  const [registerOpen, setRegisterOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const blobToBase64 = async (blob: Blob): Promise<string> => {
