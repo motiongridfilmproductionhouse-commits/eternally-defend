@@ -14,6 +14,12 @@ export interface DiscoveryCandidate {
   frameIndex: number;
   /** query that surfaced this candidate, kept for evidence */
   query?: string | null;
+  /** coarse piracy taxonomy (streaming_site, torrent, cam_theatre_leak, ...) */
+  category?: string | null;
+  /** detected content language for this candidate */
+  language?: string | null;
+  /** the keyword/query variation that matched */
+  keywordMatch?: string | null;
 }
 
 export function hostOf(url: string): string | null {
