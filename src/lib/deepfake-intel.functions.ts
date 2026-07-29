@@ -11,27 +11,43 @@ import {
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
 
-const RunInput = z.object({
-  target_name: z.string().trim().min(1).max(200),
-  profile_id: z.string().uuid().optional(),
-  aliases: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
-  handles: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
-  google_images_url: z.string().trim().max(5000).optional(),
-  max_queries: z.number().int().min(1).max(40).optional(),
-  per_query_limit: z.number().int().min(1).max(10).optional(),
-});
-
-function hostOf(u: string): string | null {
-  try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); }
-  catch { return null; }
-}
-
 /** Kick off a deepfake intelligence scan. Runs synchronously and returns the scan id. */
 export const runDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => RunInput.parse(input))
+  .inputValidator((input: unknown) => z.object({
+    target_name: z.string().trim().min(1).max(200),
+    profile_id: z.string().uuid().optional(),
+    aliases: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
+    handles: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
+    google_images_url: z.string().trim().max(5000).optional(),
+    max_queries: z.number().int().min(1).max(40).optional(),
+    per_query_limit: z.number().int().min(1).max(10).optional(),
+  }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const hostOf = (url: string): string | null => {
+      try {
+        return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+      } catch {
+        return null;
+      }
+    };
+    const canonicalUrl = (url: string): string => {
+      try {
+        const parsed = new URL(url);
+        parsed.hash = "";
+        for (const key of [...parsed.searchParams.keys()]) {
+          if (/^(?:utm_|fbclid$|gclid$|ref$|source$)/i.test(key)) {
+            parsed.searchParams.delete(key);
+          }
+        }
+        parsed.hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+        parsed.pathname = parsed.pathname.replace(/\/$/, "") || "/";
+        return parsed.toString();
+      } catch {
+        return url.trim();
+      }
+    };
 
     // 1. create scan row
     const { data: scan, error: sErr } = await supabase
@@ -113,53 +129,6 @@ try {
       }> = [];
       const seenUrl = new Set<string>();
 
-      // The official YouTube Data API supplies newest-first video mentions.
-      // This complements web indexing, which can lag behind new uploads.
-      try {
-        const { searchRecentYouTubeMentions } = await import(
-          "./deepfake/youtube-discovery.server"
-        );
-        const youtubeHits = await searchRecentYouTubeMentions({
-          name: data.target_name,
-          aliases: data.aliases,
-          handles: data.handles,
-          maxResults: 25,
-        });
-        for (const hit of youtubeHits) {
-          if (seenUrl.has(hit.url)) continue;
-          seenUrl.add(hit.url);
-          allHits.push(hit);
-        }
-      } catch (error) {
-        console.warn("[DEEPFAKE:YOUTUBE] Latest mentions skipped:", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      // Reddit's public search supplies newest-first discussions that may not
-      // yet be present in general web indexes. Firecrawl site queries remain
-      // in the plan as a fallback when Reddit limits public API access.
-      try {
-        const { searchRecentRedditMentions } = await import(
-          "./deepfake/reddit-discovery.server"
-        );
-        const redditHits = await searchRecentRedditMentions({
-          name: data.target_name,
-          aliases: data.aliases,
-          handles: data.handles,
-          maxResults: 50,
-        });
-        for (const hit of redditHits) {
-          if (seenUrl.has(hit.url)) continue;
-          seenUrl.add(hit.url);
-          allHits.push(hit);
-        }
-      } catch (error) {
-        console.warn("[DEEPFAKE:REDDIT] Latest discussions skipped:", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-
       for (let i = 0; i < plan.queries.length; i += CONCURRENCY) {
         const batch = plan.queries.slice(i, i + CONCURRENCY);
         const results = await Promise.all(
@@ -183,12 +152,21 @@ try {
           for (const h of arr) {
             if (!h.url) continue;
             const host = hostOf(h.url);
-            if (!host || isBlockedHost(host)) continue;
-            if (seenUrl.has(h.url)) continue;
-            seenUrl.add(h.url);
+            const imageHost = h.image_url ? hostOf(h.image_url) : null;
+            const thumbnailHost = h.thumbnail_url ? hostOf(h.thumbnail_url) : null;
+            if (
+              !host ||
+              isBlockedHost(host) ||
+              (imageHost !== null && isBlockedHost(imageHost)) ||
+              (thumbnailHost !== null && isBlockedHost(thumbnailHost))
+            ) continue;
+            const canonical = canonicalUrl(h.url);
+            if (seenUrl.has(canonical)) continue;
+            seenUrl.add(canonical);
 
             allHits.push({
               ...h,
+              url: canonical,
               query:
                 typeof h.query === "string" && h.query.trim()
                   ? h.query.trim()
@@ -196,57 +174,6 @@ try {
             });
           }
         }
-      }
-
-      /*
-       * Save every public URL before candidate filtering.
-       * A discovery is a lead, not a confirmed deepfake.
-       */
-      if (allHits.length) {
-        const discoveryRows = allHits.map((hit) => ({
-          user_id: userId,
-          scan_id: scan.id,
-          source: hit.source ?? "firecrawl",
-          search_query:
-            typeof hit.query === "string" && hit.query.trim()
-              ? hit.query.trim()
-              : data.target_name,
-          page_url: hit.url,
-          canonical_url: hit.url,
-          source_host: hostOf(hit.url),
-          page_title: hit.title ?? null,
-          snippet: hit.description ?? null,
-          image_url: hit.image_url ?? null,
-          thumbnail_url: hit.thumbnail_url ?? null,
-          media_type:
-            hit.image_url || hit.thumbnail_url ? "image" : null,
-          analysis_status: "discovered",
-          updated_at: new Date().toISOString(),
-        }));
-
-        const { error: discoveryError } = await (
-          supabase as any
-        )
-          .from("deepfake_discoveries")
-          .upsert(discoveryRows, {
-            onConflict: "scan_id,page_url",
-          });
-
-        if (discoveryError) {
-          console.error(
-            "[DEEPFAKE] Discovery storage failed:",
-            discoveryError,
-          );
-
-          throw new Error(
-            `Unable to store discovered URLs: ${discoveryError.message}`,
-          );
-        }
-
-        console.log("[DEEPFAKE] Raw discoveries saved:", {
-          scanId: scan.id,
-          count: discoveryRows.length,
-        });
       }
 
       // 3. pre-filter and classify
@@ -260,6 +187,35 @@ try {
         };
 
         const candidateFilter = filterDeepfakeCandidates(allHits, target);
+
+        /* Only high-signal synthetic/explicit pages belong in Deepfake Intel. */
+        if (candidateFilter.accepted.length) {
+          const discoveryRows = candidateFilter.accepted.map((hit) => ({
+            user_id: userId,
+            scan_id: scan.id,
+            source: (hit as any).source ?? "firecrawl",
+            search_query: hit.query?.trim() || data.target_name,
+            page_url: hit.url,
+            canonical_url: canonicalUrl(hit.url),
+            source_host: hostOf(hit.url),
+            page_title: hit.title ?? null,
+            snippet: hit.description ?? null,
+            image_url: (hit as any).image_url ?? null,
+            thumbnail_url: (hit as any).thumbnail_url ?? null,
+            media_type:
+              (hit as any).image_url || (hit as any).thumbnail_url ? "image" : null,
+            analysis_status: "discovered",
+            updated_at: new Date().toISOString(),
+          }));
+
+          const { error: discoveryError } = await (supabase as any)
+            .from("deepfake_discoveries")
+            .upsert(discoveryRows, { onConflict: "scan_id,page_url" });
+
+          if (discoveryError) {
+            throw new Error(`Unable to store discovered URLs: ${discoveryError.message}`);
+          }
+        }
 
         console.log("[DEEPFAKE] Candidate filter:", {
           accepted: candidateFilter.accepted.length,
@@ -322,8 +278,7 @@ try {
               ].join(" ");
 
               return (
-                item.media_type === "video" ||
-                /\b(?:video|porn|xxx|sex|nude|naked|deepfake|fake nude|leaked)\b/i.test(
+                /\b(?:porn|xxx|sex|nude|naked|deepfake|fake nude|ai nude|explicit|leaked)\b/i.test(
                   text,
                 )
               );
@@ -491,9 +446,7 @@ try {
                   "undressing",
                   "deepfake",
                   "ai-nude",
-                  "morphed-media",
-                   "defamation",
-                   "harassment",
+                   "morphed-media",
                 ].includes(signal),
             );
 
@@ -539,6 +492,7 @@ try {
         );
 
         const rows = classified.map((c) => {
+          const pageUrl = (c as any).evidence_page_url ?? c.url;
           if (c.risk_level === "CRITICAL") critical++;
           else if (c.risk_level === "HIGH") high++;
           else if (c.risk_level === "MEDIUM") medium++;
@@ -546,8 +500,8 @@ try {
           return {
             scan_id: scan.id,
             user_id: userId,
-            url: c.url,
-            source_host: hostOf(c.url),
+            url: pageUrl,
+            source_host: hostOf(pageUrl),
             page_title: c.title ?? null,
             snippet: c.description ?? null,
             query: c.query,
@@ -629,7 +583,7 @@ try {
       return {
         scan_id: scan.id,
         total_results: classified.length,
-        discovered_results: allHits.length,
+        discovered_results: classified.length,
       };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "unknown error";
@@ -696,10 +650,21 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       );
     }
 
+    const riskRank: Record<string, number> = {
+      CRITICAL: 4,
+      HIGH: 3,
+      MEDIUM: 2,
+      LOW: 1,
+    };
+
     return {
       scan: scanRes.data as ScanRow | null,
       findings:
-        (findingsRes.data ?? []) as FindingRow[],
+        ((findingsRes.data ?? []) as FindingRow[]).sort(
+          (a, b) =>
+            (riskRank[b.risk_level] ?? 0) - (riskRank[a.risk_level] ?? 0) ||
+            b.confidence - a.confidence,
+        ),
       discoveries:
         discoveriesRes.data ?? [],
     };

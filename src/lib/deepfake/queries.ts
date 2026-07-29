@@ -28,22 +28,6 @@ export const DEEPFAKE_MODIFIERS: string[] = [
   "imageboard",
 ];
 
-// Sites that host most of the abuse / discussion.
-export const SITE_FILTERS: string[] = [
-  "site:reddit.com",
-  "site:x.com",
-  "site:twitter.com",
-  "site:imgur.com",
-  "site:medium.com",
-  "site:github.com",
-  "site:youtube.com",
-  "site:vimeo.com",
-  "site:facebook.com",
-  "site:instagram.com",
-  "site:tiktok.com",
-  "site:threads.net",
-];
-
 export interface QueryPlan {
   targets: string[]; // quoted name / alias variants
   queries: string[];
@@ -94,18 +78,29 @@ export function buildQueryPlan(input: {
       queries.push(`${q} ${m}`);
     }
   }
-  // 2. site-scoped queries against the primary name
-  const primary = searchableTargets[0];
-  if (primary) {
-    for (const s of SITE_FILTERS) {
-      queries.push(`${s} ${primary} deepfake OR fake OR leaked OR nude`);
-    }
-  }
-
   return { targets, queries: dedupe(queries).slice(0, max) };
 }
 
 export function isBlockedHost(host: string): boolean {
-  void host;
-  return false;
+  const normalized = host.replace(/^www\./, "").toLowerCase();
+  const blockedDomains = [
+    "youtube.com",
+    "youtu.be",
+    "vimeo.com",
+    "tiktok.com",
+    "instagram.com",
+    "facebook.com",
+    "fb.com",
+    "linkedin.com",
+    "x.com",
+    "twitter.com",
+    "threads.net",
+    "reddit.com",
+    "redd.it",
+    "medium.com",
+  ];
+
+  return blockedDomains.some(
+    (domain) => normalized === domain || normalized.endsWith(`.${domain}`),
+  );
 }

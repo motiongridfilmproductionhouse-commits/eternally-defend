@@ -584,8 +584,7 @@ function DeepfakeIntelPage() {
               )}
             </Button>
             <p className="text-[11px] text-muted-foreground">
-              Fresh-source discovery covers Reddit, YouTube, X, Twitter, Instagram, TikTok,
-              Vimeo, Facebook, Threads, Imgur, Medium, and GitHub.
+              Searches public web pages for exact-identity synthetic, face-swap, and explicit-media threats.
             </p>
           </div>
 
@@ -703,7 +702,7 @@ function DeepfakeIntelPage() {
                         LATEST PUBLIC LEADS
                       </div>
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        Newest web, YouTube, Reddit, and indexed social mentions. Leads are unverified until reviewed.
+                        Relevant public pages indicating possible synthetic or explicit-media threats. Leads are unverified until reviewed.
                       </p>
                     </div>
                     <Badge variant="outline">{discoveries.length}</Badge>
