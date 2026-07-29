@@ -378,19 +378,24 @@ export async function firecrawlDiscover(
       const key = canonicalUrl(page);
       if (seen.has(key)) continue;
       seen.add(key);
+      // Official studios, licensed streamers, databases, news and reviews are
+      // legitimate references — never report them as unauthorized copies.
+      if (isExcludedHost(key)) continue;
       const text = `${img.title ?? ""} ${key}`;
+      const websiteType = websiteTypeFor(key, `${text} ${query}`);
       out.push({
         url: key,
         title: img.title ?? null,
         source: hostOf(key),
         thumbnail: img.thumbnailUrl ?? image,
         imageUrl: image,
-        exact: PIRACY_HINTS.test(text),
+        exact: PIRACY_HINTS.test(text) || isSuspiciousType(websiteType),
         frameIndex,
         query,
         category: piracyCategory(`${text} ${query}`),
         language: detectLanguage(text, a),
         keywordMatch: query,
+        websiteType,
       });
     }
 
@@ -398,10 +403,13 @@ export async function firecrawlDiscover(
       if (!web.url) continue;
       const key = canonicalUrl(web.url);
       if (seen.has(key)) continue;
-      const text = `${web.title ?? ""} ${web.description ?? ""} ${key}`;
       seen.add(key);
+      if (isExcludedHost(key)) continue;
+      const text = `${web.title ?? ""} ${web.description ?? ""} ${key}`;
+      // Reviews / commentary / recaps are not distribution sources.
+      if (/(review|recap|explained|reaction|opinion|box office|interview|press release)/i.test(text)) continue;
       const lead = { url: key, title: web.title ?? null, query, text };
-      if (PIRACY_HINTS.test(text)) strongLeads.push(lead);
+      if (PIRACY_HINTS.test(text) || isSuspiciousType(websiteTypeFor(key, `${text} ${query}`))) strongLeads.push(lead);
       else weakLeads.push(lead);
     }
   }
@@ -409,10 +417,10 @@ export async function firecrawlDiscover(
   // Capture screenshots for page-only leads so the grader always has visual
   // evidence. Strong piracy leads first; weak leads only top the list up when
   // discovery would otherwise return almost nothing.
-  const needed = Math.max(0, 14 - out.length);
+  const needed = Math.max(0, 18 - out.length);
   const toShoot = [
-    ...strongLeads.slice(0, 10),
-    ...(out.length + strongLeads.length < 14 ? weakLeads.slice(0, needed) : []),
+    ...strongLeads.slice(0, 16),
+    ...(out.length + strongLeads.length < 18 ? weakLeads.slice(0, needed) : []),
   ];
 
   const shots = await Promise.all(
@@ -420,7 +428,8 @@ export async function firecrawlDiscover(
   );
   for (const { lead, shot } of shots) {
     if (!shot) continue;
-    const strong = PIRACY_HINTS.test(lead.text);
+    const websiteType = websiteTypeFor(lead.url, `${lead.text} ${lead.query}`);
+    const strong = PIRACY_HINTS.test(lead.text) || isSuspiciousType(websiteType);
     out.push({
       url: lead.url,
       title: lead.title,
@@ -433,8 +442,12 @@ export async function firecrawlDiscover(
       category: piracyCategory(`${lead.text} ${lead.query}`),
       language: detectLanguage(lead.text, a),
       keywordMatch: lead.query,
+      websiteType,
     });
   }
 
-  return out.slice(0, 60);
+  // Suspicious distribution sources first, official-looking noise never here.
+  return out
+    .sort((x, y) => Number(y.exact) - Number(x.exact))
+    .slice(0, 60);
 }
