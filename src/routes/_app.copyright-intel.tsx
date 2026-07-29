@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import {
   Copyright, Upload, Loader2, ExternalLink, ShieldCheck, AlertTriangle,
   Eye, XCircle, FileSearch, Film, Image as ImageIcon, Mail,
