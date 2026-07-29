@@ -247,8 +247,8 @@ function CopyrightIntelPage() {
                       <Badge variant="outline" className={band.cls}>{m.confidence}% · {band.label}</Badge>
                       <Badge variant="outline" className="text-[10px]">{TYPE_LABEL[m.detection_type] ?? m.detection_type}</Badge>
                       <Badge variant="outline" className="text-[10px]">{m.platform ?? "Unknown platform"}</Badge>
-                      {String(ev.lens_bucket) === "exact_match" && (
-                        <Badge variant="outline" className="text-[10px] text-primary">exact-match bucket</Badge>
+                      {String(ev.discovery) === "piracy_lead" && (
+                        <Badge variant="outline" className="text-[10px] text-primary">piracy lead</Badge>
                       )}
                       {m.review_status !== "pending" && (
                         <Badge variant="outline" className="text-[10px]">{m.review_status.replace("_", " ")}</Badge>
