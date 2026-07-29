@@ -132,6 +132,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             discovery_query: candidate.query ?? null,
             keyword_match: candidate.keywordMatch ?? candidate.query ?? null,
             piracy_category: candidate.category ?? null,
+            website_type: candidate.websiteType ?? null,
             detected_language: candidate.language ?? analysis.language ?? null,
             reference_ocr_text: analysis.ocrText,
             reference_watermark: analysis.watermark,

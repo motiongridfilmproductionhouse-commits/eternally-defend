@@ -9,7 +9,14 @@
  */
 
 import { firecrawlFetch, isFirecrawlConfigured } from "@/lib/firecrawl-client.server";
-import { canonicalUrl, hostOf, type DiscoveryCandidate } from "./url.server";
+import {
+  canonicalUrl,
+  hostOf,
+  isExcludedHost,
+  isSuspiciousType,
+  websiteTypeFor,
+  type DiscoveryCandidate,
+} from "./url.server";
 
 export interface ReferenceAnalysis {
   title: string | null;
@@ -207,6 +214,14 @@ const LOCAL_TERMS: Record<string, string[]> = {
 const PIRACY_SITE_FILTER =
   "(site:telegram.me OR site:t.me OR site:archive.org OR site:ok.ru OR site:dailymotion.com OR site:rumble.com OR site:vk.com OR site:pastebin.com OR site:reddit.com OR site:x.com OR site:facebook.com)";
 
+/** File lockers and embed hosts that typically carry unauthorized copies. */
+const FILE_HOST_FILTER =
+  "(site:mega.nz OR site:mediafire.com OR site:gofile.io OR site:pixeldrain.com OR site:doodstream.com OR site:streamtape.com OR site:mixdrop.co OR site:filemoon.sx OR site:1fichier.com)";
+
+/** Known unauthorized streaming / index domains. */
+const STREAM_SITE_FILTER =
+  "(site:movierulz.vc OR site:ibomma.bet OR site:tamilrockers.ws OR site:123movies.ai OR site:fmovies.to OR site:soap2day.day OR site:vegamovies.nl OR site:mp4moviez.ink OR site:9xmovies.gold) full movie";
+
 function localTermsFor(langs: string[]): string[] {
   const out: string[] = [];
   for (const l of langs) {
@@ -241,47 +256,59 @@ function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
   const isFresh = age !== null && age <= 30;
 
   const general = [
-    "online", "watch online", "streaming online", "free streaming",
-    "full movie", "full video", "download", "leaked", "HD print",
+    "online", "watch online", "stream online", "streaming online", "free streaming",
+    "online free", "full movie", "full video", "full movie online free",
+    "download", "movie download", "movie download hd", "leaked", "HD print",
     "cam print", "CAM", "torrent", "telegram", "movie file download",
+    "watch online free hd", "embedded player watch", "mp4 download link",
+    "google drive link", "mega.nz link", "index of movie",
   ];
   const fresh = [
     "released today", "online today", "full movie leaked",
     "theatre print", "cinema recording", "first day collection leak",
     "hdcam 720p download", "day 1 print",
   ];
+  // Negative terms keep licensed/news/review pages out of the result set.
+  const NEG =
+    "-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -review -trailer_reaction -\"box office\" -news";
 
   const plans: QueryPlan[] = [];
   const push = (query: string, recent = false) => plans.push({ query, recent });
 
   // 1. Core piracy phrasing on the primary title.
-  for (const term of general) push(`"${base}" ${term}`, isFresh);
+  for (const term of general) push(`"${base}" ${term} ${NEG}`, isFresh);
 
   // 2. Fresh-release urgency terms.
-  if (isFresh || !a.releaseDate) for (const term of fresh) push(`"${base}" ${term}`, true);
+  if (isFresh || !a.releaseDate) for (const term of fresh) push(`"${base}" ${term} ${NEG}`, true);
 
   // 3. Alternate / translated titles.
   for (const n of names.slice(1)) {
-    push(`"${n}" full movie download`, isFresh);
-    push(`"${n}" watch online free`, isFresh);
+    push(`"${n}" full movie download ${NEG}`, isFresh);
+    push(`"${n}" watch online free ${NEG}`, isFresh);
   }
 
   // 4. Language-native piracy terms.
   const langs = [a.language, ...a.audienceLanguages].filter(Boolean) as string[];
   for (const term of localTermsFor(langs).slice(0, 10)) push(`${base} ${term}`, isFresh);
-  if (a.language) push(`${base} ${a.language} full movie download`, isFresh);
-  if (a.region) push(`${base} ${a.region} movie download hd`, isFresh);
+  if (a.language) push(`${base} ${a.language} full movie download ${NEG}`, isFresh);
+  if (a.region) push(`${base} ${a.region} movie download hd ${NEG}`, isFresh);
 
   // 5. Cast / studio correlation.
-  for (const actor of a.actors.slice(0, 2)) push(`${actor} "${base}" movie download`, isFresh);
+  for (const actor of a.actors.slice(0, 2)) {
+    push(`${actor} "${base}" movie download ${NEG}`, isFresh);
+    push(`${actor} "${base}" watch online free ${NEG}`, isFresh);
+  }
   if (a.productionCompany) push(`${a.productionCompany} "${base}" leaked print`);
+  if (a.releaseDate) push(`"${base}" ${a.releaseDate.slice(0, 4)} full movie download ${NEG}`, isFresh);
 
-  // 6. Platform-scoped piracy hosts, forums and social.
+  // 6. Platform-scoped piracy hosts, forums, file lockers and social.
   push(`${base} full movie ${PIRACY_SITE_FILTER}`, isFresh);
-  push(`${base} download link forum thread`, isFresh);
+  push(`${base} download link forum thread ${NEG}`, isFresh);
+  push(`${base} ${FILE_HOST_FILTER}`, isFresh);
+  push(`${base} ${STREAM_SITE_FILTER}`, isFresh);
 
   // 7. Visual / artwork reuse.
-  push(`"${base}" poster hd image download`);
+  push(`"${base}" poster hd image download ${NEG}`);
   push(`${base} movie screenshot still frame`);
   push(`${base} trailer clip mp4 download`);
   for (const d of a.descriptors.slice(0, 3)) push(`${base} ${d}`);
@@ -292,7 +319,7 @@ function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
   const seen = new Set<string>();
   return plans
     .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
-    .slice(0, 34);
+    .slice(0, 44);
 }
 
 /** Coarse piracy taxonomy used for evidence labelling. */
@@ -351,19 +378,24 @@ export async function firecrawlDiscover(
       const key = canonicalUrl(page);
       if (seen.has(key)) continue;
       seen.add(key);
+      // Official studios, licensed streamers, databases, news and reviews are
+      // legitimate references — never report them as unauthorized copies.
+      if (isExcludedHost(key)) continue;
       const text = `${img.title ?? ""} ${key}`;
+      const websiteType = websiteTypeFor(key, `${text} ${query}`);
       out.push({
         url: key,
         title: img.title ?? null,
         source: hostOf(key),
         thumbnail: img.thumbnailUrl ?? image,
         imageUrl: image,
-        exact: PIRACY_HINTS.test(text),
+        exact: PIRACY_HINTS.test(text) || isSuspiciousType(websiteType),
         frameIndex,
         query,
         category: piracyCategory(`${text} ${query}`),
         language: detectLanguage(text, a),
         keywordMatch: query,
+        websiteType,
       });
     }
 
@@ -371,10 +403,13 @@ export async function firecrawlDiscover(
       if (!web.url) continue;
       const key = canonicalUrl(web.url);
       if (seen.has(key)) continue;
-      const text = `${web.title ?? ""} ${web.description ?? ""} ${key}`;
       seen.add(key);
+      if (isExcludedHost(key)) continue;
+      const text = `${web.title ?? ""} ${web.description ?? ""} ${key}`;
+      // Reviews / commentary / recaps are not distribution sources.
+      if (/(review|recap|explained|reaction|opinion|box office|interview|press release)/i.test(text)) continue;
       const lead = { url: key, title: web.title ?? null, query, text };
-      if (PIRACY_HINTS.test(text)) strongLeads.push(lead);
+      if (PIRACY_HINTS.test(text) || isSuspiciousType(websiteTypeFor(key, `${text} ${query}`))) strongLeads.push(lead);
       else weakLeads.push(lead);
     }
   }
@@ -382,10 +417,10 @@ export async function firecrawlDiscover(
   // Capture screenshots for page-only leads so the grader always has visual
   // evidence. Strong piracy leads first; weak leads only top the list up when
   // discovery would otherwise return almost nothing.
-  const needed = Math.max(0, 14 - out.length);
+  const needed = Math.max(0, 18 - out.length);
   const toShoot = [
-    ...strongLeads.slice(0, 10),
-    ...(out.length + strongLeads.length < 14 ? weakLeads.slice(0, needed) : []),
+    ...strongLeads.slice(0, 16),
+    ...(out.length + strongLeads.length < 18 ? weakLeads.slice(0, needed) : []),
   ];
 
   const shots = await Promise.all(
@@ -393,7 +428,8 @@ export async function firecrawlDiscover(
   );
   for (const { lead, shot } of shots) {
     if (!shot) continue;
-    const strong = PIRACY_HINTS.test(lead.text);
+    const websiteType = websiteTypeFor(lead.url, `${lead.text} ${lead.query}`);
+    const strong = PIRACY_HINTS.test(lead.text) || isSuspiciousType(websiteType);
     out.push({
       url: lead.url,
       title: lead.title,
@@ -406,8 +442,12 @@ export async function firecrawlDiscover(
       category: piracyCategory(`${lead.text} ${lead.query}`),
       language: detectLanguage(lead.text, a),
       keywordMatch: lead.query,
+      websiteType,
     });
   }
 
-  return out.slice(0, 60);
+  // Suspicious distribution sources first, official-looking noise never here.
+  return out
+    .sort((x, y) => Number(y.exact) - Number(x.exact))
+    .slice(0, 60);
 }
