@@ -14,6 +14,9 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
+import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import {
   Copyright, Upload, Loader2, ExternalLink, ShieldCheck, AlertTriangle,
   Eye, XCircle, FileSearch, Film, Image as ImageIcon, Mail,
