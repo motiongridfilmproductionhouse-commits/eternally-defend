@@ -467,3 +467,29 @@ export function scoreReputationImpact(opts: {
         : "low";
   return { score, impact };
 }
+
+/** Discovery queries focused on release-window reviews and reaction videos. */
+export function buildReleaseReviewQueries(meta: {
+  title: string;
+  altTitles?: string[];
+  actors?: string[];
+  language?: string | null;
+}): string[] {
+  const names = [...new Set([meta.title, ...(meta.altTitles ?? [])].map((t) => (t ?? "").trim()).filter(Boolean))].slice(0, 3);
+  const kws = [
+    ...KEYWORDS,
+    "public review", "audience review", "honest review", "first day first show",
+    "early review", "premiere review", "critic review", "spoiler review",
+  ];
+  const queries: string[] = [];
+  const push = (q: string) => { if (q.trim() && !queries.includes(q)) queries.push(q); };
+  for (const name of names) {
+    for (const kw of kws) push(`"${name}" ${kw}`);
+    if (meta.language) {
+      push(`"${name}" ${meta.language} review`);
+      push(`"${name}" ${meta.language} reaction`);
+    }
+  }
+  for (const actor of (meta.actors ?? []).slice(0, 2)) push(`"${names[0] ?? meta.title}" ${actor} review`);
+  return queries.slice(0, 20);
+}
