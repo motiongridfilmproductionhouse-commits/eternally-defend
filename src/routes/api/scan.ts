@@ -1234,11 +1234,21 @@ function fcItemToRaw(item: Record<string, unknown>): RawHit {
 
 /** Run a single Firecrawl search query and return parsed RawHit array. */
 async function fcSearch(
-  fc: { search(q: string, opts: { limit: number }): Promise<unknown> },
   q: string,
   limit: number,
 ): Promise<RawHit[]> {
-  const response = await fc.search(q, { limit });
+  const { firecrawlFetch } = await import("@/lib/firecrawl-client.server");
+  const apiResponse = await firecrawlFetch("/search", {
+    query: q,
+    limit: Math.min(Math.max(limit, 1), 10),
+    sources: ["web"],
+    tbs: "qdr:y",
+  });
+  const responseText = await apiResponse.text();
+  if (!apiResponse.ok) {
+    throw new Error(`Firecrawl search failed (${apiResponse.status}): ${responseText.slice(0, 300)}`);
+  }
+  const response = JSON.parse(responseText) as unknown;
   const root = response as Record<string, unknown>;
 
   if (root.success === false) {
@@ -1296,13 +1306,9 @@ async function runFirecrawl(
   sources: SourceKey[],
   limit: number,
 ): Promise<{ runs: { source: string; raw: RawHit[] }[]; error?: string }> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
-  if (!apiKey) return { runs: [], error: "FIRECRAWL_API_KEY missing" };
   const nonYt = sources.filter((s) => s !== "youtube");
   if (!nonYt.length) return { runs: [] };
   try {
-    const { default: Firecrawl } = await import("@mendable/firecrawl-js");
-    const fc = new Firecrawl({ apiKey });
     const results = await Promise.allSettled(
       nonYt.map(async (s) => {
         const cfg = SOURCE_QUERY[s];
@@ -1311,7 +1317,7 @@ async function runFirecrawl(
           : cfg.suffix
             ? `${query} ${cfg.suffix}`
             : query;
-        const raw = await fcSearch(fc, q, limit);
+        const raw = await fcSearch(q, limit);
         return { source: cfg.label, raw };
       }),
     );
@@ -1406,7 +1412,6 @@ async function runFirecrawlDiscoveryMode(
   runs: { source: string; raw: RawHit[] }[];
   diagnostics: FcDiscoveryDiagnostics;
 }> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
   const emptyDiag: FcDiscoveryDiagnostics = {
     active: true,
     queriesExecuted: 0,
@@ -1423,12 +1428,7 @@ async function runFirecrawlDiscoveryMode(
     ytWebQueries: 0,
     expandedTermsUsed: [],
   };
-  if (!apiKey) return { runs: [], diagnostics: emptyDiag };
-
   try {
-    const { default: Firecrawl } = await import("@mendable/firecrawl-js");
-    const fc = new Firecrawl({ apiKey });
-
     const nameForms = Array.from(new Set([query, ...aliases].map((s) => s.trim()).filter(Boolean)));
     const primary = nameForms[0];
     const quoted = `"${primary}"`;
@@ -1452,7 +1452,7 @@ async function runFirecrawlDiscoveryMode(
     const t1 = await Promise.allSettled(
       tier1Batch.map(async (q) => {
         queriesExecuted++;
-        return fcSearch(fc, q, 5);
+        return fcSearch(q, 5);
       }),
     );
     for (const r of t1) if (r.status === "fulfilled") absorb(r.value);
@@ -1462,7 +1462,7 @@ async function runFirecrawlDiscoveryMode(
     const t1b = await Promise.allSettled(
       tier1BatchB.map(async (q) => {
         queriesExecuted++;
-        return fcSearch(fc, q, 4);
+        return fcSearch(q, 4);
       }),
     );
     for (const r of t1b) if (r.status === "fulfilled") absorb(r.value);
@@ -1471,7 +1471,7 @@ async function runFirecrawlDiscoveryMode(
     const bareResults = await Promise.allSettled(
       nameForms.slice(0, 3).map(async (name) => {
         queriesExecuted++;
-        return fcSearch(fc, `${name} news`, 4);
+        return fcSearch(`${name} news`, 4);
       }),
     );
     for (const r of bareResults) if (r.status === "fulfilled") absorb(r.value);
@@ -1493,7 +1493,7 @@ async function runFirecrawlDiscoveryMode(
         tier2Queries.slice(0, 6).map(async (q) => {
           queriesExecuted++;
           usedTerms.push(q);
-          return fcSearch(fc, q, 4);
+          return fcSearch(q, 4);
         }),
       );
       for (const r of t2) if (r.status === "fulfilled") absorb(r.value);
@@ -1517,7 +1517,7 @@ async function runFirecrawlDiscoveryMode(
         ytQueries.map(async (q) => {
           queriesExecuted++;
           ytWebCount++;
-          return fcSearch(fc, q, 5);
+          return fcSearch(q, 5);
         }),
       );
       for (const r of ytResults) if (r.status === "fulfilled") absorb(r.value);
@@ -1527,7 +1527,7 @@ async function runFirecrawlDiscoveryMode(
     const platResults = await Promise.allSettled(
       FC_PLATFORM_QUERIES.slice(0, 3).map(async ({ suffix }) => {
         queriesExecuted++;
-        return fcSearch(fc, `${quoted} ${suffix}`, 4);
+        return fcSearch(`${quoted} ${suffix}`, 4);
       }),
     );
     for (const r of platResults) if (r.status === "fulfilled") absorb(r.value);
