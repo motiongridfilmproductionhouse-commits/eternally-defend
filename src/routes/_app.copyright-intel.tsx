@@ -371,12 +371,23 @@ function CopyrightIntelPage() {
 
         <section className="space-y-3">
           {!selectedScanId && <p className="text-sm text-muted-foreground">Select a scan to review graded evidence.</p>}
+          {selectedScanId && (
+            <Tabs defaultValue="sources">
+              <TabsList>
+                <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
+                <TabsTrigger value="youtube">YouTube monitoring</TabsTrigger>
+              </TabsList>
+              <TabsContent value="youtube" className="mt-3">
+                <YoutubeMonitorPanel scanId={selectedScanId} />
+              </TabsContent>
+              <TabsContent value="sources" className="mt-3 space-y-3">
           {detail.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           {selectedScanId && !detail.isLoading && !matches.length && (
             <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
               No match cleared the 50% evidence threshold for this reference.
             </div>
           )}
+
 
           {matches.map((m) => {
             const band = BAND[m.confidence_band] ?? BAND.review;
