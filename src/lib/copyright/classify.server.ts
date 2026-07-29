@@ -73,8 +73,12 @@ export async function gradeCandidate(opts: {
   candidateTitle: string | null;
   platform: string | null;
   workTitle: string;
-  lensExact: boolean;
+  /** discovery layer flagged this as a strong piracy/re-upload lead */
+  highSignal: boolean;
+  referenceOcrText?: string | null;
+  referenceWatermark?: string | null;
 }): Promise<GradedMatch | null> {
+
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return null;
 
