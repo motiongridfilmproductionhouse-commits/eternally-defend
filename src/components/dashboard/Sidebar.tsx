@@ -2,7 +2,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Package, Radar, Activity, Brain, ShieldCheck,
   Briefcase, Trash2, FileText, Settings, Bell, Sparkles, ChevronDown, ShieldHalf, Search, HeartPulse, Network, PlugZap, LogOut, User as UserIcon,
-  ChevronsLeft, ChevronsRight, ScanFace, Archive, Lock,
+  ChevronsLeft, ChevronsRight, ScanFace, Archive, Lock, Copyright,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useSession } from "@/hooks/use-session";
@@ -28,6 +28,7 @@ const mainNav: NavItem[] = [
   { icon: ScanFace, label: "Face Protection", to: "/face-protection" },
   { icon: Lock, label: "Intimate Image & Deepfake Protection", to: "/sensitive-protection" },
   { icon: ScanFace, label: "Deepfake Intel", to: "/deepfake-intel", badge: "AI" },
+  { icon: Copyright, label: "Copyright Intelligence", to: "/copyright-intel", badge: "NEW" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
   { icon: Briefcase, label: "Cases", to: "/cases" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },

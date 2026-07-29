@@ -33,6 +33,7 @@ import { Route as AppFaceProtectionRouteImport } from './routes/_app.face-protec
 import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vault'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
 import { Route as AppDeepfakeIntelRouteImport } from './routes/_app.deepfake-intel'
+import { Route as AppCopyrightIntelRouteImport } from './routes/_app.copyright-intel'
 import { Route as AppChannelWatchRouteImport } from './routes/_app.channel-watch'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
@@ -171,6 +172,11 @@ const AppDeepfakeIntelRoute = AppDeepfakeIntelRouteImport.update({
   path: '/deepfake-intel',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCopyrightIntelRoute = AppCopyrightIntelRouteImport.update({
+  id: '/copyright-intel',
+  path: '/copyright-intel',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppChannelWatchRoute = AppChannelWatchRouteImport.update({
   id: '/channel-watch',
   path: '/channel-watch',
@@ -284,6 +290,7 @@ export interface FileRoutesByFullPath {
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/channel-watch': typeof AppChannelWatchRoute
+  '/copyright-intel': typeof AppCopyrightIntelRoute
   '/deepfake-intel': typeof AppDeepfakeIntelRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
@@ -326,6 +333,7 @@ export interface FileRoutesByTo {
   '/assets': typeof AppAssetsRoute
   '/cases': typeof AppCasesRoute
   '/channel-watch': typeof AppChannelWatchRoute
+  '/copyright-intel': typeof AppCopyrightIntelRoute
   '/deepfake-intel': typeof AppDeepfakeIntelRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
@@ -370,6 +378,7 @@ export interface FileRoutesById {
   '/_app/assets': typeof AppAssetsRoute
   '/_app/cases': typeof AppCasesRoute
   '/_app/channel-watch': typeof AppChannelWatchRoute
+  '/_app/copyright-intel': typeof AppCopyrightIntelRoute
   '/_app/deepfake-intel': typeof AppDeepfakeIntelRoute
   '/_app/enforcement': typeof AppEnforcementRoute
   '/_app/evidence-vault': typeof AppEvidenceVaultRoute
@@ -415,6 +424,7 @@ export interface FileRouteTypes {
     | '/assets'
     | '/cases'
     | '/channel-watch'
+    | '/copyright-intel'
     | '/deepfake-intel'
     | '/enforcement'
     | '/evidence-vault'
@@ -457,6 +467,7 @@ export interface FileRouteTypes {
     | '/assets'
     | '/cases'
     | '/channel-watch'
+    | '/copyright-intel'
     | '/deepfake-intel'
     | '/enforcement'
     | '/evidence-vault'
@@ -500,6 +511,7 @@ export interface FileRouteTypes {
     | '/_app/assets'
     | '/_app/cases'
     | '/_app/channel-watch'
+    | '/_app/copyright-intel'
     | '/_app/deepfake-intel'
     | '/_app/enforcement'
     | '/_app/evidence-vault'
@@ -721,6 +733,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDeepfakeIntelRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/copyright-intel': {
+      id: '/_app/copyright-intel'
+      path: '/copyright-intel'
+      fullPath: '/copyright-intel'
+      preLoaderRoute: typeof AppCopyrightIntelRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/channel-watch': {
       id: '/_app/channel-watch'
       path: '/channel-watch'
@@ -854,6 +873,7 @@ interface AppRouteChildren {
   AppAssetsRoute: typeof AppAssetsRoute
   AppCasesRoute: typeof AppCasesRoute
   AppChannelWatchRoute: typeof AppChannelWatchRoute
+  AppCopyrightIntelRoute: typeof AppCopyrightIntelRoute
   AppDeepfakeIntelRoute: typeof AppDeepfakeIntelRoute
   AppEnforcementRoute: typeof AppEnforcementRoute
   AppEvidenceVaultRoute: typeof AppEvidenceVaultRoute
@@ -884,6 +904,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsRoute: AppAssetsRoute,
   AppCasesRoute: AppCasesRoute,
   AppChannelWatchRoute: AppChannelWatchRoute,
+  AppCopyrightIntelRoute: AppCopyrightIntelRoute,
   AppDeepfakeIntelRoute: AppDeepfakeIntelRoute,
   AppEnforcementRoute: AppEnforcementRoute,
   AppEvidenceVaultRoute: AppEvidenceVaultRoute,
