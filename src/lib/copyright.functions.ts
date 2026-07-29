@@ -125,6 +125,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         ocrText: string | null,
         watermark: string | null,
         reason: string,
+        rek: FingerprintMatch = EMPTY_MATCH,
       ): MatchInsert => {
         const contact = resolveAbuseContact(candidate.url);
         return {
@@ -158,6 +159,28 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             reference_region: analysis.region,
             watermark,
             host: hostOf(candidate.url),
+            // AWS Rekognition recognition details
+            recognition: {
+              provider: fingerprint.available ? "aws_rekognition" : "unavailable",
+              face_similarity: rek.faceSimilarity,
+              actor_matches: rek.celebrityMatches,
+              scene_similarity: rek.sceneOverlap,
+              matched_scene_labels: rek.matchedLabels,
+              ocr_title_match: rek.ocrTitleMatch,
+              matched_ocr_text: rek.matchedOcrText,
+              watermark_match: rek.watermarkMatch,
+              signals: rek.signals,
+              signal_count: rek.signals.length,
+              corroboration_score: rek.score,
+            },
+            reference_fingerprint: {
+              scene_labels: fingerprint.labels,
+              scene_categories: fingerprint.sceneCategories,
+              recognized_actors: fingerprint.celebrities,
+              face_count: fingerprint.faceCount,
+              ocr_lines: fingerprint.ocrLines.slice(0, 20),
+              watermark_hints: fingerprint.watermarkHints,
+            },
           },
           ocr_text: ocrText,
           reason,
@@ -169,6 +192,16 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         const batch = ordered.slice(offset, offset + 4);
         const graded = await Promise.all(batch.map(async (candidate) => {
           const img = candidate.imageUrl ?? candidate.thumbnail!;
+
+          // AWS Rekognition corroboration on the candidate image (best effort).
+          let rek: FingerprintMatch = EMPTY_MATCH;
+          if (fingerprint.available) {
+            const fetched = await fetchImageBytes(img).catch(() => null);
+            if (fetched?.bytes?.length) {
+              rek = await matchCandidateAgainstFingerprint(fingerprint, fetched.bytes, data.title);
+            }
+          }
+
           const result = await gradeCandidate({
             referenceDataUrl,
             candidateImageUrl: img,
@@ -176,27 +209,40 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             candidateTitle: candidate.title,
             platform: candidate.source,
             workTitle: data.title,
-            highSignal: candidate.exact,
+            highSignal: candidate.exact || rek.signals.length >= 2,
             referenceOcrText: analysis.ocrText,
             referenceWatermark: analysis.watermark,
           });
-          return { candidate, result };
+          return { candidate, result, rek };
         }));
 
 
-        for (const { candidate, result } of graded) {
-          const isMatch =
-            result && !result.falsePositive && result.detectionType !== "unrelated" && result.confidence >= 50;
+        for (const { candidate, result, rek } of graded) {
+          const blended = blendConfidence(result ? result.confidence : null, rek);
+          const rekStrong = rek.signals.length >= 2;
+          // Multi-signal Rekognition corroboration overrides a soft AI false-positive call.
+          const isMatch = result
+            ? (!result.falsePositive || rek.signals.length >= 3) &&
+              (result.detectionType !== "unrelated" || rekStrong) &&
+              blended >= 50
+            : rekStrong && blended >= 50;
+
+          const rekReason = rek.signals.length
+            ? ` AWS recognition: ${rek.signals.join("; ")}.`
+            : "";
 
           if (isMatch) {
             rows.push(buildRow(
               candidate,
-              result.confidence,
-              result.detectionType,
-              result.transformations,
-              result.ocrText,
-              result.watermark,
-              result.reason,
+              blended,
+              result?.detectionType && result.detectionType !== "unrelated"
+                ? result.detectionType
+                : (candidate.websiteType === "duplicate_artwork" ? "poster_copy" : "ripped_copy"),
+              [...(result?.transformations ?? []), ...(rek.watermarkMatch ? ["watermark_match"] : [])],
+              result?.ocrText ?? (rek.matchedOcrText.join(" | ") || null),
+              result?.watermark ?? rek.watermarkMatch,
+              `${result?.reason ?? "Multi-signal Rekognition match."}${rekReason}`,
+              rek,
             ));
             continue;
           }
@@ -204,22 +250,24 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           ignored++;
           // Keep strong discovery signals as reviewable leads so a scan with
           // real piracy signals never reports an empty result set.
-          if (candidate.exact && !(result?.falsePositive && result.confidence < 20)) {
+          if ((candidate.exact || rek.signals.length >= 1) && !(result?.falsePositive && blended < 20)) {
             fallbackRows.push(buildRow(
               candidate,
-              Math.max(35, Math.min(49, result?.confidence ?? 35)),
+              Math.max(35, Math.min(49, blended || 35)),
               result?.detectionType && result.detectionType !== "unrelated"
                 ? result.detectionType
                 : "ripped_copy",
               result?.transformations ?? [],
               result?.ocrText ?? null,
-              result?.watermark ?? null,
-              result?.reason ||
-                `Piracy-signal lead (${candidate.category ?? "web_lead"}) surfaced by "${candidate.keywordMatch ?? candidate.query ?? data.title}" — requires human review.`,
+              result?.watermark ?? rek.watermarkMatch,
+              (result?.reason ||
+                `Piracy-signal lead (${candidate.category ?? "web_lead"}) surfaced by "${candidate.keywordMatch ?? candidate.query ?? data.title}" — requires human review.`) + rekReason,
+              rek,
             ));
           }
         }
       }
+
 
       const leads = rows.length ? [] : fallbackRows.slice(0, 12);
       const allRows = [...rows, ...leads];
