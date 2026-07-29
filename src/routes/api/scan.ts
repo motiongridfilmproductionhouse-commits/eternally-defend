@@ -2901,7 +2901,7 @@ export const Route = createFileRoute("/api/scan")({
             runFirecrawl(expansionQuery, nonYtOrRedditSources, limit),
             wantReddit
               ? runReddit(query, aliases, monthWindow)
-              : Promise.resolve({ raw: [] as RawHit[] }),
+              : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined }),
           ]);
 
           // ══════════════════════════════════════════════════════════════════════
