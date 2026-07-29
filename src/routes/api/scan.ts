@@ -1208,7 +1208,14 @@ interface RawHit {
   date?: string;
   publishedDate?: string;
   media?: MediaMeta;
+  /** Reddit-only reputation-risk classification (see classifyRedditRisk). */
+  redditRisk?: {
+    categories: string[];
+    score: number;
+    reason: string;
+  };
 }
+
 
 /** Parse a single Firecrawl search result item into a RawHit. */
 function fcItemToRaw(item: Record<string, unknown>): RawHit {
@@ -2097,6 +2104,124 @@ const REDDIT_RISK_TERMS = [
 const REDDIT_RISK_PATTERN =
   /\b(?:scam|fraud|expos(?:e|ed|ing)|controvers(?:y|ial)|allegation|alleged|defam\w*|leak(?:ed|s)?|deep\s?fake|deepfake|impersonat\w*|fake\s+(?:account|profile|video|photos?)|harass\w*|abus(?:e|ive)|explicit|nsfw|nude|naked|porn|xxx|sex\s+tape|morphed|face\s?swap|complaint|cheat\w*|troll\w*|hate)\b/i;
 
+/* ── Reddit reputation-risk classification ─────────────────────────────────
+   Classifies each collected Reddit result into reputation-risk categories and
+   produces a 0-100 risk score plus a short human-readable reason.            */
+
+export type RedditRiskCategory =
+  | "Defamation"
+  | "Scam/Fraud"
+  | "Allegations"
+  | "Expose"
+  | "Harassment"
+  | "Impersonation"
+  | "Deepfake"
+  | "NSFW/Explicit"
+  | "Privacy Leak";
+
+interface RedditRiskClassification {
+  categories: RedditRiskCategory[];
+  score: number;
+  reason: string;
+}
+
+const REDDIT_RISK_CLASSES: Array<{
+  category: RedditRiskCategory;
+  weight: number;
+  pattern: RegExp;
+}> = [
+  {
+    category: "Defamation",
+    weight: 70,
+    pattern:
+      /\b(?:defam\w*|slander\w*|libel\w*|false\s+(?:claim|claims|statement|statements|accusation\w*)|character\s+assassination|smear\s+campaign|malicious\s+rumou?rs?)\b/i,
+  },
+  {
+    category: "Scam/Fraud",
+    weight: 75,
+    pattern:
+      /\b(?:scam(?:mer|med|ming|s)?|fraud(?:ulent|ster)?|ponzi|phishing|cheat(?:ed|ing|er)?|money\s+laundering|fake\s+(?:investment|giveaway|payment)|ripoff|rip[-\s]off|conned?|swindl\w*)\b/i,
+  },
+  {
+    category: "Allegations",
+    weight: 60,
+    pattern:
+      /\b(?:allegation\w*|alleged(?:ly)?|accus(?:ed|ation\w*|ing)|misconduct|fir\s+filed|police\s+complaint|lawsuit|legal\s+notice|charged\s+with|under\s+investigation)\b/i,
+  },
+  {
+    category: "Expose",
+    weight: 55,
+    pattern:
+      /\b(?:expos(?:e|ed|ing|é)|exposé|call(?:ed|ing)?\s+out|truth\s+about|the\s+real\s+story|scandal|controvers(?:y|ial)|drama|receipts)\b/i,
+  },
+  {
+    category: "Harassment",
+    weight: 65,
+    pattern:
+      /\b(?:harass\w*|bull(?:y|ied|ying)|cyberbully\w*|trolling|troll(?:ed|s)?|hate\s+(?:campaign|speech|comments)|abusive|abuse|threats?|doxx?(?:ed|ing)?|stalk(?:ed|ing|er))\b/i,
+  },
+  {
+    category: "Impersonation",
+    weight: 70,
+    pattern:
+      /\b(?:impersonat\w*|fake\s+(?:account|profile|page|handle|id)|catfish\w*|pretending\s+to\s+be|posing\s+as|clone\s+(?:account|profile))\b/i,
+  },
+  {
+    category: "Deepfake",
+    weight: 85,
+    pattern:
+      /\b(?:deep\s?fake\w*|face\s?swap\w*|morph(?:ed|ing)|ai[-\s]generated\s+(?:image|images|video|videos|photo|photos)|synthetic\s+(?:media|video)|fake\s+(?:video|photos?|images?))\b/i,
+  },
+  {
+    category: "NSFW/Explicit",
+    weight: 90,
+    pattern:
+      /\b(?:nsfw|nude\w*|naked|topless|porn\w*|xxx|sex\s+(?:tape|video|clip)|explicit\s+(?:content|video|photos?)|onlyfans|erotic)\b/i,
+  },
+  {
+    category: "Privacy Leak",
+    weight: 80,
+    pattern:
+      /\b(?:leak(?:ed|s|ing)?|private\s+(?:photos?|videos?|chats?|messages?|number)|personal\s+(?:details|information)\s+(?:leak|exposed)|data\s+breach|mms|address\s+leaked)\b/i,
+  },
+];
+
+function classifyRedditRisk(hit: RawHit): RedditRiskClassification {
+  const text = `${hit.title ?? ""} ${hit.description ?? hit.snippet ?? ""} ${hit.url ?? ""}`;
+
+  const matched = REDDIT_RISK_CLASSES.filter((entry) => entry.pattern.test(text));
+
+  if (!matched.length) {
+    return {
+      categories: [],
+      score: 10,
+      reason: "Identity mentioned in a Reddit discussion with no explicit reputation-risk signal",
+    };
+  }
+
+  const sorted = [...matched].sort((a, b) => b.weight - a.weight);
+  const primary = sorted[0];
+
+  /* Highest-weight category dominates; each additional distinct category
+     adds a smaller escalation for compounded reputational harm. */
+  let score = primary.weight + Math.min(20, (sorted.length - 1) * 7);
+
+  /* A title-level signal is stronger evidence than a buried comment mention. */
+  if (primary.pattern.test(hit.title ?? "")) score += 6;
+
+  const categories = sorted.map((entry) => entry.category);
+  const label = categories.join(", ");
+
+  return {
+    categories,
+    score: Math.max(0, Math.min(100, Math.round(score))),
+    reason:
+      categories.length > 1
+        ? `Reddit discussion shows ${label.toLowerCase()} signals about the monitored identity`
+        : `Reddit discussion contains ${label.toLowerCase()} language about the monitored identity`,
+  };
+}
+
 async function runReddit(
   query: string,
   aliases: string[],
@@ -2269,7 +2394,16 @@ async function runReddit(
     }
   }
 
-  const results = Array.from(unique.values()).slice(0, 80);
+  /* Classify every collected Reddit result by reputation risk, then rank
+     risk-bearing discussions above neutral mentions. */
+  const results = Array.from(unique.values())
+    .map((hit) => ({ ...hit, redditRisk: classifyRedditRisk(hit) }))
+    .sort(
+      (a, b) =>
+        b.redditRisk.score - a.redditRisk.score ||
+        relevance(b) - relevance(a),
+    )
+    .slice(0, 80);
   return results.length
     ? { raw: results }
     : { raw: [], error: errors.join("; ") || "No indexed Reddit discussions found" };
@@ -2474,7 +2608,14 @@ function buildReport(
         ),
       );
 
-      const detectionReason = c.keywords.length
+      /* Reddit results carry their own reputation-risk classification. */
+      const redditRisk = isRedditEntityLead ? o.redditRisk : undefined;
+
+      const detectionReason = redditRisk
+        ? redditRisk.categories.length
+          ? `Reddit risk ${redditRisk.score}/100 · ${redditRisk.categories.join(", ")} · ${redditRisk.reason}`
+          : `Reddit risk ${redditRisk.score}/100 · ${redditRisk.reason}`
+        : c.keywords.length
         ? `Matched: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
         : sent === "Negative"
           ? "Negative sentiment in title/description"
@@ -2504,14 +2645,19 @@ function buildReport(
         credibilityScore: cred,
         viralityScore: virality,
         copyrightRisk: c.copyrightEnforce,
-        reputationRisk: Math.min(100, c.reputation + (sent === "Negative" ? 8 : 0)),
+        reputationRisk: Math.max(
+          redditRisk?.score ?? 0,
+          Math.min(100, c.reputation + (sent === "Negative" ? 8 : 0)),
+        ),
         reachEstimate: reach,
         engagement,
         recommendedAction:
           contentPosition === "SUPPORTIVE" || onlyContextSignals
             ? "Preserve and review; no apparent violation from title or metadata alone"
             : "Preserve and conduct human review before selecting any platform or legal action",
-        keywords: c.keywords,
+        keywords: redditRisk?.categories.length
+          ? Array.from(new Set([...redditRisk.categories, ...c.keywords]))
+          : c.keywords,
         language: "en",
         viral: reach > 250000 || c.sev === "Critical",
         media: o.media,
