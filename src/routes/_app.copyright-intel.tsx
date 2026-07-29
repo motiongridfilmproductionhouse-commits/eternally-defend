@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import {
   Copyright, Upload, Loader2, ExternalLink, ShieldCheck, AlertTriangle,
   Eye, XCircle, FileSearch, Film, Image as ImageIcon, Mail,
@@ -94,6 +95,10 @@ function CopyrightIntelPage() {
   const [file, setFile] = useState<File | null>(null);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [stage, setStage] = useState("");
+  const [stageIndex, setStageIndex] = useState(0);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [scanMeta, setScanMeta] = useState<{ title: string; kind: "image" | "video" } | null>(null);
+  const [summary, setSummary] = useState<{ candidates: number; matches: number; graded: number } | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -122,9 +127,21 @@ function CopyrightIntelPage() {
       if (!file) throw new Error("Upload a reference image or video first.");
       if (!title.trim()) throw new Error("Name the protected work.");
       const isVideo = file.type.startsWith("video/");
+
+      // Close the registration modal and switch to the live scanning interface.
+      setRegisterOpen(false);
+      setSelectedScanId(null);
+      setSummary(null);
+      setScanMeta({ title: title.trim(), kind: isVideo ? "video" : "image" });
+      setStageIndex(0);
       setStage(isVideo ? "Extracting video frames…" : "Preparing reference…");
 
       const blobs: Blob[] = isVideo ? await extractFrames(file) : [file];
+      setPreviews((old) => {
+        old.forEach((u) => URL.revokeObjectURL(u));
+        return blobs.map((b) => URL.createObjectURL(b));
+      });
+
       const keys: string[] = [];
       for (let i = 0; i < blobs.length; i++) {
         setStage(`Uploading reference ${i + 1}/${blobs.length}…`);
@@ -140,25 +157,43 @@ function CopyrightIntelPage() {
         keys.push(key);
       }
 
-      setStage("Reverse-image discovery and evidence grading…");
-      return runFn({
-        data: {
-          title: title.trim(),
-          referenceKind: isVideo ? "video" : "image",
-          contentType: isVideo ? "image/jpeg" : (file.type as "image/jpeg"),
-          keys,
-        },
-      });
+      setStageIndex(1);
+      setStage("Analyzing visual content…");
+      // Advance the visible stage while the server call runs.
+      const timers = [
+        setTimeout(() => { setStageIndex(2); setStage("Extracting important details…"); }, 4000),
+        setTimeout(() => { setStageIndex(3); setStage("Comparing online matches…"); }, 12000),
+        setTimeout(() => { setStageIndex(4); setStage("Generating report…"); }, 30000),
+      ];
+
+      try {
+        return await runFn({
+          data: {
+            title: title.trim(),
+            referenceKind: isVideo ? "video" : "image",
+            contentType: isVideo ? "image/jpeg" : (file.type as "image/jpeg"),
+            keys,
+          },
+        });
+      } finally {
+        timers.forEach(clearTimeout);
+      }
     },
     onSuccess: (res) => {
       setStage("");
+      setStageIndex(SCAN_STAGES.length);
+      setSummary({
+        candidates: res.stats.candidates ?? 0,
+        matches: res.stats.matches ?? 0,
+        graded: res.stats.graded ?? 0,
+      });
       setSelectedScanId(res.scanId);
-      setRegisterOpen(false);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       toast.success(`${res.stats.matches} evidence-backed match(es) from ${res.stats.candidates} candidates`);
     },
-    onError: (e: Error) => { setStage(""); toast.error(e.message); },
+    onError: (e: Error) => { setStage(""); setScanMeta(null); toast.error(e.message); },
   });
+
 
   const review = useMutation({
     mutationFn: (v: { matchId: string; reviewStatus: "pending" | "evidence_ready" | "dismissed" }) => updFn({ data: v }),
@@ -189,6 +224,49 @@ function CopyrightIntelPage() {
           <Copyright className="mr-2 h-4 w-4" />Register copyright work
         </Button>
       </section>
+
+      {scan.isPending && scanMeta && (
+        <div className="animate-fade-in">
+          <ScanProgress
+            previews={previews}
+            title={scanMeta.title}
+            kind={scanMeta.kind}
+            stageIndex={stageIndex}
+            note={stage}
+          />
+        </div>
+      )}
+
+      {!scan.isPending && summary && scanMeta && (
+        <section className="animate-fade-in rounded-xl border border-primary/30 bg-card/60 p-5 backdrop-blur">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Analysis complete · {scanMeta.title}</h2>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {[
+              { label: "Sources checked", value: summary.candidates },
+              { label: "Evidence graded", value: summary.graded },
+              { label: "Matches found", value: summary.matches },
+            ].map((s) => (
+              <div key={s.label} className="rounded-lg border border-border/50 bg-background/30 p-3">
+                <div className="text-lg font-semibold">{s.value}</div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</div>
+              </div>
+            ))}
+          </div>
+          {previews.length > 0 && (
+            <div className="mt-3 flex gap-1.5">
+              {previews.map((src) => (
+                <img key={src} src={src} alt={`Reference frame for ${scanMeta.title}`}
+                  className="h-12 w-16 rounded border border-border/50 object-cover" />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+
 
       <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
         <DialogContent className="max-w-3xl overflow-hidden border-border/60 bg-card/95 p-0 backdrop-blur">
