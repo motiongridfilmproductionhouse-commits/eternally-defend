@@ -1,27 +1,37 @@
 import os
 import uuid
+
 from fastapi import UploadFile
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+from app.services.fingerprint_service import fingerprint_service
+from app.services.query_generator_service import query_generator_service
+
 
 class UploadService:
+
     async def save(self, file: UploadFile):
+
+        os.makedirs("uploads", exist_ok=True)
+
         asset_id = str(uuid.uuid4())
 
-        filename = f"{asset_id}_{file.filename}"
-        filepath = os.path.join(UPLOAD_DIR, filename)
+        filepath = f"uploads/{asset_id}_{file.filename}"
 
-        contents = await file.read()
+        with open(filepath, "wb") as buffer:
+            buffer.write(await file.read())
 
-        with open(filepath, "wb") as f:
-            f.write(contents)
+        fingerprint = fingerprint_service.generate(filepath)
+
+        queries = query_generator_service.generate(file.filename)
 
         return {
             "asset_id": asset_id,
-            "filename": filename,
+            "filename": file.filename,
             "path": filepath,
+            "fingerprint": fingerprint,
+            "queries": queries,
             "status": "uploaded"
         }
+
 
 upload_service = UploadService()
