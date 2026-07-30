@@ -270,9 +270,98 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         }
       }
 
+      // 4. Unauthorized-distribution site inspection. Page leads are fetched and
+      //    examined for hard evidence (players, download buttons, mirrors, file
+      //    and torrent links). Title/poster/trailer/news mentions alone never
+      //    qualify. Evidence only — nothing is reported or taken down.
+      const titles = [data.title, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
+      const releaseDate = analysis.releaseDate;
+      const leadUrls = discovery.pageLeads
+        .sort((a2, b2) => Number(b2.strong) - Number(a2.strong))
+        .slice(0, 16);
 
-      const leads = rows.length ? [] : fallbackRows.slice(0, 12);
-      const allRows = [...rows, ...leads];
+      const distributionRows: MatchInsert[] = [];
+      const distributionSummary: Array<Record<string, unknown>> = [];
+
+      for (let offset = 0; offset < leadUrls.length; offset += 4) {
+        const batch = leadUrls.slice(offset, offset + 4);
+        const analyses = await Promise.all(
+          batch.map(async (lead) => ({
+            lead,
+            analysis: await analyzeDistributionPage({
+              url: lead.url,
+              title: lead.title,
+              titles,
+              releaseDate,
+            }).catch(() => null),
+          })),
+        );
+
+        for (const { lead, analysis: dist } of analyses) {
+          if (!dist) continue;
+          distributionSummary.push({
+            url: dist.url,
+            domain_risk: dist.domainRisk,
+            content_type: dist.contentType,
+            release_timing: dist.releaseTiming,
+            confidence: dist.confidence,
+            strong_evidence: dist.strongEvidence,
+            indicators: dist.indicatorKeys,
+          });
+          // Strong evidence gate: only distribution sources become findings.
+          if (!dist.strongEvidence || dist.domainRisk === "low") continue;
+
+          const contact = resolveAbuseContact(dist.url);
+          distributionRows.push({
+            scan_id: scan.id,
+            user_id: userId,
+            source_url: canonicalUrl(dist.url),
+            platform: contact.platform,
+            page_title: dist.pageTitle ?? lead.title,
+            thumbnail_url: dist.screenshot,
+            confidence: dist.confidence,
+            confidence_band: bandFor(dist.confidence),
+            detection_type:
+              dist.contentType === "torrent_index_site" ? "ripped_copy"
+              : dist.contentType === "unauthorized_streaming_site" ? "video_clip"
+              : dist.contentType === "reupload_platform" ? "video_clip"
+              : "ripped_copy",
+            transformations: dist.qualityTags.slice(0, 8),
+            evidence: {
+              discovery: "distribution_site",
+              discovery_query: lead.query,
+              keyword_match: lead.query,
+              host: hostOf(dist.url),
+              website_type: dist.contentType,
+              detected_language: analysis.language,
+              reference_release_date: releaseDate,
+              distribution: {
+                domain: dist.domain,
+                domain_risk: dist.domainRisk,
+                content_type: dist.contentType,
+                release_timing: dist.releaseTiming,
+                release_offset_days: dist.releaseOffsetDays,
+                piracy_indicators: dist.indicators,
+                indicator_keys: dist.indicatorKeys,
+                distribution_links: dist.distributionLinks,
+                quality_tags: dist.qualityTags,
+                strong_evidence: dist.strongEvidence,
+                evidence_screenshot: dist.screenshot,
+              },
+            },
+            ocr_text: null,
+            reason: dist.reason,
+            contact: contact as unknown as MatchInsert["contact"],
+          });
+        }
+      }
+
+      const leads = rows.length || distributionRows.length ? [] : fallbackRows.slice(0, 12);
+      const seenUrls = new Set(distributionRows.map((r) => r.source_url));
+      const allRows = [
+        ...distributionRows,
+        ...[...rows, ...leads].filter((r) => !seenUrls.has(r.source_url)),
+      ];
 
       if (allRows.length) {
         const { error: mErr } = await supabase.from("copyright_matches").upsert(allRows, { onConflict: "scan_id,source_url" });
@@ -289,8 +378,14 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         reference_faces: fingerprint.faceCount,
         matches: allRows.length,
         leads: leads.length,
+        distribution_pages_inspected: leadUrls.length,
+        distribution_sites: distributionRows.length,
+        distribution_high_risk: distributionSummary.filter((d) => d.domain_risk === "high").length,
+        distribution_summary: distributionSummary.slice(0, 25),
+        release_timing: releaseTimingFor(releaseDate).timing,
         queries_language: analysis.language,
         release_date: analysis.releaseDate,
+
         ignored,
         frames: data.keys.length,
         sha256,
