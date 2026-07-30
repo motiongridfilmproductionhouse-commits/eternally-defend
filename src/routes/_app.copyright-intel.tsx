@@ -396,6 +396,20 @@ function CopyrightIntelPage() {
             const band = BAND[m.confidence_band] ?? BAND.review;
             const ev = (m.evidence ?? {}) as Record<string, unknown>;
             const contact = (m.contact ?? {}) as Record<string, string | null>;
+            const dist = (ev.distribution ?? null) as null | {
+              domain_risk?: string;
+              content_type?: string;
+              release_timing?: string;
+              release_offset_days?: number | null;
+              piracy_indicators?: Array<{ key: string; detail: string; strong?: boolean }>;
+              distribution_links?: string[];
+              quality_tags?: string[];
+            };
+            const riskCls =
+              dist?.domain_risk === "high" ? "border-destructive/50 text-destructive"
+              : dist?.domain_risk === "medium" ? "border-amber-500/50 text-amber-500"
+              : "text-muted-foreground";
+
             return (
               <article key={m.id} className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur">
                 <div className="flex gap-4">
