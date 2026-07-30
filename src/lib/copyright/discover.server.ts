@@ -256,18 +256,22 @@ function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
   const isFresh = age !== null && age <= 30;
 
   const general = [
-    "online", "watch online", "stream online", "streaming online", "free streaming",
-    "online free", "full movie", "full video", "full movie online free",
-    "download", "movie download", "movie download hd", "leaked", "HD print",
-    "cam print", "CAM", "torrent", "telegram", "movie file download",
+    "full movie", "watch online", "free streaming", "HD print", "CAM print",
+    "WEB-DL", "download", "torrent", "movie file", "online free", "dubbed",
+    "language versions", "online", "stream online", "streaming online",
+    "full video", "full movie online free", "movie download", "movie download hd",
+    "leaked", "CAM", "telegram", "movie file download",
     "watch online free hd", "embedded player watch", "mp4 download link",
-    "google drive link", "mega.nz link", "index of movie",
+    "google drive link", "mega.nz link", "index of movie", "hdrip 720p",
+    "mirror links download", "dual audio download",
   ];
   const fresh = [
     "released today", "online today", "full movie leaked",
-    "theatre print", "cinema recording", "first day collection leak",
-    "hdcam 720p download", "day 1 print",
+    "theatre print", "cinema recording", "same day leak", "day 1 print",
+    "hdcam 720p download", "first day print online", "leaked online day one",
+    "new release full movie download", "first week download",
   ];
+
   // Negative terms keep licensed/news/review pages out of the result set.
   const NEG =
     "-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -review -trailer_reaction -\"box office\" -news";
