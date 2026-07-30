@@ -467,8 +467,17 @@ export async function firecrawlDiscover(
     });
   }
 
+  // Page-level leads feed the distribution-site inspector (player/download/
+  // mirror/file-link evidence), independent of whether a screenshot succeeded.
+  const pageLeads: PageLead[] = [
+    ...strongLeads.map((l) => ({ ...l, title: l.title ?? null, strong: true })),
+    ...weakLeads.slice(0, 12).map((l) => ({ ...l, title: l.title ?? null, strong: false })),
+  ].slice(0, 40);
+
   // Suspicious distribution sources first, official-looking noise never here.
-  return out
-    .sort((x, y) => Number(y.exact) - Number(x.exact))
-    .slice(0, 60);
+  return {
+    candidates: out.sort((x, y) => Number(y.exact) - Number(x.exact)).slice(0, 60),
+    pageLeads,
+  };
 }
+
