@@ -8,6 +8,7 @@ import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.ser
 import { readStoredObject } from "@/lib/copyright/storage.server";
 
 import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
+import { analyzeDistributionPage, releaseTimingFor } from "@/lib/copyright/distribution.server";
 import {
   buildMovieFingerprint,
   matchCandidateAgainstFingerprint,
@@ -281,7 +282,15 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         .slice(0, 16);
 
       const distributionRows: MatchInsert[] = [];
-      const distributionSummary: Array<Record<string, unknown>> = [];
+      const distributionSummary: Array<{
+        url: string;
+        domain_risk: string;
+        content_type: string;
+        release_timing: string;
+        confidence: number;
+        strong_evidence: boolean;
+        indicators: string[];
+      }> = [];
 
       for (let offset = 0; offset < leadUrls.length; offset += 4) {
         const batch = leadUrls.slice(offset, offset + 4);
