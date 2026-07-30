@@ -348,6 +348,22 @@ function detectLanguage(text: string, a: ReferenceAnalysis): string | null {
   return a.language ?? null;
 }
 
+export interface PageLead {
+  url: string;
+  title: string | null;
+  query: string;
+  /** discovery snippet text used for keyword signals */
+  text: string;
+  /** discovery flagged this as a strong piracy lead */
+  strong: boolean;
+}
+
+export interface DiscoveryResult {
+  candidates: DiscoveryCandidate[];
+  /** page-level leads for distribution-site inspection */
+  pageLeads: PageLead[];
+}
+
 /**
  * Discover candidate re-uploads with Firecrawl, seeded by the AI-vision
  * analysis of the reference frame.
@@ -357,7 +373,8 @@ export async function firecrawlDiscover(
   workTitle: string,
   frameIndex: number,
   analysis?: ReferenceAnalysis,
-): Promise<DiscoveryCandidate[]> {
+): Promise<DiscoveryResult> {
+
   if (!isFirecrawlConfigured()) {
     throw new Error(
       "Reverse discovery is not configured. Connect Firecrawl to run copyright detection.",
