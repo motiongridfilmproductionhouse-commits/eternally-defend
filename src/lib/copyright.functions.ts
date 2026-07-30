@@ -350,7 +350,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
                 content_type: dist.contentType,
                 release_timing: dist.releaseTiming,
                 release_offset_days: dist.releaseOffsetDays,
-                piracy_indicators: dist.indicators,
+                piracy_indicators: dist.indicators.map((i) => ({
+                  key: i.key, detail: i.detail, weight: i.weight, strong: i.strong,
+                })),
                 indicator_keys: dist.indicatorKeys,
                 distribution_links: dist.distributionLinks,
                 quality_tags: dist.qualityTags,
