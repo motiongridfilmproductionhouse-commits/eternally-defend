@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import InvestigationTerminal from "./InvestigationTerminal";
-
+import { lookupInfrastructure } from "@/services/infrastructure";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -13,18 +13,32 @@ export default function InvestigationModal({
   match,
 }: Props) {
 const [finished, setFinished] = useState(false);
+const [report, setReport] = useState<any>(null);
+const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+  if (!open || !match?.url) return;
 
-    setFinished(false);
+  setFinished(false);
+  setLoading(true);
 
-    const timer = setTimeout(() => {
-      setFinished(true);
-    }, 8000);
+  lookupInfrastructure(match.url)
+    .then((result) => {
+      setReport(result);
+    })
+    .catch((err) => {
+      console.error(err);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
 
-    return () => clearTimeout(timer);
-  }, [open]);
+  const timer = setTimeout(() => {
+    setFinished(true);
+  }, 8000);
+
+  return () => clearTimeout(timer);
+}, [open, match]);
 
   if (!open) return null;
 
@@ -78,11 +92,15 @@ const [finished, setFinished] = useState(false);
                     Infrastructure
                   </h3>
 
-                  <p>Provider: Cloudflare Inc.</p>
-                  <p>ASN: AS13335</p>
-                  <p>CDN: Cloudflare</p>
-                  <p>HTTP: 200 OK</p>
-                  <p>CMS: WordPress</p>
+                  <p>Provider: {report?.provider?.name ?? "-"}</p>
+
+<p>ASN: {report?.provider?.asn ?? "-"}</p>
+
+<p>CDN: {report?.cdn?.provider ?? "-"}</p>
+
+<p>Registrar: {report?.whois?.registrar ?? "-"}</p>
+
+<p>Abuse Email: {report?.provider?.abuseEmail ?? report?.whois?.abuseEmail ?? "-"}</p>
 
                 </div>
 
@@ -103,6 +121,34 @@ const [finished, setFinished] = useState(false);
                 </div>
 
               </div>
+<div className="mt-6 rounded-lg bg-zinc-900 p-4">
+  <h3 className="text-lg font-semibold mb-3">
+    Public Contacts
+  </h3>
+
+  {report?.contacts?.contacts?.length ? (
+    report.contacts.contacts.map((contact: any) => (
+      <div
+        key={contact.email}
+        className="border-b border-zinc-800 py-2"
+      >
+        <div className="font-semibold">
+          {contact.category}
+        </div>
+
+        <div>{contact.email}</div>
+
+        <div className="text-xs text-zinc-400">
+          {contact.source}
+        </div>
+      </div>
+    ))
+  ) : (
+    <div className="text-zinc-500">
+      No public contacts found.
+    </div>
+  )}
+</div>
 
               <div className="mt-8 flex gap-3">
 

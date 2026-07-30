@@ -6,17 +6,20 @@ import { detectCDN } from "./cdn";
 import { detectProvider } from "./provider";
 import { calculateRisk } from "./risk";
 import { analyzePage } from "../investigation/page";
+import { discoverContacts } from "./contacts";
 
 export async function lookupInfrastructure(url: string) {
   const hostname = new URL(url).hostname;
 
-  const [dns, rdap, whois, http, page] = await Promise.all([
+  const [dns, rdap, whois, http, page, contacts] = await Promise.all([
     lookupDNS(hostname),
     lookupRDAP(hostname),
     lookupWhois(hostname),
     lookupHTTP(url),
-analyzePage(url),
-  ]);
+    analyzePage(url),
+    discoverContacts(url),
+]);
+    
 
   const cdn = detectCDN(
     new Headers(http.headers),
@@ -44,5 +47,6 @@ const risk = calculateRisk({
   provider,
   risk,
   page,
+  contacts,
 };
 }

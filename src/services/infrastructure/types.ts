@@ -77,6 +77,20 @@ export interface RiskScore {
   reasons: string[];
 }
 
+export interface ContactItem {
+  email: string;
+  category: string;
+  source: string;
+  confidence: number;
+}
+
+export interface ContactDiscoveryResult {
+  registrar?: string;
+  contacts: ContactItem[];
+  pagesScanned: string[];
+  errors: string[];
+}
+
 export interface InfrastructureReport {
   url: string;
 
@@ -93,6 +107,7 @@ export interface InfrastructureReport {
   provider?: ProviderResult;
 
   risk?: RiskScore;
+contacts?: ContactDiscoveryResult;
 
   confidence: number;
 
