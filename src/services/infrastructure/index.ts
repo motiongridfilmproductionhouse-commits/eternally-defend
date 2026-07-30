@@ -36,7 +36,8 @@ const risk = calculateRisk({
   http,
 });
 
-  return {
+  console.log("===== Investigation Report =====");
+console.log({
   url,
   hostname,
   dns,
@@ -49,4 +50,4 @@ const risk = calculateRisk({
   page,
   contacts,
 };
-}
+console.log("===============================");
