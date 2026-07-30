@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
+import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import {
@@ -105,6 +106,8 @@ function CopyrightIntelPage() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [investigationOpen, setInvestigationOpen] = useState(false);   
+const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const blobToBase64 = async (blob: Blob): Promise<string> => {
     const buffer = await blob.arrayBuffer();
     let binary = "";
@@ -496,10 +499,32 @@ function CopyrightIntelPage() {
                         onClick={() => review.mutate({ matchId: m.id, reviewStatus: "evidence_ready" })}>
                         <Eye className="mr-1.5 h-3.5 w-3.5" />Mark evidence ready
                       </Button>
-                      <Button size="sm" variant="ghost"
-                        onClick={() => review.mutate({ matchId: m.id, reviewStatus: "dismissed" })}>
-                        <XCircle className="mr-1.5 h-3.5 w-3.5" />Dismiss
-                      </Button>
+                     
+
+<Button
+  size="sm"
+  variant="secondary"
+  onClick={() => {
+    setSelectedMatch(m);
+    setInvestigationOpen(true);
+  }}
+>
+  Website Details
+</Button>
+
+<Button
+  size="sm"
+  variant="ghost"
+  onClick={() =>
+    review.mutate({
+      matchId: m.id,
+      reviewStatus: "dismissed",
+    })
+  }
+>
+  <XCircle className="mr-1.5 h-3.5 w-3.5" />
+  Dismiss
+</Button>
                     </div>
                   </div>
                 </div>
@@ -512,6 +537,11 @@ function CopyrightIntelPage() {
         </section>
 
       </div>
+<InvestigationModal
+  open={investigationOpen}
+  onOpenChange={setInvestigationOpen}
+  match={selectedMatch}
+/>
     </div>
   );
 }
