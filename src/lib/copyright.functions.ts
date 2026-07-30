@@ -102,9 +102,11 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
       // 2. Firecrawl reverse discovery, seeded by that analysis.
       const byUrl = new Map<string, DiscoveryCandidate>();
-      for (const c of await firecrawlDiscover(referenceDataUrl, data.title, 0, analysis)) {
+      const discovery = await firecrawlDiscover(referenceDataUrl, data.title, 0, analysis);
+      for (const c of discovery.candidates) {
         if (!byUrl.has(c.url)) byUrl.set(c.url, c);
       }
+
 
       // Prioritise high-signal piracy leads, keep the grading budget bounded.
       const ordered = [...byUrl.values()]
