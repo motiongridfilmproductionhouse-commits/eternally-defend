@@ -7,3 +7,9 @@ logs/
 evidence/
 
 .env
+downloads/
+__pycache__/
+*.pyc
+.env
+.env.*
+.DS_Store
