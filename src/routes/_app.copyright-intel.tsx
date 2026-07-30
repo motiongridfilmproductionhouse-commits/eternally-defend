@@ -425,6 +425,22 @@ function CopyrightIntelPage() {
                       {String(ev.discovery) === "piracy_lead" && (
                         <Badge variant="outline" className="text-[10px] text-primary">piracy lead</Badge>
                       )}
+                      {dist && (
+                        <>
+                          <Badge variant="outline" className={`text-[10px] uppercase ${riskCls}`}>
+                            {dist.domain_risk} risk domain
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px]">
+                            {(dist.content_type ?? "").replace(/_/g, " ")}
+                          </Badge>
+                          {dist.release_timing && dist.release_timing !== "unknown" && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {dist.release_timing.replace(/_/g, " ")}
+                              {typeof dist.release_offset_days === "number" ? ` · +${dist.release_offset_days}d` : ""}
+                            </Badge>
+                          )}
+                        </>
+                      )}
                       {m.review_status !== "pending" && (
                         <Badge variant="outline" className="text-[10px]">{m.review_status.replace("_", " ")}</Badge>
                       )}
@@ -434,6 +450,23 @@ function CopyrightIntelPage() {
                       {m.page_title || m.source_url} <ExternalLink className="h-3 w-3 shrink-0" />
                     </a>
                     {m.reason && <p className="text-xs text-muted-foreground">{m.reason}</p>}
+                    {dist?.piracy_indicators?.length ? (
+                      <ul className="space-y-1 rounded-lg border border-border/60 bg-background/40 p-2">
+                        {dist.piracy_indicators.slice(0, 6).map((i) => (
+                          <li key={i.key} className="flex gap-1.5 text-[11px] text-muted-foreground">
+                            <span className={i.strong ? "text-destructive" : "text-primary"}>●</span>
+                            <span><span className="font-medium">{i.key.replace(/_/g, " ")}:</span> {i.detail}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {dist?.distribution_links?.length ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        <span className="font-medium">Distribution links:</span> {dist.distribution_links.length} detected
+                        {" · "}{dist.distribution_links.slice(0, 2).join(", ").slice(0, 120)}
+                      </p>
+                    ) : null}
+
                     {Array.isArray(m.transformations) && m.transformations.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {(m.transformations as string[]).map((t) => (
