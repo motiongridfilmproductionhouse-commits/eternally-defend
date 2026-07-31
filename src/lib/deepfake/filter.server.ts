@@ -18,12 +18,24 @@ export interface FilteredCandidate extends RawHit {
 
 const LISTING_PATTERNS = [
   /\/search(?:\/|\?|$)/i,
-  /[?&](?:q|query|search|keyword)=/i,
+  /\/results?(?:\/|\?|$)/i,
+  /[?&](?:q|query|search|keyword|keywords|k|s|term|terms)=/i,
   /\/tag(?:s)?(?:\/|\?|$)/i,
-  /\/category(?:\/|\?|$)/i,
+  /\/categor(?:y|ies)(?:\/|\?|$)/i,
+  /\/genres?(?:\/|\?|$)/i,
+  /\/channels?(?:\/|\?|$)/i,
+  /\/(?:pornstar|pornstars|model|models|performer|performers|actress|actor|star|stars)(?:\/|\?|$)/i,
+  /\/celebrities(?:\/|\?|$)/i,
   /\/browse(?:\/|\?|$)/i,
   /\/explore(?:\/|\?|$)/i,
   /\/discover(?:\/|\?|$)/i,
+  /\/videos?(?:\/)?$/i,
+  /\/galleries?(?:\/)?$/i,
+  /\/most[-_]?viewed/i,
+  /\/top[-_]?rated/i,
+  /\/newest(?:\/|\?|$)/i,
+  /\/popular(?:\/|\?|$)/i,
+  /\/trending(?:\/|\?|$)/i,
 ];
 
 const GENERIC_TITLES = [
@@ -251,7 +263,7 @@ function isLikelyNewsHost(host: string): boolean {
     );
 }
 
-function isListingUrl(url: string): boolean {
+export function isListingUrl(url: string): boolean {
   return LISTING_PATTERNS.some((pattern) =>
     pattern.test(url),
   );
@@ -459,6 +471,17 @@ export function filterDeepfakeCandidates(
     }
 
     /*
+     * Search, tag, category, performer-index and generic listing pages
+     * must never become deepfake findings. They routinely contain the
+     * target name plus adult keywords without hosting a specific asset.
+     */
+    else if (listing || isGenericTitle(title)) {
+      decision = "rejected";
+      rejectionReason =
+        "Search, tag, category, performer-index or generic listing page excluded before classification";
+    }
+
+    /*
      * Wikimedia, Wikipedia and stock-photo pages are not threats
      * unless their title/snippet contains a strong explicit or
      * synthetic-media signal.
@@ -508,16 +531,14 @@ export function filterDeepfakeCandidates(
     }
 
     /*
-     * Sensitive synthetic-media mode:
-     * accept explicit/intimate threats or strong AI/deepfake manipulation.
+     * Accept only when there is a synthetic/impersonation signal.
+     * Explicit adult language with a name mention is not enough on its
+     * own — those pages are inspected later and classified as
+     * ADULT_NAME_MENTION when synthetic evidence is absent.
      *
-     * Do not accept an ordinary page merely because its text contains
-     * a weak phrase such as "fake video".
+     * Strong explicit + synthetic signals may be accepted for crawl.
+     * Explicit-only hits go to triage for page inspection, not primary.
      */
-    else if (threat.hasStrongExplicitSignal) {
-      decision = "accepted";
-    }
-
     else if (
       threat.hasSyntheticSignal &&
       threat.signals.some((signal) =>
@@ -525,10 +546,24 @@ export function filterDeepfakeCandidates(
           "deepfake",
           "ai-nude",
           "morphed-media",
+          "synthetic-media",
         ].includes(signal),
       )
     ) {
       decision = "accepted";
+    }
+
+    else if (
+      threat.hasStrongExplicitSignal &&
+      threat.hasSyntheticSignal
+    ) {
+      decision = "accepted";
+    }
+
+    else if (threat.hasStrongExplicitSignal) {
+      decision = "triage";
+      rejectionReason =
+        "Adult name mention without synthetic/impersonation evidence; requires page inspection";
     }
 
     /*

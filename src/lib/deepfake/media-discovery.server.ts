@@ -10,6 +10,11 @@ export type MediaDiscoveryHit = {
   media_type?: "image" | "video";
   evidence_page_url?: string;
   is_sensitive?: boolean;
+  /** Extracted text from the exact crawled result page. */
+  page_text?: string;
+  page_type?: string;
+  /** True only after a successful Firecrawl scrape of the exact page URL. */
+  page_inspected?: boolean;
 };
 
 type FirecrawlScrapeResponse = {
@@ -17,6 +22,8 @@ type FirecrawlScrapeResponse = {
   data?: {
     html?: string;
     rawHtml?: string;
+    markdown?: string;
+    content?: string;
     images?: string[];
     links?: string[];
     metadata?: Record<string, unknown>;
@@ -76,6 +83,48 @@ function metadataString(
   }
 
   return null;
+}
+
+function stripHtmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractPageText(data: NonNullable<FirecrawlScrapeResponse["data"]>): string {
+  const markdown = typeof data.markdown === "string" ? data.markdown : "";
+  const content = typeof data.content === "string" ? data.content : "";
+  const html = data.rawHtml ?? data.html ?? "";
+
+  const metadataDescription = metadataString(data.metadata, [
+    "description",
+    "ogDescription",
+    "og:description",
+    "twitterDescription",
+    "title",
+    "ogTitle",
+    "og:title",
+  ]);
+
+  const combined = [
+    metadataDescription ?? "",
+    markdown,
+    content,
+    html ? stripHtmlToText(html) : "",
+  ]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return combined.slice(0, 12_000);
 }
 
 function extractAttributeMedia(
@@ -172,38 +221,21 @@ export function hasExplicitPageRisk(hit: {
 export async function scrapeMediaFromPage(
   hit: MediaDiscoveryHit,
 ): Promise<MediaDiscoveryHit[]> {
-  /*
-   * Image-search results can already include a direct image URL.
-   * Preserve those without paying for another scrape.
-   */
   const existingDirectMedia =
     hit.image_url ??
     hit.media_url ??
     hit.thumbnail_url;
 
-  if (existingDirectMedia && validHttpUrl(existingDirectMedia)) {
-    return [
-      {
-        ...hit,
-        evidence_page_url: hit.evidence_page_url ?? hit.url,
-        media_url: existingDirectMedia,
-        image_url: existingDirectMedia,
-        media_type: VIDEO_EXTENSION.test(existingDirectMedia)
-          ? "video"
-          : "image",
-        is_sensitive:
-          hit.is_sensitive ?? hasExplicitPageRisk(hit),
-      },
-    ];
-  }
+  const urlIsDirectMedia =
+    IMAGE_EXTENSION.test(hit.url) ||
+    VIDEO_EXTENSION.test(hit.url);
 
   /*
-   * Do not scrape an already-direct media URL.
+   * Direct media URLs have no HTML body to inspect. Keep the media for
+   * optional hashing, but mark the page as not inspected so classification
+   * fails closed to UNVERIFIED_LEAD.
    */
-  if (
-    IMAGE_EXTENSION.test(hit.url) ||
-    VIDEO_EXTENSION.test(hit.url)
-  ) {
+  if (urlIsDirectMedia) {
     return [
       {
         ...hit,
@@ -212,6 +244,8 @@ export async function scrapeMediaFromPage(
         media_type: VIDEO_EXTENSION.test(hit.url)
           ? "video"
           : "image",
+        page_inspected: false,
+        page_text: hit.page_text,
         is_sensitive:
           hit.is_sensitive ?? hasExplicitPageRisk(hit),
       },
@@ -219,10 +253,9 @@ export async function scrapeMediaFromPage(
   }
 
   /*
-   * Always use the shared Firecrawl transport.
-   * It supports both Lovable gateway mode and direct API-key mode.
-   * Do not require FIRECRAWL_API_KEY here because gateway-backed
-   * projects may not expose a direct key.
+   * Always crawl the exact result page for text evidence — even when an
+   * image-search thumbnail is already available. Thumbnails alone must
+   * not produce client-visible deepfake findings.
    */
   try {
     const { firecrawlFetch } = await import(
@@ -231,7 +264,7 @@ export async function scrapeMediaFromPage(
 
     const response = await firecrawlFetch("/scrape", {
       url: hit.url,
-      formats: ["html", "rawHtml"],
+      formats: ["html", "rawHtml", "markdown"],
       onlyMainContent: false,
       removeBase64Images: true,
       blockAds: true,
@@ -249,18 +282,85 @@ export async function scrapeMediaFromPage(
         error: rawBody.slice(0, 300),
       });
 
-      return [];
+      return [
+        {
+          ...hit,
+          evidence_page_url: hit.evidence_page_url ?? hit.url,
+          media_url: existingDirectMedia && validHttpUrl(existingDirectMedia)
+            ? existingDirectMedia
+            : hit.media_url,
+          image_url:
+            existingDirectMedia && validHttpUrl(existingDirectMedia)
+              ? existingDirectMedia
+              : hit.image_url,
+          page_inspected: false,
+          page_text: "",
+          is_sensitive:
+            hit.is_sensitive ?? hasExplicitPageRisk(hit),
+        },
+      ];
     }
 
     const payload =
       JSON.parse(rawBody) as FirecrawlScrapeResponse;
 
     if (!payload.success || !payload.data) {
-      return [];
+      return [
+        {
+          ...hit,
+          evidence_page_url: hit.evidence_page_url ?? hit.url,
+          media_url: existingDirectMedia && validHttpUrl(existingDirectMedia)
+            ? existingDirectMedia
+            : hit.media_url,
+          page_inspected: false,
+          page_text: "",
+          is_sensitive:
+            hit.is_sensitive ?? hasExplicitPageRisk(hit),
+        },
+      ];
     }
 
     const data = payload.data;
     const html = data.rawHtml ?? data.html ?? "";
+    const pageText = extractPageText(data);
+    const pageInspected = pageText.trim().length >= 80;
+
+    const metadataTitle = metadataString(data.metadata, [
+      "title",
+      "ogTitle",
+      "og:title",
+      "twitterTitle",
+    ]);
+
+    const metadataDescription = metadataString(data.metadata, [
+      "description",
+      "ogDescription",
+      "og:description",
+      "twitterDescription",
+    ]);
+
+    const inspectedHit: MediaDiscoveryHit = {
+      ...hit,
+      title: metadataTitle ?? hit.title,
+      description: metadataDescription ?? hit.description,
+      page_text: pageText,
+      page_inspected: pageInspected,
+      evidence_page_url: hit.evidence_page_url ?? hit.url,
+      is_sensitive:
+        hit.is_sensitive ?? hasExplicitPageRisk(hit),
+    };
+
+    if (
+      existingDirectMedia &&
+      validHttpUrl(existingDirectMedia) &&
+      !inspectedHit.media_url
+    ) {
+      inspectedHit.media_url = existingDirectMedia;
+      inspectedHit.image_url = existingDirectMedia;
+      inspectedHit.media_type = VIDEO_EXTENSION.test(existingDirectMedia)
+        ? "video"
+        : "image";
+    }
 
     const metadataImage = metadataString(data.metadata, [
       "ogImage",
@@ -339,10 +439,10 @@ export async function scrapeMediaFromPage(
       unique.set(candidate.media_url, candidate);
     }
 
-    return Array.from(unique.values())
+    const mediaHits = Array.from(unique.values())
       .slice(0, 8)
       .map((candidate) => ({
-        ...hit,
+        ...inspectedHit,
         url: candidate.media_url,
         media_url: candidate.media_url,
         image_url:
@@ -351,9 +451,21 @@ export async function scrapeMediaFromPage(
             : undefined,
         media_type: candidate.media_type,
         evidence_page_url: hit.url,
+        page_text: inspectedHit.page_text,
+        page_inspected: inspectedHit.page_inspected,
         is_sensitive:
-          hit.is_sensitive ?? hasExplicitPageRisk(hit),
+          hit.is_sensitive ?? hasExplicitPageRisk(inspectedHit),
       }));
+
+    /*
+     * Always retain the inspected page record so classification can use
+     * exact-page evidence even when no media URL is extractable.
+     */
+    if (!mediaHits.length) {
+      return [inspectedHit];
+    }
+
+    return mediaHits;
   } catch (error) {
     console.warn("[DEEPFAKE:MEDIA] Extraction error:", {
       url: hit.url,
@@ -363,7 +475,16 @@ export async function scrapeMediaFromPage(
           : String(error),
     });
 
-    return [];
+    return [
+      {
+        ...hit,
+        evidence_page_url: hit.evidence_page_url ?? hit.url,
+        page_inspected: false,
+        page_text: "",
+        is_sensitive:
+          hit.is_sensitive ?? hasExplicitPageRisk(hit),
+      },
+    ];
   }
 }
 
@@ -399,11 +520,14 @@ export async function enrichHitsWithMedia(
         output.push(...mediaResults);
       } else {
         /*
-         * Keep the page as a discovery lead even when its media is blocked.
+         * Keep the page as an unverified lead when crawl/media extraction
+         * produced nothing. Classification must fail closed.
          */
         output.push({
           ...original,
           evidence_page_url: original.url,
+          page_inspected: false,
+          page_text: "",
           is_sensitive:
             original.is_sensitive ??
             hasExplicitPageRisk(original),

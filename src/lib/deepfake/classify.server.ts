@@ -29,6 +29,19 @@ export interface ClassifiedHit extends RawHit {
   hive_deepfake_score?: number;
   hive_ai_generated_score?: number;
   hive_raw?: unknown;
+
+  /** Exact result-page inspection fields */
+  page_text?: string;
+  page_type?: string;
+  identity_confidence?: number;
+  synthetic_media_confidence?: number;
+  matched_evidence?: string[];
+  finding_classification?: string;
+  classification_explanation?: string;
+  evidence_page_url?: string;
+  target_face_match?: boolean;
+  face_similarity?: number | null;
+  matched_face_id?: string | null;
 }
 
 const SYSTEM = `You are Eterna Sentinel's cautious deepfake and synthetic-media triage classifier.

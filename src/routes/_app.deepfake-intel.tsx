@@ -807,6 +807,11 @@ function FindingCard({
     snippet: string | null; query: string | null; risk_level: string; content_category: string | null;
     confidence: number; is_synthetic: boolean; face_referenced: boolean; takedown_recommended: boolean;
     ai_reasoning: string | null; review_status: string;
+    finding_classification?: string | null;
+    page_type?: string | null;
+    identity_confidence?: number | null;
+    synthetic_media_confidence?: number | null;
+    classification_explanation?: string | null;
   };
   onUpdate: (s: "reviewed" | "dismissed" | "queued_takedown") => void;
   pending: boolean;
@@ -820,12 +825,18 @@ function FindingCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${style.badge}`}>{risk}</span>
-            {f.content_category && (
+            {(f.finding_classification || f.content_category) && (
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {f.content_category.replace(/_/g, " ")}
+                {(f.finding_classification ?? f.content_category ?? "").replace(/_/g, " ")}
               </span>
             )}
             <span className="text-[10px] text-muted-foreground">· conf {f.confidence}%</span>
+            {typeof f.identity_confidence === "number" && (
+              <span className="text-[10px] text-muted-foreground">· id {f.identity_confidence}%</span>
+            )}
+            {typeof f.synthetic_media_confidence === "number" && (
+              <span className="text-[10px] text-muted-foreground">· synth {f.synthetic_media_confidence}%</span>
+            )}
             {f.is_synthetic && <Badge variant="outline" className="text-[10px] py-0">synthetic</Badge>}
             {f.face_referenced && <Badge variant="outline" className="text-[10px] py-0">face ref</Badge>}
             {f.takedown_recommended && <Badge className="text-[10px] py-0 bg-red-600/20 text-red-400 border border-red-600/40">takedown</Badge>}
@@ -836,12 +847,13 @@ function FindingCard({
           </a>
           <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
             <ExternalLink className="size-3" /> {f.source_host ?? f.url}
+            {f.page_type && <span className="ml-1">· {f.page_type.replace(/_/g, " ")}</span>}
             {f.query && <span className="ml-1">· query “{f.query}”</span>}
           </div>
           {f.snippet && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{f.snippet}</p>}
-          {f.ai_reasoning && (
+          {(f.classification_explanation || f.ai_reasoning) && (
             <p className="text-[11px] text-muted-foreground/90 italic mt-1.5 line-clamp-2">
-              {f.ai_reasoning}
+              {f.classification_explanation || f.ai_reasoning}
             </p>
           )}
         </div>
