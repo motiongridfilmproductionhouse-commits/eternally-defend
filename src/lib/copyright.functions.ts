@@ -421,6 +421,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         distribution_sites: distributionRows.length,
         distribution_high_risk: distributionSummary.filter((d) => d.domain_risk === "high").length,
         distribution_summary: distributionSummary.slice(0, 25),
+        monitored_sources_checked: monitorPass.checked,
+        monitor_incidents: monitorPass.incidents,
+
         release_timing: releaseTimingFor(releaseDate).timing,
         queries_language: analysis.language,
         release_date: analysis.releaseDate,
