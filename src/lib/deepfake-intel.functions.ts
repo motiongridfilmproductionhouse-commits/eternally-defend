@@ -22,6 +22,10 @@ import {
 import {
   generateDeepfakeQueries,
 } from "./deepfake/query-generator.server";
+import {
+  buildExecutedQueryPlan,
+  discoveredCandidateKey,
+} from "./deepfake/discovery-plan.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
@@ -62,18 +66,6 @@ function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
     provider_failures: 0,
     query_failures: 0,
   };
-}
-
-function discoveredCandidateKey(hit: {
-  url?: string;
-  image_url?: string;
-  thumbnail_url?: string;
-}): string {
-  return [
-    hit.url?.trim() ?? "",
-    hit.image_url?.trim() ?? "",
-    hit.thumbnail_url?.trim() ?? "",
-  ].join("|");
 }
 
 /** Kick off a deepfake intelligence scan. Runs synchronously and returns the scan id. */
@@ -168,21 +160,12 @@ try {
      * Google itself is not scraped. Existing Firecrawl search
      * discovers the public source pages for these terms.
      */
-    const combinedQueries = [
-      ...importedQueries,
-      ...generatedQueries,
-    ];
-
-    const uniqueQueries = Array.from(
-      new Set(
-        combinedQueries
-          .map((query) => query.trim())
-          .filter(Boolean),
-      ),
-    );
-
     const plan = {
-       queries: uniqueQueries,
+       queries: buildExecutedQueryPlan({
+        importedQueries,
+        generatedQueries,
+        maxQueries: data.max_queries ?? 56,
+      }),
     };
     metrics.queries_generated = plan.queries.length;
 

@@ -4,6 +4,10 @@ import { searchQueriesWithBoundedConcurrency } from "./firecrawl.server";
 import { generateDeepfakeQueries } from "./query-generator.server";
 import { searchRecentYouTubeMentions } from "./youtube-discovery.server";
 import { verifyCandidateUrls } from "./url-verification.server";
+import {
+  buildExecutedQueryPlan,
+  discoveredCandidateKey,
+} from "./discovery-plan.server";
 
 type FetchLike = typeof globalThis.fetch;
 
@@ -96,6 +100,61 @@ test("generated query plan stays in the 40-60 focused query range", () => {
   assert.ok(queries.length <= 60);
   assert.ok(queries.every((query) => query.includes('"Maya Kapoor"') || query.includes('"M Kapoor"')));
   assert.ok(!queries.some((query) => query.includes("not-used-as-identity")));
+});
+
+test("imported queries preserve priority but cannot exceed max_queries", () => {
+  const importedQueries = Array.from(
+    { length: 12 },
+    (_, index) => `imported ${index}`,
+  );
+  const generatedQueries = Array.from(
+    { length: 60 },
+    (_, index) => `generated ${index}`,
+  );
+
+  const plan = buildExecutedQueryPlan({
+    importedQueries,
+    generatedQueries,
+    maxQueries: 40,
+  });
+
+  assert.equal(plan.length, 40);
+  assert.deepEqual(plan.slice(0, 12), importedQueries);
+  assert.equal(plan[12], "generated 0");
+  assert.equal(plan.at(-1), "generated 27");
+});
+
+test("tracking and fragment URL variants deduplicate before crawling", () => {
+  const variants = [
+    "https://WWW.Abuse.Example/post/maya-kapoor-deepfake/?utm_source=x#comments",
+    "https://abuse.example/post/maya-kapoor-deepfake?fbclid=abc",
+    "https://abuse.example/post/maya-kapoor-deepfake/",
+  ];
+
+  const keys = new Set(
+    variants.map((url) =>
+      discoveredCandidateKey({
+        url,
+      }),
+    ),
+  );
+
+  assert.equal(keys.size, 1);
+});
+
+test("meaningful query parameters remain distinct before crawling", () => {
+  const first = discoveredCandidateKey({
+    url: "https://abuse.example/watch?id=100&utm_campaign=x",
+  });
+  const second = discoveredCandidateKey({
+    url: "https://abuse.example/watch?id=200&utm_campaign=x",
+  });
+  const reordered = discoveredCandidateKey({
+    url: "https://ABUSE.example/watch?utm_campaign=x&id=100#top",
+  });
+
+  assert.notEqual(first, second);
+  assert.equal(first, reordered);
 });
 
 test("verification retains more than three valid URLs across repeated and distinct domains", async () => {
