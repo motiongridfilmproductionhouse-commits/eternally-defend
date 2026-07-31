@@ -9,6 +9,8 @@ import { readStoredObject } from "@/lib/copyright/storage.server";
 
 import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
 import { analyzeDistributionPage, releaseTimingFor } from "@/lib/copyright/distribution.server";
+import { registerDistributionSource, runAutoMonitor } from "@/lib/copyright/distribution-monitor.server";
+
 import {
   buildMovieFingerprint,
   matchCandidateAgainstFingerprint,
@@ -282,6 +284,8 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         .slice(0, 16);
 
       const distributionRows: MatchInsert[] = [];
+      const inspectedDomains = new Set<string>();
+
       const distributionSummary: Array<{
         url: string;
         domain_risk: string;
