@@ -13,6 +13,7 @@ import {
   matchesSelectedIdentity,
   type IdentityTarget,
 } from "./identity.server";
+import { projectClientEvidenceUrls } from "./evidence-url";
 
 export interface ClientFindingRow {
   scan_id: string;
@@ -70,13 +71,16 @@ export function filterClientFindings<T extends ClientFindingRow>(
   findings: T[],
   target: IdentityTarget,
   scanId: string,
-): T[] {
+): Array<
+  T & {
+    final_url: string | null;
+    canonical_url: string | null;
+    url: string;
+  }
+> {
   return findings
     .filter((finding) => isClientVisibleFinding(finding, target, scanId))
-    .map((finding) => ({
-      ...finding,
-      url: finding.final_url || finding.url,
-    }));
+    .map((finding) => projectClientEvidenceUrls(finding));
 }
 
 /**

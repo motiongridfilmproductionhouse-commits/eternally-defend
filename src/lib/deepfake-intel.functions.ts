@@ -985,6 +985,8 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
         finding_classification?: string | null;
         url_verification_status?: string | null;
         final_url?: string | null;
+        canonical_url?: string | null;
+        discovered_url?: string | null;
         verified_domain?: string | null;
       }
     >;

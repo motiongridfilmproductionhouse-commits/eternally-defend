@@ -14,6 +14,7 @@ import {
   isExcludedListingPageType,
   type PageEvidenceTarget,
 } from "./page-evidence.server";
+import { isAllowedHttpUrl } from "./evidence-url";
 
 export type UrlVerificationStatus = "URL_VERIFIED" | "URL_REJECTED";
 
@@ -250,6 +251,10 @@ export function evaluateUrlVerification(
     url_verification_status: "URL_REJECTED",
     rejection_reason: reason,
   });
+
+  if (!isAllowedHttpUrl(discovered) || !isAllowedHttpUrl(finalUrl)) {
+    return reject("Only http:// or https:// evidence URLs are allowed.");
+  }
 
   const status = input.http_status ?? 0;
   if (!status || status < 200 || status >= 400) {

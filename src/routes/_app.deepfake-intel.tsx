@@ -24,6 +24,7 @@ import {
   CheckCircle2, XCircle, Filter, Radar, Upload, Trash2,
   UserRoundCheck,
 } from "lucide-react";
+import { buildVerifiedEvidenceLink } from "@/lib/deepfake/evidence-url";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
@@ -820,6 +821,7 @@ function FindingCard({
     discovered_url?: string | null;
     canonical_url?: string | null;
     url_verification_status?: string | null;
+    verified_domain?: string | null;
     http_status?: number | null;
   };
   onUpdate: (s: "reviewed" | "dismissed" | "queued_takedown") => void;
@@ -828,13 +830,17 @@ function FindingCard({
   const risk = (["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).includes(f.risk_level as RiskLevel)
     ? (f.risk_level as RiskLevel) : "LOW";
   const style = RISK_STYLE[risk];
-  const openUrl = f.final_url || f.url;
-  const verifiedDomain = f.source_host || openUrl;
+  const evidence = buildVerifiedEvidenceLink(f);
+  const verifiedDomain =
+    evidence.domain ||
+    f.verified_domain ||
+    f.source_host ||
+    null;
   const verifiedTitle = f.page_title || "Verified evidence page";
   return (
     <div className="card-surface p-3.5">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 relative z-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${style.badge}`}>{risk}</span>
             {(f.finding_classification || f.content_category) && (
@@ -854,22 +860,40 @@ function FindingCard({
             {f.face_referenced && <Badge variant="outline" className="text-[10px] py-0">face ref</Badge>}
             {f.takedown_recommended && <Badge className="text-[10px] py-0 bg-red-600/20 text-red-400 border border-red-600/40">takedown</Badge>}
           </div>
-          <div className="mt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Verified domain · {verifiedDomain}
-          </div>
+          {verifiedDomain && (
+            <div className="mt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Verified domain · {verifiedDomain}
+            </div>
+          )}
           <div className="mt-0.5 text-sm font-medium text-foreground truncate">
             {verifiedTitle}
           </div>
-          <a
-            href={openUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
-            title={`${verifiedDomain} — ${verifiedTitle}`}
-          >
-            <ExternalLink className="size-3" />
-            Open verified evidence page
-          </a>
+          {evidence.kind === "link" ? (
+            <div className="mt-1 relative z-10 flex items-center gap-2 flex-wrap pointer-events-auto">
+              <a
+                href={evidence.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative z-10 inline-flex items-center gap-1 text-[11px] text-primary hover:underline pointer-events-auto cursor-pointer"
+                title={`${evidence.domain} — ${verifiedTitle}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                <ExternalLink className="size-3 shrink-0" aria-hidden />
+                Open verified evidence page
+              </a>
+              {evidence.domain ? (
+                <span className="text-[11px] text-muted-foreground">
+                  {evidence.domain}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Evidence URL unavailable.
+            </p>
+          )}
           <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1 mt-1">
             {f.page_type && <span>{f.page_type.replace(/_/g, " ")}</span>}
             {typeof f.http_status === "number" && (
@@ -884,7 +908,7 @@ function FindingCard({
             </p>
           )}
         </div>
-        <div className="flex flex-col gap-1 shrink-0">
+        <div className="flex flex-col gap-1 shrink-0 relative z-0">
           <StatusBadge status={f.review_status} />
           <div className="flex gap-1">
             <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]"
