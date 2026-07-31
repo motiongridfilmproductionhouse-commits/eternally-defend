@@ -10,8 +10,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "test:evidence": "node --import tsx --test src/lib/evidence-review.test.ts",
-    "test:deepfake": "node --import tsx --test src/lib/deepfake/page-evidence.test.ts src/lib/deepfake/url-verification.test.ts src/lib/deepfake/merge-readiness.test.ts",
-    "test": "node --import tsx --test src/lib/evidence-review.test.ts src/lib/deepfake/page-evidence.test.ts src/lib/deepfake/url-verification.test.ts src/lib/deepfake/merge-readiness.test.ts",
+    "test:deepfake": "node --import tsx --test src/lib/deepfake/page-evidence.test.ts src/lib/deepfake/url-verification.test.ts src/lib/deepfake/merge-readiness.test.ts src/lib/deepfake/evidence-url.test.ts",
+    "test": "node --import tsx --test src/lib/evidence-review.test.ts src/lib/deepfake/page-evidence.test.ts src/lib/deepfake/url-verification.test.ts src/lib/deepfake/merge-readiness.test.ts src/lib/deepfake/evidence-url.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."

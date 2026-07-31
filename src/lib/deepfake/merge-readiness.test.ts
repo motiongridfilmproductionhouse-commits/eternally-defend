@@ -288,12 +288,45 @@ test("only URL_VERIFIED plus VERIFIED_DEEPFAKE or PROBABLE_DEEPFAKE are client-v
     ["PROBABLE_DEEPFAKE", "VERIFIED_DEEPFAKE"],
   );
 
+  for (const item of visible) {
+    assert.ok(item.final_url);
+    assert.match(item.final_url, /^https?:\/\//);
+    if (item.canonical_url) {
+      assert.match(item.canonical_url, /^https?:\/\//);
+    }
+  }
+
   assert.equal(isClientVisibleClassification("UNVERIFIED_LEAD"), false);
   assert.equal(isUrlVerified("URL_REJECTED"), false);
   assert.equal(
     isClientVisibleFinding(rows[2]!, honeyRose, scanId),
     false,
   );
+});
+
+test("client findings expose validated final_url and canonical_url for opening", () => {
+  const scanId = "22222222-2222-2222-2222-222222222222";
+  const [row] = filterClientFindings(
+    [
+      {
+        scan_id: scanId,
+        url: "https://discovered.example/redirect",
+        final_url: "https://abuse.example/honey-rose-final",
+        canonical_url: "https://abuse.example/honey-rose-final",
+        page_title: "Honey Rose deepfake",
+        snippet: "Honey Rose",
+        finding_classification: "PROBABLE_DEEPFAKE",
+        url_verification_status: "URL_VERIFIED",
+      },
+    ],
+    honeyRose,
+    scanId,
+  );
+
+  assert.ok(row);
+  assert.equal(row.final_url, "https://abuse.example/honey-rose-final");
+  assert.equal(row.canonical_url, "https://abuse.example/honey-rose-final");
+  assert.equal(row.url, "https://abuse.example/honey-rose-final");
 });
 
 test("redirects resolve to final URL for opening", () => {
