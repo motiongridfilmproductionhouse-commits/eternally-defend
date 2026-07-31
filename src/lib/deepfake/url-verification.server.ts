@@ -593,7 +593,6 @@ export async function verifyCandidateUrls(
   > = [];
   const rejected: UrlVerificationResult[] = [];
   const seenCanonical = new Set<string>();
-  const seenFingerprint = new Set<string>();
 
   const limited = hits.slice(0, maxPages);
   const metrics: UrlVerificationMetrics = {
@@ -750,11 +749,6 @@ export async function verifyCandidateUrls(
 
       metrics.crawl_succeeded++;
 
-      const fingerprint = contentFingerprint({
-        title: verification.page_title,
-        page_text: verification.page_text,
-      });
-
       if (seenCanonical.has(verification.canonical_url)) {
         metrics.url_rejected++;
         rejected.push({
@@ -766,21 +760,7 @@ export async function verifyCandidateUrls(
         continue;
       }
 
-      if (fingerprint && seenFingerprint.has(fingerprint)) {
-        metrics.url_rejected++;
-        rejected.push({
-          ...verification,
-          url_verification_status: "URL_REJECTED",
-          rejection_reason:
-            "Duplicate content fingerprint after exact-page crawl.",
-        });
-        continue;
-      }
-
       seenCanonical.add(verification.canonical_url);
-      if (fingerprint) {
-        seenFingerprint.add(fingerprint);
-      }
 
       const mediaHits = (media ?? []).length
         ? media!

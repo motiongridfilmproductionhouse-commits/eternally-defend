@@ -40,6 +40,7 @@ function installVerificationFetch(pages: Record<string, {
   title: string;
   body: string;
   links?: string[];
+  redirectTo?: string;
 }>): void {
   process.env.FIRECRAWL_API_KEY = "fc-test";
 
@@ -75,6 +76,16 @@ function installVerificationFetch(pages: Record<string, {
           },
           markdown: page.body,
           links: page.links ?? [],
+        },
+      });
+    }
+
+    const page = pages[url];
+    if (page?.redirectTo) {
+      return new Response("", {
+        status: 302,
+        headers: {
+          location: page.redirectTo,
         },
       });
     }
@@ -196,6 +207,162 @@ test("verification retains more than three valid URLs across repeated and distin
     assert.deepEqual(
       new Set(result.verified.map((item) => item.verified_domain)),
       new Set(["abuse.example", "mirror.example", "archive.example"]),
+    );
+  } finally {
+    restoreGlobals();
+  }
+});
+
+test("identical content on two domains keeps both canonical URLs", async () => {
+  const first =
+    "https://abuse.example/post/maya-kapoor-deepfake-copy";
+  const second =
+    "https://mirror.example/post/maya-kapoor-deepfake-copy";
+  const copiedBody = targetBody("Maya Kapoor", "copied-body");
+
+  installVerificationFetch({
+    [first]: {
+      title: "Maya Kapoor deepfake copied page",
+      body: copiedBody,
+    },
+    [second]: {
+      title: "Maya Kapoor deepfake copied page",
+      body: copiedBody,
+    },
+  });
+
+  try {
+    const result = await verifyCandidateUrls(
+      [first, second].map((url) => ({
+        url,
+        title: "Maya Kapoor deepfake",
+        description: "Maya Kapoor copied mirror",
+        query: '"Maya Kapoor" deepfake',
+      })),
+      { name: "Maya Kapoor" },
+      { maxPages: 10 },
+    );
+
+    assert.equal(result.verified.length, 2);
+    assert.deepEqual(
+      new Set(result.verified.map((item) => item.verified_domain)),
+      new Set(["abuse.example", "mirror.example"]),
+    );
+  } finally {
+    restoreGlobals();
+  }
+});
+
+test("identical content on one domain with two canonical URLs keeps both", async () => {
+  const first =
+    "https://abuse.example/post/maya-kapoor-deepfake-copy-a";
+  const second =
+    "https://abuse.example/post/maya-kapoor-deepfake-copy-b";
+  const copiedBody = targetBody("Maya Kapoor", "same-domain-copy");
+
+  installVerificationFetch({
+    [first]: {
+      title: "Maya Kapoor deepfake repost",
+      body: copiedBody,
+    },
+    [second]: {
+      title: "Maya Kapoor deepfake repost",
+      body: copiedBody,
+    },
+  });
+
+  try {
+    const result = await verifyCandidateUrls(
+      [first, second].map((url) => ({
+        url,
+        title: "Maya Kapoor deepfake",
+        description: "Maya Kapoor copied same-domain repost",
+        query: '"Maya Kapoor" deepfake',
+      })),
+      { name: "Maya Kapoor" },
+      { maxPages: 10 },
+    );
+
+    assert.equal(result.verified.length, 2);
+    assert.deepEqual(
+      result.verified.map((item) => item.canonical_url).sort(),
+      [first, second].sort(),
+    );
+  } finally {
+    restoreGlobals();
+  }
+});
+
+test("redirect aliases to one canonical URL deduplicate", async () => {
+  const canonical =
+    "https://abuse.example/post/maya-kapoor-deepfake-canonical";
+  const alias =
+    "https://short.example/r/maya-kapoor-deepfake";
+
+  installVerificationFetch({
+    [alias]: {
+      title: "",
+      body: "",
+      redirectTo: canonical,
+    },
+    [canonical]: {
+      title: "Maya Kapoor deepfake canonical page",
+      body: targetBody("Maya Kapoor", "canonical"),
+    },
+  });
+
+  try {
+    const result = await verifyCandidateUrls(
+      [alias, canonical].map((url) => ({
+        url,
+        title: "Maya Kapoor deepfake",
+        description: "Maya Kapoor redirect alias",
+        query: '"Maya Kapoor" deepfake',
+      })),
+      { name: "Maya Kapoor" },
+      { maxPages: 10 },
+    );
+
+    assert.equal(result.verified.length, 1);
+    assert.equal(result.verified[0]?.canonical_url, canonical);
+    assert.equal(result.rejected.length, 1);
+    assert.match(
+      result.rejected[0]?.rejection_reason ?? "",
+      /Duplicate canonical URL/,
+    );
+  } finally {
+    restoreGlobals();
+  }
+});
+
+test("exact duplicate canonical URL deduplicates", async () => {
+  const canonical =
+    "https://abuse.example/post/maya-kapoor-deepfake-duplicate";
+
+  installVerificationFetch({
+    [canonical]: {
+      title: "Maya Kapoor deepfake duplicate page",
+      body: targetBody("Maya Kapoor", "duplicate"),
+    },
+  });
+
+  try {
+    const result = await verifyCandidateUrls(
+      [canonical, canonical].map((url) => ({
+        url,
+        title: "Maya Kapoor deepfake",
+        description: "Maya Kapoor exact duplicate",
+        query: '"Maya Kapoor" deepfake',
+      })),
+      { name: "Maya Kapoor" },
+      { maxPages: 10 },
+    );
+
+    assert.equal(result.verified.length, 1);
+    assert.equal(result.rejected.length, 1);
+    assert.match(
+      result.rejected[0]?.rejection_reason ?? "",
+      /Duplicate canonical URL/,
     );
   } finally {
     restoreGlobals();
