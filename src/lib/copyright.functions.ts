@@ -383,7 +383,19 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         }
       }
 
+      // 5. Auto Monitor pass: re-check already-known distribution sources that
+      //    were not crawled by this scan, so every movie scan covers the full
+      //    registered source list without duplicating crawls.
+      const monitorPass = await runAutoMonitor(supabase, {
+        userId,
+        limit: 8,
+        force: true,
+        runType: "scan",
+        excludeDomains: [...inspectedDomains].filter(Boolean),
+      }).catch(() => ({ checked: 0, incidents: 0 }));
+
       const leads = rows.length || distributionRows.length ? [] : fallbackRows.slice(0, 12);
+
       const seenUrls = new Set(distributionRows.map((r) => r.source_url));
       const allRows = [
         ...distributionRows,
