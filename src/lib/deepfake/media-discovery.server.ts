@@ -15,6 +15,7 @@ export type MediaDiscoveryHit = {
   page_type?: string;
   /** True only after a successful Firecrawl scrape of the exact page URL. */
   page_inspected?: boolean;
+  related_links?: string[];
 };
 
 type FirecrawlScrapeResponse = {
@@ -208,6 +209,75 @@ function extractAttributeMedia(
   return output;
 }
 
+function extractHrefLinks(html: string, pageUrl: string): string[] {
+  const links: string[] = [];
+
+  for (const match of html.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>/gi)) {
+    const resolved = absoluteUrl(match[1], pageUrl);
+    if (resolved) {
+      links.push(resolved);
+    }
+  }
+
+  return links;
+}
+
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function sameHostRelatedLinks(input: {
+  pageUrl: string;
+  links?: string[];
+  html?: string;
+}): string[] {
+  const pageHost = hostOf(input.pageUrl);
+  if (!pageHost) return [];
+
+  const candidates = [
+    ...(input.links ?? []).flatMap((link) => {
+      const resolved = absoluteUrl(link, input.pageUrl);
+      return resolved ? [resolved] : [];
+    }),
+    ...extractHrefLinks(input.html ?? "", input.pageUrl),
+  ];
+
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const link of candidates) {
+    if (hostOf(link) !== pageHost) continue;
+    if (link === input.pageUrl) continue;
+    if (seen.has(link)) continue;
+
+    seen.add(link);
+    output.push(link);
+  }
+
+  return output.slice(0, 20);
+}
+
+function isTransientFirecrawlStatus(status: number): boolean {
+  return status === 429 || (status >= 500 && status < 600);
+}
+
+function isTransientFirecrawlError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /\b(?:timeout|timed out|abort|econnreset|etimedout)\b/i.test(
+      error.message,
+    )
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function hasExplicitPageRisk(hit: {
   url?: string;
   title?: string;
@@ -262,23 +332,50 @@ export async function scrapeMediaFromPage(
       "@/lib/firecrawl-client.server"
     );
 
-    const response = await firecrawlFetch("/scrape", {
-      url: hit.url,
-      formats: ["html", "rawHtml", "markdown"],
-      onlyMainContent: false,
-      removeBase64Images: true,
-      blockAds: true,
-      timeout: 20_000,
-      waitFor: 1_000,
-    });
+    let response: Response | null = null;
+    let rawBody = "";
 
+    for (let attempt = 0; attempt < 3; attempt++) {
+      let requestError: unknown = null;
 
-    const rawBody = await response.text();
+      try {
+        response = await firecrawlFetch("/scrape", {
+          url: hit.url,
+          formats: ["html", "rawHtml", "markdown"],
+          onlyMainContent: false,
+          removeBase64Images: true,
+          blockAds: true,
+          timeout: 20_000,
+          waitFor: 1_000,
+        });
 
-    if (!response.ok) {
+        rawBody = await response.text();
+      } catch (error) {
+        requestError = error;
+        response = null;
+        rawBody =
+          error instanceof Error ? error.message : String(error);
+      }
+
+      if (
+        response?.ok ||
+        (
+          response
+            ? !isTransientFirecrawlStatus(response.status)
+            : !isTransientFirecrawlError(requestError)
+        ) ||
+        attempt === 2
+      ) {
+        break;
+      }
+
+      await sleep((attempt + 1) * 2_000);
+    }
+
+    if (!response?.ok) {
       console.warn("[DEEPFAKE:MEDIA] Page scrape failed:", {
         url: hit.url,
-        status: response.status,
+        status: response?.status ?? "unknown",
         error: rawBody.slice(0, 300),
       });
 
@@ -324,6 +421,11 @@ export async function scrapeMediaFromPage(
     const html = data.rawHtml ?? data.html ?? "";
     const pageText = extractPageText(data);
     const pageInspected = pageText.trim().length >= 80;
+    const relatedLinks = sameHostRelatedLinks({
+      pageUrl: hit.url,
+      links: data.links,
+      html,
+    });
 
     const metadataTitle = metadataString(data.metadata, [
       "title",
@@ -346,6 +448,7 @@ export async function scrapeMediaFromPage(
       page_text: pageText,
       page_inspected: pageInspected,
       evidence_page_url: hit.evidence_page_url ?? hit.url,
+      related_links: relatedLinks,
       is_sensitive:
         hit.is_sensitive ?? hasExplicitPageRisk(hit),
     };

@@ -22,9 +22,51 @@ import {
 import {
   generateDeepfakeQueries,
 } from "./deepfake/query-generator.server";
+import {
+  buildExecutedQueryPlan,
+  mergeDiscoveredCandidates,
+} from "./deepfake/discovery-plan.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
+
+type DiscoveryFunnelMetrics = {
+  queries_generated: number;
+  queries_executed: number;
+  provider_candidates: number;
+  unique_candidates: number;
+  crawl_succeeded: number;
+  crawl_failed: number;
+  identity_rejected: number;
+  page_type_rejected: number;
+  url_rejected: number;
+  unverified: number;
+  probable: number;
+  verified: number;
+  client_visible: number;
+  provider_failures: number;
+  query_failures: number;
+};
+
+function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
+  return {
+    queries_generated: 0,
+    queries_executed: 0,
+    provider_candidates: 0,
+    unique_candidates: 0,
+    crawl_succeeded: 0,
+    crawl_failed: 0,
+    identity_rejected: 0,
+    page_type_rejected: 0,
+    url_rejected: 0,
+    unverified: 0,
+    probable: 0,
+    verified: 0,
+    client_visible: 0,
+    provider_failures: 0,
+    query_failures: 0,
+  };
+}
 
 /** Kick off a deepfake intelligence scan. Runs synchronously and returns the scan id. */
 export const runDeepfakeScan = createServerFn({ method: "POST" })
@@ -35,8 +77,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
     aliases: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
     handles: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
     google_images_url: z.string().trim().max(5000).optional(),
-    max_queries: z.number().int().min(1).max(40).optional(),
-    per_query_limit: z.number().int().min(1).max(10).optional(),
+    max_queries: z.number().int().min(40).max(60).optional(),
+    per_query_limit: z.number().int().min(10).max(20).optional(),
   }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -83,12 +125,16 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (sErr || !scan) throw new Error(sErr?.message ?? "failed to create scan");
+    const metrics = createDiscoveryFunnelMetrics();
 try {
     const generatedQueries = generateDeepfakeQueries({
       name: data.target_name,
       aliases: data.aliases ?? [],
       handles: data.handles ?? [],
+    }, {
+      maxQueries: data.max_queries ?? 56,
     });
+    metrics.queries_generated = generatedQueries.length;
 
     let importedQueries: string[] = [];
 
@@ -114,30 +160,25 @@ try {
      * Google itself is not scraped. Existing Firecrawl search
      * discovers the public source pages for these terms.
      */
-    const combinedQueries = [
-      ...importedQueries,
-      ...generatedQueries,
-    ];
-
-    const uniqueQueries = Array.from(
-      new Set(
-        combinedQueries
-          .map((query) => query.trim())
-          .filter(Boolean),
-      ),
-    );
-
     const plan = {
-       queries: uniqueQueries.slice(
-        0,
-         data.max_queries ?? 28,
-      ),
+       queries: buildExecutedQueryPlan({
+        importedQueries,
+        generatedQueries,
+        maxQueries: data.max_queries ?? 56,
+      }),
     };
+    metrics.queries_generated = plan.queries.length;
 
       // 2. Firecrawl searches (bounded concurrency)
-      const { firecrawlSearch } = await import("./deepfake/firecrawl.server");
-      const perQuery = data.per_query_limit ?? 10;
-      const CONCURRENCY = 2;
+      const {
+        firecrawlSearch,
+        searchQueriesWithBoundedConcurrency,
+      } = await import("./deepfake/firecrawl.server");
+      const { isFirecrawlConfigured } = await import(
+        "./firecrawl-client.server"
+      );
+      const perQuery = data.per_query_limit ?? 20;
+      const CONCURRENCY = 3;
       const allHits: Array<{
         url: string;
         title?: string;
@@ -148,54 +189,111 @@ try {
         image_url?: string;
         is_sensitive?: boolean;
       }> = [];
-      const seenUrl = new Set<string>();
+      const providerHits: typeof allHits = [];
 
-      for (let i = 0; i < plan.queries.length; i += CONCURRENCY) {
-        const batch = plan.queries.slice(i, i + CONCURRENCY);
-        const results = await Promise.all(
-          batch.map(async (q) => {
-            try {
-              return await firecrawlSearch(q, perQuery);
-            } catch (error) {
-              console.warn("[DEEPFAKE] Search query skipped:", {
-                query: q,
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : String(error),
-              });
-              return [];
-            }
-          }),
+      if (isFirecrawlConfigured()) {
+        const firecrawlResults =
+          await searchQueriesWithBoundedConcurrency(plan.queries, {
+            concurrency: CONCURRENCY,
+            provider: "firecrawl",
+            search: (query) => firecrawlSearch(query, perQuery),
+          });
+
+        metrics.queries_executed += firecrawlResults.queriesExecuted;
+        metrics.query_failures += firecrawlResults.failures.length;
+        metrics.provider_failures += firecrawlResults.failures.length;
+
+        for (const failure of firecrawlResults.failures.slice(0, 10)) {
+          console.warn("[DEEPFAKE] Search query failed:", failure);
+        }
+
+        providerHits.push(...firecrawlResults.hits);
+      } else {
+        console.warn("[DEEPFAKE] Firecrawl is not configured; skipping Firecrawl search provider.");
+      }
+
+      try {
+        const { searchRecentYouTubeMentions } = await import(
+          "./deepfake/youtube-discovery.server"
         );
+        providerHits.push(
+          ...(await searchRecentYouTubeMentions({
+            name: data.target_name,
+            aliases: data.aliases ?? [],
+            handles: data.handles ?? [],
+            maxResults: 40,
+            pages: 2,
+          })),
+        );
+      } catch (error) {
+        metrics.provider_failures++;
+        console.warn("[DEEPFAKE] YouTube discovery failed:", {
+          error:
+            error instanceof Error
+              ? error.message
+              : String(error),
+        });
+      }
 
-        for (const arr of results) {
-          for (const h of arr) {
-            if (!h.url) continue;
-            const host = hostOf(h.url);
-            const imageHost = h.image_url ? hostOf(h.image_url) : null;
-            const thumbnailHost = h.thumbnail_url ? hostOf(h.thumbnail_url) : null;
-            if (
-              !host ||
-              isBlockedHost(host) ||
+      try {
+        const { searchRecentRedditMentions } = await import(
+          "./deepfake/reddit-discovery.server"
+        );
+        providerHits.push(
+          ...(await searchRecentRedditMentions({
+            name: data.target_name,
+            aliases: data.aliases ?? [],
+            handles: data.handles ?? [],
+            maxResults: 60,
+            pages: 2,
+          })),
+        );
+      } catch (error) {
+        metrics.provider_failures++;
+        console.warn("[DEEPFAKE] Reddit discovery failed:", {
+          error:
+            error instanceof Error
+              ? error.message
+              : String(error),
+        });
+      }
+
+      metrics.provider_candidates = providerHits.length;
+
+      const crawlEligibleHits: typeof allHits = [];
+      for (const h of providerHits) {
+        const host = h.url ? hostOf(h.url) : null;
+        const imageHost = h.image_url ? hostOf(h.image_url) : null;
+        const thumbnailHost = h.thumbnail_url ? hostOf(h.thumbnail_url) : null;
+        const explicitProviderResult =
+          h.source === "youtube_api" ||
+          h.source === "reddit_api";
+        const hasAnyUsableUrl =
+          host !== null ||
+          imageHost !== null ||
+          thumbnailHost !== null;
+        if (
+          !hasAnyUsableUrl ||
+          (
+            !explicitProviderResult &&
+            (
+              (host !== null && isBlockedHost(host)) ||
               (imageHost !== null && isBlockedHost(imageHost)) ||
               (thumbnailHost !== null && isBlockedHost(thumbnailHost))
-            ) continue;
-            const canonical = canonicalUrl(h.url);
-            if (seenUrl.has(canonical)) continue;
-            seenUrl.add(canonical);
+            )
+          )
+        ) continue;
 
-            allHits.push({
-              ...h,
-              url: canonical,
-              query:
-                typeof h.query === "string" && h.query.trim()
-                  ? h.query.trim()
-                  : batch[0] ?? data.target_name,
-            });
-          }
-        }
+        crawlEligibleHits.push(h);
       }
+
+      allHits.push(
+        ...mergeDiscoveredCandidates(crawlEligibleHits, {
+          defaultQuery: data.target_name,
+        }),
+      );
+
+      metrics.unique_candidates = allHits.length;
 
       // 3. pre-filter and classify
       let classified: Awaited<ReturnType<typeof import("./deepfake/classify.server").classifyHits>> = [];
@@ -270,10 +368,73 @@ try {
             threat_signals: hit.threat_signals,
           })),
           target,
-          { maxPages: 60 },
+          { maxPages: 160 },
         );
 
-        const mediaCandidates = urlVerification.verified;
+        metrics.crawl_succeeded +=
+          urlVerification.metrics.crawl_succeeded;
+        metrics.crawl_failed += urlVerification.metrics.crawl_failed;
+        metrics.identity_rejected +=
+          urlVerification.metrics.identity_rejected;
+        metrics.page_type_rejected +=
+          urlVerification.metrics.page_type_rejected;
+        metrics.url_rejected += urlVerification.metrics.url_rejected;
+
+        const verifiedCanonical = new Set(
+          urlVerification.verified.map((hit) => hit.canonical_url),
+        );
+        const relatedLinks = new Map<string, {
+          url: string;
+          title?: string;
+          description?: string;
+          query: string;
+          source?: string;
+        }>();
+
+        for (const hit of urlVerification.verified) {
+          const sourceHost = hostOf(hit.final_url);
+          for (const link of hit.related_links ?? []) {
+            const linkHost = hostOf(link);
+            if (!sourceHost || linkHost !== sourceHost) continue;
+            if (verifiedCanonical.has(canonicalUrl(link))) continue;
+
+            relatedLinks.set(link, {
+              url: link,
+              title: hit.page_title ?? hit.title,
+              description: hit.page_description ?? hit.description,
+              query: hit.query,
+              source: "validated_domain_link",
+            });
+          }
+        }
+
+        let relatedVerification:
+          | Awaited<ReturnType<typeof verifyCandidateUrls>>
+          | null = null;
+
+        if (relatedLinks.size) {
+          relatedVerification = await verifyCandidateUrls(
+            Array.from(relatedLinks.values()),
+            target,
+            { maxPages: 60 },
+          );
+
+          metrics.crawl_succeeded +=
+            relatedVerification.metrics.crawl_succeeded;
+          metrics.crawl_failed +=
+            relatedVerification.metrics.crawl_failed;
+          metrics.identity_rejected +=
+            relatedVerification.metrics.identity_rejected;
+          metrics.page_type_rejected +=
+            relatedVerification.metrics.page_type_rejected;
+          metrics.url_rejected +=
+            relatedVerification.metrics.url_rejected;
+        }
+
+        const mediaCandidates = [
+          ...urlVerification.verified,
+          ...(relatedVerification?.verified ?? []),
+        ];
 
         if (mediaCandidates.length) {
           const discoveryRows = mediaCandidates
@@ -646,7 +807,26 @@ try {
             ),
         );
 
+        metrics.unverified = classified.filter(
+          (item) =>
+            item.finding_classification === "UNVERIFIED_LEAD",
+        ).length;
+        metrics.probable = classified.filter(
+          (item) =>
+            item.finding_classification === "PROBABLE_DEEPFAKE",
+        ).length;
+        metrics.verified = classified.filter(
+          (item) =>
+            item.finding_classification === "VERIFIED_DEEPFAKE",
+        ).length;
+        metrics.client_visible = classified.filter(
+          (item) =>
+            isClientVisibleClassification(item.finding_classification) &&
+            isUrlVerified((item as any).url_verification_status),
+        ).length;
+
         console.log("[DEEPFAKE] Result routing:", {
+          metrics,
           urlVerified: urlVerification.verified.length,
           urlRejected: urlVerification.rejected.length,
           inspected: inspectedCandidates.length,
@@ -869,19 +1049,51 @@ try {
           isUrlVerified((item as any).url_verification_status),
       ).length;
 
-      await supabase
+      metrics.client_visible = clientVisibleCount;
+
+      const scanUpdate = {
+        status: "completed",
+        total_queries: plan.queries.length,
+        total_results: clientVisibleCount,
+        critical_count: critical,
+        high_count: high,
+        medium_count: medium,
+        low_count: low,
+        discovery_metrics: metrics,
+        finished_at: new Date().toISOString(),
+      };
+
+      const { error: scanUpdateError } = await supabase
         .from("deepfake_scans")
-        .update({
-          status: "completed",
-          total_queries: plan.queries.length,
-          total_results: clientVisibleCount,
-          critical_count: critical,
-          high_count: high,
-          medium_count: medium,
-          low_count: low,
-          finished_at: new Date().toISOString(),
-        })
+        .update(scanUpdate as any)
         .eq("id", scan.id);
+
+      if (scanUpdateError) {
+        const missingMetricsColumn =
+          /discovery_metrics|column .* does not exist|schema cache/i.test(
+            scanUpdateError.message,
+          );
+
+        if (!missingMetricsColumn) {
+          throw new Error(scanUpdateError.message);
+        }
+
+        const { discovery_metrics: _metrics, ...legacyScanUpdate } =
+          scanUpdate;
+
+        const { error: legacyScanUpdateError } = await supabase
+          .from("deepfake_scans")
+          .update(legacyScanUpdate as any)
+          .eq("id", scan.id);
+
+        if (legacyScanUpdateError) {
+          throw new Error(legacyScanUpdateError.message);
+        }
+
+        console.warn(
+          "[deepfake] scan saved without discovery metrics; apply migration 20260731202000_deepfake_discovery_metrics.sql",
+        );
+      }
 
       return {
         scan_id: scan.id,
@@ -890,9 +1102,33 @@ try {
       };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "unknown error";
-      await supabase.from("deepfake_scans").update({
-        status: "failed", error_message: msg.slice(0, 500), finished_at: new Date().toISOString(),
-      }).eq("id", scan.id);
+      const failedUpdate = {
+        status: "failed",
+        error_message: msg.slice(0, 500),
+        discovery_metrics: metrics,
+        finished_at: new Date().toISOString(),
+      };
+      const { error: failedUpdateError } = await supabase
+        .from("deepfake_scans")
+        .update(failedUpdate as any)
+        .eq("id", scan.id);
+
+      if (failedUpdateError) {
+        const missingMetricsColumn =
+          /discovery_metrics|column .* does not exist|schema cache/i.test(
+            failedUpdateError.message,
+          );
+
+        if (missingMetricsColumn) {
+          const { discovery_metrics: _metrics, ...legacyFailedUpdate } =
+            failedUpdate;
+
+          await supabase
+            .from("deepfake_scans")
+            .update(legacyFailedUpdate as any)
+            .eq("id", scan.id);
+        }
+      }
       throw new Error(msg);
     }
   });

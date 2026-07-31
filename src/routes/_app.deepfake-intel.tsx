@@ -49,6 +49,41 @@ const RISK_STYLE: Record<RiskLevel, { badge: string; dot: string }> = {
   LOW:      { badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40", dot: "bg-emerald-400" },
 };
 
+const DIAGNOSTIC_KEYS = [
+  "queries_generated",
+  "queries_executed",
+  "provider_candidates",
+  "unique_candidates",
+  "crawl_succeeded",
+  "crawl_failed",
+  "identity_rejected",
+  "page_type_rejected",
+  "url_rejected",
+  "unverified",
+  "probable",
+  "verified",
+  "client_visible",
+] as const;
+
+function metricRecord(value: unknown): Record<string, number> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const out: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (typeof raw === "number" && Number.isFinite(raw)) {
+      out[key] = raw;
+    }
+  }
+
+  return Object.keys(out).length ? out : null;
+}
+
+function metricLabel(key: string): string {
+  return key.replace(/_/g, " ");
+}
+
 function DeepfakeIntelPage() {
   const runFn = useServerFn(runDeepfakeScan);
   const listFn = useServerFn(listDeepfakeScans);
@@ -293,6 +328,7 @@ function DeepfakeIntelPage() {
   const findings = selected.data?.findings ?? [];
   const discoveries = selected.data?.discoveries ?? [];
   const filtered = riskFilter === "ALL" ? findings : findings.filter((f) => f.risk_level === riskFilter);
+  const diagnostics = metricRecord(scan?.discovery_metrics);
 
   return (
     <div className="space-y-6">
@@ -669,6 +705,44 @@ function DeepfakeIntelPage() {
                     <AlertTriangle className="size-3.5 mt-0.5" /> {scan.error_message}
                   </div>
                 )}
+                {diagnostics && (
+                  <details className="mt-3 rounded-md border border-border/70 bg-secondary/20 p-3">
+                    <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Discovery Diagnostics
+                    </summary>
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                      {DIAGNOSTIC_KEYS.map((key) => (
+                        <div
+                          key={key}
+                          className="rounded border border-border/60 bg-background/40 px-2 py-1.5"
+                        >
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            {metricLabel(key)}
+                          </div>
+                          <div className="mt-0.5 text-sm font-semibold">
+                            {diagnostics[key] ?? 0}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {typeof diagnostics.crawl_failed === "number" &&
+                      typeof diagnostics.crawl_succeeded === "number" && (
+                        <div className="mt-2 text-[11px] text-muted-foreground">
+                          Crawl failure rate{" "}
+                          {Math.round(
+                            (diagnostics.crawl_failed /
+                              Math.max(
+                                diagnostics.crawl_failed +
+                                  diagnostics.crawl_succeeded,
+                                1,
+                              )) *
+                              100,
+                          )}
+                          %
+                        </div>
+                      )}
+                  </details>
+                )}
               </div>
 
               {selected.isLoading ? (
@@ -802,6 +876,51 @@ function RiskChip({ level, count }: { level: RiskLevel; count: number }) {
   );
 }
 
+function hasVisualConfirmation(f: {
+  finding_classification?: string | null;
+  matched_evidence?: string[] | null;
+}): boolean {
+  return (
+    f.finding_classification === "VERIFIED_DEEPFAKE" ||
+    (f.matched_evidence ?? []).some((item) =>
+      /\b(?:hive|face-match)\b/i.test(item),
+    )
+  );
+}
+
+function findingConfidenceLabel(f: {
+  confidence: number;
+  finding_classification?: string | null;
+  matched_evidence?: string[] | null;
+}): string {
+  if (
+    f.finding_classification === "PROBABLE_DEEPFAKE" &&
+    !hasVisualConfirmation(f)
+  ) {
+    return "probable, pending visual";
+  }
+
+  return `${f.confidence}%`;
+}
+
+function evidenceConfidenceLabel(input: {
+  value: number;
+  kind: "id" | "synth";
+  finding_classification?: string | null;
+  matched_evidence?: string[] | null;
+}): string {
+  if (
+    input.finding_classification === "PROBABLE_DEEPFAKE" &&
+    !hasVisualConfirmation(input)
+  ) {
+    return input.kind === "synth"
+      ? "synth text evidence"
+      : "id text evidence";
+  }
+
+  return `${input.kind} ${input.value}%`;
+}
+
 function FindingCard({
   f,
   onUpdate,
@@ -816,6 +935,7 @@ function FindingCard({
     page_type?: string | null;
     identity_confidence?: number | null;
     synthetic_media_confidence?: number | null;
+    matched_evidence?: string[] | null;
     classification_explanation?: string | null;
     final_url?: string | null;
     discovered_url?: string | null;
@@ -849,12 +969,28 @@ function FindingCard({
               </span>
             )}
             <Badge variant="outline" className="text-[10px] py-0">URL verified</Badge>
-            <span className="text-[10px] text-muted-foreground">· conf {f.confidence}%</span>
+            <span className="text-[10px] text-muted-foreground">
+              · conf {findingConfidenceLabel(f)}
+            </span>
             {typeof f.identity_confidence === "number" && (
-              <span className="text-[10px] text-muted-foreground">· id {f.identity_confidence}%</span>
+              <span className="text-[10px] text-muted-foreground">
+                · {evidenceConfidenceLabel({
+                  value: f.identity_confidence,
+                  kind: "id",
+                  finding_classification: f.finding_classification,
+                  matched_evidence: f.matched_evidence,
+                })}
+              </span>
             )}
             {typeof f.synthetic_media_confidence === "number" && (
-              <span className="text-[10px] text-muted-foreground">· synth {f.synthetic_media_confidence}%</span>
+              <span className="text-[10px] text-muted-foreground">
+                · {evidenceConfidenceLabel({
+                  value: f.synthetic_media_confidence,
+                  kind: "synth",
+                  finding_classification: f.finding_classification,
+                  matched_evidence: f.matched_evidence,
+                })}
+              </span>
             )}
             {f.is_synthetic && <Badge variant="outline" className="text-[10px] py-0">synthetic</Badge>}
             {f.face_referenced && <Badge variant="outline" className="text-[10px] py-0">face ref</Badge>}

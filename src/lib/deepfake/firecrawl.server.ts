@@ -36,10 +36,87 @@ interface FirecrawlSearchResponse {
   error?: string;
 }
 
+export interface ProviderQueryFailure {
+  query: string;
+  provider: string;
+  error: string;
+}
+
+export async function searchQueriesWithBoundedConcurrency<T>(
+  queries: string[],
+  options: {
+    concurrency: number;
+    provider: string;
+    search: (query: string) => Promise<T[]>;
+  },
+): Promise<{
+  hits: T[];
+  queriesExecuted: number;
+  failures: ProviderQueryFailure[];
+}> {
+  const concurrency = Math.max(1, options.concurrency);
+  const hits: T[] = [];
+  const failures: ProviderQueryFailure[] = [];
+
+  for (let i = 0; i < queries.length; i += concurrency) {
+    const batch = queries.slice(i, i + concurrency);
+    const results = await Promise.allSettled(
+      batch.map((query) => options.search(query)),
+    );
+
+    for (let index = 0; index < results.length; index++) {
+      const query = batch[index] ?? "";
+      const result = results[index];
+
+      if (result.status === "fulfilled") {
+        hits.push(...result.value);
+      } else {
+        failures.push({
+          query,
+          provider: options.provider,
+          error:
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason),
+        });
+      }
+    }
+  }
+
+  return {
+    hits,
+    queriesExecuted: queries.length,
+    failures,
+  };
+}
+
 function looksSensitive(text: string): boolean {
   return /\b(nude|nudes|naked|porn|xxx|sex tape|deepfake|fake nude|ai nude|morphed|leak)\b/i.test(
     text,
   );
+}
+
+function isTransientFirecrawlFailure(
+  response: Response | null,
+  error?: unknown,
+): boolean {
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return true;
+  }
+
+  if (
+    error instanceof Error &&
+    /\b(?:timeout|timed out|abort|econnreset|etimedout)\b/i.test(error.message)
+  ) {
+    return true;
+  }
+
+  const status = response?.status ?? 0;
+  return status === 429 || (status >= 500 && status < 600);
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function firecrawlSearch(
@@ -52,31 +129,44 @@ export async function firecrawlSearch(
 
   let response: Response | null = null;
   let rawBody = "";
+  const limit = Math.min(Math.max(maxResults, 1), 20);
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    response = await firecrawlFetch("/search", {
-      query,
-      limit: Math.min(Math.max(maxResults, 1), 10),
-      sources: ["web", "images"],
-      tbs: "qdr:m",
-    });
+    let requestError: unknown = null;
 
+    try {
+      response = await firecrawlFetch("/search", {
+        query,
+        limit,
+        sources: ["web", "images"],
+        tbs: "qdr:m",
+        timeout: 20_000,
+      });
+    } catch (error) {
+      requestError = error;
+      response = null;
+    }
 
-    rawBody = await response.text();
+    rawBody = response ? await response.text() : "";
 
-    if (response.ok) {
+    if (response?.ok) {
       break;
     }
 
-    if (response.status !== 429 || attempt === 2) {
+    if (
+      !isTransientFirecrawlFailure(response, requestError) ||
+      attempt === 2
+    ) {
       throw new Error(
-        `Firecrawl search failed (${response.status}): ` +
-          rawBody.slice(0, 500),
+        requestError instanceof Error
+          ? requestError.message
+          : `Firecrawl search failed (${response?.status ?? "unknown"}): ` +
+              rawBody.slice(0, 500),
       );
     }
 
     const retryAfterHeader =
-      response.headers.get("retry-after");
+      response?.headers.get("retry-after");
 
     const retrySeconds = retryAfterHeader
       ? Number.parseInt(retryAfterHeader, 10)
@@ -96,9 +186,7 @@ export async function firecrawlSearch(
       retryInMs: safeDelayMs,
     });
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, safeDelayMs),
-    );
+    await sleep(safeDelayMs);
   }
 
   if (!response?.ok) {
@@ -172,5 +260,5 @@ export async function firecrawlSearch(
     }
   }
 
-  return Array.from(deduped.values()).slice(0, maxResults * 2);
+  return Array.from(deduped.values()).slice(0, limit * 2);
 }

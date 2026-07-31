@@ -22,6 +22,7 @@ type RedditPost = {
 
 type RedditSearchResponse = {
   data?: {
+    after?: string | null;
     children?: Array<{ data?: RedditPost }>;
   };
 };
@@ -52,6 +53,7 @@ export async function searchRecentRedditMentions(input: {
   aliases?: string[];
   handles?: string[];
   maxResults?: number;
+  pages?: number;
 }): Promise<RedditDiscoveryHit[]> {
   const identities = Array.from(
     new Set(
@@ -66,64 +68,78 @@ export async function searchRecentRedditMentions(input: {
   const identityQuery = identities.map((value) => `"${value}"`).join(" OR ");
   const query = `(${identityQuery}) AND (${RISK_TERMS})`;
   const limit = Math.min(Math.max(input.maxResults ?? 50, 1), 100);
-  const endpoint = new URL("https://www.reddit.com/search.json");
-  endpoint.searchParams.set("q", query);
-  endpoint.searchParams.set("sort", "new");
-  endpoint.searchParams.set("t", "year");
-  endpoint.searchParams.set("limit", String(limit));
-  endpoint.searchParams.set("raw_json", "1");
-
-  let payload: RedditSearchResponse = {};
-  try {
-    const response = await fetch(endpoint, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "EternaSentinel/1.0 public-reputation-monitoring",
-      },
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    const rawBody = await response.text();
-    if (response.ok && response.headers.get("content-type")?.includes("json")) {
-      payload = JSON.parse(rawBody) as RedditSearchResponse;
-    }
-  } catch (error) {
-    console.warn("[REDDIT] Direct public search unavailable", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
+  const pages = Math.min(Math.max(input.pages ?? 2, 1), 5);
   const hits: RedditDiscoveryHit[] = [];
-  for (const child of payload.data?.children ?? []) {
-    const post = child.data;
-    if (!post) continue;
+  let after: string | null | undefined;
 
-    const permalink = text(post.permalink);
-    if (!permalink) continue;
+  for (let page = 0; page < pages && hits.length < limit; page++) {
+    const endpoint = new URL("https://www.reddit.com/search.json");
+    endpoint.searchParams.set("q", query);
+    endpoint.searchParams.set("sort", "new");
+    endpoint.searchParams.set("t", "year");
+    endpoint.searchParams.set("limit", String(Math.min(limit - hits.length, 100)));
+    endpoint.searchParams.set("raw_json", "1");
+    if (after) {
+      endpoint.searchParams.set("after", after);
+    }
 
-    const title = text(post.title);
-    const description = text(post.selftext).slice(0, 1_500);
-    const destination = text(post.url_overridden_by_dest);
-    const thumbnail = text(post.thumbnail);
-    const pageUrl = new URL(permalink, "https://www.reddit.com").toString();
-    const imageUrl = isHttpUrl(destination) && isImageUrl(destination)
-      ? destination
-      : undefined;
-    const thumbnailUrl = isHttpUrl(thumbnail) ? thumbnail : imageUrl;
+    let payload: RedditSearchResponse = {};
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "EternaSentinel/1.0 public-reputation-monitoring",
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
 
-    hits.push({
-      url: pageUrl,
-      title: title || "Reddit discussion",
-      description,
-      query,
-      source: "reddit_api",
-      thumbnail_url: thumbnailUrl,
-      image_url: imageUrl,
-      is_sensitive: looksSensitive(`${title} ${description} ${destination}`),
-    });
+      const rawBody = await response.text();
+      if (response.ok && response.headers.get("content-type")?.includes("json")) {
+        payload = JSON.parse(rawBody) as RedditSearchResponse;
+      }
+    } catch (error) {
+      console.warn("[REDDIT] Direct public search unavailable", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      break;
+    }
+
+    for (const child of payload.data?.children ?? []) {
+      const post = child.data;
+      if (!post) continue;
+
+      const permalink = text(post.permalink);
+      if (!permalink) continue;
+
+      const title = text(post.title);
+      const description = text(post.selftext).slice(0, 1_500);
+      const destination = text(post.url_overridden_by_dest);
+      const thumbnail = text(post.thumbnail);
+      const pageUrl = new URL(permalink, "https://www.reddit.com").toString();
+      const imageUrl = isHttpUrl(destination) && isImageUrl(destination)
+        ? destination
+        : undefined;
+      const thumbnailUrl = isHttpUrl(thumbnail) ? thumbnail : imageUrl;
+
+      hits.push({
+        url: pageUrl,
+        title: title || "Reddit discussion",
+        description,
+        query,
+        source: "reddit_api",
+        thumbnail_url: thumbnailUrl,
+        image_url: imageUrl,
+        is_sensitive: looksSensitive(`${title} ${description} ${destination}`),
+      });
+    }
+
+    after = payload.data?.after;
+    if (!after) {
+      break;
+    }
   }
 
-  return hits.sort((a, b) =>
+  return hits.slice(0, limit).sort((a, b) =>
     Number(b.is_sensitive) - Number(a.is_sensitive) ||
     b.description.length - a.description.length,
   );
