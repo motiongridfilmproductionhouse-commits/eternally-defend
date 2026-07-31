@@ -13,6 +13,8 @@ export type MediaDiscoveryHit = {
   /** Extracted text from the exact crawled result page. */
   page_text?: string;
   page_type?: string;
+  /** True only after a successful Firecrawl scrape of the exact page URL. */
+  page_inspected?: boolean;
 };
 
 type FirecrawlScrapeResponse = {
@@ -219,38 +221,21 @@ export function hasExplicitPageRisk(hit: {
 export async function scrapeMediaFromPage(
   hit: MediaDiscoveryHit,
 ): Promise<MediaDiscoveryHit[]> {
-  /*
-   * Image-search results can already include a direct image URL.
-   * Preserve those without paying for another scrape.
-   */
   const existingDirectMedia =
     hit.image_url ??
     hit.media_url ??
     hit.thumbnail_url;
 
-  if (existingDirectMedia && validHttpUrl(existingDirectMedia)) {
-    return [
-      {
-        ...hit,
-        evidence_page_url: hit.evidence_page_url ?? hit.url,
-        media_url: existingDirectMedia,
-        image_url: existingDirectMedia,
-        media_type: VIDEO_EXTENSION.test(existingDirectMedia)
-          ? "video"
-          : "image",
-        is_sensitive:
-          hit.is_sensitive ?? hasExplicitPageRisk(hit),
-      },
-    ];
-  }
+  const urlIsDirectMedia =
+    IMAGE_EXTENSION.test(hit.url) ||
+    VIDEO_EXTENSION.test(hit.url);
 
   /*
-   * Do not scrape an already-direct media URL.
+   * Direct media URLs have no HTML body to inspect. Keep the media for
+   * optional hashing, but mark the page as not inspected so classification
+   * fails closed to UNVERIFIED_LEAD.
    */
-  if (
-    IMAGE_EXTENSION.test(hit.url) ||
-    VIDEO_EXTENSION.test(hit.url)
-  ) {
+  if (urlIsDirectMedia) {
     return [
       {
         ...hit,
@@ -259,6 +244,8 @@ export async function scrapeMediaFromPage(
         media_type: VIDEO_EXTENSION.test(hit.url)
           ? "video"
           : "image",
+        page_inspected: false,
+        page_text: hit.page_text,
         is_sensitive:
           hit.is_sensitive ?? hasExplicitPageRisk(hit),
       },
@@ -266,10 +253,9 @@ export async function scrapeMediaFromPage(
   }
 
   /*
-   * Always use the shared Firecrawl transport.
-   * It supports both Lovable gateway mode and direct API-key mode.
-   * Do not require FIRECRAWL_API_KEY here because gateway-backed
-   * projects may not expose a direct key.
+   * Always crawl the exact result page for text evidence — even when an
+   * image-search thumbnail is already available. Thumbnails alone must
+   * not produce client-visible deepfake findings.
    */
   try {
     const { firecrawlFetch } = await import(
@@ -296,19 +282,48 @@ export async function scrapeMediaFromPage(
         error: rawBody.slice(0, 300),
       });
 
-      return [];
+      return [
+        {
+          ...hit,
+          evidence_page_url: hit.evidence_page_url ?? hit.url,
+          media_url: existingDirectMedia && validHttpUrl(existingDirectMedia)
+            ? existingDirectMedia
+            : hit.media_url,
+          image_url:
+            existingDirectMedia && validHttpUrl(existingDirectMedia)
+              ? existingDirectMedia
+              : hit.image_url,
+          page_inspected: false,
+          page_text: "",
+          is_sensitive:
+            hit.is_sensitive ?? hasExplicitPageRisk(hit),
+        },
+      ];
     }
 
     const payload =
       JSON.parse(rawBody) as FirecrawlScrapeResponse;
 
     if (!payload.success || !payload.data) {
-      return [];
+      return [
+        {
+          ...hit,
+          evidence_page_url: hit.evidence_page_url ?? hit.url,
+          media_url: existingDirectMedia && validHttpUrl(existingDirectMedia)
+            ? existingDirectMedia
+            : hit.media_url,
+          page_inspected: false,
+          page_text: "",
+          is_sensitive:
+            hit.is_sensitive ?? hasExplicitPageRisk(hit),
+        },
+      ];
     }
 
     const data = payload.data;
     const html = data.rawHtml ?? data.html ?? "";
     const pageText = extractPageText(data);
+    const pageInspected = pageText.trim().length >= 80;
 
     const metadataTitle = metadataString(data.metadata, [
       "title",
@@ -328,11 +343,24 @@ export async function scrapeMediaFromPage(
       ...hit,
       title: metadataTitle ?? hit.title,
       description: metadataDescription ?? hit.description,
-      page_text: pageText || hit.page_text,
+      page_text: pageText,
+      page_inspected: pageInspected,
       evidence_page_url: hit.evidence_page_url ?? hit.url,
       is_sensitive:
         hit.is_sensitive ?? hasExplicitPageRisk(hit),
     };
+
+    if (
+      existingDirectMedia &&
+      validHttpUrl(existingDirectMedia) &&
+      !inspectedHit.media_url
+    ) {
+      inspectedHit.media_url = existingDirectMedia;
+      inspectedHit.image_url = existingDirectMedia;
+      inspectedHit.media_type = VIDEO_EXTENSION.test(existingDirectMedia)
+        ? "video"
+        : "image";
+    }
 
     const metadataImage = metadataString(data.metadata, [
       "ogImage",
@@ -424,6 +452,7 @@ export async function scrapeMediaFromPage(
         media_type: candidate.media_type,
         evidence_page_url: hit.url,
         page_text: inspectedHit.page_text,
+        page_inspected: inspectedHit.page_inspected,
         is_sensitive:
           hit.is_sensitive ?? hasExplicitPageRisk(inspectedHit),
       }));
@@ -446,7 +475,16 @@ export async function scrapeMediaFromPage(
           : String(error),
     });
 
-    return [];
+    return [
+      {
+        ...hit,
+        evidence_page_url: hit.evidence_page_url ?? hit.url,
+        page_inspected: false,
+        page_text: "",
+        is_sensitive:
+          hit.is_sensitive ?? hasExplicitPageRisk(hit),
+      },
+    ];
   }
 }
 
@@ -482,11 +520,14 @@ export async function enrichHitsWithMedia(
         output.push(...mediaResults);
       } else {
         /*
-         * Keep the page as a discovery lead even when its media is blocked.
+         * Keep the page as an unverified lead when crawl/media extraction
+         * produced nothing. Classification must fail closed.
          */
         output.push({
           ...original,
           evidence_page_url: original.url,
+          page_inspected: false,
+          page_text: "",
           is_sensitive:
             original.is_sensitive ??
             hasExplicitPageRisk(original),

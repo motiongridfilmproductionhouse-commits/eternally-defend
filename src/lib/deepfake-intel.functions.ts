@@ -283,6 +283,7 @@ try {
             title: hit.title,
             description: hit.description,
             page_text: hit.page_text,
+            page_inspected: hit.page_inspected,
             query: hit.query,
             target,
             target_face_match: (hit as any).target_face_match,
@@ -291,6 +292,7 @@ try {
 
           return {
             ...hit,
+            page_inspected: hit.page_inspected ?? false,
             page_type: preEvidence.page_type,
             identity_confidence: preEvidence.identity_confidence,
             synthetic_media_confidence:
@@ -305,7 +307,11 @@ try {
         });
 
         const analyzableCandidates = inspectedCandidates.filter(
-          (hit) => shouldAnalyzeMedia(hit._pre_evidence),
+          (hit) =>
+            shouldAnalyzeMedia(hit._pre_evidence, {
+              page_inspected: hit.page_inspected,
+              page_text: hit.page_text,
+            }),
         );
 
         let hiveCandidates: Array<
@@ -494,6 +500,7 @@ try {
             title: media?.title ?? hit.title,
             description: media?.description ?? hit.description,
             page_text: hit.page_text,
+            page_inspected: hit.page_inspected,
             query: hit.query,
             target,
             hive_deepfake_score:
@@ -691,20 +698,60 @@ try {
               (c as any).classification_explanation ?? null,
           };
         });
-        // upsert to respect the unique(scan_id, url) index
+        /*
+         * Migration-safe write: try the evidence columns first, then
+         * fall back to legacy columns if the migration is not applied yet.
+         */
         const { error: fErr } = await supabase
           .from("deepfake_findings")
           .upsert(rows as any, { onConflict: "scan_id,url" });
+
         if (fErr) {
-          console.warn(
-            "[deepfake] findings insert:",
-            fErr.message,
-          );
+          const missingEvidenceColumn =
+            /finding_classification|page_type|identity_confidence|synthetic_media_confidence|matched_evidence|classification_explanation|column .* does not exist|schema cache/i.test(
+              fErr.message,
+            );
+
+          if (missingEvidenceColumn) {
+            const legacyRows = rows.map((row) => {
+              const {
+                finding_classification: _fc,
+                page_type: _pt,
+                identity_confidence: _ic,
+                synthetic_media_confidence: _sc,
+                matched_evidence: _me,
+                classification_explanation: _ce,
+                ...legacy
+              } = row as any;
+              return legacy;
+            });
+
+            const { error: legacyErr } = await supabase
+              .from("deepfake_findings")
+              .upsert(legacyRows as any, { onConflict: "scan_id,url" });
+
+            if (legacyErr) {
+              console.warn(
+                "[deepfake] findings insert (legacy fallback):",
+                legacyErr.message,
+              );
+            } else {
+              console.warn(
+                "[deepfake] findings saved without evidence columns; apply migration 20260731182000_deepfake_finding_evidence_classification.sql",
+              );
+            }
+          } else {
+            console.warn(
+              "[deepfake] findings insert:",
+              fErr.message,
+            );
+          }
         }
 
         /*
          * Preserve exact page/media URLs, metadata and SHA-256 hashes
          * for review and takedown preparation.
+         * Only client-visible deepfake findings are sealed as evidence.
          */
         try {
           const { captureAndStoreEvidence } =
@@ -712,12 +759,18 @@ try {
               "./deepfake/evidence-capture.server"
             );
 
+          const evidenceCandidates = classified.filter((item) =>
+            isClientVisibleClassification(
+              (item as any).finding_classification,
+            ),
+          );
+
           const evidenceResult =
             await captureAndStoreEvidence({
               supabase,
               userId,
               scanId: scan.id,
-              candidates: classified as any[],
+              candidates: evidenceCandidates as any[],
             });
 
           console.log(
@@ -786,17 +839,7 @@ export const listDeepfakeScans = createServerFn({ method: "GET" })
 export const getDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z
-      .object({
-        scan_id: z.string().uuid(),
-        /*
-         * Internal reviewers may request UNVERIFIED_LEAD rows.
-         * Client dashboards omit this flag and only receive
-         * VERIFIED_DEEPFAKE / PROBABLE_DEEPFAKE findings.
-         */
-        include_internal_leads: z.boolean().optional(),
-      })
-      .parse(input),
+    z.object({ scan_id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const [scanRes, findingsRes, discoveriesRes] =
@@ -852,24 +895,17 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       }
     >;
 
+    /*
+     * Server-side client filter: only VERIFIED_DEEPFAKE / PROBABLE_DEEPFAKE.
+     * UNVERIFIED_LEAD, ADULT_NAME_MENTION and UNRELATED_ADULT_CONTENT never
+     * appear in history/polling API responses. Legacy null classifications
+     * remain visible for pre-migration rows.
+     */
     const findings = allFindings
       .filter((finding) => {
         const classification = finding.finding_classification;
-
-        /*
-         * Legacy rows without a classification remain visible so older
-         * scans are not blanked out. New scans always set classification.
-         */
         if (!classification) return true;
-
-        if (isClientVisibleClassification(classification)) {
-          return true;
-        }
-
-        return (
-          Boolean(data.include_internal_leads) &&
-          classification === "UNVERIFIED_LEAD"
-        );
+        return isClientVisibleClassification(classification);
       })
       .sort(
         (a, b) =>
@@ -882,9 +918,6 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       findings,
       discoveries:
         discoveriesRes.data ?? [],
-      internal_lead_count: allFindings.filter(
-        (finding) => finding.finding_classification === "UNVERIFIED_LEAD",
-      ).length,
     };
   });
 

@@ -45,12 +45,20 @@ export interface PageEvidenceTarget {
   handles?: string[];
 }
 
+/** Minimum exact-page body length required for client-visible classifications. */
+export const MIN_EXACT_PAGE_TEXT_CHARS = 80;
+
 export interface PageEvidenceInput {
   url: string;
   title?: string | null;
   description?: string | null;
   /** Scraped page body / markdown / main text from the exact result URL. */
   page_text?: string | null;
+  /**
+   * True only when Firecrawl (or equivalent) successfully inspected the
+   * exact result URL. Search snippets alone must never set this.
+   */
+  page_inspected?: boolean | null;
   query?: string | null;
   target: PageEvidenceTarget;
   hive_deepfake_score?: number | null;
@@ -59,6 +67,14 @@ export interface PageEvidenceInput {
   face_similarity?: number | null;
   is_synthetic?: boolean | null;
   content_category?: string | null;
+}
+
+export function hasExactPageContent(
+  pageText?: string | null,
+  pageInspected?: boolean | null,
+): boolean {
+  if (pageInspected === false) return false;
+  return (pageText ?? "").trim().length >= MIN_EXACT_PAGE_TEXT_CHARS;
 }
 
 export interface PageEvidenceResult {
@@ -400,28 +416,48 @@ export function classifyPageEvidence(
   const description = input.description ?? "";
   const pageText = input.page_text ?? "";
   const names = targetNames(input.target);
+  const exactPage = hasExactPageContent(pageText, input.page_inspected);
 
   const pageType = detectPageType(input.url, title, pageText);
 
-  const identity = scoreIdentityEvidence({
+  /*
+   * Listing exclusion may use search snippets (these classes are never
+   * client-visible). PROBABLE/VERIFIED scoring may only use exact-page
+   * crawl evidence — never query text or unreached search snippets.
+   */
+  const listingIdentity = scoreIdentityEvidence({
     url: input.url,
     title,
     description,
     pageText,
     names,
-    targetFaceMatch: input.target_face_match,
-    faceSimilarity: input.face_similarity,
+    targetFaceMatch: false,
+    faceSimilarity: null,
+  });
+
+  const scoredTitle = exactPage ? title : "";
+  const scoredDescription = exactPage ? description : "";
+  const scoredBody = exactPage ? pageText : "";
+
+  const identity = scoreIdentityEvidence({
+    url: input.url,
+    title: scoredTitle,
+    description: scoredDescription,
+    pageText: scoredBody,
+    names,
+    targetFaceMatch: exactPage ? input.target_face_match : false,
+    faceSimilarity: exactPage ? input.face_similarity : null,
   });
 
   const synthetic = scoreSyntheticEvidence({
-    title,
-    description,
-    pageText,
-    url: input.url,
-    hiveDeepfakeScore: input.hive_deepfake_score,
-    hiveAiGeneratedScore: input.hive_ai_generated_score,
-    isSynthetic: input.is_synthetic,
-    contentCategory: input.content_category,
+    title: scoredTitle,
+    description: scoredDescription,
+    pageText: scoredBody,
+    url: exactPage ? input.url : "",
+    hiveDeepfakeScore: exactPage ? input.hive_deepfake_score : null,
+    hiveAiGeneratedScore: exactPage ? input.hive_ai_generated_score : null,
+    isSynthetic: exactPage ? input.is_synthetic : null,
+    contentCategory: exactPage ? input.content_category : null,
   });
 
   const adultContext = isAdultContext({
@@ -434,21 +470,40 @@ export function classifyPageEvidence(
   const matchedEvidence = Array.from(
     new Set([
       `page_type:${pageType}`,
+      exactPage ? "crawl:exact-page" : "crawl:unavailable",
       ...identity.evidence,
       ...synthetic.evidence,
     ]),
   );
 
+  const listingHasIdentity =
+    listingIdentity.confidence >= 40 &&
+    !listingIdentity.evidence.every((item) => item === "identity:url-only");
   const hasIdentity = identity.confidence >= 40 && !identity.evidence.every((item) => item === "identity:url-only");
-  const hasStrongIdentity = identity.confidence >= 70;
+  const hasStrongIdentity =
+    identity.confidence >= 70 &&
+    (
+      Boolean(input.target_face_match) ||
+      identity.evidence.includes("identity:page-body") ||
+      (
+        identity.evidence.includes("identity:title") &&
+        identity.evidence.includes("identity:description")
+      )
+    );
   const hasSynthetic = synthetic.hasSyntheticSignal && synthetic.confidence >= 40;
   const hasStrongSynthetic = synthetic.confidence >= 70;
+  const hasVisualSyntheticConfirmation =
+    (input.hive_deepfake_score ?? 0) >= 0.9 ||
+    (
+      Boolean(input.target_face_match) &&
+      (input.hive_ai_generated_score ?? 0) >= 0.9
+    );
 
   let findingClassification: FindingClassification;
   let explanation: string;
 
   if (isExcludedListingPageType(pageType)) {
-    if (hasIdentity && adultContext) {
+    if (listingHasIdentity && adultContext) {
       findingClassification = "ADULT_NAME_MENTION";
       explanation =
         `Excluded ${pageType.replace(/_/g, " ")} page. Generic search, tag, category, performer-index or listing pages are not deepfake findings even when they mention the target name.`;
@@ -461,16 +516,20 @@ export function classifyPageEvidence(
       explanation =
         `Excluded ${pageType.replace(/_/g, " ")} page. Not a specific synthetic-media content page.`;
     }
+  } else if (!exactPage) {
+    /*
+     * Fail closed: crawl failure / empty page body can never become
+     * client-visible, even when search snippets mention deepfake terms.
+     */
+    findingClassification = "UNVERIFIED_LEAD";
+    explanation =
+      "Exact-page crawl failed or returned empty content. Result retained as UNVERIFIED_LEAD for human review and is not client-visible.";
   } else if (!hasIdentity && !hasSynthetic) {
-    findingClassification = adultContext
-      ? "UNRELATED_ADULT_CONTENT"
-      : "UNRELATED_ADULT_CONTENT";
+    findingClassification = "UNRELATED_ADULT_CONTENT";
     explanation =
       "Page lacks both identity evidence for the protected person and synthetic/impersonation evidence.";
   } else if (hasIdentity && !hasSynthetic) {
-    findingClassification = adultContext
-      ? "ADULT_NAME_MENTION"
-      : "ADULT_NAME_MENTION";
+    findingClassification = "ADULT_NAME_MENTION";
     explanation =
       "Target name is present, but there is no synthetic or impersonation evidence. A name mention alone is never classified as a deepfake.";
   } else if (!hasIdentity && hasSynthetic) {
@@ -478,29 +537,24 @@ export function classifyPageEvidence(
     explanation =
       "Synthetic-media language or scores were detected, but the protected identity is not evidenced on the page itself.";
   } else if (
+    exactPage &&
     hasStrongIdentity &&
     hasStrongSynthetic &&
-    (
-      (input.hive_deepfake_score ?? 0) >= 0.9 ||
-      (
-        (input.target_face_match ?? false) &&
-        (input.hive_ai_generated_score ?? 0) >= 0.9
-      ) ||
-      (
-        (input.target_face_match ?? false) &&
-        synthetic.evidence.some((item) =>
-          ["synthetic:deepfake", "synthetic:ai-nude", "synthetic:face-swap"].includes(item),
-        )
-      )
-    )
+    hasVisualSyntheticConfirmation
   ) {
     findingClassification = "VERIFIED_DEEPFAKE";
     explanation =
-      "Verified deepfake: page-level identity evidence and synthetic/impersonation evidence both meet verification thresholds (media analysis and/or face match confirmation).";
-  } else if (hasIdentity && hasSynthetic && identity.confidence >= 50 && synthetic.confidence >= 50) {
+      "Verified deepfake: exact-page identity evidence plus visual synthetic-media confirmation (Hive deepfake and/or face-matched AI-generated media).";
+  } else if (
+    exactPage &&
+    hasIdentity &&
+    hasSynthetic &&
+    identity.confidence >= 50 &&
+    synthetic.confidence >= 50
+  ) {
     findingClassification = "PROBABLE_DEEPFAKE";
     explanation =
-      "Probable deepfake: the content page shows both identity evidence and synthetic/impersonation evidence, pending stronger media verification.";
+      "Probable deepfake: the crawled content page shows both identity evidence and synthetic/impersonation evidence, pending stronger visual verification.";
   } else {
     findingClassification = "UNVERIFIED_LEAD";
     explanation =
@@ -620,7 +674,10 @@ export function finalizeDeepfakeFinding(input: PageEvidenceInput & {
  * True when a crawled page should continue to media classification (Hive/vision).
  * Listing pages and name-only adult mentions are excluded.
  */
-export function shouldAnalyzeMedia(result: PageEvidenceResult): boolean {
+export function shouldAnalyzeMedia(
+  result: PageEvidenceResult,
+  options?: { page_inspected?: boolean | null; page_text?: string | null },
+): boolean {
   if (isExcludedListingPageType(result.page_type)) {
     return false;
   }
@@ -632,8 +689,18 @@ export function shouldAnalyzeMedia(result: PageEvidenceResult): boolean {
     return false;
   }
 
-  return (
-    result.identity_confidence >= 40 &&
-    result.synthetic_media_confidence >= 30
-  );
+  /*
+   * Media analysis is only useful after an exact-page crawl. Empty crawls
+   * remain UNVERIFIED_LEAD and must not be elevated by thumbnail scoring.
+   */
+  if (!hasExactPageContent(options?.page_text, options?.page_inspected)) {
+    return false;
+  }
+
+  /*
+   * Require on-page identity evidence before spending Hive/vision quota.
+   * Synthetic text is optional here — visual models may still confirm
+   * deepfake media when page copy is thin.
+   */
+  return result.identity_confidence >= 40;
 }
