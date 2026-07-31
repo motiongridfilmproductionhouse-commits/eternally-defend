@@ -13,6 +13,9 @@ import {
   type FindingClassification,
 } from "./deepfake/page-evidence.server";
 import {
+  isUrlVerified,
+} from "./deepfake/url-verification.server";
+import {
   generateDeepfakeQueries,
 } from "./deepfake/query-generator.server";
 
@@ -196,35 +199,6 @@ try {
 
         const candidateFilter = filterDeepfakeCandidates(allHits, target);
 
-        /* Only high-signal synthetic/explicit pages belong in Deepfake Intel. */
-        if (candidateFilter.accepted.length) {
-          const discoveryRows = candidateFilter.accepted.map((hit) => ({
-            user_id: userId,
-            scan_id: scan.id,
-            source: (hit as any).source ?? "firecrawl",
-            search_query: hit.query?.trim() || data.target_name,
-            page_url: hit.url,
-            canonical_url: canonicalUrl(hit.url),
-            source_host: hostOf(hit.url),
-            page_title: hit.title ?? null,
-            snippet: hit.description ?? null,
-            image_url: (hit as any).image_url ?? null,
-            thumbnail_url: (hit as any).thumbnail_url ?? null,
-            media_type:
-              (hit as any).image_url || (hit as any).thumbnail_url ? "image" : null,
-            analysis_status: "discovered",
-            updated_at: new Date().toISOString(),
-          }));
-
-          const { error: discoveryError } = await (supabase as any)
-            .from("deepfake_discoveries")
-            .upsert(discoveryRows, { onConflict: "scan_id,page_url" });
-
-          if (discoveryError) {
-            throw new Error(`Unable to store discovered URLs: ${discoveryError.message}`);
-          }
-        }
-
         console.log("[DEEPFAKE] Candidate filter:", {
           accepted: candidateFilter.accepted.length,
           triage: candidateFilter.triage.length,
@@ -240,13 +214,9 @@ try {
           })),
         );
 
-        const { enrichHitsWithMedia } =
-          await import("./deepfake/media-discovery.server");
-
         /*
-         * Crawl/inspect accepted pages and explicit triage leads before
-         * classification. Listing/name-only false positives are filtered
-         * using exact-page evidence rather than search snippets alone.
+         * Candidates awaiting URL verification. Discoveries are written only
+         * after URL_VERIFIED so clients never see search/homepage/broken links.
          */
         const pagesToInspect = [
           ...candidateFilter.accepted,
@@ -267,21 +237,84 @@ try {
           ),
         ];
 
-        const mediaCandidates = await enrichHitsWithMedia(
-          pagesToInspect,
-          60,
+        const { verifyCandidateUrls } = await import(
+          "./deepfake/url-verification.server"
         );
 
         /*
-         * Inspect each crawled page before media classification.
-         * Exclude search/tag/category/listing pages and name-only mentions.
+         * Follow redirects, crawl the final canonical URL, and keep only
+         * URL_VERIFIED exact content pages that match the selected identity.
+         * Search titles/snippets are never used as page evidence.
          */
-        const inspectedCandidates = mediaCandidates.map((hit) => {
-          const pageUrl = hit.evidence_page_url ?? hit.url;
-          const preEvidence = classifyPageEvidence({
-            url: pageUrl,
+        const urlVerification = await verifyCandidateUrls(
+          pagesToInspect.map((hit) => ({
+            url: hit.url,
             title: hit.title,
             description: hit.description,
+            query: hit.query,
+            source: (hit as { source?: string }).source,
+            image_url: (hit as { image_url?: string }).image_url,
+            thumbnail_url: (hit as { thumbnail_url?: string }).thumbnail_url,
+            media_url: (hit as { media_url?: string }).media_url,
+            content_match_score: hit.content_match_score,
+            threat_signals: hit.threat_signals,
+          })),
+          target,
+          { maxPages: 60 },
+        );
+
+        const mediaCandidates = urlVerification.verified;
+
+        if (mediaCandidates.length) {
+          const discoveryRows = mediaCandidates
+            .filter(
+              (hit, index, arr) =>
+                arr.findIndex(
+                  (other) => other.canonical_url === hit.canonical_url,
+                ) === index,
+            )
+            .map((hit) => ({
+              user_id: userId,
+              scan_id: scan.id,
+              source: (hit as any).source ?? "firecrawl",
+              search_query: hit.query?.trim() || data.target_name,
+              page_url: hit.final_url,
+              canonical_url: hit.canonical_url,
+              source_host: hit.verified_domain ?? hostOf(hit.final_url),
+              page_title: hit.page_title ?? null,
+              snippet: hit.page_description ?? null,
+              image_url: (hit as any).image_url ?? null,
+              thumbnail_url: (hit as any).thumbnail_url ?? null,
+              media_type:
+                (hit as any).image_url || (hit as any).thumbnail_url
+                  ? "image"
+                  : null,
+              analysis_status: "url_verified",
+              updated_at: new Date().toISOString(),
+            }));
+
+          const { error: discoveryError } = await (supabase as any)
+            .from("deepfake_discoveries")
+            .upsert(discoveryRows, { onConflict: "scan_id,page_url" });
+
+          if (discoveryError) {
+            console.warn(
+              "[DEEPFAKE] Unable to store verified discoveries:",
+              discoveryError.message,
+            );
+          }
+        }
+
+        /*
+         * Inspect each URL-verified crawled page before media classification.
+         * Use crawled title/description/content only — never search snippets.
+         */
+        const inspectedCandidates = mediaCandidates.map((hit) => {
+          const pageUrl = hit.final_url ?? hit.evidence_page_url ?? hit.url;
+          const preEvidence = classifyPageEvidence({
+            url: pageUrl,
+            title: hit.page_title ?? hit.title,
+            description: hit.page_description ?? hit.description,
             page_text: hit.page_text,
             page_inspected: hit.page_inspected,
             query: hit.query,
@@ -302,6 +335,14 @@ try {
               preEvidence.finding_classification,
             classification_explanation:
               preEvidence.classification_explanation,
+            url_verification_status: hit.url_verification_status,
+            discovered_url: hit.discovered_url,
+            final_url: hit.final_url,
+            canonical_url: hit.canonical_url,
+            http_status: hit.http_status,
+            redirect_chain: hit.redirect_chain,
+            crawled_at: hit.crawled_at,
+            verified_domain: hit.verified_domain,
             _pre_evidence: preEvidence,
           };
         });
@@ -487,18 +528,26 @@ try {
         }
 
         /*
-         * Finalize every inspected page with identity + synthetic evidence.
-         * Only VERIFIED_DEEPFAKE / PROBABLE_DEEPFAKE are client-visible;
-         * UNVERIFIED_LEAD is persisted for internal human review.
+         * Finalize every URL-verified crawled page with identity + synthetic
+         * evidence. Search snippets are never used. Only URL_VERIFIED +
+         * VERIFIED/PROBABLE deepfakes are client-visible.
          */
         const finalized = inspectedCandidates.map((hit) => {
-          const pageUrl = hit.evidence_page_url ?? hit.url;
-          const media = mediaByPage.get(pageUrl);
+          const pageUrl =
+            hit.final_url ?? hit.evidence_page_url ?? hit.url;
+          const media =
+            mediaByPage.get(pageUrl) ??
+            mediaByPage.get(hit.evidence_page_url ?? "") ??
+            mediaByPage.get(hit.url);
+
+          const crawledTitle = hit.page_title ?? media?.title ?? null;
+          const crawledDescription =
+            hit.page_description ?? media?.description ?? null;
 
           const finalizedFields = finalizeDeepfakeFinding({
             url: pageUrl,
-            title: media?.title ?? hit.title,
-            description: media?.description ?? hit.description,
+            title: crawledTitle,
+            description: crawledDescription,
             page_text: hit.page_text,
             page_inspected: hit.page_inspected,
             query: hit.query,
@@ -524,8 +573,8 @@ try {
 
           return {
             url: pageUrl,
-            title: media?.title ?? hit.title,
-            description: media?.description ?? hit.description,
+            title: crawledTitle ?? undefined,
+            description: crawledDescription ?? undefined,
             query: hit.query,
             evidence_page_url: pageUrl,
             media_url: (media as any)?.media_url ?? hit.media_url,
@@ -551,45 +600,25 @@ try {
             hive_ai_generated_score:
               (media as any)?.hive_ai_generated_score,
             page_text: hit.page_text,
+            discovered_url: hit.discovered_url,
+            final_url: hit.final_url,
+            canonical_url: hit.canonical_url,
+            http_status: hit.http_status,
+            redirect_chain: hit.redirect_chain,
+            crawled_at: hit.crawled_at,
+            verified_domain: hit.verified_domain,
+            url_verification_status: hit.url_verification_status,
+            url_rejection_reason: hit.rejection_reason ?? null,
             ...finalizedFields,
           };
         });
 
-        const reputationLeads = candidateFilter.triage
-          .filter((item) =>
-            (item.threat_signals ?? []).some((signal) =>
-              ["defamation", "harassment"].includes(signal),
-            ),
-          )
-          .map((item) => {
-            const finalizedFields = finalizeDeepfakeFinding({
-              url: item.url,
-              title: item.title,
-              description: item.description,
-              page_text: `${item.title ?? ""} ${item.description ?? ""}`,
-              query: item.query,
-              target,
-              existing_reasoning:
-                `The indexed content contains reputation-abuse indicators naming the protected identity. Retained as an unverified lead for human review.`,
-              existing_confidence: 40,
-            });
-
-            return {
-              ...item,
-              evidence_page_url: item.url,
-              ...finalizedFields,
-              finding_classification:
-                "UNVERIFIED_LEAD" as FindingClassification,
-              client_visible: false,
-              visibility: "triage" as const,
-              content_category: "unverified_lead",
-              risk_level: "MEDIUM" as const,
-            };
-          });
-
         const dedupedFinalized = new Map<string, (typeof finalized)[number]>();
-        for (const item of [...finalized, ...reputationLeads]) {
-          const key = item.evidence_page_url ?? item.url;
+        for (const item of finalized) {
+          const key =
+            (item as any).canonical_url ??
+            item.evidence_page_url ??
+            item.url;
           const existing = dedupedFinalized.get(key);
           if (
             !existing ||
@@ -601,16 +630,21 @@ try {
 
         classified = Array.from(dedupedFinalized.values()).filter(
           (item) =>
+            isUrlVerified((item as any).url_verification_status) &&
             shouldPersistFinding(
               item.finding_classification as FindingClassification,
             ),
         );
 
         console.log("[DEEPFAKE] Result routing:", {
+          urlVerified: urlVerification.verified.length,
+          urlRejected: urlVerification.rejected.length,
           inspected: inspectedCandidates.length,
           persisted: classified.length,
-          clientVisible: classified.filter((item) =>
-            isClientVisibleClassification(item.finding_classification),
+          clientVisible: classified.filter(
+            (item) =>
+              isClientVisibleClassification(item.finding_classification) &&
+              isUrlVerified((item as any).url_verification_status),
           ).length,
           unverifiedLeads: classified.filter(
             (item) => item.finding_classification === "UNVERIFIED_LEAD",
@@ -618,6 +652,7 @@ try {
           rejected: candidateFilter.rejected.length,
           classifications: classified.map((item) => ({
             url: item.url,
+            final_url: (item as any).final_url,
             classification: item.finding_classification,
             page_type: item.page_type,
             identity: item.identity_confidence,
@@ -642,10 +677,15 @@ try {
         );
 
         const rows = classified.map((c) => {
-          const pageUrl = (c as any).evidence_page_url ?? c.url;
-          const clientVisible = isClientVisibleClassification(
-            (c as any).finding_classification,
-          );
+          const pageUrl =
+            (c as any).final_url ??
+            (c as any).evidence_page_url ??
+            c.url;
+          const clientVisible =
+            isClientVisibleClassification(
+              (c as any).finding_classification,
+            ) &&
+            isUrlVerified((c as any).url_verification_status);
 
           /*
            * Risk counters reflect client-visible deepfake findings only.
@@ -661,7 +701,8 @@ try {
             scan_id: scan.id,
             user_id: userId,
             url: pageUrl,
-            source_host: hostOf(pageUrl),
+            source_host:
+              (c as any).verified_domain ?? hostOf(pageUrl),
             page_title: c.title ?? null,
             snippet: c.description ?? null,
             query: c.query,
@@ -696,23 +737,35 @@ try {
               (c as any).matched_evidence ?? [],
             classification_explanation:
               (c as any).classification_explanation ?? null,
+            discovered_url:
+              (c as any).discovered_url ?? pageUrl,
+            final_url: (c as any).final_url ?? pageUrl,
+            canonical_url:
+              (c as any).canonical_url ?? pageUrl,
+            http_status: (c as any).http_status ?? null,
+            redirect_chain: (c as any).redirect_chain ?? [],
+            crawled_at: (c as any).crawled_at ?? null,
+            url_verification_status:
+              (c as any).url_verification_status ?? null,
+            url_rejection_reason:
+              (c as any).url_rejection_reason ?? null,
           };
         });
         /*
-         * Migration-safe write: try the evidence columns first, then
-         * fall back to legacy columns if the migration is not applied yet.
+         * Migration-safe write: try evidence + URL verification columns,
+         * then fall back by stripping unknown columns if needed.
          */
         const { error: fErr } = await supabase
           .from("deepfake_findings")
           .upsert(rows as any, { onConflict: "scan_id,url" });
 
         if (fErr) {
-          const missingEvidenceColumn =
-            /finding_classification|page_type|identity_confidence|synthetic_media_confidence|matched_evidence|classification_explanation|column .* does not exist|schema cache/i.test(
+          const missingColumn =
+            /finding_classification|page_type|identity_confidence|synthetic_media_confidence|matched_evidence|classification_explanation|discovered_url|final_url|canonical_url|http_status|redirect_chain|crawled_at|url_verification_status|url_rejection_reason|column .* does not exist|schema cache/i.test(
               fErr.message,
             );
 
-          if (missingEvidenceColumn) {
+          if (missingColumn) {
             const legacyRows = rows.map((row) => {
               const {
                 finding_classification: _fc,
@@ -721,6 +774,14 @@ try {
                 synthetic_media_confidence: _sc,
                 matched_evidence: _me,
                 classification_explanation: _ce,
+                discovered_url: _du,
+                final_url: _fu,
+                canonical_url: _cu,
+                http_status: _hs,
+                redirect_chain: _rc,
+                crawled_at: _ca,
+                url_verification_status: _uv,
+                url_rejection_reason: _ur,
                 ...legacy
               } = row as any;
               return legacy;
@@ -737,7 +798,7 @@ try {
               );
             } else {
               console.warn(
-                "[deepfake] findings saved without evidence columns; apply migration 20260731182000_deepfake_finding_evidence_classification.sql",
+                "[deepfake] findings saved without URL-verification columns; apply migration 20260731190000_deepfake_url_verification.sql",
               );
             }
           } else {
@@ -790,10 +851,12 @@ try {
         }
       }
 
-      const clientVisibleCount = classified.filter((item) =>
-        isClientVisibleClassification(
-          (item as any).finding_classification,
-        ),
+      const clientVisibleCount = classified.filter(
+        (item) =>
+          isClientVisibleClassification(
+            (item as any).finding_classification,
+          ) &&
+          isUrlVerified((item as any).url_verification_status),
       ).length;
 
       await supabase
@@ -892,32 +955,59 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
     const allFindings = (findingsRes.data ?? []) as Array<
       FindingRow & {
         finding_classification?: string | null;
+        url_verification_status?: string | null;
+        final_url?: string | null;
+        verified_domain?: string | null;
       }
     >;
 
     /*
-     * Server-side client filter: only VERIFIED_DEEPFAKE / PROBABLE_DEEPFAKE.
-     * UNVERIFIED_LEAD, ADULT_NAME_MENTION and UNRELATED_ADULT_CONTENT never
-     * appear in history/polling API responses. Legacy null classifications
-     * remain visible for pre-migration rows.
+     * Server-side client filter:
+     * - classification must be VERIFIED_DEEPFAKE / PROBABLE_DEEPFAKE
+     * - URL must be explicitly URL_VERIFIED
      */
     const findings = allFindings
       .filter((finding) => {
         const classification = finding.finding_classification;
-        if (!classification) return true;
-        return isClientVisibleClassification(classification);
+        if (!classification || !isClientVisibleClassification(classification)) {
+          return false;
+        }
+
+        return isUrlVerified(finding.url_verification_status);
       })
+      .map((finding) => ({
+        ...finding,
+        /*
+         * Prefer the verified final URL for display/open actions.
+         */
+        url: finding.final_url || finding.url,
+      }))
       .sort(
         (a, b) =>
           (riskRank[b.risk_level] ?? 0) - (riskRank[a.risk_level] ?? 0) ||
           b.confidence - a.confidence,
       );
 
+    /*
+     * Discoveries are written only after URL verification.
+     */
+    const discoveries = ((discoveriesRes.data ?? []) as Array<{
+      id: string;
+      page_url: string;
+      page_title: string | null;
+      snippet: string | null;
+      source: string;
+      source_host: string | null;
+      analysis_status?: string | null;
+      canonical_url?: string | null;
+      image_url?: string | null;
+      thumbnail_url?: string | null;
+    }>).filter((lead) => lead.analysis_status === "url_verified");
+
     return {
       scan: scanRes.data as ScanRow | null,
       findings,
-      discoveries:
-        discoveriesRes.data ?? [],
+      discoveries,
     };
   });
 

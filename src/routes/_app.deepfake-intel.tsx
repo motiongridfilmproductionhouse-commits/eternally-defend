@@ -719,18 +719,22 @@ function DeepfakeIntelPage() {
                       <li key={lead.id} className="py-2.5 first:pt-0 last:pb-0">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                              Verified · {lead.source_host ?? "unknown domain"}
+                            </div>
+                            <div className="mt-0.5 truncate text-sm font-medium">
+                              {lead.page_title || "Verified evidence page"}
+                            </div>
                             <a
                               href={lead.page_url}
                               target="_blank"
                               rel="noreferrer noopener"
-                              className="block truncate text-sm font-medium hover:text-primary"
+                              className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
+                              title={`${lead.source_host ?? ""} — ${lead.page_title || lead.page_url}`}
                             >
-                              {lead.page_title || lead.page_url}
-                            </a>
-                            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
                               <ExternalLink className="size-3" />
-                              {lead.source_host ?? lead.page_url}
-                            </div>
+                              Open verified page
+                            </a>
                             {lead.snippet && (
                               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                                 {lead.snippet}
@@ -738,7 +742,7 @@ function DeepfakeIntelPage() {
                             )}
                           </div>
                           <Badge variant="outline" className="shrink-0 text-[9px] uppercase">
-                            {lead.source.replaceAll("_", " ")}
+                            URL verified
                           </Badge>
                         </div>
                       </li>
@@ -812,6 +816,11 @@ function FindingCard({
     identity_confidence?: number | null;
     synthetic_media_confidence?: number | null;
     classification_explanation?: string | null;
+    final_url?: string | null;
+    discovered_url?: string | null;
+    canonical_url?: string | null;
+    url_verification_status?: string | null;
+    http_status?: number | null;
   };
   onUpdate: (s: "reviewed" | "dismissed" | "queued_takedown") => void;
   pending: boolean;
@@ -819,6 +828,9 @@ function FindingCard({
   const risk = (["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).includes(f.risk_level as RiskLevel)
     ? (f.risk_level as RiskLevel) : "LOW";
   const style = RISK_STYLE[risk];
+  const openUrl = f.final_url || f.url;
+  const verifiedDomain = f.source_host || openUrl;
+  const verifiedTitle = f.page_title || "Verified evidence page";
   return (
     <div className="card-surface p-3.5">
       <div className="flex items-start justify-between gap-3">
@@ -830,6 +842,7 @@ function FindingCard({
                 {(f.finding_classification ?? f.content_category ?? "").replace(/_/g, " ")}
               </span>
             )}
+            <Badge variant="outline" className="text-[10px] py-0">URL verified</Badge>
             <span className="text-[10px] text-muted-foreground">· conf {f.confidence}%</span>
             {typeof f.identity_confidence === "number" && (
               <span className="text-[10px] text-muted-foreground">· id {f.identity_confidence}%</span>
@@ -841,13 +854,27 @@ function FindingCard({
             {f.face_referenced && <Badge variant="outline" className="text-[10px] py-0">face ref</Badge>}
             {f.takedown_recommended && <Badge className="text-[10px] py-0 bg-red-600/20 text-red-400 border border-red-600/40">takedown</Badge>}
           </div>
-          <a href={f.url} target="_blank" rel="noreferrer noopener"
-             className="mt-1.5 block text-sm font-medium text-foreground hover:text-primary truncate">
-            {f.page_title || f.url}
+          <div className="mt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            Verified domain · {verifiedDomain}
+          </div>
+          <div className="mt-0.5 text-sm font-medium text-foreground truncate">
+            {verifiedTitle}
+          </div>
+          <a
+            href={openUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
+            title={`${verifiedDomain} — ${verifiedTitle}`}
+          >
+            <ExternalLink className="size-3" />
+            Open verified evidence page
           </a>
-          <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-            <ExternalLink className="size-3" /> {f.source_host ?? f.url}
-            {f.page_type && <span className="ml-1">· {f.page_type.replace(/_/g, " ")}</span>}
+          <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1 mt-1">
+            {f.page_type && <span>{f.page_type.replace(/_/g, " ")}</span>}
+            {typeof f.http_status === "number" && (
+              <span className="ml-1">· HTTP {f.http_status}</span>
+            )}
             {f.query && <span className="ml-1">· query “{f.query}”</span>}
           </div>
           {f.snippet && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{f.snippet}</p>}
