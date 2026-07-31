@@ -9,6 +9,7 @@
 import {
   matchesSelectedIdentity,
 } from "./identity.server";
+import { createHash } from "node:crypto";
 import {
   detectPageType,
   isExcludedListingPageType,
@@ -59,6 +60,15 @@ export interface UrlVerificationResult {
   rejection_reason: string | null;
 }
 
+export interface UrlVerificationMetrics {
+  submitted: number;
+  crawl_succeeded: number;
+  crawl_failed: number;
+  identity_rejected: number;
+  page_type_rejected: number;
+  url_rejected: number;
+}
+
 const MIN_PRIMARY_CONTENT_CHARS = 80;
 
 export function normalizeCanonicalUrl(url: string): string {
@@ -80,6 +90,28 @@ export function normalizeCanonicalUrl(url: string): string {
   } catch {
     return url.trim();
   }
+}
+
+export function contentFingerprint(input: {
+  title?: string | null;
+  page_text?: string | null;
+}): string | null {
+  const normalized = [
+    input.title ?? "",
+    input.page_text ?? "",
+  ]
+    .join(" ")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (normalized.length < MIN_PRIMARY_CONTENT_CHARS) {
+    return null;
+  }
+
+  return createHash("sha256")
+    .update(normalized.slice(0, 8_000))
+    .digest("hex");
 }
 
 export function hostOf(url: string): string | null {
@@ -373,85 +405,114 @@ export async function resolveRedirectChain(
   let current = url;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      let response: Response;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
-        response = await fetch(current, {
-          method: "HEAD",
-          redirect: "manual",
-          signal: controller.signal,
-          headers: {
-            "user-agent": "EternaSentinelDeepfakeIntel/1.0",
-            accept: "text/html,application/xhtml+xml,*/*",
-          },
-        });
-      } catch {
-        response = await fetch(current, {
-          method: "GET",
-          redirect: "manual",
-          signal: controller.signal,
-          headers: {
-            "user-agent": "EternaSentinelDeepfakeIntel/1.0",
-            accept: "text/html,application/xhtml+xml,*/*",
-          },
-        });
-      }
+        let response: Response;
 
-      const status = response.status;
-
-      if ([301, 302, 303, 307, 308].includes(status)) {
-        const location = response.headers.get("location");
-        if (!location) {
-          return {
-            discovered_url: url,
-            final_url: current,
-            http_status: status,
-            redirect_chain: chain,
-            ok: false,
-            error: "Redirect response missing Location header.",
-          };
+        try {
+          response = await fetch(current, {
+            method: "HEAD",
+            redirect: "manual",
+            signal: controller.signal,
+            headers: {
+              "user-agent": "EternaSentinelDeepfakeIntel/1.0",
+              accept: "text/html,application/xhtml+xml,*/*",
+            },
+          });
+        } catch {
+          response = await fetch(current, {
+            method: "GET",
+            redirect: "manual",
+            signal: controller.signal,
+            headers: {
+              "user-agent": "EternaSentinelDeepfakeIntel/1.0",
+              accept: "text/html,application/xhtml+xml,*/*",
+            },
+          });
         }
 
-        const next = new URL(location, current).toString();
-        if (chain.includes(next)) {
-          return {
-            discovered_url: url,
-            final_url: current,
-            http_status: status,
-            redirect_chain: chain,
-            ok: false,
-            error: "Redirect loop detected.",
-          };
+        const status = response.status;
+
+        if ([301, 302, 303, 307, 308].includes(status)) {
+          const location = response.headers.get("location");
+          if (!location) {
+            return {
+              discovered_url: url,
+              final_url: current,
+              http_status: status,
+              redirect_chain: chain,
+              ok: false,
+              error: "Redirect response missing Location header.",
+            };
+          }
+
+          const next = new URL(location, current).toString();
+          if (chain.includes(next)) {
+            return {
+              discovered_url: url,
+              final_url: current,
+              http_status: status,
+              redirect_chain: chain,
+              ok: false,
+              error: "Redirect loop detected.",
+            };
+          }
+
+          chain.push(next);
+          current = next;
+          break;
         }
 
-        chain.push(next);
-        current = next;
-        continue;
-      }
+        if (
+          (status === 429 || (status >= 500 && status < 600)) &&
+          attempt < 2
+        ) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, (attempt + 1) * 1_000),
+          );
+          continue;
+        }
 
-      return {
-        discovered_url: url,
-        final_url: current,
-        http_status: status,
-        redirect_chain: chain,
-        ok: status >= 200 && status < 400,
-      };
-    } catch (error) {
-      return {
-        discovered_url: url,
-        final_url: current,
-        http_status: 0,
-        redirect_chain: chain,
-        ok: false,
-        error:
-          error instanceof Error ? error.message : String(error),
-      };
-    } finally {
-      clearTimeout(timer);
+        return {
+          discovered_url: url,
+          final_url: current,
+          http_status: status,
+          redirect_chain: chain,
+          ok: status >= 200 && status < 400,
+        };
+      } catch (error) {
+        if (
+          attempt < 2 &&
+          error instanceof Error &&
+          /\b(?:timeout|timed out|abort|econnreset|etimedout)\b/i.test(
+            error.message,
+          )
+        ) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, (attempt + 1) * 1_000),
+          );
+          continue;
+        }
+
+        return {
+          discovered_url: url,
+          final_url: current,
+          http_status: 0,
+          redirect_chain: chain,
+          ok: false,
+          error:
+            error instanceof Error ? error.message : String(error),
+        };
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    if (chain[chain.length - 1] === current) {
+      continue;
     }
   }
 
@@ -476,6 +537,7 @@ export type VerifiableHit = {
   media_url?: string;
   content_match_score?: number;
   threat_signals?: string[];
+  related_links?: string[];
 };
 
 /**
@@ -507,6 +569,7 @@ export async function verifyCandidateUrls(
     }
   >;
   rejected: UrlVerificationResult[];
+  metrics: UrlVerificationMetrics;
 }> {
   const { scrapeMediaFromPage } = await import("./media-discovery.server");
   const maxPages = options?.maxPages ?? 40;
@@ -530,8 +593,17 @@ export async function verifyCandidateUrls(
   > = [];
   const rejected: UrlVerificationResult[] = [];
   const seenCanonical = new Set<string>();
+  const seenFingerprint = new Set<string>();
 
   const limited = hits.slice(0, maxPages);
+  const metrics: UrlVerificationMetrics = {
+    submitted: limited.length,
+    crawl_succeeded: 0,
+    crawl_failed: 0,
+    identity_rejected: 0,
+    page_type_rejected: 0,
+    url_rejected: 0,
+  };
   const batchSize = 3;
 
   for (let start = 0; start < limited.length; start += batchSize) {
@@ -652,11 +724,39 @@ export async function verifyCandidateUrls(
       const { hit, verification, media } = item;
 
       if (verification.url_verification_status !== "URL_VERIFIED") {
+        metrics.url_rejected++;
+        if (verification.page_inspected) {
+          metrics.crawl_succeeded++;
+        } else {
+          metrics.crawl_failed++;
+        }
+        if (
+          /\b(?:identity|protected identity|target)\b/i.test(
+            verification.rejection_reason ?? "",
+          )
+        ) {
+          metrics.identity_rejected++;
+        }
+        if (
+          /\b(?:homepage|search|tag|category|listing|performer|page type)\b/i.test(
+            verification.rejection_reason ?? "",
+          )
+        ) {
+          metrics.page_type_rejected++;
+        }
         rejected.push(verification);
         continue;
       }
 
+      metrics.crawl_succeeded++;
+
+      const fingerprint = contentFingerprint({
+        title: verification.page_title,
+        page_text: verification.page_text,
+      });
+
       if (seenCanonical.has(verification.canonical_url)) {
+        metrics.url_rejected++;
         rejected.push({
           ...verification,
           url_verification_status: "URL_REJECTED",
@@ -666,7 +766,21 @@ export async function verifyCandidateUrls(
         continue;
       }
 
+      if (fingerprint && seenFingerprint.has(fingerprint)) {
+        metrics.url_rejected++;
+        rejected.push({
+          ...verification,
+          url_verification_status: "URL_REJECTED",
+          rejection_reason:
+            "Duplicate content fingerprint after exact-page crawl.",
+        });
+        continue;
+      }
+
       seenCanonical.add(verification.canonical_url);
+      if (fingerprint) {
+        seenFingerprint.add(fingerprint);
+      }
 
       const mediaHits = (media ?? []).length
         ? media!
@@ -713,6 +827,8 @@ export async function verifyCandidateUrls(
     verifiedPages: seenCanonical.size,
     verifiedMediaRows: verified.length,
     rejected: rejected.length,
+    crawlSucceeded: metrics.crawl_succeeded,
+    crawlFailed: metrics.crawl_failed,
     rejectionSample: rejected.slice(0, 5).map((item) => ({
       url: item.discovered_url,
       final: item.final_url,
@@ -720,5 +836,5 @@ export async function verifyCandidateUrls(
     })),
   });
 
-  return { verified, rejected };
+  return { verified, rejected, metrics };
 }

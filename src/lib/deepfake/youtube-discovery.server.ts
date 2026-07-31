@@ -3,6 +3,7 @@ import type { FirecrawlSearchHit } from "./firecrawl.server";
 const YOUTUBE_API = "https://www.googleapis.com/youtube/v3";
 
 type YouTubeSearchResponse = {
+  nextPageToken?: string;
   items?: Array<{
     id?: { videoId?: string };
     snippet?: {
@@ -30,6 +31,7 @@ export async function searchRecentYouTubeMentions(input: {
   aliases?: string[];
   handles?: string[];
   maxResults?: number;
+  pages?: number;
 }): Promise<FirecrawlSearchHit[]> {
   const apiKey = (
     process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY
@@ -52,33 +54,43 @@ export async function searchRecentYouTubeMentions(input: {
   if (!identities.length) return [];
 
   const query = identities.map((identity) => `"${identity}"`).join("|");
-  const url = new URL(`${YOUTUBE_API}/search`);
-  url.searchParams.set("part", "snippet");
-  url.searchParams.set("type", "video");
-  url.searchParams.set("order", "date");
-  url.searchParams.set("maxResults", String(Math.min(input.maxResults ?? 25, 50)));
-  url.searchParams.set("q", query);
-  url.searchParams.set("key", apiKey);
+  const maxResults = Math.min(Math.max(input.maxResults ?? 25, 1), 100);
+  const pages = Math.min(Math.max(input.pages ?? 2, 1), 5);
+  const hits: FirecrawlSearchHit[] = [];
+  let pageToken: string | undefined;
 
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(15_000),
-  });
-  const text = await response.text();
+  for (let page = 0; page < pages && hits.length < maxResults; page++) {
+    const remaining = maxResults - hits.length;
+    const url = new URL(`${YOUTUBE_API}/search`);
+    url.searchParams.set("part", "snippet");
+    url.searchParams.set("type", "video");
+    url.searchParams.set("order", "date");
+    url.searchParams.set("maxResults", String(Math.min(remaining, 50)));
+    url.searchParams.set("q", query);
+    url.searchParams.set("key", apiKey);
+    if (pageToken) {
+      url.searchParams.set("pageToken", pageToken);
+    }
 
-  let payload: YouTubeSearchResponse = {};
-  try {
-    payload = JSON.parse(text) as YouTubeSearchResponse;
-  } catch {
-    throw new Error("YouTube search returned invalid JSON");
-  }
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(15_000),
+    });
+    const text = await response.text();
 
-  if (!response.ok) {
-    throw new Error(
-      `YouTube search failed [${response.status}]: ${payload.error?.message ?? text.slice(0, 300)}`,
-    );
-  }
+    let payload: YouTubeSearchResponse = {};
+    try {
+      payload = JSON.parse(text) as YouTubeSearchResponse;
+    } catch {
+      throw new Error("YouTube search returned invalid JSON");
+    }
 
-  return (payload.items ?? []).flatMap((item) => {
+    if (!response.ok) {
+      throw new Error(
+        `YouTube search failed [${response.status}]: ${payload.error?.message ?? text.slice(0, 300)}`,
+      );
+    }
+
+    hits.push(...(payload.items ?? []).flatMap((item) => {
     const videoId = item.id?.videoId;
     if (!videoId) return [];
 
@@ -106,5 +118,11 @@ export async function searchRecentYouTubeMentions(input: {
         `${snippet.title ?? ""} ${snippet.description ?? ""}`,
       ),
     }];
-  });
+    }));
+
+    if (!payload.nextPageToken) break;
+    pageToken = payload.nextPageToken;
+  }
+
+  return hits.slice(0, maxResults);
 }

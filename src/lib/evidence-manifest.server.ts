@@ -45,7 +45,7 @@ export function buildDeterministicEvidenceZip(
 ): { bytes: Uint8Array; manifestSha256: string } {
   const manifest = buildDeterministicManifest(reportId, files);
   const manifestBytes = new TextEncoder().encode(manifest.canonical);
-  const fixedTime = new Date("1980-01-01T00:00:00.000Z");
+  const fixedTime = new Date("1980-01-01T12:00:00.000Z");
   const entries: Record<string, [Uint8Array, { mtime: Date; level: 6 }]> = {};
   for (const file of [...files].sort((a, b) => a.path.localeCompare(b.path))) {
     entries[file.path.replace(/^\/+/, "")] = [file.bytes, { mtime: fixedTime, level: 6 }];
