@@ -358,7 +358,15 @@ export async function monitorOneSource(
  */
 export async function runAutoMonitor(
   supabase: DB,
-  opts: { userId?: string; limit?: number; force?: boolean; sourceIds?: string[]; runType?: "auto_monitor" | "scan" | "manual" },
+  opts: {
+    userId?: string;
+    limit?: number;
+    force?: boolean;
+    sourceIds?: string[];
+    runType?: "auto_monitor" | "scan" | "manual";
+    /** domains already crawled in this pass — avoids duplicate crawling */
+    excludeDomains?: string[];
+  },
 ): Promise<{ checked: number; incidents: number }> {
   let q = supabase
     .from("distribution_sources")
@@ -371,7 +379,10 @@ export async function runAutoMonitor(
   if (opts.sourceIds?.length) q = q.in("id", opts.sourceIds);
   else if (!opts.force) q = q.lte("next_check_at", new Date().toISOString());
 
-  const { data: due } = await q;
+  const { data } = await q;
+  const skip = new Set((opts.excludeDomains ?? []).map((d) => d.toLowerCase()));
+  const due = (data ?? []).filter((s) => !skip.has(s.domain.toLowerCase()));
+
   let incidents = 0;
   let checked = 0;
 
