@@ -48,6 +48,7 @@ import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.adm
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
+import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
 import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
 import { Route as ApiPublicHooksAutomationStatusRouteImport } from './routes/api/public/hooks/automation-status'
 import { Route as ApiPublicHooksAutomationFetchRouteImport } from './routes/api/public/hooks/automation-fetch'
@@ -255,6 +256,12 @@ const AppSensitiveProtectionResultsIndexRoute =
     path: '/sensitive-protection/results/',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiPublicHooksDistributionMonitorRoute =
+  ApiPublicHooksDistributionMonitorRouteImport.update({
+    id: '/api/public/hooks/distribution-monitor',
+    path: '/api/public/hooks/distribution-monitor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksChannelWatchPollRoute =
   ApiPublicHooksChannelWatchPollRouteImport.update({
     id: '/api/public/hooks/channel-watch-poll',
@@ -321,6 +328,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
+  '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -364,6 +372,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
+  '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
@@ -410,6 +419,7 @@ export interface FileRoutesById {
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
+  '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -455,6 +465,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
+    | '/api/public/hooks/distribution-monitor'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -498,6 +509,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
+    | '/api/public/hooks/distribution-monitor'
     | '/sensitive-protection/results'
   id:
     | '__root__'
@@ -543,6 +555,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
+    | '/api/public/hooks/distribution-monitor'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
@@ -561,6 +574,7 @@ export interface RootRouteChildren {
   ApiPublicHooksAutomationFetchRoute: typeof ApiPublicHooksAutomationFetchRoute
   ApiPublicHooksAutomationStatusRoute: typeof ApiPublicHooksAutomationStatusRoute
   ApiPublicHooksChannelWatchPollRoute: typeof ApiPublicHooksChannelWatchPollRoute
+  ApiPublicHooksDistributionMonitorRoute: typeof ApiPublicHooksDistributionMonitorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -838,6 +852,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/hooks/distribution-monitor': {
+      id: '/api/public/hooks/distribution-monitor'
+      path: '/api/public/hooks/distribution-monitor'
+      fullPath: '/api/public/hooks/distribution-monitor'
+      preLoaderRoute: typeof ApiPublicHooksDistributionMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/channel-watch-poll': {
       id: '/api/public/hooks/channel-watch-poll'
       path: '/api/public/hooks/channel-watch-poll'
@@ -961,17 +982,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksAutomationFetchRoute: ApiPublicHooksAutomationFetchRoute,
   ApiPublicHooksAutomationStatusRoute: ApiPublicHooksAutomationStatusRoute,
   ApiPublicHooksChannelWatchPollRoute: ApiPublicHooksChannelWatchPollRoute,
+  ApiPublicHooksDistributionMonitorRoute:
+    ApiPublicHooksDistributionMonitorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

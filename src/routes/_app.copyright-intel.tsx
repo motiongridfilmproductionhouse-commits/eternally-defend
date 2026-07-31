@@ -15,6 +15,8 @@ import {
 import { toast } from "sonner";
 import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
+import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
+
 import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -347,7 +349,10 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
       </Dialog>
 
 
+      <DistributionMonitorPanel />
+
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+
         <aside className="space-y-2">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Scans</h2>
           {(scans.data ?? []).map((s) => {

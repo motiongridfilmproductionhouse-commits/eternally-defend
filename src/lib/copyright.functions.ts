@@ -9,6 +9,8 @@ import { readStoredObject } from "@/lib/copyright/storage.server";
 
 import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
 import { analyzeDistributionPage, releaseTimingFor } from "@/lib/copyright/distribution.server";
+import { registerDistributionSource, runAutoMonitor } from "@/lib/copyright/distribution-monitor.server";
+
 import {
   buildMovieFingerprint,
   matchCandidateAgainstFingerprint,
@@ -282,6 +284,8 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         .slice(0, 16);
 
       const distributionRows: MatchInsert[] = [];
+      const inspectedDomains = new Set<string>();
+
       const distributionSummary: Array<{
         url: string;
         domain_risk: string;
@@ -308,7 +312,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
         for (const { lead, analysis: dist } of analyses) {
           if (!dist) continue;
+          inspectedDomains.add((dist.domain ?? "").toLowerCase());
           distributionSummary.push({
+
             url: dist.url,
             domain_risk: dist.domainRisk,
             content_type: dist.contentType,
@@ -320,7 +326,17 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           // Strong evidence gate: only distribution sources become findings.
           if (!dist.strongEvidence || dist.domainRisk === "low") continue;
 
+          // Register in the Unauthorized Distribution Sources database + Auto Monitor.
           const contact = resolveAbuseContact(dist.url);
+          await registerDistributionSource(supabase, {
+            userId,
+            scanId: scan.id,
+            workTitle: data.title,
+            platform: contact.platform,
+            analysis: dist,
+          }).catch(() => null);
+
+
           distributionRows.push({
             scan_id: scan.id,
             user_id: userId,
@@ -367,7 +383,19 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         }
       }
 
+      // 5. Auto Monitor pass: re-check already-known distribution sources that
+      //    were not crawled by this scan, so every movie scan covers the full
+      //    registered source list without duplicating crawls.
+      const monitorPass = await runAutoMonitor(supabase, {
+        userId,
+        limit: 8,
+        force: true,
+        runType: "scan",
+        excludeDomains: [...inspectedDomains].filter(Boolean),
+      }).catch(() => ({ checked: 0, incidents: 0 }));
+
       const leads = rows.length || distributionRows.length ? [] : fallbackRows.slice(0, 12);
+
       const seenUrls = new Set(distributionRows.map((r) => r.source_url));
       const allRows = [
         ...distributionRows,
@@ -393,6 +421,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         distribution_sites: distributionRows.length,
         distribution_high_risk: distributionSummary.filter((d) => d.domain_risk === "high").length,
         distribution_summary: distributionSummary.slice(0, 25),
+        monitored_sources_checked: monitorPass.checked,
+        monitor_incidents: monitorPass.incidents,
+
         release_timing: releaseTimingFor(releaseDate).timing,
         queries_language: analysis.language,
         release_date: analysis.releaseDate,
