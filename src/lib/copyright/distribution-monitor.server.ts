@@ -141,9 +141,10 @@ export async function registerDistributionSource(
 
   const { data: saved, error } = await supabase
     .from("distribution_sources")
-    .upsert(existing ? { ...payload, id: existing.id } : payload, { onConflict: "user_id,domain" })
+    .upsert(payload, { onConflict: "user_id,domain" })
     .select("*")
     .single();
+
   if (error || !saved) return null;
 
   if (!existing) {
