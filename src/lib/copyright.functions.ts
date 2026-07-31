@@ -308,7 +308,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
         for (const { lead, analysis: dist } of analyses) {
           if (!dist) continue;
+          inspectedDomains.add((dist.domain ?? "").toLowerCase());
           distributionSummary.push({
+
             url: dist.url,
             domain_risk: dist.domainRisk,
             content_type: dist.contentType,
