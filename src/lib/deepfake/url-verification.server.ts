@@ -1,0 +1,719 @@
+/**
+ * URL verification for Deepfake Intelligence leads.
+ *
+ * Every lead must resolve to a reachable, identity-matched content page
+ * before it can appear in client results. Search snippets are never used
+ * as page evidence.
+ */
+
+import {
+  matchesSelectedIdentity,
+} from "./identity.server";
+import {
+  detectPageType,
+  isExcludedListingPageType,
+  type PageEvidenceTarget,
+} from "./page-evidence.server";
+
+export type UrlVerificationStatus = "URL_VERIFIED" | "URL_REJECTED";
+
+export interface UrlVerificationTarget {
+  name: string;
+  aliases?: string[];
+  handles?: string[];
+}
+
+export interface UrlVerificationInput {
+  discovered_url: string;
+  final_url?: string | null;
+  http_status?: number | null;
+  redirect_chain?: string[];
+  /** Real title from the crawled final page — never a search snippet. */
+  crawled_title?: string | null;
+  /** Real description from the crawled final page. */
+  crawled_description?: string | null;
+  /** Primary body text from the crawled final page. */
+  crawled_page_text?: string | null;
+  page_inspected?: boolean | null;
+  /** Original search title — used only to detect snippet mismatch, never as evidence. */
+  search_title?: string | null;
+  search_snippet?: string | null;
+  target: UrlVerificationTarget;
+  crawled_at?: string | null;
+}
+
+export interface UrlVerificationResult {
+  discovered_url: string;
+  final_url: string;
+  canonical_url: string;
+  http_status: number | null;
+  redirect_chain: string[];
+  crawled_at: string;
+  page_title: string | null;
+  page_description: string | null;
+  page_text: string;
+  page_inspected: boolean;
+  verified_domain: string | null;
+  url_verification_status: UrlVerificationStatus;
+  rejection_reason: string | null;
+}
+
+const MIN_PRIMARY_CONTENT_CHARS = 80;
+
+export function normalizeCanonicalUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    parsed.hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (
+        /^(?:utm_|fbclid$|gclid$|ref$|source$|si$|feature$)/i.test(key)
+      ) {
+        parsed.searchParams.delete(key);
+      }
+    }
+
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    return parsed.toString();
+  } catch {
+    return url.trim();
+  }
+}
+
+export function hostOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export function isHomepageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.replace(/\/+$/, "") || "/";
+    return path === "/" && ![...parsed.searchParams.keys()].length;
+  } catch {
+    return false;
+  }
+}
+
+export function isRedirectOnlyResult(input: {
+  discovered_url: string;
+  final_url: string;
+  http_status?: number | null;
+  page_text?: string | null;
+  page_title?: string | null;
+}): boolean {
+  const discovered = normalizeCanonicalUrl(input.discovered_url);
+  const finalUrl = normalizeCanonicalUrl(input.final_url);
+
+  if (discovered === finalUrl) return false;
+
+  /*
+   * Redirect landed on a homepage or empty shell — treat as redirect-only.
+   */
+  if (isHomepageUrl(finalUrl)) return true;
+
+  const body = (input.page_text ?? "").trim();
+  const title = (input.page_title ?? "").trim();
+  if (!title && body.length < MIN_PRIMARY_CONTENT_CHARS) return true;
+
+  return false;
+}
+
+export function containsTargetName(
+  text: string,
+  target: UrlVerificationTarget,
+): boolean {
+  return matchesSelectedIdentity(text, target);
+}
+
+/**
+ * Strip common page chrome so identity matches in nav/comments/recommendations
+ * do not count as primary-content evidence.
+ */
+export function extractPrimaryContent(pageText: string): string {
+  const lines = pageText
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const chromePattern =
+    /^(?:home|about|contact|login|sign\s*in|sign\s*up|register|menu|search|categories|tags|related|recommended|you\s+may\s+also|more\s+from|trending|popular|comments?|reply|share|follow|subscribe|cookie|privacy|terms|advertisement|sponsored)\b/i;
+
+  const sectionHeader =
+    /^(?:related(?:\s+videos?|\s+posts?|\s+articles?)?|recommended(?:\s+for\s+you)?|you\s+may\s+also\s+like|more\s+like\s+this|trending\s+now|popular\s+videos?|comments?(?:\s*\(\d+\))?|recent\s+comments?|navigation|main\s+menu|footer|sidebar)\s*:?\s*$/i;
+
+  const kept: string[] = [];
+  let skippingSection = false;
+
+  for (const line of lines) {
+    if (sectionHeader.test(line)) {
+      skippingSection = true;
+      continue;
+    }
+
+    if (skippingSection) {
+      /*
+       * Leave chrome sections once a substantial new heading-like line appears.
+       */
+      if (line.length > 80 && !chromePattern.test(line)) {
+        skippingSection = false;
+      } else {
+        continue;
+      }
+    }
+
+    if (chromePattern.test(line) && line.length < 60) {
+      continue;
+    }
+
+    kept.push(line);
+  }
+
+  /*
+   * Also drop inline recommendation / comment markers inside long blobs.
+   */
+  const joined = kept.join("\n");
+  return joined
+    .replace(
+      /(?:related videos?|recommended for you|you may also like|more like this|trending now|comments?)\s*:[\s\S]{0,1200}/gi,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function identityInPrimaryContent(input: {
+  title?: string | null;
+  description?: string | null;
+  page_text?: string | null;
+  target: UrlVerificationTarget;
+}): {
+  inTitle: boolean;
+  inDescription: boolean;
+  inPrimaryBody: boolean;
+  onlyInChrome: boolean;
+} {
+  const title = input.title ?? "";
+  const description = input.description ?? "";
+  const fullText = input.page_text ?? "";
+  const primary = extractPrimaryContent(fullText);
+
+  const inTitle = containsTargetName(title, input.target);
+  const inDescription = containsTargetName(description, input.target);
+  const inPrimaryBody = containsTargetName(primary, input.target);
+  const inFullText = containsTargetName(fullText, input.target);
+
+  return {
+    inTitle,
+    inDescription,
+    inPrimaryBody,
+    onlyInChrome: inFullText && !inTitle && !inDescription && !inPrimaryBody,
+  };
+}
+
+/**
+ * Pure verification decision from already-resolved + crawled page data.
+ * Network I/O lives in resolveRedirectChain / verifyCandidateUrls.
+ */
+export function evaluateUrlVerification(
+  input: UrlVerificationInput,
+): UrlVerificationResult {
+  const discovered = input.discovered_url.trim();
+  const finalUrl = (input.final_url ?? discovered).trim();
+  const canonical = normalizeCanonicalUrl(finalUrl);
+  const crawledAt = input.crawled_at ?? new Date().toISOString();
+  const redirectChain = input.redirect_chain?.length
+    ? input.redirect_chain
+    : [discovered];
+
+  const base = {
+    discovered_url: discovered,
+    final_url: finalUrl,
+    canonical_url: canonical,
+    http_status: input.http_status ?? null,
+    redirect_chain: redirectChain,
+    crawled_at: crawledAt,
+    page_title: input.crawled_title?.trim() || null,
+    page_description: input.crawled_description?.trim() || null,
+    page_text: input.crawled_page_text ?? "",
+    page_inspected: Boolean(input.page_inspected),
+    verified_domain: hostOf(finalUrl),
+  };
+
+  const reject = (reason: string): UrlVerificationResult => ({
+    ...base,
+    url_verification_status: "URL_REJECTED",
+    rejection_reason: reason,
+  });
+
+  const status = input.http_status ?? 0;
+  if (!status || status < 200 || status >= 400) {
+    return reject(
+      `Broken or unreachable URL (HTTP ${status || "unknown"}).`,
+    );
+  }
+
+  if (isHomepageUrl(finalUrl)) {
+    return reject("Homepage URLs are not exact evidence pages.");
+  }
+
+  const pageType = detectPageType(
+    finalUrl,
+    input.crawled_title,
+    input.crawled_page_text,
+  );
+
+  if (isExcludedListingPageType(pageType)) {
+    return reject(
+      `Rejected ${pageType.replace(/_/g, " ")} page. Search, tag, category, performer-index and generic listings are not evidence URLs.`,
+    );
+  }
+
+  if (
+    isRedirectOnlyResult({
+      discovered_url: discovered,
+      final_url: finalUrl,
+      http_status: status,
+      page_text: input.crawled_page_text,
+      page_title: input.crawled_title,
+    })
+  ) {
+    return reject(
+      "Redirect-only URL: final destination is a homepage or empty shell, not an exact content page.",
+    );
+  }
+
+  if (!input.page_inspected) {
+    return reject(
+      "Exact final URL could not be crawled; search snippets are never used as page evidence.",
+    );
+  }
+
+  const primary = extractPrimaryContent(input.crawled_page_text ?? "");
+  if (primary.length < MIN_PRIMARY_CONTENT_CHARS) {
+    return reject(
+      "Final page has insufficient primary content after removing navigation, comments and recommendations.",
+    );
+  }
+
+  const identity = identityInPrimaryContent({
+    title: input.crawled_title,
+    description: input.crawled_description,
+    page_text: input.crawled_page_text,
+    target: input.target,
+  });
+
+  if (identity.onlyInChrome) {
+    return reject(
+      "Protected identity appears only in recommendations, comments, navigation or unrelated neighboring entries.",
+    );
+  }
+
+  if (!identity.inTitle && !identity.inPrimaryBody) {
+    /*
+     * Search snippet may have mentioned the person, but the crawled page
+     * does not. Trust the crawled page and reject.
+     */
+    const snippetMentioned =
+      containsTargetName(input.search_title ?? "", input.target) ||
+      containsTargetName(input.search_snippet ?? "", input.target);
+
+    if (snippetMentioned) {
+      return reject(
+        "Crawled page content differs from the search snippet: protected identity is not evidenced in the final page title or primary content.",
+      );
+    }
+
+    return reject(
+      "Final page title and primary content do not match the selected identity.",
+    );
+  }
+
+  return {
+    ...base,
+    page_text: primary,
+    url_verification_status: "URL_VERIFIED",
+    rejection_reason: null,
+  };
+}
+
+export function isUrlVerified(
+  status: UrlVerificationStatus | string | null | undefined,
+): boolean {
+  return status === "URL_VERIFIED";
+}
+
+/**
+ * Follow redirects manually and capture the chain + final URL + HTTP status.
+ */
+export async function resolveRedirectChain(
+  url: string,
+  options?: { maxRedirects?: number; timeoutMs?: number },
+): Promise<{
+  discovered_url: string;
+  final_url: string;
+  http_status: number;
+  redirect_chain: string[];
+  ok: boolean;
+  error?: string;
+}> {
+  const maxRedirects = options?.maxRedirects ?? 8;
+  const timeoutMs = options?.timeoutMs ?? 12_000;
+  const chain: string[] = [url];
+  let current = url;
+
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      let response: Response;
+
+      try {
+        response = await fetch(current, {
+          method: "HEAD",
+          redirect: "manual",
+          signal: controller.signal,
+          headers: {
+            "user-agent": "EternaSentinelDeepfakeIntel/1.0",
+            accept: "text/html,application/xhtml+xml,*/*",
+          },
+        });
+      } catch {
+        response = await fetch(current, {
+          method: "GET",
+          redirect: "manual",
+          signal: controller.signal,
+          headers: {
+            "user-agent": "EternaSentinelDeepfakeIntel/1.0",
+            accept: "text/html,application/xhtml+xml,*/*",
+          },
+        });
+      }
+
+      const status = response.status;
+
+      if ([301, 302, 303, 307, 308].includes(status)) {
+        const location = response.headers.get("location");
+        if (!location) {
+          return {
+            discovered_url: url,
+            final_url: current,
+            http_status: status,
+            redirect_chain: chain,
+            ok: false,
+            error: "Redirect response missing Location header.",
+          };
+        }
+
+        const next = new URL(location, current).toString();
+        if (chain.includes(next)) {
+          return {
+            discovered_url: url,
+            final_url: current,
+            http_status: status,
+            redirect_chain: chain,
+            ok: false,
+            error: "Redirect loop detected.",
+          };
+        }
+
+        chain.push(next);
+        current = next;
+        continue;
+      }
+
+      return {
+        discovered_url: url,
+        final_url: current,
+        http_status: status,
+        redirect_chain: chain,
+        ok: status >= 200 && status < 400,
+      };
+    } catch (error) {
+      return {
+        discovered_url: url,
+        final_url: current,
+        http_status: 0,
+        redirect_chain: chain,
+        ok: false,
+        error:
+          error instanceof Error ? error.message : String(error),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return {
+    discovered_url: url,
+    final_url: current,
+    http_status: 0,
+    redirect_chain: chain,
+    ok: false,
+    error: "Too many redirects.",
+  };
+}
+
+export type VerifiableHit = {
+  url: string;
+  title?: string;
+  description?: string;
+  query: string;
+  source?: string;
+  image_url?: string;
+  thumbnail_url?: string;
+  media_url?: string;
+  content_match_score?: number;
+  threat_signals?: string[];
+};
+
+/**
+ * Resolve redirects, crawl the final canonical URL, and verify each lead.
+ * Search titles/snippets are retained only for mismatch detection and are
+ * never treated as crawled page evidence.
+ */
+export async function verifyCandidateUrls(
+  hits: VerifiableHit[],
+  target: PageEvidenceTarget,
+  options?: { maxPages?: number },
+): Promise<{
+  verified: Array<
+    VerifiableHit & {
+      discovered_url: string;
+      final_url: string;
+      canonical_url: string;
+      http_status: number | null;
+      redirect_chain: string[];
+      crawled_at: string;
+      page_title: string | null;
+      page_description: string | null;
+      page_text: string;
+      page_inspected: boolean;
+      verified_domain: string | null;
+      url_verification_status: UrlVerificationStatus;
+      rejection_reason: string | null;
+      evidence_page_url: string;
+    }
+  >;
+  rejected: UrlVerificationResult[];
+}> {
+  const { scrapeMediaFromPage } = await import("./media-discovery.server");
+  const maxPages = options?.maxPages ?? 40;
+  const verified: Array<
+    VerifiableHit & {
+      discovered_url: string;
+      final_url: string;
+      canonical_url: string;
+      http_status: number | null;
+      redirect_chain: string[];
+      crawled_at: string;
+      page_title: string | null;
+      page_description: string | null;
+      page_text: string;
+      page_inspected: boolean;
+      verified_domain: string | null;
+      url_verification_status: UrlVerificationStatus;
+      rejection_reason: string | null;
+      evidence_page_url: string;
+    }
+  > = [];
+  const rejected: UrlVerificationResult[] = [];
+  const seenCanonical = new Set<string>();
+
+  const limited = hits.slice(0, maxPages);
+  const batchSize = 3;
+
+  for (let start = 0; start < limited.length; start += batchSize) {
+    const batch = limited.slice(start, start + batchSize);
+
+    const batchResults = await Promise.all(
+      batch.map(async (hit) => {
+        const discovered = hit.url;
+        const searchTitle = hit.title ?? null;
+        const searchSnippet = hit.description ?? null;
+
+        const resolved = await resolveRedirectChain(discovered);
+
+        if (!resolved.ok) {
+          const failed = evaluateUrlVerification({
+            discovered_url: discovered,
+            final_url: resolved.final_url,
+            http_status: resolved.http_status || 0,
+            redirect_chain: resolved.redirect_chain,
+            crawled_title: null,
+            crawled_description: null,
+            crawled_page_text: "",
+            page_inspected: false,
+            search_title: searchTitle,
+            search_snippet: searchSnippet,
+            target,
+          });
+          return { hit, verification: failed, media: null as null };
+        }
+
+        const finalUrl = resolved.final_url;
+        const canonical = normalizeCanonicalUrl(finalUrl);
+
+        /*
+         * Fast URL-shape rejects before spending a Firecrawl scrape.
+         */
+        if (isHomepageUrl(finalUrl)) {
+          const failed = evaluateUrlVerification({
+            discovered_url: discovered,
+            final_url: finalUrl,
+            http_status: resolved.http_status,
+            redirect_chain: resolved.redirect_chain,
+            crawled_title: null,
+            crawled_description: null,
+            crawled_page_text: "",
+            page_inspected: false,
+            search_title: searchTitle,
+            search_snippet: searchSnippet,
+            target,
+          });
+          return { hit, verification: failed, media: null };
+        }
+
+        const earlyType = detectPageType(finalUrl, null, null);
+        if (isExcludedListingPageType(earlyType)) {
+          const failed = evaluateUrlVerification({
+            discovered_url: discovered,
+            final_url: finalUrl,
+            http_status: resolved.http_status,
+            redirect_chain: resolved.redirect_chain,
+            crawled_title: null,
+            crawled_description: null,
+            crawled_page_text: "",
+            page_inspected: false,
+            search_title: searchTitle,
+            search_snippet: searchSnippet,
+            target,
+          });
+          return { hit, verification: failed, media: null };
+        }
+
+        /*
+         * Crawl the final URL. Intentionally omit search title/snippet so
+         * media-discovery cannot treat them as page evidence.
+         */
+        const scraped = await scrapeMediaFromPage({
+          url: finalUrl,
+          query: hit.query,
+          source: hit.source,
+          image_url: hit.image_url,
+          thumbnail_url: hit.thumbnail_url,
+          media_url: hit.media_url,
+        });
+
+        const pageRecord =
+          scraped.find((item) => item.page_inspected) ??
+          scraped[0] ??
+          null;
+
+        const crawledAt = new Date().toISOString();
+        const verification = evaluateUrlVerification({
+          discovered_url: discovered,
+          final_url: finalUrl,
+          http_status: resolved.http_status,
+          redirect_chain: resolved.redirect_chain,
+          crawled_title: pageRecord?.title ?? null,
+          crawled_description: pageRecord?.description ?? null,
+          crawled_page_text: pageRecord?.page_text ?? "",
+          page_inspected: Boolean(pageRecord?.page_inspected),
+          search_title: searchTitle,
+          search_snippet: searchSnippet,
+          target,
+          crawled_at: crawledAt,
+        });
+
+        return {
+          hit,
+          verification: {
+            ...verification,
+            canonical_url: canonical,
+          },
+          media: scraped,
+        };
+      }),
+    );
+
+    for (const item of batchResults) {
+      const { hit, verification, media } = item;
+
+      if (verification.url_verification_status !== "URL_VERIFIED") {
+        rejected.push(verification);
+        continue;
+      }
+
+      if (seenCanonical.has(verification.canonical_url)) {
+        rejected.push({
+          ...verification,
+          url_verification_status: "URL_REJECTED",
+          rejection_reason:
+            "Duplicate canonical URL after redirect normalization.",
+        });
+        continue;
+      }
+
+      seenCanonical.add(verification.canonical_url);
+
+      const mediaHits = (media ?? []).length
+        ? media!
+        : [
+            {
+              url: verification.final_url,
+              query: hit.query,
+              title: verification.page_title ?? undefined,
+              description: verification.page_description ?? undefined,
+              page_text: verification.page_text,
+              page_inspected: true,
+              evidence_page_url: verification.final_url,
+            },
+          ];
+
+      for (const mediaHit of mediaHits) {
+        verified.push({
+          ...hit,
+          ...mediaHit,
+          url: mediaHit.media_url ?? verification.final_url,
+          title: verification.page_title ?? undefined,
+          description: verification.page_description ?? undefined,
+          discovered_url: verification.discovered_url,
+          final_url: verification.final_url,
+          canonical_url: verification.canonical_url,
+          http_status: verification.http_status,
+          redirect_chain: verification.redirect_chain,
+          crawled_at: verification.crawled_at,
+          page_title: verification.page_title,
+          page_description: verification.page_description,
+          page_text: verification.page_text,
+          page_inspected: true,
+          verified_domain: verification.verified_domain,
+          url_verification_status: "URL_VERIFIED",
+          rejection_reason: null,
+          evidence_page_url: verification.final_url,
+        });
+      }
+    }
+  }
+
+  console.log("[DEEPFAKE:URL] Verification summary:", {
+    submitted: limited.length,
+    verifiedPages: seenCanonical.size,
+    verifiedMediaRows: verified.length,
+    rejected: rejected.length,
+    rejectionSample: rejected.slice(0, 5).map((item) => ({
+      url: item.discovered_url,
+      final: item.final_url,
+      reason: item.rejection_reason,
+    })),
+  });
+
+  return { verified, rejected };
+}

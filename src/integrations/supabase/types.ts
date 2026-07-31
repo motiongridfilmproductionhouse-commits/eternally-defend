@@ -1629,13 +1629,18 @@ export type Database = {
       deepfake_findings: {
         Row: {
           ai_reasoning: string | null
+          canonical_url: string | null
           classification_explanation: string | null
           confidence: number
           content_category: string | null
+          crawled_at: string | null
           created_at: string
+          discovered_url: string | null
           face_referenced: boolean
           face_similarity: number | null
+          final_url: string | null
           finding_classification: string | null
+          http_status: number | null
           id: string
           identity_confidence: number | null
           is_synthetic: boolean
@@ -1644,6 +1649,7 @@ export type Database = {
           page_title: string | null
           page_type: string | null
           query: string | null
+          redirect_chain: string[]
           review_status: string
           risk_level: string
           scan_id: string
@@ -1653,17 +1659,24 @@ export type Database = {
           takedown_recommended: boolean
           target_face_match: boolean | null
           url: string
+          url_rejection_reason: string | null
+          url_verification_status: string | null
           user_id: string
         }
         Insert: {
           ai_reasoning?: string | null
+          canonical_url?: string | null
           classification_explanation?: string | null
           confidence?: number
           content_category?: string | null
+          crawled_at?: string | null
           created_at?: string
+          discovered_url?: string | null
           face_referenced?: boolean
           face_similarity?: number | null
+          final_url?: string | null
           finding_classification?: string | null
+          http_status?: number | null
           id?: string
           identity_confidence?: number | null
           is_synthetic?: boolean
@@ -1672,6 +1685,7 @@ export type Database = {
           page_title?: string | null
           page_type?: string | null
           query?: string | null
+          redirect_chain?: string[]
           review_status?: string
           risk_level?: string
           scan_id: string
@@ -1681,17 +1695,24 @@ export type Database = {
           takedown_recommended?: boolean
           target_face_match?: boolean | null
           url: string
+          url_rejection_reason?: string | null
+          url_verification_status?: string | null
           user_id: string
         }
         Update: {
           ai_reasoning?: string | null
+          canonical_url?: string | null
           classification_explanation?: string | null
           confidence?: number
           content_category?: string | null
+          crawled_at?: string | null
           created_at?: string
+          discovered_url?: string | null
           face_referenced?: boolean
           face_similarity?: number | null
+          final_url?: string | null
           finding_classification?: string | null
+          http_status?: number | null
           id?: string
           identity_confidence?: number | null
           is_synthetic?: boolean
@@ -1700,6 +1721,7 @@ export type Database = {
           page_title?: string | null
           page_type?: string | null
           query?: string | null
+          redirect_chain?: string[]
           review_status?: string
           risk_level?: string
           scan_id?: string
@@ -1709,6 +1731,8 @@ export type Database = {
           takedown_recommended?: boolean
           target_face_match?: boolean | null
           url?: string
+          url_rejection_reason?: string | null
+          url_verification_status?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1771,6 +1795,7 @@ export type Database = {
           id: string
           low_count: number
           medium_count: number
+          profile_id: string | null
           started_at: string
           status: string
           target_name: string
@@ -1789,6 +1814,7 @@ export type Database = {
           id?: string
           low_count?: number
           medium_count?: number
+          profile_id?: string | null
           started_at?: string
           status?: string
           target_name: string
@@ -1807,6 +1833,7 @@ export type Database = {
           id?: string
           low_count?: number
           medium_count?: number
+          profile_id?: string | null
           started_at?: string
           status?: string
           target_name?: string

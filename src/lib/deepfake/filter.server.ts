@@ -2,6 +2,10 @@ import type {
   RawHit,
   ClassifiedHit,
 } from "./classify.server";
+import {
+  getIdentityPhrases,
+  matchesSelectedIdentity,
+} from "./identity.server";
 
 export type CandidateDecision =
   | "accepted"
@@ -200,19 +204,22 @@ function targetNames(target: {
   aliases?: string[];
   handles?: string[];
 }): string[] {
-  return [
-    target.name,
-    ...(target.aliases ?? []),
-    ...(target.handles ?? []),
-  ]
-    .map(normalizeDeepfakeText)
-    .filter((value) => value.length >= 3);
+  return getIdentityPhrases(target);
 }
 
 function containsTarget(
   text: string,
   names: string[],
+  target?: {
+    name: string;
+    aliases?: string[];
+    handles?: string[];
+  },
 ): boolean {
+  if (target) {
+    return matchesSelectedIdentity(text, target);
+  }
+
   const normalized = normalizeDeepfakeText(text);
 
   return names.some((name) => {
@@ -356,10 +363,11 @@ export function scoreDeepfakeCandidate(
   const combinedText =
     `${title} ${description} ${hit.url}`;
 
-  const titleMatch = containsTarget(title, names);
+  const titleMatch = containsTarget(title, names, target);
   const descriptionMatch = containsTarget(
     description,
     names,
+    target,
   );
 
   const visibleTargetMatch =
@@ -431,6 +439,7 @@ export function filterDeepfakeCandidates(
     const visibleTargetMatch = containsTarget(
       visibleText,
       names,
+      target,
     );
 
     const threat = collectThreatSignals(fullText);
