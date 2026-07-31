@@ -2004,6 +2004,239 @@ export type Database = {
         }
         Relationships: []
       }
+      distribution_incidents: {
+        Row: {
+          confidence: number
+          created_at: string
+          detected_at: string
+          evidence: Json
+          id: string
+          incident_type: string
+          scan_id: string | null
+          severity: string
+          source_id: string
+          summary: string | null
+          updated_at: string
+          url: string | null
+          user_id: string
+          work_title: string | null
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          detected_at?: string
+          evidence?: Json
+          id?: string
+          incident_type?: string
+          scan_id?: string | null
+          severity?: string
+          source_id: string
+          summary?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id: string
+          work_title?: string | null
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          detected_at?: string
+          evidence?: Json
+          id?: string
+          incident_type?: string
+          scan_id?: string | null
+          severity?: string
+          source_id?: string
+          summary?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+          work_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_incidents_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_incidents_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_monitor_runs: {
+        Row: {
+          changes: Json
+          confidence: number | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          incidents_created: number
+          notes: string | null
+          reachable: boolean | null
+          risk_level: string | null
+          run_type: string
+          source_id: string
+          started_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          changes?: Json
+          confidence?: number | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          incidents_created?: number
+          notes?: string | null
+          reachable?: boolean | null
+          risk_level?: string | null
+          run_type?: string
+          source_id: string
+          started_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          changes?: Json
+          confidence?: number | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          incidents_created?: number
+          notes?: string | null
+          reachable?: boolean | null
+          risk_level?: string | null
+          run_type?: string
+          source_id?: string
+          started_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_monitor_runs_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_sources: {
+        Row: {
+          check_count: number
+          confidence: number
+          content_type: string
+          created_at: string
+          discovered_scan_id: string | null
+          domain: string
+          evidence: Json
+          first_seen_at: string
+          id: string
+          incident_count: number
+          indicators: Json
+          last_checked_at: string | null
+          last_seen_at: string
+          monitor_enabled: boolean
+          monitor_interval_minutes: number
+          next_check_at: string
+          page_title: string | null
+          parent_source_id: string | null
+          platform: string | null
+          risk_level: string
+          risk_score: number
+          screenshot_url: string | null
+          source_kind: string
+          status: string
+          tracked_titles: string[]
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          check_count?: number
+          confidence?: number
+          content_type?: string
+          created_at?: string
+          discovered_scan_id?: string | null
+          domain: string
+          evidence?: Json
+          first_seen_at?: string
+          id?: string
+          incident_count?: number
+          indicators?: Json
+          last_checked_at?: string | null
+          last_seen_at?: string
+          monitor_enabled?: boolean
+          monitor_interval_minutes?: number
+          next_check_at?: string
+          page_title?: string | null
+          parent_source_id?: string | null
+          platform?: string | null
+          risk_level?: string
+          risk_score?: number
+          screenshot_url?: string | null
+          source_kind?: string
+          status?: string
+          tracked_titles?: string[]
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          check_count?: number
+          confidence?: number
+          content_type?: string
+          created_at?: string
+          discovered_scan_id?: string | null
+          domain?: string
+          evidence?: Json
+          first_seen_at?: string
+          id?: string
+          incident_count?: number
+          indicators?: Json
+          last_checked_at?: string | null
+          last_seen_at?: string
+          monitor_enabled?: boolean
+          monitor_interval_minutes?: number
+          next_check_at?: string
+          page_title?: string | null
+          parent_source_id?: string | null
+          platform?: string | null
+          risk_level?: string
+          risk_score?: number
+          screenshot_url?: string | null
+          source_kind?: string
+          status?: string
+          tracked_titles?: string[]
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_sources_discovered_scan_id_fkey"
+            columns: ["discovered_scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_sources_parent_source_id_fkey"
+            columns: ["parent_source_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dmca_submissions: {
         Row: {
           copyright_basis: string
