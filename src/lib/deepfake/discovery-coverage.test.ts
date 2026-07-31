@@ -7,6 +7,7 @@ import { verifyCandidateUrls } from "./url-verification.server";
 import {
   buildExecutedQueryPlan,
   discoveredCandidateKey,
+  mergeDiscoveredCandidates,
 } from "./discovery-plan.server";
 
 type FetchLike = typeof globalThis.fetch;
@@ -166,6 +167,176 @@ test("meaningful query parameters remain distinct before crawling", () => {
 
   assert.notEqual(first, second);
   assert.equal(first, reordered);
+});
+
+test("web hit plus image hit for one page creates one crawl", () => {
+  const pageUrl = "https://abuse.example/post/maya-kapoor-deepfake";
+  const merged = mergeDiscoveredCandidates([
+    {
+      url: pageUrl,
+      title: "Maya Kapoor deepfake page",
+      description: "Web result",
+      query: '"Maya Kapoor" deepfake',
+      source: "firecrawl_web",
+    },
+    {
+      url: `${pageUrl}?utm_source=image#preview`,
+      title: "Image result",
+      description: "Image result for the same page",
+      query: '"Maya Kapoor" AI nude',
+      source: "firecrawl_image",
+      image_url: "https://cdn.example/media/maya-kapoor.jpg",
+      thumbnail_url: "https://cdn.example/thumbs/maya-kapoor.jpg",
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0]?.url, pageUrl);
+  assert.equal(
+    merged[0]?.image_url,
+    "https://cdn.example/media/maya-kapoor.jpg",
+  );
+});
+
+test("multiple thumbnails for one page create one crawl", () => {
+  const pageUrl = "https://abuse.example/post/maya-kapoor-deepfake";
+  const merged = mergeDiscoveredCandidates([
+    {
+      url: pageUrl,
+      query: "first",
+      source: "firecrawl_image",
+      thumbnail_url: "https://cdn.example/thumbs/one.jpg",
+    },
+    {
+      url: `${pageUrl}/`,
+      query: "second",
+      source: "firecrawl_image",
+      thumbnail_url: "https://cdn.example/thumbs/two.jpg",
+    },
+    {
+      url: `${pageUrl}?utm_campaign=duplicate`,
+      query: "third",
+      source: "firecrawl_image",
+      thumbnail_url: "https://cdn.example/thumbs/three.jpg",
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.deepEqual(merged[0]?.thumbnail_url_provenance, [
+    "https://cdn.example/thumbs/one.jpg",
+    "https://cdn.example/thumbs/two.jpg",
+    "https://cdn.example/thumbs/three.jpg",
+  ]);
+});
+
+test("merged candidate retains media provider and query metadata", () => {
+  const merged = mergeDiscoveredCandidates([
+    {
+      url: "https://abuse.example/post/maya-kapoor-deepfake",
+      title: "Short title",
+      description: "Short snippet",
+      query: "query one",
+      source: "firecrawl_web",
+    },
+    {
+      url: "https://www.abuse.example/post/maya-kapoor-deepfake/",
+      title: "Longer Maya Kapoor deepfake copied title",
+      description:
+        "Longer snippet describing Maya Kapoor AI nude face swap content",
+      query: "query two",
+      source: "firecrawl_image",
+      image_url: "https://cdn.example/media/maya-kapoor.jpg",
+      thumbnail_url: "https://cdn.example/thumbs/maya-kapoor.jpg",
+      is_sensitive: true,
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(
+    merged[0]?.title,
+    "Longer Maya Kapoor deepfake copied title",
+  );
+  assert.equal(
+    merged[0]?.description,
+    "Longer snippet describing Maya Kapoor AI nude face swap content",
+  );
+  assert.deepEqual(merged[0]?.query_provenance, [
+    "query one",
+    "query two",
+  ]);
+  assert.deepEqual(merged[0]?.source_provenance, [
+    "firecrawl_web",
+    "firecrawl_image",
+  ]);
+  assert.equal(merged[0]?.query, "query one | query two");
+  assert.equal(merged[0]?.source, "firecrawl_web | firecrawl_image");
+  assert.equal(merged[0]?.is_sensitive, true);
+});
+
+test("two distinct page URLs remain separate before crawling", () => {
+  const merged = mergeDiscoveredCandidates([
+    {
+      url: "https://abuse.example/post/maya-kapoor-deepfake-a",
+      query: "query",
+      source: "firecrawl_web",
+      thumbnail_url: "https://cdn.example/shared-thumb.jpg",
+    },
+    {
+      url: "https://abuse.example/post/maya-kapoor-deepfake-b",
+      query: "query",
+      source: "firecrawl_image",
+      thumbnail_url: "https://cdn.example/shared-thumb.jpg",
+    },
+  ]);
+
+  assert.equal(merged.length, 2);
+  assert.deepEqual(
+    merged.map((item) => item.url).sort(),
+    [
+      "https://abuse.example/post/maya-kapoor-deepfake-a",
+      "https://abuse.example/post/maya-kapoor-deepfake-b",
+    ],
+  );
+});
+
+test("URL-less media candidates use safe fallback behavior", () => {
+  const merged = mergeDiscoveredCandidates([
+    {
+      query: "first",
+      source: "firecrawl_image",
+      image_url: "https://cdn.example/media/maya-kapoor.jpg?utm_source=x",
+      thumbnail_url: "https://cdn.example/thumbs/one.jpg",
+    },
+    {
+      url: "notaurl",
+      query: "second",
+      source: "firecrawl_image",
+      image_url: "https://CDN.example/media/maya-kapoor.jpg#preview",
+      thumbnail_url: "https://cdn.example/thumbs/two.jpg",
+    },
+    {
+      url: "https://cdn.example/media/maya-kapoor.jpg",
+      query: "third",
+      source: "firecrawl_image",
+      thumbnail_url: "https://cdn.example/thumbs/three.jpg",
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(
+    merged[0]?.url,
+    "https://cdn.example/media/maya-kapoor.jpg?utm_source=x",
+  );
+  assert.deepEqual(merged[0]?.query_provenance, [
+    "first",
+    "second",
+    "third",
+  ]);
+  assert.deepEqual(merged[0]?.thumbnail_url_provenance, [
+    "https://cdn.example/thumbs/one.jpg",
+    "https://cdn.example/thumbs/two.jpg",
+    "https://cdn.example/thumbs/three.jpg",
+  ]);
 });
 
 test("verification retains more than three valid URLs across repeated and distinct domains", async () => {

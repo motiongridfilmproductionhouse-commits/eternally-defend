@@ -24,7 +24,7 @@ import {
 } from "./deepfake/query-generator.server";
 import {
   buildExecutedQueryPlan,
-  discoveredCandidateKey,
+  mergeDiscoveredCandidates,
 } from "./deepfake/discovery-plan.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
@@ -260,39 +260,38 @@ try {
 
       metrics.provider_candidates = providerHits.length;
 
-      const seenDiscovered = new Set<string>();
+      const crawlEligibleHits: typeof allHits = [];
       for (const h of providerHits) {
-        if (!h.url) continue;
-        const host = hostOf(h.url);
+        const host = h.url ? hostOf(h.url) : null;
         const imageHost = h.image_url ? hostOf(h.image_url) : null;
         const thumbnailHost = h.thumbnail_url ? hostOf(h.thumbnail_url) : null;
         const explicitProviderResult =
           h.source === "youtube_api" ||
           h.source === "reddit_api";
+        const hasAnyUsableUrl =
+          host !== null ||
+          imageHost !== null ||
+          thumbnailHost !== null;
         if (
-          !host ||
+          !hasAnyUsableUrl ||
           (
             !explicitProviderResult &&
             (
-              isBlockedHost(host) ||
+              (host !== null && isBlockedHost(host)) ||
               (imageHost !== null && isBlockedHost(imageHost)) ||
               (thumbnailHost !== null && isBlockedHost(thumbnailHost))
             )
           )
         ) continue;
 
-        const key = discoveredCandidateKey(h);
-        if (seenDiscovered.has(key)) continue;
-        seenDiscovered.add(key);
-
-        allHits.push({
-          ...h,
-          query:
-            typeof h.query === "string" && h.query.trim()
-              ? h.query.trim()
-              : data.target_name,
-        });
+        crawlEligibleHits.push(h);
       }
+
+      allHits.push(
+        ...mergeDiscoveredCandidates(crawlEligibleHits, {
+          defaultQuery: data.target_name,
+        }),
+      );
 
       metrics.unique_candidates = allHits.length;
 
