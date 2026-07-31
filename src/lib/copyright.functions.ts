@@ -326,7 +326,17 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           // Strong evidence gate: only distribution sources become findings.
           if (!dist.strongEvidence || dist.domainRisk === "low") continue;
 
+          // Register in the Unauthorized Distribution Sources database + Auto Monitor.
           const contact = resolveAbuseContact(dist.url);
+          await registerDistributionSource(supabase, {
+            userId,
+            scanId: scan.id,
+            workTitle: data.title,
+            platform: contact.platform,
+            analysis: dist,
+          }).catch(() => null);
+
+
           distributionRows.push({
             scan_id: scan.id,
             user_id: userId,
