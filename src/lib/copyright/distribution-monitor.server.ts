@@ -192,7 +192,7 @@ async function createIncident(
     summary: opts.summary,
     evidence: (opts.evidence ?? {}) as Database["public"]["Tables"]["distribution_incidents"]["Insert"]["evidence"],
   });
-  await supabase.rpc; // no-op keeps typing simple
+  
   const { data: src } = await supabase
     .from("distribution_sources")
     .select("incident_count")
