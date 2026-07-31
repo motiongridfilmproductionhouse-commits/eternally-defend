@@ -1629,21 +1629,27 @@ export type Database = {
       deepfake_findings: {
         Row: {
           ai_reasoning: string | null
+          classification_explanation: string | null
           confidence: number
           content_category: string | null
           created_at: string
           face_referenced: boolean
           face_similarity: number | null
+          finding_classification: string | null
           id: string
+          identity_confidence: number | null
           is_synthetic: boolean
+          matched_evidence: string[]
           matched_face_id: string | null
           page_title: string | null
+          page_type: string | null
           query: string | null
           review_status: string
           risk_level: string
           scan_id: string
           snippet: string | null
           source_host: string | null
+          synthetic_media_confidence: number | null
           takedown_recommended: boolean
           target_face_match: boolean | null
           url: string
@@ -1651,21 +1657,27 @@ export type Database = {
         }
         Insert: {
           ai_reasoning?: string | null
+          classification_explanation?: string | null
           confidence?: number
           content_category?: string | null
           created_at?: string
           face_referenced?: boolean
           face_similarity?: number | null
+          finding_classification?: string | null
           id?: string
+          identity_confidence?: number | null
           is_synthetic?: boolean
+          matched_evidence?: string[]
           matched_face_id?: string | null
           page_title?: string | null
+          page_type?: string | null
           query?: string | null
           review_status?: string
           risk_level?: string
           scan_id: string
           snippet?: string | null
           source_host?: string | null
+          synthetic_media_confidence?: number | null
           takedown_recommended?: boolean
           target_face_match?: boolean | null
           url: string
@@ -1673,21 +1685,27 @@ export type Database = {
         }
         Update: {
           ai_reasoning?: string | null
+          classification_explanation?: string | null
           confidence?: number
           content_category?: string | null
           created_at?: string
           face_referenced?: boolean
           face_similarity?: number | null
+          finding_classification?: string | null
           id?: string
+          identity_confidence?: number | null
           is_synthetic?: boolean
+          matched_evidence?: string[]
           matched_face_id?: string | null
           page_title?: string | null
+          page_type?: string | null
           query?: string | null
           review_status?: string
           risk_level?: string
           scan_id?: string
           snippet?: string | null
           source_host?: string | null
+          synthetic_media_confidence?: number | null
           takedown_recommended?: boolean
           target_face_match?: boolean | null
           url?: string

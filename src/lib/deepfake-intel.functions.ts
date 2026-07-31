@@ -5,6 +5,14 @@ import { isBlockedHost } from "./deepfake/queries";
 import type { Database } from "@/integrations/supabase/types";
 import { filterDeepfakeCandidates } from "./deepfake/filter.server";
 import {
+  classifyPageEvidence,
+  finalizeDeepfakeFinding,
+  isClientVisibleClassification,
+  shouldAnalyzeMedia,
+  shouldPersistFinding,
+  type FindingClassification,
+} from "./deepfake/page-evidence.server";
+import {
   generateDeepfakeQueries,
 } from "./deepfake/query-generator.server";
 
@@ -236,15 +244,71 @@ try {
           await import("./deepfake/media-discovery.server");
 
         /*
-         * Scrape high-risk result pages and extract direct image/video URLs.
-         * Hive cannot analyse an ordinary webpage URL.
+         * Crawl/inspect accepted pages and explicit triage leads before
+         * classification. Listing/name-only false positives are filtered
+         * using exact-page evidence rather than search snippets alone.
          */
+        const pagesToInspect = [
+          ...candidateFilter.accepted,
+          ...candidateFilter.triage.filter((item) =>
+            (item.threat_signals ?? []).some((signal) =>
+              [
+                "nude",
+                "pornographic",
+                "sexual-content",
+                "leaked-intimate-media",
+                "undressing",
+                "deepfake",
+                "ai-nude",
+                "morphed-media",
+                "synthetic-media",
+              ].includes(signal),
+            ),
+          ),
+        ];
+
         const mediaCandidates = await enrichHitsWithMedia(
-          candidateFilter.accepted,
+          pagesToInspect,
           60,
         );
 
-        let hiveCandidates = mediaCandidates;
+        /*
+         * Inspect each crawled page before media classification.
+         * Exclude search/tag/category/listing pages and name-only mentions.
+         */
+        const inspectedCandidates = mediaCandidates.map((hit) => {
+          const pageUrl = hit.evidence_page_url ?? hit.url;
+          const preEvidence = classifyPageEvidence({
+            url: pageUrl,
+            title: hit.title,
+            description: hit.description,
+            page_text: hit.page_text,
+            query: hit.query,
+            target,
+            target_face_match: (hit as any).target_face_match,
+            face_similarity: (hit as any).face_similarity,
+          });
+
+          return {
+            ...hit,
+            page_type: preEvidence.page_type,
+            identity_confidence: preEvidence.identity_confidence,
+            synthetic_media_confidence:
+              preEvidence.synthetic_media_confidence,
+            matched_evidence: preEvidence.matched_evidence,
+            finding_classification:
+              preEvidence.finding_classification,
+            classification_explanation:
+              preEvidence.classification_explanation,
+            _pre_evidence: preEvidence,
+          };
+        });
+
+        const analyzableCandidates = inspectedCandidates.filter(
+          (hit) => shouldAnalyzeMedia(hit._pre_evidence),
+        );
+
+        let hiveCandidates = analyzableCandidates;
 
         /*
          * When a face profile is selected, only media containing the
@@ -259,26 +323,26 @@ try {
               supabase,
               userId,
               profileId: data.profile_id,
-              candidates: mediaCandidates,
+              candidates: analyzableCandidates,
               similarityThreshold: 88,
             });
 
           /*
-           * Keep verified face matches as primary media.
-           * Also preserve explicit video/page leads when face verification
-           * cannot run because no accessible thumbnail or image exists.
+           * Keep verified face matches. Preserve synthetic-signal pages
+           * when face verification cannot run due to missing media, so
+           * page-evidence can still classify them as probable/unverified.
            */
-          const explicitUnavailable = faceResults.errors.filter(
+          const syntheticUnavailable = faceResults.errors.filter(
             (item) => {
               const text = [
                 item.title ?? "",
                 item.description ?? "",
+                item.page_text ?? "",
                 item.url ?? "",
-                item.query ?? "",
               ].join(" ");
 
               return (
-                /\b(?:porn|xxx|sex|nude|naked|deepfake|fake nude|ai nude|explicit|leaked)\b/i.test(
+                /\b(?:deepfake|face\s*swap|ai\s*nude|fake\s*nude|morphed|synthetic\s*media)\b/i.test(
                   text,
                 )
               );
@@ -287,7 +351,7 @@ try {
 
           hiveCandidates = [
             ...faceResults.matched,
-            ...explicitUnavailable.map((item) => ({
+            ...syntheticUnavailable.map((item) => ({
               ...item,
               target_face_match: false,
               face_similarity: 0,
@@ -299,6 +363,8 @@ try {
         console.log("[DEEPFAKE] Hive input:", {
           acceptedPages:
             candidateFilter.accepted.length,
+          inspectedPages: inspectedCandidates.length,
+          analyzablePages: analyzableCandidates.length,
           mediaCandidates:
             mediaCandidates.length,
           faceProfileEnabled:
@@ -319,43 +385,32 @@ try {
           await import("./deepfake/hive.server");
 
         const hiveResults =
-          await classifyHitsWithHive(
-            hiveCandidates,
-          );
+          hiveCandidates.length
+            ? await classifyHitsWithHive(hiveCandidates)
+            : [];
 
-        let primaryResults = hiveResults.filter(
-          (item) =>
-            (item.content_match_score ?? 0) >= 50 &&
-            item.classification_status === "completed" &&
-            item.confidence >= 10 &&
-            item.content_category !== "unclassified" &&
-            item.visibility === "primary",
-        );
-
-        /*
-         * When the media classifier is unavailable (no key, provider error),
-         * fall back to the cautious text classifier so accepted leads are
-         * still surfaced for manual review instead of vanishing.
-         */
         const hiveUsable = hiveResults.some(
           (item) => item.classification_status === "completed",
         );
 
-        if (!primaryResults.length && !hiveUsable) {
+        let mediaClassified = hiveResults;
+
+        /*
+         * When the media classifier is unavailable, use cautious text
+         * triage only for pages that already passed page-evidence gates.
+         * Results still go through finalizeDeepfakeFinding before save.
+         */
+        if (!hiveUsable && hiveCandidates.length) {
           const { classifyHits } = await import(
             "./deepfake/classify.server"
           );
 
-          const textPool = (
-            hiveCandidates.length
-              ? hiveCandidates
-              : candidateFilter.accepted
-          ).slice(0, 40);
+          const textPool = hiveCandidates.slice(0, 40);
 
           try {
             const textResults = await classifyHits(
               textPool.map((item) => ({
-                url: item.url,
+                url: item.evidence_page_url ?? item.url,
                 title: item.title,
                 description: item.description,
                 query: item.query,
@@ -363,18 +418,19 @@ try {
               target,
             );
 
-            primaryResults = textResults.map((item, index) => ({
+            mediaClassified = textResults.map((item, index) => ({
+              ...textPool[index],
               ...item,
               content_match_score:
                 (textPool[index] as any)?.content_match_score ?? 0,
               classification_status: "completed" as const,
-              visibility: "primary" as const,
+              visibility: "triage" as const,
               ai_reasoning:
                 `${item.ai_reasoning} (Text-only triage: media analysis unavailable.)`.trim(),
             }));
 
             console.log("[DEEPFAKE] Text-classifier fallback:", {
-              classified: primaryResults.length,
+              classified: mediaClassified.length,
             });
           } catch (fallbackError) {
             console.warn(
@@ -386,94 +442,156 @@ try {
           }
         }
 
+        const mediaByPage = new Map<string, (typeof mediaClassified)[number]>();
+        for (const item of mediaClassified) {
+          const pageUrl =
+            (item as any).evidence_page_url ?? item.url;
+          const existing = mediaByPage.get(pageUrl);
+          if (
+            !existing ||
+            (item.confidence ?? 0) > (existing.confidence ?? 0)
+          ) {
+            mediaByPage.set(pageUrl, item);
+          }
+        }
 
-        const triageResults = [
-          ...candidateFilter.triage.map((item) => {
-            const reputationSignals = (item.threat_signals ?? []).filter(
-              (signal) => ["defamation", "harassment"].includes(signal),
-            );
-            const isReputationAbuse = reputationSignals.length > 0;
+        /*
+         * Finalize every inspected page with identity + synthetic evidence.
+         * Only VERIFIED_DEEPFAKE / PROBABLE_DEEPFAKE are client-visible;
+         * UNVERIFIED_LEAD is persisted for internal human review.
+         */
+        const finalized = inspectedCandidates.map((hit) => {
+          const pageUrl = hit.evidence_page_url ?? hit.url;
+          const media = mediaByPage.get(pageUrl);
+
+          const finalizedFields = finalizeDeepfakeFinding({
+            url: pageUrl,
+            title: media?.title ?? hit.title,
+            description: media?.description ?? hit.description,
+            page_text: hit.page_text,
+            query: hit.query,
+            target,
+            hive_deepfake_score:
+              (media as any)?.hive_deepfake_score ?? null,
+            hive_ai_generated_score:
+              (media as any)?.hive_ai_generated_score ?? null,
+            target_face_match:
+              (media as any)?.target_face_match ??
+              (hit as any).target_face_match ??
+              null,
+            face_similarity:
+              (media as any)?.face_similarity ??
+              (hit as any).face_similarity ??
+              null,
+            is_synthetic: media?.is_synthetic ?? null,
+            content_category: media?.content_category ?? null,
+            existing_reasoning: media?.ai_reasoning ?? null,
+            existing_category: media?.content_category ?? null,
+            existing_confidence: media?.confidence ?? null,
+          });
+
+          return {
+            url: pageUrl,
+            title: media?.title ?? hit.title,
+            description: media?.description ?? hit.description,
+            query: hit.query,
+            evidence_page_url: pageUrl,
+            media_url: (media as any)?.media_url ?? hit.media_url,
+            content_match_score:
+              (hit as any).content_match_score ?? 0,
+            threat_signals: (hit as any).threat_signals,
+            classification_status:
+              media?.classification_status ?? "no_media",
+            target_face_match:
+              (media as any)?.target_face_match ??
+              (hit as any).target_face_match ??
+              false,
+            face_similarity:
+              (media as any)?.face_similarity ??
+              (hit as any).face_similarity ??
+              null,
+            matched_face_id:
+              (media as any)?.matched_face_id ??
+              (hit as any).matched_face_id ??
+              null,
+            hive_deepfake_score:
+              (media as any)?.hive_deepfake_score,
+            hive_ai_generated_score:
+              (media as any)?.hive_ai_generated_score,
+            page_text: hit.page_text,
+            ...finalizedFields,
+          };
+        });
+
+        const reputationLeads = candidateFilter.triage
+          .filter((item) =>
+            (item.threat_signals ?? []).some((signal) =>
+              ["defamation", "harassment"].includes(signal),
+            ),
+          )
+          .map((item) => {
+            const finalizedFields = finalizeDeepfakeFinding({
+              url: item.url,
+              title: item.title,
+              description: item.description,
+              page_text: `${item.title ?? ""} ${item.description ?? ""}`,
+              query: item.query,
+              target,
+              existing_reasoning:
+                `The indexed content contains reputation-abuse indicators naming the protected identity. Retained as an unverified lead for human review.`,
+              existing_confidence: 40,
+            });
 
             return {
               ...item,
-              risk_level: isReputationAbuse ? "MEDIUM" as const : "LOW" as const,
-              content_category: isReputationAbuse
-                ? "reputation_abuse"
-                : "unclassified",
-              confidence: isReputationAbuse ? 60 : 0,
-              is_synthetic: false,
-              face_referenced: isReputationAbuse,
-              takedown_recommended: false,
-              ai_reasoning: isReputationAbuse
-                ? `The indexed content contains ${reputationSignals.join(" and ")} indicators naming the protected identity. This is an unverified reputation-risk lead requiring human review.`
-                : item.rejection_reason ??
-                  "Weak target-content match; manual review required.",
-              classification_status: isReputationAbuse
-                ? "completed" as const
-                : "no_media" as const,
+              evidence_page_url: item.url,
+              ...finalizedFields,
+              finding_classification:
+                "UNVERIFIED_LEAD" as FindingClassification,
+              client_visible: false,
               visibility: "triage" as const,
+              content_category: "unverified_lead",
+              risk_level: "MEDIUM" as const,
             };
-          }),
-          ...hiveResults.filter(
-            (item) => item.visibility !== "primary",
-          ),
-        ];
+          });
 
-        console.log("[DEEPFAKE] Result routing:", {
-          primary: primaryResults.length,
-          triage: triageResults.length,
-          rejected: candidateFilter.rejected.length,
-        });
+        const dedupedFinalized = new Map<string, (typeof finalized)[number]>();
+        for (const item of [...finalized, ...reputationLeads]) {
+          const key = item.evidence_page_url ?? item.url;
+          const existing = dedupedFinalized.get(key);
+          if (
+            !existing ||
+            (item.confidence ?? 0) > (existing.confidence ?? 0)
+          ) {
+            dedupedFinalized.set(key, item as any);
+          }
+        }
 
-        /*
-         * Keep only verified Hive results in the primary findings table.
-         * Triage results are logged for now and can later be stored in a
-         * dedicated triage table.
-         */
-        const relevantTriageResults = triageResults.filter(
-          (item: any) => {
-            const signals = Array.isArray(item.threat_signals)
-              ? item.threat_signals
-              : [];
-
-            const strongSignals = signals.some(
-              (signal: string) =>
-                [
-                  "nude",
-                  "pornographic",
-                  "sexual-content",
-                  "leaked-intimate-media",
-                  "undressing",
-                  "deepfake",
-                  "ai-nude",
-                   "morphed-media",
-                ].includes(signal),
-            );
-
-            const explicitCategory =
-              item.content_category ===
-              "explicit_content_page";
-
-            const analysedRisk =
-              item.classification_status === "completed" &&
-              [
-                "deepfake",
-                "synthetic_media",
-                "explicit_content_page",
-              ].includes(item.content_category);
-
-            return (
-              strongSignals ||
-              explicitCategory ||
-              analysedRisk
-            );
-          },
+        classified = Array.from(dedupedFinalized.values()).filter(
+          (item) =>
+            shouldPersistFinding(
+              item.finding_classification as FindingClassification,
+            ),
         );
 
-        classified = [
-          ...primaryResults,
-          ...relevantTriageResults,
-        ];
+        console.log("[DEEPFAKE] Result routing:", {
+          inspected: inspectedCandidates.length,
+          persisted: classified.length,
+          clientVisible: classified.filter((item) =>
+            isClientVisibleClassification(item.finding_classification),
+          ).length,
+          unverifiedLeads: classified.filter(
+            (item) => item.finding_classification === "UNVERIFIED_LEAD",
+          ).length,
+          rejected: candidateFilter.rejected.length,
+          classifications: classified.map((item) => ({
+            url: item.url,
+            classification: item.finding_classification,
+            page_type: item.page_type,
+            identity: item.identity_confidence,
+            synthetic: item.synthetic_media_confidence,
+          })),
+        });
       }
 
       // 4. persist findings
@@ -493,10 +611,20 @@ try {
 
         const rows = classified.map((c) => {
           const pageUrl = (c as any).evidence_page_url ?? c.url;
-          if (c.risk_level === "CRITICAL") critical++;
-          else if (c.risk_level === "HIGH") high++;
-          else if (c.risk_level === "MEDIUM") medium++;
-          else low++;
+          const clientVisible = isClientVisibleClassification(
+            (c as any).finding_classification,
+          );
+
+          /*
+           * Risk counters reflect client-visible deepfake findings only.
+           */
+          if (clientVisible) {
+            if (c.risk_level === "CRITICAL") critical++;
+            else if (c.risk_level === "HIGH") high++;
+            else if (c.risk_level === "MEDIUM") medium++;
+            else low++;
+          }
+
           return {
             scan_id: scan.id,
             user_id: userId,
@@ -517,13 +645,31 @@ try {
               (c as any).face_similarity ?? null,
             matched_face_id:
               (c as any).matched_face_id ?? null,
-            ai_reasoning: c.ai_reasoning,
+            ai_reasoning:
+              (c as any).classification_explanation
+                ? `${(c as any).classification_explanation}${
+                    c.ai_reasoning
+                      ? ` ${c.ai_reasoning}`
+                      : ""
+                  }`
+                : c.ai_reasoning,
+            finding_classification:
+              (c as any).finding_classification ?? null,
+            page_type: (c as any).page_type ?? null,
+            identity_confidence:
+              (c as any).identity_confidence ?? null,
+            synthetic_media_confidence:
+              (c as any).synthetic_media_confidence ?? null,
+            matched_evidence:
+              (c as any).matched_evidence ?? [],
+            classification_explanation:
+              (c as any).classification_explanation ?? null,
           };
         });
         // upsert to respect the unique(scan_id, url) index
         const { error: fErr } = await supabase
           .from("deepfake_findings")
-          .upsert(rows, { onConflict: "scan_id,url" });
+          .upsert(rows as any, { onConflict: "scan_id,url" });
         if (fErr) {
           console.warn(
             "[deepfake] findings insert:",
@@ -566,12 +712,18 @@ try {
         }
       }
 
+      const clientVisibleCount = classified.filter((item) =>
+        isClientVisibleClassification(
+          (item as any).finding_classification,
+        ),
+      ).length;
+
       await supabase
         .from("deepfake_scans")
         .update({
           status: "completed",
           total_queries: plan.queries.length,
-          total_results: classified.length,
+          total_results: clientVisibleCount,
           critical_count: critical,
           high_count: high,
           medium_count: medium,
@@ -582,7 +734,7 @@ try {
 
       return {
         scan_id: scan.id,
-        total_results: classified.length,
+        total_results: clientVisibleCount,
         discovered_results: classified.length,
       };
     } catch (e) {
@@ -608,7 +760,19 @@ export const listDeepfakeScans = createServerFn({ method: "GET" })
 
 export const getDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ scan_id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        scan_id: z.string().uuid(),
+        /*
+         * Internal reviewers may request UNVERIFIED_LEAD rows.
+         * Client dashboards omit this flag and only receive
+         * VERIFIED_DEEPFAKE / PROBABLE_DEEPFAKE findings.
+         */
+        include_internal_leads: z.boolean().optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     const [scanRes, findingsRes, discoveriesRes] =
       await Promise.all([
@@ -657,16 +821,45 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       LOW: 1,
     };
 
+    const allFindings = (findingsRes.data ?? []) as Array<
+      FindingRow & {
+        finding_classification?: string | null;
+      }
+    >;
+
+    const findings = allFindings
+      .filter((finding) => {
+        const classification = finding.finding_classification;
+
+        /*
+         * Legacy rows without a classification remain visible so older
+         * scans are not blanked out. New scans always set classification.
+         */
+        if (!classification) return true;
+
+        if (isClientVisibleClassification(classification)) {
+          return true;
+        }
+
+        return (
+          Boolean(data.include_internal_leads) &&
+          classification === "UNVERIFIED_LEAD"
+        );
+      })
+      .sort(
+        (a, b) =>
+          (riskRank[b.risk_level] ?? 0) - (riskRank[a.risk_level] ?? 0) ||
+          b.confidence - a.confidence,
+      );
+
     return {
       scan: scanRes.data as ScanRow | null,
-      findings:
-        ((findingsRes.data ?? []) as FindingRow[]).sort(
-          (a, b) =>
-            (riskRank[b.risk_level] ?? 0) - (riskRank[a.risk_level] ?? 0) ||
-            b.confidence - a.confidence,
-        ),
+      findings,
       discoveries:
         discoveriesRes.data ?? [],
+      internal_lead_count: allFindings.filter(
+        (finding) => finding.finding_classification === "UNVERIFIED_LEAD",
+      ).length,
     };
   });
 

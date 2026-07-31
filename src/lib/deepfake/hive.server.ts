@@ -276,7 +276,11 @@ function fallbackThreatClassification(hit: RawHit): {
     hit.title ?? "",
     hit.description ?? "",
     hit.url ?? "",
-    hit.query ?? "",
+    /*
+     * Do not treat the originating search query as page evidence.
+     * Queries intentionally contain adult/deepfake terms and would
+     * otherwise create false-positive classifications.
+     */
   ].join(" ");
 
   const explicitMatches = EXPLICIT_SEXUAL_PATTERNS.filter(
@@ -287,39 +291,41 @@ function fallbackThreatClassification(hit: RawHit): {
     (pattern) => pattern.test(text),
   ).length;
 
-  if (explicitMatches >= 2 && syntheticMatches >= 1) {
-    return {
-      riskLevel: "CRITICAL",
-      category: "suspected_explicit_deepfake",
-      confidence: 92,
-      takedownRecommended: true,
-      reasoning:
-        "Hive analysis was unavailable, but the page contains multiple explicit-sexual and synthetic-media abuse indicators. Treat as a critical suspected deepfake pending visual verification.",
-    };
-  }
-
-  if (explicitMatches >= 2) {
-    return {
-      riskLevel: "CRITICAL",
-      category: "explicit_content_page",
-      confidence: 88,
-      takedownRecommended: true,
-      reasoning:
-        "Hive analysis was unavailable, but the page explicitly advertises sexual or intimate content using the protected identity. Immediate review and preservation are recommended.",
-    };
-  }
-
-  if (explicitMatches === 1 || syntheticMatches >= 1) {
+  /*
+   * Text fallback may only elevate risk when both identity-adjacent
+   * page text and synthetic/impersonation language are present.
+   * Explicit adult language alone is not a deepfake finding.
+   */
+  if (explicitMatches >= 1 && syntheticMatches >= 1) {
     return {
       riskLevel: "HIGH",
-      category:
-        explicitMatches > 0
-          ? "suspected_explicit_impersonation"
-          : "suspected_synthetic_media",
-      confidence: 72,
+      category: "suspected_explicit_deepfake",
+      confidence: 70,
       takedownRecommended: true,
       reasoning:
-        "Hive analysis was unavailable, but strong textual threat indicators were detected. Manual media verification is required.",
+        "Hive analysis was unavailable, but the page text contains both explicit and synthetic-media indicators. Treat as an unverified lead until page-evidence classification confirms identity and synthetic evidence.",
+    };
+  }
+
+  if (syntheticMatches >= 1) {
+    return {
+      riskLevel: "MEDIUM",
+      category: "suspected_synthetic_media",
+      confidence: 55,
+      takedownRecommended: false,
+      reasoning:
+        "Hive analysis was unavailable. Synthetic-media language was detected, but visual confirmation and identity evidence still require page-level review.",
+    };
+  }
+
+  if (explicitMatches >= 1) {
+    return {
+      riskLevel: "LOW",
+      category: "explicit_content_page",
+      confidence: 20,
+      takedownRecommended: false,
+      reasoning:
+        "Hive analysis was unavailable. Adult-language signals alone are not sufficient for a deepfake classification.",
     };
   }
 
@@ -355,11 +361,11 @@ function createUnclassifiedResult(
         ? reasoning
         : `${fallback.reasoning} Provider status: ${reasoning}`,
     classification_status: status,
-    visibility:
-      fallback.riskLevel === "CRITICAL" ||
-      fallback.riskLevel === "HIGH"
-        ? "primary"
-        : "triage",
+    /*
+     * Without visual confirmation, keep text-only fallbacks in triage.
+     * Final client visibility is decided by page-evidence classification.
+     */
+    visibility: "triage",
     hive_deepfake_score: 0,
     hive_ai_generated_score: 0,
   } as ClassifiedHit;
