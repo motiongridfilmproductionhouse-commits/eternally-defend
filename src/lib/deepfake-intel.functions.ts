@@ -308,7 +308,30 @@ try {
           (hit) => shouldAnalyzeMedia(hit._pre_evidence),
         );
 
-        let hiveCandidates = analyzableCandidates;
+        let hiveCandidates: Array<
+          (typeof analyzableCandidates)[number] | {
+            url: string;
+            title?: string;
+            description?: string;
+            query: string;
+            page_text?: string;
+            evidence_page_url?: string;
+            media_url?: string;
+            image_url?: string;
+            thumbnail_url?: string;
+            content_match_score?: number;
+            threat_signals?: string[];
+            target_face_match?: boolean;
+            face_similarity?: number | null;
+            matched_face_id?: string | null;
+            page_type?: string;
+            identity_confidence?: number;
+            synthetic_media_confidence?: number;
+            matched_evidence?: string[];
+            finding_classification?: string;
+            classification_explanation?: string;
+          }
+        > = analyzableCandidates;
 
         /*
          * When a face profile is selected, only media containing the
@@ -393,7 +416,9 @@ try {
           (item) => item.classification_status === "completed",
         );
 
-        let mediaClassified = hiveResults;
+        let mediaClassified: Array<
+          Awaited<ReturnType<typeof classifyHitsWithHive>>[number]
+        > = hiveResults;
 
         /*
          * When the media classifier is unavailable, use cautious text

@@ -40,7 +40,7 @@ export interface ClassifiedHit extends RawHit {
   classification_explanation?: string;
   evidence_page_url?: string;
   target_face_match?: boolean;
-  face_similarity?: number;
+  face_similarity?: number | null;
   matched_face_id?: string | null;
 }
 
