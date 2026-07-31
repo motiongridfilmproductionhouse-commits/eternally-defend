@@ -6,7 +6,9 @@
  * as page evidence.
  */
 
-import { normalizeDeepfakeText } from "./filter.server";
+import {
+  matchesSelectedIdentity,
+} from "./identity.server";
 import {
   detectPageType,
   isExcludedListingPageType,
@@ -121,23 +123,11 @@ export function isRedirectOnlyResult(input: {
   return false;
 }
 
-function targetNames(target: UrlVerificationTarget): string[] {
-  return [target.name, ...(target.aliases ?? []), ...(target.handles ?? [])]
-    .map(normalizeDeepfakeText)
-    .filter((value) => value.length >= 3);
-}
-
 export function containsTargetName(
   text: string,
   target: UrlVerificationTarget,
 ): boolean {
-  const normalized = normalizeDeepfakeText(text);
-  if (!normalized) return false;
-
-  return targetNames(target).some((name) => {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`(?:^|\\s)${escaped}(?:$|\\s)`, "i").test(normalized);
-  });
+  return matchesSelectedIdentity(text, target);
 }
 
 /**

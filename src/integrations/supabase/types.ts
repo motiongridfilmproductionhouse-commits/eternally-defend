@@ -1795,6 +1795,7 @@ export type Database = {
           id: string
           low_count: number
           medium_count: number
+          profile_id: string | null
           started_at: string
           status: string
           target_name: string
@@ -1813,6 +1814,7 @@ export type Database = {
           id?: string
           low_count?: number
           medium_count?: number
+          profile_id?: string | null
           started_at?: string
           status?: string
           target_name: string
@@ -1831,6 +1833,7 @@ export type Database = {
           id?: string
           low_count?: number
           medium_count?: number
+          profile_id?: string | null
           started_at?: string
           status?: string
           target_name?: string

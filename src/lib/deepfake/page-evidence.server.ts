@@ -7,6 +7,10 @@
  */
 
 import { normalizeDeepfakeText } from "./filter.server";
+import {
+  getIdentityPhrases,
+  matchesSelectedIdentity,
+} from "./identity.server";
 
 export type FindingClassification =
   | "VERIFIED_DEEPFAKE"
@@ -186,12 +190,18 @@ const EXPLICIT_ONLY_PATTERNS = [
 ];
 
 function targetNames(target: PageEvidenceTarget): string[] {
-  return [target.name, ...(target.aliases ?? []), ...(target.handles ?? [])]
-    .map(normalizeDeepfakeText)
-    .filter((value) => value.length >= 3);
+  return getIdentityPhrases(target);
 }
 
-function containsTarget(text: string, names: string[]): boolean {
+function containsTarget(
+  text: string,
+  names: string[],
+  target?: PageEvidenceTarget,
+): boolean {
+  if (target) {
+    return matchesSelectedIdentity(text, target);
+  }
+
   const normalized = normalizeDeepfakeText(text);
   if (!normalized) return false;
 
@@ -264,18 +274,24 @@ function scoreIdentityEvidence(input: {
   description: string;
   pageText: string;
   names: string[];
+  target: PageEvidenceTarget;
   targetFaceMatch?: boolean | null;
   faceSimilarity?: number | null;
 }): { confidence: number; evidence: string[] } {
   const evidence: string[] = [];
   let score = 0;
 
-  const titleMatch = containsTarget(input.title, input.names);
-  const descriptionMatch = containsTarget(input.description, input.names);
-  const bodyMatch = containsTarget(input.pageText, input.names);
+  const titleMatch = containsTarget(input.title, input.names, input.target);
+  const descriptionMatch = containsTarget(
+    input.description,
+    input.names,
+    input.target,
+  );
+  const bodyMatch = containsTarget(input.pageText, input.names, input.target);
   const urlMatch = containsTarget(
     decodeURIComponent(input.url.replace(/[/_+\-.]/g, " ")),
     input.names,
+    input.target,
   );
 
   if (titleMatch) {
@@ -431,6 +447,7 @@ export function classifyPageEvidence(
     description,
     pageText,
     names,
+    target: input.target,
     targetFaceMatch: false,
     faceSimilarity: null,
   });
@@ -445,6 +462,7 @@ export function classifyPageEvidence(
     description: scoredDescription,
     pageText: scoredBody,
     names,
+    target: input.target,
     targetFaceMatch: exactPage ? input.target_face_match : false,
     faceSimilarity: exactPage ? input.face_similarity : null,
   });

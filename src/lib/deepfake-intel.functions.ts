@@ -16,6 +16,10 @@ import {
   isUrlVerified,
 } from "./deepfake/url-verification.server";
 import {
+  filterClientDiscoveries,
+  filterClientFindings,
+} from "./deepfake/client-results.server";
+import {
   generateDeepfakeQueries,
 } from "./deepfake/query-generator.server";
 
@@ -60,16 +64,22 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       }
     };
 
-    // 1. create scan row
+    // 1. create scan row (scoped to this target / optional face profile)
+    const scanInsert: Record<string, unknown> = {
+      user_id: userId,
+      target_name: data.target_name,
+      aliases: data.aliases ?? [],
+      handles: data.handles ?? [],
+      status: "running",
+    };
+
+    if (data.profile_id) {
+      scanInsert.profile_id = data.profile_id;
+    }
+
     const { data: scan, error: sErr } = await supabase
       .from("deepfake_scans")
-      .insert({
-        user_id: userId,
-        target_name: data.target_name,
-        aliases: data.aliases ?? [],
-        handles: data.handles ?? [],
-        status: "running",
-      })
+      .insert(scanInsert as any)
       .select("*")
       .single();
     if (sErr || !scan) throw new Error(sErr?.message ?? "failed to create scan");
@@ -945,6 +955,24 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       );
     }
 
+    const scan = scanRes.data as
+      | (ScanRow & { profile_id?: string | null })
+      | null;
+
+    if (!scan) {
+      return {
+        scan: null,
+        findings: [],
+        discoveries: [],
+      };
+    }
+
+    const target = {
+      name: scan.target_name,
+      aliases: scan.aliases ?? [],
+      handles: scan.handles ?? [],
+    };
+
     const riskRank: Record<string, number> = {
       CRITICAL: 4,
       HIGH: 3,
@@ -962,50 +990,44 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
     >;
 
     /*
-     * Server-side client filter:
-     * - classification must be VERIFIED_DEEPFAKE / PROBABLE_DEEPFAKE
-     * - URL must be explicitly URL_VERIFIED
+     * Server-side client filter scoped to this scan_id + selected target:
+     * URL_VERIFIED + VERIFIED/PROBABLE only. UNVERIFIED_LEAD / URL_REJECTED
+     * / off-target identities never appear in history or polling responses.
      */
-    const findings = allFindings
-      .filter((finding) => {
-        const classification = finding.finding_classification;
-        if (!classification || !isClientVisibleClassification(classification)) {
-          return false;
-        }
-
-        return isUrlVerified(finding.url_verification_status);
-      })
-      .map((finding) => ({
-        ...finding,
-        /*
-         * Prefer the verified final URL for display/open actions.
-         */
-        url: finding.final_url || finding.url,
-      }))
-      .sort(
-        (a, b) =>
-          (riskRank[b.risk_level] ?? 0) - (riskRank[a.risk_level] ?? 0) ||
-          b.confidence - a.confidence,
-      );
+    const findings = filterClientFindings(
+      allFindings,
+      target,
+      data.scan_id,
+    ).sort(
+      (a, b) =>
+        (riskRank[b.risk_level] ?? 0) - (riskRank[a.risk_level] ?? 0) ||
+        b.confidence - a.confidence,
+    );
 
     /*
-     * Discoveries are written only after URL verification.
+     * Latest Public Leads: URL-verified + selected-target only.
+     * Raw Firecrawl rows (analysis_status=discovered) cannot reach the UI.
      */
-    const discoveries = ((discoveriesRes.data ?? []) as Array<{
-      id: string;
-      page_url: string;
-      page_title: string | null;
-      snippet: string | null;
-      source: string;
-      source_host: string | null;
-      analysis_status?: string | null;
-      canonical_url?: string | null;
-      image_url?: string | null;
-      thumbnail_url?: string | null;
-    }>).filter((lead) => lead.analysis_status === "url_verified");
+    const discoveries = filterClientDiscoveries(
+      ((discoveriesRes.data ?? []) as Array<{
+        id: string;
+        scan_id?: string;
+        page_url: string;
+        page_title: string | null;
+        snippet: string | null;
+        source: string;
+        source_host: string | null;
+        analysis_status?: string | null;
+        canonical_url?: string | null;
+        image_url?: string | null;
+        thumbnail_url?: string | null;
+      }>),
+      target,
+      data.scan_id,
+    );
 
     return {
-      scan: scanRes.data as ScanRow | null,
+      scan,
       findings,
       discoveries,
     };
