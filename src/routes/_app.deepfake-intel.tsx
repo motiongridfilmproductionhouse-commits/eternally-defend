@@ -645,21 +645,43 @@ function DeepfakeIntelPage() {
       }),
   );
 
-  const vizScanStatus = selectedScanMatchesProfile
-    ? (scan?.status ?? null)
-    : (activeScanForIdentity?.status ?? null);
-  const vizStage = selectedScanMatchesProfile ? rawStage : null;
-  const vizExecutedQueries = selectedScanMatchesProfile ? executedQueries : null;
-  const vizPlannedQueries = selectedScanMatchesProfile ? plannedQueries : null;
-  const vizPagesVerified = selectedScanMatchesProfile
-    ? (diagnostics?.crawl_succeeded ?? null)
-    : null;
-  const vizThreatsSaved = selectedScanMatchesProfile
-    ? (diagnostics?.client_visible ?? scan?.total_results ?? null)
-    : null;
-  const vizErrorMessage = selectedScanMatchesProfile
-    ? (scan?.error_message ?? null)
-    : null;
+  // Prefer the live in-progress scan for this identity over a stale history
+  // selection (e.g. an older completed row still highlighted).
+  const vizSourceScan = activeScanForIdentity
+    ? activeScanForIdentity
+    : selectedScanMatchesProfile
+      ? scan
+      : null;
+  const vizSourceMetrics = metricRecord(vizSourceScan?.discovery_metrics);
+  const vizSourceMetricObject = objectRecord(vizSourceScan?.discovery_metrics);
+  const vizSourceCheckpoint = objectRecord(vizSourceScan?.scan_checkpoint);
+  const vizStage =
+    (typeof vizSourceMetricObject?.stage === "string"
+      ? vizSourceMetricObject.stage
+      : null) ??
+    (typeof vizSourceCheckpoint?.stage === "string"
+      ? vizSourceCheckpoint.stage
+      : null);
+  const vizScanStatus = vizSourceScan?.status ?? null;
+  const vizExecutedQueries =
+    vizSourceMetrics?.queries_executed ??
+    (typeof vizSourceCheckpoint?.next_query_index === "number"
+      ? vizSourceCheckpoint.next_query_index
+      : null);
+  const vizPlannedQueries =
+    (typeof vizSourceCheckpoint?.planned_query_count === "number"
+      ? vizSourceCheckpoint.planned_query_count
+      : null) ??
+    (Array.isArray(vizSourceCheckpoint?.queries)
+      ? vizSourceCheckpoint.queries.length
+      : null) ??
+    vizSourceMetrics?.queries_generated ??
+    vizSourceScan?.total_queries ??
+    null;
+  const vizPagesVerified = vizSourceMetrics?.crawl_succeeded ?? null;
+  const vizThreatsSaved =
+    vizSourceMetrics?.client_visible ?? vizSourceScan?.total_results ?? null;
+  const vizErrorMessage = vizSourceScan?.error_message ?? null;
 
   return (
     <div className="space-y-6">
@@ -736,6 +758,7 @@ function DeepfakeIntelPage() {
                   onChange={(event) => {
                     const profileId = event.target.value;
                     setSelectedProfileId(profileId);
+                    setReferenceFiles([]);
 
                     const profile = (profiles.data ?? []).find(
                       (item) => item.id === profileId,

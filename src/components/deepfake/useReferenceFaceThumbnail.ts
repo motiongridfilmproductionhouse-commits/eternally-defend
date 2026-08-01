@@ -30,8 +30,10 @@ export function useReferenceFaceThumbnail(input: {
   useEffect(() => {
     let cancelled = false;
 
+    // Clear immediately so a profile switch never keeps the previous portrait.
+    setSignedUrl(null);
+
     if (!storagePath) {
-      setSignedUrl(null);
       setIsLoading(false);
       return;
     }
