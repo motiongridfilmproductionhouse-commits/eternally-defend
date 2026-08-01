@@ -13,6 +13,7 @@ import {
   markStage,
   EXECUTOR_START_WATCHDOG_MS,
 } from "./scan-lifecycle";
+import { summarizeProviderFailures } from "./scan-diagnostics";
 import {
   classifyProviderFailure,
   emptyProviderFailureCounts,
@@ -165,6 +166,27 @@ test("provider error isolation categories", () => {
     sanitizeProviderFailureDetail("Bearer fc-SECRET123 and lovc_ABC"),
     "Bearer [redacted] and [redacted-key]",
   );
+});
+
+test("summarizeProviderFailures formats category breakdown", () => {
+  assert.equal(
+    summarizeProviderFailures({
+      provider_failures_by_category: { rate_limited: 30, authentication_failed: 5 },
+    }),
+    "rate_limited: 30, authentication_failed: 5",
+  );
+  assert.equal(summarizeProviderFailures({}), null);
+});
+
+test("copyright discovery batches Firecrawl searches", () => {
+  const src = readFileSync(
+    resolve(process.cwd(), "src/lib/copyright/discover.server.ts"),
+    "utf8",
+  );
+  assert.match(src, /searchPlansWithConcurrency/);
+  assert.match(src, /DISCOVERY_SEARCH_CONCURRENCY/);
+  assert.match(src, /DISCOVERY_SEARCH_MAX_ATTEMPTS/);
+  assert.doesNotMatch(src, /Promise\.all\(plans\.map\(\(p\) => search/);
 });
 
 test("selected scan never shows another movie’s findings", () => {

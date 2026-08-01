@@ -117,6 +117,25 @@ function knownUrlFailureLines(stats: Record<string, unknown> | null | undefined)
   });
 }
 
+/** Non-zero provider failure counts for UI badges and error summaries. */
+export function providerFailureCategoryLines(
+  stats: Record<string, unknown> | null | undefined,
+): Array<{ category: string; count: number }> {
+  const byCat = stats?.provider_failures_by_category;
+  if (!byCat || typeof byCat !== "object") return [];
+  return Object.entries(byCat as Record<string, number>)
+    .filter(([, v]) => typeof v === "number" && v > 0)
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export function summarizeProviderFailures(
+  stats: Record<string, unknown> | null | undefined,
+): string | null {
+  const parts = providerFailureCategoryLines(stats).map(({ category, count }) => `${category}: ${count}`);
+  return parts.length ? parts.join(", ") : null;
+}
+
 /** Human-readable funnel explanation for empty client-visible result sets. */
 export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | undefined): string[] {
   const d = diagnosticsFromStats(stats);

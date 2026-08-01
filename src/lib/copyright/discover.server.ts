@@ -159,7 +159,42 @@ interface FcImage {
   sourceUrl?: string;
 }
 interface FcWeb { url?: string; title?: string; description?: string }
-interface FcResponse { data?: { web?: FcWeb[]; images?: FcImage[] }; error?: string }
+interface FcResponse {
+  success?: boolean;
+  data?: { web?: FcWeb[]; images?: FcImage[] };
+  error?: string;
+}
+
+/** Keep Firecrawl bursts within gateway rate limits (deepfake uses the same pattern). */
+const DISCOVERY_SEARCH_CONCURRENCY = 3;
+const DISCOVERY_SEARCH_MAX_ATTEMPTS = 3;
+
+function isTransientProviderFailure(status: number | null, error?: unknown): boolean {
+  if (status === 429) return true;
+  if (status !== null && status >= 500 && status <= 599) return true;
+  const msg =
+    error instanceof Error
+      ? `${error.name} ${error.message}`
+      : typeof error === "string"
+        ? error
+        : "";
+  return /\b(?:timeout|timed out|abort|econnreset|etimedout|429|rate.?limit)\b/i.test(msg);
+}
+
+function providerRetryDelayMs(attempt: number, status: number | null, retryAfterHeader: string | null): number {
+  if (retryAfterHeader) {
+    const seconds = Number.parseInt(retryAfterHeader, 10);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return Math.min(Math.max(seconds, 2), 12) * 1_000;
+    }
+  }
+  if (status === 429) return Math.min(4_000 * (attempt + 1), 12_000);
+  return Math.min(2_000 * (attempt + 1), 8_000);
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface ProviderSearchAttempt {
   query: string;
@@ -181,47 +216,118 @@ async function search(query: string, recent: boolean): Promise<ProviderSearchAtt
       httpStatus: null,
     };
   }
-  try {
-    const res = await firecrawlFetch("/search", {
-      query,
-      limit: 10,
-      sources: ["web", "images"],
-      ...(recent ? { tbs: "qdr:m" } : {}),
-    });
-    if (!res.ok) {
-      return {
-        query,
-        payload: null,
-        ok: false,
-        failureCategory: classifyProviderFailure({ status: res.status, configured: true }),
-        failureDetail: sanitizeProviderFailureDetail(`Firecrawl search HTTP ${res.status}`),
-        httpStatus: res.status,
-      };
-    }
+
+  let lastStatus: number | null = null;
+  let lastDetail = "Provider request failed";
+
+  for (let attempt = 0; attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS; attempt++) {
     try {
-      const payload = (await res.json()) as FcResponse;
-      // Treat empty-but-valid payloads as success (genuine zero candidates possible).
-      return { query, payload, ok: true, httpStatus: res.status };
+      const res = await firecrawlFetch("/search", {
+        query,
+        limit: 10,
+        sources: ["web", "images"],
+        ...(recent ? { tbs: "qdr:m" } : {}),
+      });
+      lastStatus = res.status;
+
+      if (!res.ok) {
+        lastDetail = sanitizeProviderFailureDetail(`Firecrawl search HTTP ${res.status}`);
+        const category = classifyProviderFailure({ status: res.status, configured: true });
+        if (
+          attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS - 1 &&
+          isTransientProviderFailure(res.status)
+        ) {
+          await sleep(providerRetryDelayMs(attempt, res.status, res.headers.get("retry-after")));
+          continue;
+        }
+        return {
+          query,
+          payload: null,
+          ok: false,
+          failureCategory: category,
+          failureDetail: lastDetail,
+          httpStatus: res.status,
+        };
+      }
+
+      try {
+        const payload = (await res.json()) as FcResponse;
+        if (payload.success === false) {
+          lastDetail = sanitizeProviderFailureDetail(
+            payload.error || "Firecrawl search returned success=false",
+          );
+          const category = classifyProviderFailure({
+            error: payload.error,
+            configured: true,
+          });
+          if (
+            attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS - 1 &&
+            isTransientProviderFailure(null, payload.error)
+          ) {
+            await sleep(providerRetryDelayMs(attempt, null, null));
+            continue;
+          }
+          return {
+            query,
+            payload: null,
+            ok: false,
+            failureCategory: category,
+            failureDetail: lastDetail,
+            httpStatus: res.status,
+          };
+        }
+        // Empty-but-valid payloads are success (genuine zero candidates possible).
+        return { query, payload, ok: true, httpStatus: res.status };
+      } catch (e) {
+        lastDetail = sanitizeProviderFailureDetail(e);
+        if (attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS - 1) {
+          await sleep(providerRetryDelayMs(attempt, res.status, null));
+          continue;
+        }
+        return {
+          query,
+          payload: null,
+          ok: false,
+          failureCategory: "malformed_response",
+          failureDetail: lastDetail,
+          httpStatus: res.status,
+        };
+      }
     } catch (e) {
+      lastDetail = sanitizeProviderFailureDetail(e);
+      if (attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS - 1 && isTransientProviderFailure(null, e)) {
+        await sleep(providerRetryDelayMs(attempt, lastStatus, null));
+        continue;
+      }
       return {
         query,
         payload: null,
         ok: false,
-        failureCategory: "malformed_response",
-        failureDetail: sanitizeProviderFailureDetail(e),
-        httpStatus: res.status,
+        failureCategory: classifyProviderFailure({ error: e, configured: true }),
+        failureDetail: lastDetail,
+        httpStatus: lastStatus,
       };
     }
-  } catch (e) {
-    return {
-      query,
-      payload: null,
-      ok: false,
-      failureCategory: classifyProviderFailure({ error: e, configured: true }),
-      failureDetail: sanitizeProviderFailureDetail(e),
-      httpStatus: null,
-    };
   }
+
+  return {
+    query,
+    payload: null,
+    ok: false,
+    failureCategory: classifyProviderFailure({ status: lastStatus, configured: true }),
+    failureDetail: lastDetail,
+    httpStatus: lastStatus,
+  };
+}
+
+async function searchPlansWithConcurrency(plans: QueryPlan[]): Promise<ProviderSearchAttempt[]> {
+  const results: ProviderSearchAttempt[] = [];
+  for (let i = 0; i < plans.length; i += DISCOVERY_SEARCH_CONCURRENCY) {
+    const batch = plans.slice(i, i + DISCOVERY_SEARCH_CONCURRENCY);
+    const batchResults = await Promise.all(batch.map((p) => search(p.query, p.recent)));
+    results.push(...batchResults);
+  }
+  return results;
 }
 
 /** Capture a screenshot of a page so the grader has visual evidence. */
@@ -544,7 +650,7 @@ export async function firecrawlDiscover(
   let telegramCandidates = 0;
   let telegramFailures = 0;
 
-  const results = await Promise.all(plans.map((p) => search(p.query, p.recent)));
+  const results = await searchPlansWithConcurrency(plans);
 
   for (const attempt of results) {
     const { query, payload } = attempt;

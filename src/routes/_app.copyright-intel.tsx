@@ -22,7 +22,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   diagnosticsFromStats,
   explainZeroMatchFunnel,
+  providerFailureCategoryLines,
+  summarizeProviderFailures,
 } from "@/lib/copyright/scan-diagnostics";
+import { PROVIDER_FAILURE_CATEGORIES } from "@/lib/copyright/provider-failures";
 import {
   scopedScanMatches,
   shouldShowAnalysisBanner,
@@ -413,16 +416,56 @@ function CopyrightIntelPage() {
         </div>
       )}
 
-      {selectedScanStatus === "failed" && selectedScanId && detailAligned && (
-        <section className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">
-          <h2 className="text-sm font-semibold text-destructive">Scan failed · {selectedScanTitle}</h2>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {(detail.data?.scan?.error as string | null) ||
-              ((detail.data?.scan?.stats as Record<string, unknown> | null)?.failure_reason as string | undefined) ||
-              "Discovery never completed. This is not a legitimate zero-result scan."}
-          </p>
-        </section>
-      )}
+      {selectedScanStatus === "failed" && selectedScanId && detailAligned && (() => {
+        const scanStats = (detail.data?.scan?.stats ?? {}) as Record<string, unknown>;
+        const providerFailCats = providerFailureCategoryLines(scanStats);
+        const providerSamples = Array.isArray(scanStats.provider_failure_samples)
+          ? (scanStats.provider_failure_samples as Array<Record<string, unknown>>)
+          : [];
+        const failureSummary = summarizeProviderFailures(scanStats);
+        const baseMessage =
+          (detail.data?.scan?.error as string | null) ||
+          (scanStats.failure_reason as string | undefined) ||
+          "Discovery never completed. This is not a legitimate zero-result scan.";
+        return (
+          <section className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">
+            <h2 className="text-sm font-semibold text-destructive">Scan failed · {selectedScanTitle}</h2>
+            <p className="mt-2 text-xs text-muted-foreground">{baseMessage}</p>
+            {failureSummary && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Provider failures by category: {failureSummary}.
+                {providerFailCats.some((r) => r.category === "authentication_failed") &&
+                  " Check FIRECRAWL_API_KEY and LOVABLE_API_KEY (for lovc_ gateway keys)."}
+                {providerFailCats.some((r) => r.category === "rate_limited") &&
+                  " Discovery now batches searches to reduce rate limits — retry the scan."}
+              </p>
+            )}
+            {providerFailCats.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {PROVIDER_FAILURE_CATEGORIES.filter((c) =>
+                  providerFailCats.some((r) => r.category === c),
+                ).map((c) => {
+                  const count = providerFailCats.find((r) => r.category === c)?.count ?? 0;
+                  return (
+                    <Badge key={c} variant="outline" className="text-[10px]">
+                      {c}: {count}
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+            {providerSamples.length > 0 && (
+              <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                {providerSamples.slice(0, 4).map((row, idx) => (
+                  <li key={`${String(row.query)}-${idx}`} className="leading-relaxed">
+                    • {String(row.category ?? "unknown")}: {String(row.detail ?? "n/a")}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })()}
 
       {showBanner && summary && scanMeta && (
         <section className="animate-fade-in rounded-xl border border-primary/30 bg-card/60 p-5 backdrop-blur">
@@ -670,6 +713,18 @@ function CopyrightIntelPage() {
                           {CRAWL_FAILURE_CATEGORIES.filter((c) => (failByCat[c] ?? 0) > 0).map((c) => (
                             <Badge key={c} variant="outline" className="text-[10px]">
                               {c}: {failByCat[c]}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {providerFailureCategoryLines(scanStats).length > 0 && (
+                      <div className="rounded-md border border-border/50 bg-background/30 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Provider failures by category</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {providerFailureCategoryLines(scanStats).map(({ category, count }) => (
+                            <Badge key={category} variant="outline" className="text-[10px]">
+                              {category}: {count}
                             </Badge>
                           ))}
                         </div>
