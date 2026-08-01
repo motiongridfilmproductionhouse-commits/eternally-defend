@@ -17,6 +17,8 @@ export const CHECKPOINT_MAX_COMPLETED_QUERY_IDS = 80;
 export const CHECKPOINT_MAX_PENDING_URLS = 80;
 export const CHECKPOINT_MAX_VERIFIED_URLS = 200;
 export const CHECKPOINT_MAX_PROVIDER_LATENCY_KEYS = 40;
+export const CHECKPOINT_MAX_SERPAPI_QUERIES = 5;
+export const CHECKPOINT_MAX_SERPAPI_PAGES = 150;
 export const CHECKPOINT_MAX_STRING_LEN = 2_000;
 export const CHECKPOINT_MAX_BYTES = 262_144;
 
@@ -40,6 +42,10 @@ export type ScanCheckpoint = {
   youtube_done: boolean;
   reddit_done: boolean;
   related_done: boolean;
+  serpapi_queries: string[];
+  serpapi_next_query_index: number;
+  serpapi_completed_query_ids: string[];
+  serpapi_seen_page_urls: string[];
   planned_query_count: number;
   initial_wave_count: number;
   average_provider_latency_ms: number;
@@ -159,6 +165,10 @@ export function createEmptyCheckpoint(input: {
     youtube_done: false,
     reddit_done: false,
     related_done: false,
+    serpapi_queries: [],
+    serpapi_next_query_index: 0,
+    serpapi_completed_query_ids: [],
+    serpapi_seen_page_urls: [],
     planned_query_count: queries.length,
     initial_wave_count: clampInt(input.initialWaveCount, 15, 1, CHECKPOINT_MAX_QUERIES),
     average_provider_latency_ms: 0,
@@ -243,6 +253,25 @@ export function parseScanCheckpoint(value: unknown): ScanCheckpoint | null {
     youtube_done: asBool(row.youtube_done),
     reddit_done: asBool(row.reddit_done),
     related_done: asBool(row.related_done),
+    serpapi_queries: asStringArray(
+      row.serpapi_queries,
+      CHECKPOINT_MAX_SERPAPI_QUERIES,
+    ),
+    serpapi_next_query_index: clampInt(
+      row.serpapi_next_query_index,
+      0,
+      0,
+      CHECKPOINT_MAX_SERPAPI_QUERIES,
+    ),
+    serpapi_completed_query_ids: asStringArray(
+      row.serpapi_completed_query_ids,
+      CHECKPOINT_MAX_SERPAPI_QUERIES,
+      500,
+    ),
+    serpapi_seen_page_urls: asHttpUrlArray(
+      row.serpapi_seen_page_urls,
+      CHECKPOINT_MAX_SERPAPI_PAGES,
+    ),
     planned_query_count: queries.length,
     initial_wave_count: clampInt(row.initial_wave_count, 15, 1, CHECKPOINT_MAX_QUERIES),
     average_provider_latency_ms: latencyValues.length
@@ -297,6 +326,23 @@ export function enforceCheckpointBounds(checkpoint: ScanCheckpoint): ScanCheckpo
     verified_canonical_urls: checkpoint.verified_canonical_urls
       .filter(isHttpUrl)
       .slice(-CHECKPOINT_MAX_VERIFIED_URLS),
+    serpapi_queries: (checkpoint.serpapi_queries ?? []).slice(
+      0,
+      CHECKPOINT_MAX_SERPAPI_QUERIES,
+    ),
+    serpapi_completed_query_ids: (checkpoint.serpapi_completed_query_ids ?? []).slice(
+      0,
+      CHECKPOINT_MAX_SERPAPI_QUERIES,
+    ),
+    serpapi_seen_page_urls: (checkpoint.serpapi_seen_page_urls ?? [])
+      .filter(isHttpUrl)
+      .slice(0, CHECKPOINT_MAX_SERPAPI_PAGES),
+    serpapi_next_query_index: clampInt(
+      checkpoint.serpapi_next_query_index ?? 0,
+      0,
+      0,
+      CHECKPOINT_MAX_SERPAPI_QUERIES,
+    ),
     provider_latencies_ms: Object.fromEntries(
       Object.entries(checkpoint.provider_latencies_ms).slice(
         0,
@@ -313,6 +359,12 @@ export function enforceCheckpointBounds(checkpoint: ScanCheckpoint): ScanCheckpo
   }
   while (
     estimateCheckpointBytes(copy) > CHECKPOINT_MAX_BYTES &&
+    copy.serpapi_seen_page_urls.length > 0
+  ) {
+    copy.serpapi_seen_page_urls.pop();
+  }
+  while (
+    estimateCheckpointBytes(copy) > CHECKPOINT_MAX_BYTES &&
     copy.verified_canonical_urls.length > 0
   ) {
     copy.verified_canonical_urls.shift();
@@ -326,13 +378,21 @@ export function enforceCheckpointBounds(checkpoint: ScanCheckpoint): ScanCheckpo
 
   copy.planned_query_count = copy.queries.length;
   copy.next_query_index = Math.min(copy.next_query_index, copy.queries.length);
+  copy.serpapi_next_query_index = Math.min(
+    copy.serpapi_next_query_index,
+    copy.serpapi_queries.length,
+  );
   copy.pending_work = checkpointHasPendingWork(copy);
   return copy;
 }
 
 export function checkpointHasPendingWork(checkpoint: ScanCheckpoint): boolean {
+  const serpapiPending =
+    (checkpoint.serpapi_queries?.length ?? 0) >
+    (checkpoint.serpapi_next_query_index ?? 0);
   return (
     checkpoint.next_query_index < checkpoint.queries.length ||
+    serpapiPending ||
     !checkpoint.youtube_done ||
     !checkpoint.reddit_done ||
     !checkpoint.related_done ||

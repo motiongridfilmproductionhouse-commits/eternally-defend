@@ -26,6 +26,13 @@ export type DiscoveryFunnelMetrics = {
   client_visible: number;
   provider_failures: number;
   query_failures: number;
+  serpapi_requests: number;
+  serpapi_failures: number;
+  serpapi_candidates: number;
+  serpapi_unique_pages: number;
+  serpapi_face_rejected: number;
+  serpapi_verified: number;
+  serpapi_credits_used: number;
 };
 
 export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
@@ -45,6 +52,13 @@ export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
     client_visible: 0,
     provider_failures: 0,
     query_failures: 0,
+    serpapi_requests: 0,
+    serpapi_failures: 0,
+    serpapi_candidates: 0,
+    serpapi_unique_pages: 0,
+    serpapi_face_rejected: 0,
+    serpapi_verified: 0,
+    serpapi_credits_used: 0,
   };
 }
 
