@@ -93,6 +93,22 @@ test("Zero KB candidates stay unverified (spelling correction is not a resolved 
   assert.equal(result.ambiguous, true);
 });
 
+test("Ambiguous surname correction does not leak celebrity aliases", async () => {
+  invalidateIdentityExpansionCache({ all: true });
+  const result = await resolveAndExpandSearchQuery({
+    query: "Riya Pathros",
+    module: "reputation",
+    offlineOnly: true,
+  });
+  assert.equal(result.ambiguous, true);
+  assert.equal(result.canonicalName, null);
+  assert.ok(!result.aliases.some((a) => /pathrose/i.test(a)));
+  const ids = expansionToIdentityList(result);
+  assert.ok(!ids.some((a) => /pathrose/i.test(a)));
+  // Corrected form may still appear as a search variant, not a match alias.
+  assert.ok(result.searchQueries.some((q) => /pathrose|pathros|riya/i.test(q.query)));
+});
+
 test("Wrong show association → result rejected", async () => {
   invalidateIdentityExpansionCache({ all: true });
   const expansion = await resolveAndExpandSearchQuery({

@@ -43,15 +43,38 @@ export async function loadPersistedIdentityHints(
     if (!data?.length) return null;
     const normNeedles = new Set(needles.map((n) => normalizeKey(n)));
     const match = data.find((row) => {
+      const lastExpansion =
+        row.last_expansion && typeof row.last_expansion === "object"
+          ? (row.last_expansion as { original_query?: string })
+          : null;
+      const detailedNames = Array.isArray(row.aliases_detailed)
+        ? (row.aliases_detailed as StoredAlias[]).map((a) => a.alias)
+        : [];
       const names = [
         row.canonical_name,
         row.corrected_name,
+        lastExpansion?.original_query,
         ...((row.aliases as string[] | null) ?? []),
+        ...detailedNames,
         ...((row.local_language_names as string[] | null) ?? []),
       ]
         .filter(Boolean)
         .map((n) => normalizeKey(String(n)));
-      return names.some((n) => normNeedles.has(n));
+      // Exact match, or confirmed profile whose canonical starts with the query
+      // (e.g. search "Manju" after confirming "Manju Pathrose").
+      if (names.some((n) => normNeedles.has(n))) return true;
+      if (row.reviewer_confirmed && row.canonical_name) {
+        const canon = normalizeKey(String(row.canonical_name));
+        for (const needle of normNeedles) {
+          if (
+            needle.length >= 3 &&
+            (canon === needle || canon.startsWith(`${needle} `))
+          ) {
+            return true;
+          }
+        }
+      }
+      return false;
     });
     if (!match) return null;
     const detailed = Array.isArray(match.aliases_detailed)
@@ -267,11 +290,39 @@ export async function mutateIdentityAlias(
     case "mark_handle":
       if (!handles.some((h) => normalizeKey(h) === key)) handles.push(value);
       break;
-    case "confirm_identity":
+    case "confirm_identity": {
       reviewerConfirmed = true;
+      const previousCanonical = String(profile.canonical_name ?? "").trim();
       if (opts.canonicalName?.trim()) canonicalName = opts.canonicalName.trim();
       else if (value) canonicalName = value;
+      // Keep the provisional / original search term as a user alias so future
+      // lookups by that query still find the confirmed profile.
+      if (
+        previousCanonical &&
+        normalizeKey(previousCanonical) !== normalizeKey(canonicalName)
+      ) {
+        const prevKey = normalizeKey(previousCanonical);
+        const idx = detailed.findIndex(
+          (a) => (normalizeKey(a.alias) || a.alias) === prevKey,
+        );
+        if (idx >= 0) {
+          if (detailed[idx]!.source !== "rejected") {
+            detailed[idx] = {
+              alias: previousCanonical,
+              source: "user_provided",
+              active: true,
+            };
+          }
+        } else {
+          detailed.push({
+            alias: previousCanonical,
+            source: "user_provided",
+            active: true,
+          });
+        }
+      }
       break;
+    }
     case "report_wrong_identity":
       reviewerConfirmed = false;
       break;

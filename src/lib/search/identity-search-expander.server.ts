@@ -464,12 +464,14 @@ export async function resolveAndExpandSearchQuery(
   const rejectedSet = new Set(
     (persisted?.rejectedAliases ?? []).map((a) => normalizeKey(a)),
   );
+  // Spelling-corrected celebrity surnames must not become match aliases while
+  // the identity is still unresolved/ambiguous — they remain search variants
+  // via buildQueries(corrected) only.
   const aliases = uniqueStrings([
     ...(identity?.aliases ?? []),
     ...userAliases,
-    corrected !== original ? corrected : null,
-    // Keep misspelling as searchable alias when we corrected it
-    original !== (canonicalName ?? corrected) ? original : null,
+    ...(!isAmbiguous && corrected !== original ? [corrected] : []),
+    ...(!isAmbiguous && original !== (canonicalName ?? corrected) ? [original] : []),
   ]).filter((a) => {
     const n = normalizeKey(a);
     if (n && rejectedSet.has(n)) return false;
@@ -612,20 +614,10 @@ export async function resolveAndExpandSearchQuerySafe(
 
 /** Convenience: identity strings for provider matching / query generators. */
 export function expansionToIdentityList(expansion: SearchExpansionResult): string[] {
-  // Ambiguous / unconfirmed: never promote competing celebrity KB forms.
+  // Ambiguous / unconfirmed: never promote spelling-corrected celebrity forms.
   if (expansion.ambiguous || !expansion.canonicalName) {
-    const original = expansion.originalQuery.trim();
-    const corrected = expansion.correctedQuery.trim();
-    const mildCorrection =
-      corrected &&
-      corrected.toLowerCase() !== original.toLowerCase() &&
-      corrected.split(/\s+/).filter(Boolean).length ===
-        original.split(/\s+/).filter(Boolean).length
-        ? [corrected]
-        : [];
     return uniqueStrings([
-      original,
-      ...mildCorrection,
+      expansion.originalQuery.trim(),
       ...expansion.aliases,
       ...expansion.usernames,
     ]);

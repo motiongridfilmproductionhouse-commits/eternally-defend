@@ -3111,37 +3111,57 @@ export const Route = createFileRoute("/api/scan")({
           // Shared identity-aware expansion before every provider search (fail-open).
           const { resolveAndExpandSearchQuerySafe, expansionToIdentityList, expansionDiagnostics } =
             await import("@/lib/search/identity-search-expander.server");
-          // Scan UI may send confirmed identity hints from IdentityExpansionPanel /
-          // persisted profile actions (API itself is often cookie-less).
-          const identityCanonical =
-            typeof body?.identityCanonical === "string"
-              ? body.identityCanonical.trim().slice(0, 200)
-              : "";
-          const identityConfirmed = body?.identityConfirmed === true;
+          const { loadPersistedIdentityHints } = await import(
+            "@/lib/search/identity-profile.server"
+          );
           const identityAliasHints: string[] = Array.isArray(body?.identityAliases)
             ? body.identityAliases.map((a: unknown) => String(a).slice(0, 60)).slice(0, 20)
             : [];
-          const persistedProfile =
-            identityCanonical && identityConfirmed
-              ? {
-                  canonicalName: identityCanonical,
-                  aliases: [...aliasesIn, ...identityAliasHints],
-                  handles: handlesIn,
-                  reviewerConfirmed: true,
-                  rejectedAliases: [] as string[],
+          // Only server-verified profiles may lock a confirmed identity. Client
+          // hints are soft knownAliases — never reviewerConfirmed from the body.
+          let persistedProfile: Awaited<
+            ReturnType<typeof loadPersistedIdentityHints>
+          > = null;
+          const authHeader = request.headers.get("authorization");
+          if (authHeader?.startsWith("Bearer ")) {
+            try {
+              const token = authHeader.slice("Bearer ".length).trim();
+              const { createClient } = await import("@supabase/supabase-js");
+              const url = process.env.SUPABASE_URL;
+              const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+              if (url && key && token.split(".").length === 3) {
+                const userClient = createClient(url, key, {
+                  global: { headers: { Authorization: `Bearer ${token}` } },
+                  auth: { persistSession: false, autoRefreshToken: false },
+                });
+                const { data: userData } = await userClient.auth.getUser(token);
+                if (userData.user?.id) {
+                  persistedProfile = await loadPersistedIdentityHints(userClient, {
+                    userId: userData.user.id,
+                    query,
+                    knownAliases: [...aliasesIn, ...identityAliasHints],
+                  });
                 }
-              : identityCanonical && !body?.identityAmbiguous
-                ? {
-                    canonicalName: identityCanonical,
-                    aliases: [...aliasesIn, ...identityAliasHints],
-                    handles: handlesIn,
-                    reviewerConfirmed: false,
-                    rejectedAliases: [] as string[],
-                  }
-                : null;
+              }
+            } catch (err) {
+              console.warn(
+                "[scan] optional identity profile auth failed:",
+                err instanceof Error ? err.message : String(err),
+              );
+            }
+          }
           const identityExpansion = await resolveAndExpandSearchQuerySafe({
             query,
-            knownAliases: Array.from(new Set([...aliasesIn, ...identityAliasHints])),
+            knownAliases: Array.from(
+              new Set([
+                ...aliasesIn,
+                ...identityAliasHints,
+                // Soft UI hint only — does not lock identity without server profile.
+                typeof body?.identityCanonical === "string"
+                  ? body.identityCanonical.trim().slice(0, 200)
+                  : "",
+              ].filter(Boolean)),
+            ),
             knownHandles: handlesIn,
             module: "reputation",
             country: typeof body?.country === "string" ? body.country : undefined,
@@ -3154,15 +3174,7 @@ export const Route = createFileRoute("/api/scan")({
             : (identityExpansion.canonicalName ?? identityExpansion.correctedQuery ?? query);
           // When ambiguous, avoid promoting competing celebrity names into match aliases.
           const expandedIds = identityExpansion.ambiguous
-            ? [
-                query,
-                ...aliasesIn,
-                ...(identityExpansion.correctedQuery &&
-                identityExpansion.correctedQuery.toLowerCase() !== query.toLowerCase() &&
-                identityExpansion.correctedQuery.split(/\s+/).length === query.split(/\s+/).length
-                  ? [identityExpansion.correctedQuery]
-                  : []),
-              ]
+            ? [query, ...aliasesIn, ...identityAliasHints]
             : expansionToIdentityList(identityExpansion);
           const aliases = Array.from(
             new Set([

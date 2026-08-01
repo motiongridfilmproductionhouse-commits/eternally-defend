@@ -175,10 +175,15 @@ interface ReportWithDiagnostics extends ReputationReport {
   };
 }
 
-async function runScan(payload: unknown): Promise<ReportWithDiagnostics> {
+async function runScan(
+  payload: unknown,
+  accessToken?: string | null,
+): Promise<ReportWithDiagnostics> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   const r = await fetch("/api/scan", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(payload),
   });
   const j = await r.json();
@@ -219,7 +224,9 @@ function ScanPage() {
     uniqueHits: number;
   } | null>(null);
 
-  const m = useMutation({ mutationFn: runScan });
+  const m = useMutation({
+    mutationFn: (payload: unknown) => runScan(payload, session?.access_token),
+  });
   const autoScanStarted = useRef(false);
 
   useEffect(() => {
