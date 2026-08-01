@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,28 +32,36 @@ export function IdentityExpansionPanel(props: {
     | "monitoring";
   entityType?: string;
   className?: string;
+  /** When true, persist profile rows during preview. Default false (persist on scan). */
+  persistPreview?: boolean;
   onExpansion?: (result: PreviewResult) => void;
 }) {
   const [aliasDraft, setAliasDraft] = useState("");
   const [localAlso, setLocalAlso] = useState<string[]>([]);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<PreviewResult | null>(null);
+  const requestSeq = useRef(0);
+  const q = props.query.trim();
+  const aliasesKey = JSON.stringify(props.aliases ?? []);
+  const handlesKey = JSON.stringify(props.handles ?? []);
 
   const preview = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (seq: number) => {
       const res = (await previewSearchExpansion({
         data: {
-          query: props.query.trim(),
+          query: q,
           module: props.module ?? "general",
           entityType: props.entityType,
           knownAliases: props.aliases ?? [],
           knownHandles: props.handles ?? [],
-          persist: true,
+          persist: props.persistPreview === true,
         },
       })) as PreviewResult;
-      return res;
+      return { seq, res };
     },
-    onSuccess: (res: PreviewResult) => {
+    onSuccess: ({ seq, res }) => {
+      // Ignore stale responses from earlier keystrokes.
+      if (seq !== requestSeq.current) return;
       setLocalAlso(res.alsoSearching);
       setProfileId(res.profileId);
       setPreviewData(res);
@@ -62,7 +70,7 @@ export function IdentityExpansionPanel(props: {
   });
 
   const aliasMut = useMutation({
-    mutationFn: (input: {
+    mutationFn: async (input: {
       action:
         | "add_alias"
         | "remove_alias"
@@ -73,27 +81,66 @@ export function IdentityExpansionPanel(props: {
         | "report_wrong_identity";
       value: string;
     }) => {
-      if (!profileId) throw new Error("Resolve identity first.");
+      let activeProfileId = profileId;
+      // Persist only when the user takes an explicit identity action.
+      if (!activeProfileId) {
+        const persisted = (await previewSearchExpansion({
+          data: {
+            query: q,
+            module: props.module ?? "general",
+            entityType: props.entityType,
+            knownAliases: props.aliases ?? [],
+            knownHandles: props.handles ?? [],
+            persist: true,
+          },
+        })) as PreviewResult;
+        activeProfileId = persisted.profileId;
+        setProfileId(persisted.profileId);
+        setPreviewData(persisted);
+        setLocalAlso(persisted.alsoSearching);
+      }
+      if (!activeProfileId) throw new Error("Could not persist identity profile.");
       return updateSearchIdentityAlias({
-        data: { profileId, action: input.action, value: input.value },
+        data: {
+          profileId: activeProfileId,
+          action: input.action,
+          value: input.value,
+          canonicalName:
+            input.action === "confirm_identity" ? input.value : undefined,
+        },
       });
     },
-    onSuccess: () => preview.mutate(),
+    onSuccess: () => {
+      const seq = ++requestSeq.current;
+      preview.mutate(seq);
+    },
   });
 
-  const q = props.query.trim();
+  // Reset stale panel state whenever the target identity input changes.
+  useEffect(() => {
+    setLocalAlso([]);
+    setPreviewData(null);
+    setProfileId(null);
+    setAliasDraft("");
+  }, [q, aliasesKey, handlesKey, props.module]);
+
   useEffect(() => {
     if (q.length < 2) return;
-    const t = setTimeout(() => preview.mutate(), 450);
+    const seq = ++requestSeq.current;
+    const t = setTimeout(() => preview.mutate(seq), 450);
     return () => clearTimeout(t);
-    // intentionally debounce on query/aliases/handles
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, JSON.stringify(props.aliases ?? []), JSON.stringify(props.handles ?? []), props.module]);
+  }, [q, aliasesKey, handlesKey, props.module]);
 
-  const searchingAs = previewData?.searchingAs ?? q;
+  const searchingAs =
+    previewData?.searchingAs ||
+    (previewData?.ambiguous ? q : previewData?.searchingAs) ||
+    q;
   const also = useMemo(() => {
-    const base = localAlso.length ? localAlso : previewData?.alsoSearching ?? [];
-    return base.filter((x: string) => x.trim() && x.trim().toLowerCase() !== searchingAs.toLowerCase());
+    const base = previewData?.alsoSearching ?? localAlso;
+    return base.filter(
+      (x: string) => x.trim() && x.trim().toLowerCase() !== searchingAs.toLowerCase(),
+    );
   }, [localAlso, previewData?.alsoSearching, searchingAs]);
 
   if (!q) return null;
@@ -107,7 +154,11 @@ export function IdentityExpansionPanel(props: {
 
       <div className="text-sm">
         <span className="text-muted-foreground">Searching as:</span>{" "}
-        <span className="font-medium">{searchingAs || "—"}</span>
+        <span className="font-medium">
+          {previewData?.ambiguous
+            ? `${q} (unconfirmed — multiple candidates)`
+            : searchingAs || "—"}
+        </span>
       </div>
 
       {also.length > 0 && (
@@ -122,7 +173,12 @@ export function IdentityExpansionPanel(props: {
                     type="button"
                     className="ml-0.5 opacity-60 hover:opacity-100"
                     title="Remove incorrect alias"
-                    onClick={() => aliasMut.mutate({ action: "remove_alias", value: term.replace(/ \(show\)$/, "") })}
+                    onClick={() =>
+                      aliasMut.mutate({
+                        action: "remove_alias",
+                        value: term.replace(/ \(show\)$/, ""),
+                      })
+                    }
                   >
                     <X className="size-3" />
                   </button>
@@ -162,7 +218,7 @@ export function IdentityExpansionPanel(props: {
             size="sm"
             variant="outline"
             className="h-8"
-            disabled={!aliasDraft.trim() || !profileId || aliasMut.isPending}
+            disabled={!aliasDraft.trim() || aliasMut.isPending}
             onClick={() => {
               aliasMut.mutate({ action: "add_alias", value: aliasDraft.trim() });
               setAliasDraft("");
@@ -176,8 +232,17 @@ export function IdentityExpansionPanel(props: {
           size="sm"
           variant="secondary"
           className="h-8 text-xs"
-          disabled={!profileId || aliasMut.isPending}
-          onClick={() => aliasMut.mutate({ action: "confirm_identity", value: searchingAs })}
+          disabled={aliasMut.isPending || q.length < 2}
+          onClick={() =>
+            aliasMut.mutate({
+              action: "confirm_identity",
+              value:
+                previewData?.ambiguityCandidates?.[0]?.name ||
+                previewData?.searchingAs ||
+                searchingAs ||
+                q,
+            })
+          }
         >
           <Check className="size-3.5 mr-1" />
           Confirm identity
@@ -187,14 +252,20 @@ export function IdentityExpansionPanel(props: {
           size="sm"
           variant="ghost"
           className="h-8 text-xs"
-          disabled={!profileId || aliasMut.isPending}
-          onClick={() => aliasMut.mutate({ action: "report_wrong_identity", value: searchingAs })}
+          disabled={aliasMut.isPending || q.length < 2}
+          onClick={() =>
+            aliasMut.mutate({
+              action: "report_wrong_identity",
+              value: previewData?.searchingAs || searchingAs || q,
+            })
+          }
         >
           Report wrong identity
         </Button>
       </div>
       <p className="text-[10px] text-muted-foreground">
         Aliases are investigation aids only. Content stays a lead until analysis and human review.
+        Preview does not persist profiles unless explicitly enabled; scans persist expansion diagnostics.
       </p>
     </div>
   );

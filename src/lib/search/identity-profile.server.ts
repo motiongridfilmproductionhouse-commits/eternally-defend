@@ -188,6 +188,7 @@ export async function mutateIdentityAlias(
     case "confirm_identity":
       reviewerConfirmed = true;
       if (opts.canonicalName?.trim()) canonicalName = opts.canonicalName.trim();
+      else if (value) canonicalName = value;
       break;
     case "report_wrong_identity":
       reviewerConfirmed = false;

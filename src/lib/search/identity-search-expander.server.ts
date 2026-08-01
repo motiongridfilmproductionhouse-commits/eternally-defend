@@ -343,10 +343,15 @@ export async function resolveAndExpandSearchQuery(
 
   const top = candidates[0] ?? null;
   const second = candidates[1] ?? null;
+  const closeRace =
+    second != null &&
+    top != null &&
+    top.confidence - second.confidence < 0.15 &&
+    second.confidence >= 0.25;
   const ambiguous =
     !top ||
     top.confidence < IDENTITY_CONFIDENCE_THRESHOLD ||
-    (second != null && top.confidence - second.confidence < 0.15 && second.confidence >= 0.25);
+    closeRace;
 
   const ambiguityCandidates: AmbiguityCandidate[] = candidates.slice(0, 5).map((c) => ({
     name: c.identity.canonicalName,
@@ -354,24 +359,39 @@ export async function resolveAndExpandSearchQuery(
     confidence: Number(c.confidence.toFixed(4)),
   }));
 
-  // Do not auto-commit low-confidence identities as canonical.
-  const identity = top && top.confidence >= IDENTITY_CONFIDENCE_THRESHOLD ? top.identity : null;
-  const canonicalName = identity?.canonicalName ?? (ambiguous ? null : corrected);
+  // Do not auto-commit when confidence is low OR when a close second candidate exists.
+  // Ambiguous resolutions keep canonicalName null so downstream scans do not attach
+  // results to the wrong person automatically.
+  const identity =
+    top && top.confidence >= IDENTITY_CONFIDENCE_THRESHOLD && !closeRace
+      ? top.identity
+      : null;
+  const canonicalName = identity?.canonicalName ?? null;
   const confidence = top?.confidence ?? (corrected !== original ? 0.5 : 0.35);
 
   const userAliases = uniqueStrings(input.knownAliases ?? []);
   const userHandles = uniqueStrings(input.knownHandles ?? []);
 
+  // When ambiguous, search top candidates as weak aliases but do not set canonicalName.
+  const weakCandidateNames = ambiguous
+    ? candidates.slice(0, 3).map((c) => c.identity.canonicalName)
+    : [];
+
   const aliases = uniqueStrings([
     ...(identity?.aliases ?? []),
     ...userAliases,
+    ...weakCandidateNames,
     corrected !== original ? corrected : null,
     // Keep misspelling as searchable alias when we corrected it
     original !== (canonicalName ?? corrected) ? original : null,
-    ...(identity && !ambiguous ? [] : []),
   ]).filter((a) => normalizeKey(a) !== normalizeKey(canonicalName ?? ""));
 
-  const localLanguageNames = uniqueStrings(identity?.localLanguageNames ?? []);
+  const localLanguageNames = uniqueStrings([
+    ...(identity?.localLanguageNames ?? []),
+    ...(ambiguous
+      ? candidates.slice(0, 2).flatMap((c) => c.identity.localLanguageNames)
+      : []),
+  ]);
   const nicknames = uniqueStrings(identity?.nicknames ?? []);
   const formerNames = uniqueStrings(identity?.formerNames ?? []);
   const usernames = uniqueStrings([...(identity?.usernames ?? []), ...userHandles]);
@@ -408,7 +428,8 @@ export async function resolveAndExpandSearchQuery(
   const searchQueries = buildQueries({
     original,
     corrected,
-    canonical: canonicalName,
+    // Prefer committed canonical; otherwise search the corrected/original forms.
+    canonical: canonicalName ?? (ambiguous ? null : corrected),
     identity,
     aliases,
     localNames: localLanguageNames,
