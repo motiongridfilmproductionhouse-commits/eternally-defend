@@ -17,6 +17,7 @@ import {
   websiteTypeFor,
   type DiscoveryCandidate,
 } from "./url.server";
+import { queryTitleVariants } from "./title-identity";
 
 export interface ReferenceAnalysis {
   title: string | null;
@@ -252,20 +253,29 @@ const OPTIONAL_SEED_DOMAINS = ["ogomovies1.com.pk"];
  * Exported for regression tests.
  */
 export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
-  const base = (a.title || workTitle).trim();
-  if (!base) return [];
+  const primary = (a.title || workTitle).trim();
+  if (!primary) return [];
   const year = a.releaseDate?.slice(0, 4) || null;
-  const names = [...new Set([base, ...a.altTitles].filter(Boolean))].slice(0, 4);
+  // Quoted exact-title variants (user title + AI title + alt + compound splits).
+  const names = queryTitleVariants(primary, [
+    workTitle,
+    a.title ?? "",
+    ...a.altTitles,
+  ]).slice(0, 6);
+  const base = names[0] ?? primary;
 
   const age = daysSince(a.releaseDate);
   const isFresh = age !== null && age <= 30;
 
   // Focused distribution phrases — never bare title / generic tokens alone.
   const general = [
+    "watch online",
     "watch full movie",
-    "download full movie",
-    "online free",
+    "full movie",
+    "download",
+    "stream",
     "CAM",
+    "HDCAM",
     "HDTS",
     "theatre print",
     "WEB-DL",
@@ -274,11 +284,13 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
     "magnet",
     "telegram",
     "file host",
+    "video host",
     "streaming server",
     "mega.nz",
     "mediafire",
     "free streaming",
     "hdcam download",
+    "dubbed",
   ];
   const fresh = [
     "theatre print online",
@@ -290,44 +302,56 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
   ];
 
   const NEG =
-    "-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -site:voxcinemas.com -site:bookmyshow.com -site:fandango.com -review -trailer -\"box office\" -showtimes -\"now showing\" -news";
+    "-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -site:voxcinemas.com -site:bookmyshow.com -site:fandango.com -\"box office\" -showtimes -\"now showing\"";
 
   const plans: QueryPlan[] = [];
   const push = (query: string, recent = false) => {
     // Refuse queries that are only the bare title / tokens.
-    const trimmed = query.replace(NEG, "").trim();
-    if (trimmed === `"${base}"` || trimmed === base) return;
+    const trimmed = query.replace(NEG, "").trim().replace(/^"|"$/g, "");
+    if (!trimmed || trimmed === base || names.some((n) => trimmed === n || trimmed === `"${n}"`)) {
+      return;
+    }
     plans.push({ query, recent });
   };
 
+  // Core phrases against the primary quoted title.
   for (const term of general) push(`"${base}" ${term} ${NEG}`, isFresh);
+
+  // Verified alternate / compound title variants (bounded).
+  for (const n of names.slice(1, 4)) {
+    push(`"${n}" watch full movie ${NEG}`, isFresh);
+    push(`"${n}" download ${NEG}`, isFresh);
+    push(`"${n}" watch online ${NEG}`, isFresh);
+    push(`"${n}" torrent magnet ${NEG}`, isFresh);
+    if (year) push(`"${n}" ${year} full movie ${NEG}`, isFresh);
+  }
+
   if (year) {
     push(`"${base}" ${year} watch full movie ${NEG}`, isFresh);
     push(`"${base}" ${year} download ${NEG}`, isFresh);
+    push(`"${base}" ${year} stream ${NEG}`, isFresh);
   }
 
   if (isFresh || !a.releaseDate) {
     for (const term of fresh) push(`"${base}" ${term} ${NEG}`, true);
   }
 
-  for (const n of names.slice(1)) {
-    push(`"${n}" watch full movie ${NEG}`, isFresh);
-    push(`"${n}" download full movie ${NEG}`, isFresh);
-    push(`"${n}" torrent magnet ${NEG}`, isFresh);
-  }
-
   const langs = [a.language, ...a.audienceLanguages].filter(Boolean) as string[];
   for (const term of localTermsFor(langs).slice(0, 8)) {
     push(`"${base}" ${term}`, isFresh);
   }
-  if (a.language) push(`"${base}" ${a.language} watch full movie ${NEG}`, isFresh);
+  if (a.language) push(`"${base}" ${a.language} dubbed watch online ${NEG}`, isFresh);
 
   // Actor queries always keep the exact quoted title — never actor alone.
   for (const actor of a.actors.slice(0, 2)) {
     push(`"${base}" ${actor} download full movie ${NEG}`, isFresh);
   }
-  if (a.releaseDate) {
-    push(`"${base}" ${a.releaseDate.slice(0, 4)} WEBRip download ${NEG}`, isFresh);
+
+  // Optional seed domains early so the bounded query budget cannot drop them.
+  // Discovery only — every result still needs exact-page evidence.
+  for (const seed of OPTIONAL_SEED_DOMAINS) {
+    push(`"${base}" site:${seed}`, isFresh);
+    for (const n of names.slice(1, 3)) push(`"${n}" site:${seed}`, isFresh);
   }
 
   push(`"${base}" full movie ${PIRACY_SITE_FILTER}`, isFresh);
@@ -336,15 +360,10 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
   push(`"${base}" torrent magnet ${NEG}`, isFresh);
   push(`"${base}" telegram full movie ${NEG}`, isFresh);
 
-  // Optional seed domains — discovery only; every result still needs exact-page evidence.
-  for (const seed of OPTIONAL_SEED_DOMAINS) {
-    push(`"${base}" site:${seed}`, isFresh);
-  }
-
   const seen = new Set<string>();
   return plans
     .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
-    .slice(0, 36);
+    .slice(0, 40);
 }
 
 /**
@@ -535,12 +554,44 @@ export async function firecrawlDiscover(
     });
   }
 
+  // Image-result page URLs with piracy/suspicious signals must also enter the
+  // exact-page distribution crawler (identity grading alone is never enough).
+  const imagePageLeads: PageLead[] = out
+    .filter(
+      (c) =>
+        c.exact ||
+        c.websiteType === "unauthorized_streaming" ||
+        c.websiteType === "download_page" ||
+        c.websiteType === "file_host" ||
+        c.websiteType === "torrent_index" ||
+        c.category === "cam_theatre_leak" ||
+        c.category === "streaming_site" ||
+        c.category === "torrent" ||
+        c.category === "file_sharing",
+    )
+    .map((c) => ({
+      url: c.url,
+      title: c.title,
+      query: c.query ?? "",
+      text: `${c.title ?? ""} ${c.url} ${c.category ?? ""}`,
+      strong: true,
+    }));
+
   // Page-level leads feed the distribution-site inspector (player/download/
   // mirror/file-link evidence), independent of whether a screenshot succeeded.
-  const pageLeads: PageLead[] = [
-    ...strongLeads.map((l) => ({ ...l, title: l.title ?? null, strong: true })),
-    ...weakLeads.slice(0, 12).map((l) => ({ ...l, title: l.title ?? null, strong: false })),
-  ].slice(0, 40);
+  const leadSeen = new Set<string>();
+  const pageLeads: PageLead[] = [];
+  for (const lead of [
+    ...strongLeads.map((l) => ({ ...l, title: l.title ?? null, strong: true as const })),
+    ...imagePageLeads,
+    ...weakLeads.slice(0, 12).map((l) => ({ ...l, title: l.title ?? null, strong: false as const })),
+  ]) {
+    const key = canonicalUrl(lead.url);
+    if (leadSeen.has(key)) continue;
+    leadSeen.add(key);
+    pageLeads.push({ ...lead, url: key });
+    if (pageLeads.length >= 48) break;
+  }
 
   // Suspicious distribution sources first, official-looking noise never here.
   return {

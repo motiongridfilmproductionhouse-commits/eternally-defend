@@ -430,11 +430,11 @@ test("18. Queries require exact title + distribution phrase (never bare tokens)"
   assert.ok(plans.length > 0);
   for (const p of plans) {
     assert.ok(
-      p.query.includes('"Neon Horizon"') || p.query.includes("Neon Horizon Malayalam"),
+      /"neon horizon"/i.test(p.query) || /neon horizon malayalam/i.test(p.query),
       `query missing exact title: ${p.query}`,
     );
-    assert.notEqual(p.query.trim(), "Neon Horizon");
-    assert.notEqual(p.query.trim(), '"Neon Horizon"');
+    assert.notEqual(p.query.trim().toLowerCase(), "neon horizon");
+    assert.notEqual(p.query.trim().toLowerCase(), '"neon horizon"');
   }
   assert.ok(plans.some((p) => /watch full movie/i.test(p.query)));
   assert.ok(plans.some((p) => /torrent|magnet/i.test(p.query)));

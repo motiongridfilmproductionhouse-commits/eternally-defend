@@ -13,6 +13,12 @@ import {
   type RiskBand,
 } from "./taxonomy";
 import { releaseTimingFor, type ReleaseTiming } from "./release-timing";
+import {
+  hasExactTitleIdentity,
+  titleSlugCandidates,
+} from "./title-identity";
+
+export { hasExactTitleIdentity } from "./title-identity";
 
 export interface PiracyIndicator {
   key: string;
@@ -127,50 +133,8 @@ function normalizeTitle(s: string): string {
     .trim();
 }
 
-function titleTokens(s: string): string[] {
-  return normalizeTitle(s)
-    .split(" ")
-    .filter((t) => t.length > 1 && !/^(the|a|an|of|and|or|in|to)$/i.test(t));
-}
-
-/** Exact / near-exact work identity on the crawled page. */
-export function hasExactTitleIdentity(
-  blob: string,
-  titles: string[],
-  releaseYear?: string | null,
-): { match: boolean; evidence: string[] } {
-  const evidence: string[] = [];
-  const normBlob = normalizeTitle(blob);
-  const year = releaseYear?.slice(0, 4) || null;
-
-  for (const raw of titles) {
-    const t = normalizeTitle(raw);
-    if (t.length < 3) continue;
-    if (normBlob.includes(t)) {
-      evidence.push(`exact_title:${raw}`);
-      if (year && (normBlob.includes(year) || blob.includes(year))) {
-        evidence.push(`release_year:${year}`);
-      }
-      return { match: true, evidence };
-    }
-    // Token coverage for slightly punctuated titles
-    const tokens = titleTokens(raw);
-    if (tokens.length >= 2) {
-      const hit = tokens.filter((tok) => normBlob.includes(tok)).length;
-      if (hit >= Math.ceil(tokens.length * 0.8)) {
-        evidence.push(`title_tokens:${raw}`);
-        if (year && (normBlob.includes(year) || blob.includes(year))) {
-          evidence.push(`release_year:${year}`);
-        }
-        return { match: true, evidence };
-      }
-    }
-  }
-  return { match: false, evidence };
-}
-
 const DISTRIBUTION_OVERRIDE_RE =
-  /\b(watch\s*(the\s*)?full\s*movie|download\s*(the\s*)?full\s*movie|watch\s*online|free\s*download|magnet:|\.torrent|webrip|web[- ]?dl|hdcam|camrip|theatre\s*print|theater\s*print|hdts|free\s*streaming|streaming\s*server|file\s*host|embedded\s*player|watch\s*server|download\s*server|\.mkv|\.mp4)\b/i;
+  /\b(watch\s*(the\s*)?full\s*movie|download\s*(the\s*)?full\s*movie|watch\s*online|watch\s*now|play\s*now|stream\s*now|free\s*download|magnet:|\.torrent|webrip|web[- ]?dl|hdcam|camrip|theatre\s*print|theater\s*print|hdts|free\s*streaming|streaming\s*server|file\s*host|embedded\s*player|watch\s*server|download\s*server|\.mkv|\.mp4)\b/i;
 
 export function detectPrimaryPurpose(opts: {
   url: string;
@@ -509,11 +473,23 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     /(download\s*(now|link|movie|here|hd|full)|click\s*to\s*download|<a[^>]*>\s*download)/i.test(
       `${markdown}\n${html}`,
     );
+  const watchNowCta =
+    /\b(watch\s*now|play\s*now|stream\s*now|click\s*to\s*watch|start\s*watching)\b/i.test(
+      `${pageTitle ?? ""} ${markdown}`,
+    );
   if (downloadLinks.length >= 1 || downloadCta) {
     add(
       "download_links",
       `${downloadLinks.length || "Multiple"} download link(s)/buttons offering the file.`,
       28,
+      true,
+    );
+  }
+  if (watchNowCta && (hasIframePlayer || playerHosts.length || FULL_MOVIE_RE.test(blobLower))) {
+    add(
+      "watch_now_cta",
+      "Page exposes a Watch/Play Now control tied to streaming the title.",
+      22,
       true,
     );
   }
@@ -747,28 +723,26 @@ export function extractTitleMatchedDetailLinks(opts: {
   const host = hostOf(opts.pageUrl);
   if (!host) return [];
   const limit = opts.limit ?? 6;
-  const titles = opts.titles.map(normalizeTitle).filter((t) => t.length > 2);
+  const slugs = opts.titles.flatMap((t) => titleSlugCandidates(t));
   const candidates = safeHttpLinks(opts.links);
   const out: string[] = [];
   const seen = new Set<string>();
+
+  const matchesTitle = (href: string, label = ""): boolean => {
+    const blob = `${href} ${label}`;
+    if (hasExactTitleIdentity(blob, opts.titles).match) return true;
+    const lower = href.toLowerCase();
+    return slugs.some((slug) => slug.length >= 5 && lower.includes(slug));
+  };
 
   for (const href of candidates) {
     const h = hostOf(href);
     if (!h || h !== host) continue;
     if (href === opts.pageUrl) continue;
-    // Skip obvious listing/search paths
+    // Skip obvious listing/search/home paths — follow detail destinations only.
     if (LISTING_PURPOSE_RE.test(href)) continue;
-    const pathBlob = normalizeTitle(`${href} ${opts.markdown.slice(0, 2000)}`);
-    const titleHit = titles.some((t) => {
-      const slug = t.replace(/\s+/g, "-");
-      const compact = t.replace(/\s+/g, "");
-      return (
-        pathBlob.includes(t) ||
-        href.toLowerCase().includes(slug) ||
-        href.toLowerCase().includes(compact)
-      );
-    });
-    if (!titleHit) continue;
+    if (/\/(home|index|latest|movies\/?)$/i.test(href.replace(/\/$/, ""))) continue;
+    if (!matchesTitle(href)) continue;
     if (seen.has(href)) continue;
     seen.add(href);
     out.push(href);
@@ -790,9 +764,7 @@ export function extractTitleMatchedDetailLinks(opts: {
       if (!isSafePublicHttpUrl(href)) continue;
       if (hostOf(href) !== host) continue;
       if (LISTING_PURPOSE_RE.test(href)) continue;
-      if (!titles.some((t) => label.includes(t) || normalizeTitle(href).includes(t.replace(/\s+/g, "")))) {
-        continue;
-      }
+      if (!matchesTitle(href, label)) continue;
       if (seen.has(href)) continue;
       seen.add(href);
       out.push(href);

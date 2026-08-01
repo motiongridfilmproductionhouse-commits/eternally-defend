@@ -16,6 +16,8 @@ import {
 } from "@/lib/copyright/taxonomy";
 import { filterClientVisibleCopyrightMatches } from "@/lib/copyright/client-filter";
 import { detectPrimaryPurpose } from "@/lib/copyright/page-classify.server";
+import { expandTitleVariants } from "@/lib/copyright/title-identity";
+import { explainZeroMatchFunnel } from "@/lib/copyright/scan-diagnostics";
 
 import {
   buildMovieFingerprint,
@@ -322,11 +324,15 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
       // 4. Unauthorized-distribution site inspection. Exact-page crawl required.
       //    Identity (title/poster/OCR) alone never qualifies. Fail closed on crawl failure.
-      const titles = [data.title, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
+      const titleSeeds = [data.title, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
+      const titles = [...new Set([
+        ...titleSeeds,
+        ...titleSeeds.flatMap((t) => expandTitleVariants(t).filter((v) => /[\s-]/.test(v))),
+      ])].slice(0, 12);
       const releaseDate = analysis.releaseDate;
       const leadUrls = discovery.pageLeads
         .sort((a2, b2) => Number(b2.strong) - Number(a2.strong))
-        .slice(0, 20);
+        .slice(0, 28);
 
       const distributionRows: MatchInsert[] = [];
       const internalRows: MatchInsert[] = [];
@@ -341,6 +347,11 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       let reviewRejected = 0;
       let socialRejected = 0;
       let artworkRejected = 0;
+      let officialRejected = 0;
+      let titleIdentityRejected = 0;
+      let accessEvidenceRejected = 0;
+      let hardNegativeRejected = 0;
+      let listingPagesFound = 0;
       let accessEvidencePages = 0;
       let embeddedPlayers = 0;
       let downloadPages = 0;
@@ -377,21 +388,50 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         switch (dist.classification) {
           case "CINEMA_OR_SHOWTIME":
             cinemaRejected += 1;
+            hardNegativeRejected += 1;
             break;
           case "TRAILER_OR_PROMO":
             trailerRejected += 1;
+            hardNegativeRejected += 1;
             break;
           case "REVIEW_OR_NEWS":
+          case "CAST_OR_INFORMATION":
             reviewRejected += 1;
+            hardNegativeRejected += 1;
             break;
           case "SOCIAL_DISCUSSION":
             socialRejected += 1;
+            hardNegativeRejected += 1;
+            break;
+          case "OFFICIAL_OR_AUTHORIZED":
+            officialRejected += 1;
+            hardNegativeRejected += 1;
             break;
           case "DUPLICATE_ARTWORK_ONLY":
             artworkRejected += 1;
             break;
           default:
             break;
+        }
+
+        if (dist.detailFollowUrls.length) listingPagesFound += 1;
+
+        if (!dist.crawlFailed && !dist.identityEvidence.length && !dist.clientVisible) {
+          titleIdentityRejected += 1;
+        }
+        if (
+          dist.identityEvidence.length &&
+          !dist.strongEvidence &&
+          !dist.clientVisible &&
+          dist.classification !== "CINEMA_OR_SHOWTIME" &&
+          dist.classification !== "TRAILER_OR_PROMO" &&
+          dist.classification !== "REVIEW_OR_NEWS" &&
+          dist.classification !== "CAST_OR_INFORMATION" &&
+          dist.classification !== "SOCIAL_DISCUSSION" &&
+          dist.classification !== "OFFICIAL_OR_AUTHORIZED" &&
+          dist.classification !== "DUPLICATE_ARTWORK_ONLY"
+        ) {
+          accessEvidenceRejected += 1;
         }
 
         if (dist.indicatorKeys.includes("embedded_player")) embeddedPlayers += 1;
@@ -509,7 +549,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       }
 
       // Bounded same-domain detail follow from listing pages.
-      const details = detailFollowQueue.slice(0, 8);
+      const details = detailFollowQueue.slice(0, 12);
       for (let offset = 0; offset < details.length; offset += 4) {
         const batch = details.slice(offset, offset + 4);
         const analyses = await Promise.all(
@@ -554,6 +594,11 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
       const clientVisibleFindings = filterClientVisibleCopyrightMatches(distributionRows);
 
+      const uniqueCandidatePages = new Set([
+        ...byUrl.keys(),
+        ...discovery.pageLeads.map((l) => canonicalUrl(l.url)),
+      ]).size;
+
       const stats = {
         candidates: byUrl.size,
         graded: ordered.length,
@@ -566,10 +611,16 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         queries_generated: discovery.queriesGenerated,
         queries_executed: discovery.queriesExecuted,
         provider_candidates: byUrl.size,
-        unique_candidate_pages: byUrl.size + discovery.pageLeads.length,
+        provider_results: byUrl.size + discovery.pageLeads.length,
+        unique_candidate_pages: uniqueCandidatePages,
+        listing_pages_found: listingPagesFound,
         detail_pages_followed: detailPagesFollowed,
         pages_crawled: pagesCrawled,
         pages_failed: pagesFailed,
+        title_identity_rejected: titleIdentityRejected,
+        hard_negative_rejected: hardNegativeRejected,
+        access_evidence_rejected: accessEvidenceRejected,
+        official_authorized_rejected: officialRejected,
         cinema_showtime_rejected: cinemaRejected,
         trailer_promo_rejected: trailerRejected,
         review_news_rejected: reviewRejected,
@@ -581,11 +632,36 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         file_host_destinations: fileHostDestinations,
         torrents_magnets: torrentsMagnets,
         theatre_print_findings: theatrePrintFindings,
+        internal_leads_persisted: internalPersist.length,
+        client_visible_findings: clientVisibleFindings.length,
         verified_client_visible_findings: clientVisibleFindings.length,
         distribution_pages_inspected: leadUrls.length + detailPagesFollowed,
         distribution_sites: distributionRows.length,
         distribution_high_risk: distributionSummary.filter((d) => d.domain_risk === "high").length,
         distribution_summary: distributionSummary.slice(0, 25),
+        rejection_funnel: explainZeroMatchFunnel({
+          queries_generated: discovery.queriesGenerated,
+          queries_executed: discovery.queriesExecuted,
+          provider_results: byUrl.size + discovery.pageLeads.length,
+          unique_candidate_pages: uniqueCandidatePages,
+          listing_pages_found: listingPagesFound,
+          detail_pages_followed: detailPagesFollowed,
+          pages_crawled: pagesCrawled,
+          pages_failed: pagesFailed,
+          title_identity_rejected: titleIdentityRejected,
+          hard_negative_rejected: hardNegativeRejected,
+          access_evidence_rejected: accessEvidenceRejected,
+          artwork_only_rejected: artworkRejected,
+          access_evidence_pages: accessEvidencePages,
+          embedded_players: embeddedPlayers,
+          download_pages: downloadPages,
+          file_host_destinations: fileHostDestinations,
+          torrents_magnets: torrentsMagnets,
+          theatre_print_findings: theatrePrintFindings,
+          internal_leads_persisted: internalPersist.length,
+          client_visible_findings: clientVisibleFindings.length,
+        }),
+        title_variants_used: titles.slice(0, 8),
         monitored_sources_checked: monitorPass.checked,
         monitor_incidents: monitorPass.incidents,
 
