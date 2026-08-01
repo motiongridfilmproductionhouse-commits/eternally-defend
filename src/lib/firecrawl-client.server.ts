@@ -26,6 +26,7 @@ export function isFirecrawlConfigured(): boolean {
 export async function firecrawlFetch(
   path: string,
   body: unknown,
+  options?: { signal?: AbortSignal },
 ): Promise<Response> {
   const key = process.env.FIRECRAWL_API_KEY?.trim();
 
@@ -54,5 +55,6 @@ export async function firecrawlFetch(
     method: "POST",
     headers,
     body: JSON.stringify(body),
+    signal: options?.signal,
   });
 }

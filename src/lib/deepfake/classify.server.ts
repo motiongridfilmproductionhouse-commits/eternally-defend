@@ -1,4 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  assertNotAborted,
+  isAbortError,
+} from "./scan-runtime.server";
 
 // Cautious classifier for deepfake / synthetic-media search hits.
 // Uses Google Gemini directly via GOOGLE_API_KEY.
@@ -97,7 +101,9 @@ interface GeminiOutput {
 export async function classifyHits(
   hits: RawHit[],
   target: { name: string; aliases: string[]; handles: string[] },
+  options?: { signal?: AbortSignal },
 ): Promise<ClassifiedHit[]> {
+  assertNotAborted(options?.signal);
   const key = process.env.GOOGLE_API_KEY;
 
   if (!key) {
@@ -113,6 +119,7 @@ export async function classifyHits(
   const out: ClassifiedHit[] = [];
 
   for (let i = 0; i < hits.length; i += CHUNK) {
+    assertNotAborted(options?.signal);
     const chunk = hits.slice(i, i + CHUNK);
 
     const payload = {
@@ -144,6 +151,9 @@ export async function classifyHits(
         config: {
           responseMimeType: "application/json",
           temperature: 0.1,
+          ...(options?.signal
+            ? { abortSignal: options.signal }
+            : {}),
         },
       });
 
@@ -201,6 +211,9 @@ export async function classifyHits(
         });
       });
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
       console.warn("[deepfake:classify] Gemini request failed", error);
 
       for (const hit of chunk) {

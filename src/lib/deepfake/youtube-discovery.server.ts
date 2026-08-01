@@ -1,4 +1,10 @@
 import type { FirecrawlSearchHit } from "./firecrawl.server";
+import {
+  assertNotAborted,
+  boundTimeoutMs,
+  mergeAbortSignals,
+  readResponseText,
+} from "./scan-runtime.server";
 
 const YOUTUBE_API = "https://www.googleapis.com/youtube/v3";
 
@@ -32,6 +38,8 @@ export async function searchRecentYouTubeMentions(input: {
   handles?: string[];
   maxResults?: number;
   pages?: number;
+  signal?: AbortSignal;
+  softDeadlineMs?: number;
 }): Promise<FirecrawlSearchHit[]> {
   const apiKey = (
     process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY
@@ -60,6 +68,7 @@ export async function searchRecentYouTubeMentions(input: {
   let pageToken: string | undefined;
 
   for (let page = 0; page < pages && hits.length < maxResults; page++) {
+    assertNotAborted(input.signal);
     const remaining = maxResults - hits.length;
     const url = new URL(`${YOUTUBE_API}/search`);
     url.searchParams.set("part", "snippet");
@@ -72,10 +81,17 @@ export async function searchRecentYouTubeMentions(input: {
       url.searchParams.set("pageToken", pageToken);
     }
 
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(15_000),
-    });
-    const text = await response.text();
+    const timeoutMs = boundTimeoutMs(
+      15_000,
+      input.signal,
+      input.softDeadlineMs,
+    );
+    const signal = mergeAbortSignals(
+      input.signal,
+      AbortSignal.timeout(timeoutMs),
+    );
+    const response = await fetch(url, { signal });
+    const text = await readResponseText(response, signal);
 
     let payload: YouTubeSearchResponse = {};
     try {

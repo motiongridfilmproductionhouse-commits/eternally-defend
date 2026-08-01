@@ -1,3 +1,11 @@
+import {
+  abortableSleep,
+  assertNotAborted,
+  boundTimeoutMs,
+  isAbortError,
+  readResponseText,
+} from "./scan-runtime.server";
+
 export type MediaDiscoveryHit = {
   url: string;
   title?: string;
@@ -274,10 +282,6 @@ function isTransientFirecrawlError(error: unknown): boolean {
   );
 }
 
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export function hasExplicitPageRisk(hit: {
   url?: string;
   title?: string;
@@ -290,7 +294,13 @@ export function hasExplicitPageRisk(hit: {
 
 export async function scrapeMediaFromPage(
   hit: MediaDiscoveryHit,
+  options?: {
+    signal?: AbortSignal;
+    softDeadlineMs?: number;
+  },
 ): Promise<MediaDiscoveryHit[]> {
+  assertNotAborted(options?.signal);
+
   const existingDirectMedia =
     hit.image_url ??
     hit.media_url ??
@@ -336,26 +346,45 @@ export async function scrapeMediaFromPage(
     let rawBody = "";
 
     for (let attempt = 0; attempt < 3; attempt++) {
+      assertNotAborted(options?.signal);
       let requestError: unknown = null;
+      const requestTimeoutMs = boundTimeoutMs(
+        20_000,
+        options?.signal,
+        options?.softDeadlineMs,
+      );
 
       try {
-        response = await firecrawlFetch("/scrape", {
-          url: hit.url,
-          formats: ["html", "rawHtml", "markdown"],
-          onlyMainContent: false,
-          removeBase64Images: true,
-          blockAds: true,
-          timeout: 20_000,
-          waitFor: 1_000,
-        });
+        response = await firecrawlFetch(
+          "/scrape",
+          {
+            url: hit.url,
+            formats: ["html", "rawHtml", "markdown"],
+            onlyMainContent: false,
+            removeBase64Images: true,
+            blockAds: true,
+            timeout: requestTimeoutMs,
+            waitFor: Math.min(1_000, requestTimeoutMs),
+          },
+          { signal: options?.signal },
+        );
 
-        rawBody = await response.text();
+        rawBody = await readResponseText(response, options?.signal);
       } catch (error) {
+        if (isAbortError(error)) {
+          throw error;
+        }
         requestError = error;
         response = null;
         rawBody =
           error instanceof Error ? error.message : String(error);
       }
+
+      /*
+       * Abort must never soft-continue into a "failed scrape" return — that
+       * would let the pipeline start more batches after cancellation.
+       */
+      assertNotAborted(options?.signal);
 
       if (
         response?.ok ||
@@ -369,8 +398,17 @@ export async function scrapeMediaFromPage(
         break;
       }
 
-      await sleep((attempt + 1) * 2_000);
+      await abortableSleep(
+        boundTimeoutMs(
+          (attempt + 1) * 2_000,
+          options?.signal,
+          options?.softDeadlineMs,
+        ),
+        options?.signal,
+      );
     }
+
+    assertNotAborted(options?.signal);
 
     if (!response?.ok) {
       console.warn("[DEEPFAKE:MEDIA] Page scrape failed:", {
@@ -570,6 +608,10 @@ export async function scrapeMediaFromPage(
 
     return mediaHits;
   } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
     console.warn("[DEEPFAKE:MEDIA] Extraction error:", {
       url: hit.url,
       error:

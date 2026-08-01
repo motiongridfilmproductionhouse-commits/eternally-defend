@@ -1,4 +1,10 @@
 import { createHash } from "node:crypto";
+import {
+  assertNotAborted,
+  boundTimeoutMs,
+  isAbortError,
+  mergeAbortSignals,
+} from "./scan-runtime.server";
 
 type EvidenceCandidate = {
   url: string;
@@ -121,94 +127,98 @@ function determineEvidenceStatus(
 
 async function fetchAndHash(
   targetUrl: string,
+  options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<{
   status: number;
   contentType: string | null;
   contentLength: number | null;
   sha256: string | null;
 }> {
-  const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
+  assertNotAborted(options?.signal);
+  const timeoutMs = boundTimeoutMs(
     FETCH_TIMEOUT_MS,
+    options?.signal,
+    options?.softDeadlineMs,
+  );
+  const signal = mergeAbortSignals(
+    options?.signal,
+    AbortSignal.timeout(timeoutMs),
   );
 
-  try {
-    const response = await fetch(targetUrl, {
-      method: "GET",
-      redirect: "follow",
-      headers: {
-        "user-agent":
-          "EternaEvidenceBot/1.0 (+https://eternasentinel.com)",
-        accept:
-          "image/*,video/*,text/html;q=0.8,*/*;q=0.5",
-      },
-      signal: controller.signal,
-    });
+  const response = await fetch(targetUrl, {
+    method: "GET",
+    redirect: "follow",
+    headers: {
+      "user-agent":
+        "EternaEvidenceBot/1.0 (+https://eternasentinel.com)",
+      accept:
+        "image/*,video/*,text/html;q=0.8,*/*;q=0.5",
+    },
+    signal,
+  });
 
-    const contentType =
-      response.headers.get("content-type");
+  const contentType =
+    response.headers.get("content-type");
 
-    const declaredLength = Number.parseInt(
-      response.headers.get("content-length") ?? "",
-      10,
-    );
+  const declaredLength = Number.parseInt(
+    response.headers.get("content-length") ?? "",
+    10,
+  );
 
-    const contentLength = Number.isFinite(declaredLength)
-      ? declaredLength
-      : null;
+  const contentLength = Number.isFinite(declaredLength)
+    ? declaredLength
+    : null;
 
-    if (!response.ok) {
-      return {
-        status: response.status,
-        contentType,
-        contentLength,
-        sha256: null,
-      };
-    }
-
-    if (
-      contentLength !== null &&
-      contentLength > MAX_HASH_BYTES
-    ) {
-      return {
-        status: response.status,
-        contentType,
-        contentLength,
-        sha256: null,
-      };
-    }
-
-    const bytes = new Uint8Array(
-      await response.arrayBuffer(),
-    );
-
-    if (!bytes.length || bytes.length > MAX_HASH_BYTES) {
-      return {
-        status: response.status,
-        contentType,
-        contentLength: bytes.length || contentLength,
-        sha256: null,
-      };
-    }
-
-    const sha256 = createHash("sha256")
-      .update(bytes)
-      .digest("hex");
-
+  if (!response.ok) {
     return {
       status: response.status,
       contentType,
-      contentLength: bytes.length,
-      sha256,
+      contentLength,
+      sha256: null,
     };
-  } finally {
-    clearTimeout(timeout);
   }
+
+  if (
+    contentLength !== null &&
+    contentLength > MAX_HASH_BYTES
+  ) {
+    return {
+      status: response.status,
+      contentType,
+      contentLength,
+      sha256: null,
+    };
+  }
+
+  const bytes = new Uint8Array(
+    await response.arrayBuffer(),
+  );
+  assertNotAborted(options?.signal);
+
+  if (!bytes.length || bytes.length > MAX_HASH_BYTES) {
+    return {
+      status: response.status,
+      contentType,
+      contentLength: bytes.length || contentLength,
+      sha256: null,
+    };
+  }
+
+  const sha256 = createHash("sha256")
+    .update(bytes)
+    .digest("hex");
+
+  return {
+    status: response.status,
+    contentType,
+    contentLength: bytes.length,
+    sha256,
+  };
 }
 
 export async function captureEvidenceCandidate(
   candidate: EvidenceCandidate,
+  options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<CaptureResult> {
   const findingUrl =
     normaliseUrl(candidate.evidence_page_url) ??
@@ -237,7 +247,8 @@ export async function captureEvidenceCandidate(
     directMediaUrl ?? findingUrl;
 
   try {
-    const capture = await fetchAndHash(captureTarget);
+    assertNotAborted(options?.signal);
+    const capture = await fetchAndHash(captureTarget, options);
 
     const evidenceStatus = determineEvidenceStatus(
       candidate,
@@ -266,6 +277,9 @@ export async function captureEvidenceCandidate(
           : null,
     };
   } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
     return {
       finding_url: findingUrl,
       canonical_url: findingUrl,
@@ -295,6 +309,8 @@ export async function captureAndStoreEvidence(input: {
   userId: string;
   scanId: string;
   candidates: EvidenceCandidate[];
+  signal?: AbortSignal;
+  softDeadlineMs?: number;
 }): Promise<{
   captured: number;
   failed: number;
@@ -307,13 +323,19 @@ export async function captureAndStoreEvidence(input: {
     start < input.candidates.length;
     start += batchSize
   ) {
+    assertNotAborted(input.signal);
     const batch = input.candidates.slice(
       start,
       start + batchSize,
     );
 
     const results = await Promise.all(
-      batch.map(captureEvidenceCandidate),
+      batch.map((candidate) =>
+        captureEvidenceCandidate(candidate, {
+          signal: input.signal,
+          softDeadlineMs: input.softDeadlineMs,
+        }),
+      ),
     );
 
     for (let index = 0; index < results.length; index++) {

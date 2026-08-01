@@ -16,6 +16,13 @@ import {
   type PageEvidenceTarget,
 } from "./page-evidence.server";
 import { isAllowedHttpUrl } from "./evidence-url";
+import {
+  abortableSleep,
+  assertNotAborted,
+  boundTimeoutMs,
+  isAbortError,
+  mergeAbortSignals,
+} from "./scan-runtime.server";
 
 export type UrlVerificationStatus = "URL_VERIFIED" | "URL_REJECTED";
 
@@ -390,7 +397,12 @@ export function isUrlVerified(
  */
 export async function resolveRedirectChain(
   url: string,
-  options?: { maxRedirects?: number; timeoutMs?: number },
+  options?: {
+    maxRedirects?: number;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+    softDeadlineMs?: number;
+  },
 ): Promise<{
   discovered_url: string;
   final_url: string;
@@ -400,14 +412,28 @@ export async function resolveRedirectChain(
   error?: string;
 }> {
   const maxRedirects = options?.maxRedirects ?? 8;
-  const timeoutMs = options?.timeoutMs ?? 12_000;
+  const timeoutMs = boundTimeoutMs(
+    options?.timeoutMs ?? 12_000,
+    options?.signal,
+    options?.softDeadlineMs,
+  );
   const chain: string[] = [url];
   let current = url;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
+    assertNotAborted(options?.signal);
+
     for (let attempt = 0; attempt < 3; attempt++) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      assertNotAborted(options?.signal);
+      const hopTimeout = boundTimeoutMs(
+        timeoutMs,
+        options?.signal,
+        options?.softDeadlineMs,
+      );
+      const signal = mergeAbortSignals(
+        options?.signal,
+        AbortSignal.timeout(hopTimeout),
+      );
 
       try {
         let response: Response;
@@ -416,17 +442,20 @@ export async function resolveRedirectChain(
           response = await fetch(current, {
             method: "HEAD",
             redirect: "manual",
-            signal: controller.signal,
+            signal,
             headers: {
               "user-agent": "EternaSentinelDeepfakeIntel/1.0",
               accept: "text/html,application/xhtml+xml,*/*",
             },
           });
-        } catch {
+        } catch (headError) {
+          if (options?.signal?.aborted || isAbortError(headError)) {
+            throw headError;
+          }
           response = await fetch(current, {
             method: "GET",
             redirect: "manual",
-            signal: controller.signal,
+            signal,
             headers: {
               "user-agent": "EternaSentinelDeepfakeIntel/1.0",
               accept: "text/html,application/xhtml+xml,*/*",
@@ -468,11 +497,10 @@ export async function resolveRedirectChain(
 
         if (
           (status === 429 || (status >= 500 && status < 600)) &&
-          attempt < 2
+          attempt < 2 &&
+          !options?.signal?.aborted
         ) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, (attempt + 1) * 1_000),
-          );
+          await abortableSleep((attempt + 1) * 1_000, options?.signal);
           continue;
         }
 
@@ -484,16 +512,18 @@ export async function resolveRedirectChain(
           ok: status >= 200 && status < 400,
         };
       } catch (error) {
+        if (options?.signal?.aborted || isAbortError(error)) {
+          throw error;
+        }
+
         if (
           attempt < 2 &&
           error instanceof Error &&
-          /\b(?:timeout|timed out|abort|econnreset|etimedout)\b/i.test(
+          /\b(?:timeout|timed out|econnreset|etimedout)\b/i.test(
             error.message,
           )
         ) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, (attempt + 1) * 1_000),
-          );
+          await abortableSleep((attempt + 1) * 1_000, options?.signal);
           continue;
         }
 
@@ -506,8 +536,6 @@ export async function resolveRedirectChain(
           error:
             error instanceof Error ? error.message : String(error),
         };
-      } finally {
-        clearTimeout(timer);
       }
     }
 
@@ -548,7 +576,34 @@ export type VerifiableHit = {
 export async function verifyCandidateUrls(
   hits: VerifiableHit[],
   target: PageEvidenceTarget,
-  options?: { maxPages?: number },
+  options?: {
+    maxPages?: number;
+    signal?: AbortSignal;
+    softDeadlineMs?: number;
+    onBatchComplete?: (info: {
+      batchIndex: number;
+      verifiedSoFar: number;
+      metrics: UrlVerificationMetrics;
+      verifiedBatch: Array<
+        VerifiableHit & {
+          discovered_url: string;
+          final_url: string;
+          canonical_url: string;
+          http_status: number | null;
+          redirect_chain: string[];
+          crawled_at: string;
+          page_title: string | null;
+          page_description: string | null;
+          page_text: string;
+          page_inspected: boolean;
+          verified_domain: string | null;
+          url_verification_status: UrlVerificationStatus;
+          rejection_reason: string | null;
+          evidence_page_url: string;
+        }
+      >;
+    }) => Promise<void> | void;
+  },
 ): Promise<{
   verified: Array<
     VerifiableHit & {
@@ -606,15 +661,21 @@ export async function verifyCandidateUrls(
   const batchSize = 3;
 
   for (let start = 0; start < limited.length; start += batchSize) {
+    assertNotAborted(options?.signal);
     const batch = limited.slice(start, start + batchSize);
+    const batchVerified: typeof verified = [];
 
     const batchResults = await Promise.all(
       batch.map(async (hit) => {
+        assertNotAborted(options?.signal);
         const discovered = hit.url;
         const searchTitle = hit.title ?? null;
         const searchSnippet = hit.description ?? null;
 
-        const resolved = await resolveRedirectChain(discovered);
+        const resolved = await resolveRedirectChain(discovered, {
+          signal: options?.signal,
+          softDeadlineMs: options?.softDeadlineMs,
+        });
 
         if (!resolved.ok) {
           const failed = evaluateUrlVerification({
@@ -678,14 +739,20 @@ export async function verifyCandidateUrls(
          * Crawl the final URL. Intentionally omit search title/snippet so
          * media-discovery cannot treat them as page evidence.
          */
-        const scraped = await scrapeMediaFromPage({
-          url: finalUrl,
-          query: hit.query,
-          source: hit.source,
-          image_url: hit.image_url,
-          thumbnail_url: hit.thumbnail_url,
-          media_url: hit.media_url,
-        });
+        const scraped = await scrapeMediaFromPage(
+          {
+            url: finalUrl,
+            query: hit.query,
+            source: hit.source,
+            image_url: hit.image_url,
+            thumbnail_url: hit.thumbnail_url,
+            media_url: hit.media_url,
+          },
+          {
+            signal: options?.signal,
+            softDeadlineMs: options?.softDeadlineMs,
+          },
+        );
 
         const pageRecord =
           scraped.find((item) => item.page_inspected) ??
@@ -777,7 +844,7 @@ export async function verifyCandidateUrls(
           ];
 
       for (const mediaHit of mediaHits) {
-        verified.push({
+        const row = {
           ...hit,
           ...mediaHit,
           url: mediaHit.media_url ?? verification.final_url,
@@ -794,11 +861,22 @@ export async function verifyCandidateUrls(
           page_text: verification.page_text,
           page_inspected: true,
           verified_domain: verification.verified_domain,
-          url_verification_status: "URL_VERIFIED",
+          url_verification_status: "URL_VERIFIED" as const,
           rejection_reason: null,
           evidence_page_url: verification.final_url,
-        });
+        };
+        verified.push(row);
+        batchVerified.push(row);
       }
+    }
+
+    if (options?.onBatchComplete) {
+      await options.onBatchComplete({
+        batchIndex: Math.floor(start / batchSize),
+        verifiedSoFar: verified.length,
+        metrics: { ...metrics },
+        verifiedBatch: batchVerified,
+      });
     }
   }
 

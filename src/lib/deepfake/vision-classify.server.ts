@@ -1,4 +1,11 @@
 import type { RawHit, ClassifiedHit } from "./classify.server";
+import {
+  assertNotAborted,
+  boundTimeoutMs,
+  isAbortError,
+  mergeAbortSignals,
+  readResponseText,
+} from "./scan-runtime.server";
 
 /**
  * Vision-based deepfake / synthetic-media classifier.
@@ -53,7 +60,19 @@ async function analyseImage(
   imageUrl: string,
   hit: RawHit,
   apiKey: string,
+  options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<VisionVerdict | null> {
+  assertNotAborted(options?.signal);
+  const timeoutMs = boundTimeoutMs(
+    30_000,
+    options?.signal,
+    options?.softDeadlineMs,
+  );
+  const signal = mergeAbortSignals(
+    options?.signal,
+    AbortSignal.timeout(timeoutMs),
+  );
+
   const res = await fetch(GATEWAY, {
     method: "POST",
     headers: {
@@ -76,14 +95,16 @@ async function analyseImage(
         },
       ],
     }),
+    signal,
   });
 
+  const body = await readResponseText(res, signal);
+
   if (!res.ok) {
-    const body = await res.text();
     throw new Error(`AI gateway ${res.status}: ${body.slice(0, 300)}`);
   }
 
-  const json = (await res.json()) as {
+  const json = JSON.parse(body) as {
     choices?: { message?: { content?: string } }[];
   };
   const raw = json.choices?.[0]?.message?.content ?? "";
@@ -154,7 +175,9 @@ export function isVisionClassifierConfigured(): boolean {
 
 export async function classifyHitsWithVision(
   hits: RawHit[],
+  options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<ClassifiedHit[]> {
+  assertNotAborted(options?.signal);
   const apiKey = process.env.LOVABLE_API_KEY?.trim();
   if (!apiKey) return [];
 
@@ -162,10 +185,12 @@ export async function classifyHitsWithVision(
   const batchSize = 3;
 
   for (let start = 0; start < hits.length; start += batchSize) {
+    assertNotAborted(options?.signal);
     const batch = hits.slice(start, start + batchSize);
 
     const results = await Promise.all(
       batch.map(async (hit) => {
+        assertNotAborted(options?.signal);
         const mediaUrl = mediaUrlOf(hit);
 
         if (!mediaUrl) {
@@ -185,10 +210,18 @@ export async function classifyHitsWithVision(
         }
 
         try {
-          const verdict = await analyseImage(mediaUrl, hit, apiKey);
+          const verdict = await analyseImage(
+            mediaUrl,
+            hit,
+            apiKey,
+            options,
+          );
           if (!verdict) throw new Error("unparsable model response");
           return toClassified(hit, mediaUrl, verdict);
         } catch (error) {
+          if (isAbortError(error)) {
+            throw error;
+          }
           const message =
             error instanceof Error ? error.message : String(error);
           console.warn("[DEEPFAKE:VISION] analysis failed:", {
