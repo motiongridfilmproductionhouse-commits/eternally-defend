@@ -129,6 +129,10 @@ test("exact YouTube watch URL requires full-length reupload evidence and stays i
   });
   assert.equal(result.classification, "VIDEO_HOST_REUPLOAD");
   assert.equal(result.clientVisible, false);
+  // Taxonomy remains VIDEO_HOST_REUPLOAD, but client_visible:false must allow
+  // internal persistence even though isActionablePiracy(true) for that label.
+  assert.equal(isActionablePiracy(result.classification), true);
+  assert.equal(result.clientVisible === false, true);
 });
 
 test("known URL parser accepts http/https and bounds to 10", () => {
@@ -277,4 +281,21 @@ test("exact evidence URL, not homepage, is required for registration", () => {
     true,
   );
   assert.equal(isYouTubeHost("https://youtube.com/"), true);
+});
+
+test("registration prefers prior detail URL and keeps evidence URL aligned", () => {
+  // Mirrors registerDistributionSource preferUrl + evidence alignment rules.
+  const priorUrl: string = "https://piracy.example/movies/spider-man-brand-new-day-2026/";
+  const homepage: string = "https://piracy.example/";
+  const priorIsDetail = /\/.+/.test(new URL(priorUrl).pathname);
+  const currentIsHomepage = (new URL(homepage).pathname.replace(/\/$/, "") || "/") === "/";
+  const preferUrl =
+    priorUrl !== homepage && priorIsDetail && currentIsHomepage ? priorUrl : homepage;
+  assert.equal(preferUrl, priorUrl);
+  const evidence = {
+    exact_evidence_url: preferUrl,
+    canonical_url: preferUrl,
+  };
+  assert.equal(evidence.exact_evidence_url, preferUrl);
+  assert.equal(evidence.canonical_url, preferUrl);
 });

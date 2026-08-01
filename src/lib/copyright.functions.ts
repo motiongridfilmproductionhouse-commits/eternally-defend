@@ -727,9 +727,16 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
       // Persist actionable findings + a bounded set of internal non-piracy leads.
       // Internal leads never use ripped_copy and are marked client_visible: false.
+      // Keep client_visible:false rows even when taxonomy is "actionable" (e.g.
+      // YouTube VIDEO_HOST_REUPLOAD internal investigation leads).
       const seenUrls = new Set(distributionRows.map((r) => r.source_url));
+      const isInternalLeadRow = (r: MatchInsert) => {
+        const ev = (r.evidence ?? {}) as Record<string, unknown>;
+        if (ev.client_visible === false) return true;
+        return !isActionablePiracy(r.detection_type);
+      };
       const internalPersist = [...internalRows, ...fallbackRows]
-        .filter((r) => !seenUrls.has(r.source_url) && !isActionablePiracy(r.detection_type))
+        .filter((r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r))
         .slice(0, 20);
       const allRows = [...distributionRows, ...internalPersist];
 

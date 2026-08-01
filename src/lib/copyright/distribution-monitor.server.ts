@@ -138,35 +138,57 @@ export async function registerDistributionSource(
     .maybeSingle();
 
   // Prefer keeping a more specific evidence URL over a homepage if one exists.
+  // Keep evidence.exact_evidence_url / canonical_url aligned with the stored url.
   const priorUrl = existing?.url ? canonicalUrl(existing.url) : null;
-  const preferUrl =
-    priorUrl && priorUrl !== evidenceUrl && /\/.+/.test(new URL(priorUrl).pathname) &&
-    (new URL(evidenceUrl).pathname.replace(/\/$/, "") || "/") === "/"
-      ? priorUrl
-      : evidenceUrl;
+  const currentIsHomepage =
+    (new URL(evidenceUrl).pathname.replace(/\/$/, "") || "/") === "/";
+  const priorIsDetail =
+    !!priorUrl && /\/.+/.test(new URL(priorUrl).pathname);
+  const keepPriorDetail = Boolean(
+    priorUrl && priorUrl !== evidenceUrl && priorIsDetail && currentIsHomepage,
+  );
+  const preferUrl = keepPriorDetail ? priorUrl! : evidenceUrl;
 
   const titles = new Set<string>([
     ...((existing?.tracked_titles as string[] | null) ?? []),
     ...(opts.workTitle ? [opts.workTitle] : []),
   ]);
 
-  const evidence = {
-    indicators: a.indicators,
-    distribution_links: a.distributionLinks,
-    quality_tags: a.qualityTags,
-    link_domains: linkDomains(a.distributionLinks),
-    release_timing: a.releaseTiming,
-    release_offset_days: a.releaseOffsetDays,
-    reason: a.reason,
-    last_page_title: a.pageTitle,
-    exact_evidence_url: evidenceUrl,
-    canonical_url: evidenceUrl,
-    source_host: domain,
-    classification: a.classification,
-    identity_evidence: a.identityEvidence,
-    access_evidence: a.accessEvidence,
-    acceptance_explanation: a.reason,
-  };
+  const priorEvidence =
+    existing?.evidence && typeof existing.evidence === "object"
+      ? (existing.evidence as Record<string, unknown>)
+      : {};
+
+  const evidence = keepPriorDetail
+    ? {
+        ...priorEvidence,
+        last_page_title: a.pageTitle ?? priorEvidence.last_page_title ?? null,
+        exact_evidence_url: preferUrl,
+        canonical_url: preferUrl,
+        source_host: domain,
+        acceptance_explanation:
+          typeof priorEvidence.acceptance_explanation === "string"
+            ? priorEvidence.acceptance_explanation
+            : a.reason,
+        homepage_crawl_ignored: evidenceUrl,
+      }
+    : {
+        indicators: a.indicators,
+        distribution_links: a.distributionLinks,
+        quality_tags: a.qualityTags,
+        link_domains: linkDomains(a.distributionLinks),
+        release_timing: a.releaseTiming,
+        release_offset_days: a.releaseOffsetDays,
+        reason: a.reason,
+        last_page_title: a.pageTitle,
+        exact_evidence_url: preferUrl,
+        canonical_url: preferUrl,
+        source_host: domain,
+        classification: a.classification,
+        identity_evidence: a.identityEvidence,
+        access_evidence: a.accessEvidence,
+        acceptance_explanation: a.reason,
+      };
 
   const payload = {
     user_id: opts.userId,
@@ -208,13 +230,13 @@ export async function registerDistributionSource(
       incidentType: "new_source_discovered",
       severity: a.domainRisk,
       confidence: a.confidence,
-      url: evidenceUrl,
-      summary: `New unauthorized distribution evidence page discovered (${kind.replace(/_/g, " ")}): ${evidenceUrl}.`,
+      url: preferUrl,
+      summary: `New unauthorized distribution evidence page discovered (${kind.replace(/_/g, " ")}): ${preferUrl}.`,
       evidence: {
         indicators: a.indicatorKeys,
         reason: a.reason,
         screenshot: a.screenshot,
-        exact_evidence_url: evidenceUrl,
+        exact_evidence_url: preferUrl,
         classification: a.classification,
         identity_evidence: a.identityEvidence,
         access_evidence: a.accessEvidence,
