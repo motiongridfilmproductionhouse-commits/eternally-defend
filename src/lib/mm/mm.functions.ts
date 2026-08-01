@@ -150,7 +150,22 @@ async function runPipeline(supabase: any, userId: string, jobId: string, input: 
 
   const meta = input.source_metadata ?? {};
   const combinedText = [meta.title, meta.description, meta.transcript, meta.ocr_text].filter(Boolean).join("\n\n");
-  const nameTerms = [input.target_name, ...(input.target_aliases ?? [])].filter(Boolean);
+  let nameTerms = [input.target_name, ...(input.target_aliases ?? [])].filter(Boolean);
+  try {
+    const { resolveAndExpandSearchQuerySafe, expansionToIdentityList } = await import(
+      "@/lib/search/identity-search-expander.server"
+    );
+    const expansion = await resolveAndExpandSearchQuerySafe({
+      query: input.target_name,
+      knownAliases: input.target_aliases,
+      module: "manual",
+      userId,
+      offlineOnly: true,
+    });
+    nameTerms = Array.from(new Set([...nameTerms, ...expansionToIdentityList(expansion)]));
+  } catch {
+    /* keep original name terms */
+  }
 
   await markStage("prepare", "done", "Analysis prepared", 5);
   await markStage("upload", cfg.hasServiceAccount ? "pending" : "skipped", cfg.hasServiceAccount ? undefined : "No authorized media uploaded — metadata-only mode");

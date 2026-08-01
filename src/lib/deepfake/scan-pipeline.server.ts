@@ -1,6 +1,17 @@
 import { isFirecrawlConfigured } from "../firecrawl-client.server";
 import { filterDeepfakeCandidates } from "./filter.server";
 import { generateDeepfakeQueries } from "./query-generator.server";
+import {
+  expansionDiagnostics,
+  expansionToIdentityList,
+  resolveAndExpandSearchQuerySafe,
+} from "@/lib/search/identity-search-expander.server";
+import type { SearchExpansionResult } from "@/lib/search/identity-types";
+import {
+  loadPersistedIdentityHints,
+  upsertSearchIdentityProfile,
+} from "@/lib/search/identity-profile.server";
+import { scoreIdentityRelevance } from "@/lib/search/identity-relevance.server";
 import { isBlockedHost } from "./queries";
 import {
   buildExecutedQueryPlan,
@@ -316,11 +327,17 @@ function buildScheduledQueries(input: {
   target: { name: string; aliases: string[]; handles: string[] };
   googleImagesUrl?: string;
   maxQueries: number;
+  /** Extra provider queries from identity expansion (already prioritized). */
+  expansionQueries?: string[];
 }): string[] {
   const generatedQueries = generateDeepfakeQueries(input.target, {
     maxQueries: input.maxQueries,
     minQueries: 1,
   });
+  const withExpansion = uniqueStrings([
+    ...(input.expansionQueries ?? []),
+    ...generatedQueries,
+  ]);
 
   let importedQueries: string[] = [];
   if (input.googleImagesUrl) {
@@ -330,7 +347,7 @@ function buildScheduledQueries(input: {
 
   const merged = buildExecutedQueryPlan({
     importedQueries,
-    generatedQueries,
+    generatedQueries: withExpansion,
     maxQueries: input.maxQueries,
   });
   const importedKeys = new Set(importedQueries.map((query) => query.toLowerCase()));
@@ -363,10 +380,90 @@ export async function executeInterleavedDeepfakePipeline(input: {
   const maxQueries = input.resumeCheckpoint?.max_queries ?? input.maxQueries ?? 56;
   const perQueryLimit =
     input.resumeCheckpoint?.per_query_limit ?? input.perQueryLimit ?? 20;
+
+  // Identity-aware expansion before provider queries (fail-open).
+  const persistedProfile = await loadPersistedIdentityHints(input.supabase, {
+    userId: input.userId,
+    query: input.target.name,
+    knownAliases: input.target.aliases,
+  }).catch(() => null);
+  const expansion: SearchExpansionResult = await resolveAndExpandSearchQuerySafe({
+    query: input.target.name,
+    knownAliases: input.target.aliases,
+    knownHandles: input.target.handles,
+    module: "deepfake",
+    entityType: "person",
+    userId: input.userId,
+    persistedProfile,
+  });
+  // When ambiguous, do not promote competing candidate names into match aliases.
+  const expandedIdentities = expansion.ambiguous
+    ? uniqueStrings([
+        input.target.name,
+        expansion.correctedQuery,
+        ...input.target.aliases,
+        ...expansion.localLanguageNames,
+      ])
+    : expansionToIdentityList(expansion);
+  const expandedTarget = {
+    name: expansion.canonicalName ?? input.target.name,
+    aliases: uniqueStrings([
+      ...input.target.aliases,
+      ...expandedIdentities.filter(
+        (id) => id.toLowerCase() !== (expansion.canonicalName ?? input.target.name).toLowerCase(),
+      ),
+    ]),
+    handles: uniqueStrings([...input.target.handles, ...expansion.usernames]),
+  };
+  void upsertSearchIdentityProfile(input.supabase, {
+    userId: input.userId,
+    expansion,
+    entityType: "person",
+  }).catch(() => null);
+
+  // Persist expanded identity onto the scan row so client filtering uses the
+  // same alias set the pipeline classified against (fail-open).
+  try {
+    const { data: existingScan } = await input.supabase
+      .from("deepfake_scans")
+      .select("discovery_metrics")
+      .eq("id", input.scanId)
+      .eq("user_id", input.userId)
+      .maybeSingle();
+    const priorMetrics =
+      existingScan?.discovery_metrics &&
+      typeof existingScan.discovery_metrics === "object"
+        ? (existingScan.discovery_metrics as Record<string, unknown>)
+        : {};
+    await input.supabase
+      .from("deepfake_scans")
+      .update({
+        // Keep user-entered name unless a high-confidence canonical was resolved.
+        target_name: expansion.canonicalName ?? input.target.name,
+        aliases: expandedTarget.aliases,
+        handles: expandedTarget.handles,
+        discovery_metrics: {
+          ...priorMetrics,
+          identity_expansion: expansionDiagnostics(expansion),
+        },
+      })
+      .eq("id", input.scanId)
+      .eq("user_id", input.userId);
+  } catch (error) {
+    console.warn(
+      "[DEEPFAKE] Could not persist expanded identity on scan row:",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+
   const scheduledQueries = buildScheduledQueries({
-    target: input.target,
+    target: expandedTarget,
     googleImagesUrl: input.googleImagesUrl,
     maxQueries,
+    expansionQueries: expansion.searchQueries
+      .filter((q) => q.category !== "risk" || /deepfake|face swap|impersonation|morphed|nude|synthetic/i.test(q.query))
+      .map((q) => q.query)
+      .slice(0, 12),
   });
 
   const resumeCheckpoint = input.resumeCheckpoint
@@ -377,6 +474,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
     ...createDiscoveryFunnelMetrics(),
     ...(resumeCheckpoint?.metrics ?? {}),
   };
+  (metrics as Record<string, unknown>).identity_expansion =
+    expansionDiagnostics(expansion);
   metrics.queries_generated =
     resumeCheckpoint?.queries.length ?? scheduledQueries.length;
 
@@ -384,10 +483,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
     resumeCheckpoint ??
     createEmptyCheckpoint({
       queries: scheduledQueries,
-      targetName: input.target.name,
+      targetName: expandedTarget.name,
       profileId: input.profileId ?? null,
-      aliases: input.target.aliases,
-      handles: input.target.handles,
+      aliases: expandedTarget.aliases,
+      handles: expandedTarget.handles,
       perQueryLimit,
       maxQueries,
       initialWaveCount: INITIAL_PRIORITY_QUERY_COUNT,
@@ -396,24 +495,74 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
   if (!resumeCheckpoint) {
     checkpoint.queries = scheduledQueries;
+  } else {
+    // Insert only brand-new expansion queries at the current cursor so resume
+    // does not rewind and replay already-scheduled work.
+    const completed = new Set(
+      (checkpoint.completed_query_ids ?? []).map((q) => String(q).toLowerCase()),
+    );
+    const existing = new Set(checkpoint.queries.map((q) => q.toLowerCase()));
+    const newcomers = scheduledQueries.filter((q) => {
+      const key = q.toLowerCase();
+      return !existing.has(key) && !completed.has(key);
+    });
+    if (newcomers.length) {
+      const idx = Math.max(0, Math.min(checkpoint.next_query_index, checkpoint.queries.length));
+      checkpoint.queries = [
+        ...checkpoint.queries.slice(0, idx),
+        ...newcomers,
+        ...checkpoint.queries.slice(idx),
+      ].slice(0, Math.max(maxQueries, 60));
+    }
   }
   checkpoint.planned_query_count = checkpoint.queries.length;
   checkpoint.initial_wave_count =
     checkpoint.initial_wave_count || INITIAL_PRIORITY_QUERY_COUNT;
   checkpoint.per_query_limit = perQueryLimit;
   checkpoint.max_queries = maxQueries;
-  if (!checkpoint.serpapi_queries?.length) {
+  {
     const { buildSerpApiExactIdentityQueries } = await import(
       "./serpapi-images.server"
     );
-    checkpoint.serpapi_queries = buildSerpApiExactIdentityQueries({
-      name: input.target.name,
-      aliases: input.target.aliases,
+    const freshSerpApi = buildSerpApiExactIdentityQueries({
+      name: expandedTarget.name,
+      aliases: expandedTarget.aliases,
     });
-    checkpoint.serpapi_next_query_index = 0;
-    checkpoint.serpapi_completed_query_ids =
-      checkpoint.serpapi_completed_query_ids ?? [];
-    checkpoint.serpapi_seen_page_urls = checkpoint.serpapi_seen_page_urls ?? [];
+    if (!checkpoint.serpapi_queries?.length) {
+      checkpoint.serpapi_queries = freshSerpApi;
+      checkpoint.serpapi_next_query_index = 0;
+      checkpoint.serpapi_completed_query_ids =
+        checkpoint.serpapi_completed_query_ids ?? [];
+      checkpoint.serpapi_seen_page_urls = checkpoint.serpapi_seen_page_urls ?? [];
+    } else if (resumeCheckpoint) {
+      // Merge newly resolved identity queries without replaying completed ones.
+      const completed = new Set(
+        (checkpoint.serpapi_completed_query_ids ?? []).map((q) =>
+          String(q).toLowerCase(),
+        ),
+      );
+      const existing = new Set(
+        checkpoint.serpapi_queries.map((q) => q.toLowerCase()),
+      );
+      const newcomers = freshSerpApi.filter((q) => {
+        const key = q.toLowerCase();
+        return !existing.has(key) && !completed.has(key);
+      });
+      if (newcomers.length) {
+        const idx = Math.max(
+          0,
+          Math.min(
+            checkpoint.serpapi_next_query_index ?? 0,
+            checkpoint.serpapi_queries.length,
+          ),
+        );
+        checkpoint.serpapi_queries = [
+          ...checkpoint.serpapi_queries.slice(0, idx),
+          ...newcomers,
+          ...checkpoint.serpapi_queries.slice(idx),
+        ];
+      }
+    }
   }
   checkpoint = enforceCheckpointBounds(checkpoint);
 
@@ -486,7 +635,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     }
     pendingCandidates.set(key, {
       url,
-      query: input.target.name,
+      query: expandedTarget.name,
       source: "checkpoint_resume",
     });
   }
@@ -607,7 +756,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
         page_text: hit.page_text,
         page_inspected: hit.page_inspected,
         query: hit.query,
-        target: input.target,
+        target: expandedTarget,
         target_face_match: (hit as any).target_face_match,
         face_similarity: (hit as any).face_similarity,
       });
@@ -711,7 +860,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
               description: item.description,
               query: item.query,
             })),
-            input.target,
+            expandedTarget,
             { signal: input.runtime.signal },
           );
 
@@ -762,7 +911,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
           page_text: hit.page_text,
           page_inspected: hit.page_inspected,
           query: hit.query,
-          target: input.target,
+          target: expandedTarget,
           hive_deepfake_score: (media as any)?.hive_deepfake_score ?? null,
           hive_ai_generated_score:
             (media as any)?.hive_ai_generated_score ?? null,
@@ -780,6 +929,38 @@ export async function executeInterleavedDeepfakePipeline(input: {
           existing_category: media?.content_category ?? null,
           existing_confidence: media?.confidence ?? null,
         });
+
+        const relevance = scoreIdentityRelevance({
+          expansion,
+          title: crawledTitle,
+          snippet: crawledDescription,
+          url: pageUrl,
+          faceSimilarity:
+            typeof ((media as any)?.face_similarity ?? (hit as any).face_similarity) ===
+            "number"
+              ? Number((media as any)?.face_similarity ?? (hit as any).face_similarity)
+              : null,
+        });
+        // Re-score at finalization (after crawl/face). Do not sticky-OR the
+        // pre-crawl quarantine flag — strong face evidence may recover a hit.
+        const quarantineIdentity =
+          relevance.quarantine || !relevance.matchedIdentity;
+
+        // Force UNVERIFIED_LEAD so existing client filters / metrics exclude it.
+        const effectiveFields = quarantineIdentity
+          ? {
+              ...finalizedFields,
+              finding_classification: "UNVERIFIED_LEAD" as const,
+              visibility: "triage" as const,
+              classification_explanation: [
+                finalizedFields.classification_explanation,
+                relevance.reason,
+                "Identity relevance quarantine after search expansion.",
+              ]
+                .filter(Boolean)
+                .join(" "),
+            }
+          : finalizedFields;
 
         return {
           url: pageUrl,
@@ -815,7 +996,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
           verified_domain: hit.verified_domain,
           url_verification_status: hit.url_verification_status,
           url_rejection_reason: hit.rejection_reason ?? null,
-          ...finalizedFields,
+          ...effectiveFields,
         } as FinalizedFinding;
       });
 
@@ -920,7 +1101,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
         content_match_score: hit.content_match_score,
         threat_signals: hit.threat_signals,
       })),
-      input.target,
+      expandedTarget,
       {
         maxPages,
         signal: input.runtime.signal,
@@ -930,7 +1111,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
             supabase: input.supabase,
             userId: input.userId,
             scanId: input.scanId,
-            targetName: input.target.name,
+            targetName: expandedTarget.name,
             hostOf,
             rows: info.verifiedBatch,
             alreadyPersisted: persistedDiscoveryKeys,
@@ -979,7 +1160,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
         supabase: input.supabase,
         userId: input.userId,
         scanId: input.scanId,
-        targetName: input.target.name,
+        targetName: expandedTarget.name,
         hostOf,
         rows: verified,
         alreadyPersisted: persistedDiscoveryKeys,
@@ -1029,7 +1210,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     }
 
     const merged = mergeDiscoveredCandidates(eligibleHits, {
-      defaultQuery: input.target.name,
+      defaultQuery: expandedTarget.name,
     }) as ProviderHit[];
     metrics.unique_candidates += merged.length;
 
@@ -1038,13 +1219,38 @@ export async function executeInterleavedDeepfakePipeline(input: {
       return;
     }
 
-    const candidateFilter = filterDeepfakeCandidates(merged, input.target);
+    const candidateFilter = filterDeepfakeCandidates(merged, expandedTarget);
     const pagesToInspect = [
       ...candidateFilter.accepted,
       ...candidateFilter.triage.filter(hasThreatSignal),
     ] as ProviderHit[];
 
+    // Post-provider identity relevance: quarantine conflicting/first-name-only hits.
     for (const hit of pagesToInspect) {
+      const relevance = scoreIdentityRelevance({
+        expansion,
+        title: hit.title ?? (hit as { page_title?: string }).page_title ?? null,
+        snippet:
+          hit.description ??
+          (hit as { page_description?: string }).page_description ??
+          null,
+        url: hit.url,
+        faceSimilarity:
+          typeof (hit as { face_similarity?: number }).face_similarity === "number"
+            ? (hit as { face_similarity?: number }).face_similarity!
+            : null,
+      });
+      if (relevance.quarantine || !relevance.matchedIdentity) {
+        // Keep for human triage only — do not treat as auto-attached identity match.
+        (hit as ProviderHit & {
+          identity_relevance_quarantine?: boolean;
+          visibility?: string;
+          identity_relevance_reason?: string;
+        }).identity_relevance_quarantine = true;
+        (hit as ProviderHit & { visibility?: string }).visibility = "triage";
+        (hit as ProviderHit & { identity_relevance_reason?: string }).identity_relevance_reason =
+          relevance.reason;
+      }
       pendingCandidates.set(canonicalUrl(hit.url), hit);
     }
 
@@ -1342,9 +1548,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
           "./youtube-discovery.server"
         );
         const hits = await searchRecentYouTubeMentions({
-          name: input.target.name,
-          aliases: input.target.aliases,
-          handles: input.target.handles,
+          name: expandedTarget.name,
+          aliases: expandedTarget.aliases,
+          handles: expandedTarget.handles,
           maxResults: 40,
           pages: 2,
           signal: input.runtime.signal,
@@ -1380,9 +1586,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
           "./reddit-discovery.server"
         );
         const hits = await searchRecentRedditMentions({
-          name: input.target.name,
-          aliases: input.target.aliases,
-          handles: input.target.handles,
+          name: expandedTarget.name,
+          aliases: expandedTarget.aliases,
+          handles: expandedTarget.handles,
           maxResults: 60,
           pages: 2,
           signal: input.runtime.signal,

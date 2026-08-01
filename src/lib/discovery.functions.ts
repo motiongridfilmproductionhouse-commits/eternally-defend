@@ -105,6 +105,32 @@ export const discoverAccounts = createServerFn({ method: "POST" })
 
     // Dynamic import keeps Firecrawl calls out of client bundles.
     const { searchPlatform, scrapeOfficialSite, scrapeProfile } = await import("./discovery/firecrawl.server");
+    const {
+      resolveAndExpandSearchQuerySafe,
+      expansionToIdentityList,
+    } = await import("@/lib/search/identity-search-expander.server");
+
+    const expansion = await resolveAndExpandSearchQuerySafe({
+      query: subject.query,
+      module: "social",
+      entityType: subject.subject_kind === "brand" || subject.subject_kind === "company" ? subject.subject_kind : "person",
+      userId: context.userId,
+    });
+    // When ambiguous, seed only safe identity forms (original / mild correction /
+    // user aliases) — never competing celebrity candidates.
+    const identityQueries = Array.from(
+      new Set(
+        expansion.ambiguous
+          ? [subject.query, ...expansionToIdentityList(expansion)]
+          : [
+              expansion.canonicalName ?? subject.query,
+              subject.query,
+              ...expansionToIdentityList(expansion),
+            ],
+      ),
+    )
+      .filter(Boolean)
+      .slice(0, 4);
 
     // 1) Optional website scrape — gives us outbound social links.
     let outboundHosts: string[] = [];
@@ -117,11 +143,14 @@ export const discoverAccounts = createServerFn({ method: "POST" })
       outboundLinks = site.outboundLinks;
     }
 
-    // 2) Search each platform.
+    // 2) Search each platform with expanded identity variants (bounded).
     const platforms = data.platforms ?? ALL_PLATFORMS;
     const seedsByPlatform = await Promise.all(platforms.map(async (p) => {
       try {
-        const seeds = await searchPlatform(subject.query, p, data.limitPerPlatform);
+        const batches = await Promise.all(
+          identityQueries.map((q) => searchPlatform(q, p, data.limitPerPlatform).catch(() => [])),
+        );
+        const seeds = batches.flat();
         return { platform: p, seeds };
       } catch (e) {
         console.warn(`[discovery] ${p} search failed:`, (e as Error).message);
@@ -172,7 +201,7 @@ export const discoverAccounts = createServerFn({ method: "POST" })
       const bio = profile?.bio ?? seed.description ?? null;
 
       const score = scoreCandidate({
-        subjectName: subject.query,
+        subjectName: expansion.canonicalName ?? subject.query,
         subjectDomain: subject.website_domain,
         candidateName: displayName,
         candidateHandle: handle,

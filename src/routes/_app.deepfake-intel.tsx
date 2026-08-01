@@ -45,6 +45,7 @@ import {
   shouldRenderLegacyFindingCards,
 } from "@/lib/deepfake/results-console-mount";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
+import { IdentityExpansionPanel } from "@/components/search/IdentityExpansionPanel";
 import { ThreatAlertBanner } from "@/components/deepfake/ThreatAlertBanner";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
 import { scanBelongsToSelectedProfile } from "@/lib/deepfake/identity-scan-viz";
@@ -1097,6 +1098,21 @@ function DeepfakeIntelPage() {
                 rows={3}
               />
             </div>
+            {targetName.trim().length >= 2 && (
+              <IdentityExpansionPanel
+                query={targetName}
+                aliases={aliasesText
+                  .split(/[\n,]+/)
+                  .map((s) => s.trim())
+                  .filter(Boolean)}
+                handles={handlesText
+                  .split(/[\n,]+/)
+                  .map((s) => s.trim())
+                  .filter(Boolean)}
+                module="deepfake"
+                entityType="person"
+              />
+            )}
             <Button
               type="button"
               className="w-full"
