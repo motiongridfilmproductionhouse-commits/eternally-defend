@@ -278,6 +278,33 @@ test("stalled body cleanup respects timeout/abort", async () => {
   assert.equal(cancelCalled, true);
 });
 
+test("hop timeout during body cleanup does not reject a completed 200 probe", async () => {
+  setTestDnsLookupAll(async () => [{ address: "93.184.216.34", family: 4 }]);
+  setTestPinnedHttpFetch(async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("ok"));
+      },
+      // Stall cancel so the hop AbortSignal.timeout can fire during cleanup.
+      cancel() {
+        return new Promise(() => {
+          /* never settles; cleanup budget / abort race must win */
+        });
+      },
+    });
+    return new Response(stream, { status: 200 });
+  });
+
+  const resolved = await resolveRedirectChain("https://example.com/ok", {
+    timeoutMs: 40,
+    softDeadlineMs: Date.now() + 5_000,
+  });
+  // Status was already 200; hop-timeout during body cancel must not flip the
+  // completed probe into a failed candidate.
+  assert.equal(resolved.ok, true);
+  assert.equal(resolved.http_status, 200);
+});
+
 test("private/reserved DNS and unsafe redirects remain rejected", async () => {
   assert.equal(isSafePublicHttpUrl("http://127.0.0.1/x"), false);
   assert.equal(isSafePublicHttpUrl("http://169.254.169.254/latest"), false);

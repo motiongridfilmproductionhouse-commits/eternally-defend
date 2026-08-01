@@ -409,6 +409,26 @@ export function isUrlVerified(
 }
 
 /**
+ * Cancel a completed probe body under the hop AbortSignal. Scan abort still
+ * propagates; hop-timeout during cleanup must not convert a finished 2xx/3xx
+ * probe into request_timeout after headers/status were already observed.
+ */
+async function releaseCompletedProbeBody(
+  response: Response | null | undefined,
+  hopSignal: AbortSignal,
+  scanSignal?: AbortSignal | null,
+): Promise<void> {
+  if (!response) return;
+  try {
+    await releaseProbeResponseBody(response, hopSignal);
+  } catch (error) {
+    if (scanSignal?.aborted) {
+      throw error;
+    }
+  }
+}
+
+/**
  * Follow redirects manually and capture the chain + final URL + HTTP status.
  * SSRF: validate public URL + DNS (reject private) before each hop, then
  * DNS-rebinding-safe pinned fetch (validated address + TLS SNI hostname).
@@ -531,7 +551,7 @@ export async function resolveRedirectChain(
         if ([301, 302, 303, 307, 308].includes(status)) {
           const location = response.headers.get("location");
           if (!location) {
-            await releaseProbeResponseBody(response, signal);
+            await releaseCompletedProbeBody(response, signal, options?.signal);
             response = null;
             return {
               discovered_url: url,
@@ -548,7 +568,7 @@ export async function resolveRedirectChain(
           try {
             next = new URL(location, current).toString();
           } catch {
-            await releaseProbeResponseBody(response, signal);
+            await releaseCompletedProbeBody(response, signal, options?.signal);
             response = null;
             return {
               discovered_url: url,
@@ -562,7 +582,7 @@ export async function resolveRedirectChain(
           }
 
           if (!isSafePublicHttpUrl(next)) {
-            await releaseProbeResponseBody(response, signal);
+            await releaseCompletedProbeBody(response, signal, options?.signal);
             response = null;
             return {
               discovered_url: url,
@@ -578,7 +598,7 @@ export async function resolveRedirectChain(
           try {
             await assertSafePublicUrlForFetch(next, undefined, signal);
           } catch (error) {
-            await releaseProbeResponseBody(response, signal);
+            await releaseCompletedProbeBody(response, signal, options?.signal);
             response = null;
             if (options?.signal?.aborted) {
               throw error;
@@ -601,7 +621,7 @@ export async function resolveRedirectChain(
           }
 
           if (chain.includes(next)) {
-            await releaseProbeResponseBody(response, signal);
+            await releaseCompletedProbeBody(response, signal, options?.signal);
             response = null;
             return {
               discovered_url: url,
@@ -614,7 +634,7 @@ export async function resolveRedirectChain(
             };
           }
 
-          await releaseProbeResponseBody(response, signal);
+          await releaseCompletedProbeBody(response, signal, options?.signal);
           response = null;
           chain.push(next);
           current = next;
@@ -626,7 +646,7 @@ export async function resolveRedirectChain(
           attempt < 2 &&
           !options?.signal?.aborted
         ) {
-          await releaseProbeResponseBody(response, signal);
+          await releaseCompletedProbeBody(response, signal, options?.signal);
           response = null;
           await abortableSleep(
             boundTimeoutMs(
@@ -639,7 +659,7 @@ export async function resolveRedirectChain(
           continue;
         }
 
-        await releaseProbeResponseBody(response, signal);
+        await releaseCompletedProbeBody(response, signal, options?.signal);
         response = null;
         return {
           discovered_url: url,
@@ -650,13 +670,7 @@ export async function resolveRedirectChain(
         };
       } catch (error) {
         if (response) {
-          try {
-            await releaseProbeResponseBody(response, signal);
-          } catch (cleanupError) {
-            if (options?.signal?.aborted) {
-              throw cleanupError;
-            }
-          }
+          await releaseCompletedProbeBody(response, signal, options?.signal);
           response = null;
         }
 

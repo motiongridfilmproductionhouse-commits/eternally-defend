@@ -442,43 +442,47 @@ function tagFetchError(error: unknown): Error {
   return wrapped;
 }
 
+function abortError(signal?: AbortSignal | null): Error {
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : new Error("Aborted");
+}
+
+/** Max wait for probe-body cancel/drain so cleanup cannot stall a hop forever. */
+const PROBE_BODY_CLEANUP_BUDGET_MS = 250;
+
 /**
  * Cancel (or boundedly drain) a redirect-probe response body before retry,
  * redirect follow, or return. Keeps AbortSignal active; scan abort propagates.
+ * Stalled cancel()/drain cannot hang past abort or the cleanup budget.
  */
 export async function releaseProbeResponseBody(
   response: Response | null | undefined,
   signal?: AbortSignal | null,
 ): Promise<void> {
-  if (!response) {
-    if (signal?.aborted) {
-      throw signal.reason instanceof Error
-        ? signal.reason
-        : new Error("Aborted");
-    }
+  if (!response?.body) {
+    if (signal?.aborted) throw abortError(signal);
     return;
   }
 
   const body = response.body;
-  if (!body) {
-    if (signal?.aborted) {
-      throw signal.reason instanceof Error
-        ? signal.reason
-        : new Error("Aborted");
-    }
-    return;
-  }
 
   if (signal?.aborted) {
     try {
-      await body.cancel(signal.reason);
+      void body.cancel(signal.reason);
     } catch {
       // ignore cancel races
     }
-    throw signal.reason instanceof Error
-      ? signal.reason
-      : new Error("Aborted");
+    throw abortError(signal);
   }
+
+  let abortReject: ((error: Error) => void) | null = null;
+  const abortPromise =
+    signal != null
+      ? new Promise<never>((_resolve, reject) => {
+          abortReject = reject;
+        })
+      : null;
 
   const onAbort = () => {
     try {
@@ -486,13 +490,18 @@ export async function releaseProbeResponseBody(
     } catch {
       // ignore
     }
+    abortReject?.(abortError(signal));
   };
   signal?.addEventListener("abort", onAbort, { once: true });
 
-  try {
-    await body.cancel();
-  } catch {
-    // Fallback: bounded drain under the same abort signal.
+  const cleanupWork = async () => {
+    try {
+      await body.cancel();
+      return;
+    } catch {
+      // Fallback: bounded drain under the same abort signal.
+    }
+
     try {
       const reader = body.getReader();
       let read = 0;
@@ -505,7 +514,7 @@ export async function releaseProbeResponseBody(
         }
       } finally {
         try {
-          await reader.cancel(signal?.reason);
+          void reader.cancel(signal?.reason);
         } catch {
           // ignore
         }
@@ -518,14 +527,22 @@ export async function releaseProbeResponseBody(
     } catch {
       // ignore cleanup failures
     }
+  };
+
+  const budgetPromise = new Promise<void>((resolve) => {
+    setTimeout(resolve, PROBE_BODY_CLEANUP_BUDGET_MS);
+  });
+
+  try {
+    const racers: Array<Promise<unknown>> = [cleanupWork(), budgetPromise];
+    if (abortPromise) racers.push(abortPromise);
+    await Promise.race(racers);
   } finally {
     signal?.removeEventListener("abort", onAbort);
   }
 
   if (signal?.aborted) {
-    throw signal.reason instanceof Error
-      ? signal.reason
-      : new Error("Aborted");
+    throw abortError(signal);
   }
 }
 
