@@ -9,7 +9,11 @@ import { readStoredObject } from "@/lib/copyright/storage.server";
 
 import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
 import { analyzeDistributionPage, releaseTimingFor } from "@/lib/copyright/distribution.server";
-import { registerDistributionSource, runAutoMonitor } from "@/lib/copyright/distribution-monitor.server";
+import {
+  registerDistributionSource,
+  runAutoMonitor,
+  shouldRegisterMonitoredSource,
+} from "@/lib/copyright/distribution-monitor.server";
 import {
   isActionablePiracy,
   normalizeClassification,
@@ -18,6 +22,13 @@ import { filterClientVisibleCopyrightMatches } from "@/lib/copyright/client-filt
 import { detectPrimaryPurpose } from "@/lib/copyright/page-classify.server";
 import { expandTitleVariants } from "@/lib/copyright/title-identity";
 import { explainZeroMatchFunnel } from "@/lib/copyright/scan-diagnostics";
+import {
+  acceptedKnownUrls,
+  parseKnownUrlInputs,
+  prioritizeKnownUrlLeads,
+  validateKnownUrlSeeds,
+} from "@/lib/copyright/known-urls.server";
+import { isNeverMonitoredDomain } from "@/lib/copyright/official-platforms";
 
 import {
   buildMovieFingerprint,
@@ -80,6 +91,8 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
     contentType: z.enum(copyrightImageTypes),
     /** Frame keys: one for a still, several sampled frames for a video. */
     keys: z.array(z.string().min(10).max(500)).min(1).max(6),
+    /** Optional known public URLs to investigate first (max 10). Never auto-guilty. */
+    knownUrls: z.array(z.string().trim().min(8).max(2000)).max(10).optional(),
   }).parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -111,7 +124,12 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         buildMovieFingerprint(allFrames.filter((b) => b.length > 0), data.title),
       ]);
 
-      // 2. Firecrawl reverse discovery, seeded by that analysis.
+      // 2a. Optional known-URL seeds (high priority) — validated before provider search.
+      const knownInputs = parseKnownUrlInputs(data.knownUrls ?? []);
+      const knownSeeds = await validateKnownUrlSeeds(knownInputs);
+      const knownAccepted = acceptedKnownUrls(knownSeeds);
+
+      // 2b. Firecrawl reverse discovery, seeded by that analysis.
       const byUrl = new Map<string, DiscoveryCandidate>();
       const discovery = await firecrawlDiscover(referenceDataUrl, data.title, 0, analysis);
       for (const c of discovery.candidates) {
@@ -330,15 +348,85 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         ...titleSeeds.flatMap((t) => expandTitleVariants(t).filter((v) => /[\s-]/.test(v))),
       ])].slice(0, 12);
       const releaseDate = analysis.releaseDate;
-      const leadUrls = discovery.pageLeads
-        .sort((a2, b2) => Number(b2.strong) - Number(a2.strong))
-        .slice(0, 28);
+      // Known URLs first so they receive crawl budget before provider candidates.
+      const knownLeadUrls = knownAccepted.map((url) => ({
+        url,
+        title: data.title,
+        query: "known_url_seed",
+        text: data.title,
+        strong: true as const,
+      }));
+      const providerLeads = discovery.pageLeads
+        .sort((a2, b2) => Number(b2.strong) - Number(a2.strong));
+      const leadUrls = prioritizeKnownUrlLeads(knownLeadUrls, providerLeads, 32);
 
       const distributionRows: MatchInsert[] = [];
       const internalRows: MatchInsert[] = [];
       const inspectedDomains = new Set<string>();
       const inspectedUrls = new Set<string>();
       const detailFollowQueue: string[] = [];
+      type KnownUrlInvestigation = {
+        url: string;
+        host?: string | null;
+        accepted?: boolean;
+        reject_reason?: string | null;
+        reject_detail?: string | null;
+        classification: string;
+        client_visible: boolean;
+        strong_evidence?: boolean;
+        crawl_failed?: boolean;
+        page_title?: string | null;
+        identity_evidence?: string[];
+        access_evidence?: string[];
+        indicator_keys?: string[];
+        embed_sources?: string[];
+        distribution_links?: string[];
+        reason?: string | null;
+        registered?: boolean;
+        visibility_decision?: string;
+      };
+      const knownUrlInvestigations: KnownUrlInvestigation[] = [];
+
+      // Persist unsafe/rejected known URLs as internal investigation leads (fail closed).
+      for (const seed of knownSeeds.filter((s) => !s.accepted)) {
+        const contact = resolveAbuseContact(seed.url);
+        internalRows.push({
+          scan_id: scan.id,
+          user_id: userId,
+          source_url: canonicalUrl(seed.url),
+          platform: contact.platform,
+          page_title: `Known URL rejected: ${seed.rejectReason ?? "unsafe"}`,
+          thumbnail_url: null,
+          confidence: 0,
+          confidence_band: "review",
+          detection_type: "INVESTIGATION_LEAD",
+          transformations: [],
+          evidence: {
+            discovery: "known_url_seed",
+            client_visible: false,
+            classification: "INVESTIGATION_LEAD",
+            known_url: {
+              input: seed.input,
+              accepted: false,
+              reject_reason: seed.rejectReason,
+              reject_detail: seed.rejectDetail,
+            },
+          },
+          ocr_text: null,
+          reason:
+            seed.rejectDetail ||
+            `Known URL failed safety validation (${seed.rejectReason ?? "rejected"}) — fail closed, not classified as infringement.`,
+          contact: contact as unknown as MatchInsert["contact"],
+        });
+        knownUrlInvestigations.push({
+          url: seed.url,
+          accepted: false,
+          reject_reason: seed.rejectReason,
+          reject_detail: seed.rejectDetail,
+          classification: "INVESTIGATION_LEAD",
+          client_visible: false,
+        });
+      }
 
       let pagesCrawled = 0;
       let pagesFailed = 0;
@@ -348,6 +436,8 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       let socialRejected = 0;
       let artworkRejected = 0;
       let officialRejected = 0;
+      let youtubePromoRejected = 0;
+      let catalogListingRejected = 0;
       let titleIdentityRejected = 0;
       let accessEvidenceRejected = 0;
       let hardNegativeRejected = 0;
@@ -359,6 +449,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       let torrentsMagnets = 0;
       let theatrePrintFindings = 0;
       let detailPagesFollowed = 0;
+      let registeredMonitoredSources = 0;
 
       const distributionSummary: Array<{
         url: string;
@@ -404,7 +495,12 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             hardNegativeRejected += 1;
             break;
           case "OFFICIAL_OR_AUTHORIZED":
+          case "OFFICIAL_OR_AUTHORIZED_PAGE":
             officialRejected += 1;
+            hardNegativeRejected += 1;
+            break;
+          case "CATALOG_OR_LISTING":
+            catalogListingRejected += 1;
             hardNegativeRejected += 1;
             break;
           case "DUPLICATE_ARTWORK_ONLY":
@@ -412,6 +508,12 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             break;
           default:
             break;
+        }
+        if (
+          dist.classification === "TRAILER_OR_PROMO" &&
+          isNeverMonitoredDomain(dist.url)
+        ) {
+          youtubePromoRejected += 1;
         }
 
         if (dist.detailFollowUrls.length) listingPagesFound += 1;
@@ -510,14 +612,58 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           contact: contact as unknown as MatchInsert["contact"],
         };
 
-        if (dist.clientVisible && dist.strongEvidence && isActionablePiracy(dist.classification)) {
-          await registerDistributionSource(supabase, {
+        if (leadQuery === "known_url_seed") {
+          knownUrlInvestigations.push({
+            url: dist.url,
+            host: dist.domain,
+            classification: dist.classification,
+            client_visible: dist.clientVisible,
+            strong_evidence: dist.strongEvidence,
+            crawl_failed: dist.crawlFailed,
+            page_title: dist.pageTitle,
+            identity_evidence: dist.identityEvidence,
+            access_evidence: dist.accessEvidence,
+            indicator_keys: dist.indicatorKeys,
+            embed_sources: dist.embedSources,
+            distribution_links: dist.distributionLinks,
+            reason: dist.reason,
+            registered: false,
+            visibility_decision: dist.clientVisible
+              ? "client_visible_actionable"
+              : dist.crawlFailed
+                ? "fail_closed_crawl"
+                : "internal_or_non_actionable",
+          });
+        }
+
+        if (
+          dist.clientVisible &&
+          dist.strongEvidence &&
+          isActionablePiracy(dist.classification) &&
+          shouldRegisterMonitoredSource(dist)
+        ) {
+          const registered = await registerDistributionSource(supabase, {
             userId,
             scanId: scan.id,
             workTitle: data.title,
             platform: contact.platform,
             analysis: dist,
           }).catch(() => null);
+          if (registered) {
+            registeredMonitoredSources += 1;
+            if (leadQuery === "known_url_seed") {
+              const last = knownUrlInvestigations[knownUrlInvestigations.length - 1];
+              if (last) last.registered = true;
+            }
+          }
+          distributionRows.push(matchRow);
+        } else if (
+          dist.clientVisible &&
+          dist.strongEvidence &&
+          isActionablePiracy(dist.classification)
+        ) {
+          // Actionable finding for UI but not eligible for domain monitoring
+          // (e.g. never-monitor hosts) — still show as client-visible match.
           distributionRows.push(matchRow);
         } else if (dist.classification !== "UNRELATED") {
           // Retain internal diagnostics / non-actionable classifications.
@@ -581,9 +727,16 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
       // Persist actionable findings + a bounded set of internal non-piracy leads.
       // Internal leads never use ripped_copy and are marked client_visible: false.
+      // Keep client_visible:false rows even when taxonomy is "actionable" (e.g.
+      // YouTube VIDEO_HOST_REUPLOAD internal investigation leads).
       const seenUrls = new Set(distributionRows.map((r) => r.source_url));
+      const isInternalLeadRow = (r: MatchInsert) => {
+        const ev = (r.evidence ?? {}) as Record<string, unknown>;
+        if (ev.client_visible === false) return true;
+        return !isActionablePiracy(r.detection_type);
+      };
       const internalPersist = [...internalRows, ...fallbackRows]
-        .filter((r) => !seenUrls.has(r.source_url) && !isActionablePiracy(r.detection_type))
+        .filter((r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r))
         .slice(0, 20);
       const allRows = [...distributionRows, ...internalPersist];
 
@@ -616,6 +769,10 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         provider_candidates: byUrl.size,
         provider_results: byUrl.size + discovery.pageLeads.length,
         unique_candidate_pages: uniqueCandidatePages,
+        known_urls_submitted: knownInputs.length,
+        known_urls_accepted: knownAccepted.length,
+        known_urls_rejected: knownSeeds.filter((s) => !s.accepted).length,
+        known_url_investigations: knownUrlInvestigations.slice(0, 12),
         listing_pages_found: listingPagesFound,
         detail_pages_followed: detailPagesFollowed,
         pages_crawled: pagesCrawled,
@@ -624,11 +781,14 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         hard_negative_rejected: hardNegativeRejected,
         access_evidence_rejected: accessEvidenceRejected,
         official_authorized_rejected: officialRejected,
+        youtube_promotional_rejected: youtubePromoRejected,
+        catalog_listing_rejected: catalogListingRejected,
         cinema_showtime_rejected: cinemaRejected,
         trailer_promo_rejected: trailerRejected,
         review_news_rejected: reviewRejected,
         social_discussion_rejected: socialRejected,
         artwork_only_rejected: artworkOnlyRejected,
+        registered_monitored_sources: registeredMonitoredSources,
         access_evidence_pages: accessEvidencePages,
         embedded_players: embeddedPlayers,
         download_pages: downloadPages,

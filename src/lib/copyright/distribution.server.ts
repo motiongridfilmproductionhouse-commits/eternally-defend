@@ -138,7 +138,12 @@ function toLegacyContentType(
     case "CINEMA_OR_SHOWTIME":
       return "cinema_or_showtime";
     case "TRAILER_OR_PROMO":
+    case "TRAILER_OR_PROMOTIONAL":
       return "trailer_or_promo";
+    case "CATALOG_OR_LISTING":
+      return "unknown";
+    case "OFFICIAL_OR_AUTHORIZED_PAGE":
+      return "official_platform";
     default:
       return "unknown";
   }

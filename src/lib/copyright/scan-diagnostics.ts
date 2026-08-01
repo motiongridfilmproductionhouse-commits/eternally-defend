@@ -71,7 +71,20 @@ export function diagnosticsFromStats(
 /** Human-readable funnel explanation for empty client-visible result sets. */
 export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | undefined): string[] {
   const d = diagnosticsFromStats(stats);
+  const n = (key: string) => {
+    const v = stats?.[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
   const lines: string[] = [];
+
+  const knownSubmitted = n("known_urls_submitted");
+  const knownAccepted = n("known_urls_accepted");
+  const knownRejected = n("known_urls_rejected");
+  if (knownSubmitted > 0 || knownAccepted > 0 || knownRejected > 0) {
+    lines.push(
+      `Known URLs: ${knownSubmitted} submitted, ${knownAccepted} safely accepted, ${knownRejected} rejected (unsafe/DNS/redirect/duplicate) — seeds only, never auto-guilty.`,
+    );
+  }
 
   lines.push(
     `Discovery: ${d.queries_generated} queries generated, ${d.queries_executed} executed, ${d.provider_results} provider results, ${d.unique_candidate_pages} unique candidate pages.`,

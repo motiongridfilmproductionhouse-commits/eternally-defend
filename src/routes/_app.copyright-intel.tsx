@@ -65,6 +65,10 @@ const TYPE_LABEL: Record<string, string> = {
   REVIEW_OR_NEWS: "Review or news",
   CAST_OR_INFORMATION: "Cast or information",
   SOCIAL_DISCUSSION: "Social discussion",
+  CATALOG_OR_LISTING: "Catalog or listing",
+  OFFICIAL_OR_AUTHORIZED_PAGE: "Official or authorized page",
+  TRAILER_OR_PROMOTIONAL: "Trailer or promotional",
+  INVESTIGATION_LEAD: "Investigation lead",
   UNVERIFIED_LEAD: "Unverified lead",
   UNRELATED: "Unrelated",
   // Legacy rows (should not appear as client-visible piracy)
@@ -120,6 +124,7 @@ function CopyrightIntelPage() {
   const qc = useQueryClient();
 
   const [title, setTitle] = useState("");
+  const [knownUrlsText, setKnownUrlsText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [stage, setStage] = useState("");
@@ -197,19 +202,25 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
       ];
 
       try {
+        const knownUrls = knownUrlsText
+          .split(/[\n,]+/)
+          .map((u) => u.trim())
+          .filter(Boolean)
+          .slice(0, 10);
         return await runFn({
           data: {
             title: title.trim(),
             referenceKind: isVideo ? "video" : "image",
             contentType: isVideo ? "image/jpeg" : (file.type as "image/jpeg"),
             keys,
+            ...(knownUrls.length ? { knownUrls } : {}),
           },
         });
       } finally {
         timers.forEach(clearTimeout);
       }
     },
-    onSuccess: (res) => {
+    onSuccess: (res: { scanId: string; stats: { candidates?: number; matches?: number; graded?: number } }) => {
       setStage("");
       setStageIndex(SCAN_STAGES.length);
       setSummary({
@@ -337,6 +348,22 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
               </div>
 
               <div className="space-y-1.5">
+                <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Investigate known URLs (optional)
+                </label>
+                <textarea
+                  value={knownUrlsText}
+                  onChange={(e) => setKnownUrlsText(e.target.value)}
+                  placeholder={"https://example.com/movie/title-detail\nOne URL per line · max 10 · http/https only"}
+                  rows={3}
+                  className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Seeds exact-page investigation only. Domains are never auto-labelled illegal; each URL still needs title identity and distribution-access evidence.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="text-xs uppercase tracking-wide text-muted-foreground">Reference file</label>
                 <input
                   ref={fileRef}
@@ -434,14 +461,22 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                   <div className="space-y-3">
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       {[
+                        { label: "Known URLs submitted", value: Number(scanStats.known_urls_submitted ?? 0) },
+                        { label: "Known URLs accepted", value: Number(scanStats.known_urls_accepted ?? 0) },
+                        { label: "Known URLs rejected", value: Number(scanStats.known_urls_rejected ?? 0) },
+                        { label: "Provider candidates", value: Number(scanStats.provider_candidates ?? d.provider_results) },
                         { label: "Queries", value: `${d.queries_executed}/${d.queries_generated}` },
                         { label: "Unique pages", value: d.unique_candidate_pages },
                         { label: "Pages crawled", value: `${d.pages_crawled} (${d.pages_failed} failed)` },
                         { label: "Detail follows", value: d.detail_pages_followed },
+                        { label: "Official rejected", value: Number(scanStats.official_authorized_rejected ?? 0) },
+                        { label: "Catalog/listing rejected", value: Number(scanStats.catalog_listing_rejected ?? 0) },
+                        { label: "YouTube promo rejected", value: Number(scanStats.youtube_promotional_rejected ?? 0) },
                         { label: "Hard negatives", value: d.hard_negative_rejected },
                         { label: "No title identity", value: d.title_identity_rejected },
                         { label: "No access evidence", value: d.access_evidence_rejected },
-                        { label: "Internal leads", value: d.internal_leads_persisted },
+                        { label: "Verified actionable", value: d.client_visible_findings },
+                        { label: "Monitored sources", value: Number(scanStats.registered_monitored_sources ?? 0) },
                       ].map((row) => (
                         <div key={row.label} className="rounded-md border border-border/50 bg-background/40 px-3 py-2">
                           <div className="text-sm font-medium text-foreground">{row.value}</div>

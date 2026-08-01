@@ -22,6 +22,8 @@ import {
   analyzeDistributionPage,
   type DistributionAnalysis,
 } from "./distribution.server";
+import { isNeverMonitoredDomain } from "./official-platforms";
+import { isActionablePiracy } from "./taxonomy";
 
 type DB = SupabaseClient<Database>;
 type SourceRow = Database["public"]["Tables"]["distribution_sources"]["Row"];
@@ -73,8 +75,40 @@ function linkDomains(links: string[]): string[] {
 }
 
 /**
+ * Whether an analysis may create/update a monitored distribution source.
+ * Requires exact-title identity, access evidence, actionable non-official
+ * classification, and a URL-verified exact page — never hostname reputation.
+ */
+export function shouldRegisterMonitoredSource(a: DistributionAnalysis): boolean {
+  if (!a.strongEvidence || !a.clientVisible) return false;
+  if (!isActionablePiracy(a.classification)) return false;
+  if (isNeverMonitoredDomain(a.url)) return false;
+  if (
+    a.classification === "OFFICIAL_OR_AUTHORIZED" ||
+    a.classification === "CATALOG_OR_LISTING" ||
+    a.classification === "TRAILER_OR_PROMO" ||
+    a.contentType === "official_platform" ||
+    a.contentType === "cinema_or_showtime" ||
+    a.contentType === "trailer_or_promo" ||
+    a.contentType === "news_or_review"
+  ) {
+    return false;
+  }
+  if (!a.identityEvidence.length || !a.accessEvidence.length) return false;
+  if (a.crawlFailed) return false;
+  // Never register a bare homepage / root path as the monitored target.
+  try {
+    const path = new URL(a.url).pathname.replace(/\/$/, "") || "/";
+    if (path === "/" && !a.indicatorKeys.includes("torrent_or_magnet")) return false;
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Upsert a discovered distribution source and register it in the Auto Monitor.
- * Returns the stored source row, or null when the analysis is not strong enough.
+ * Stores the exact evidence page URL. Returns null when registration gates fail.
  */
 export async function registerDistributionSource(
   supabase: DB,
@@ -87,8 +121,11 @@ export async function registerDistributionSource(
   },
 ): Promise<SourceRow | null> {
   const a = opts.analysis;
+  if (!shouldRegisterMonitoredSource(a)) return null;
+
   const domain = a.domain ?? hostOf(a.url);
   if (!domain) return null;
+  const evidenceUrl = canonicalUrl(a.url);
 
   const kind = sourceKindFor(a.url, a.contentType);
   const nowIso = new Date().toISOString();
@@ -100,43 +137,90 @@ export async function registerDistributionSource(
     .eq("domain", domain)
     .maybeSingle();
 
+  // Prefer keeping a more specific evidence URL over a homepage if one exists.
+  // Keep evidence.exact_evidence_url / canonical_url aligned with the stored url.
+  const priorUrl = existing?.url ? canonicalUrl(existing.url) : null;
+  const currentIsHomepage =
+    (new URL(evidenceUrl).pathname.replace(/\/$/, "") || "/") === "/";
+  const priorIsDetail =
+    !!priorUrl && /\/.+/.test(new URL(priorUrl).pathname);
+  const keepPriorDetail = Boolean(
+    priorUrl && priorUrl !== evidenceUrl && priorIsDetail && currentIsHomepage,
+  );
+  const preferUrl = keepPriorDetail ? priorUrl! : evidenceUrl;
+
   const titles = new Set<string>([
     ...((existing?.tracked_titles as string[] | null) ?? []),
     ...(opts.workTitle ? [opts.workTitle] : []),
   ]);
 
-  const evidence = {
-    indicators: a.indicators,
-    distribution_links: a.distributionLinks,
-    quality_tags: a.qualityTags,
-    link_domains: linkDomains(a.distributionLinks),
-    release_timing: a.releaseTiming,
-    release_offset_days: a.releaseOffsetDays,
-    reason: a.reason,
-    last_page_title: a.pageTitle,
-  };
+  const priorEvidence =
+    existing?.evidence && typeof existing.evidence === "object"
+      ? (existing.evidence as Record<string, unknown>)
+      : {};
+
+  const evidence = keepPriorDetail
+    ? {
+        ...priorEvidence,
+        // Do not overwrite detail-page evidence metadata with homepage crawl fields.
+        last_page_title: priorEvidence.last_page_title ?? existing?.page_title ?? null,
+        exact_evidence_url: preferUrl,
+        canonical_url: preferUrl,
+        source_host: domain,
+        acceptance_explanation:
+          typeof priorEvidence.acceptance_explanation === "string"
+            ? priorEvidence.acceptance_explanation
+            : a.reason,
+        homepage_crawl_ignored: evidenceUrl,
+      }
+    : {
+        indicators: a.indicators,
+        distribution_links: a.distributionLinks,
+        quality_tags: a.qualityTags,
+        link_domains: linkDomains(a.distributionLinks),
+        release_timing: a.releaseTiming,
+        release_offset_days: a.releaseOffsetDays,
+        reason: a.reason,
+        last_page_title: a.pageTitle,
+        exact_evidence_url: preferUrl,
+        canonical_url: preferUrl,
+        source_host: domain,
+        classification: a.classification,
+        identity_evidence: a.identityEvidence,
+        access_evidence: a.accessEvidence,
+        acceptance_explanation: a.reason,
+      };
+
+  // When ignoring a homepage crawl, preserve prior detail-page monitoring metadata.
+  const intervalMinutes = keepPriorDetail
+    ? (existing?.monitor_interval_minutes ?? intervalFor(a.domainRisk))
+    : intervalFor(a.domainRisk);
 
   const payload = {
     user_id: opts.userId,
     domain,
-    url: canonicalUrl(a.url),
-    source_kind: kind,
-    content_type: a.contentType,
-    platform: opts.platform ?? null,
-    page_title: a.pageTitle,
-    risk_level: a.domainRisk,
-    risk_score: riskScoreFor(a),
-    confidence: a.confidence,
-    indicators: a.indicatorKeys as unknown as Database["public"]["Tables"]["distribution_sources"]["Insert"]["indicators"],
+    url: preferUrl,
+    source_kind: keepPriorDetail ? (existing?.source_kind ?? kind) : kind,
+    content_type: keepPriorDetail ? (existing?.content_type ?? a.contentType) : a.contentType,
+    platform: keepPriorDetail ? (existing?.platform ?? opts.platform ?? null) : (opts.platform ?? null),
+    page_title: keepPriorDetail ? (existing?.page_title ?? a.pageTitle) : a.pageTitle,
+    risk_level: keepPriorDetail ? (existing?.risk_level ?? a.domainRisk) : a.domainRisk,
+    risk_score: keepPriorDetail ? (existing?.risk_score ?? riskScoreFor(a)) : riskScoreFor(a),
+    confidence: keepPriorDetail ? (existing?.confidence ?? a.confidence) : a.confidence,
+    indicators: (keepPriorDetail
+      ? (existing?.indicators ?? a.indicatorKeys)
+      : a.indicatorKeys) as unknown as Database["public"]["Tables"]["distribution_sources"]["Insert"]["indicators"],
     evidence: evidence as unknown as Database["public"]["Tables"]["distribution_sources"]["Insert"]["evidence"],
-    screenshot_url: a.screenshot ?? existing?.screenshot_url ?? null,
+    screenshot_url: keepPriorDetail
+      ? (existing?.screenshot_url ?? a.screenshot ?? null)
+      : (a.screenshot ?? existing?.screenshot_url ?? null),
     tracked_titles: [...titles],
     discovered_scan_id: existing?.discovered_scan_id ?? opts.scanId ?? null,
     monitor_enabled: existing?.monitor_enabled ?? true,
-    monitor_interval_minutes: intervalFor(a.domainRisk),
+    monitor_interval_minutes: intervalMinutes,
     status: "active",
     last_seen_at: nowIso,
-    next_check_at: new Date(Date.now() + intervalFor(a.domainRisk) * 60_000).toISOString(),
+    next_check_at: new Date(Date.now() + intervalMinutes * 60_000).toISOString(),
   };
 
   const { data: saved, error } = await supabase
@@ -156,9 +240,17 @@ export async function registerDistributionSource(
       incidentType: "new_source_discovered",
       severity: a.domainRisk,
       confidence: a.confidence,
-      url: a.url,
-      summary: `New unauthorized distribution source discovered (${kind.replace(/_/g, " ")}): ${domain}.`,
-      evidence: { indicators: a.indicatorKeys, reason: a.reason, screenshot: a.screenshot },
+      url: preferUrl,
+      summary: `New unauthorized distribution evidence page discovered (${kind.replace(/_/g, " ")}): ${preferUrl}.`,
+      evidence: {
+        indicators: a.indicatorKeys,
+        reason: a.reason,
+        screenshot: a.screenshot,
+        exact_evidence_url: preferUrl,
+        classification: a.classification,
+        identity_evidence: a.identityEvidence,
+        access_evidence: a.accessEvidence,
+      },
     });
   }
 
