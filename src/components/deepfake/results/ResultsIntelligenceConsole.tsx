@@ -283,7 +283,12 @@ export function ResultsIntelligenceConsole({
         </div>
       ) : sorted.length === 0 ? (
         <div className="rounded-xl border border-sky-500/20 bg-[#07111f] p-10 text-center text-sm text-slate-400">
-          {emptyMessage || "No findings match the current filters."}
+          {riskFilter !== "ALL" &&
+          !domainFilter &&
+          classificationFilter === "ALL" &&
+          !search.trim()
+            ? emptyMessage || "No findings at this risk level."
+            : "No findings match the current filters."}
         </div>
       ) : (
         <section aria-labelledby="finding-cards-heading" className="space-y-2.5">
