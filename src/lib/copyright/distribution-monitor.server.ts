@@ -162,7 +162,8 @@ export async function registerDistributionSource(
   const evidence = keepPriorDetail
     ? {
         ...priorEvidence,
-        last_page_title: a.pageTitle ?? priorEvidence.last_page_title ?? null,
+        // Do not overwrite detail-page evidence metadata with homepage crawl fields.
+        last_page_title: priorEvidence.last_page_title ?? existing?.page_title ?? null,
         exact_evidence_url: preferUrl,
         canonical_url: preferUrl,
         source_host: domain,
@@ -190,27 +191,36 @@ export async function registerDistributionSource(
         acceptance_explanation: a.reason,
       };
 
+  // When ignoring a homepage crawl, preserve prior detail-page monitoring metadata.
+  const intervalMinutes = keepPriorDetail
+    ? (existing?.monitor_interval_minutes ?? intervalFor(a.domainRisk))
+    : intervalFor(a.domainRisk);
+
   const payload = {
     user_id: opts.userId,
     domain,
     url: preferUrl,
-    source_kind: kind,
-    content_type: a.contentType,
-    platform: opts.platform ?? null,
-    page_title: a.pageTitle,
-    risk_level: a.domainRisk,
-    risk_score: riskScoreFor(a),
-    confidence: a.confidence,
-    indicators: a.indicatorKeys as unknown as Database["public"]["Tables"]["distribution_sources"]["Insert"]["indicators"],
+    source_kind: keepPriorDetail ? (existing?.source_kind ?? kind) : kind,
+    content_type: keepPriorDetail ? (existing?.content_type ?? a.contentType) : a.contentType,
+    platform: keepPriorDetail ? (existing?.platform ?? opts.platform ?? null) : (opts.platform ?? null),
+    page_title: keepPriorDetail ? (existing?.page_title ?? a.pageTitle) : a.pageTitle,
+    risk_level: keepPriorDetail ? (existing?.risk_level ?? a.domainRisk) : a.domainRisk,
+    risk_score: keepPriorDetail ? (existing?.risk_score ?? riskScoreFor(a)) : riskScoreFor(a),
+    confidence: keepPriorDetail ? (existing?.confidence ?? a.confidence) : a.confidence,
+    indicators: (keepPriorDetail
+      ? (existing?.indicators ?? a.indicatorKeys)
+      : a.indicatorKeys) as unknown as Database["public"]["Tables"]["distribution_sources"]["Insert"]["indicators"],
     evidence: evidence as unknown as Database["public"]["Tables"]["distribution_sources"]["Insert"]["evidence"],
-    screenshot_url: a.screenshot ?? existing?.screenshot_url ?? null,
+    screenshot_url: keepPriorDetail
+      ? (existing?.screenshot_url ?? a.screenshot ?? null)
+      : (a.screenshot ?? existing?.screenshot_url ?? null),
     tracked_titles: [...titles],
     discovered_scan_id: existing?.discovered_scan_id ?? opts.scanId ?? null,
     monitor_enabled: existing?.monitor_enabled ?? true,
-    monitor_interval_minutes: intervalFor(a.domainRisk),
+    monitor_interval_minutes: intervalMinutes,
     status: "active",
     last_seen_at: nowIso,
-    next_check_at: new Date(Date.now() + intervalFor(a.domainRisk) * 60_000).toISOString(),
+    next_check_at: new Date(Date.now() + intervalMinutes * 60_000).toISOString(),
   };
 
   const { data: saved, error } = await supabase
