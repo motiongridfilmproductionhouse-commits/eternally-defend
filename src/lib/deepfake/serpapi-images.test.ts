@@ -469,6 +469,59 @@ test("parallel wave fully accounts for every settled query before stopping", asy
   restoreEnv();
 });
 
+test("parallel wave meters all queries before abortable onQueryComplete work", async () => {
+  process.env.SERPAPI_API_KEY = "test-key";
+  let calls = 0;
+  const metered: string[] = [];
+  const completed: string[] = [];
+  globalThis.fetch = (async (input) => {
+    calls++;
+    const url = new URL(String(input));
+    const query = url.searchParams.get("q") ?? `q-${calls}`;
+    return new Response(
+      JSON.stringify({
+        images_results: [
+          {
+            link: `https://example.com/meter-${calls}`,
+            title: `${query} deepfake`,
+            original: `https://cdn.example.com/meter-${calls}.jpg`,
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  }) as typeof fetch;
+
+  await assert.rejects(
+    () =>
+      searchSerpApiQueriesBounded({
+        queries: ['"Ada Lovelace" deepfake', '"Ada Lovelace" face swap'],
+        maxRequests: 2,
+        onQueryMetered: ({ query, httpAttempts }) => {
+          metered.push(query);
+          assert.equal(httpAttempts, 1);
+        },
+        onQueryComplete: async ({ query }) => {
+          completed.push(query);
+          if (completed.length === 1) {
+            throw new DOMException("The operation was aborted.", "AbortError");
+          }
+        },
+      }),
+    (error: unknown) =>
+      error instanceof Error ||
+      (typeof DOMException !== "undefined" && error instanceof DOMException),
+  );
+
+  assert.equal(calls, 2);
+  assert.equal(metered.length, 2);
+  assert.equal(completed.length, 1);
+  restoreEnv();
+});
+
 test("five-request total cap counts retries as outbound HTTP attempts", async () => {
   process.env.SERPAPI_API_KEY = "test-key";
   let calls = 0;

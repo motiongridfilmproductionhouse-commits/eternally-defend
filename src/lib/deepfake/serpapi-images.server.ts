@@ -481,6 +481,18 @@ export async function searchSerpApiQueriesBounded(input: {
   maxRequests?: number;
   signal?: AbortSignal;
   softDeadlineMs?: number;
+  /**
+   * Synchronous metering/checkpoint callback. Invoked for every settled query
+   * in a batch before any awaitable onQueryComplete work, so abort during
+   * verification cannot drop already-consumed HTTP attempts from resume state.
+   */
+  onQueryMetered?: (info: {
+    query: string;
+    hits: SerpApiImageHit[];
+    creditsUsed: number;
+    httpAttempts: number;
+    failure: string | null;
+  }) => void;
   onQueryComplete?: (info: {
     query: string;
     hits: SerpApiImageHit[];
@@ -570,6 +582,17 @@ export async function searchSerpApiQueriesBounded(input: {
       ),
     );
 
+    type SettledQuery = {
+      query: string;
+      queryId: string;
+      hits: SerpApiImageHit[];
+      creditsUsed: number;
+      httpAttempts: number;
+      failure: string | null;
+      rejectedReason?: unknown;
+    };
+    const settledQueries: SettledQuery[] = [];
+
     for (let index = 0; index < settled.length; index++) {
       const query = batch[index]!;
       const result = settled[index]!;
@@ -578,25 +601,22 @@ export async function searchSerpApiQueriesBounded(input: {
       if (result.status === "rejected") {
         if (isAbortError(result.reason)) throw result.reason;
         failures++;
-        failureMessages.push(
+        const failure =
           result.reason instanceof Error
             ? result.reason.message
-            : String(result.reason),
-        );
+            : String(result.reason);
+        failureMessages.push(failure);
         completed.add(queryId);
         completedQueryIds.push(queryId);
-        if (input.onQueryComplete) {
-          await input.onQueryComplete({
-            query,
-            hits: [],
-            creditsUsed: 0,
-            httpAttempts: 0,
-            failure:
-              result.reason instanceof Error
-                ? result.reason.message
-                : String(result.reason),
-          });
-        }
+        settledQueries.push({
+          query,
+          queryId,
+          hits: [],
+          creditsUsed: 0,
+          httpAttempts: 0,
+          failure,
+          rejectedReason: result.reason,
+        });
         continue;
       }
 
@@ -618,14 +638,35 @@ export async function searchSerpApiQueriesBounded(input: {
       hits.push(...accepted);
       completed.add(queryId);
       completedQueryIds.push(queryId);
+      settledQueries.push({
+        query,
+        queryId,
+        hits: accepted,
+        creditsUsed: value.creditsUsed,
+        httpAttempts: value.httpAttempts,
+        failure: value.failure,
+      });
+    }
 
+    // Meter every settled query before any awaitable follow-up work.
+    for (const item of settledQueries) {
+      input.onQueryMetered?.({
+        query: item.query,
+        hits: item.hits,
+        creditsUsed: item.creditsUsed,
+        httpAttempts: item.httpAttempts,
+        failure: item.failure,
+      });
+    }
+
+    for (const item of settledQueries) {
       if (input.onQueryComplete) {
         await input.onQueryComplete({
-          query,
-          hits: accepted,
-          creditsUsed: value.creditsUsed,
-          httpAttempts: value.httpAttempts,
-          failure: value.failure,
+          query: item.query,
+          hits: item.hits,
+          creditsUsed: item.creditsUsed,
+          httpAttempts: item.httpAttempts,
+          failure: item.failure,
         });
       }
     }

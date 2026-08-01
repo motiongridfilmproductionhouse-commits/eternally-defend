@@ -1110,9 +1110,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
         alreadySeenPages: checkpoint.serpapi_seen_page_urls,
         signal: input.runtime.signal,
         softDeadlineMs: input.runtime.softDeadlineMs,
-        onQueryComplete: async ({ query, hits, creditsUsed, httpAttempts }) => {
+        // Meter every settled query before any awaitable verify work so a
+        // mid-batch abort cannot drop already-consumed HTTP attempts.
+        onQueryMetered: ({ query, hits, creditsUsed, httpAttempts }) => {
           const queryId = query.trim().toLowerCase();
-          // Persist completion before further work so resume cannot rebill.
           if (!checkpoint.serpapi_completed_query_ids.includes(queryId)) {
             checkpoint.serpapi_completed_query_ids.push(queryId);
           }
@@ -1123,8 +1124,6 @@ export async function executeInterleavedDeepfakePipeline(input: {
               checkpoint.serpapi_completed_query_ids.length,
             ),
           );
-          // Persist actual HTTP attempts (incl. retries) and credits so Continue
-          // cannot exceed SERPAPI_MAX_REQUESTS_PER_SCAN outbound calls.
           metrics.serpapi_credits_used += creditsUsed;
           metrics.serpapi_requests += Math.max(0, httpAttempts);
           if (hits.length) {
@@ -1138,6 +1137,11 @@ export async function executeInterleavedDeepfakePipeline(input: {
               metrics.serpapi_unique_pages,
               checkpoint.serpapi_seen_page_urls.length,
             );
+          }
+          checkpoint.metrics = { ...metrics };
+        },
+        onQueryComplete: async ({ hits }) => {
+          if (hits.length) {
             await enqueueProviderHits(hits as ProviderHit[]);
             await processPendingCandidates();
           }
