@@ -756,7 +756,16 @@ test("migration ensures discoveries unique page index for batch upserts", () => 
     "utf8",
   );
   assert.match(sql, /deepfake_discoveries_unique_page/);
-  assert.match(sql, /scan_id, page_url/);
+  assert.match(sql, /PARTITION BY scan_id, page_url/);
+  assert.match(
+    sql,
+    /DELETE FROM public\.deepfake_discoveries AS discoveries/,
+  );
+  const deleteAt = sql.indexOf(
+    "DELETE FROM public.deepfake_discoveries AS discoveries",
+  );
+  const indexAt = sql.indexOf("deepfake_discoveries_unique_page");
+  assert.ok(deleteAt > 0 && indexAt > deleteAt);
 });
 
 test("scrape abort throws instead of soft-continuing", async () => {

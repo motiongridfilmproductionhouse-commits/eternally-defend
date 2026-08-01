@@ -2,6 +2,8 @@
  * Deduplicated batch persistence helpers for deepfake scan progress.
  */
 
+import { requireNonEmptyDiscoveryPageUrl } from "./discovery-dedupe";
+
 export function findingPersistKey(row: {
   canonical_url?: string | null;
   final_url?: string | null;
@@ -25,28 +27,34 @@ export async function upsertDiscoveriesBatch(input: {
   alreadyPersisted: Set<string>;
 }): Promise<number> {
   const seenInBatch = new Set<string>();
-  const fresh = input.rows.filter((row) => {
-    const key = String(row.canonical_url ?? row.page_url ?? "");
+  const fresh = input.rows.flatMap((row) => {
+    const pageUrl = requireNonEmptyDiscoveryPageUrl({
+      final_url: (row as any).final_url,
+      page_url: (row as any).page_url,
+    });
+    if (!pageUrl) return [];
+
+    const key = String((row as any).canonical_url ?? pageUrl);
     if (!key || input.alreadyPersisted.has(key) || seenInBatch.has(key)) {
-      return false;
+      return [];
     }
     seenInBatch.add(key);
-    return true;
+    return [{ row, pageUrl, key }];
   });
 
   if (!fresh.length) return 0;
 
-  const discoveryRows = fresh.map((hit) => ({
+  const discoveryRows = fresh.map(({ row: hit, pageUrl }) => ({
     user_id: input.userId,
     scan_id: input.scanId,
     source: (hit as any).source ?? "firecrawl",
     search_query:
       String((hit as any).query ?? "").trim() || input.targetName,
-    page_url: (hit as any).final_url ?? (hit as any).page_url,
-    canonical_url: (hit as any).canonical_url,
+    page_url: pageUrl,
+    canonical_url: (hit as any).canonical_url ?? pageUrl,
     source_host:
       (hit as any).verified_domain ??
-      input.hostOf(String((hit as any).final_url ?? (hit as any).page_url ?? "")),
+      input.hostOf(pageUrl),
     page_title: (hit as any).page_title ?? null,
     snippet: (hit as any).page_description ?? null,
     image_url: (hit as any).image_url ?? null,
@@ -58,6 +66,12 @@ export async function upsertDiscoveriesBatch(input: {
     analysis_status: "url_verified",
     updated_at: new Date().toISOString(),
   }));
+
+  if (discoveryRows.some((row) => !row.page_url?.trim())) {
+    throw new Error(
+      "URL-verified discovery upsert refused empty page_url.",
+    );
+  }
 
   const { error } = await (input.supabase as any)
     .from("deepfake_discoveries")
@@ -71,9 +85,8 @@ export async function upsertDiscoveriesBatch(input: {
     return 0;
   }
 
-  for (const hit of fresh) {
-    const key = String(hit.canonical_url ?? hit.page_url ?? "");
-    if (key) input.alreadyPersisted.add(key);
+  for (const item of fresh) {
+    input.alreadyPersisted.add(item.key);
   }
 
   return discoveryRows.length;
