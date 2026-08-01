@@ -202,6 +202,7 @@ function ScanPage() {
   const [identityHints, setIdentityHints] = useState<{
     searchingAs: string;
     alsoSearching: string[];
+    searchableAliases?: string[];
     ambiguous: boolean;
     reviewerConfirmed?: boolean;
     canonicalName?: string | null;
@@ -417,7 +418,11 @@ function ScanPage() {
       identityCanonical:
         identityHints?.canonicalName ||
         (!identityHints?.ambiguous ? identityHints?.searchingAs : undefined),
-      identityAliases: identityHints?.alsoSearching ?? [],
+      identityAliases: (
+        identityHints?.searchableAliases ??
+        identityHints?.alsoSearching ??
+        []
+      ).filter((a) => !/ \(show\)$/i.test(a)),
       identityAmbiguous: Boolean(identityHints?.ambiguous),
       identityConfirmed: Boolean(identityHints?.reviewerConfirmed),
       profileId: identityHints?.profileId ?? undefined,
@@ -638,6 +643,7 @@ function ScanPage() {
                     setIdentityHints({
                       searchingAs: res.searchingAs,
                       alsoSearching: res.alsoSearching,
+                      searchableAliases: res.searchableAliases,
                       ambiguous: res.ambiguous,
                       reviewerConfirmed: res.reviewerConfirmed,
                       canonicalName: res.canonicalName,

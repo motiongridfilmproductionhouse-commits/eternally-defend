@@ -12,6 +12,8 @@ import {
 type PreviewResult = {
   searchingAs: string;
   alsoSearching: string[];
+  /** Aliases safe to send to providers (excludes UI-only show labels). */
+  searchableAliases?: string[];
   removableAliases?: string[];
   ambiguous: boolean;
   ambiguityCandidates: Array<{ name: string; reason: string; confidence: number }>;
@@ -128,11 +130,55 @@ export function IdentityExpansionPanel(props: {
         activeProfileId = updated.profileId;
         setProfileId(updated.profileId);
       }
-      return { ok: true as const, stale: false as const, profileId: activeProfileId };
+      return {
+        ok: true as const,
+        stale: false as const,
+        profileId: activeProfileId,
+        action: input.action,
+        value: input.value,
+      };
     },
     onSuccess: (result) => {
       if (result?.stale) return;
       if (result?.profileId) setProfileId(result.profileId);
+      // Notify parent immediately on confirm so scan submit does not race the
+      // follow-up preview round-trip.
+      if (result?.action === "confirm_identity" && result.value) {
+        const also = Array.from(
+          new Set([...(previewData?.alsoSearching ?? localAlso), q]),
+        ).filter((x) => x.toLowerCase() !== result.value.toLowerCase());
+        const searchable = also.filter((x) => !/ \(show\)$/i.test(x));
+        const confirmed: PreviewResult = {
+          searchingAs: result.value,
+          alsoSearching: also,
+          searchableAliases: searchable,
+          removableAliases: previewData?.removableAliases ?? searchable,
+          ambiguous: false,
+          ambiguityCandidates: [],
+          searchQueries: previewData?.searchQueries ?? [],
+          profileId: result.profileId ?? profileId,
+          reviewerConfirmed: true,
+          canonicalName: result.value,
+        };
+        setPreviewData(confirmed);
+        setSelectedCandidate(result.value);
+        props.onExpansion?.(confirmed);
+      } else if (result?.action === "report_wrong_identity") {
+        const reset: PreviewResult = {
+          searchingAs: q,
+          alsoSearching: previewData?.alsoSearching ?? localAlso,
+          searchableAliases: previewData?.searchableAliases,
+          removableAliases: previewData?.removableAliases ?? [],
+          ambiguous: true,
+          ambiguityCandidates: previewData?.ambiguityCandidates ?? [],
+          searchQueries: previewData?.searchQueries ?? [],
+          profileId: result.profileId ?? profileId,
+          reviewerConfirmed: false,
+          canonicalName: null,
+        };
+        setPreviewData(reset);
+        props.onExpansion?.(reset);
+      }
       const seq = ++requestSeq.current;
       preview.mutate(seq);
     },

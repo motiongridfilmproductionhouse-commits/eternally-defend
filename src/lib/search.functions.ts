@@ -84,6 +84,8 @@ export const previewSearchExpansion = createServerFn({ method: "POST" })
         ...expansion.characterNames,
         ...expansion.relatedShows.map((s) => `${s} (show)`),
       ].slice(0, 12),
+      // Searchable aliases only — exclude UI display labels like "Aliyans (show)".
+      searchableAliases: expansion.aliases.slice(0, 12),
       removableAliases: expansion.aliases.slice(0, 12),
       ambiguous: expansion.ambiguous,
       ambiguityCandidates: expansion.ambiguityCandidates,
