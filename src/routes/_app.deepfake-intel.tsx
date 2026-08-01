@@ -23,10 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   ScanFace, ShieldAlert, ExternalLink, Loader2, AlertTriangle,
-  CheckCircle2, XCircle, Filter, Radar, Upload, Trash2,
+  CheckCircle2, Filter, Radar, Upload, Trash2,
   UserRoundCheck,
 } from "lucide-react";
-import { buildVerifiedEvidenceLink } from "@/lib/deepfake/evidence-url";
 import {
   isScanStalled,
   isTerminalScanStatus,
@@ -41,6 +40,7 @@ import {
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
 import { scanBelongsToSelectedProfile } from "@/lib/deepfake/identity-scan-viz";
+import { ResultsIntelligenceConsole } from "@/components/deepfake/results/ResultsIntelligenceConsole";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
@@ -615,7 +615,6 @@ function DeepfakeIntelPage() {
   const scan = selected.data?.scan ?? null;
   const findings = selected.data?.findings ?? [];
   const discoveries = selected.data?.discoveries ?? [];
-  const filtered = riskFilter === "ALL" ? findings : findings.filter((f) => f.risk_level === riskFilter);
   const diagnostics = metricRecord(scan?.discovery_metrics);
   const discoveryMetricObject = objectRecord(scan?.discovery_metrics);
   const checkpoint = objectRecord(scan?.scan_checkpoint);
@@ -1222,28 +1221,31 @@ function DeepfakeIntelPage() {
                 <div className="card-surface p-8 text-center text-sm text-muted-foreground">
                   <Loader2 className="size-5 mx-auto animate-spin mb-2" /> Loading findings…
                 </div>
-              ) : filtered.length === 0 ? (
-                <div className="card-surface p-10 text-center text-sm text-muted-foreground">
-                  {scan.status === "running"
-                    ? "Sweep in progress — verified results appear as batches are saved."
-                    : scan.status === "partial"
-                      ? "Partial scan finished with no client-visible threats at this risk level. Check public leads below."
-                      : scan.status === "failed"
-                        ? (scan.error_message || "Scan failed before verified progress was saved.")
-                        : "No findings at this risk level."}
-                </div>
               ) : (
-                <ul className="space-y-2.5">
-                  {filtered.map((f) => (
-                    <li key={f.id}>
-                      <FindingCard
-                        f={f}
-                        onUpdate={(status) => upd.mutate({ finding_id: f.id, review_status: status })}
-                        pending={upd.isPending}
-                      />
-                    </li>
-                  ))}
-                </ul>
+                <ResultsIntelligenceConsole
+                  scanId={scan.id}
+                  scanStatus={scan.status}
+                  targetName={scan.target_name}
+                  artistThumbnailUrl={thumbnailUrl}
+                  findings={findings}
+                  discoveries={discoveries}
+                  diagnostics={diagnostics}
+                  riskFilter={riskFilter}
+                  onRiskFilterChange={setRiskFilter}
+                  pending={upd.isPending}
+                  onUpdateFinding={(findingId, status) =>
+                    upd.mutate({ finding_id: findingId, review_status: status })
+                  }
+                  emptyMessage={
+                    scan.status === "running"
+                      ? "Sweep in progress — verified results appear as batches are saved."
+                      : scan.status === "partial"
+                        ? "Partial scan finished with no client-visible threats at this risk level. Check public leads below."
+                        : scan.status === "failed"
+                          ? (scan.error_message || "Scan failed before verified progress was saved.")
+                          : "No findings at this risk level."
+                  }
+                />
               )}
 
               {discoveries.length > 0 && (
@@ -1358,192 +1360,3 @@ function RiskChip({ level, count }: { level: RiskLevel; count: number }) {
   );
 }
 
-function hasVisualConfirmation(f: {
-  finding_classification?: string | null;
-  matched_evidence?: string[] | null;
-}): boolean {
-  return (
-    f.finding_classification === "VERIFIED_DEEPFAKE" ||
-    (f.matched_evidence ?? []).some((item) =>
-      /\b(?:hive|face-match)\b/i.test(item),
-    )
-  );
-}
-
-function findingConfidenceLabel(f: {
-  confidence: number;
-  finding_classification?: string | null;
-  matched_evidence?: string[] | null;
-}): string {
-  if (
-    f.finding_classification === "PROBABLE_DEEPFAKE" &&
-    !hasVisualConfirmation(f)
-  ) {
-    return "probable, pending visual";
-  }
-
-  return `${f.confidence}%`;
-}
-
-function evidenceConfidenceLabel(input: {
-  value: number;
-  kind: "id" | "synth";
-  finding_classification?: string | null;
-  matched_evidence?: string[] | null;
-}): string {
-  if (
-    input.finding_classification === "PROBABLE_DEEPFAKE" &&
-    !hasVisualConfirmation(input)
-  ) {
-    return input.kind === "synth"
-      ? "synth text evidence"
-      : "id text evidence";
-  }
-
-  return `${input.kind} ${input.value}%`;
-}
-
-function FindingCard({
-  f,
-  onUpdate,
-  pending,
-}: {
-  f: {
-    id: string; url: string; source_host: string | null; page_title: string | null;
-    snippet: string | null; query: string | null; risk_level: string; content_category: string | null;
-    confidence: number; is_synthetic: boolean; face_referenced: boolean; takedown_recommended: boolean;
-    ai_reasoning: string | null; review_status: string;
-    finding_classification?: string | null;
-    page_type?: string | null;
-    identity_confidence?: number | null;
-    synthetic_media_confidence?: number | null;
-    matched_evidence?: string[] | null;
-    classification_explanation?: string | null;
-    final_url?: string | null;
-    discovered_url?: string | null;
-    canonical_url?: string | null;
-    url_verification_status?: string | null;
-    verified_domain?: string | null;
-    http_status?: number | null;
-  };
-  onUpdate: (s: "reviewed" | "dismissed" | "queued_takedown") => void;
-  pending: boolean;
-}) {
-  const risk = (["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).includes(f.risk_level as RiskLevel)
-    ? (f.risk_level as RiskLevel) : "LOW";
-  const style = RISK_STYLE[risk];
-  const evidence = buildVerifiedEvidenceLink(f);
-  const verifiedDomain =
-    evidence.domain ||
-    f.verified_domain ||
-    f.source_host ||
-    null;
-  const verifiedTitle = f.page_title || "Verified evidence page";
-  return (
-    <div className="card-surface p-3.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 relative z-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${style.badge}`}>{risk}</span>
-            {(f.finding_classification || f.content_category) && (
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {(f.finding_classification ?? f.content_category ?? "").replace(/_/g, " ")}
-              </span>
-            )}
-            <Badge variant="outline" className="text-[10px] py-0">URL verified</Badge>
-            <span className="text-[10px] text-muted-foreground">
-              · conf {findingConfidenceLabel(f)}
-            </span>
-            {typeof f.identity_confidence === "number" && (
-              <span className="text-[10px] text-muted-foreground">
-                · {evidenceConfidenceLabel({
-                  value: f.identity_confidence,
-                  kind: "id",
-                  finding_classification: f.finding_classification,
-                  matched_evidence: f.matched_evidence,
-                })}
-              </span>
-            )}
-            {typeof f.synthetic_media_confidence === "number" && (
-              <span className="text-[10px] text-muted-foreground">
-                · {evidenceConfidenceLabel({
-                  value: f.synthetic_media_confidence,
-                  kind: "synth",
-                  finding_classification: f.finding_classification,
-                  matched_evidence: f.matched_evidence,
-                })}
-              </span>
-            )}
-            {f.is_synthetic && <Badge variant="outline" className="text-[10px] py-0">synthetic</Badge>}
-            {f.face_referenced && <Badge variant="outline" className="text-[10px] py-0">face ref</Badge>}
-            {f.takedown_recommended && <Badge className="text-[10px] py-0 bg-red-600/20 text-red-400 border border-red-600/40">takedown</Badge>}
-          </div>
-          {verifiedDomain && (
-            <div className="mt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-              Verified domain · {verifiedDomain}
-            </div>
-          )}
-          <div className="mt-0.5 text-sm font-medium text-foreground truncate">
-            {verifiedTitle}
-          </div>
-          {evidence.kind === "link" ? (
-            <div className="mt-1 relative z-10 flex items-center gap-2 flex-wrap pointer-events-auto">
-              <a
-                href={evidence.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative z-10 inline-flex items-center gap-1 text-[11px] text-primary hover:underline pointer-events-auto cursor-pointer"
-                title={`${evidence.domain} — ${verifiedTitle}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                }}
-              >
-                <ExternalLink className="size-3 shrink-0" aria-hidden />
-                Open verified evidence page
-              </a>
-              {evidence.domain ? (
-                <span className="text-[11px] text-muted-foreground">
-                  {evidence.domain}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Evidence URL unavailable.
-            </p>
-          )}
-          <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1 mt-1">
-            {f.page_type && <span>{f.page_type.replace(/_/g, " ")}</span>}
-            {typeof f.http_status === "number" && (
-              <span className="ml-1">· HTTP {f.http_status}</span>
-            )}
-            {f.query && <span className="ml-1">· query “{f.query}”</span>}
-          </div>
-          {f.snippet && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{f.snippet}</p>}
-          {(f.classification_explanation || f.ai_reasoning) && (
-            <p className="text-[11px] text-muted-foreground/90 italic mt-1.5 line-clamp-2">
-              {f.classification_explanation || f.ai_reasoning}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col gap-1 shrink-0 relative z-0">
-          <StatusBadge status={f.review_status} />
-          <div className="flex gap-1">
-            <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]"
-                    disabled={pending} onClick={() => onUpdate("reviewed")}>
-              <CheckCircle2 className="size-3 mr-1" /> Review
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]"
-                    disabled={pending} onClick={() => onUpdate("dismissed")}>
-              <XCircle className="size-3 mr-1" /> Dismiss
-            </Button>
-          </div>
-          <Button size="sm" className="h-7 px-2 text-[11px]"
-                  disabled={pending} onClick={() => onUpdate("queued_takedown")}>
-            Queue takedown
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
