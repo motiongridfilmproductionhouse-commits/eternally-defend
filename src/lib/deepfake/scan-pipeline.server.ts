@@ -440,13 +440,20 @@ export async function executeInterleavedDeepfakePipeline(input: {
     await input.supabase
       .from("deepfake_scans")
       .update({
-        // Keep user-entered name unless a high-confidence canonical was resolved.
-        target_name: expansion.canonicalName ?? input.target.name,
-        aliases: expandedTarget.aliases,
+        // Never rename target_name — UI locking / active-scan dedupe key off the
+        // user-typed identity. Canonical lives in discovery_metrics + aliases.
+        aliases: uniqueStrings([
+          ...expandedTarget.aliases,
+          ...(expansion.canonicalName &&
+          expansion.canonicalName.toLowerCase() !== input.target.name.toLowerCase()
+            ? [expansion.canonicalName]
+            : []),
+        ]),
         handles: expandedTarget.handles,
         discovery_metrics: {
           ...priorMetrics,
           identity_expansion: expansionDiagnostics(expansion),
+          canonical_name: expansion.canonicalName,
         },
       })
       .eq("id", input.scanId)
