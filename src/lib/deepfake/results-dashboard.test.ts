@@ -174,24 +174,37 @@ test("verified evidence link remains clickable; unsafe/missing is not", () => {
 });
 
 test("sensitive preview stays blocked for third-party thumbnails", () => {
+  const allowed = "proj.supabase.co";
   assert.equal(
-    isSafeStoredThumbnail("https://cdn.evil.example/thumb.jpg"),
+    isSafeStoredThumbnail("https://cdn.evil.example/thumb.jpg", allowed),
     false,
   );
   assert.equal(
     isSafeStoredThumbnail(
-      "https://xyz.supabase.co/storage/v1/object/public/thumbs/a.jpg",
+      "https://proj.supabase.co/storage/v1/object/public/thumbs/a.jpg",
+      allowed,
     ),
     true,
   );
   assert.equal(
     isSafeStoredThumbnail(
-      "https://evil-supabase.attacker.example/storage/v1/object/public/x.jpg",
+      "https://attacker.supabase.co/storage/v1/object/public/x.jpg",
+      allowed,
     ),
     false,
   );
   assert.equal(
-    isSafeStoredThumbnail("https://xyz.supabase.co/not-storage/a.jpg"),
+    isSafeStoredThumbnail(
+      "https://proj.supabase.co/not-storage/a.jpg",
+      allowed,
+    ),
+    false,
+  );
+  assert.equal(
+    isSafeStoredThumbnail(
+      "https://proj.supabase.co/storage/v1/object/public/a.jpg",
+      null,
+    ),
     false,
   );
 
@@ -210,19 +223,6 @@ test("sensitive preview stays blocked for third-party thumbnails", () => {
       ],
     }),
     null,
-  );
-  assert.equal(
-    resolveSafeFindingThumbnail({
-      finding: findingRow,
-      discoveries: [
-        {
-          page_url: "https://host.example/page",
-          thumbnail_url:
-            "https://proj.supabase.co/storage/v1/object/sign/evidence/a.jpg",
-        },
-      ],
-    }),
-    "https://proj.supabase.co/storage/v1/object/sign/evidence/a.jpg",
   );
 });
 

@@ -319,6 +319,10 @@ export function ResultsIntelligenceConsole({
                 riskFilter={riskFilter}
                 onRiskChange={onRiskFilterChange}
               />
+              <div className="text-[11px] text-slate-500">
+                Table + cards share pagination · showing {paged.items.length} of{" "}
+                {sorted.length}
+              </div>
               <VerifiedFindingsTable
                 findings={paged.items}
                 sortKey={sortKey}
@@ -326,6 +330,15 @@ export function ResultsIntelligenceConsole({
                 onSort={onSort}
                 onSelectFinding={(findingId) => selectFinding(findingId)}
               />
+              {paged.hasMore && (
+                <button
+                  type="button"
+                  className="w-full rounded-md border border-cyan-500/40 py-2 text-[12px] text-cyan-300 hover:bg-cyan-500/10"
+                  onClick={() => setPage((value) => value + 1)}
+                >
+                  Load more findings
+                </button>
+              )}
             </div>
           </div>
         </>

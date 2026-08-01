@@ -417,7 +417,7 @@ export function filterFindings(input: {
     if (
       input.riskFilter &&
       input.riskFilter !== "ALL" &&
-      asRiskLevel(finding.risk_level) !== input.riskFilter
+      finding.risk_level !== input.riskFilter
     ) {
       return false;
     }
@@ -464,20 +464,37 @@ export function paginateFindings<T>(
   };
 }
 
+function configuredSupabaseHost(): string | null {
+  try {
+    const raw =
+      (typeof import.meta !== "undefined" &&
+        (import.meta as ImportMeta & { env?: Record<string, string | undefined> })
+          .env?.VITE_SUPABASE_URL) ||
+      process.env.VITE_SUPABASE_URL ||
+      process.env.SUPABASE_URL ||
+      null;
+    if (!raw) return null;
+    return new URL(raw).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Only treat first-party Supabase storage URLs as safe preview sources.
+ * Only treat this project's Supabase storage URLs as safe preview sources.
  * Third-party discovery thumbnails must not be loaded.
  */
-export function isSafeStoredThumbnail(url: string | null | undefined): boolean {
+export function isSafeStoredThumbnail(
+  url: string | null | undefined,
+  allowedHost = configuredSupabaseHost(),
+): boolean {
   if (!url || typeof url !== "string") return false;
+  if (!allowedHost) return false;
   try {
     const parsed = new URL(url.trim());
     if (parsed.protocol !== "https:") return false;
     const host = parsed.hostname.toLowerCase();
-    // Exact Supabase project hosts only — no substring allowlist bypass.
-    const supabaseHost =
-      host.endsWith(".supabase.co") || host.endsWith(".supabase.in");
-    if (!supabaseHost) return false;
+    if (host !== allowedHost) return false;
     return parsed.pathname.includes("/storage/");
   } catch {
     return false;
