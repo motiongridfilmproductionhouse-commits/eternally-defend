@@ -18,6 +18,13 @@ import {
   type DiscoveryCandidate,
 } from "./url.server";
 import { queryTitleVariants } from "./title-identity";
+import {
+  bumpProviderFailure,
+  classifyProviderFailure,
+  emptyProviderFailureCounts,
+  sanitizeProviderFailureDetail,
+  type ProviderFailureCategory,
+} from "./provider-failures";
 
 export interface ReferenceAnalysis {
   title: string | null;
@@ -154,7 +161,26 @@ interface FcImage {
 interface FcWeb { url?: string; title?: string; description?: string }
 interface FcResponse { data?: { web?: FcWeb[]; images?: FcImage[] }; error?: string }
 
-async function search(query: string, recent: boolean): Promise<{ query: string; payload: FcResponse | null }> {
+export interface ProviderSearchAttempt {
+  query: string;
+  payload: FcResponse | null;
+  ok: boolean;
+  failureCategory?: ProviderFailureCategory;
+  failureDetail?: string;
+  httpStatus?: number | null;
+}
+
+async function search(query: string, recent: boolean): Promise<ProviderSearchAttempt> {
+  if (!isFirecrawlConfigured()) {
+    return {
+      query,
+      payload: null,
+      ok: false,
+      failureCategory: "missing_api_key",
+      failureDetail: "Firecrawl is not configured for copyright discovery.",
+      httpStatus: null,
+    };
+  }
   try {
     const res = await firecrawlFetch("/search", {
       query,
@@ -162,10 +188,39 @@ async function search(query: string, recent: boolean): Promise<{ query: string; 
       sources: ["web", "images"],
       ...(recent ? { tbs: "qdr:m" } : {}),
     });
-    if (!res.ok) return { query, payload: null };
-    return { query, payload: (await res.json()) as FcResponse };
-  } catch {
-    return { query, payload: null };
+    if (!res.ok) {
+      return {
+        query,
+        payload: null,
+        ok: false,
+        failureCategory: classifyProviderFailure({ status: res.status, configured: true }),
+        failureDetail: sanitizeProviderFailureDetail(`Firecrawl search HTTP ${res.status}`),
+        httpStatus: res.status,
+      };
+    }
+    try {
+      const payload = (await res.json()) as FcResponse;
+      // Treat empty-but-valid payloads as success (genuine zero candidates possible).
+      return { query, payload, ok: true, httpStatus: res.status };
+    } catch (e) {
+      return {
+        query,
+        payload: null,
+        ok: false,
+        failureCategory: "malformed_response",
+        failureDetail: sanitizeProviderFailureDetail(e),
+        httpStatus: res.status,
+      };
+    }
+  } catch (e) {
+    return {
+      query,
+      payload: null,
+      ok: false,
+      failureCategory: classifyProviderFailure({ error: e, configured: true }),
+      failureDetail: sanitizeProviderFailureDetail(e),
+      httpStatus: null,
+    };
   }
 }
 
@@ -433,7 +488,19 @@ export interface DiscoveryResult {
   /** page-level leads for distribution-site inspection */
   pageLeads: PageLead[];
   queriesGenerated: number;
+  /** Queries for which a provider request was attempted. */
   queriesExecuted: number;
+  /** Provider requests that returned a usable response body. */
+  providerSuccesses: number;
+  providerRequests: number;
+  providerFailures: number;
+  providerFailuresByCategory: Record<ProviderFailureCategory, number>;
+  providerFailureSamples: Array<{ query: string; category: string; detail: string }>;
+  /** Optional Telegram discovery counters (isolated; failures never abort web). */
+  telegramQueries: number;
+  telegramPosts: number;
+  telegramCandidates: number;
+  telegramFailures: number;
 }
 
 /**
@@ -448,23 +515,58 @@ export async function firecrawlDiscover(
 ): Promise<DiscoveryResult> {
 
   if (!isFirecrawlConfigured()) {
-    throw new Error(
-      "Reverse discovery is not configured. Connect Firecrawl to run copyright detection.",
+    const err = new Error(
+      "Reverse discovery is not configured. Connect Firecrawl (FIRECRAWL_API_KEY) to run copyright detection.",
     );
+    (err as Error & { failureCategory?: ProviderFailureCategory }).failureCategory =
+      "missing_api_key";
+    throw err;
   }
 
   const a = analysis ?? (await analyzeReference(referenceDataUrl, workTitle));
-  const plans = buildQueries(a, workTitle);
+  const allPlans = buildQueries(a, workTitle);
+  // Keep Telegram queries optional/isolated — never let them starve or abort web discovery.
+  const telegramPlans = allPlans.filter((p) => /\btelegram\b/i.test(p.query));
+  const webPlans = allPlans.filter((p) => !/\btelegram\b/i.test(p.query));
+  const plans = [...webPlans, ...telegramPlans].slice(0, 40);
   const queriesGenerated = plans.length;
 
   const seen = new Set<string>();
   const out: DiscoveryCandidate[] = [];
   const strongLeads: Array<{ url: string; title: string | null; query: string; text: string }> = [];
   const weakLeads: Array<{ url: string; title: string | null; query: string; text: string }> = [];
+  const providerFailuresByCategory = emptyProviderFailureCounts();
+  const providerFailureSamples: Array<{ query: string; category: string; detail: string }> = [];
+  let providerSuccesses = 0;
+  let providerFailures = 0;
+  let telegramQueries = 0;
+  let telegramPosts = 0;
+  let telegramCandidates = 0;
+  let telegramFailures = 0;
 
   const results = await Promise.all(plans.map((p) => search(p.query, p.recent)));
 
-  for (const { query, payload } of results) {
+  for (const attempt of results) {
+    const { query, payload } = attempt;
+    const isTelegramQuery = /\btelegram\b/i.test(query);
+    if (isTelegramQuery) telegramQueries += 1;
+
+    if (!attempt.ok) {
+      providerFailures += 1;
+      const cat = attempt.failureCategory ?? "provider_unavailable";
+      bumpProviderFailure(providerFailuresByCategory, cat);
+      if (providerFailureSamples.length < 8) {
+        providerFailureSamples.push({
+          query: query.slice(0, 120),
+          category: cat,
+          detail: attempt.failureDetail ?? "Provider request failed",
+        });
+      }
+      if (isTelegramQuery) telegramFailures += 1;
+      continue;
+    }
+
+    providerSuccesses += 1;
     for (const img of payload?.data?.images ?? []) {
       const page = img.url ?? img.sourceUrl;
       const image = img.imageUrl ?? img.thumbnailUrl;
@@ -518,6 +620,15 @@ export async function firecrawlDiscover(
         continue;
       }
       const lead = { url: key, title: web.title ?? null, query, text };
+      if (isTelegramQuery) {
+        telegramPosts += 1;
+        // Public Telegram pages only — private/joinchat filtered later at evidence gates.
+        if (!/(t\.me|telegram\.me)\//i.test(key)) {
+          // Non-telegram host from a telegram query still allowed as web lead.
+        } else {
+          telegramCandidates += 1;
+        }
+      }
       if (piracySignal || isSuspiciousType(websiteTypeFor(key, `${text} ${query}`))) strongLeads.push(lead);
       else weakLeads.push(lead);
     }
@@ -600,6 +711,15 @@ export async function firecrawlDiscover(
     pageLeads,
     queriesGenerated,
     queriesExecuted: results.length,
+    providerSuccesses,
+    providerRequests: results.length,
+    providerFailures,
+    providerFailuresByCategory,
+    providerFailureSamples,
+    telegramQueries,
+    telegramPosts,
+    telegramCandidates,
+    telegramFailures,
   };
 }
 

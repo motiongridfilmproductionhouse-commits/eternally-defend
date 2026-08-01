@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  uploadCopyrightReference, runCopyrightScan, listCopyrightScans,
+  uploadCopyrightReference, runCopyrightScan, executeCopyrightScan, listCopyrightScans,
   getCopyrightScan, updateCopyrightMatch,
 } from "@/lib/copyright.functions";
 import { Button } from "@/components/ui/button";
@@ -123,6 +123,7 @@ async function extractFrames(file: File, count = 4): Promise<Blob[]> {
 function CopyrightIntelPage() {
   const uploadFn = useServerFn(uploadCopyrightReference);
   const runFn = useServerFn(runCopyrightScan);
+  const executeFn = useServerFn(executeCopyrightScan);
   const listFn = useServerFn(listCopyrightScans);
   const getFn = useServerFn(getCopyrightScan);
   const updFn = useServerFn(updateCopyrightMatch);
@@ -140,8 +141,8 @@ function CopyrightIntelPage() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [investigationOpen, setInvestigationOpen] = useState(false);   
-const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [investigationOpen, setInvestigationOpen] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const blobToBase64 = async (blob: Blob): Promise<string> => {
     const buffer = await blob.arrayBuffer();
     let binary = "";
@@ -152,7 +153,14 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
     return btoa(binary);
   };
 
-  const scans = useQuery({ queryKey: ["copyright-scans"], queryFn: () => listFn({}) });
+  const scans = useQuery({
+    queryKey: ["copyright-scans"],
+    queryFn: () => listFn({}),
+    refetchInterval: (q) => {
+      const rows = q.state.data ?? [];
+      return rows.some((s) => s.status === "running" || s.status === "pending") ? 2500 : false;
+    },
+  });
   const detail = useQuery({
     queryKey: ["copyright-scan", selectedScanId],
     queryFn: () => {
@@ -162,9 +170,16 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
     enabled: !!selectedScanId,
     // Never reuse a previous scan's findings while a new selection is loading.
     placeholderData: undefined,
+    refetchInterval: (q) => {
+      const status = q.state.data?.scan?.status;
+      return status === "running" || status === "pending" ? 2500 : false;
+    },
   });
 
-  // Bind the analysis banner to the selected scan — never show Spider-Man meta for Unmadham.
+  const selectedScanRow = (scans.data ?? []).find((s) => s.id === selectedScanId) ?? null;
+  const selectedScanStatus = selectedScanRow?.status ?? detail.data?.scan?.status ?? null;
+
+  // Bind banner/summary only for terminal selected-scan stats — never flash zeros as "complete".
   useEffect(() => {
     if (!selectedScanId) return;
     const selected = (scans.data ?? []).find((s) => s.id === selectedScanId);
@@ -174,6 +189,10 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
         ? prev
         : { title: selected.title, kind: selected.reference_kind === "video" ? "video" : "image" },
     );
+    if (selected.status === "running" || selected.status === "pending") {
+      setSummary(null);
+      return;
+    }
     const st = (selected.stats ?? {}) as Record<string, number>;
     setSummary({
       candidates: st.candidates ?? st.provider_candidates ?? 0,
@@ -187,7 +206,55 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
     setSelectedScanId(scanId);
     setSelectedMatch(null);
     setInvestigationOpen(false);
+    setSummary(null);
   };
+
+  const executeScan = useMutation({
+    mutationFn: (scanId: string) => executeFn({ data: { scanId } }),
+    onSuccess: (res: {
+      scanId: string;
+      status: string;
+      stats?: {
+        candidates?: number;
+        matches?: number;
+        graded?: number;
+        failure_reason?: string | null;
+      };
+    }) => {
+      setStage("");
+      setStageIndex(SCAN_STAGES.length);
+      setSelectedScanId(res.scanId);
+      qc.invalidateQueries({ queryKey: ["copyright-scans"] });
+      qc.invalidateQueries({ queryKey: ["copyright-scan", res.scanId] });
+      qc.invalidateQueries({ queryKey: ["distribution-monitor"] });
+
+      const st = res.stats ?? {};
+      if (res.status === "failed") {
+        setSummary(null);
+        toast.error(st.failure_reason || "Copyright scan failed before discovery completed.");
+        return;
+      }
+      setSummary({
+        candidates: st.candidates ?? 0,
+        matches: st.matches ?? 0,
+        graded: st.graded ?? 0,
+      });
+      if (res.status === "partial") {
+        toast.message(
+          `Partial results — ${st.matches ?? 0} match(es) saved before the scan deadline.`,
+        );
+        return;
+      }
+      toast.success(
+        `${st.matches ?? 0} evidence-backed match(es) from ${st.candidates ?? 0} candidates`,
+      );
+    },
+    onError: (e: Error) => {
+      setStage("");
+      toast.error(e.message);
+      qc.invalidateQueries({ queryKey: ["copyright-scans"] });
+    },
+  });
 
   const scan = useMutation({
     mutationFn: async () => {
@@ -228,49 +295,60 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
       }
 
       setStageIndex(1);
-      setStage("Analyzing visual content…");
-      // Advance the visible stage while the server call runs.
-      const timers = [
-        setTimeout(() => { setStageIndex(2); setStage("Extracting important details…"); }, 4000),
-        setTimeout(() => { setStageIndex(3); setStage("Comparing online matches…"); }, 12000),
-        setTimeout(() => { setStageIndex(4); setStage("Generating report…"); }, 30000),
-      ];
+      setStage("Starting copyright scan…");
 
-      try {
-        const knownUrls = knownUrlsText
-          .split(/[\n,]+/)
-          .map((u) => u.trim())
-          .filter(Boolean)
-          .slice(0, 10);
-        return await runFn({
-          data: {
-            title: title.trim(),
-            referenceKind: isVideo ? "video" : "image",
-            contentType: isVideo ? "image/jpeg" : (file.type as "image/jpeg"),
-            keys,
-            ...(knownUrls.length ? { knownUrls } : {}),
-          },
-        });
-      } finally {
-        timers.forEach(clearTimeout);
-      }
-    },
-    onSuccess: (res: { scanId: string; stats: { candidates?: number; matches?: number; graded?: number } }) => {
-      setStage("");
-      setStageIndex(SCAN_STAGES.length);
-      setSummary({
-        candidates: res.stats.candidates ?? 0,
-        matches: res.stats.matches ?? 0,
-        graded: res.stats.graded ?? 0,
+      const knownUrls = knownUrlsText
+        .split(/[\n,]+/)
+        .map((u) => u.trim())
+        .filter(Boolean)
+        .slice(0, 10);
+
+      // Immediate scan ID — does NOT mean discovery completed.
+      return await runFn({
+        data: {
+          title: title.trim(),
+          referenceKind: isVideo ? "video" : "image",
+          contentType: isVideo ? "image/jpeg" : (file.type as "image/jpeg"),
+          keys,
+          ...(knownUrls.length ? { knownUrls } : {}),
+        },
       });
+    },
+    onSuccess: (res: { scanId: string; started?: boolean; status?: string }) => {
       setSelectedScanId(res.scanId);
+      setSummary(null);
+      setStageIndex(2);
+      setStage("Discovery executor starting…");
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       qc.invalidateQueries({ queryKey: ["copyright-scan", res.scanId] });
-      qc.invalidateQueries({ queryKey: ["distribution-monitor"] });
-      toast.success(`${res.stats.matches} evidence-backed match(es) from ${res.stats.candidates} candidates`);
+      toast.message("Scan started — running discovery executor…");
+      // Reliably invoke the separate copyright scan executor.
+      executeScan.mutate(res.scanId);
+      const timers = [
+        setTimeout(() => { setStageIndex(3); setStage("Comparing online matches…"); }, 4000),
+        setTimeout(() => { setStageIndex(4); setStage("Generating report…"); }, 20000),
+      ];
+      // Cleared when executor settles via stage reset in executeScan handlers.
+      void timers;
     },
     onError: (e: Error) => { setStage(""); setScanMeta(null); setSummary(null); toast.error(e.message); },
   });
+
+  const scanBusy =
+    scan.isPending ||
+    executeScan.isPending ||
+    selectedScanStatus === "running" ||
+    selectedScanStatus === "pending";
+
+  useEffect(() => {
+    if (!selectedScanId) return;
+    if (selectedScanStatus === "completed" || selectedScanStatus === "partial" || selectedScanStatus === "failed") {
+      if (executeScan.isPending) executeScan.reset();
+      if (scan.isPending) scan.reset();
+      setStage("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedScanStatus, selectedScanId]);
 
 
   const review = useMutation({
@@ -290,12 +368,15 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
     detailAligned && detail.data?.scan?.title
       ? detail.data.scan.title
       : (scans.data ?? []).find((s) => s.id === selectedScanId)?.title ?? null;
-  const showBanner = shouldShowAnalysisBanner({
-    scanPending: scan.isPending,
-    selectedScanId,
-    bannerTitle: scanMeta?.title,
-    selectedScanTitle,
-  });
+  const showBanner =
+    !scanBusy &&
+    (selectedScanStatus === "completed" || selectedScanStatus === "partial") &&
+    shouldShowAnalysisBanner({
+      scanPending: false,
+      selectedScanId,
+      bannerTitle: scanMeta?.title,
+      selectedScanTitle,
+    });
 
   return (
     <div className="space-y-6">
@@ -320,16 +401,27 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
         </Button>
       </section>
 
-      {scan.isPending && scanMeta && (
+      {scanBusy && scanMeta && (
         <div className="animate-fade-in">
           <ScanProgress
             previews={previews}
             title={scanMeta.title}
             kind={scanMeta.kind}
             stageIndex={stageIndex}
-            note={stage}
+            note={stage || "Running copyright discovery…"}
           />
         </div>
+      )}
+
+      {selectedScanStatus === "failed" && selectedScanId && detailAligned && (
+        <section className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">
+          <h2 className="text-sm font-semibold text-destructive">Scan failed · {selectedScanTitle}</h2>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {(detail.data?.scan?.error as string | null) ||
+              ((detail.data?.scan?.stats as Record<string, unknown> | null)?.failure_reason as string | undefined) ||
+              "Discovery never completed. This is not a legitimate zero-result scan."}
+          </p>
+        </section>
       )}
 
       {showBanner && summary && scanMeta && (
@@ -441,8 +533,8 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
 
               <div className="flex justify-end gap-2 pt-1">
                 <Button variant="ghost" onClick={() => setRegisterOpen(false)}>Cancel</Button>
-                <Button onClick={() => scan.mutate()} disabled={scan.isPending}>
-                  {scan.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSearch className="mr-2 h-4 w-4" />}
+                <Button onClick={() => scan.mutate()} disabled={scanBusy}>
+                  {scanBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSearch className="mr-2 h-4 w-4" />}
                   Run detection
                 </Button>
               </div>
@@ -545,6 +637,10 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                             Number(scanStats.known_urls_rejected_after_crawl ?? 0),
                         },
                         { label: "Provider candidates", value: Number(scanStats.provider_candidates ?? d.provider_results) },
+                        { label: "Provider requests", value: Number(scanStats.provider_requests ?? d.queries_executed) },
+                        { label: "Provider successes", value: Number(scanStats.provider_successes ?? 0) },
+                        { label: "Provider failures", value: Number(scanStats.provider_failures ?? 0) },
+                        { label: "Telegram candidates", value: Number(scanStats.telegram_candidates ?? 0) },
                         { label: "Crawl succeeded", value: Math.max(0, d.pages_crawled - d.pages_failed) },
                         { label: "Crawl failed", value: d.pages_failed },
                         { label: "Title rejected", value: d.title_identity_rejected },
@@ -554,6 +650,12 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                         { label: "Monitored sources created", value: Number(scanStats.registered_monitored_sources ?? d.registered_monitored_sources) },
                         { label: "Unique pages", value: d.unique_candidate_pages },
                         { label: "Detail follows", value: d.detail_pages_followed },
+                        {
+                          label: "Executor started",
+                          value: scanStats.executor_started_at
+                            ? String(scanStats.executor_started_at).slice(11, 19)
+                            : "—",
+                        },
                       ].map((row) => (
                         <div key={row.label} className="rounded-md border border-border/50 bg-background/40 px-3 py-2">
                           <div className="text-sm font-medium text-foreground">{row.value}</div>

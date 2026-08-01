@@ -120,6 +120,10 @@ function knownUrlFailureLines(stats: Record<string, unknown> | null | undefined)
 /** Human-readable funnel explanation for empty client-visible result sets. */
 export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | undefined): string[] {
   const d = diagnosticsFromStats(stats);
+  const n = (key: string) => {
+    const v = stats?.[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
   const lines: string[] = [];
 
   if (d.known_urls_submitted > 0 || d.known_urls_accepted > 0 || d.known_urls_attempted > 0) {
@@ -146,9 +150,35 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
     `Outcome: ${d.internal_leads_persisted} internal leads retained, ${d.client_visible_findings} client-visible piracy findings, ${d.registered_monitored_sources} monitored sources created (require exact title + exact-page access evidence).`,
   );
 
+  const providerSuccesses = n("provider_successes");
+  const providerFailures = n("provider_failures");
+  const providerRequests = n("provider_requests") || d.queries_executed;
+  if (providerRequests > 0 || providerFailures > 0) {
+    lines.push(
+      `Providers: ${providerRequests} requests, ${providerSuccesses} successful, ${providerFailures} failed.`,
+    );
+  }
+  if (stats?.provider_failures_by_category && typeof stats.provider_failures_by_category === "object") {
+    const parts = Object.entries(stats.provider_failures_by_category as Record<string, number>)
+      .filter(([, v]) => typeof v === "number" && v > 0)
+      .map(([k, v]) => `${k}: ${v}`);
+    if (parts.length) lines.push(`Provider failures by category: ${parts.join(", ")}.`);
+  }
+  if (typeof stats?.executor_started_at === "string") {
+    lines.push(`Executor started at: ${stats.executor_started_at}.`);
+  } else if (stats?.discovery_never_started === true) {
+    lines.push("Executor/discovery never started — this is not a legitimate zero-result outcome.");
+  }
+
+  // Prefer known-URL retrieval failures when the operator supplied seeds — do not
+  // let empty discovery-provider counters shadow that first-class funnel stage.
   if (d.known_urls_accepted > 0 && d.known_urls_retrieved === 0) {
     lines.push(
       "Primary bottleneck: accepted known URL(s) could not be retrieved (network/render failure) — not a content rejection.",
+    );
+  } else if (providerSuccesses === 0 && (providerFailures > 0 || d.queries_executed === 0)) {
+    lines.push(
+      "Primary bottleneck: discovery providers never returned a successful response — scan should be failed, not completed.",
     );
   } else if (d.known_urls_retrieved > 0 && d.known_urls_verified === 0 && d.client_visible_findings === 0) {
     lines.push(
