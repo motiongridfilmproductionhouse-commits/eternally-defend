@@ -426,6 +426,49 @@ test("invalid key authentication soft-fails without credits", async () => {
   restoreEnv();
 });
 
+test("parallel wave fully accounts for every settled query before stopping", async () => {
+  process.env.SERPAPI_API_KEY = "test-key";
+  let calls = 0;
+  const completed: string[] = [];
+  globalThis.fetch = (async (input) => {
+    calls++;
+    const url = new URL(String(input));
+    const query = url.searchParams.get("q") ?? `q-${calls}`;
+    return new Response(
+      JSON.stringify({
+        images_results: [
+          {
+            link: `https://example.com/${encodeURIComponent(query)}`,
+            title: `${query} deepfake`,
+            original: `https://cdn.example.com/${calls}.jpg`,
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  }) as typeof fetch;
+
+  const result = await searchSerpApiQueriesBounded({
+    queries: ['"Ada Lovelace" deepfake', '"Ada Lovelace" face swap'],
+    maxRequests: 2,
+    onQueryComplete: async ({ query, httpAttempts, creditsUsed }) => {
+      completed.push(query);
+      assert.equal(httpAttempts, 1);
+      assert.equal(creditsUsed, 1);
+    },
+  });
+
+  assert.equal(calls, 2);
+  assert.equal(result.httpAttempts, 2);
+  assert.equal(result.creditsUsed, 2);
+  assert.equal(result.hits.length, 2);
+  assert.equal(completed.length, 2);
+  restoreEnv();
+});
+
 test("five-request total cap counts retries as outbound HTTP attempts", async () => {
   process.env.SERPAPI_API_KEY = "test-key";
   let calls = 0;

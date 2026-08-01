@@ -628,18 +628,18 @@ export async function searchSerpApiQueriesBounded(input: {
           failure: value.failure,
         });
       }
-
-      if (seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN) {
-        stoppedEarly = true;
-        break;
-      }
-      if (httpAttemptBudget.remaining <= 0) {
-        stoppedEarly = true;
-        break;
-      }
     }
 
-    if (stoppedEarly) break;
+    // Always fully account for every settled query in this batch before
+    // deciding whether another parallel wave can start. Breaking mid-batch
+    // would drop already-billed hits and undercount httpAttempts in metrics.
+    if (seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN) {
+      stoppedEarly = true;
+      break;
+    }
+    if (httpAttemptBudget.remaining <= 0) {
+      break;
+    }
     i += batch.length;
   }
 
@@ -671,8 +671,7 @@ export async function searchSerpApiQueriesBounded(input: {
     uniquePages: seenPages.size,
     completedQueryIds,
     seenPageUrls: Array.from(seenPages).slice(
-      0,
-      SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN,
+      -SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN,
     ),
     failureMessages: failureMessages.slice(0, 20),
     drained: uniqueCapHit || allPendingCompleted,
