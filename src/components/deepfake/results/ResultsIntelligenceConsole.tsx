@@ -175,6 +175,17 @@ export function ResultsIntelligenceConsole({
     setPage(1);
   };
 
+  // After domain filter settles, load enough cumulative pages to mount the card.
+  useEffect(() => {
+    if (!selectedFindingId) return;
+    const index = sorted.findIndex((item) => item.id === selectedFindingId);
+    if (index < 0) return;
+    const neededPage = Math.floor(index / pageSize) + 1;
+    if (page < neededPage) {
+      setPage(neededPage);
+    }
+  }, [selectedFindingId, sorted, page, pageSize]);
+
   useEffect(() => {
     if (!selectedFindingId) return;
     const node = cardRefs.current.get(selectedFindingId);
@@ -269,6 +280,10 @@ export function ResultsIntelligenceConsole({
       {!showOverview ? (
         <div className="rounded-xl border border-sky-500/20 bg-[#07111f] p-10 text-center text-sm text-slate-400">
           {emptyMessage || "No client-visible verified findings yet."}
+        </div>
+      ) : sorted.length === 0 ? (
+        <div className="rounded-xl border border-sky-500/20 bg-[#07111f] p-10 text-center text-sm text-slate-400">
+          {emptyMessage || "No findings match the current filters."}
         </div>
       ) : (
         <section aria-labelledby="finding-cards-heading" className="space-y-2.5">
