@@ -520,18 +520,49 @@ export async function executeInterleavedDeepfakePipeline(input: {
     checkpoint.initial_wave_count || INITIAL_PRIORITY_QUERY_COUNT;
   checkpoint.per_query_limit = perQueryLimit;
   checkpoint.max_queries = maxQueries;
-  if (!checkpoint.serpapi_queries?.length) {
+  {
     const { buildSerpApiExactIdentityQueries } = await import(
       "./serpapi-images.server"
     );
-    checkpoint.serpapi_queries = buildSerpApiExactIdentityQueries({
+    const freshSerpApi = buildSerpApiExactIdentityQueries({
       name: expandedTarget.name,
       aliases: expandedTarget.aliases,
     });
-    checkpoint.serpapi_next_query_index = 0;
-    checkpoint.serpapi_completed_query_ids =
-      checkpoint.serpapi_completed_query_ids ?? [];
-    checkpoint.serpapi_seen_page_urls = checkpoint.serpapi_seen_page_urls ?? [];
+    if (!checkpoint.serpapi_queries?.length) {
+      checkpoint.serpapi_queries = freshSerpApi;
+      checkpoint.serpapi_next_query_index = 0;
+      checkpoint.serpapi_completed_query_ids =
+        checkpoint.serpapi_completed_query_ids ?? [];
+      checkpoint.serpapi_seen_page_urls = checkpoint.serpapi_seen_page_urls ?? [];
+    } else if (resumeCheckpoint) {
+      // Merge newly resolved identity queries without replaying completed ones.
+      const completed = new Set(
+        (checkpoint.serpapi_completed_query_ids ?? []).map((q) =>
+          String(q).toLowerCase(),
+        ),
+      );
+      const existing = new Set(
+        checkpoint.serpapi_queries.map((q) => q.toLowerCase()),
+      );
+      const newcomers = freshSerpApi.filter((q) => {
+        const key = q.toLowerCase();
+        return !existing.has(key) && !completed.has(key);
+      });
+      if (newcomers.length) {
+        const idx = Math.max(
+          0,
+          Math.min(
+            checkpoint.serpapi_next_query_index ?? 0,
+            checkpoint.serpapi_queries.length,
+          ),
+        );
+        checkpoint.serpapi_queries = [
+          ...checkpoint.serpapi_queries.slice(0, idx),
+          ...newcomers,
+          ...checkpoint.serpapi_queries.slice(idx),
+        ];
+      }
+    }
   }
   checkpoint = enforceCheckpointBounds(checkpoint);
 

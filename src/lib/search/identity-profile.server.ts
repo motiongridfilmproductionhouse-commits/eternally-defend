@@ -255,7 +255,8 @@ export async function mutateIdentityAlias(
       upsertAlias("user_provided", true);
       break;
     case "remove_alias":
-      detailed = detailed.filter((a) => (normalizeKey(a.alias) || a.alias) !== key);
+      // Mark rejected so future upserts / rediscovery cannot revive it.
+      upsertAlias("rejected", false);
       break;
     case "approve_alias":
       upsertAlias("reviewer_approved", true);

@@ -266,13 +266,19 @@ function rankAndLimitQueries(queries: ExpandedSearchQuery[]): ExpandedSearchQuer
 }
 
 function emptyFallback(input: SearchExpansionInput, corrected: string): SearchExpansionResult {
-  const aliases = uniqueStrings([...(input.knownAliases ?? [])]);
+  const original = input.query.trim();
+  const aliases = uniqueStrings([
+    ...(input.knownAliases ?? []),
+    // Keep spelling correction as a searchable variant, not a confirmed identity.
+    corrected && corrected !== original ? corrected : null,
+  ]);
   const handles = uniqueStrings([...(input.knownHandles ?? [])]);
   const module = (input.module ?? "general") as SearchModulePolicy;
   const searchQueries = buildQueries({
-    original: input.query.trim(),
+    original,
     corrected,
-    canonical: corrected || input.query.trim(),
+    // Fail-open must not lock a canonical identity.
+    canonical: null,
     identity: null,
     aliases,
     localNames: [],
@@ -286,12 +292,13 @@ function emptyFallback(input: SearchExpansionInput, corrected: string): SearchEx
   });
 
   return {
-    originalQuery: input.query.trim(),
-    correctedQuery: corrected,
-    canonicalName: corrected || input.query.trim() || null,
+    originalQuery: original,
+    correctedQuery: corrected || original,
+    canonicalName: null,
     entityType: asEntityType(input.entityType),
-    confidence: corrected !== input.query.trim() ? 0.55 : 0.4,
-    ambiguous: false,
+    confidence: 0.2,
+    // Unverified recovery — do not behave like a high-confidence identity lock.
+    ambiguous: true,
     aliases,
     localLanguageNames: [],
     nicknames: [],

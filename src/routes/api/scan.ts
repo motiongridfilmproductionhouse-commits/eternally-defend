@@ -3119,14 +3119,21 @@ export const Route = createFileRoute("/api/scan")({
             module: "reputation",
             country: typeof body?.country === "string" ? body.country : undefined,
           });
-          const resolvedName = identityExpansion.canonicalName ?? identityExpansion.correctedQuery ?? query;
+          // When ambiguous/unverified, keep the original query as the report identity —
+          // never promote a spelling-corrected celebrity guess into resolvedName.
+          const resolvedName = identityExpansion.ambiguous
+            ? query
+            : (identityExpansion.canonicalName ?? identityExpansion.correctedQuery ?? query);
           // When ambiguous, avoid promoting competing celebrity names into match aliases.
           const expandedIds = identityExpansion.ambiguous
             ? [
                 query,
-                identityExpansion.correctedQuery,
                 ...aliasesIn,
-                ...identityExpansion.localLanguageNames,
+                ...(identityExpansion.correctedQuery &&
+                identityExpansion.correctedQuery.toLowerCase() !== query.toLowerCase() &&
+                identityExpansion.correctedQuery.split(/\s+/).length === query.split(/\s+/).length
+                  ? [identityExpansion.correctedQuery]
+                  : []),
               ]
             : expansionToIdentityList(identityExpansion);
           const aliases = Array.from(

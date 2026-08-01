@@ -155,6 +155,15 @@ test("User-approved alias → never overwritten", () => {
   assert.equal(merged[0]?.source, "reviewer_approved");
 });
 
+test("Removed/rejected alias → never rediscovered on upsert merge", () => {
+  const afterRemove = mergeAliasListsForTest(
+    [{ alias: "Manju Warrier", source: "rejected", active: false }],
+    [{ alias: "Manju Warrier", source: "ai_discovered" }],
+  );
+  assert.equal(afterRemove[0]?.source, "rejected");
+  assert.equal(afterRemove[0]?.active, false);
+});
+
 test("Expansion service failure must not stop the scan", async () => {
   const result = await resolveAndExpandSearchQuerySafe({
     query: "Manju Pauthrose",
@@ -166,9 +175,11 @@ test("Expansion service failure must not stop the scan", async () => {
   assert.ok(
     result.searchQueries.some((q) => /Manju|Custom Alias|customhandle/i.test(q.query)),
   );
-  // Force fallback path via empty query still returns structure
+  // Force fallback path via empty query still returns structure — unverified, not locked.
   const empty = await resolveAndExpandSearchQuerySafe({ query: "" });
   assert.ok(Array.isArray(empty.searchQueries));
+  assert.equal(empty.canonicalName, null);
+  assert.equal(empty.ambiguous, true);
 });
 
 test("Never use raw query as the only search query when expansion succeeds", async () => {
