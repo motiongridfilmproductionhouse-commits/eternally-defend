@@ -76,6 +76,13 @@ const DIAGNOSTIC_KEYS = [
   "probable",
   "verified",
   "client_visible",
+  "serpapi_requests",
+  "serpapi_failures",
+  "serpapi_candidates",
+  "serpapi_unique_pages",
+  "serpapi_face_rejected",
+  "serpapi_verified",
+  "serpapi_credits_used",
 ] as const;
 
 function metricRecord(value: unknown): Record<string, number> | null {

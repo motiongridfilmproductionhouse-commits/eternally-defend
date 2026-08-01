@@ -9,6 +9,7 @@ import {
   discoveredCandidateKey,
   mergeDiscoveredCandidates,
 } from "./discovery-plan.server";
+import { setTestDnsLookupAll } from "./url-safety.server";
 
 type FetchLike = typeof globalThis.fetch;
 
@@ -18,6 +19,7 @@ const originalYouTubeKey = process.env.YOUTUBE_API_KEY;
 
 function restoreGlobals() {
   globalThis.fetch = originalFetch;
+  setTestDnsLookupAll(null);
   if (originalFirecrawlKey === undefined) {
     delete process.env.FIRECRAWL_API_KEY;
   } else {
@@ -44,6 +46,9 @@ function installVerificationFetch(pages: Record<string, {
   redirectTo?: string;
 }>): void {
   process.env.FIRECRAWL_API_KEY = "fc-test";
+  // Reserved .example hosts do not resolve in CI; stub public A records so
+  // pre-fetch DNS validation can run while fetch remains mocked.
+  setTestDnsLookupAll(async () => [{ address: "93.184.216.34", family: 4 }]);
 
   globalThis.fetch = (async (input, init) => {
     const url =

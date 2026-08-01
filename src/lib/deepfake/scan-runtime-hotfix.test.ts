@@ -38,6 +38,7 @@ import {
 } from "./scan-persist.server";
 import { firecrawlSearch } from "./firecrawl.server";
 import { resolveRedirectChain } from "./url-verification.server";
+import { setTestDnsLookupAll } from "./url-safety.server";
 
 type FakeRow = Record<string, unknown>;
 
@@ -377,6 +378,7 @@ test("abort during URL verification does not retry after parent abort", async ()
   const controller = new AbortController();
   let attempts = 0;
 
+  setTestDnsLookupAll(async () => [{ address: "93.184.216.34", family: 4 }]);
   globalThis.fetch = (async () => {
     attempts++;
     controller.abort(new ScanDeadlineError());
@@ -396,6 +398,7 @@ test("abort during URL verification does not retry after parent abort", async ()
     assert.equal(attempts, 1);
   } finally {
     globalThis.fetch = originalFetch;
+    setTestDnsLookupAll(null);
   }
 });
 

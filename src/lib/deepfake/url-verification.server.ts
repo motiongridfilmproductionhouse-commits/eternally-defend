@@ -23,6 +23,11 @@ import {
   isAbortError,
   mergeAbortSignals,
 } from "./scan-runtime.server";
+import {
+  assertSafePublicUrlForFetch,
+  fetchPublicHttpUrl,
+  isSafePublicHttpUrl,
+} from "./url-safety.server";
 
 export type UrlVerificationStatus = "URL_VERIFIED" | "URL_REJECTED";
 
@@ -394,6 +399,8 @@ export function isUrlVerified(
 
 /**
  * Follow redirects manually and capture the chain + final URL + HTTP status.
+ * Resolves and validates every hop (including redirect targets) before fetch.
+ * Exact-page verification gates in evaluateUrlVerification are unchanged.
  */
 export async function resolveRedirectChain(
   url: string,
@@ -420,6 +427,17 @@ export async function resolveRedirectChain(
   const chain: string[] = [url];
   let current = url;
 
+  if (!isSafePublicHttpUrl(url)) {
+    return {
+      discovered_url: url,
+      final_url: url,
+      http_status: 0,
+      redirect_chain: chain,
+      ok: false,
+      error: "URL failed public http(s) safety checks.",
+    };
+  }
+
   for (let hop = 0; hop <= maxRedirects; hop++) {
     assertNotAborted(options?.signal);
 
@@ -436,12 +454,31 @@ export async function resolveRedirectChain(
       );
 
       try {
+        // DNS + fetch share the hop timeout / scan AbortSignal.
+        try {
+          await assertSafePublicUrlForFetch(current, undefined, signal);
+        } catch (error) {
+          if (options?.signal?.aborted || isAbortError(error)) {
+            throw error;
+          }
+          return {
+            discovered_url: url,
+            final_url: current,
+            http_status: 0,
+            redirect_chain: chain,
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "URL failed DNS/public-address safety checks.",
+          };
+        }
+
         let response: Response;
 
         try {
-          response = await fetch(current, {
+          response = await fetchPublicHttpUrl(current, {
             method: "HEAD",
-            redirect: "manual",
             signal,
             headers: {
               "user-agent": "EternaSentinelDeepfakeIntel/1.0",
@@ -452,9 +489,8 @@ export async function resolveRedirectChain(
           if (options?.signal?.aborted || isAbortError(headError)) {
             throw headError;
           }
-          response = await fetch(current, {
+          response = await fetchPublicHttpUrl(current, {
             method: "GET",
-            redirect: "manual",
             signal,
             headers: {
               "user-agent": "EternaSentinelDeepfakeIntel/1.0",
@@ -478,7 +514,50 @@ export async function resolveRedirectChain(
             };
           }
 
-          const next = new URL(location, current).toString();
+          let next: string;
+          try {
+            next = new URL(location, current).toString();
+          } catch {
+            return {
+              discovered_url: url,
+              final_url: current,
+              http_status: status,
+              redirect_chain: chain,
+              ok: false,
+              error: "Redirect Location was not a valid URL.",
+            };
+          }
+
+          if (!isSafePublicHttpUrl(next)) {
+            return {
+              discovered_url: url,
+              final_url: current,
+              http_status: status,
+              redirect_chain: chain,
+              ok: false,
+              error: "Redirect target failed public http(s) safety checks.",
+            };
+          }
+
+          try {
+            await assertSafePublicUrlForFetch(next, undefined, signal);
+          } catch (error) {
+            if (options?.signal?.aborted || isAbortError(error)) {
+              throw error;
+            }
+            return {
+              discovered_url: url,
+              final_url: current,
+              http_status: status,
+              redirect_chain: [...chain, next],
+              ok: false,
+              error:
+                error instanceof Error
+                  ? `Unsafe redirect target: ${error.message}`
+                  : "Unsafe redirect target.",
+            };
+          }
+
           if (chain.includes(next)) {
             return {
               discovered_url: url,

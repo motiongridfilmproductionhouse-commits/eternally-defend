@@ -359,8 +359,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
     ? parseScanCheckpoint(input.resumeCheckpoint)
     : null;
 
-  const metrics =
-    resumeCheckpoint?.metrics ?? createDiscoveryFunnelMetrics();
+  const metrics = {
+    ...createDiscoveryFunnelMetrics(),
+    ...(resumeCheckpoint?.metrics ?? {}),
+  };
   metrics.queries_generated =
     resumeCheckpoint?.queries.length ?? scheduledQueries.length;
 
@@ -386,6 +388,19 @@ export async function executeInterleavedDeepfakePipeline(input: {
     checkpoint.initial_wave_count || INITIAL_PRIORITY_QUERY_COUNT;
   checkpoint.per_query_limit = perQueryLimit;
   checkpoint.max_queries = maxQueries;
+  if (!checkpoint.serpapi_queries?.length) {
+    const { buildSerpApiExactIdentityQueries } = await import(
+      "./serpapi-images.server"
+    );
+    checkpoint.serpapi_queries = buildSerpApiExactIdentityQueries({
+      name: input.target.name,
+      aliases: input.target.aliases,
+    });
+    checkpoint.serpapi_next_query_index = 0;
+    checkpoint.serpapi_completed_query_ids =
+      checkpoint.serpapi_completed_query_ids ?? [];
+    checkpoint.serpapi_seen_page_urls = checkpoint.serpapi_seen_page_urls ?? [];
+  }
   checkpoint = enforceCheckpointBounds(checkpoint);
 
   const budget = createScanBudget(input.runtime);
@@ -626,6 +641,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
           signal: input.runtime.signal,
           softDeadlineMs: input.runtime.softDeadlineMs,
         });
+
+        metrics.serpapi_face_rejected += faceResults.rejected.filter(
+          (item) => item.source === "serpapi_google_images",
+        ).length;
 
         const syntheticUnavailable = faceResults.errors.filter((item) => {
           const text = [
@@ -911,6 +930,31 @@ export async function executeInterleavedDeepfakePipeline(input: {
     addVerificationMetrics(metrics, verification.metrics);
 
     const verified = verification.verified as VerifiedCandidate[];
+    const serpapiInBatch = candidates.filter(
+      (hit) => hit.source === "serpapi_google_images",
+    );
+    if (serpapiInBatch.length) {
+      const { isSerpApiFaceIdentityRejectionReason } = await import(
+        "./serpapi-images.server"
+      );
+      const serpapiVerified = verified.filter(
+        (hit) => hit.source === "serpapi_google_images",
+      );
+      metrics.serpapi_verified += serpapiVerified.length;
+
+      // Only explicit face/identity rejection outcomes — URL/crawl/page-evidence
+      // rejects are already tracked via addVerificationMetrics.
+      const serpapiUrls = new Set(
+        serpapiInBatch.map((hit) => hit.url).filter(Boolean),
+      );
+      for (const rejected of verification.rejected) {
+        const discovered = rejected.discovered_url;
+        if (!discovered || !serpapiUrls.has(discovered)) continue;
+        if (isSerpApiFaceIdentityRejectionReason(rejected.rejection_reason)) {
+          metrics.serpapi_face_rejected += 1;
+        }
+      }
+    }
     for (const hit of verified) {
       checkpoint.verified_canonical_urls.push(canonicalUrl(hit.canonical_url));
     }
@@ -1008,7 +1052,178 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
   await heartbeat("discovering");
 
+  /**
+   * Optional SerpApi Google Images wave. Isolated: failures never abort the
+   * scan. Runs inside the same discovery budget and verifies immediately.
+   */
+  const runSerpApiDiscoveryWave = async (maxRequests = 2) => {
+    if (
+      (checkpoint.serpapi_next_query_index ?? 0) >=
+      (checkpoint.serpapi_queries?.length ?? 0)
+    ) {
+      return;
+    }
+
+    const {
+      isSerpApiConfigured,
+      searchSerpApiQueriesBounded,
+      SERPAPI_MAX_REQUESTS_PER_SCAN,
+    } = await import("./serpapi-images.server");
+
+    if (!isSerpApiConfigured()) {
+      checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      await heartbeat("discovering");
+      return;
+    }
+
+    if (metrics.serpapi_requests >= SERPAPI_MAX_REQUESTS_PER_SCAN) {
+      checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      await heartbeat("discovering");
+      return;
+    }
+
+    if (!canStartProviderCall(budget, MIN_PROVIDER_TIME_MS)) {
+      return;
+    }
+
+    const remainingRequests = Math.max(
+      0,
+      SERPAPI_MAX_REQUESTS_PER_SCAN - metrics.serpapi_requests,
+    );
+    const requestBudget = Math.min(maxRequests, remainingRequests);
+    if (requestBudget <= 0) {
+      checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      await heartbeat("discovering");
+      return;
+    }
+
+    const startedAt = Date.now();
+    try {
+      assertNotAborted(input.runtime.signal);
+      const remainingQueries = checkpoint.serpapi_queries.slice(
+        checkpoint.serpapi_next_query_index,
+      );
+      const result = await searchSerpApiQueriesBounded({
+        queries: remainingQueries,
+        maxRequests: requestBudget,
+        alreadyCompletedIds: checkpoint.serpapi_completed_query_ids,
+        alreadySeenPages: checkpoint.serpapi_seen_page_urls,
+        signal: input.runtime.signal,
+        softDeadlineMs: input.runtime.softDeadlineMs,
+        // Meter every settled query before any awaitable verify work so a
+        // mid-batch abort cannot drop already-consumed HTTP attempts.
+        onQueryMetered: ({ query, hits, creditsUsed, httpAttempts }) => {
+          const queryId = query.trim().toLowerCase();
+          if (!checkpoint.serpapi_completed_query_ids.includes(queryId)) {
+            checkpoint.serpapi_completed_query_ids.push(queryId);
+          }
+          checkpoint.serpapi_next_query_index = Math.min(
+            checkpoint.serpapi_queries.length,
+            Math.max(
+              checkpoint.serpapi_next_query_index,
+              checkpoint.serpapi_completed_query_ids.length,
+            ),
+          );
+          metrics.serpapi_credits_used += creditsUsed;
+          metrics.serpapi_requests += Math.max(0, httpAttempts);
+          if (hits.length) {
+            metrics.serpapi_candidates += hits.length;
+            for (const hit of hits) {
+              if (!checkpoint.serpapi_seen_page_urls.includes(hit.url)) {
+                checkpoint.serpapi_seen_page_urls.push(hit.url);
+              }
+            }
+            metrics.serpapi_unique_pages = Math.max(
+              metrics.serpapi_unique_pages,
+              checkpoint.serpapi_seen_page_urls.length,
+            );
+          }
+          checkpoint.metrics = { ...metrics };
+        },
+        onQueryComplete: async ({ hits }) => {
+          if (hits.length) {
+            await enqueueProviderHits(hits as ProviderHit[]);
+            await processPendingCandidates();
+          }
+          await heartbeat("discovering");
+        },
+      });
+
+      recordSpend(budget, "discovery", Date.now() - startedAt);
+      recordProviderLatency(
+        checkpoint,
+        `serpapi:${checkpoint.serpapi_next_query_index}`,
+        Date.now() - startedAt,
+      );
+
+      metrics.serpapi_failures += result.failures;
+      metrics.serpapi_unique_pages = Math.max(
+        metrics.serpapi_unique_pages,
+        result.uniquePages,
+      );
+      if (result.failures > 0) {
+        metrics.provider_failures += result.failures;
+      }
+
+      for (const id of result.completedQueryIds) {
+        if (!checkpoint.serpapi_completed_query_ids.includes(id)) {
+          checkpoint.serpapi_completed_query_ids.push(id);
+        }
+      }
+      checkpoint.serpapi_seen_page_urls = Array.from(
+        new Set([
+          ...checkpoint.serpapi_seen_page_urls,
+          ...result.seenPageUrls,
+        ]),
+      );
+      checkpoint.serpapi_next_query_index = Math.min(
+        checkpoint.serpapi_queries.length,
+        Math.max(
+          checkpoint.serpapi_next_query_index,
+          checkpoint.serpapi_completed_query_ids.length,
+        ),
+      );
+      // Only advance to end when SerpApi is truly done (unique-page cap or all
+      // queries completed). Partial wave budgets must leave remaining queries.
+      if (result.drained) {
+        checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      } else if (metrics.serpapi_requests >= SERPAPI_MAX_REQUESTS_PER_SCAN) {
+        checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      }
+
+      for (const message of result.failureMessages.slice(0, 5)) {
+        console.warn("[DEEPFAKE] SerpApi discovery soft-failure:", message);
+      }
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      metrics.serpapi_failures++;
+      metrics.provider_failures++;
+      console.warn("[DEEPFAKE] SerpApi discovery isolated failure:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Keep remaining SerpApi queries/budget for later waves or Continue.
+      // Only retire the plan when the HTTP attempt cap is already exhausted.
+      if (metrics.serpapi_requests >= SERPAPI_MAX_REQUESTS_PER_SCAN) {
+        checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      } else {
+        checkpoint.serpapi_next_query_index = Math.min(
+          checkpoint.serpapi_queries.length,
+          Math.max(
+            checkpoint.serpapi_next_query_index,
+            checkpoint.serpapi_completed_query_ids.length,
+          ),
+        );
+      }
+    } finally {
+      await heartbeat("discovering");
+    }
+  };
+
   try {
+    // First SerpApi wave (≤2 requests) so verification can begin early.
+    await runSerpApiDiscoveryWave(2);
+    await processPendingCandidates();
+
     if (!isFirecrawlConfigured()) {
       console.warn(
         "[DEEPFAKE] Firecrawl is not configured; skipping Firecrawl search provider.",
@@ -1022,6 +1237,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
       checkpoint.next_query_index < checkpoint.queries.length
     ) {
       assertNotAborted(input.runtime.signal);
+      await processPendingCandidates();
+
+      // Interleave remaining SerpApi requests inside Firecrawl waves.
+      await runSerpApiDiscoveryWave(2);
       await processPendingCandidates();
 
       if (
@@ -1091,6 +1310,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
       await heartbeat("discovering");
     }
 
+    // Drain any remaining SerpApi budget after Firecrawl waves.
+    await runSerpApiDiscoveryWave(5);
     await processPendingCandidates();
 
     if (

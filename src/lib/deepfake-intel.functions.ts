@@ -21,6 +21,7 @@ import {
   type ScanCheckpoint,
 } from "./deepfake/scan-checkpoint.server";
 import {
+  createDiscoveryFunnelMetrics,
   createScanRunToken,
   decideTerminalStatus,
   finalizeScanStatus,
@@ -93,25 +94,10 @@ function finalCounts(input: {
         medium: 0,
         low: 0,
       },
-    metrics:
-      pipelineResult?.metrics ??
-      checkpoint?.metrics ?? {
-        queries_generated: 0,
-        queries_executed: 0,
-        provider_candidates: 0,
-        unique_candidates: 0,
-        crawl_succeeded: 0,
-        crawl_failed: 0,
-        identity_rejected: 0,
-        page_type_rejected: 0,
-        url_rejected: 0,
-        unverified: 0,
-        probable: 0,
-        verified: 0,
-        client_visible: 0,
-        provider_failures: 0,
-        query_failures: 0,
-      } satisfies DiscoveryFunnelMetrics,
+    metrics: {
+      ...createDiscoveryFunnelMetrics(),
+      ...(pipelineResult?.metrics ?? checkpoint?.metrics ?? {}),
+    },
   };
 }
 
