@@ -372,26 +372,17 @@ export async function resolveAndExpandSearchQuery(
   const userAliases = uniqueStrings(input.knownAliases ?? []);
   const userHandles = uniqueStrings(input.knownHandles ?? []);
 
-  // When ambiguous, search top candidates as weak aliases but do not set canonicalName.
-  const weakCandidateNames = ambiguous
-    ? candidates.slice(0, 3).map((c) => c.identity.canonicalName)
-    : [];
-
+  // When ambiguous: do NOT put competing people into aliases used for auto-matching.
+  // Keep them only in ambiguityCandidates + dedicated investigative search queries.
   const aliases = uniqueStrings([
     ...(identity?.aliases ?? []),
     ...userAliases,
-    ...weakCandidateNames,
     corrected !== original ? corrected : null,
     // Keep misspelling as searchable alias when we corrected it
     original !== (canonicalName ?? corrected) ? original : null,
   ]).filter((a) => normalizeKey(a) !== normalizeKey(canonicalName ?? ""));
 
-  const localLanguageNames = uniqueStrings([
-    ...(identity?.localLanguageNames ?? []),
-    ...(ambiguous
-      ? candidates.slice(0, 2).flatMap((c) => c.identity.localLanguageNames)
-      : []),
-  ]);
+  const localLanguageNames = uniqueStrings(identity?.localLanguageNames ?? []);
   const nicknames = uniqueStrings(identity?.nicknames ?? []);
   const formerNames = uniqueStrings(identity?.formerNames ?? []);
   const usernames = uniqueStrings([...(identity?.usernames ?? []), ...userHandles]);
@@ -441,6 +432,30 @@ export async function resolveAndExpandSearchQuery(
     module,
     entityType,
   });
+
+  // Investigative-only queries for ambiguity candidates (not identity aliases).
+  if (ambiguous) {
+    for (const c of candidates.slice(0, 3)) {
+      pushQuery(
+        searchQueries,
+        quote(c.identity.canonicalName),
+        "alias",
+        8,
+      );
+      if (hints.show) {
+        pushQuery(
+          searchQueries,
+          `${quote(c.identity.canonicalName)} ${quote(hints.show)}`,
+          "context",
+          8,
+        );
+      }
+    }
+    // Re-apply limits after investigative additions.
+    const limited = rankAndLimitQueries(searchQueries);
+    searchQueries.length = 0;
+    searchQueries.push(...limited);
+  }
 
   const result: SearchExpansionResult = {
     originalQuery: original,

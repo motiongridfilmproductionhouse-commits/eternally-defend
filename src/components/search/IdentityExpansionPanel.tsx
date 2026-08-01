@@ -40,6 +40,7 @@ export function IdentityExpansionPanel(props: {
   const [localAlso, setLocalAlso] = useState<string[]>([]);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<PreviewResult | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
   const requestSeq = useRef(0);
   const q = props.query.trim();
   const aliasesKey = JSON.stringify(props.aliases ?? []);
@@ -81,12 +82,14 @@ export function IdentityExpansionPanel(props: {
         | "report_wrong_identity";
       value: string;
     }) => {
+      const startedForQuery = q;
+      const seqAtStart = requestSeq.current;
       let activeProfileId = profileId;
       // Persist only when the user takes an explicit identity action.
       if (!activeProfileId) {
         const persisted = (await previewSearchExpansion({
           data: {
-            query: q,
+            query: startedForQuery,
             module: props.module ?? "general",
             entityType: props.entityType,
             knownAliases: props.aliases ?? [],
@@ -94,13 +97,17 @@ export function IdentityExpansionPanel(props: {
             persist: true,
           },
         })) as PreviewResult;
+        // Drop stale persist results if the user changed the query mid-flight.
+        if (startedForQuery !== props.query.trim() || seqAtStart !== requestSeq.current) {
+          return { ok: false as const, stale: true as const };
+        }
         activeProfileId = persisted.profileId;
         setProfileId(persisted.profileId);
         setPreviewData(persisted);
         setLocalAlso(persisted.alsoSearching);
       }
       if (!activeProfileId) throw new Error("Could not persist identity profile.");
-      return updateSearchIdentityAlias({
+      await updateSearchIdentityAlias({
         data: {
           profileId: activeProfileId,
           action: input.action,
@@ -109,8 +116,10 @@ export function IdentityExpansionPanel(props: {
             input.action === "confirm_identity" ? input.value : undefined,
         },
       });
+      return { ok: true as const, stale: false as const };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result?.stale) return;
       const seq = ++requestSeq.current;
       preview.mutate(seq);
     },
@@ -122,6 +131,7 @@ export function IdentityExpansionPanel(props: {
     setPreviewData(null);
     setProfileId(null);
     setAliasDraft("");
+    setSelectedCandidate(null);
   }, [q, aliasesKey, handlesKey, props.module]);
 
   useEffect(() => {
@@ -192,15 +202,27 @@ export function IdentityExpansionPanel(props: {
       {previewData?.ambiguous && (
         <div className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
           <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-          <div>
-            Multiple possible identities were found. Results will remain unverified until the identity is confirmed.
-            <ul className="mt-1 space-y-0.5">
+          <div className="space-y-1.5">
+            <div>
+              Multiple possible identities were found. Results will remain unverified until the identity is confirmed.
+              Select one candidate below before confirming.
+            </div>
+            <div className="flex flex-wrap gap-1.5">
               {(previewData.ambiguityCandidates ?? []).slice(0, 3).map((c) => (
-                <li key={c.name}>
+                <button
+                  key={c.name}
+                  type="button"
+                  className={`rounded-md border px-2 py-1 text-[11px] ${
+                    selectedCandidate === c.name
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border/60 bg-background/40"
+                  }`}
+                  onClick={() => setSelectedCandidate(c.name)}
+                >
                   {c.name} — {Math.round(c.confidence * 100)}%
-                </li>
+                </button>
               ))}
-            </ul>
+            </div>
           </div>
         </div>
       )}
@@ -232,12 +254,16 @@ export function IdentityExpansionPanel(props: {
           size="sm"
           variant="secondary"
           className="h-8 text-xs"
-          disabled={aliasMut.isPending || q.length < 2}
+          disabled={
+            aliasMut.isPending ||
+            q.length < 2 ||
+            (Boolean(previewData?.ambiguous) && !selectedCandidate)
+          }
           onClick={() =>
             aliasMut.mutate({
               action: "confirm_identity",
               value:
-                previewData?.ambiguityCandidates?.[0]?.name ||
+                selectedCandidate ||
                 previewData?.searchingAs ||
                 searchingAs ||
                 q,

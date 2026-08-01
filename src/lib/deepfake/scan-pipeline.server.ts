@@ -6,7 +6,9 @@ import {
   expansionToIdentityList,
   resolveAndExpandSearchQuerySafe,
 } from "@/lib/search/identity-search-expander.server";
+import type { SearchExpansionResult } from "@/lib/search/identity-types";
 import { upsertSearchIdentityProfile } from "@/lib/search/identity-profile.server";
+import { scoreIdentityRelevance } from "@/lib/search/identity-relevance.server";
 import { isBlockedHost } from "./queries";
 import {
   buildExecutedQueryPlan,
@@ -377,7 +379,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     input.resumeCheckpoint?.per_query_limit ?? input.perQueryLimit ?? 20;
 
   // Identity-aware expansion before provider queries (fail-open).
-  const expansion = await resolveAndExpandSearchQuerySafe({
+  const expansion: SearchExpansionResult = await resolveAndExpandSearchQuerySafe({
     query: input.target.name,
     knownAliases: input.target.aliases,
     knownHandles: input.target.handles,
@@ -385,7 +387,15 @@ export async function executeInterleavedDeepfakePipeline(input: {
     entityType: "person",
     userId: input.userId,
   });
-  const expandedIdentities = expansionToIdentityList(expansion);
+  // When ambiguous, do not promote competing candidate names into match aliases.
+  const expandedIdentities = expansion.ambiguous
+    ? uniqueStrings([
+        input.target.name,
+        expansion.correctedQuery,
+        ...input.target.aliases,
+        ...expansion.localLanguageNames,
+      ])
+    : expansionToIdentityList(expansion);
   const expandedTarget = {
     name: expansion.canonicalName ?? input.target.name,
     aliases: uniqueStrings([
@@ -826,6 +836,22 @@ export async function executeInterleavedDeepfakePipeline(input: {
           existing_confidence: media?.confidence ?? null,
         });
 
+        const relevance = scoreIdentityRelevance({
+          expansion,
+          title: crawledTitle,
+          snippet: crawledDescription,
+          url: pageUrl,
+          faceSimilarity:
+            typeof ((media as any)?.face_similarity ?? (hit as any).face_similarity) ===
+            "number"
+              ? Number((media as any)?.face_similarity ?? (hit as any).face_similarity)
+              : null,
+        });
+        const quarantineIdentity =
+          Boolean((hit as any).identity_relevance_quarantine) ||
+          relevance.quarantine ||
+          !relevance.matchedIdentity;
+
         return {
           url: pageUrl,
           title: crawledTitle ?? undefined,
@@ -861,6 +887,19 @@ export async function executeInterleavedDeepfakePipeline(input: {
           url_verification_status: hit.url_verification_status,
           url_rejection_reason: hit.rejection_reason ?? null,
           ...finalizedFields,
+          // Expanded-query hits about a different person stay triage-only.
+          ...(quarantineIdentity
+            ? {
+                visibility: "triage" as const,
+                client_visible: false,
+                classification_explanation: [
+                  finalizedFields.classification_explanation,
+                  relevance.reason,
+                ]
+                  .filter(Boolean)
+                  .join(" "),
+              }
+            : {}),
         } as FinalizedFinding;
       });
 
@@ -1089,7 +1128,32 @@ export async function executeInterleavedDeepfakePipeline(input: {
       ...candidateFilter.triage.filter(hasThreatSignal),
     ] as ProviderHit[];
 
+    // Post-provider identity relevance: quarantine conflicting/first-name-only hits.
     for (const hit of pagesToInspect) {
+      const relevance = scoreIdentityRelevance({
+        expansion,
+        title: hit.title ?? (hit as { page_title?: string }).page_title ?? null,
+        snippet:
+          hit.description ??
+          (hit as { page_description?: string }).page_description ??
+          null,
+        url: hit.url,
+        faceSimilarity:
+          typeof (hit as { face_similarity?: number }).face_similarity === "number"
+            ? (hit as { face_similarity?: number }).face_similarity!
+            : null,
+      });
+      if (relevance.quarantine || !relevance.matchedIdentity) {
+        // Keep for human triage only — do not treat as auto-attached identity match.
+        (hit as ProviderHit & {
+          identity_relevance_quarantine?: boolean;
+          visibility?: string;
+          identity_relevance_reason?: string;
+        }).identity_relevance_quarantine = true;
+        (hit as ProviderHit & { visibility?: string }).visibility = "triage";
+        (hit as ProviderHit & { identity_relevance_reason?: string }).identity_relevance_reason =
+          relevance.reason;
+      }
       pendingCandidates.set(canonicalUrl(hit.url), hit);
     }
 

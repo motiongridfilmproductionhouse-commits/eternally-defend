@@ -3119,12 +3119,19 @@ export const Route = createFileRoute("/api/scan")({
             country: typeof body?.country === "string" ? body.country : undefined,
           });
           const resolvedName = identityExpansion.canonicalName ?? identityExpansion.correctedQuery ?? query;
+          // When ambiguous, avoid promoting competing celebrity names into match aliases.
+          const expandedIds = identityExpansion.ambiguous
+            ? [
+                query,
+                identityExpansion.correctedQuery,
+                ...aliasesIn,
+                ...identityExpansion.localLanguageNames,
+              ]
+            : expansionToIdentityList(identityExpansion);
           const aliases = Array.from(
             new Set([
               ...aliasesIn,
-              ...expansionToIdentityList(identityExpansion).filter(
-                (a) => a.toLowerCase() !== resolvedName.toLowerCase(),
-              ),
+              ...expandedIds.filter((a) => a.toLowerCase() !== resolvedName.toLowerCase()),
               ...identityExpansion.localLanguageNames,
             ]),
           ).slice(0, 20);
