@@ -19,12 +19,21 @@ import {
 } from "./url.server";
 import { queryTitleVariants } from "./title-identity";
 import {
+  runBatchedDiscovery,
+  FIRECRAWL_MAX_RETRIES,
+  DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
+  isTransientFirecrawlFailure,
+  parseRetryAfterMs,
+  sleepWithAbort,
+} from "./discovery-runtime";
+import {
   bumpProviderFailure,
   classifyProviderFailure,
   emptyProviderFailureCounts,
   sanitizeProviderFailureDetail,
   type ProviderFailureCategory,
 } from "./provider-failures";
+import { PROVIDER_CRAWL_BUDGET_MS } from "./crawl-budget";
 
 export interface ReferenceAnalysis {
   title: string | null;
@@ -165,37 +174,6 @@ interface FcResponse {
   error?: string;
 }
 
-/** Keep Firecrawl bursts within gateway rate limits (deepfake uses the same pattern). */
-const DISCOVERY_SEARCH_CONCURRENCY = 3;
-const DISCOVERY_SEARCH_MAX_ATTEMPTS = 3;
-
-function isTransientProviderFailure(status: number | null, error?: unknown): boolean {
-  if (status === 429) return true;
-  if (status !== null && status >= 500 && status <= 599) return true;
-  const msg =
-    error instanceof Error
-      ? `${error.name} ${error.message}`
-      : typeof error === "string"
-        ? error
-        : "";
-  return /\b(?:timeout|timed out|abort|econnreset|etimedout|429|rate.?limit)\b/i.test(msg);
-}
-
-function providerRetryDelayMs(attempt: number, status: number | null, retryAfterHeader: string | null): number {
-  if (retryAfterHeader) {
-    const seconds = Number.parseInt(retryAfterHeader, 10);
-    if (Number.isFinite(seconds) && seconds > 0) {
-      return Math.min(Math.max(seconds, 2), 12) * 1_000;
-    }
-  }
-  if (status === 429) return Math.min(4_000 * (attempt + 1), 12_000);
-  return Math.min(2_000 * (attempt + 1), 8_000);
-}
-
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export interface ProviderSearchAttempt {
   query: string;
   payload: FcResponse | null;
@@ -205,7 +183,21 @@ export interface ProviderSearchAttempt {
   httpStatus?: number | null;
 }
 
-async function search(query: string, recent: boolean): Promise<ProviderSearchAttempt> {
+/** Focused query cap — early-stop may finish sooner when enough pages are found. */
+const DISCOVERY_MAX_QUERIES_PER_SCAN = 35;
+
+export interface FirecrawlDiscoverOptions {
+  signal?: AbortSignal;
+  deadlineAt?: number;
+  analysis?: ReferenceAnalysis;
+}
+
+async function search(
+  query: string,
+  recent: boolean,
+  signal?: AbortSignal,
+  deadlineAt?: number,
+): Promise<ProviderSearchAttempt> {
   if (!isFirecrawlConfigured()) {
     return {
       query,
@@ -219,32 +211,59 @@ async function search(query: string, recent: boolean): Promise<ProviderSearchAtt
 
   let lastStatus: number | null = null;
   let lastDetail = "Provider request failed";
+  let lastCategory: ProviderFailureCategory = "provider_unavailable";
 
-  for (let attempt = 0; attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS; attempt++) {
-    try {
-      const res = await firecrawlFetch("/search", {
+  for (let attempt = 0; attempt <= FIRECRAWL_MAX_RETRIES; attempt++) {
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException("Aborted", "AbortError");
+    }
+    if (typeof deadlineAt === "number" && Date.now() >= deadlineAt) {
+      return {
         query,
-        limit: 10,
-        sources: ["web", "images"],
-        ...(recent ? { tbs: "qdr:m" } : {}),
-      });
+        payload: null,
+        ok: false,
+        failureCategory: "timeout",
+        failureDetail: "Discovery deadline reached before Firecrawl search completed.",
+        httpStatus: lastStatus,
+      };
+    }
+
+    try {
+      const res = await firecrawlFetch(
+        "/search",
+        {
+          query,
+          limit: 10,
+          sources: ["web", "images"],
+          ...(recent ? { tbs: "qdr:m" } : {}),
+        },
+        { signal },
+      );
       lastStatus = res.status;
 
       if (!res.ok) {
-        lastDetail = sanitizeProviderFailureDetail(`Firecrawl search HTTP ${res.status}`);
-        const category = classifyProviderFailure({ status: res.status, configured: true });
-        if (
-          attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS - 1 &&
-          isTransientProviderFailure(res.status)
-        ) {
-          await sleep(providerRetryDelayMs(attempt, res.status, res.headers.get("retry-after")));
+        let bodyHint = "";
+        try {
+          const errText = await res.text();
+          bodyHint = errText ? `: ${errText.slice(0, 120)}` : "";
+        } catch {
+          /* ignore */
+        }
+        lastDetail = sanitizeProviderFailureDetail(`Firecrawl search HTTP ${res.status}${bodyHint}`);
+        lastCategory = classifyProviderFailure({ status: res.status, configured: true });
+        if (attempt < FIRECRAWL_MAX_RETRIES && isTransientFirecrawlFailure(res.status)) {
+          await sleepWithAbort(
+            parseRetryAfterMs(res.headers.get("retry-after")) ??
+              (res.status === 429 ? 4_000 : 2_000),
+            signal,
+          );
           continue;
         }
         return {
           query,
           payload: null,
           ok: false,
-          failureCategory: category,
+          failureCategory: lastCategory,
           failureDetail: lastDetail,
           httpStatus: res.status,
         };
@@ -256,54 +275,52 @@ async function search(query: string, recent: boolean): Promise<ProviderSearchAtt
           lastDetail = sanitizeProviderFailureDetail(
             payload.error || "Firecrawl search returned success=false",
           );
-          const category = classifyProviderFailure({
-            error: payload.error,
-            configured: true,
-          });
-          if (
-            attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS - 1 &&
-            isTransientProviderFailure(null, payload.error)
-          ) {
-            await sleep(providerRetryDelayMs(attempt, null, null));
+          lastCategory = classifyProviderFailure({ error: payload.error, configured: true });
+          if (attempt < FIRECRAWL_MAX_RETRIES && isTransientFirecrawlFailure(null, payload.error)) {
+            await sleepWithAbort(2_000, signal);
             continue;
           }
           return {
             query,
             payload: null,
             ok: false,
-            failureCategory: category,
+            failureCategory: lastCategory,
             failureDetail: lastDetail,
             httpStatus: res.status,
           };
         }
-        // Empty-but-valid payloads are success (genuine zero candidates possible).
         return { query, payload, ok: true, httpStatus: res.status };
       } catch (e) {
         lastDetail = sanitizeProviderFailureDetail(e);
-        if (attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS - 1) {
-          await sleep(providerRetryDelayMs(attempt, res.status, null));
+        lastCategory = "malformed_response";
+        if (attempt < FIRECRAWL_MAX_RETRIES) {
+          await sleepWithAbort(2_000, signal);
           continue;
         }
         return {
           query,
           payload: null,
           ok: false,
-          failureCategory: "malformed_response",
+          failureCategory: lastCategory,
           failureDetail: lastDetail,
           httpStatus: res.status,
         };
       }
     } catch (e) {
+      if (signal?.aborted || (e instanceof DOMException && e.name === "AbortError")) {
+        throw e;
+      }
       lastDetail = sanitizeProviderFailureDetail(e);
-      if (attempt < DISCOVERY_SEARCH_MAX_ATTEMPTS - 1 && isTransientProviderFailure(null, e)) {
-        await sleep(providerRetryDelayMs(attempt, lastStatus, null));
+      lastCategory = classifyProviderFailure({ error: e, configured: true });
+      if (attempt < FIRECRAWL_MAX_RETRIES && isTransientFirecrawlFailure(null, e)) {
+        await sleepWithAbort(2_000, signal);
         continue;
       }
       return {
         query,
         payload: null,
         ok: false,
-        failureCategory: classifyProviderFailure({ error: e, configured: true }),
+        failureCategory: lastCategory,
         failureDetail: lastDetail,
         httpStatus: lastStatus,
       };
@@ -314,20 +331,10 @@ async function search(query: string, recent: boolean): Promise<ProviderSearchAtt
     query,
     payload: null,
     ok: false,
-    failureCategory: classifyProviderFailure({ status: lastStatus, configured: true }),
+    failureCategory: lastCategory,
     failureDetail: lastDetail,
     httpStatus: lastStatus,
   };
-}
-
-async function searchPlansWithConcurrency(plans: QueryPlan[]): Promise<ProviderSearchAttempt[]> {
-  const results: ProviderSearchAttempt[] = [];
-  for (let i = 0; i < plans.length; i += DISCOVERY_SEARCH_CONCURRENCY) {
-    const batch = plans.slice(i, i + DISCOVERY_SEARCH_CONCURRENCY);
-    const batchResults = await Promise.all(batch.map((p) => search(p.query, p.recent)));
-    results.push(...batchResults);
-  }
-  return results;
 }
 
 /** Capture a screenshot of a page so the grader has visual evidence. */
@@ -591,22 +598,28 @@ export interface PageLead {
 
 export interface DiscoveryResult {
   candidates: DiscoveryCandidate[];
-  /** page-level leads for distribution-site inspection */
   pageLeads: PageLead[];
   queriesGenerated: number;
-  /** Queries for which a provider request was attempted. */
   queriesExecuted: number;
-  /** Provider requests that returned a usable response body. */
   providerSuccesses: number;
   providerRequests: number;
   providerFailures: number;
   providerFailuresByCategory: Record<ProviderFailureCategory, number>;
   providerFailureSamples: Array<{ query: string; category: string; detail: string }>;
-  /** Optional Telegram discovery counters (isolated; failures never abort web). */
-  telegramQueries: number;
-  telegramPosts: number;
-  telegramCandidates: number;
-  telegramFailures: number;
+  firecrawl_requests: number;
+  firecrawl_successes: number;
+  firecrawl_failures: number;
+  firecrawl_circuit_opened: boolean;
+  firecrawl_circuit_reason: string | null;
+  firecrawl_operator_action: string | null;
+  firecrawl_stopped_early: boolean;
+  firecrawl_stopped_early_reason: string | null;
+  candidates_by_provider: Record<string, number>;
+  telegram_queries: number;
+  telegram_posts: number;
+  telegram_candidates: number;
+  telegram_failures: number;
+  telegram_requests: number;
 }
 
 /**
@@ -617,25 +630,64 @@ export async function firecrawlDiscover(
   referenceDataUrl: string,
   workTitle: string,
   frameIndex: number,
-  analysis?: ReferenceAnalysis,
+  analysisOrOptions?: ReferenceAnalysis | FirecrawlDiscoverOptions,
+  maybeOptions?: FirecrawlDiscoverOptions,
 ): Promise<DiscoveryResult> {
+  const options: FirecrawlDiscoverOptions =
+    analysisOrOptions && "signal" in analysisOrOptions
+      ? (analysisOrOptions as FirecrawlDiscoverOptions)
+      : (maybeOptions ?? {});
+  const analysis =
+    analysisOrOptions && !("signal" in analysisOrOptions)
+      ? (analysisOrOptions as ReferenceAnalysis)
+      : options.analysis;
+
+  const emptyFirecrawl = (reason: string, category: ProviderFailureCategory): DiscoveryResult => ({
+    candidates: [],
+    pageLeads: [],
+    queriesGenerated: 0,
+    queriesExecuted: 0,
+    providerSuccesses: 0,
+    providerRequests: 0,
+    providerFailures: category === "missing_api_key" ? 1 : 0,
+    providerFailuresByCategory: {
+      ...emptyProviderFailureCounts(),
+      ...(category === "missing_api_key" ? { missing_api_key: 1 } : {}),
+    },
+    providerFailureSamples: reason
+      ? [{ query: "", category, detail: reason }]
+      : [],
+    firecrawl_requests: 0,
+    firecrawl_successes: 0,
+    firecrawl_failures: category === "missing_api_key" ? 1 : 0,
+    firecrawl_circuit_opened: false,
+    firecrawl_circuit_reason: null,
+    firecrawl_operator_action: null,
+    firecrawl_stopped_early: false,
+    firecrawl_stopped_early_reason: null,
+    candidates_by_provider: {},
+    telegram_queries: 0,
+    telegram_posts: 0,
+    telegram_candidates: 0,
+    telegram_failures: 0,
+    telegram_requests: 0,
+  });
 
   if (!isFirecrawlConfigured()) {
-    const err = new Error(
-      "Reverse discovery is not configured. Connect Firecrawl (FIRECRAWL_API_KEY) to run copyright detection.",
+    return emptyFirecrawl(
+      "Firecrawl is not configured for copyright discovery.",
+      "missing_api_key",
     );
-    (err as Error & { failureCategory?: ProviderFailureCategory }).failureCategory =
-      "missing_api_key";
-    throw err;
   }
 
   const a = analysis ?? (await analyzeReference(referenceDataUrl, workTitle));
   const allPlans = buildQueries(a, workTitle);
-  // Keep Telegram queries optional/isolated — never let them starve or abort web discovery.
   const telegramPlans = allPlans.filter((p) => /\btelegram\b/i.test(p.query));
   const webPlans = allPlans.filter((p) => !/\btelegram\b/i.test(p.query));
-  const plans = [...webPlans, ...telegramPlans].slice(0, 40);
+  const plans = [...webPlans, ...telegramPlans].slice(0, DISCOVERY_MAX_QUERIES_PER_SCAN);
   const queriesGenerated = plans.length;
+  const deadlineAt =
+    options.deadlineAt ?? Date.now() + PROVIDER_CRAWL_BUDGET_MS;
 
   const seen = new Set<string>();
   const out: DiscoveryCandidate[] = [];
@@ -643,19 +695,47 @@ export async function firecrawlDiscover(
   const weakLeads: Array<{ url: string; title: string | null; query: string; text: string }> = [];
   const providerFailuresByCategory = emptyProviderFailureCounts();
   const providerFailureSamples: Array<{ query: string; category: string; detail: string }> = [];
-  let providerSuccesses = 0;
-  let providerFailures = 0;
   let telegramQueries = 0;
   let telegramPosts = 0;
   let telegramCandidates = 0;
   let telegramFailures = 0;
+  let telegramRequests = 0;
 
-  const results = await searchPlansWithConcurrency(plans);
+  const uniquePageKeys = new Set<string>();
+  const countUniquePages = (attempts: ProviderSearchAttempt[]) => {
+    for (const attempt of attempts) {
+      if (!attempt.ok || !attempt.payload) continue;
+      for (const img of attempt.payload.data?.images ?? []) {
+        const page = img.url ?? img.sourceUrl;
+        if (page) uniquePageKeys.add(canonicalUrl(page));
+      }
+      for (const web of attempt.payload.data?.web ?? []) {
+        if (web.url) uniquePageKeys.add(canonicalUrl(web.url));
+      }
+    }
+    return uniquePageKeys.size;
+  };
+
+  const batched = await runBatchedDiscovery({
+    plans,
+    signal: options.signal,
+    deadlineAt,
+    earlyStopUniquePages: DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
+    uniquePageCount: countUniquePages,
+    execute: (plan, signal) => search(plan.query, plan.recent, signal, deadlineAt),
+  });
+
+  const results = batched.attempts;
+  let providerSuccesses = 0;
+  let providerFailures = 0;
 
   for (const attempt of results) {
     const { query, payload } = attempt;
     const isTelegramQuery = /\btelegram\b/i.test(query);
-    if (isTelegramQuery) telegramQueries += 1;
+    if (isTelegramQuery) {
+      telegramQueries += 1;
+      telegramRequests += 1;
+    }
 
     if (!attempt.ok) {
       providerFailures += 1;
@@ -822,10 +902,23 @@ export async function firecrawlDiscover(
     providerFailures,
     providerFailuresByCategory,
     providerFailureSamples,
-    telegramQueries,
-    telegramPosts,
-    telegramCandidates,
-    telegramFailures,
+    firecrawl_requests: results.length,
+    firecrawl_successes: providerSuccesses,
+    firecrawl_failures: providerFailures,
+    firecrawl_circuit_opened: batched.circuit.opened,
+    firecrawl_circuit_reason: batched.circuit.openedReason,
+    firecrawl_operator_action: batched.circuit.operatorAction,
+    firecrawl_stopped_early: batched.stoppedEarly,
+    firecrawl_stopped_early_reason: batched.stoppedEarlyReason,
+    candidates_by_provider: {
+      firecrawl: pageLeads.length,
+      telegram: telegramCandidates,
+    },
+    telegram_queries: telegramQueries,
+    telegram_posts: telegramPosts,
+    telegram_candidates: telegramCandidates,
+    telegram_failures: telegramFailures,
+    telegram_requests: telegramRequests,
   };
 }
 
