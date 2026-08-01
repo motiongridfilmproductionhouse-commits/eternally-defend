@@ -353,12 +353,24 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
  */
 export function piracyCategory(text: string): string {
   const t = text.toLowerCase();
-  // Hard negatives first — cinema booking / showtimes are not distribution.
-  if (/\b(now\s*showing|showtimes?|book\s*tickets?|buy\s*tickets?|vox\s*cinemas)\b/.test(t)) {
+  const hasAccessSignal =
+    /(hdcam|camrip|cam[- ]?print|theatre\s*print|theater\s*print|cinema\s*recording|hdts|hq[- ]?cam|torrent|magnet|watch\s*full\s*movie|download\s*full\s*movie|free\s*stream|webrip|web[- ]?dl|mega\.nz|mediafire|\.mkv|\.torrent)/.test(
+      t,
+    );
+
+  // Soft negatives only when no access/piracy language is present.
+  if (
+    !hasAccessSignal &&
+    /\b(now\s*showing|showtimes?|book\s*tickets?|buy\s*tickets?|vox\s*cinemas)\b/.test(t)
+  ) {
     return "cinema_or_showtime";
   }
-  if (/\b(official\s*trailer|teaser\s*trailer|song\s*video)\b/.test(t)) return "trailer_or_promo";
-  if (/\b(movie\s*review|film\s*review|box\s*office|interview)\b/.test(t)) return "review_or_news";
+  if (!hasAccessSignal && /\b(official\s*trailer|teaser\s*trailer|song\s*video)\b/.test(t)) {
+    return "trailer_or_promo";
+  }
+  if (!hasAccessSignal && /\b(movie\s*review|film\s*review|box\s*office|interview)\b/.test(t)) {
+    return "review_or_news";
+  }
   if (/(hdcam|camrip|cam[- ]?print|theatre\s*print|theater\s*print|cinema\s*recording|hdts|hq[- ]?cam)/.test(t)) {
     return "cam_theatre_leak";
   }
