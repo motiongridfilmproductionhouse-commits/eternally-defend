@@ -205,6 +205,14 @@ export function ResultsIntelligenceConsole({
     }
   }, [domainFilter, networkFindings]);
 
+  // Clear selection when filters hide the selected finding.
+  useEffect(() => {
+    if (!selectedFindingId) return;
+    if (!sorted.some((finding) => finding.id === selectedFindingId)) {
+      setSelectedFindingId(null);
+    }
+  }, [selectedFindingId, sorted]);
+
   const selectFinding = (
     findingId: string,
     options?: { syncDomain?: boolean },
@@ -255,8 +263,12 @@ export function ResultsIntelligenceConsole({
     <div className="space-y-4" data-testid="results-intelligence-console">
       {scanStatus === "completed" && (
         <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-300">
-          Scan completed · {visibleFindings.length} saved client-visible finding
-          {visibleFindings.length === 1 ? "" : "s"}.
+          Scan completed · {scopedFindings.length} finding
+          {scopedFindings.length === 1 ? "" : "s"}
+          {scopedFindings.length !== visibleFindings.length
+            ? ` shown (${visibleFindings.length} saved total)`
+            : " saved"}
+          .
         </div>
       )}
       {scanStatus === "partial" && (

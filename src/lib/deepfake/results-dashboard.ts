@@ -236,7 +236,12 @@ export function buildDomainRows(findings: ClientFinding[]): DomainRow[] {
     const reviews = new Set(list.map((f) => f.review_status ?? "new"));
     let status: DomainRow["status"] = "active";
     if (reviews.size === 1 && reviews.has("reviewed")) status = "reviewed";
-    else if (reviews.size > 1) status = "mixed";
+    else if (
+      reviews.size === 1 &&
+      (reviews.has("dismissed") || reviews.has("queued_takedown"))
+    ) {
+      status = "reviewed";
+    } else if (reviews.size > 1) status = "mixed";
 
     rows.push({
       domain,
