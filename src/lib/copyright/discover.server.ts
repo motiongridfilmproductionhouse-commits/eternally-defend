@@ -244,97 +244,135 @@ interface QueryPlan {
   recent: boolean;
 }
 
-function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
+/** Optional discovery seed domains for regression / focused hunting — never auto-guilty. */
+const OPTIONAL_SEED_DOMAINS = ["ogomovies1.com.pk"];
+
+/**
+ * Focused exact-title piracy queries. Never search using generic title tokens alone.
+ * Exported for regression tests.
+ */
+export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
   const base = (a.title || workTitle).trim();
+  if (!base) return [];
+  const year = a.releaseDate?.slice(0, 4) || null;
   const names = [...new Set([base, ...a.altTitles].filter(Boolean))].slice(0, 4);
-  const ocrPhrase = (a.ocrText ?? "")
-    .split(/\n+/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 6 && l.length < 60)[0];
 
   const age = daysSince(a.releaseDate);
   const isFresh = age !== null && age <= 30;
 
+  // Focused distribution phrases — never bare title / generic tokens alone.
   const general = [
-    "full movie", "watch online", "free streaming", "HD print", "CAM print",
-    "WEB-DL", "download", "torrent", "movie file", "online free", "dubbed",
-    "language versions", "online", "stream online", "streaming online",
-    "full video", "full movie online free", "movie download", "movie download hd",
-    "leaked", "CAM", "telegram", "movie file download",
-    "watch online free hd", "embedded player watch", "mp4 download link",
-    "google drive link", "mega.nz link", "index of movie", "hdrip 720p",
-    "mirror links download", "dual audio download",
+    "watch full movie",
+    "download full movie",
+    "online free",
+    "CAM",
+    "HDTS",
+    "theatre print",
+    "WEB-DL",
+    "WEBRip",
+    "torrent",
+    "magnet",
+    "telegram",
+    "file host",
+    "streaming server",
+    "mega.nz",
+    "mediafire",
+    "free streaming",
+    "hdcam download",
   ];
   const fresh = [
-    "released today", "online today", "full movie leaked",
-    "theatre print", "cinema recording", "same day leak", "day 1 print",
-    "hdcam 720p download", "first day print online", "leaked online day one",
-    "new release full movie download", "first week download",
+    "theatre print online",
+    "cinema recording leak",
+    "same day leak",
+    "hdcam 720p download",
+    "first day print online",
+    "full movie leaked",
   ];
 
-  // Negative terms keep licensed/news/review pages out of the result set.
   const NEG =
-    "-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -review -trailer_reaction -\"box office\" -news";
+    "-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -site:voxcinemas.com -site:bookmyshow.com -site:fandango.com -review -trailer -\"box office\" -showtimes -\"now showing\" -news";
 
   const plans: QueryPlan[] = [];
-  const push = (query: string, recent = false) => plans.push({ query, recent });
+  const push = (query: string, recent = false) => {
+    // Refuse queries that are only the bare title / tokens.
+    const trimmed = query.replace(NEG, "").trim();
+    if (trimmed === `"${base}"` || trimmed === base) return;
+    plans.push({ query, recent });
+  };
 
-  // 1. Core piracy phrasing on the primary title.
   for (const term of general) push(`"${base}" ${term} ${NEG}`, isFresh);
+  if (year) {
+    push(`"${base}" ${year} watch full movie ${NEG}`, isFresh);
+    push(`"${base}" ${year} download ${NEG}`, isFresh);
+  }
 
-  // 2. Fresh-release urgency terms.
-  if (isFresh || !a.releaseDate) for (const term of fresh) push(`"${base}" ${term} ${NEG}`, true);
+  if (isFresh || !a.releaseDate) {
+    for (const term of fresh) push(`"${base}" ${term} ${NEG}`, true);
+  }
 
-  // 3. Alternate / translated titles.
   for (const n of names.slice(1)) {
-    push(`"${n}" full movie download ${NEG}`, isFresh);
-    push(`"${n}" watch online free ${NEG}`, isFresh);
+    push(`"${n}" watch full movie ${NEG}`, isFresh);
+    push(`"${n}" download full movie ${NEG}`, isFresh);
+    push(`"${n}" torrent magnet ${NEG}`, isFresh);
   }
 
-  // 4. Language-native piracy terms.
   const langs = [a.language, ...a.audienceLanguages].filter(Boolean) as string[];
-  for (const term of localTermsFor(langs).slice(0, 10)) push(`${base} ${term}`, isFresh);
-  if (a.language) push(`${base} ${a.language} full movie download ${NEG}`, isFresh);
-  if (a.region) push(`${base} ${a.region} movie download hd ${NEG}`, isFresh);
-
-  // 5. Cast / studio correlation.
-  for (const actor of a.actors.slice(0, 2)) {
-    push(`${actor} "${base}" movie download ${NEG}`, isFresh);
-    push(`${actor} "${base}" watch online free ${NEG}`, isFresh);
+  for (const term of localTermsFor(langs).slice(0, 8)) {
+    push(`"${base}" ${term}`, isFresh);
   }
-  if (a.productionCompany) push(`${a.productionCompany} "${base}" leaked print`);
-  if (a.releaseDate) push(`"${base}" ${a.releaseDate.slice(0, 4)} full movie download ${NEG}`, isFresh);
+  if (a.language) push(`"${base}" ${a.language} watch full movie ${NEG}`, isFresh);
 
-  // 6. Platform-scoped piracy hosts, forums, file lockers and social.
-  push(`${base} full movie ${PIRACY_SITE_FILTER}`, isFresh);
-  push(`${base} download link forum thread ${NEG}`, isFresh);
-  push(`${base} ${FILE_HOST_FILTER}`, isFresh);
-  push(`${base} ${STREAM_SITE_FILTER}`, isFresh);
+  // Actor queries always keep the exact quoted title — never actor alone.
+  for (const actor of a.actors.slice(0, 2)) {
+    push(`"${base}" ${actor} download full movie ${NEG}`, isFresh);
+  }
+  if (a.releaseDate) {
+    push(`"${base}" ${a.releaseDate.slice(0, 4)} WEBRip download ${NEG}`, isFresh);
+  }
 
-  // 7. Visual / artwork reuse.
-  push(`"${base}" poster hd image download ${NEG}`);
-  push(`${base} movie screenshot still frame`);
-  push(`${base} trailer clip mp4 download`);
-  for (const d of a.descriptors.slice(0, 3)) push(`${base} ${d}`);
-  for (const f of a.visualFeatures.slice(0, 2)) push(`${base} ${f}`);
-  if (ocrPhrase) push(`"${ocrPhrase}" ${base}`);
-  if (a.watermark) push(`${base} ${a.watermark}`);
+  push(`"${base}" full movie ${PIRACY_SITE_FILTER}`, isFresh);
+  push(`"${base}" ${FILE_HOST_FILTER}`, isFresh);
+  push(`"${base}" ${STREAM_SITE_FILTER}`, isFresh);
+  push(`"${base}" torrent magnet ${NEG}`, isFresh);
+  push(`"${base}" telegram full movie ${NEG}`, isFresh);
+
+  // Optional seed domains — discovery only; every result still needs exact-page evidence.
+  for (const seed of OPTIONAL_SEED_DOMAINS) {
+    push(`"${base}" site:${seed}`, isFresh);
+  }
 
   const seen = new Set<string>();
   return plans
     .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
-    .slice(0, 44);
+    .slice(0, 36);
 }
 
-/** Coarse piracy taxonomy used for evidence labelling. */
+/**
+ * Coarse discovery taxonomy for ranking leads only.
+ * Never treat bare "cinema"/"theater" (showtimes) as theatre-print piracy.
+ */
 export function piracyCategory(text: string): string {
   const t = text.toLowerCase();
-  if (/(hdcam|camrip|cam[- ]?print|theatre[- ]?print|theater|cinema recording|hdts)/.test(t)) return "cam_theatre_leak";
+  // Hard negatives first — cinema booking / showtimes are not distribution.
+  if (/\b(now\s*showing|showtimes?|book\s*tickets?|buy\s*tickets?|vox\s*cinemas)\b/.test(t)) {
+    return "cinema_or_showtime";
+  }
+  if (/\b(official\s*trailer|teaser\s*trailer|song\s*video)\b/.test(t)) return "trailer_or_promo";
+  if (/\b(movie\s*review|film\s*review|box\s*office|interview)\b/.test(t)) return "review_or_news";
+  if (/(hdcam|camrip|cam[- ]?print|theatre\s*print|theater\s*print|cinema\s*recording|hdts|hq[- ]?cam)/.test(t)) {
+    return "cam_theatre_leak";
+  }
   if (/(torrent|magnet|1337x|yts|rarbg)/.test(t)) return "torrent";
   if (/(t\.me|telegram)/.test(t)) return "telegram_channel";
-  if (/(hdrip|webrip|web[- ]?dl|dvdrip|480p|720p|1080p|mkv|mp4)/.test(t)) return "ripped_copy";
-  if (/(watch online|streaming|free stream|full movie|full video)/.test(t)) return "streaming_site";
-  if (/(download|file|drive\.google|mega\.nz|mediafire)/.test(t)) return "file_sharing";
+  if (/(hdrip|webrip|web[- ]?dl|dvdrip|bluray|480p|720p|1080p|\.mkv|\.mp4)/.test(t)) {
+    return "ripped_copy";
+  }
+  if (/(watch\s*full\s*movie|free\s*stream|full\s*movie\s*online|streaming\s*server)/.test(t)) {
+    return "streaming_site";
+  }
+  if (/(download\s*full\s*movie|file\s*host|drive\.google|mega\.nz|mediafire)/.test(t)) {
+    return "file_sharing";
+  }
   if (/(forum|thread|community|reddit)/.test(t)) return "forum_post";
   if (/(poster|artwork|wallpaper|still|screenshot)/.test(t)) return "artwork_reupload";
   return "web_lead";
@@ -362,6 +400,8 @@ export interface DiscoveryResult {
   candidates: DiscoveryCandidate[];
   /** page-level leads for distribution-site inspection */
   pageLeads: PageLead[];
+  queriesGenerated: number;
+  queriesExecuted: number;
 }
 
 /**
@@ -383,6 +423,7 @@ export async function firecrawlDiscover(
 
   const a = analysis ?? (await analyzeReference(referenceDataUrl, workTitle));
   const plans = buildQueries(a, workTitle);
+  const queriesGenerated = plans.length;
 
   const seen = new Set<string>();
   const out: DiscoveryCandidate[] = [];
@@ -427,8 +468,16 @@ export async function firecrawlDiscover(
       seen.add(key);
       if (isExcludedHost(key)) continue;
       const text = `${web.title ?? ""} ${web.description ?? ""} ${key}`;
-      // Reviews / commentary / recaps are not distribution sources.
-      if (/(review|recap|explained|reaction|opinion|box office|interview|press release)/i.test(text)) continue;
+      // Reviews / commentary / cinema showtimes are not distribution sources.
+      if (/(review|recap|explained|reaction|opinion|box office|interview|press release|now showing|showtimes?|book tickets?)/i.test(text)) continue;
+      const category = piracyCategory(`${text} ${query}`);
+      if (
+        category === "cinema_or_showtime" ||
+        category === "trailer_or_promo" ||
+        category === "review_or_news"
+      ) {
+        continue;
+      }
       const lead = { url: key, title: web.title ?? null, query, text };
       if (PIRACY_HINTS.test(text) || isSuspiciousType(websiteTypeFor(key, `${text} ${query}`))) strongLeads.push(lead);
       else weakLeads.push(lead);
@@ -478,6 +527,8 @@ export async function firecrawlDiscover(
   return {
     candidates: out.sort((x, y) => Number(y.exact) - Number(x.exact)).slice(0, 60),
     pageLeads,
+    queriesGenerated,
+    queriesExecuted: results.length,
   };
 }
 

@@ -16,7 +16,25 @@ export type DetectionType =
   | "cam_recording"
   | "ripped_copy"
   | "edited_derivative"
-  | "unrelated";
+  | "unrelated"
+  // New taxonomy values (preferred for persistence)
+  | "DUPLICATE_ARTWORK_ONLY"
+  | "TRAILER_OR_PROMO"
+  | "CINEMA_OR_SHOWTIME"
+  | "REVIEW_OR_NEWS"
+  | "CAST_OR_INFORMATION"
+  | "SOCIAL_DISCUSSION"
+  | "UNVERIFIED_LEAD"
+  | "UNRELATED"
+  | "VERIFIED_UNAUTHORIZED_STREAM"
+  | "PROBABLE_UNAUTHORIZED_STREAM"
+  | "DOWNLOAD_PAGE"
+  | "FILE_HOST_DISTRIBUTION"
+  | "TORRENT_OR_MAGNET"
+  | "VIDEO_HOST_REUPLOAD"
+  | "THEATRE_PRINT_DISTRIBUTION"
+  | "MIRROR_OR_REDIRECT"
+  | "OFFICIAL_OR_AUTHORIZED";
 
 export interface GradedMatch {
   confidence: number;
@@ -37,12 +55,16 @@ Return a confidence score 0-100 for "this candidate reproduces the reference wor
 - 50-69 possible similarity that needs a human decision
 - below 50 not a reproduction
 
-Set falsePositive = true when the candidate is a review article, news report, commentary,
-fan art, a different work, a stock photo, a person photo, or unrelated content that merely
-shares style or subject. Never infer infringement from title text alone.
+Set falsePositive = true when the candidate is a cinema/showtime/ticketing page, official
+trailer or promo, review/news/cast page, social discussion, fan art, a different work,
+a stock photo, or unrelated content that merely shares style or subject.
+Never infer illegal distribution from poster, OCR, actor faces, watermark, or title alone.
+Artwork/identity similarity is NOT piracy — use DUPLICATE_ARTWORK_ONLY or unrelated.
 
 Also report:
-- detectionType: one of reuploaded_artwork, poster_copy, movie_screenshot, trailer_copy,
+- detectionType: one of DUPLICATE_ARTWORK_ONLY, TRAILER_OR_PROMO, CINEMA_OR_SHOWTIME,
+  REVIEW_OR_NEWS, CAST_OR_INFORMATION, SOCIAL_DISCUSSION, UNRELATED,
+  reuploaded_artwork, poster_copy, movie_screenshot, trailer_copy,
   video_clip, cam_recording, ripped_copy, edited_derivative, unrelated
 - transformations: short tags such as crop, resize, mirror, compression, watermark_added,
   logo_overlay, colour_shift, letterbox, cam_capture, text_overlay
@@ -72,6 +94,11 @@ function clampScore(v: unknown): number {
 const TYPES = new Set<DetectionType>([
   "reuploaded_artwork", "poster_copy", "movie_screenshot", "trailer_copy",
   "video_clip", "cam_recording", "ripped_copy", "edited_derivative", "unrelated",
+  "DUPLICATE_ARTWORK_ONLY", "TRAILER_OR_PROMO", "CINEMA_OR_SHOWTIME", "REVIEW_OR_NEWS",
+  "CAST_OR_INFORMATION", "SOCIAL_DISCUSSION", "UNVERIFIED_LEAD", "UNRELATED",
+  "VERIFIED_UNAUTHORIZED_STREAM", "PROBABLE_UNAUTHORIZED_STREAM", "DOWNLOAD_PAGE",
+  "FILE_HOST_DISTRIBUTION", "TORRENT_OR_MAGNET", "VIDEO_HOST_REUPLOAD",
+  "THEATRE_PRINT_DISTRIBUTION", "MIRROR_OR_REDIRECT", "OFFICIAL_OR_AUTHORIZED",
 ]);
 
 export async function gradeCandidate(opts: {
@@ -133,7 +160,8 @@ export async function gradeCandidate(opts: {
     const detectionType = String(parsed.detectionType ?? "unrelated") as DetectionType;
     return {
       confidence: clampScore(parsed.confidence),
-      detectionType: TYPES.has(detectionType) ? detectionType : "reuploaded_artwork",
+      // Identity-only image grades default to artwork — never ripped_copy.
+      detectionType: TYPES.has(detectionType) ? detectionType : "DUPLICATE_ARTWORK_ONLY",
       transformations: Array.isArray(parsed.transformations)
         ? parsed.transformations.map((t) => String(t).slice(0, 40)).slice(0, 10)
         : [],

@@ -41,9 +41,12 @@ const OFFICIAL_HOSTS = [
   "marvel.com", "sonypictures.com", "warnerbros.com", "universalpictures.com", "paramount.com",
   "20thcenturystudios.com", "focusfeatures.com", "a24films.com", "lionsgate.com", "mgm.com",
   "netflixstudios.com", "spiderman.movie",
-  // ticketing / listings / databases
+  // ticketing / cinema / showtimes / listings / databases
   "bookmyshow.com", "fandango.com", "atomtickets.com", "pvrcinemas.com", "inox.co.in",
-  "cinepolis.com", "amctheatres.com", "regmovies.com", "imdb.com", "themoviedb.org",
+  "cinepolis.com", "amctheatres.com", "regmovies.com", "voxcinemas.com", "voxcinemas.ae",
+  "district.com", "district.in", "novacinemas.com", "reelcinemas.ae", "muvicinemas.com",
+  "cinepax.com", "cinegold.com", "cinema.com", "showtimes.com",
+  "imdb.com", "themoviedb.org",
   "letterboxd.com", "rottentomatoes.com", "metacritic.com", "justwatch.com", "wikipedia.org",
   "fandom.com", "boxofficemojo.com", "allmovie.com", "moviefone.com",
   // news / reviews / commentary / trade

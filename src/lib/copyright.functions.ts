@@ -10,6 +10,12 @@ import { readStoredObject } from "@/lib/copyright/storage.server";
 import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
 import { analyzeDistributionPage, releaseTimingFor } from "@/lib/copyright/distribution.server";
 import { registerDistributionSource, runAutoMonitor } from "@/lib/copyright/distribution-monitor.server";
+import {
+  isActionablePiracy,
+  normalizeClassification,
+} from "@/lib/copyright/taxonomy";
+import { filterClientVisibleCopyrightMatches } from "@/lib/copyright/client-filter";
+import { detectPrimaryPurpose } from "@/lib/copyright/page-classify.server";
 
 import {
   buildMovieFingerprint,
@@ -118,7 +124,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         .slice(0, 40);
 
       // 3. Evidence grading with a multimodal comparison.
-      const rows: MatchInsert[] = [];
+      // Image/OCR path produces identity-only internal leads — never actionable piracy.
       const fallbackRows: MatchInsert[] = [];
       let ignored = 0;
 
@@ -225,10 +231,10 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         for (const { candidate, result, rek } of graded) {
           const blended = blendConfidence(result ? result.confidence : null, rek);
           const rekStrong = rek.signals.length >= 2;
-          // Multi-signal Rekognition corroboration overrides a soft AI false-positive call.
-          const isMatch = result
+          // Identity match only — poster/OCR/actors never prove illegal distribution.
+          const identityMatch = result
             ? (!result.falsePositive || rek.signals.length >= 3) &&
-              (result.detectionType !== "unrelated" || rekStrong) &&
+              (result.detectionType !== "unrelated" && result.detectionType !== "UNRELATED") &&
               blended >= 50
             : rekStrong && blended >= 50;
 
@@ -236,65 +242,252 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             ? ` AWS recognition: ${rek.signals.join("; ")}.`
             : "";
 
-          if (isMatch) {
-            rows.push(buildRow(
+          const purpose = detectPrimaryPurpose({
+            url: candidate.url,
+            pageTitle: candidate.title,
+            text: `${candidate.title ?? ""} ${candidate.category ?? ""} ${candidate.query ?? ""}`,
+            host: hostOf(candidate.url),
+          });
+
+          // Image/OCR path can only produce non-actionable identity leads.
+          // Actionable piracy requires exact-page distribution evidence (below).
+          let identityType = "DUPLICATE_ARTWORK_ONLY";
+          if (purpose === "cinema_or_showtime" || candidate.category === "cinema_or_showtime") {
+            identityType = "CINEMA_OR_SHOWTIME";
+          } else if (purpose === "trailer_or_promo" || result?.detectionType === "trailer_copy") {
+            identityType = "TRAILER_OR_PROMO";
+          } else if (purpose === "review_or_news") {
+            identityType = "REVIEW_OR_NEWS";
+          } else if (purpose === "cast_or_information") {
+            identityType = "CAST_OR_INFORMATION";
+          } else if (purpose === "social_discussion" || candidate.category === "forum_post") {
+            identityType = "SOCIAL_DISCUSSION";
+          } else if (purpose === "official_or_authorized") {
+            identityType = "OFFICIAL_OR_AUTHORIZED";
+          } else if (
+            result?.detectionType &&
+            !isActionablePiracy(result.detectionType) &&
+            result.detectionType !== "unrelated" &&
+            result.detectionType !== "ripped_copy" &&
+            result.detectionType !== "video_clip" &&
+            result.detectionType !== "cam_recording"
+          ) {
+            identityType = normalizeClassification(result.detectionType);
+          }
+
+          if (identityMatch) {
+            const row = buildRow(
               candidate,
-              blended,
-              result?.detectionType && result.detectionType !== "unrelated"
-                ? result.detectionType
-                : (candidate.websiteType === "duplicate_artwork" ? "poster_copy" : "ripped_copy"),
+              Math.min(blended, 49),
+              identityType,
               [...(result?.transformations ?? []), ...(rek.watermarkMatch ? ["watermark_match"] : [])],
               result?.ocrText ?? (rek.matchedOcrText.join(" | ") || null),
               result?.watermark ?? rek.watermarkMatch,
-              `${result?.reason ?? "Multi-signal Rekognition match."}${rekReason}`,
+              `${result?.reason ?? "Identity/artwork match."}${rekReason} Artwork, OCR, or actor similarity proves relevance only — not unauthorized distribution.`,
               rek,
-            ));
+            );
+            row.evidence = {
+              ...(row.evidence as Record<string, unknown>),
+              client_visible: false,
+              identity_only: true,
+              classification: identityType,
+            };
+            // Persist non-actionable identity leads internally; never as piracy.
+            fallbackRows.push(row);
             continue;
           }
 
           ignored++;
-          // Keep strong discovery signals as reviewable leads so a scan with
-          // real piracy signals never reports an empty result set.
           if ((candidate.exact || rek.signals.length >= 1) && !(result?.falsePositive && blended < 20)) {
-            fallbackRows.push(buildRow(
+            const leadRow = buildRow(
               candidate,
-              Math.max(35, Math.min(49, blended || 35)),
-              result?.detectionType && result.detectionType !== "unrelated"
-                ? result.detectionType
-                : "ripped_copy",
+              Math.max(20, Math.min(40, blended || 25)),
+              "UNVERIFIED_LEAD",
               result?.transformations ?? [],
               result?.ocrText ?? null,
               result?.watermark ?? rek.watermarkMatch,
               (result?.reason ||
-                `Piracy-signal lead (${candidate.category ?? "web_lead"}) surfaced by "${candidate.keywordMatch ?? candidate.query ?? data.title}" — requires human review.`) + rekReason,
+                `Unverified discovery lead (${candidate.category ?? "web_lead"}) from "${candidate.keywordMatch ?? candidate.query ?? data.title}" — requires exact-page distribution evidence.`) + rekReason,
               rek,
-            ));
+            );
+            leadRow.evidence = {
+              ...(leadRow.evidence as Record<string, unknown>),
+              client_visible: false,
+              classification: "UNVERIFIED_LEAD",
+            };
+            fallbackRows.push(leadRow);
           }
         }
       }
 
-      // 4. Unauthorized-distribution site inspection. Page leads are fetched and
-      //    examined for hard evidence (players, download buttons, mirrors, file
-      //    and torrent links). Title/poster/trailer/news mentions alone never
-      //    qualify. Evidence only — nothing is reported or taken down.
+      // 4. Unauthorized-distribution site inspection. Exact-page crawl required.
+      //    Identity (title/poster/OCR) alone never qualifies. Fail closed on crawl failure.
       const titles = [data.title, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
       const releaseDate = analysis.releaseDate;
       const leadUrls = discovery.pageLeads
         .sort((a2, b2) => Number(b2.strong) - Number(a2.strong))
-        .slice(0, 16);
+        .slice(0, 20);
 
       const distributionRows: MatchInsert[] = [];
+      const internalRows: MatchInsert[] = [];
       const inspectedDomains = new Set<string>();
+      const inspectedUrls = new Set<string>();
+      const detailFollowQueue: string[] = [];
+
+      let pagesCrawled = 0;
+      let pagesFailed = 0;
+      let cinemaRejected = 0;
+      let trailerRejected = 0;
+      let reviewRejected = 0;
+      let socialRejected = 0;
+      let artworkRejected = 0;
+      let accessEvidencePages = 0;
+      let embeddedPlayers = 0;
+      let downloadPages = 0;
+      let fileHostDestinations = 0;
+      let torrentsMagnets = 0;
+      let theatrePrintFindings = 0;
+      let detailPagesFollowed = 0;
 
       const distributionSummary: Array<{
         url: string;
         domain_risk: string;
         content_type: string;
+        classification: string;
         release_timing: string;
         confidence: number;
         strong_evidence: boolean;
+        client_visible: boolean;
         indicators: string[];
       }> = [];
+
+      const ingestDistribution = (
+        dist: Awaited<ReturnType<typeof analyzeDistributionPage>>,
+        leadQuery: string | null,
+        leadTitle: string | null,
+      ) => {
+        const key = canonicalUrl(dist.url);
+        if (inspectedUrls.has(key)) return;
+        inspectedUrls.add(key);
+        inspectedDomains.add((dist.domain ?? "").toLowerCase());
+        pagesCrawled += 1;
+
+        if (dist.crawlFailed) pagesFailed += 1;
+
+        switch (dist.classification) {
+          case "CINEMA_OR_SHOWTIME":
+            cinemaRejected += 1;
+            break;
+          case "TRAILER_OR_PROMO":
+            trailerRejected += 1;
+            break;
+          case "REVIEW_OR_NEWS":
+            reviewRejected += 1;
+            break;
+          case "SOCIAL_DISCUSSION":
+            socialRejected += 1;
+            break;
+          case "DUPLICATE_ARTWORK_ONLY":
+            artworkRejected += 1;
+            break;
+          default:
+            break;
+        }
+
+        if (dist.indicatorKeys.includes("embedded_player")) embeddedPlayers += 1;
+        if (dist.classification === "DOWNLOAD_PAGE") downloadPages += 1;
+        if (dist.classification === "FILE_HOST_DISTRIBUTION") fileHostDestinations += 1;
+        if (dist.classification === "TORRENT_OR_MAGNET") torrentsMagnets += 1;
+        if (dist.classification === "THEATRE_PRINT_DISTRIBUTION") theatrePrintFindings += 1;
+        if (dist.strongEvidence) accessEvidencePages += 1;
+
+        for (const detail of dist.detailFollowUrls) {
+          if (!inspectedUrls.has(canonicalUrl(detail))) detailFollowQueue.push(detail);
+        }
+
+        distributionSummary.push({
+          url: dist.url,
+          domain_risk: dist.domainRisk,
+          content_type: dist.contentType,
+          classification: dist.classification,
+          release_timing: dist.releaseTiming,
+          confidence: dist.confidence,
+          strong_evidence: dist.strongEvidence,
+          client_visible: dist.clientVisible,
+          indicators: dist.indicatorKeys,
+        });
+
+        const contact = resolveAbuseContact(dist.url);
+        const matchRow: MatchInsert = {
+          scan_id: scan.id,
+          user_id: userId,
+          source_url: key,
+          platform: contact.platform,
+          page_title: dist.pageTitle ?? leadTitle,
+          thumbnail_url: dist.screenshot,
+          confidence: dist.confidence,
+          confidence_band: bandFor(dist.confidence),
+          detection_type: dist.classification,
+          transformations: dist.qualityTags.slice(0, 8),
+          evidence: {
+            discovery: "distribution_site",
+            discovery_query: leadQuery,
+            keyword_match: leadQuery,
+            host: hostOf(dist.url),
+            website_type: dist.contentType,
+            detected_language: analysis.language,
+            reference_release_date: releaseDate,
+            client_visible: dist.clientVisible,
+            classification: dist.classification,
+            identity_evidence: dist.identityEvidence,
+            access_evidence: dist.accessEvidence,
+            confidence_breakdown: dist.confidenceBreakdown,
+            embed_sources: dist.embedSources,
+            distribution: {
+              domain: dist.domain,
+              domain_risk: dist.domainRisk,
+              content_type: dist.contentType,
+              classification: dist.classification,
+              release_timing: dist.releaseTiming,
+              release_offset_days: dist.releaseOffsetDays,
+              piracy_indicators: dist.indicators.map((i) => ({
+                key: i.key, detail: i.detail, weight: i.weight, strong: i.strong,
+              })),
+              indicator_keys: dist.indicatorKeys,
+              distribution_links: dist.distributionLinks,
+              quality_tags: dist.qualityTags,
+              strong_evidence: dist.strongEvidence,
+              client_visible: dist.clientVisible,
+              identity_evidence: dist.identityEvidence,
+              access_evidence: dist.accessEvidence,
+              confidence_breakdown: dist.confidenceBreakdown,
+              evidence_screenshot: dist.screenshot,
+              embed_sources: dist.embedSources,
+            },
+          },
+          ocr_text: null,
+          reason: dist.reason,
+          contact: contact as unknown as MatchInsert["contact"],
+        };
+
+        if (dist.clientVisible && dist.strongEvidence && isActionablePiracy(dist.classification)) {
+          void registerDistributionSource(supabase, {
+            userId,
+            scanId: scan.id,
+            workTitle: data.title,
+            platform: contact.platform,
+            analysis: dist,
+          }).catch(() => null);
+          distributionRows.push(matchRow);
+        } else if (dist.classification !== "UNRELATED") {
+          // Retain internal diagnostics / non-actionable classifications.
+          matchRow.evidence = {
+            ...(matchRow.evidence as Record<string, unknown>),
+            client_visible: false,
+          };
+          internalRows.push(matchRow);
+        }
+      };
 
       for (let offset = 0; offset < leadUrls.length; offset += 4) {
         const batch = leadUrls.slice(offset, offset + 4);
@@ -306,80 +499,32 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
               title: lead.title,
               titles,
               releaseDate,
-            }).catch(() => null),
+            }),
           })),
         );
 
         for (const { lead, analysis: dist } of analyses) {
-          if (!dist) continue;
-          inspectedDomains.add((dist.domain ?? "").toLowerCase());
-          distributionSummary.push({
+          ingestDistribution(dist, lead.query, lead.title);
+        }
+      }
 
-            url: dist.url,
-            domain_risk: dist.domainRisk,
-            content_type: dist.contentType,
-            release_timing: dist.releaseTiming,
-            confidence: dist.confidence,
-            strong_evidence: dist.strongEvidence,
-            indicators: dist.indicatorKeys,
-          });
-          // Strong evidence gate: only distribution sources become findings.
-          if (!dist.strongEvidence || dist.domainRisk === "low") continue;
-
-          // Register in the Unauthorized Distribution Sources database + Auto Monitor.
-          const contact = resolveAbuseContact(dist.url);
-          await registerDistributionSource(supabase, {
-            userId,
-            scanId: scan.id,
-            workTitle: data.title,
-            platform: contact.platform,
-            analysis: dist,
-          }).catch(() => null);
-
-
-          distributionRows.push({
-            scan_id: scan.id,
-            user_id: userId,
-            source_url: canonicalUrl(dist.url),
-            platform: contact.platform,
-            page_title: dist.pageTitle ?? lead.title,
-            thumbnail_url: dist.screenshot,
-            confidence: dist.confidence,
-            confidence_band: bandFor(dist.confidence),
-            detection_type:
-              dist.contentType === "torrent_index_site" ? "ripped_copy"
-              : dist.contentType === "unauthorized_streaming_site" ? "video_clip"
-              : dist.contentType === "reupload_platform" ? "video_clip"
-              : "ripped_copy",
-            transformations: dist.qualityTags.slice(0, 8),
-            evidence: {
-              discovery: "distribution_site",
-              discovery_query: lead.query,
-              keyword_match: lead.query,
-              host: hostOf(dist.url),
-              website_type: dist.contentType,
-              detected_language: analysis.language,
-              reference_release_date: releaseDate,
-              distribution: {
-                domain: dist.domain,
-                domain_risk: dist.domainRisk,
-                content_type: dist.contentType,
-                release_timing: dist.releaseTiming,
-                release_offset_days: dist.releaseOffsetDays,
-                piracy_indicators: dist.indicators.map((i) => ({
-                  key: i.key, detail: i.detail, weight: i.weight, strong: i.strong,
-                })),
-                indicator_keys: dist.indicatorKeys,
-                distribution_links: dist.distributionLinks,
-                quality_tags: dist.qualityTags,
-                strong_evidence: dist.strongEvidence,
-                evidence_screenshot: dist.screenshot,
-              },
-            },
-            ocr_text: null,
-            reason: dist.reason,
-            contact: contact as unknown as MatchInsert["contact"],
-          });
+      // Bounded same-domain detail follow from listing pages.
+      const details = detailFollowQueue.slice(0, 8);
+      for (let offset = 0; offset < details.length; offset += 4) {
+        const batch = details.slice(offset, offset + 4);
+        const analyses = await Promise.all(
+          batch.map(async (url) =>
+            analyzeDistributionPage({
+              url,
+              titles,
+              releaseDate,
+              skipDetailFollow: true,
+            }),
+          ),
+        );
+        for (const dist of analyses) {
+          detailPagesFollowed += 1;
+          ingestDistribution(dist, "detail_follow", dist.pageTitle);
         }
       }
 
@@ -394,19 +539,20 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         excludeDomains: [...inspectedDomains].filter(Boolean),
       }).catch(() => ({ checked: 0, incidents: 0 }));
 
-      const leads = rows.length || distributionRows.length ? [] : fallbackRows.slice(0, 12);
-
+      // Persist actionable findings + a bounded set of internal non-piracy leads.
+      // Internal leads never use ripped_copy and are marked client_visible: false.
       const seenUrls = new Set(distributionRows.map((r) => r.source_url));
-      const allRows = [
-        ...distributionRows,
-        ...[...rows, ...leads].filter((r) => !seenUrls.has(r.source_url)),
-      ];
+      const internalPersist = [...internalRows, ...fallbackRows]
+        .filter((r) => !seenUrls.has(r.source_url) && !isActionablePiracy(r.detection_type))
+        .slice(0, 20);
+      const allRows = [...distributionRows, ...internalPersist];
 
       if (allRows.length) {
         const { error: mErr } = await supabase.from("copyright_matches").upsert(allRows, { onConflict: "scan_id,source_url" });
         if (mErr) throw new Error(mErr.message);
       }
 
+      const clientVisibleFindings = filterClientVisibleCopyrightMatches(distributionRows);
 
       const stats = {
         candidates: byUrl.size,
@@ -415,9 +561,28 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         recognized_actors: fingerprint.celebrities,
         scene_labels: fingerprint.labels.slice(0, 12),
         reference_faces: fingerprint.faceCount,
-        matches: allRows.length,
-        leads: leads.length,
-        distribution_pages_inspected: leadUrls.length,
+        matches: clientVisibleFindings.length,
+        leads: internalPersist.length,
+        queries_generated: discovery.queriesGenerated,
+        queries_executed: discovery.queriesExecuted,
+        provider_candidates: byUrl.size,
+        unique_candidate_pages: byUrl.size + discovery.pageLeads.length,
+        detail_pages_followed: detailPagesFollowed,
+        pages_crawled: pagesCrawled,
+        pages_failed: pagesFailed,
+        cinema_showtime_rejected: cinemaRejected,
+        trailer_promo_rejected: trailerRejected,
+        review_news_rejected: reviewRejected,
+        social_discussion_rejected: socialRejected,
+        artwork_only_rejected: artworkRejected + fallbackRows.filter((r) => r.detection_type === "DUPLICATE_ARTWORK_ONLY").length,
+        access_evidence_pages: accessEvidencePages,
+        embedded_players: embeddedPlayers,
+        download_pages: downloadPages,
+        file_host_destinations: fileHostDestinations,
+        torrents_magnets: torrentsMagnets,
+        theatre_print_findings: theatrePrintFindings,
+        verified_client_visible_findings: clientVisibleFindings.length,
+        distribution_pages_inspected: leadUrls.length + detailPagesFollowed,
         distribution_sites: distributionRows.length,
         distribution_high_risk: distributionSummary.filter((d) => d.domain_risk === "high").length,
         distribution_summary: distributionSummary.slice(0, 25),
@@ -431,9 +596,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         ignored,
         frames: data.keys.length,
         sha256,
-        confirmed: allRows.filter((r) => r.confidence_band === "confirmed").length,
-        probable: allRows.filter((r) => r.confidence_band === "probable").length,
-        review: allRows.filter((r) => r.confidence_band === "review").length,
+        confirmed: clientVisibleFindings.filter((r) => r.confidence_band === "confirmed").length,
+        probable: clientVisibleFindings.filter((r) => r.confidence_band === "probable").length,
+        review: clientVisibleFindings.filter((r) => r.confidence_band === "review").length,
       };
       await supabase.from("copyright_scans").update({ status: "completed", sha256, stats }).eq("id", scan.id);
       return { scanId: scan.id as string, stats };
@@ -465,7 +630,11 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
       .from("copyright_matches").select("*").eq("scan_id", data.scanId)
       .order("confidence", { ascending: false });
     if (mErr) throw new Error(mErr.message);
-    return { scan, matches: matches ?? [] };
+    // Raw / non-actionable / identity-only rows stay internal — never as piracy UI.
+    return {
+      scan,
+      matches: filterClientVisibleCopyrightMatches(matches ?? []),
+    };
   });
 
 export const updateCopyrightMatch = createServerFn({ method: "POST" })
