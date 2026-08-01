@@ -1060,10 +1060,13 @@ export async function executeInterleavedDeepfakePipeline(input: {
       return;
     }
 
-    if (
-      metrics.serpapi_requests >= SERPAPI_MAX_REQUESTS_PER_SCAN ||
-      !canStartProviderCall(budget, MIN_PROVIDER_TIME_MS)
-    ) {
+    if (metrics.serpapi_requests >= SERPAPI_MAX_REQUESTS_PER_SCAN) {
+      checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      await heartbeat("discovering");
+      return;
+    }
+
+    if (!canStartProviderCall(budget, MIN_PROVIDER_TIME_MS)) {
       return;
     }
 
@@ -1072,7 +1075,11 @@ export async function executeInterleavedDeepfakePipeline(input: {
       SERPAPI_MAX_REQUESTS_PER_SCAN - metrics.serpapi_requests,
     );
     const requestBudget = Math.min(maxRequests, remainingRequests);
-    if (requestBudget <= 0) return;
+    if (requestBudget <= 0) {
+      checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      await heartbeat("discovering");
+      return;
+    }
 
     const startedAt = Date.now();
     try {
@@ -1087,8 +1094,32 @@ export async function executeInterleavedDeepfakePipeline(input: {
         alreadySeenPages: checkpoint.serpapi_seen_page_urls,
         signal: input.runtime.signal,
         softDeadlineMs: input.runtime.softDeadlineMs,
-        onQueryComplete: async ({ hits }) => {
+        onQueryComplete: async ({ query, hits, creditsUsed }) => {
+          const queryId = query.trim().toLowerCase();
+          // Persist completion before further work so resume cannot rebill.
+          if (!checkpoint.serpapi_completed_query_ids.includes(queryId)) {
+            checkpoint.serpapi_completed_query_ids.push(queryId);
+          }
+          checkpoint.serpapi_next_query_index = Math.min(
+            checkpoint.serpapi_queries.length,
+            Math.max(
+              checkpoint.serpapi_next_query_index,
+              checkpoint.serpapi_completed_query_ids.length,
+            ),
+          );
+          metrics.serpapi_credits_used += creditsUsed;
+          if (creditsUsed > 0) metrics.serpapi_requests += 1;
           if (hits.length) {
+            metrics.serpapi_candidates += hits.length;
+            for (const hit of hits) {
+              if (!checkpoint.serpapi_seen_page_urls.includes(hit.url)) {
+                checkpoint.serpapi_seen_page_urls.push(hit.url);
+              }
+            }
+            metrics.serpapi_unique_pages = Math.max(
+              metrics.serpapi_unique_pages,
+              checkpoint.serpapi_seen_page_urls.length,
+            );
             await enqueueProviderHits(hits as ProviderHit[]);
             await processPendingCandidates();
           }
@@ -1103,14 +1134,11 @@ export async function executeInterleavedDeepfakePipeline(input: {
         Date.now() - startedAt,
       );
 
-      metrics.serpapi_requests += result.requests;
       metrics.serpapi_failures += result.failures;
-      metrics.serpapi_candidates += result.hits.length;
       metrics.serpapi_unique_pages = Math.max(
         metrics.serpapi_unique_pages,
         result.uniquePages,
       );
-      metrics.serpapi_credits_used += result.creditsUsed;
       if (result.failures > 0) {
         metrics.provider_failures += result.failures;
       }
@@ -1128,8 +1156,14 @@ export async function executeInterleavedDeepfakePipeline(input: {
       );
       checkpoint.serpapi_next_query_index = Math.min(
         checkpoint.serpapi_queries.length,
-        checkpoint.serpapi_next_query_index + result.completedQueryIds.length,
+        Math.max(
+          checkpoint.serpapi_next_query_index,
+          checkpoint.serpapi_completed_query_ids.length,
+        ),
       );
+      if (result.drained) {
+        checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      }
 
       for (const message of result.failureMessages.slice(0, 5)) {
         console.warn("[DEEPFAKE] SerpApi discovery soft-failure:", message);
@@ -1141,6 +1175,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
       console.warn("[DEEPFAKE] SerpApi discovery isolated failure:", {
         error: error instanceof Error ? error.message : String(error),
       });
+      // Do not leave SerpApi permanently pending after an isolated crash.
+      checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
     } finally {
       await heartbeat("discovering");
     }

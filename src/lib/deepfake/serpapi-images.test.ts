@@ -364,6 +364,40 @@ test("other-actress and name-only false positives stay out of client results", (
   assert.equal(findings.length, 0);
 });
 
+test("unique-page cap drains remaining queries so checkpoints cannot stall", async () => {
+  process.env.SERPAPI_API_KEY = "test-key";
+  globalThis.fetch = (async () => {
+    const images = Array.from({ length: 80 }, (_, index) => ({
+      link: `https://pages.example.com/${index}`,
+      title: `Ada Lovelace deepfake ${index}`,
+      original: `https://cdn.example.com/${index}.jpg`,
+    }));
+    return new Response(JSON.stringify({ images_results: images }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  const alreadySeen = Array.from(
+    { length: SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN - 1 },
+    (_, index) => `https://seen.example.com/${index}`,
+  );
+  const result = await searchSerpApiQueriesBounded({
+    queries: [
+      '"Ada Lovelace" deepfake',
+      '"Ada Lovelace" face swap',
+      '"Ada Lovelace" fake nude',
+    ],
+    maxRequests: 5,
+    alreadySeenPages: alreadySeen,
+  });
+
+  assert.equal(result.drained, true);
+  assert.equal(result.completedQueryIds.length, 3);
+  assert.ok(result.uniquePages <= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN);
+  restoreEnv();
+});
+
 test("invalid key authentication soft-fails without credits", async () => {
   process.env.SERPAPI_API_KEY = "invalid";
   globalThis.fetch = (async () =>

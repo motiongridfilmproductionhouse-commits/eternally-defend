@@ -419,6 +419,7 @@ export async function searchSerpApiQueriesBounded(input: {
   completedQueryIds: string[];
   seenPageUrls: string[];
   failureMessages: string[];
+  drained: boolean;
 }> {
   const maxRequests = Math.min(
     SERPAPI_MAX_REQUESTS_PER_SCAN,
@@ -453,12 +454,18 @@ export async function searchSerpApiQueriesBounded(input: {
       completedQueryIds: [],
       seenPageUrls: Array.from(seenPages),
       failureMessages: ["SERPAPI_API_KEY is not configured"],
+      drained: true,
     };
   }
 
+  let stoppedEarly = false;
+
   for (let i = 0; i < pending.length && requests < maxRequests; ) {
     assertNotAborted(input.signal);
-    if (seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN) break;
+    if (seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN) {
+      stoppedEarly = true;
+      break;
+    }
 
     const batch = pending.slice(
       i,
@@ -491,6 +498,17 @@ export async function searchSerpApiQueriesBounded(input: {
         );
         completed.add(queryId);
         completedQueryIds.push(queryId);
+        if (input.onQueryComplete) {
+          await input.onQueryComplete({
+            query,
+            hits: [],
+            creditsUsed: 0,
+            failure:
+              result.reason instanceof Error
+                ? result.reason.message
+                : String(result.reason),
+          });
+        }
         continue;
       }
 
@@ -524,9 +542,32 @@ export async function searchSerpApiQueriesBounded(input: {
           failure: value.failure,
         });
       }
+
+      if (seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN) {
+        stoppedEarly = true;
+        break;
+      }
+      if (requests >= maxRequests) {
+        stoppedEarly = true;
+        break;
+      }
     }
 
+    if (stoppedEarly) break;
     i += batch.length;
+  }
+
+  /*
+   * If we hit the unique-page or request cap mid-plan, mark every remaining
+   * planned query complete so checkpoints cannot stall forever as "pending".
+   */
+  if (stoppedEarly || requests >= maxRequests || seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN) {
+    for (const query of pending) {
+      const queryId = query.trim().toLowerCase();
+      if (completed.has(queryId)) continue;
+      completed.add(queryId);
+      completedQueryIds.push(queryId);
+    }
   }
 
   return {
@@ -541,5 +582,6 @@ export async function searchSerpApiQueriesBounded(input: {
       SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN,
     ),
     failureMessages: failureMessages.slice(0, 20),
+    drained: stoppedEarly || completedQueryIds.length >= pending.length,
   };
 }
