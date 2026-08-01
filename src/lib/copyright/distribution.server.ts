@@ -256,18 +256,19 @@ export async function analyzeDistributionPage(opts: {
   });
 
   let detailFollowUrls: string[] = [];
-  if (
-    !opts.skipDetailFollow &&
-    classified.primaryPurpose === "listing_or_search" &&
-    !classified.clientVisible
-  ) {
+  const looksLikeListing =
+    classified.primaryPurpose === "listing_or_search" ||
+    /\/(search|category|tag|genre|latest|movies|browse)(\/|$|\?)/i.test(opts.url) ||
+    links.length >= 15;
+  if (!opts.skipDetailFollow && !classified.clientVisible && looksLikeListing) {
+    // Bounded same-host title-detail follow. Listing pages themselves are never evidence.
     detailFollowUrls = extractTitleMatchedDetailLinks({
       pageUrl: opts.url,
       html,
       markdown,
       links,
       titles: opts.titles,
-      limit: 4,
+      limit: 6,
     });
   }
 

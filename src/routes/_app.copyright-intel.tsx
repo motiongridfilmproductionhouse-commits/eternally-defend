@@ -19,6 +19,10 @@ import { DistributionMonitorPanel } from "@/components/copyright/DistributionMon
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  diagnosticsFromStats,
+  explainZeroMatchFunnel,
+} from "@/lib/copyright/scan-diagnostics";
 
 import {
   Copyright, Upload, Loader2, ExternalLink, ShieldCheck, AlertTriangle,
@@ -412,8 +416,47 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
               <TabsContent value="sources" className="mt-3 space-y-3">
           {detail.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           {selectedScanId && !detail.isLoading && !matches.length && (
-            <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
-              No match cleared the 50% evidence threshold for this reference.
+            <div className="space-y-3 rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
+              <p>
+                No client-visible unauthorized-distribution findings. Pages need
+                exact-title identity plus exact-page access evidence (player,
+                download, file-host, torrent/magnet, or theatre-print). Cinema,
+                trailers, reviews, cast, news, social and artwork-only matches stay rejected.
+              </p>
+              {(() => {
+                const scanStats = (detail.data?.scan?.stats ?? {}) as Record<string, unknown>;
+                const funnel =
+                  Array.isArray(scanStats.rejection_funnel) && scanStats.rejection_funnel.length
+                    ? (scanStats.rejection_funnel as string[])
+                    : explainZeroMatchFunnel(scanStats);
+                const d = diagnosticsFromStats(scanStats);
+                return (
+                  <div className="space-y-3">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {[
+                        { label: "Queries", value: `${d.queries_executed}/${d.queries_generated}` },
+                        { label: "Unique pages", value: d.unique_candidate_pages },
+                        { label: "Pages crawled", value: `${d.pages_crawled} (${d.pages_failed} failed)` },
+                        { label: "Detail follows", value: d.detail_pages_followed },
+                        { label: "Hard negatives", value: d.hard_negative_rejected },
+                        { label: "No title identity", value: d.title_identity_rejected },
+                        { label: "No access evidence", value: d.access_evidence_rejected },
+                        { label: "Internal leads", value: d.internal_leads_persisted },
+                      ].map((row) => (
+                        <div key={row.label} className="rounded-md border border-border/50 bg-background/40 px-3 py-2">
+                          <div className="text-sm font-medium text-foreground">{row.value}</div>
+                          <div className="text-[10px] uppercase tracking-wide">{row.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <ul className="space-y-1.5 text-xs">
+                      {funnel.map((line) => (
+                        <li key={line} className="leading-relaxed">• {line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
