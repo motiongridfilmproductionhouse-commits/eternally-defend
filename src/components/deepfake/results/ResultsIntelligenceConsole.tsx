@@ -127,16 +127,8 @@ export function ResultsIntelligenceConsole({
     return undefined;
   }, [visibleFindings, scanStatus, reduceMotion, scanId]);
 
-  const overview = useMemo(
-    () => buildOverviewMetrics({ findings: visibleFindings, diagnostics }),
-    [visibleFindings, diagnostics],
-  );
-  const funnel = useMemo(
-    () => buildFunnelChartData({ findings: visibleFindings, diagnostics }),
-    [visibleFindings, diagnostics],
-  );
-  // Network/domain hubs respect risk + classification so nodes match cards.
-  const networkFindings = useMemo(
+  // Overview/network/cards share risk + classification so counts stay aligned.
+  const scopedFindings = useMemo(
     () =>
       filterFindings({
         findings: visibleFindings,
@@ -145,6 +137,16 @@ export function ResultsIntelligenceConsole({
       }),
     [visibleFindings, riskFilter, classificationFilter],
   );
+
+  const overview = useMemo(
+    () => buildOverviewMetrics({ findings: scopedFindings, diagnostics }),
+    [scopedFindings, diagnostics],
+  );
+  const funnel = useMemo(
+    () => buildFunnelChartData({ findings: scopedFindings, diagnostics }),
+    [scopedFindings, diagnostics],
+  );
+  const networkFindings = scopedFindings;
 
   const domainRows = useMemo(
     () => buildDomainRows(networkFindings),
@@ -203,13 +205,18 @@ export function ResultsIntelligenceConsole({
     }
   }, [domainFilter, networkFindings]);
 
-  const selectFinding = (findingId: string) => {
+  const selectFinding = (
+    findingId: string,
+    options?: { syncDomain?: boolean },
+  ) => {
     const target = networkFindings.find((item) => item.id === findingId);
     if (!target) return;
     setSelectedFindingId(findingId);
-    setDomainFilter(findingDomain(target));
-    setSearch("");
-    setPage(1);
+    if (options?.syncDomain) {
+      setDomainFilter(findingDomain(target));
+      setSearch("");
+      setPage(1);
+    }
   };
 
   // After domain filter settles, load enough cumulative pages to mount the card.
@@ -272,7 +279,9 @@ export function ResultsIntelligenceConsole({
             selectedDomain={domainFilter}
             selectedFindingId={selectedFindingId}
             onSelectDomain={setDomainFilter}
-            onSelectFinding={selectFinding}
+            onSelectFinding={(findingId) =>
+              selectFinding(findingId, { syncDomain: true })
+            }
             reduceMotion={reduceMotion}
             emptyMessage={
               visibleFindings.length > 0
@@ -303,17 +312,8 @@ export function ResultsIntelligenceConsole({
                 sortKey={sortKey}
                 sortDirection={sortDirection}
                 onSort={onSort}
-                onSelectFinding={selectFinding}
+                onSelectFinding={(findingId) => selectFinding(findingId)}
               />
-              {paged.hasMore && (
-                <button
-                  type="button"
-                  className="w-full rounded-md border border-cyan-500/40 py-2 text-[12px] text-cyan-300 hover:bg-cyan-500/10"
-                  onClick={() => setPage((value) => value + 1)}
-                >
-                  Load more findings
-                </button>
-              )}
             </div>
           </div>
         </>
@@ -364,6 +364,15 @@ export function ResultsIntelligenceConsole({
               </li>
             ))}
           </ul>
+          {paged.hasMore && (
+            <button
+              type="button"
+              className="w-full rounded-md border border-cyan-500/40 py-2 text-[12px] text-cyan-300 hover:bg-cyan-500/10"
+              onClick={() => setPage((value) => value + 1)}
+            >
+              Load more findings
+            </button>
+          )}
         </section>
       )}
     </div>
