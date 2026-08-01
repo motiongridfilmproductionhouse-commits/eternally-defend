@@ -133,8 +133,11 @@ function normalizeTitle(s: string): string {
     .trim();
 }
 
+// Strong piracy/access language that may override soft cinema/trailer/review
+// purpose detection. Generic “watch now / play now” alone must NOT override —
+// those are evaluated later only with player/full-movie corroboration.
 const DISTRIBUTION_OVERRIDE_RE =
-  /\b(watch\s*(the\s*)?full\s*movie|download\s*(the\s*)?full\s*movie|watch\s*online|watch\s*now|play\s*now|stream\s*now|free\s*download|magnet:|\.torrent|webrip|web[- ]?dl|hdcam|camrip|theatre\s*print|theater\s*print|hdts|free\s*streaming|streaming\s*server|file\s*host|embedded\s*player|watch\s*server|download\s*server|\.mkv|\.mp4)\b/i;
+  /\b(watch\s*(the\s*)?full\s*movie|download\s*(the\s*)?full\s*movie|watch\s*online|free\s*download|magnet:|\.torrent|webrip|web[- ]?dl|hdcam|camrip|theatre\s*print|theater\s*print|hdts|free\s*streaming|streaming\s*server|file\s*host|embedded\s*player|watch\s*server|download\s*server|\.mkv|\.mp4)\b/i;
 
 export function detectPrimaryPurpose(opts: {
   url: string;

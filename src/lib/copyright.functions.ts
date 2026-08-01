@@ -598,6 +598,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         ...byUrl.keys(),
         ...discovery.pageLeads.map((l) => canonicalUrl(l.url)),
       ]).size;
+      const artworkOnlyRejected =
+        artworkRejected +
+        fallbackRows.filter((r) => r.detection_type === "DUPLICATE_ARTWORK_ONLY").length;
 
       const stats = {
         candidates: byUrl.size,
@@ -625,7 +628,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         trailer_promo_rejected: trailerRejected,
         review_news_rejected: reviewRejected,
         social_discussion_rejected: socialRejected,
-        artwork_only_rejected: artworkRejected + fallbackRows.filter((r) => r.detection_type === "DUPLICATE_ARTWORK_ONLY").length,
+        artwork_only_rejected: artworkOnlyRejected,
         access_evidence_pages: accessEvidencePages,
         embedded_players: embeddedPlayers,
         download_pages: downloadPages,
@@ -651,7 +654,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           title_identity_rejected: titleIdentityRejected,
           hard_negative_rejected: hardNegativeRejected,
           access_evidence_rejected: accessEvidenceRejected,
-          artwork_only_rejected: artworkRejected,
+          artwork_only_rejected: artworkOnlyRejected,
           access_evidence_pages: accessEvidencePages,
           embedded_players: embeddedPlayers,
           download_pages: downloadPages,

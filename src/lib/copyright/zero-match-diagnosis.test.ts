@@ -283,3 +283,19 @@ test("short single-word titles still establish identity", () => {
     true,
   );
 });
+
+test("generic watch now CTA does not override official trailer rejection", () => {
+  const result = classifyCopyrightPage({
+    url: "https://www.youtube.com/watch?v=officialtrailer",
+    pageTitle: "Spider-Man Brand New Day – Official Trailer | Watch Now",
+    markdown: long(
+      "Official trailer for Spider-Man Brand New Day. Watch now on YouTube. Teaser trailer out now.",
+    ),
+    html: '<iframe src="https://www.youtube.com/embed/officialtrailer"></iframe>',
+    links: [],
+    titles: ["spiderman brand new day"],
+    pageInspected: true,
+  });
+  assert.equal(result.classification, "TRAILER_OR_PROMO");
+  assert.equal(result.clientVisible, false);
+});
