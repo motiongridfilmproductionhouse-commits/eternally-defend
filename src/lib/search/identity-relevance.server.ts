@@ -12,6 +12,10 @@ const CONFLICT_CELEBRITIES = [
   "Manju Pathrose",
 ];
 
+function tokenCount(value: string): number {
+  return value.trim().split(/\s+/).filter(Boolean).length;
+}
+
 export function scoreIdentityRelevance(opts: {
   expansion: SearchExpansionResult;
   title?: string | null;
@@ -25,8 +29,11 @@ export function scoreIdentityRelevance(opts: {
   const matchedTerms: string[] = [];
   let score = 0;
 
+  const strongFace =
+    typeof opts.faceSimilarity === "number" && opts.faceSimilarity >= 0.85;
+
   // Face similarity can establish identity even when crawl text is empty.
-  if (typeof opts.faceSimilarity === "number" && opts.faceSimilarity >= 0.85) {
+  if (strongFace) {
     matchedTerms.push("reference_face");
     score += 0.4;
   }
@@ -52,8 +59,28 @@ export function scoreIdentityRelevance(opts: {
   if (opts.expansion.canonicalName) {
     push(opts.expansion.canonicalName, 0.45, `canonical:${opts.expansion.canonicalName}`);
   }
+
+  // Unresolved / fail-open expansions often leave aliases empty — still score
+  // the original and corrected query forms the user actually searched.
+  if (tokenCount(opts.expansion.originalQuery) >= 2) {
+    push(opts.expansion.originalQuery, 0.4, `query:${opts.expansion.originalQuery}`);
+  }
+  if (
+    opts.expansion.correctedQuery &&
+    normalizeKey(opts.expansion.correctedQuery) !==
+      normalizeKey(opts.expansion.originalQuery) &&
+    tokenCount(opts.expansion.correctedQuery) >= 2
+  ) {
+    push(
+      opts.expansion.correctedQuery,
+      0.4,
+      `corrected:${opts.expansion.correctedQuery}`,
+    );
+  }
+
   for (const alias of opts.expansion.aliases.slice(0, 12)) {
-    push(alias, 0.3, `alias:${alias}`);
+    const weight = tokenCount(alias) >= 2 ? 0.4 : 0.2;
+    push(alias, weight, `alias:${alias}`);
   }
   for (const local of opts.expansion.localLanguageNames.slice(0, 6)) {
     if (opts.title?.includes(local) || opts.snippet?.includes(local)) {
@@ -90,6 +117,8 @@ export function scoreIdentityRelevance(opts: {
     (t) =>
       t.startsWith("canonical:") ||
       t.startsWith("alias:") ||
+      t.startsWith("query:") ||
+      t.startsWith("corrected:") ||
       t.startsWith("show:") ||
       t.startsWith("character:") ||
       t.startsWith("local:") ||
@@ -115,14 +144,17 @@ export function scoreIdentityRelevance(opts: {
   }
 
   const confidence = Math.max(0, Math.min(0.99, score));
-  // Ambiguous expansions must not auto-attach findings to a monitored identity.
   const ambiguous = Boolean(opts.expansion.ambiguous);
+  const fallback = Boolean(opts.expansion.diagnostics?.fallback);
+  // Ambiguous expansions normally stay unverified, but strong face evidence
+  // (especially after fail-open recovery) may attach a lead for human review.
+  const faceRecoversAmbiguity = strongFace && (fallback || confidence >= 0.4);
   const quarantine =
     firstOnly ||
     Boolean(conflictingIdentity) ||
     confidence < 0.35 ||
-    ambiguous;
-  const matchedIdentity = confidence >= 0.35 && !quarantine && !ambiguous;
+    (ambiguous && !faceRecoversAmbiguity);
+  const matchedIdentity = confidence >= 0.35 && !quarantine;
 
   return {
     matchedIdentity,
@@ -131,7 +163,7 @@ export function scoreIdentityRelevance(opts: {
     conflictingIdentity,
     quarantine,
     reason: quarantine
-      ? ambiguous
+      ? ambiguous && !faceRecoversAmbiguity
         ? "Identity resolution is ambiguous — results remain unverified until confirmed."
         : conflictingIdentity
           ? `Possible conflicting identity (${conflictingIdentity}) — do not auto-attach.`

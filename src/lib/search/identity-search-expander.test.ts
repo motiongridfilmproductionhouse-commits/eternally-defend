@@ -99,6 +99,39 @@ test("Wrong show association → result rejected", async () => {
   assert.ok(relevance.conflictingIdentity || relevance.reason.toLowerCase().includes("quarant"));
 });
 
+test("Original/corrected query match without aliases → not over-quarantined", async () => {
+  const expansion = await resolveAndExpandSearchQuerySafe({ query: "" });
+  expansion.originalQuery = "Manju Pathrose";
+  expansion.correctedQuery = "Manju Pathrose";
+  expansion.canonicalName = null;
+  expansion.ambiguous = false;
+  expansion.aliases = [];
+  expansion.diagnostics.fallback = false;
+  const relevance = scoreIdentityRelevance({
+    expansion,
+    title: "Manju Pathrose interviewed after Aliyans",
+    snippet: "Actress Manju Pathrose speaks about her role",
+  });
+  assert.equal(relevance.matchedIdentity, true);
+  assert.equal(relevance.quarantine, false);
+});
+
+test("Strong face match recovers fail-open ambiguous expansion", async () => {
+  const expansion = await resolveAndExpandSearchQuerySafe({ query: "" });
+  assert.equal(expansion.ambiguous, true);
+  assert.ok(expansion.diagnostics.fallback);
+  expansion.originalQuery = "Manju Pathrose";
+  const relevance = scoreIdentityRelevance({
+    expansion,
+    title: "Unknown host page",
+    snippet: "no clear name text",
+    faceSimilarity: 0.92,
+  });
+  assert.equal(relevance.quarantine, false);
+  assert.equal(relevance.matchedIdentity, true);
+  assert.ok(relevance.matchedTerms.includes("reference_face"));
+});
+
 test("Official username → strong identity match", async () => {
   invalidateIdentityExpansionCache({ all: true });
   // Seed handle onto knowledge via knownHandles overlapping expansion usernames after resolve
