@@ -23,6 +23,11 @@ export type MediaDiscoveryHit = {
   page_type?: string;
   /** True only after a successful Firecrawl scrape of the exact page URL. */
   page_inspected?: boolean;
+  /**
+   * True when the crawl provider request itself failed (HTTP/API error).
+   * Distinct from a successful scrape that yielded insufficient page text.
+   */
+  provider_scrape_failed?: boolean;
   related_links?: string[];
 };
 
@@ -429,6 +434,7 @@ export async function scrapeMediaFromPage(
               ? existingDirectMedia
               : hit.image_url,
           page_inspected: false,
+          provider_scrape_failed: true,
           page_text: "",
           is_sensitive:
             hit.is_sensitive ?? hasExplicitPageRisk(hit),
@@ -436,8 +442,25 @@ export async function scrapeMediaFromPage(
       ];
     }
 
-    const payload =
-      JSON.parse(rawBody) as FirecrawlScrapeResponse;
+    let payload: FirecrawlScrapeResponse;
+    try {
+      payload = JSON.parse(rawBody) as FirecrawlScrapeResponse;
+    } catch {
+      return [
+        {
+          ...hit,
+          evidence_page_url: hit.evidence_page_url ?? hit.url,
+          media_url: existingDirectMedia && validHttpUrl(existingDirectMedia)
+            ? existingDirectMedia
+            : hit.media_url,
+          page_inspected: false,
+          provider_scrape_failed: true,
+          page_text: "",
+          is_sensitive:
+            hit.is_sensitive ?? hasExplicitPageRisk(hit),
+        },
+      ];
+    }
 
     if (!payload.success || !payload.data) {
       return [
@@ -448,6 +471,7 @@ export async function scrapeMediaFromPage(
             ? existingDirectMedia
             : hit.media_url,
           page_inspected: false,
+          provider_scrape_failed: true,
           page_text: "",
           is_sensitive:
             hit.is_sensitive ?? hasExplicitPageRisk(hit),
@@ -625,6 +649,7 @@ export async function scrapeMediaFromPage(
         ...hit,
         evidence_page_url: hit.evidence_page_url ?? hit.url,
         page_inspected: false,
+        provider_scrape_failed: true,
         page_text: "",
         is_sensitive:
           hit.is_sensitive ?? hasExplicitPageRisk(hit),

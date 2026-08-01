@@ -180,6 +180,27 @@ test("private/reserved DNS and unsafe redirects remain rejected", async () => {
   assert.equal(unsafeRedirect.failure_category, "redirect_rejected");
 });
 
+test("HTTP 404 after reachability is url_rejected, not network_failed", async () => {
+  setTestDnsLookupAll(async () => [{ address: "93.184.216.34", family: 4 }]);
+  globalThis.fetch = (async () =>
+    new Response(null, { status: 404 })) as typeof fetch;
+
+  const { metrics } = await verifyCandidateUrls(
+    [
+      {
+        url: "https://example.com/missing-post",
+        query: "Ada Lovelace deepfake",
+        source: "firecrawl",
+      },
+    ],
+    { name: "Ada Lovelace" },
+    { maxPages: 1, softDeadlineMs: Date.now() + 10_000 },
+  );
+  assert.equal(metrics.url_rejected, 1);
+  assert.equal(metrics.network_failed, 0);
+  assert.equal(metrics.crawl_failed, 1);
+});
+
 test("network failures record distinct categories, not blanket url_rejected", async () => {
   setTestDnsLookupAll(async () => {
     const err = new Error("getaddrinfo ENOTFOUND nowhere.invalid");

@@ -858,7 +858,9 @@ export async function verifyCandidateUrls(
             hit,
             verification: failed,
             media: null as null,
-            networkFailureCategory: resolved.failure_category ?? "network_failed",
+            // Only attribute distinct network categories when resolveRedirectChain
+            // classified one. Ordinary HTTP 4xx/5xx responses stay url_rejected.
+            networkFailureCategory: resolved.failure_category,
           };
         }
 
@@ -944,10 +946,13 @@ export async function verifyCandidateUrls(
           crawled_at: crawledAt,
         });
 
+        const providerScrapeFailed = scraped.some(
+          (item) => item.provider_scrape_failed,
+        );
         const crawlFailedClosed =
+          providerScrapeFailed &&
           !pageInspected &&
-          verification.url_verification_status !== "URL_VERIFIED" &&
-          /could not be crawled/i.test(verification.rejection_reason ?? "");
+          verification.url_verification_status !== "URL_VERIFIED";
 
         return {
           hit,
@@ -956,7 +961,7 @@ export async function verifyCandidateUrls(
             canonical_url: canonical,
           },
           media: scraped,
-          // Only attribute Firecrawl/page-scrape failures — not content/URL gates.
+          // Firecrawl/API scrape failure only — not thin-content or URL gates.
           networkFailureCategory: crawlFailedClosed
             ? ("crawl_provider_failed" as const)
             : undefined,
