@@ -468,15 +468,18 @@ export async function firecrawlDiscover(
       seen.add(key);
       if (isExcludedHost(key)) continue;
       const text = `${web.title ?? ""} ${web.description ?? ""} ${key}`;
-      // Reviews / commentary / cinema showtimes are not distribution sources.
-      if (/(review|recap|explained|reaction|opinion|box office|interview|press release|now showing|showtimes?|book tickets?)/i.test(text)) continue;
       const category = piracyCategory(`${text} ${query}`);
       const piracySignal = PIRACY_HINTS.test(text);
-      // Drop pure cinema/trailer/review noise, but keep mixed-signal leads
-      // (e.g. snippet mentions showtimes AND cam/torrent/download language).
+      const softNegative =
+        /(review|recap|explained|reaction|opinion|box office|interview|press release|now showing|showtimes?|book tickets?)/i.test(
+          text,
+        );
+      // Drop pure cinema/trailer/review/showtime noise, but keep mixed-signal
+      // leads (e.g. “now showing online” + cam/torrent/download language).
       if (
         !piracySignal &&
-        (category === "cinema_or_showtime" ||
+        (softNegative ||
+          category === "cinema_or_showtime" ||
           category === "trailer_or_promo" ||
           category === "review_or_news")
       ) {

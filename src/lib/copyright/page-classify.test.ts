@@ -446,3 +446,15 @@ test("detectPrimaryPurpose classifies cinema booking hosts", () => {
     "cinema_or_showtime",
   );
 });
+
+test("mixed-signal showtime+cam snippets are kept for discovery inspection", () => {
+  const text =
+    "Neon Horizon now showing online free HDCAM theatre print download full movie torrent";
+  assert.equal(piracyCategory(text), "cam_theatre_leak");
+  // Soft cinema language alone would drop; piracy hints retain the lead.
+  assert.equal(
+    /(now showing|showtimes?)/i.test(text) &&
+      !/(download|watch\s*online|hdcam|camrip|torrent|magnet|full\s*movie)/i.test(text),
+    false,
+  );
+});
