@@ -44,9 +44,36 @@ export type SerpApiImageHit = {
 export type SerpApiSearchResult = {
   hits: SerpApiImageHit[];
   creditsUsed: number;
+  /** Actual outbound HTTP attempts for this query (includes retries). */
+  httpAttempts: number;
   failure: string | null;
   skipped: boolean;
 };
+
+/** Shared scan-level budget: five means at most five outbound HTTP attempts. */
+export type SerpApiHttpAttemptBudget = {
+  remaining: number;
+  used: number;
+};
+
+export function claimSerpApiHttpAttempt(
+  budget: SerpApiHttpAttemptBudget | undefined,
+): boolean {
+  if (!budget) return true;
+  if (budget.remaining <= 0) return false;
+  budget.remaining -= 1;
+  budget.used += 1;
+  return true;
+}
+
+/** Face/identity rejection reasons that may increment serpapi_face_rejected. */
+export function isSerpApiFaceIdentityRejectionReason(
+  reason: string | null | undefined,
+): boolean {
+  return /\b(?:identity|protected identity|target|different person|face\s*mismatch|face\s*rejected)\b/i.test(
+    reason ?? "",
+  );
+}
 
 export function isSerpApiConfigured(): boolean {
   const key = process.env.SERPAPI_API_KEY?.trim();
@@ -190,7 +217,12 @@ async function fetchSerpApiOnce(input: {
   apiKey: string;
   signal?: AbortSignal;
   softDeadlineMs?: number;
-}): Promise<{ status: number; payload: unknown; retryAfterMs: number | null }> {
+}): Promise<{
+  status: number;
+  payload: unknown;
+  retryAfterMs: number | null;
+  hits: SerpApiImageHit[];
+}> {
   assertNotAborted(input.signal);
 
   const params = new URLSearchParams({
@@ -210,18 +242,21 @@ async function fetchSerpApiOnce(input: {
   /*
    * Keep provider timeout distinct from the scan AbortSignal so a 12s
    * SerpApi stall soft-fails instead of aborting the whole scan.
+   * Timer stays active through headers, body drain, JSON parse, and
+   * candidate extraction. Scan AbortSignal still takes priority.
    */
   const timeoutController = new AbortController();
+  let timedOut = false;
   const timeoutTimer = setTimeout(() => {
+    timedOut = true;
     timeoutController.abort(
       new Error(`SerpApi request timed out after ${timeoutMs}ms`),
     );
   }, timeoutMs);
   const signal = mergeAbortSignals(input.signal, timeoutController.signal);
 
-  let response: Response;
   try {
-    response = await fetch(
+    const response = await fetch(
       `https://serpapi.com/search.json?${params.toString()}`,
       {
         method: "GET",
@@ -229,50 +264,66 @@ async function fetchSerpApiOnce(input: {
         signal,
       },
     );
+
+    // Prefer scan-level abort over provider timeout when both fired.
+    assertNotAborted(input.signal);
+
+    const contentType = response.headers.get("content-type");
+    if (!isAllowedJsonMime(contentType)) {
+      throw new Error("SerpApi returned a non-JSON content type");
+    }
+
+    const lengthHeader = response.headers.get("content-length");
+    if (lengthHeader && Number(lengthHeader) > MAX_SAFE_RESPONSE_BYTES) {
+      throw new Error("SerpApi response exceeded size limit");
+    }
+
+    const text = await readResponseText(response, signal);
+    assertNotAborted(input.signal);
+    if (text.length > MAX_SAFE_RESPONSE_BYTES) {
+      throw new Error("SerpApi response exceeded size limit");
+    }
+
+    let payload: unknown = null;
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      throw new Error("SerpApi returned malformed JSON");
+    }
+
+    const hits = extractHitsFromPayload(payload, input.query);
+    assertNotAborted(input.signal);
+
+    return {
+      status: response.status,
+      payload,
+      retryAfterMs: parseRetryAfterMs(response.headers.get("retry-after")),
+      hits,
+    };
+  } catch (error) {
+    if (input.signal?.aborted) throw error;
+    if (timedOut) {
+      throw new Error(`SerpApi request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
   } finally {
     clearTimeout(timeoutTimer);
   }
-
-  assertNotAborted(input.signal);
-
-  const contentType = response.headers.get("content-type");
-  if (!isAllowedJsonMime(contentType)) {
-    throw new Error("SerpApi returned a non-JSON content type");
-  }
-
-  const lengthHeader = response.headers.get("content-length");
-  if (lengthHeader && Number(lengthHeader) > MAX_SAFE_RESPONSE_BYTES) {
-    throw new Error("SerpApi response exceeded size limit");
-  }
-
-  const text = await readResponseText(response, signal);
-  if (text.length > MAX_SAFE_RESPONSE_BYTES) {
-    throw new Error("SerpApi response exceeded size limit");
-  }
-
-  let payload: unknown = null;
-  try {
-    payload = text ? JSON.parse(text) : null;
-  } catch {
-    throw new Error("SerpApi returned malformed JSON");
-  }
-
-  return {
-    status: response.status,
-    payload,
-    retryAfterMs: parseRetryAfterMs(response.headers.get("retry-after")),
-  };
 }
 
 /**
  * Execute one Google Images search. Never throws for provider/config errors —
  * returns failure text so the scan can continue with Firecrawl.
  * Abort/deadline errors still propagate.
+ *
+ * Each outbound HTTP call claims one unit from `httpAttemptBudget` when provided
+ * (including retries). Retries are skipped when the shared budget is exhausted.
  */
 export async function searchSerpApiGoogleImages(input: {
   query: string;
   signal?: AbortSignal;
   softDeadlineMs?: number;
+  httpAttemptBudget?: SerpApiHttpAttemptBudget;
 }): Promise<SerpApiSearchResult> {
   assertNotAborted(input.signal);
 
@@ -281,17 +332,31 @@ export async function searchSerpApiGoogleImages(input: {
     return {
       hits: [],
       creditsUsed: 0,
+      httpAttempts: 0,
       failure: "SERPAPI_API_KEY is not configured",
       skipped: true,
     };
   }
 
   let lastFailure: string | null = null;
+  let httpAttempts = 0;
 
   for (let attempt = 0; attempt <= SERPAPI_MAX_RETRIES; attempt++) {
     assertNotAborted(input.signal);
+
+    if (!claimSerpApiHttpAttempt(input.httpAttemptBudget)) {
+      return {
+        hits: [],
+        creditsUsed: 0,
+        httpAttempts,
+        failure: lastFailure ?? "SerpApi HTTP attempt budget exhausted",
+        skipped: false,
+      };
+    }
+    httpAttempts += 1;
+
     try {
-      const { status, payload, retryAfterMs } = await fetchSerpApiOnce({
+      const { status, payload, retryAfterMs, hits } = await fetchSerpApiOnce({
         query: input.query,
         apiKey,
         signal: input.signal,
@@ -310,6 +375,7 @@ export async function searchSerpApiGoogleImages(input: {
         return {
           hits: [],
           creditsUsed: 0,
+          httpAttempts,
           failure: errorMessage || `SerpApi authentication failed (${status})`,
           skipped: true,
         };
@@ -318,7 +384,10 @@ export async function searchSerpApiGoogleImages(input: {
       if (status === 429 || status >= 500) {
         lastFailure =
           errorMessage || `SerpApi temporary failure (${status})`;
-        if (attempt < SERPAPI_MAX_RETRIES) {
+        const canRetry =
+          attempt < SERPAPI_MAX_RETRIES &&
+          (!input.httpAttemptBudget || input.httpAttemptBudget.remaining > 0);
+        if (canRetry) {
           const waitMs = retryAfterMs ?? 1_000 * (attempt + 1);
           await abortableSleep(waitMs, input.signal);
           continue;
@@ -326,6 +395,7 @@ export async function searchSerpApiGoogleImages(input: {
         return {
           hits: [],
           creditsUsed: 0,
+          httpAttempts,
           failure: lastFailure,
           skipped: false,
         };
@@ -335,14 +405,16 @@ export async function searchSerpApiGoogleImages(input: {
         return {
           hits: [],
           creditsUsed: 1,
+          httpAttempts,
           failure: errorMessage || `SerpApi request failed (${status})`,
           skipped: false,
         };
       }
 
       return {
-        hits: extractHitsFromPayload(payload, input.query),
+        hits,
         creditsUsed: 1,
+        httpAttempts,
         failure: null,
         skipped: false,
       };
@@ -362,23 +434,26 @@ export async function searchSerpApiGoogleImages(input: {
         return {
           hits: [],
           creditsUsed: 0,
+          httpAttempts,
           failure: lastFailure,
           skipped: false,
         };
       }
 
       lastFailure = message || "SerpApi request failed";
-      // Cap retries for transient network errors.
-      if (
+      // Cap retries for transient network errors when budget remains.
+      const canRetry =
         attempt < SERPAPI_MAX_RETRIES &&
-        /network/i.test(lastFailure)
-      ) {
+        /network/i.test(lastFailure) &&
+        (!input.httpAttemptBudget || input.httpAttemptBudget.remaining > 0);
+      if (canRetry) {
         await abortableSleep(500 * (attempt + 1), input.signal);
         continue;
       }
       return {
         hits: [],
         creditsUsed: 0,
+        httpAttempts,
         failure: lastFailure,
         skipped: false,
       };
@@ -388,6 +463,7 @@ export async function searchSerpApiGoogleImages(input: {
   return {
     hits: [],
     creditsUsed: 0,
+    httpAttempts,
     failure: lastFailure ?? "SerpApi request failed",
     skipped: false,
   };
@@ -401,6 +477,7 @@ export async function searchSerpApiQueriesBounded(input: {
   queries: string[];
   alreadyCompletedIds?: string[];
   alreadySeenPages?: Iterable<string>;
+  /** Max outbound HTTP attempts (including retries), not logical queries. */
   maxRequests?: number;
   signal?: AbortSignal;
   softDeadlineMs?: number;
@@ -408,11 +485,14 @@ export async function searchSerpApiQueriesBounded(input: {
     query: string;
     hits: SerpApiImageHit[];
     creditsUsed: number;
+    httpAttempts: number;
     failure: string | null;
   }) => Promise<void> | void;
 }): Promise<{
   hits: SerpApiImageHit[];
+  /** Actual outbound HTTP attempts (includes retries). */
   requests: number;
+  httpAttempts: number;
   failures: number;
   creditsUsed: number;
   uniquePages: number;
@@ -425,6 +505,10 @@ export async function searchSerpApiQueriesBounded(input: {
     SERPAPI_MAX_REQUESTS_PER_SCAN,
     Math.max(0, input.maxRequests ?? SERPAPI_MAX_REQUESTS_PER_SCAN),
   );
+  const httpAttemptBudget: SerpApiHttpAttemptBudget = {
+    remaining: maxRequests,
+    used: 0,
+  };
   const completed = new Set(
     (input.alreadyCompletedIds ?? []).map((id) => id.trim().toLowerCase()),
   );
@@ -440,7 +524,6 @@ export async function searchSerpApiQueriesBounded(input: {
   const hits: SerpApiImageHit[] = [];
   const failureMessages: string[] = [];
   const completedQueryIds: string[] = [];
-  let requests = 0;
   let failures = 0;
   let creditsUsed = 0;
 
@@ -448,6 +531,7 @@ export async function searchSerpApiQueriesBounded(input: {
     return {
       hits: [],
       requests: 0,
+      httpAttempts: 0,
       failures: 0,
       creditsUsed: 0,
       uniquePages: seenPages.size,
@@ -460,17 +544,19 @@ export async function searchSerpApiQueriesBounded(input: {
 
   let stoppedEarly = false;
 
-  for (let i = 0; i < pending.length && requests < maxRequests; ) {
+  for (let i = 0; i < pending.length && httpAttemptBudget.remaining > 0; ) {
     assertNotAborted(input.signal);
     if (seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN) {
       stoppedEarly = true;
       break;
     }
 
-    const batch = pending.slice(
-      i,
-      i + Math.min(SERPAPI_CONCURRENCY, maxRequests - requests),
+    const parallel = Math.min(
+      SERPAPI_CONCURRENCY,
+      httpAttemptBudget.remaining,
+      pending.length - i,
     );
+    const batch = pending.slice(i, i + parallel);
     if (!batch.length) break;
 
     const settled = await Promise.allSettled(
@@ -479,6 +565,7 @@ export async function searchSerpApiQueriesBounded(input: {
           query,
           signal: input.signal,
           softDeadlineMs: input.softDeadlineMs,
+          httpAttemptBudget,
         }),
       ),
     );
@@ -503,6 +590,7 @@ export async function searchSerpApiQueriesBounded(input: {
             query,
             hits: [],
             creditsUsed: 0,
+            httpAttempts: 0,
             failure:
               result.reason instanceof Error
                 ? result.reason.message
@@ -513,10 +601,7 @@ export async function searchSerpApiQueriesBounded(input: {
       }
 
       const value = result.value;
-      if (!value.skipped) {
-        requests++;
-        creditsUsed += value.creditsUsed;
-      }
+      creditsUsed += value.creditsUsed;
       if (value.failure) {
         failures++;
         failureMessages.push(value.failure);
@@ -539,6 +624,7 @@ export async function searchSerpApiQueriesBounded(input: {
           query,
           hits: accepted,
           creditsUsed: value.creditsUsed,
+          httpAttempts: value.httpAttempts,
           failure: value.failure,
         });
       }
@@ -547,7 +633,7 @@ export async function searchSerpApiQueriesBounded(input: {
         stoppedEarly = true;
         break;
       }
-      if (requests >= maxRequests) {
+      if (httpAttemptBudget.remaining <= 0) {
         stoppedEarly = true;
         break;
       }
@@ -558,10 +644,12 @@ export async function searchSerpApiQueriesBounded(input: {
   }
 
   /*
-   * If we hit the unique-page or request cap mid-plan, mark every remaining
-   * planned query complete so checkpoints cannot stall forever as "pending".
+   * Unique-page cap: mark every remaining planned query complete so checkpoints
+   * cannot stall forever as "pending". Do NOT drain on a partial HTTP-attempt
+   * wave budget — Continue / later waves must still consume remaining attempts.
    */
-  if (stoppedEarly || requests >= maxRequests || seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN) {
+  const uniqueCapHit = seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN;
+  if (uniqueCapHit) {
     for (const query of pending) {
       const queryId = query.trim().toLowerCase();
       if (completed.has(queryId)) continue;
@@ -570,9 +658,14 @@ export async function searchSerpApiQueriesBounded(input: {
     }
   }
 
+  const allPendingCompleted = pending.every((query) =>
+    completed.has(query.trim().toLowerCase()),
+  );
+
   return {
     hits,
-    requests,
+    requests: httpAttemptBudget.used,
+    httpAttempts: httpAttemptBudget.used,
     failures,
     creditsUsed,
     uniquePages: seenPages.size,
@@ -582,6 +675,6 @@ export async function searchSerpApiQueriesBounded(input: {
       SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN,
     ),
     failureMessages: failureMessages.slice(0, 20),
-    drained: stoppedEarly || completedQueryIds.length >= pending.length,
+    drained: uniqueCapHit || allPendingCompleted,
   };
 }

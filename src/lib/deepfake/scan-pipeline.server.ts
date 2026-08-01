@@ -642,6 +642,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
           softDeadlineMs: input.runtime.softDeadlineMs,
         });
 
+        metrics.serpapi_face_rejected += faceResults.rejected.filter(
+          (item) => item.source === "serpapi_google_images",
+        ).length;
+
         const syntheticUnavailable = faceResults.errors.filter((item) => {
           const text = [
             item.title ?? "",
@@ -930,14 +934,26 @@ export async function executeInterleavedDeepfakePipeline(input: {
       (hit) => hit.source === "serpapi_google_images",
     );
     if (serpapiInBatch.length) {
+      const { isSerpApiFaceIdentityRejectionReason } = await import(
+        "./serpapi-images.server"
+      );
       const serpapiVerified = verified.filter(
         (hit) => hit.source === "serpapi_google_images",
       );
       metrics.serpapi_verified += serpapiVerified.length;
-      metrics.serpapi_face_rejected += Math.max(
-        0,
-        serpapiInBatch.length - serpapiVerified.length,
+
+      // Only explicit face/identity rejection outcomes — URL/crawl/page-evidence
+      // rejects are already tracked via addVerificationMetrics.
+      const serpapiUrls = new Set(
+        serpapiInBatch.map((hit) => hit.url).filter(Boolean),
       );
+      for (const rejected of verification.rejected) {
+        const discovered = rejected.discovered_url;
+        if (!discovered || !serpapiUrls.has(discovered)) continue;
+        if (isSerpApiFaceIdentityRejectionReason(rejected.rejection_reason)) {
+          metrics.serpapi_face_rejected += 1;
+        }
+      }
     }
     for (const hit of verified) {
       checkpoint.verified_canonical_urls.push(canonicalUrl(hit.canonical_url));
@@ -1094,7 +1110,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
         alreadySeenPages: checkpoint.serpapi_seen_page_urls,
         signal: input.runtime.signal,
         softDeadlineMs: input.runtime.softDeadlineMs,
-        onQueryComplete: async ({ query, hits, creditsUsed }) => {
+        onQueryComplete: async ({ query, hits, creditsUsed, httpAttempts }) => {
           const queryId = query.trim().toLowerCase();
           // Persist completion before further work so resume cannot rebill.
           if (!checkpoint.serpapi_completed_query_ids.includes(queryId)) {
@@ -1107,8 +1123,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
               checkpoint.serpapi_completed_query_ids.length,
             ),
           );
+          // Persist actual HTTP attempts (incl. retries) and credits so Continue
+          // cannot exceed SERPAPI_MAX_REQUESTS_PER_SCAN outbound calls.
           metrics.serpapi_credits_used += creditsUsed;
-          if (creditsUsed > 0) metrics.serpapi_requests += 1;
+          metrics.serpapi_requests += Math.max(0, httpAttempts);
           if (hits.length) {
             metrics.serpapi_candidates += hits.length;
             for (const hit of hits) {
@@ -1161,7 +1179,11 @@ export async function executeInterleavedDeepfakePipeline(input: {
           checkpoint.serpapi_completed_query_ids.length,
         ),
       );
+      // Only advance to end when SerpApi is truly done (unique-page cap or all
+      // queries completed). Partial wave budgets must leave remaining queries.
       if (result.drained) {
+        checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      } else if (metrics.serpapi_requests >= SERPAPI_MAX_REQUESTS_PER_SCAN) {
         checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
       }
 

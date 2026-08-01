@@ -7,6 +7,7 @@ import {
 import {
   buildSerpApiExactIdentityQueries,
   isSerpApiConfigured,
+  isSerpApiFaceIdentityRejectionReason,
   searchSerpApiGoogleImages,
   searchSerpApiQueriesBounded,
   SERPAPI_MAX_CANDIDATES_PER_REQUEST,
@@ -14,12 +15,16 @@ import {
   SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN,
 } from "./serpapi-images.server";
 import {
+  assertSafePublicUrlForFetch,
   isPrivateOrReservedHostname,
+  isPrivateOrReservedIpAddress,
   isSafePublicHttpUrl,
   normalizeHostingPageUrl,
+  resolvePublicAddresses,
 } from "./url-safety.server";
 import { createEmptyCheckpoint, parseScanCheckpoint } from "./scan-checkpoint.server";
 import { createDiscoveryFunnelMetrics } from "./scan-ownership.server";
+import { resolveRedirectChain } from "./url-verification.server";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_KEY = process.env.SERPAPI_API_KEY;
@@ -412,5 +417,297 @@ test("invalid key authentication soft-fails without credits", async () => {
   assert.equal(result.skipped, true);
   assert.equal(result.creditsUsed, 0);
   assert.match(result.failure ?? "", /auth|Invalid/i);
+  restoreEnv();
+});
+
+test("five-request total cap counts retries as outbound HTTP attempts", async () => {
+  process.env.SERPAPI_API_KEY = "test-key";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return new Response(JSON.stringify({ error: "rate limited" }), {
+      status: 429,
+      headers: {
+        "content-type": "application/json",
+        "retry-after": "0",
+      },
+    });
+  }) as typeof fetch;
+
+  const result = await searchSerpApiQueriesBounded({
+    queries: [
+      '"Ada Lovelace" deepfake',
+      '"Ada Lovelace" face swap',
+      '"Ada Lovelace" fake nude',
+      '"Augusta Ada King" deepfake',
+      '"Augusta Ada King" face swap',
+      '"Augusta Ada King" fake nude',
+    ],
+    maxRequests: SERPAPI_MAX_REQUESTS_PER_SCAN,
+  });
+
+  assert.equal(calls, 5);
+  assert.equal(result.httpAttempts, 5);
+  assert.equal(result.requests, 5);
+  assert.ok(result.creditsUsed <= 5);
+  restoreEnv();
+});
+
+test("stalled response body is covered by the per-request timeout", async () => {
+  process.env.SERPAPI_API_KEY = "test-key";
+  globalThis.fetch = (async (_input, init) => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"images_results":['));
+        // Intentionally never close — body stalls until request signal aborts.
+        const signal = init?.signal;
+        signal?.addEventListener(
+          "abort",
+          () => {
+            try {
+              controller.close();
+            } catch {
+              /* already closed/cancelled by reader */
+            }
+          },
+          { once: true },
+        );
+      },
+    });
+    return new Response(stream, {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  const started = Date.now();
+  const result = await searchSerpApiGoogleImages({
+    query: '"Ada Lovelace" deepfake',
+    softDeadlineMs: Date.now() + 250,
+  });
+  const elapsed = Date.now() - started;
+  assert.equal(result.hits.length, 0);
+  assert.match(result.failure ?? "", /timed out|timeout|aborted/i);
+  assert.ok(elapsed < 5_000, `expected fast timeout, took ${elapsed}ms`);
+  assert.ok(result.httpAttempts >= 1);
+  // Drain any late abort microtasks from the stalled stream/timer.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  restoreEnv();
+});
+
+test("bracketed and IPv4-mapped private IPv6 URLs are rejected", () => {
+  assert.equal(isSafePublicHttpUrl("http://[::1]/secret"), false);
+  assert.equal(isSafePublicHttpUrl("http://[::ffff:127.0.0.1]/x"), false);
+  assert.equal(isSafePublicHttpUrl("http://[::ffff:7f00:1]/x"), false);
+  assert.equal(isPrivateOrReservedIpAddress("::1"), true);
+  assert.equal(isPrivateOrReservedIpAddress("::ffff:127.0.0.1"), true);
+  assert.equal(isPrivateOrReservedIpAddress("::ffff:7f00:1"), true);
+  assert.equal(isPrivateOrReservedHostname("[::1]"), true);
+  assert.equal(isPrivateOrReservedHostname("[::ffff:10.0.0.1]"), true);
+});
+
+test("private DNS resolution is rejected before fetch", async () => {
+  await assert.rejects(
+    () =>
+      resolvePublicAddresses("evil.example.test", async () => [
+        { address: "10.0.0.8", family: 4 },
+      ]),
+    /private|reserved/i,
+  );
+  await assert.rejects(
+    () =>
+      assertSafePublicUrlForFetch("https://evil.example.test/a", async () => [
+        { address: "192.168.1.50", family: 4 },
+      ]),
+    /private|reserved/i,
+  );
+  await assert.rejects(
+    () =>
+      resolvePublicAddresses("loop.example.test", async () => [
+        { address: "::1", family: 6 },
+      ]),
+    /private|reserved/i,
+  );
+});
+
+test("unsafe redirect destinations are rejected without following them", async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchedUrls: string[] = [];
+  globalThis.fetch = (async (input) => {
+    const url = String(input);
+    fetchedUrls.push(url);
+    return new Response(null, {
+      status: 302,
+      headers: { location: "http://127.0.0.1/internal" },
+    });
+  }) as typeof fetch;
+
+  try {
+    const resolved = await resolveRedirectChain("https://example.com/safe", {
+      timeoutMs: 3_000,
+      softDeadlineMs: Date.now() + 10_000,
+    });
+    assert.equal(resolved.ok, false);
+    assert.match(resolved.error ?? "", /safety|private|reserved|unsafe|Blocked/i);
+    assert.ok(fetchedUrls.every((url) => !url.includes("127.0.0.1")));
+    assert.equal(fetchedUrls.length, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("serpapi_face_rejected only attributes explicit face/identity outcomes", () => {
+  assert.equal(
+    isSerpApiFaceIdentityRejectionReason(
+      "Final page title and primary content do not match the selected identity.",
+    ),
+    true,
+  );
+  assert.equal(
+    isSerpApiFaceIdentityRejectionReason(
+      "Protected identity appears only in recommendations, comments, navigation or unrelated neighboring entries.",
+    ),
+    true,
+  );
+  assert.equal(
+    isSerpApiFaceIdentityRejectionReason("Homepage URLs are not exact evidence pages."),
+    false,
+  );
+  assert.equal(
+    isSerpApiFaceIdentityRejectionReason(
+      "Exact final URL could not be crawled; search snippets are never used as page evidence.",
+    ),
+    false,
+  );
+  assert.equal(
+    isSerpApiFaceIdentityRejectionReason(
+      "Rejected search results page. Search, tag, category, performer-index and generic listings are not evidence URLs.",
+    ),
+    false,
+  );
+
+  const serpapiUrls = new Set(["https://cdn.example.com/a", "https://cdn.example.com/b"]);
+  const rejected = [
+    {
+      discovered_url: "https://cdn.example.com/a",
+      rejection_reason:
+        "Final page title and primary content do not match the selected identity.",
+    },
+    {
+      discovered_url: "https://cdn.example.com/b",
+      rejection_reason: "Homepage URLs are not exact evidence pages.",
+    },
+    {
+      discovered_url: "https://other.example.com/c",
+      rejection_reason:
+        "Final page title and primary content do not match the selected identity.",
+    },
+  ];
+  let faceRejected = 0;
+  for (const row of rejected) {
+    if (!serpapiUrls.has(row.discovered_url)) continue;
+    if (isSerpApiFaceIdentityRejectionReason(row.rejection_reason)) {
+      faceRejected += 1;
+    }
+  }
+  assert.equal(faceRejected, 1);
+});
+
+test("checkpoint Continue preserves actual SerpApi request and credit counts", async () => {
+  process.env.SERPAPI_API_KEY = "test-key";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    if (calls <= 3) {
+      return new Response(JSON.stringify({ error: "rate limited" }), {
+        status: 429,
+        headers: {
+          "content-type": "application/json",
+          "retry-after": "0",
+        },
+      });
+    }
+    return new Response(
+      JSON.stringify({
+        images_results: [
+          {
+            link: `https://example.com/page-${calls}`,
+            title: "Ada Lovelace deepfake",
+            original: `https://cdn.example.com/${calls}.jpg`,
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  }) as typeof fetch;
+
+  const queries = buildSerpApiExactIdentityQueries({
+    name: "Ada Lovelace",
+    aliases: [],
+  });
+
+  const first = await searchSerpApiQueriesBounded({
+    queries,
+    maxRequests: 3,
+  });
+  assert.equal(first.httpAttempts, 3);
+  assert.equal(calls, 3);
+
+  const metrics = createDiscoveryFunnelMetrics();
+  metrics.serpapi_requests = first.httpAttempts;
+  metrics.serpapi_credits_used = first.creditsUsed;
+
+  const checkpoint = createEmptyCheckpoint({
+    queries: ["q1"],
+    targetName: "Ada Lovelace",
+    aliases: [],
+    handles: [],
+    perQueryLimit: 20,
+    maxQueries: 40,
+    initialWaveCount: 12,
+    metrics,
+  });
+  checkpoint.serpapi_queries = queries;
+  checkpoint.serpapi_completed_query_ids = first.completedQueryIds;
+  checkpoint.serpapi_next_query_index = first.completedQueryIds.length;
+  checkpoint.serpapi_seen_page_urls = first.seenPageUrls;
+  checkpoint.metrics = { ...metrics };
+
+  const parsed = parseScanCheckpoint(checkpoint);
+  assert.ok(parsed);
+  assert.equal(parsed!.metrics.serpapi_requests, 3);
+  assert.equal(parsed!.metrics.serpapi_credits_used, first.creditsUsed);
+
+  const remaining = Math.max(
+    0,
+    SERPAPI_MAX_REQUESTS_PER_SCAN - parsed!.metrics.serpapi_requests,
+  );
+  assert.equal(remaining, 2);
+
+  const continued = await searchSerpApiQueriesBounded({
+    queries,
+    maxRequests: remaining,
+    alreadyCompletedIds: parsed!.serpapi_completed_query_ids,
+    alreadySeenPages: parsed!.serpapi_seen_page_urls,
+  });
+
+  assert.ok(continued.httpAttempts <= remaining);
+  assert.equal(calls, 3 + continued.httpAttempts);
+  assert.ok(3 + continued.httpAttempts <= SERPAPI_MAX_REQUESTS_PER_SCAN);
+
+  parsed!.metrics.serpapi_requests += continued.httpAttempts;
+  parsed!.metrics.serpapi_credits_used += continued.creditsUsed;
+  const roundTrip = parseScanCheckpoint(parsed!);
+  assert.equal(
+    roundTrip!.metrics.serpapi_requests,
+    3 + continued.httpAttempts,
+  );
+  assert.equal(
+    roundTrip!.metrics.serpapi_credits_used,
+    first.creditsUsed + continued.creditsUsed,
+  );
   restoreEnv();
 });
