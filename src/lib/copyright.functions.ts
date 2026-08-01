@@ -21,6 +21,7 @@ import {
   normalizeClassification,
 } from "@/lib/copyright/taxonomy";
 import { filterClientVisibleCopyrightMatches } from "@/lib/copyright/client-filter";
+import { dedupeCopyrightMatchRows } from "@/lib/copyright/match-upsert";
 import { detectPrimaryPurpose } from "@/lib/copyright/page-classify.server";
 import { expandTitleVariants } from "@/lib/copyright/title-identity";
 import { explainZeroMatchFunnel, summarizeProviderFailures } from "@/lib/copyright/scan-diagnostics";
@@ -1089,10 +1090,15 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         if (ev.client_visible === false) return true;
         return !isActionablePiracy(r.detection_type);
       };
-      const internalPersist = [...internalRows, ...fallbackRows]
-        .filter((r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r))
-        .slice(0, 20);
-      const allRows = [...distributionRows, ...internalPersist];
+      const internalPersist = dedupeCopyrightMatchRows(
+        [...internalRows, ...fallbackRows].filter(
+          (r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r),
+        ),
+      ).slice(0, 20) as MatchInsert[];
+      const allRows = dedupeCopyrightMatchRows([
+        ...distributionRows,
+        ...internalPersist,
+      ]) as MatchInsert[];
 
       if (allRows.length) {
         const { error: mErr } = await supabase.from("copyright_matches").upsert(allRows, { onConflict: "scan_id,source_url" });
