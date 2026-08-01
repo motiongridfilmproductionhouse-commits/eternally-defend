@@ -79,7 +79,7 @@ async function applyUpdateWithLegacyFallback(input: {
 
   if (error) {
     const missingColumn =
-      /scan_run_token|heartbeat_at|lease_expires_at|discovery_metrics|column .* does not exist|schema cache/i.test(
+      /scan_run_token|heartbeat_at|lease_expires_at|discovery_metrics|scan_checkpoint|column .* does not exist|schema cache/i.test(
         error.message,
       );
 
@@ -93,6 +93,9 @@ async function applyUpdateWithLegacyFallback(input: {
     delete legacy.lease_expires_at;
     if (/discovery_metrics/i.test(error.message)) {
       delete legacy.discovery_metrics;
+    }
+    if (/scan_checkpoint/i.test(error.message)) {
+      delete legacy.scan_checkpoint;
     }
 
     /*
@@ -234,26 +237,34 @@ export function decideTerminalStatus(input: {
   abortedByDeadline: boolean;
   hasValidProgress: boolean;
   errorMessage?: string | null;
+  pendingWork?: boolean;
+  checkpointPause?: boolean;
 }): {
   status: TerminalScanStatus;
   reason: string | null;
 } {
-  if (!input.errorMessage && !input.abortedByDeadline) {
+  if (
+    !input.errorMessage &&
+    !input.abortedByDeadline &&
+    !input.checkpointPause
+  ) {
     return { status: "completed", reason: null };
   }
 
-  if (input.abortedByDeadline) {
+  if (input.abortedByDeadline || input.checkpointPause) {
     if (input.hasValidProgress) {
       return {
         status: "partial",
         reason:
-          "Scan reached the execution deadline with verified progress saved. Partial results are available.",
+          input.pendingWork || input.checkpointPause
+            ? "Scan paused at the time budget after saving verified progress. Saved results remain available — use Continue scan to resume from the checkpoint without repeating completed queries."
+            : "Scan reached the execution deadline with verified progress saved. Partial results are available.",
       };
     }
     return {
       status: "failed",
       reason:
-        "Scan reached the execution deadline before any verified progress could be saved.",
+        "Scan reached the time budget deadline before any verified progress could be saved.",
     };
   }
 
@@ -267,9 +278,17 @@ export function decideTerminalStatus(input: {
     };
   }
 
+  /*
+   * FAILED only for real provider/system errors with no usable progress.
+   * Generic timeout/abort text is rewritten so it is not framed as unexpected.
+   */
+  const raw = input.errorMessage ?? "Scan failed before verified progress was saved.";
+  const normalized = /\b(?:abort|timeout|timed out)\b/i.test(raw)
+    ? "Scan stopped before verified progress was saved due to a provider or time-budget limit."
+    : raw;
   return {
     status: "failed",
-    reason: input.errorMessage ?? "Scan failed before verified progress was saved.",
+    reason: normalized,
   };
 }
 

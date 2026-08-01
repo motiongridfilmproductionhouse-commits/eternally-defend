@@ -1,0 +1,1149 @@
+import { isFirecrawlConfigured } from "../firecrawl-client.server";
+import { filterDeepfakeCandidates } from "./filter.server";
+import { generateDeepfakeQueries } from "./query-generator.server";
+import { isBlockedHost } from "./queries";
+import {
+  buildExecutedQueryPlan,
+  discoveredCandidateKey,
+  mergeDiscoveredCandidates,
+} from "./discovery-plan.server";
+import {
+  adaptivePerQueryLimit,
+  canStartProviderCall,
+  canStartVerification,
+  createScanBudget,
+  discoveryBudgetRemaining,
+  INITIAL_PRIORITY_QUERY_COUNT,
+  MIN_PROVIDER_TIME_MS,
+  QUERY_BATCH_SIZE,
+  recordSpend,
+  verificationBudgetRemaining,
+  VERIFY_CANDIDATE_BATCH_SIZE,
+} from "./scan-budget.server";
+import {
+  buildAdaptiveQuerySchedule,
+  nextQueryBatch,
+} from "./query-priority.server";
+import {
+  checkpointHasPendingWork,
+  createEmptyCheckpoint,
+  markQueryCompleted,
+  recordProviderLatency,
+  type ScanCheckpoint,
+} from "./scan-checkpoint.server";
+import {
+  assertNotAborted,
+  isAbortError,
+  isDeadlineOrTimeoutError,
+  ScanCheckpointPauseError,
+  type ScanRuntime,
+} from "./scan-runtime.server";
+import {
+  createDiscoveryFunnelMetrics,
+  touchScanProgress,
+  type DiscoveryFunnelMetrics,
+  type ScanOwnership,
+} from "./scan-ownership.server";
+import {
+  findingPersistKey,
+  upsertDiscoveriesBatch,
+  upsertFindingsBatch,
+} from "./scan-persist.server";
+import {
+  createImportedImageQueries,
+  parseGoogleImagesUrl,
+} from "./google-images-import.server";
+import {
+  classifyPageEvidence,
+  finalizeDeepfakeFinding,
+  isClientVisibleClassification,
+  shouldAnalyzeMedia,
+  shouldPersistFinding,
+  type FindingClassification,
+} from "./page-evidence.server";
+import { isUrlVerified } from "./url-verification.server";
+
+type ProviderHit = {
+  url: string;
+  title?: string;
+  description?: string;
+  query: string;
+  source?: string;
+  thumbnail_url?: string;
+  image_url?: string;
+  media_url?: string;
+  is_sensitive?: boolean;
+  content_match_score?: number;
+  threat_signals?: string[];
+};
+
+type VerifiedCandidate = ProviderHit & {
+  discovered_url: string;
+  final_url: string;
+  canonical_url: string;
+  http_status: number | null;
+  redirect_chain: string[];
+  crawled_at: string;
+  page_title: string | null;
+  page_description: string | null;
+  page_text: string;
+  page_inspected: boolean;
+  verified_domain: string | null;
+  url_verification_status: string;
+  rejection_reason: string | null;
+  evidence_page_url: string;
+  related_links?: string[];
+};
+
+type FinalizedFinding = ProviderHit & {
+  risk_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  content_category: string | null;
+  confidence: number;
+  is_synthetic: boolean;
+  face_referenced: boolean;
+  takedown_recommended: boolean;
+  ai_reasoning: string | null;
+  classification_status?:
+    | "completed"
+    | "no_media"
+    | "provider_error"
+    | "failed";
+  finding_classification?: string | null;
+  page_type?: string | null;
+  identity_confidence?: number | null;
+  synthetic_media_confidence?: number | null;
+  matched_evidence?: string[];
+  classification_explanation?: string | null;
+  target_face_match?: boolean | null;
+  face_similarity?: number | null;
+  matched_face_id?: string | null;
+  hive_deepfake_score?: number | null;
+  hive_ai_generated_score?: number | null;
+  page_text?: string;
+  discovered_url?: string;
+  final_url?: string;
+  canonical_url?: string;
+  http_status?: number | null;
+  redirect_chain?: string[];
+  crawled_at?: string | null;
+  verified_domain?: string | null;
+  url_verification_status?: string | null;
+  url_rejection_reason?: string | null;
+  evidence_page_url?: string;
+};
+
+type VerificationMetrics = {
+  crawl_succeeded: number;
+  crawl_failed: number;
+  identity_rejected: number;
+  page_type_rejected: number;
+  url_rejected: number;
+};
+
+type RiskCounts = {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+};
+
+export type PipelineResult = {
+  completed: boolean;
+  checkpointPaused: boolean;
+  discoveryCount: number;
+  findingCount: number;
+  clientVisibleCount: number;
+  riskCounts: RiskCounts;
+  metrics: DiscoveryFunnelMetrics;
+  checkpoint: ScanCheckpoint;
+  planQueryCount: number;
+};
+
+const THREAT_TRIAGE_SIGNALS = new Set([
+  "nude",
+  "pornographic",
+  "sexual-content",
+  "leaked-intimate-media",
+  "undressing",
+  "deepfake",
+  "ai-nude",
+  "morphed-media",
+  "synthetic-media",
+]);
+
+const MEDIA_PROCESS_BATCH_SIZE = 12;
+
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function canonicalUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (/^(?:utm_|fbclid$|gclid$|ref$|source$)/i.test(key)) {
+        parsed.searchParams.delete(key);
+      }
+    }
+    parsed.hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    parsed.pathname = parsed.pathname.replace(/\/$/, "") || "/";
+    return parsed.toString();
+  } catch {
+    return url.trim();
+  }
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let start = 0; start < items.length; start += size) {
+    chunks.push(items.slice(start, start + size));
+  }
+  return chunks;
+}
+
+function uniqueStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(trimmed);
+  }
+  return output;
+}
+
+function stageMetrics(
+  metrics: DiscoveryFunnelMetrics,
+  checkpoint: ScanCheckpoint,
+): DiscoveryFunnelMetrics & { stage: string; planned_queries: number } {
+  return {
+    ...metrics,
+    stage: checkpoint.stage,
+    planned_queries: checkpoint.queries.length,
+  };
+}
+
+function addVerificationMetrics(
+  metrics: DiscoveryFunnelMetrics,
+  next: VerificationMetrics,
+): void {
+  metrics.crawl_succeeded += next.crawl_succeeded;
+  metrics.crawl_failed += next.crawl_failed;
+  metrics.identity_rejected += next.identity_rejected;
+  metrics.page_type_rejected += next.page_type_rejected;
+  metrics.url_rejected += next.url_rejected;
+}
+
+function hasThreatSignal(hit: { threat_signals?: string[] }): boolean {
+  return (hit.threat_signals ?? []).some((signal) =>
+    THREAT_TRIAGE_SIGNALS.has(signal),
+  );
+}
+
+function findingRowFromClassification(input: {
+  scanId: string;
+  userId: string;
+  finding: FinalizedFinding;
+}): Record<string, unknown> {
+  const { finding, scanId, userId } = input;
+  const pageUrl =
+    finding.final_url ?? finding.evidence_page_url ?? finding.url;
+
+  return {
+    scan_id: scanId,
+    user_id: userId,
+    url: pageUrl,
+    source_host: finding.verified_domain ?? hostOf(pageUrl),
+    page_title: finding.title ?? null,
+    snippet: finding.description ?? null,
+    query: finding.query,
+    risk_level: finding.risk_level,
+    content_category: finding.content_category,
+    confidence: finding.confidence,
+    is_synthetic: finding.is_synthetic,
+    face_referenced: finding.face_referenced,
+    takedown_recommended: finding.takedown_recommended,
+    target_face_match: finding.target_face_match ?? false,
+    face_similarity: finding.face_similarity ?? null,
+    matched_face_id: finding.matched_face_id ?? null,
+    ai_reasoning: finding.classification_explanation
+      ? `${finding.classification_explanation}${
+          finding.ai_reasoning ? ` ${finding.ai_reasoning}` : ""
+        }`
+      : finding.ai_reasoning,
+    finding_classification: finding.finding_classification ?? null,
+    page_type: finding.page_type ?? null,
+    identity_confidence: finding.identity_confidence ?? null,
+    synthetic_media_confidence: finding.synthetic_media_confidence ?? null,
+    matched_evidence: finding.matched_evidence ?? [],
+    classification_explanation: finding.classification_explanation ?? null,
+    discovered_url: finding.discovered_url ?? pageUrl,
+    final_url: finding.final_url ?? pageUrl,
+    canonical_url: finding.canonical_url ?? pageUrl,
+    http_status: finding.http_status ?? null,
+    redirect_chain: finding.redirect_chain ?? [],
+    crawled_at: finding.crawled_at ?? null,
+    url_verification_status: finding.url_verification_status ?? null,
+    url_rejection_reason: finding.url_rejection_reason ?? null,
+  };
+}
+
+function buildScheduledQueries(input: {
+  target: { name: string; aliases: string[]; handles: string[] };
+  googleImagesUrl?: string;
+  maxQueries: number;
+}): string[] {
+  const generatedQueries = generateDeepfakeQueries(input.target, {
+    maxQueries: input.maxQueries,
+    minQueries: 1,
+  });
+
+  let importedQueries: string[] = [];
+  if (input.googleImagesUrl) {
+    const imported = parseGoogleImagesUrl(input.googleImagesUrl);
+    importedQueries = createImportedImageQueries(imported.query);
+  }
+
+  const merged = buildExecutedQueryPlan({
+    importedQueries,
+    generatedQueries,
+    maxQueries: input.maxQueries,
+  });
+  const importedKeys = new Set(importedQueries.map((query) => query.toLowerCase()));
+  const importedHead = merged.filter((query) => importedKeys.has(query.toLowerCase()));
+  const remainder = merged.filter((query) => !importedKeys.has(query.toLowerCase()));
+  const scheduledRemainder = buildAdaptiveQuerySchedule({
+    queries: remainder,
+    initialCount: INITIAL_PRIORITY_QUERY_COUNT,
+  });
+
+  return uniqueStrings([...importedHead, ...scheduledRemainder]).slice(
+    0,
+    input.maxQueries,
+  );
+}
+
+export async function executeInterleavedDeepfakePipeline(input: {
+  supabase: any;
+  userId: string;
+  ownership: ScanOwnership;
+  scanId: string;
+  target: { name: string; aliases: string[]; handles: string[] };
+  profileId?: string | null;
+  googleImagesUrl?: string;
+  maxQueries?: number;
+  perQueryLimit?: number;
+  runtime: ScanRuntime;
+  resumeCheckpoint?: ScanCheckpoint | null;
+}): Promise<PipelineResult> {
+  const maxQueries = input.resumeCheckpoint?.max_queries ?? input.maxQueries ?? 56;
+  const perQueryLimit =
+    input.resumeCheckpoint?.per_query_limit ?? input.perQueryLimit ?? 20;
+  const scheduledQueries = buildScheduledQueries({
+    target: input.target,
+    googleImagesUrl: input.googleImagesUrl,
+    maxQueries,
+  });
+
+  const metrics =
+    input.resumeCheckpoint?.metrics ?? createDiscoveryFunnelMetrics();
+  metrics.queries_generated =
+    input.resumeCheckpoint?.queries.length ?? scheduledQueries.length;
+
+  const checkpoint =
+    input.resumeCheckpoint ??
+    createEmptyCheckpoint({
+      queries: scheduledQueries,
+      targetName: input.target.name,
+      profileId: input.profileId ?? null,
+      aliases: input.target.aliases,
+      handles: input.target.handles,
+      perQueryLimit,
+      maxQueries,
+      initialWaveCount: INITIAL_PRIORITY_QUERY_COUNT,
+      metrics,
+    });
+
+  checkpoint.queries = input.resumeCheckpoint?.queries ?? scheduledQueries;
+  checkpoint.planned_query_count = checkpoint.queries.length;
+  checkpoint.initial_wave_count =
+    checkpoint.initial_wave_count || INITIAL_PRIORITY_QUERY_COUNT;
+  checkpoint.per_query_limit = perQueryLimit;
+  checkpoint.max_queries = maxQueries;
+
+  const budget = createScanBudget(input.runtime);
+  const riskCounts: RiskCounts = { ...checkpoint.risk_counts };
+  let discoveryCount = checkpoint.discovery_count;
+  let findingCount = checkpoint.finding_count;
+  let clientVisibleCount = checkpoint.client_visible_count;
+
+  const persistedDiscoveryKeys = new Set(checkpoint.verified_canonical_urls);
+  const persistedFindingKeys = new Set(checkpoint.verified_canonical_urls);
+  const countedFindingKeys = new Set<string>();
+  const seenCandidateKeys = new Set<string>();
+  for (const url of [
+    ...checkpoint.verified_canonical_urls,
+    ...checkpoint.pending_candidate_urls,
+  ]) {
+    seenCandidateKeys.add(`page:${canonicalUrl(url)}`);
+  }
+
+  const pendingCandidates = new Map<string, ProviderHit>();
+  for (const url of checkpoint.pending_candidate_urls) {
+    pendingCandidates.set(canonicalUrl(url), {
+      url,
+      query: input.target.name,
+      source: "checkpoint_resume",
+    });
+  }
+
+  const relatedLinks = new Map<string, ProviderHit>();
+
+  const syncCheckpoint = () => {
+    checkpoint.metrics = { ...metrics };
+    checkpoint.risk_counts = { ...riskCounts };
+    checkpoint.discovery_count = discoveryCount;
+    checkpoint.finding_count = findingCount;
+    checkpoint.client_visible_count = clientVisibleCount;
+    checkpoint.pending_candidate_urls = Array.from(pendingCandidates.values()).map(
+      (item) => item.url,
+    );
+    checkpoint.verified_canonical_urls = Array.from(
+      new Set(checkpoint.verified_canonical_urls.map(canonicalUrl)),
+    );
+    checkpoint.pending_work = checkpointHasPendingWork(checkpoint);
+    checkpoint.last_checkpoint_at = new Date().toISOString();
+  };
+
+  const heartbeat = async (
+    stage: ScanCheckpoint["stage"],
+    patch?: Record<string, unknown>,
+  ) => {
+    assertNotAborted(input.runtime.signal);
+    checkpoint.stage = stage;
+    syncCheckpoint();
+    await touchScanProgress({
+      supabase: input.supabase,
+      ownership: input.ownership,
+      patch: {
+        scan_checkpoint: checkpoint,
+        discovery_metrics: stageMetrics(metrics, checkpoint),
+        total_queries: checkpoint.queries.length,
+        total_results: clientVisibleCount,
+        critical_count: riskCounts.critical,
+        high_count: riskCounts.high,
+        medium_count: riskCounts.medium,
+        low_count: riskCounts.low,
+        ...(patch ?? {}),
+      },
+    });
+    assertNotAborted(input.runtime.signal);
+  };
+
+  const updateFindingMetrics = (items: FinalizedFinding[]) => {
+    for (const item of items) {
+      const key = findingPersistKey(item as any);
+      if (!key || countedFindingKeys.has(key)) continue;
+      countedFindingKeys.add(key);
+
+      if (item.finding_classification === "UNVERIFIED_LEAD") {
+        metrics.unverified++;
+      } else if (item.finding_classification === "PROBABLE_DEEPFAKE") {
+        metrics.probable++;
+      } else if (item.finding_classification === "VERIFIED_DEEPFAKE") {
+        metrics.verified++;
+      }
+
+      const clientVisible =
+        isClientVisibleClassification(item.finding_classification) &&
+        isUrlVerified(item.url_verification_status);
+      if (!clientVisible) continue;
+
+      clientVisibleCount++;
+      metrics.client_visible = clientVisibleCount;
+
+      if (item.risk_level === "CRITICAL") riskCounts.critical++;
+      else if (item.risk_level === "HIGH") riskCounts.high++;
+      else if (item.risk_level === "MEDIUM") riskCounts.medium++;
+      else riskCounts.low++;
+    }
+  };
+
+  const collectRelatedLinks = (verified: VerifiedCandidate[]) => {
+    const verifiedCanonical = new Set(
+      checkpoint.verified_canonical_urls.map(canonicalUrl),
+    );
+    for (const hit of verified) {
+      const sourceHost = hostOf(hit.final_url);
+      for (const link of hit.related_links ?? []) {
+        const linkHost = hostOf(link);
+        if (!sourceHost || linkHost !== sourceHost) continue;
+        const canonical = canonicalUrl(link);
+        if (verifiedCanonical.has(canonical)) continue;
+        if (pendingCandidates.has(canonical)) continue;
+        relatedLinks.set(canonical, {
+          url: link,
+          title: hit.page_title ?? hit.title,
+          description: hit.page_description ?? hit.description,
+          query: hit.query,
+          source: "validated_domain_link",
+        });
+      }
+    }
+  };
+
+  const classifyAndPersist = async (mediaCandidates: VerifiedCandidate[]) => {
+    if (!mediaCandidates.length) return;
+
+    await heartbeat("classifying");
+
+    const inspectedCandidates = mediaCandidates.map((hit) => {
+      const pageUrl = hit.final_url ?? hit.evidence_page_url ?? hit.url;
+      const preEvidence = classifyPageEvidence({
+        url: pageUrl,
+        title: hit.page_title ?? hit.title,
+        description: hit.page_description ?? hit.description,
+        page_text: hit.page_text,
+        page_inspected: hit.page_inspected,
+        query: hit.query,
+        target: input.target,
+        target_face_match: (hit as any).target_face_match,
+        face_similarity: (hit as any).face_similarity,
+      });
+
+      return {
+        ...hit,
+        page_inspected: hit.page_inspected ?? false,
+        page_type: preEvidence.page_type,
+        identity_confidence: preEvidence.identity_confidence,
+        synthetic_media_confidence: preEvidence.synthetic_media_confidence,
+        matched_evidence: preEvidence.matched_evidence,
+        finding_classification: preEvidence.finding_classification,
+        classification_explanation: preEvidence.classification_explanation,
+        _pre_evidence: preEvidence,
+      };
+    });
+
+    for (const inspectedBatch of chunkArray(
+      inspectedCandidates,
+      MEDIA_PROCESS_BATCH_SIZE,
+    )) {
+      assertNotAborted(input.runtime.signal);
+      await heartbeat("classifying");
+
+      const analyzableCandidates = inspectedBatch.filter((hit) =>
+        shouldAnalyzeMedia(hit._pre_evidence, {
+          page_inspected: hit.page_inspected,
+          page_text: hit.page_text,
+        }),
+      );
+
+      let hiveCandidates: Array<(typeof analyzableCandidates)[number]> =
+        analyzableCandidates;
+
+      if (input.profileId && analyzableCandidates.length) {
+        const { filterCandidatesByTargetFace } = await import(
+          "./face-filter.server"
+        );
+        const faceResults = await filterCandidatesByTargetFace({
+          supabase: input.supabase,
+          userId: input.userId,
+          profileId: input.profileId,
+          candidates: analyzableCandidates,
+          similarityThreshold: 88,
+          signal: input.runtime.signal,
+          softDeadlineMs: input.runtime.softDeadlineMs,
+        });
+
+        const syntheticUnavailable = faceResults.errors.filter((item) => {
+          const text = [
+            item.title ?? "",
+            item.description ?? "",
+            item.page_text ?? "",
+            item.url ?? "",
+          ].join(" ");
+          return /\b(?:deepfake|face\s*swap|ai\s*nude|fake\s*nude|morphed|synthetic\s*media)\b/i.test(
+            text,
+          );
+        });
+
+        hiveCandidates = [
+          ...(faceResults.matched as any[]),
+          ...syntheticUnavailable.map((item) => ({
+            ...item,
+            target_face_match: false,
+            face_similarity: 0,
+            matched_face_id: null,
+          })),
+        ];
+      }
+
+      const { classifyHitsWithHive } = await import("./hive.server");
+      const hiveResults = hiveCandidates.length
+        ? await classifyHitsWithHive(hiveCandidates, {
+            signal: input.runtime.signal,
+            softDeadlineMs: input.runtime.softDeadlineMs,
+          })
+        : [];
+
+      const hiveUsable = hiveResults.some(
+        (item) => item.classification_status === "completed",
+      );
+
+      let mediaClassified: Array<
+        Awaited<ReturnType<typeof classifyHitsWithHive>>[number]
+      > = hiveResults;
+
+      if (!hiveUsable && hiveCandidates.length) {
+        const { classifyHits } = await import("./classify.server");
+        const textPool = hiveCandidates.slice(0, 40);
+
+        try {
+          const textResults = await classifyHits(
+            textPool.map((item) => ({
+              url: item.evidence_page_url ?? item.url,
+              title: item.title,
+              description: item.description,
+              query: item.query,
+            })),
+            input.target,
+            { signal: input.runtime.signal },
+          );
+
+          mediaClassified = textResults.map((item, index) => ({
+            ...textPool[index],
+            ...item,
+            content_match_score:
+              (textPool[index] as any)?.content_match_score ?? 0,
+            classification_status: "completed" as const,
+            visibility: "triage" as const,
+            ai_reasoning:
+              `${item.ai_reasoning} (Text-only triage: media analysis unavailable.)`.trim(),
+          }));
+        } catch (fallbackError) {
+          if (isAbortError(fallbackError)) throw fallbackError;
+          console.warn(
+            "[DEEPFAKE] Text-classifier fallback failed:",
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : String(fallbackError),
+          );
+        }
+      }
+
+      const mediaByPage = new Map<string, (typeof mediaClassified)[number]>();
+      for (const item of mediaClassified) {
+        const pageUrl = (item as any).evidence_page_url ?? item.url;
+        const existing = mediaByPage.get(pageUrl);
+        if (!existing || (item.confidence ?? 0) > (existing.confidence ?? 0)) {
+          mediaByPage.set(pageUrl, item);
+        }
+      }
+
+      const finalized = inspectedBatch.map((hit) => {
+        const pageUrl = hit.final_url ?? hit.evidence_page_url ?? hit.url;
+        const media =
+          mediaByPage.get(pageUrl) ??
+          mediaByPage.get(hit.evidence_page_url ?? "") ??
+          mediaByPage.get(hit.url);
+
+        const crawledTitle = hit.page_title ?? media?.title ?? null;
+        const crawledDescription =
+          hit.page_description ?? media?.description ?? null;
+        const finalizedFields = finalizeDeepfakeFinding({
+          url: pageUrl,
+          title: crawledTitle,
+          description: crawledDescription,
+          page_text: hit.page_text,
+          page_inspected: hit.page_inspected,
+          query: hit.query,
+          target: input.target,
+          hive_deepfake_score: (media as any)?.hive_deepfake_score ?? null,
+          hive_ai_generated_score:
+            (media as any)?.hive_ai_generated_score ?? null,
+          target_face_match:
+            (media as any)?.target_face_match ??
+            (hit as any).target_face_match ??
+            null,
+          face_similarity:
+            (media as any)?.face_similarity ??
+            (hit as any).face_similarity ??
+            null,
+          is_synthetic: media?.is_synthetic ?? null,
+          content_category: media?.content_category ?? null,
+          existing_reasoning: media?.ai_reasoning ?? null,
+          existing_category: media?.content_category ?? null,
+          existing_confidence: media?.confidence ?? null,
+        });
+
+        return {
+          url: pageUrl,
+          title: crawledTitle ?? undefined,
+          description: crawledDescription ?? undefined,
+          query: hit.query,
+          evidence_page_url: pageUrl,
+          media_url: (media as any)?.media_url ?? hit.media_url,
+          content_match_score: (hit as any).content_match_score ?? 0,
+          threat_signals: (hit as any).threat_signals,
+          classification_status: media?.classification_status ?? "no_media",
+          target_face_match:
+            (media as any)?.target_face_match ??
+            (hit as any).target_face_match ??
+            false,
+          face_similarity:
+            (media as any)?.face_similarity ??
+            (hit as any).face_similarity ??
+            null,
+          matched_face_id:
+            (media as any)?.matched_face_id ??
+            (hit as any).matched_face_id ??
+            null,
+          hive_deepfake_score: (media as any)?.hive_deepfake_score,
+          hive_ai_generated_score: (media as any)?.hive_ai_generated_score,
+          page_text: hit.page_text,
+          discovered_url: hit.discovered_url,
+          final_url: hit.final_url,
+          canonical_url: hit.canonical_url,
+          http_status: hit.http_status,
+          redirect_chain: hit.redirect_chain,
+          crawled_at: hit.crawled_at,
+          verified_domain: hit.verified_domain,
+          url_verification_status: hit.url_verification_status,
+          url_rejection_reason: hit.rejection_reason ?? null,
+          ...finalizedFields,
+        } as FinalizedFinding;
+      });
+
+      const dedupedFinalized = new Map<string, FinalizedFinding>();
+      for (const item of finalized) {
+        const key = item.canonical_url ?? item.evidence_page_url ?? item.url;
+        const existing = dedupedFinalized.get(key);
+        if (!existing || (item.confidence ?? 0) > (existing.confidence ?? 0)) {
+          dedupedFinalized.set(key, item);
+        }
+      }
+
+      const classified = Array.from(dedupedFinalized.values()).filter(
+        (item) =>
+          isUrlVerified(item.url_verification_status) &&
+          shouldPersistFinding(
+            item.finding_classification as FindingClassification,
+          ),
+      );
+
+      await heartbeat("saving");
+      const rows = classified.map((finding) =>
+        findingRowFromClassification({
+          scanId: input.scanId,
+          userId: input.userId,
+          finding,
+        }),
+      );
+      const keysBefore = new Set(persistedFindingKeys);
+      const persistedCount = await upsertFindingsBatch({
+        supabase: input.supabase,
+        rows,
+        alreadyPersisted: persistedFindingKeys,
+      });
+
+      if (persistedCount > 0) {
+        findingCount += persistedCount;
+        const persistedFindings = classified.filter((item) => {
+          const key = findingPersistKey(item as any);
+          return Boolean(key && !keysBefore.has(key) && persistedFindingKeys.has(key));
+        });
+        updateFindingMetrics(persistedFindings);
+      }
+
+      await heartbeat("saving");
+
+      const evidenceCandidates = classified.filter(
+        (item) =>
+          isClientVisibleClassification(item.finding_classification) &&
+          isUrlVerified(item.url_verification_status),
+      );
+
+      if (evidenceCandidates.length) {
+        try {
+          const { captureAndStoreEvidence } = await import(
+            "./evidence-capture.server"
+          );
+          await captureAndStoreEvidence({
+            supabase: input.supabase,
+            userId: input.userId,
+            scanId: input.scanId,
+            candidates: evidenceCandidates as any[],
+            signal: input.runtime.signal,
+            softDeadlineMs: input.runtime.softDeadlineMs,
+          });
+        } catch (evidenceError) {
+          if (isAbortError(evidenceError)) throw evidenceError;
+          console.warn(
+            "[DEEPFAKE:EVIDENCE] Capture failed:",
+            evidenceError instanceof Error
+              ? evidenceError.message
+              : String(evidenceError),
+          );
+        }
+        await heartbeat("saving");
+      }
+    }
+  };
+
+  const verifyAndClassify = async (
+    candidates: ProviderHit[],
+    maxPages = VERIFY_CANDIDATE_BATCH_SIZE,
+  ) => {
+    if (!candidates.length) return;
+    const startedAt = Date.now();
+    await heartbeat("verifying");
+
+    const { verifyCandidateUrls } = await import("./url-verification.server");
+    const verification = await verifyCandidateUrls(
+      candidates.map((hit) => ({
+        url: hit.url,
+        title: hit.title,
+        description: hit.description,
+        query: hit.query,
+        source: hit.source,
+        image_url: hit.image_url,
+        thumbnail_url: hit.thumbnail_url,
+        media_url: hit.media_url,
+        content_match_score: hit.content_match_score,
+        threat_signals: hit.threat_signals,
+      })),
+      input.target,
+      {
+        maxPages,
+        signal: input.runtime.signal,
+        softDeadlineMs: input.runtime.softDeadlineMs,
+        onBatchComplete: async (info) => {
+          discoveryCount += await upsertDiscoveriesBatch({
+            supabase: input.supabase,
+            userId: input.userId,
+            scanId: input.scanId,
+            targetName: input.target.name,
+            hostOf,
+            rows: info.verifiedBatch,
+            alreadyPersisted: persistedDiscoveryKeys,
+          });
+          await heartbeat("verifying");
+        },
+      },
+    );
+
+    recordSpend(budget, "verification", Date.now() - startedAt);
+    addVerificationMetrics(metrics, verification.metrics);
+
+    const verified = verification.verified as VerifiedCandidate[];
+    for (const hit of verified) {
+      checkpoint.verified_canonical_urls.push(canonicalUrl(hit.canonical_url));
+    }
+    collectRelatedLinks(verified);
+
+    if (verified.length) {
+      discoveryCount += await upsertDiscoveriesBatch({
+        supabase: input.supabase,
+        userId: input.userId,
+        scanId: input.scanId,
+        targetName: input.target.name,
+        hostOf,
+        rows: verified,
+        alreadyPersisted: persistedDiscoveryKeys,
+      });
+      await classifyAndPersist(verified);
+    }
+  };
+
+  const processPendingCandidates = async (maxPages = VERIFY_CANDIDATE_BATCH_SIZE) => {
+    if (!pendingCandidates.size) return;
+    if (!canStartVerification(budget)) return;
+    const batch = Array.from(pendingCandidates.values()).slice(0, maxPages);
+    await verifyAndClassify(batch, maxPages);
+    for (const item of batch) {
+      pendingCandidates.delete(canonicalUrl(item.url));
+    }
+  };
+
+  const enqueueProviderHits = async (hits: ProviderHit[]) => {
+    metrics.provider_candidates += hits.length;
+
+    const eligibleHits: ProviderHit[] = [];
+    for (const hit of hits) {
+      const host = hit.url ? hostOf(hit.url) : null;
+      const imageHost =
+        typeof hit.image_url === "string" ? hostOf(hit.image_url) : null;
+      const thumbnailHost =
+        typeof hit.thumbnail_url === "string" ? hostOf(hit.thumbnail_url) : null;
+      const explicitProviderResult =
+        hit.source === "youtube_api" || hit.source === "reddit_api";
+      const hasAnyUsableUrl =
+        host !== null || imageHost !== null || thumbnailHost !== null;
+      if (
+        !hasAnyUsableUrl ||
+        (!explicitProviderResult &&
+          ((host !== null && isBlockedHost(host)) ||
+            (imageHost !== null && isBlockedHost(imageHost)) ||
+            (thumbnailHost !== null && isBlockedHost(thumbnailHost))))
+      ) {
+        continue;
+      }
+
+      const key = discoveredCandidateKey(hit);
+      if (key && seenCandidateKeys.has(key)) continue;
+      if (key) seenCandidateKeys.add(key);
+      eligibleHits.push(hit);
+    }
+
+    const merged = mergeDiscoveredCandidates(eligibleHits, {
+      defaultQuery: input.target.name,
+    }) as ProviderHit[];
+    metrics.unique_candidates += merged.length;
+
+    if (!merged.length) {
+      await heartbeat("discovering");
+      return;
+    }
+
+    const candidateFilter = filterDeepfakeCandidates(merged, input.target);
+    const pagesToInspect = [
+      ...candidateFilter.accepted,
+      ...candidateFilter.triage.filter(hasThreatSignal),
+    ] as ProviderHit[];
+
+    for (const hit of pagesToInspect) {
+      pendingCandidates.set(canonicalUrl(hit.url), hit);
+    }
+
+    await heartbeat("verifying");
+    await processPendingCandidates();
+  };
+
+  const pauseIfPending = async () => {
+    syncCheckpoint();
+    if (!checkpointHasPendingWork(checkpoint)) return;
+    checkpoint.stage = "checkpoint";
+    syncCheckpoint();
+    await heartbeat("checkpoint");
+    const pause = new ScanCheckpointPauseError();
+    (pause as ScanCheckpointPauseError & { checkpoint?: ScanCheckpoint }).checkpoint =
+      checkpoint;
+    throw pause;
+  };
+
+  await heartbeat("discovering");
+
+  try {
+    if (!isFirecrawlConfigured()) {
+      console.warn(
+        "[DEEPFAKE] Firecrawl is not configured; skipping Firecrawl search provider.",
+      );
+      checkpoint.next_query_index = checkpoint.queries.length;
+      await heartbeat("discovering");
+    }
+
+    while (
+      isFirecrawlConfigured() &&
+      checkpoint.next_query_index < checkpoint.queries.length
+    ) {
+      assertNotAborted(input.runtime.signal);
+      await processPendingCandidates();
+
+      if (
+        checkpoint.next_query_index >= checkpoint.initial_wave_count &&
+        discoveryBudgetRemaining(budget) < MIN_PROVIDER_TIME_MS
+      ) {
+        break;
+      }
+
+      const estimatedProviderMs = Math.max(
+        checkpoint.average_provider_latency_ms,
+        MIN_PROVIDER_TIME_MS,
+      );
+      if (!canStartProviderCall(budget, estimatedProviderMs)) {
+        break;
+      }
+
+      const { batch, nextIndex } = nextQueryBatch(
+        checkpoint.queries,
+        checkpoint.next_query_index,
+        QUERY_BATCH_SIZE,
+      );
+      if (!batch.length) break;
+
+      const providerStartedAt = Date.now();
+      const perQuery = adaptivePerQueryLimit({
+        baseLimit: perQueryLimit,
+        averageProviderLatencyMs: checkpoint.average_provider_latency_ms,
+        discoveryRemainingMs: discoveryBudgetRemaining(budget),
+      });
+
+      await heartbeat("discovering");
+      const { firecrawlSearch, searchQueriesWithBoundedConcurrency } =
+        await import("./firecrawl.server");
+      const results = await searchQueriesWithBoundedConcurrency(batch, {
+        concurrency: 3,
+        provider: "firecrawl",
+        search: (query) =>
+          firecrawlSearch(query, perQuery, {
+            signal: input.runtime.signal,
+            softDeadlineMs: input.runtime.softDeadlineMs,
+          }),
+        signal: input.runtime.signal,
+      });
+
+      const providerElapsed = Date.now() - providerStartedAt;
+      recordSpend(budget, "discovery", providerElapsed);
+      recordProviderLatency(
+        checkpoint,
+        `firecrawl:${checkpoint.next_query_index}`,
+        providerElapsed,
+      );
+
+      for (const query of batch) {
+        markQueryCompleted(checkpoint, query);
+      }
+      checkpoint.next_query_index = nextIndex;
+      metrics.queries_executed += results.queriesExecuted;
+      metrics.query_failures += results.failures.length;
+      metrics.provider_failures += results.failures.length;
+      for (const failure of results.failures.slice(0, 10)) {
+        console.warn("[DEEPFAKE] Search query failed:", failure);
+      }
+
+      await heartbeat("discovering");
+      await enqueueProviderHits(results.hits as ProviderHit[]);
+      await heartbeat("discovering");
+    }
+
+    await processPendingCandidates();
+
+    if (
+      !checkpoint.youtube_done &&
+      canStartProviderCall(
+        budget,
+        Math.max(checkpoint.average_provider_latency_ms, MIN_PROVIDER_TIME_MS),
+      )
+    ) {
+      const startedAt = Date.now();
+      try {
+        assertNotAborted(input.runtime.signal);
+        const { searchRecentYouTubeMentions } = await import(
+          "./youtube-discovery.server"
+        );
+        const hits = await searchRecentYouTubeMentions({
+          name: input.target.name,
+          aliases: input.target.aliases,
+          handles: input.target.handles,
+          maxResults: 40,
+          pages: 2,
+          signal: input.runtime.signal,
+          softDeadlineMs: input.runtime.softDeadlineMs,
+        });
+        recordSpend(budget, "discovery", Date.now() - startedAt);
+        await enqueueProviderHits(hits as ProviderHit[]);
+      } catch (error) {
+        if (isAbortError(error)) throw error;
+        metrics.provider_failures++;
+        console.warn("[DEEPFAKE] YouTube discovery failed:", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        checkpoint.youtube_done = true;
+        await heartbeat("discovering");
+      }
+    }
+
+    await processPendingCandidates();
+
+    if (
+      !checkpoint.reddit_done &&
+      canStartProviderCall(
+        budget,
+        Math.max(checkpoint.average_provider_latency_ms, MIN_PROVIDER_TIME_MS),
+      )
+    ) {
+      const startedAt = Date.now();
+      try {
+        assertNotAborted(input.runtime.signal);
+        const { searchRecentRedditMentions } = await import(
+          "./reddit-discovery.server"
+        );
+        const hits = await searchRecentRedditMentions({
+          name: input.target.name,
+          aliases: input.target.aliases,
+          handles: input.target.handles,
+          maxResults: 60,
+          pages: 2,
+          signal: input.runtime.signal,
+          softDeadlineMs: input.runtime.softDeadlineMs,
+        });
+        recordSpend(budget, "discovery", Date.now() - startedAt);
+        await enqueueProviderHits(hits as ProviderHit[]);
+      } catch (error) {
+        if (isAbortError(error)) throw error;
+        metrics.provider_failures++;
+        console.warn("[DEEPFAKE] Reddit discovery failed:", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        checkpoint.reddit_done = true;
+        await heartbeat("discovering");
+      }
+    }
+
+    await processPendingCandidates();
+
+    if (!checkpoint.related_done) {
+      if (relatedLinks.size && verificationBudgetRemaining(budget) >= MIN_PROVIDER_TIME_MS) {
+        await verifyAndClassify(Array.from(relatedLinks.values()), 24);
+      }
+      checkpoint.related_done = true;
+      await heartbeat("discovering");
+    }
+
+    await processPendingCandidates();
+
+    if (checkpointHasPendingWork(checkpoint)) {
+      await pauseIfPending();
+    }
+
+    checkpoint.stage = "done";
+    checkpoint.pending_work = false;
+    syncCheckpoint();
+    await heartbeat("done");
+
+    return {
+      completed: true,
+      checkpointPaused: false,
+      discoveryCount,
+      findingCount,
+      clientVisibleCount,
+      riskCounts,
+      metrics,
+      checkpoint,
+      planQueryCount: checkpoint.queries.length,
+    };
+  } catch (error) {
+    if (error instanceof ScanCheckpointPauseError) {
+      throw error;
+    }
+
+    if (isDeadlineOrTimeoutError(error) || isAbortError(error)) {
+      await pauseIfPending();
+    }
+
+    if (error instanceof Error) {
+      (error as Error & { checkpoint?: ScanCheckpoint }).checkpoint = checkpoint;
+    }
+    throw error;
+  }
+}

@@ -149,12 +149,42 @@ export function isAbortError(error: unknown): boolean {
 
   if (
     error instanceof Error &&
-    (/abort/i.test(error.name) || /\babort(?:ed|ion)?\b/i.test(error.message))
+    (/abort/i.test(error.name) ||
+      /\babort(?:ed|ion)?\b/i.test(error.message) ||
+      /\b(?:timeout|timed out)\b/i.test(error.message))
   ) {
     return true;
   }
 
   return false;
+}
+
+export function isDeadlineOrTimeoutError(error: unknown): boolean {
+  if (error instanceof ScanDeadlineError) return true;
+  if (
+    error instanceof Error &&
+    /\b(?:timeout|timed out|deadline|aborted due to timeout)\b/i.test(
+      error.message,
+    )
+  ) {
+    return true;
+  }
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return true;
+  }
+  return false;
+}
+
+/** Soft pause used when the scan intentionally checkpoints with pending work. */
+export class ScanCheckpointPauseError extends Error {
+  readonly code = "SCAN_CHECKPOINT_PAUSE" as const;
+
+  constructor(
+    message = "Scan paused at the time budget with a resumable checkpoint.",
+  ) {
+    super(message);
+    this.name = "ScanCheckpointPauseError";
+  }
 }
 
 /** Bound a nested timeout by the remaining scan soft deadline. */

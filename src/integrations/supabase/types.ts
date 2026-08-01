@@ -1788,6 +1788,7 @@ export type Database = {
           aliases: string[]
           created_at: string
           critical_count: number
+          scan_checkpoint: Json | null
           discovery_metrics: Json
           error_message: string | null
           finished_at: string | null
@@ -1811,6 +1812,7 @@ export type Database = {
           aliases?: string[]
           created_at?: string
           critical_count?: number
+          scan_checkpoint?: Json | null
           discovery_metrics?: Json
           error_message?: string | null
           finished_at?: string | null
@@ -1834,6 +1836,7 @@ export type Database = {
           aliases?: string[]
           created_at?: string
           critical_count?: number
+          scan_checkpoint?: Json | null
           discovery_metrics?: Json
           error_message?: string | null
           finished_at?: string | null

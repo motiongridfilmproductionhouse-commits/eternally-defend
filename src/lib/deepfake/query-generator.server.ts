@@ -11,11 +11,16 @@ const unique = <T>(items: T[]): T[] => [...new Set(items)];
 
 export function generateDeepfakeQueries(
   target: DeepfakeTarget,
-  options?: { maxQueries?: number },
+  options?: { maxQueries?: number; minQueries?: number },
 ): string[] {
+  /*
+   * Adaptive scans may request a lower floor; classic callers keep the
+   * 40–60 production range by default.
+   */
+  const minQueries = Math.max(1, options?.minQueries ?? 40);
   const maxQueries = Math.min(
     60,
-    Math.max(40, options?.maxQueries ?? 56),
+    Math.max(minQueries, options?.maxQueries ?? 56),
   );
 
   const identities = unique([
