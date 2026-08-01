@@ -50,6 +50,7 @@ import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFac
 import { scanBelongsToSelectedProfile } from "@/lib/deepfake/identity-scan-viz";
 import {
   buildThreatAlertSummary,
+  isElevatedThreatTone,
   resolveThreatAlertAnnouncement,
   type ThreatAlertAnnouncementState,
 } from "@/lib/deepfake/threat-alert";
@@ -168,6 +169,9 @@ function DeepfakeIntelPage() {
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
+  const [threatDomainFocus, setThreatDomainFocus] = useState<string | null>(
+    null,
+  );
   const [stalled, setStalled] = useState(false);
   // Kept in a ref so the polling callbacks can react to an in-flight scan
   // request without re-creating the query options on every render.
@@ -640,6 +644,10 @@ function DeepfakeIntelPage() {
   // useLayoutEffect so role="alert" is applied before paint on the live <2→2+ crossing.
   // Skip zero-total baselines while the newly selected scan is still loading so
   // history selection / reload of an already-saved multi-threat scan stays role="status".
+  useEffect(() => {
+    setThreatDomainFocus(null);
+  }, [selectedScanId]);
+
   useLayoutEffect(() => {
     if (!selectedScanId) {
       threatAnnouncementRef.current = null;
@@ -654,6 +662,8 @@ function DeepfakeIntelPage() {
         threatAnnouncementRef.current = {
           scanId: selectedScanId,
           distinctTotal: -1,
+          tone: "cyan",
+          hasAnnouncedAlert: false,
           hasAnnouncedMultiple: false,
         };
         setThreatBannerRole("status");
@@ -672,6 +682,7 @@ function DeepfakeIntelPage() {
     const decision = resolveThreatAlertAnnouncement({
       scanId: selectedScanId,
       distinctTotal: threatSummary.total,
+      tone: threatSummary.tone,
       previous: effectivePrevious,
     });
     threatAnnouncementRef.current = decision.next;
@@ -681,6 +692,7 @@ function DeepfakeIntelPage() {
     selected.data?.scan?.id,
     selected.isLoading,
     threatSummary.total,
+    threatSummary.tone,
   ]);
 
   const scrollToThreatSection = (elementIds: string | string[]) => {
@@ -774,12 +786,13 @@ function DeepfakeIntelPage() {
       }),
   );
 
-  // Prefer the live in-progress scan for this identity over a stale history
-  // selection (e.g. an older completed row still highlighted).
-  const vizSourceScan = activeScanForIdentity
-    ? activeScanForIdentity
-    : selectedScanMatchesProfile
-      ? scan
+  // Prefer the selected scan when it belongs to this profile so threat colour
+  // and PARTIAL/PAUSED lifecycle stay aligned with the results panel below.
+  const vizSourceScan = selectedScanMatchesProfile
+    ? scan
+    : activeScanForIdentity &&
+        (!selectedScanId || activeScanForIdentity.id === selectedScanId)
+      ? activeScanForIdentity
       : null;
   const vizSourceMetrics = metricRecord(vizSourceScan?.discovery_metrics);
   const vizSourceMetricObject = objectRecord(vizSourceScan?.discovery_metrics);
@@ -791,12 +804,15 @@ function DeepfakeIntelPage() {
     (typeof vizSourceCheckpoint?.stage === "string"
       ? vizSourceCheckpoint.stage
       : null);
-  const vizScanStatus = vizSourceScan?.status ?? null;
+  // Lifecycle status from the viz source; threat tone is independent and always
+  // derived from the selected scan's complete findings array.
+  const vizScanStatus = vizSourceScan?.status ?? scan?.status ?? null;
   const vizExecutedQueries =
     vizSourceMetrics?.queries_executed ??
     (typeof vizSourceCheckpoint?.next_query_index === "number"
       ? vizSourceCheckpoint.next_query_index
-      : null);
+      : null) ??
+    executedQueries;
   const vizPlannedQueries =
     (typeof vizSourceCheckpoint?.planned_query_count === "number"
       ? vizSourceCheckpoint.planned_query_count
@@ -806,24 +822,18 @@ function DeepfakeIntelPage() {
       : null) ??
     vizSourceMetrics?.queries_generated ??
     vizSourceScan?.total_queries ??
-    null;
-  const vizPagesVerified = vizSourceMetrics?.crawl_succeeded ?? null;
+    plannedQueries;
+  const vizPagesVerified =
+    vizSourceMetrics?.crawl_succeeded ?? diagnostics?.crawl_succeeded ?? null;
   const vizThreatsSaved =
-    vizSourceMetrics?.client_visible ?? vizSourceScan?.total_results ?? null;
-  const vizErrorMessage = vizSourceScan?.error_message ?? null;
-  // Threat counts always come from the selected scan's polled findings.
-  // Only paint them onto the identity viz when that viz is showing the same scan
-  // (avoids pairing a live run's blue/amber status with another row's threats).
-  const vizThreatSummary =
-    !vizSourceScan || vizSourceScan.id === selectedScanId
-      ? threatSummary
-      : {
-          level: "none" as const,
-          total: 0,
-          verified: 0,
-          probable: 0,
-          domains: 0,
-        };
+    threatSummary.total > 0
+      ? threatSummary.total
+      : vizSourceMetrics?.client_visible ??
+        vizSourceScan?.total_results ??
+        scan?.total_results ??
+        null;
+  const vizErrorMessage =
+    vizSourceScan?.error_message ?? scan?.error_message ?? null;
 
   return (
     <div className="space-y-6">
@@ -1205,14 +1215,31 @@ function DeepfakeIntelPage() {
               pagesVerified={vizPagesVerified}
               threatsSaved={vizThreatsSaved}
               errorMessage={vizErrorMessage}
-              threatSummary={vizThreatSummary}
+              threatSummary={threatSummary}
+              threatFindings={findings}
+              scanId={selectedScanId}
+              threatFindingsReady={Boolean(
+                selectedScanId &&
+                  selected.data?.scan?.id === selectedScanId &&
+                  !selected.isLoading,
+              )}
+              onSelectThreatDomain={(domain) => {
+                setRiskFilter("ALL");
+                setThreatDomainFocus(domain);
+                scrollToThreatSection([
+                  "top-verified-domains",
+                  "intelligence-tables",
+                  "results-intelligence-console",
+                ]);
+              }}
             />
           ) : null}
 
-          {selectedScanId && threatSummary.level === "multiple" ? (
+          {selectedScanId && isElevatedThreatTone(threatSummary.tone) ? (
             <ThreatAlertBanner
               summary={threatSummary}
               ariaRole={threatBannerRole}
+              scanStatus={scan?.status ?? null}
               onReviewThreats={() =>
                 scrollToThreatSection([
                   "finding-cards-heading",
@@ -1229,6 +1256,18 @@ function DeepfakeIntelPage() {
                   "deepfake-results-panel",
                 ])
               }
+              onContinueScan={
+                scan?.status === "partial"
+                  ? () => continueScan.mutate(scan.id)
+                  : undefined
+              }
+              continuePending={continueScan.isPending}
+              continueDisabled={Boolean(
+                activeScanForSelectedScan(scan) ||
+                  (scan &&
+                    activeScanForIdentity &&
+                    activeScanForIdentity.id !== scan.id),
+              )}
             />
           ) : null}
 
@@ -1405,6 +1444,8 @@ function DeepfakeIntelPage() {
                       status: scan.status,
                       errorMessage: scan.error_message,
                     })}
+                    threatTone={threatSummary.tone}
+                    focusDomain={threatDomainFocus}
                   />
                 ) : (
                   <div

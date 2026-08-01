@@ -103,10 +103,12 @@ export function VerifiedThreatOverview({
   metrics,
   funnel,
   resetKey,
+  highThreat = false,
 }: {
   metrics: OverviewMetrics;
   funnel: FunnelChartPoint[];
   resetKey?: string | number | null;
+  highThreat?: boolean;
 }) {
   const hasChartValues = funnel.some((point) => point.value > 0);
   const [chartReady, setChartReady] = useState(false);
@@ -117,9 +119,15 @@ export function VerifiedThreatOverview({
 
   return (
     <section
-      className="rounded-xl border border-sky-500/25 bg-[linear-gradient(160deg,rgba(8,24,48,0.96),rgba(10,18,32,0.98))] p-4 text-slate-100 shadow-[0_0_40px_rgba(30,123,255,0.08)]"
+      className={[
+        "rounded-xl border p-4 text-slate-100",
+        highThreat
+          ? "border-red-500/50 bg-[linear-gradient(160deg,rgba(48,10,14,0.96),rgba(18,8,12,0.98))] shadow-[0_0_40px_rgba(239,68,68,0.18)]"
+          : "border-sky-500/25 bg-[linear-gradient(160deg,rgba(8,24,48,0.96),rgba(10,18,32,0.98))] shadow-[0_0_40px_rgba(30,123,255,0.08)]",
+      ].join(" ")}
       aria-labelledby="verified-threat-overview-heading"
       data-testid="verified-threat-overview"
+      data-high-threat={highThreat ? "true" : "false"}
     >
       <div className="mb-4 flex items-end justify-between gap-3 flex-wrap">
         <div>

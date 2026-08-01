@@ -54,8 +54,11 @@ export function TopVerifiedDomainsTable({
               rows.map((row) => (
                 <tr
                   key={row.domain}
+                  data-domain-row={row.domain}
                   className={`border-b border-white/5 ${
-                    selectedDomain === row.domain ? "bg-cyan-500/10" : ""
+                    selectedDomain === row.domain
+                      ? "bg-cyan-500/10 ring-1 ring-inset ring-cyan-400/30"
+                      : ""
                   }`}
                 >
                   <td className="py-2.5 pr-3">
@@ -86,7 +89,12 @@ export function TopVerifiedDomainsTable({
         {rows.map((row) => (
           <li
             key={row.domain}
-            className="rounded-lg border border-white/10 bg-black/20 p-3"
+            data-domain-row={row.domain}
+            className={`rounded-lg border bg-black/20 p-3 ${
+              selectedDomain === row.domain
+                ? "border-cyan-400/40"
+                : "border-white/10"
+            }`}
           >
             <button
               type="button"
