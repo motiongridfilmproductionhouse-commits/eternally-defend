@@ -412,6 +412,41 @@ export async function executeInterleavedDeepfakePipeline(input: {
     entityType: "person",
   }).catch(() => null);
 
+  // Persist expanded identity onto the scan row so client filtering uses the
+  // same alias set the pipeline classified against (fail-open).
+  try {
+    const { data: existingScan } = await input.supabase
+      .from("deepfake_scans")
+      .select("discovery_metrics")
+      .eq("id", input.scanId)
+      .eq("user_id", input.userId)
+      .maybeSingle();
+    const priorMetrics =
+      existingScan?.discovery_metrics &&
+      typeof existingScan.discovery_metrics === "object"
+        ? (existingScan.discovery_metrics as Record<string, unknown>)
+        : {};
+    await input.supabase
+      .from("deepfake_scans")
+      .update({
+        // Keep user-entered name unless a high-confidence canonical was resolved.
+        target_name: expansion.canonicalName ?? input.target.name,
+        aliases: expandedTarget.aliases,
+        handles: expandedTarget.handles,
+        discovery_metrics: {
+          ...priorMetrics,
+          identity_expansion: expansionDiagnostics(expansion),
+        },
+      })
+      .eq("id", input.scanId)
+      .eq("user_id", input.userId);
+  } catch (error) {
+    console.warn(
+      "[DEEPFAKE] Could not persist expanded identity on scan row:",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+
   const scheduledQueries = buildScheduledQueries({
     target: expandedTarget,
     googleImagesUrl: input.googleImagesUrl,
@@ -852,6 +887,22 @@ export async function executeInterleavedDeepfakePipeline(input: {
           relevance.quarantine ||
           !relevance.matchedIdentity;
 
+        // Force UNVERIFIED_LEAD so existing client filters / metrics exclude it.
+        const effectiveFields = quarantineIdentity
+          ? {
+              ...finalizedFields,
+              finding_classification: "UNVERIFIED_LEAD" as const,
+              visibility: "triage" as const,
+              classification_explanation: [
+                finalizedFields.classification_explanation,
+                relevance.reason,
+                "Identity relevance quarantine after search expansion.",
+              ]
+                .filter(Boolean)
+                .join(" "),
+            }
+          : finalizedFields;
+
         return {
           url: pageUrl,
           title: crawledTitle ?? undefined,
@@ -886,20 +937,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
           verified_domain: hit.verified_domain,
           url_verification_status: hit.url_verification_status,
           url_rejection_reason: hit.rejection_reason ?? null,
-          ...finalizedFields,
-          // Expanded-query hits about a different person stay triage-only.
-          ...(quarantineIdentity
-            ? {
-                visibility: "triage" as const,
-                client_visible: false,
-                classification_explanation: [
-                  finalizedFields.classification_explanation,
-                  relevance.reason,
-                ]
-                  .filter(Boolean)
-                  .join(" "),
-              }
-            : {}),
+          ...effectiveFields,
         } as FinalizedFinding;
       });
 
