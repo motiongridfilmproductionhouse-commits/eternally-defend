@@ -217,14 +217,14 @@ export async function mutateIdentityAlias(
     value: string;
     canonicalName?: string;
   },
-): Promise<boolean> {
+): Promise<{ ok: boolean; profileId?: string }> {
   const { data: profile } = await supabase
     .from("search_identity_profiles")
     .select("*")
     .eq("id", opts.profileId)
     .eq("user_id", opts.userId)
     .maybeSingle();
-  if (!profile) return false;
+  if (!profile) return { ok: false };
 
   let detailed = Array.isArray(profile.aliases_detailed)
     ? ([...profile.aliases_detailed] as StoredAlias[])
@@ -329,7 +329,9 @@ export async function mutateIdentityAlias(
           .eq("user_id", opts.userId);
       }
       invalidateIdentityExpansionCache({ all: true });
-      return !mergeErr;
+      return mergeErr
+        ? { ok: false }
+        : { ok: true, profileId: existingCanon.id as string };
     }
   }
 
@@ -348,5 +350,5 @@ export async function mutateIdentityAlias(
 
   invalidateIdentityExpansionCache({ userId: opts.userId, all: false });
   invalidateIdentityExpansionCache({ all: true });
-  return !error;
+  return error ? { ok: false } : { ok: true, profileId: opts.profileId };
 }

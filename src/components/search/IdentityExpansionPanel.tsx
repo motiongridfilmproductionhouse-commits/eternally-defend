@@ -64,7 +64,8 @@ export function IdentityExpansionPanel(props: {
       // Ignore stale responses from earlier keystrokes.
       if (seq !== requestSeq.current) return;
       setLocalAlso(res.alsoSearching);
-      setProfileId(res.profileId);
+      // Non-persist previews return profileId=null — keep any already-known id.
+      if (res.profileId) setProfileId(res.profileId);
       setPreviewData(res);
       props.onExpansion?.(res);
     },
@@ -109,7 +110,7 @@ export function IdentityExpansionPanel(props: {
         return { ok: false as const, stale: true as const };
       }
       if (!activeProfileId) throw new Error("Could not persist identity profile.");
-      await updateSearchIdentityAlias({
+      const updated = (await updateSearchIdentityAlias({
         data: {
           profileId: activeProfileId,
           action: input.action,
@@ -117,11 +118,16 @@ export function IdentityExpansionPanel(props: {
           canonicalName:
             input.action === "confirm_identity" ? input.value : undefined,
         },
-      });
-      return { ok: true as const, stale: false as const };
+      })) as { ok: boolean; profileId?: string };
+      if (updated.profileId) {
+        activeProfileId = updated.profileId;
+        setProfileId(updated.profileId);
+      }
+      return { ok: true as const, stale: false as const, profileId: activeProfileId };
     },
     onSuccess: (result) => {
       if (result?.stale) return;
+      if (result?.profileId) setProfileId(result.profileId);
       const seq = ++requestSeq.current;
       preview.mutate(seq);
     },

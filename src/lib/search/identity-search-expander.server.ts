@@ -424,13 +424,20 @@ export async function resolveAndExpandSearchQuery(
 
   // When ambiguous: do NOT put competing people into aliases used for auto-matching.
   // Keep them only in ambiguityCandidates + dedicated investigative search queries.
+  const rejectedSet = new Set(
+    (persisted?.rejectedAliases ?? []).map((a) => normalizeKey(a)),
+  );
   const aliases = uniqueStrings([
     ...(identity?.aliases ?? []),
     ...userAliases,
     corrected !== original ? corrected : null,
     // Keep misspelling as searchable alias when we corrected it
     original !== (canonicalName ?? corrected) ? original : null,
-  ]).filter((a) => normalizeKey(a) !== normalizeKey(canonicalName ?? ""));
+  ]).filter((a) => {
+    const n = normalizeKey(a);
+    if (n && rejectedSet.has(n)) return false;
+    return n !== normalizeKey(canonicalName ?? "");
+  });
 
   const localLanguageNames = uniqueStrings([
     ...(identity?.localLanguageNames ?? []),

@@ -109,7 +109,7 @@ export const updateSearchIdentityAlias = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const ok = await mutateIdentityAlias(context.supabase, {
+    const result = await mutateIdentityAlias(context.supabase, {
       userId: context.userId,
       profileId: data.profileId,
       action: data.action,
@@ -117,6 +117,6 @@ export const updateSearchIdentityAlias = createServerFn({ method: "POST" })
       canonicalName: data.canonicalName,
     });
     invalidateIdentityExpansionCache({ userId: context.userId });
-    if (!ok) throw new Error("Could not update identity alias.");
-    return { ok: true };
+    if (!result.ok) throw new Error("Could not update identity alias.");
+    return { ok: true, profileId: result.profileId ?? data.profileId };
   });
