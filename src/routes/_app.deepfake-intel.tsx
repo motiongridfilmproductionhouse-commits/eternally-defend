@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   runDeepfakeScan,
+  executeDeepfakeScanPipeline,
   continueDeepfakeScan,
   listDeepfakeScans,
   getDeepfakeScan,
@@ -33,6 +34,8 @@ import {
   scanPollInterval,
   scanProgressSignature,
   SCAN_STALL_WARNING_MS,
+  shouldShowHistoryEmpty,
+  shouldShowHistoryLoading,
   shouldShowResultsLoader,
 } from "@/lib/deepfake/scan-ui-state";
 
@@ -116,6 +119,7 @@ function stageLabel(stage?: unknown): string | null {
 
 function DeepfakeIntelPage() {
   const runFn = useServerFn(runDeepfakeScan);
+  const executeFn = useServerFn(executeDeepfakeScanPipeline);
   const continueFn = useServerFn(continueDeepfakeScan);
   const listFn = useServerFn(listDeepfakeScans);
   const getFn = useServerFn(getDeepfakeScan);
@@ -139,6 +143,9 @@ function DeepfakeIntelPage() {
   // request without re-creating the query options on every render.
   const runPendingRef = useRef(false);
   const progressRef = useRef<{ signature: string; at: number } | null>(null);
+  const lastStartOptionsRef = useRef<{
+    google_images_url?: string;
+  }>({});
 
 
 
@@ -216,6 +223,44 @@ function DeepfakeIntelPage() {
     }) ?? null;
   };
 
+  const executePipeline = useMutation({
+    mutationFn: (input: {
+      scan_id: string;
+      google_images_url?: string;
+    }) => executeFn({ data: input }),
+    onSuccess: (res) => {
+      setSelectedScanId(res.scan_id);
+      qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
+      qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
+
+      if (res.status === "partial") {
+        toast.message(
+          `Partial results — ${res.total_results} threats saved before the scan deadline.`,
+        );
+        return;
+      }
+
+      if (res.status === "failed") {
+        toast.error(
+          "Scan failed before verified progress was saved. Check the scan error details.",
+        );
+        return;
+      }
+
+      if (res.status === "completed") {
+        toast.success(
+          `Scan complete — ${res.total_results} threats classified from ${res.discovered_results} latest public leads`,
+        );
+      }
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Scan pipeline failed to start",
+      ),
+  });
+
   const run = useMutation({
     mutationFn: (input: {
       target_name: string;
@@ -236,23 +281,16 @@ function DeepfakeIntelPage() {
         return;
       }
 
-      if (res.status === "partial") {
-        toast.message(
-          `Partial results — ${res.total_results} threats saved before the scan deadline.`,
-        );
-        return;
-      }
-
-      if (res.status === "failed") {
-        toast.error("Scan failed before verified progress was saved.");
-        return;
-      }
-
-      toast.success(
-        `Scan complete — ${res.total_results} threats classified from ${res.discovered_results} latest public leads`,
-      );
+      toast.message("Scan started — verifying public leads…");
+      executePipeline.mutate({
+        scan_id: res.scan_id,
+        google_images_url: lastStartOptionsRef.current.google_images_url,
+      });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
+    onError: (e) =>
+      toast.error(
+        e instanceof Error ? e.message : "Unable to start scan",
+      ),
   });
 
   const continueScan = useMutation({
@@ -269,17 +307,8 @@ function DeepfakeIntelPage() {
         return;
       }
 
-      if (res.status === "partial") {
-        toast.message("Scan checkpoint saved again. Continue when ready.");
-        return;
-      }
-
-      if (res.status === "failed") {
-        toast.error("Scan could not continue before verified progress was saved.");
-        return;
-      }
-
-      toast.success(`Scan complete — ${res.total_results} threats saved`);
+      toast.message("Continuing from checkpoint…");
+      executePipeline.mutate({ scan_id: res.scan_id });
     },
     onError: (error) =>
       toast.error(
@@ -387,17 +416,19 @@ function DeepfakeIntelPage() {
     },
   });
 
-  const scanRequestPending = run.isPending || continueScan.isPending;
-  runPendingRef.current = scanRequestPending;
-
   const selectedScanRow = selected.data?.scan ?? null;
   const selectedScanStatus = selectedScanRow?.status ?? null;
+  const scanRequestPending =
+    run.isPending || continueScan.isPending || executePipeline.isPending;
+  const scanningUi =
+    scanRequestPending ||
+    selectedScanStatus === "running" ||
+    Boolean(activeScanForIdentity);
+  runPendingRef.current = scanRequestPending;
 
   /*
-   * The scan request itself runs the whole pipeline inline and can take
-   * minutes (or die on the server). Select the freshly created scan row as
-   * soon as it shows up in the history so live progress and saved findings
-   * render while the status is still "running".
+   * Select the freshly created scan row as soon as it shows up in history so
+   * live progress renders while status is still "running".
    */
   useEffect(() => {
     const candidateId = pickLiveScanId({
@@ -411,13 +442,14 @@ function DeepfakeIntelPage() {
 
   /*
    * Polling is the source of truth for "is this scan still running". Once the
-   * row reaches a terminal status, drop the mutation's pending/loading state
-   * even if the original request never resolved.
+   * row reaches a terminal status, drop mutation pending/loading state even if
+   * the long-running execute request has not resolved yet.
    */
   useEffect(() => {
     if (!isTerminalScanStatus(selectedScanStatus)) return;
     if (run.isPending) run.reset();
     if (continueScan.isPending) continueScan.reset();
+    if (executePipeline.isPending) executePipeline.reset();
     setStalled(false);
     qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -498,12 +530,14 @@ function DeepfakeIntelPage() {
       .map((value) => value.trim())
       .filter(Boolean);
 
+    const google_images_url = googleImagesUrl.trim() || undefined;
+    lastStartOptionsRef.current = { google_images_url };
     run.mutate({
       target_name: name,
       profile_id: selectedProfileId || undefined,
       aliases,
       handles,
-      google_images_url: googleImagesUrl.trim() || undefined,
+      google_images_url,
     });
   };
 
@@ -828,11 +862,11 @@ function DeepfakeIntelPage() {
               />
             </div>
             <Button
+              type="button"
               className="w-full"
               onClick={onRun}
               disabled={
-                run.isPending ||
-                identityScanLocked ||
+                scanningUi ||
                 (
                   !googleImagesUrl.trim() &&
                   (
@@ -842,12 +876,12 @@ function DeepfakeIntelPage() {
                 )
               }
             >
-              {run.isPending || identityScanLocked ? (
+              {scanningUi ? (
                 <>
                   <Loader2 className="size-4 mr-2 animate-spin" />
-                  {identityScanLocked && !run.isPending
+                  {identityScanLocked && !scanRequestPending
                     ? "Scan already running for this identity…"
-                    : "Face-verifying and scanning…"}
+                    : "Scanning…"}
                 </>
               ) : (
                 <>
@@ -859,6 +893,13 @@ function DeepfakeIntelPage() {
                 </>
               )}
             </Button>
+            {(run.error || executePipeline.error || continueScan.error) && (
+              <p className="text-[11px] text-red-500">
+                {(run.error || executePipeline.error || continueScan.error) instanceof Error
+                  ? (run.error || executePipeline.error || continueScan.error)!.message
+                  : "Scan request failed"}
+              </p>
+            )}
             <p className="text-[11px] text-muted-foreground">
               {identityScanLocked
                 ? "Another active scan for this identity is in progress. Results stay visible as they are saved."
@@ -868,9 +909,24 @@ function DeepfakeIntelPage() {
 
           <div className="card-surface p-4">
             <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground mb-2">SCAN HISTORY</div>
-            {scans.isLoading ? (
+            {shouldShowHistoryLoading({
+              isLoading: scans.isLoading,
+              isFetching: scans.isFetching,
+              hasData: scans.data !== undefined,
+            }) ? (
               <div className="text-xs text-muted-foreground py-4 text-center">Loading…</div>
-            ) : (scans.data ?? []).length === 0 ? (
+            ) : scans.isError ? (
+              <div className="text-xs text-red-500 py-4 text-center">
+                {scans.error instanceof Error
+                  ? scans.error.message
+                  : "Unable to load scan history"}
+              </div>
+            ) : shouldShowHistoryEmpty({
+                isLoading: scans.isLoading,
+                isFetching: scans.isFetching,
+                isError: scans.isError,
+                count: (scans.data ?? []).length,
+              }) ? (
               <div className="text-xs text-muted-foreground py-4 text-center">No scans yet.</div>
             ) : (
               <ul className="space-y-1.5 max-h-[420px] overflow-auto">
@@ -981,6 +1037,7 @@ function DeepfakeIntelPage() {
                       className="border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
                       disabled={
                         continueScan.isPending ||
+                        executePipeline.isPending ||
                         Boolean(activeScanForSelectedScan(scan))
                       }
                       onClick={() => continueScan.mutate(scan.id)}

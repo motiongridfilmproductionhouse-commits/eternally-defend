@@ -73,3 +73,29 @@ export function isScanStalled(input: {
   if (input.status !== "running") return false;
   return input.now - input.lastChangeAt >= SCAN_STALL_WARNING_MS;
 }
+
+/** History must not flash “No scans yet” before the first fetch resolves. */
+export function shouldShowHistoryLoading(input: {
+  isLoading: boolean;
+  isFetching: boolean;
+  hasData: boolean;
+}): boolean {
+  return input.isLoading || (input.isFetching && !input.hasData);
+}
+
+export function shouldShowHistoryEmpty(input: {
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  count: number;
+}): boolean {
+  if (input.isError) return false;
+  if (shouldShowHistoryLoading({
+    isLoading: input.isLoading,
+    isFetching: input.isFetching,
+    hasData: input.count > 0,
+  })) {
+    return false;
+  }
+  return input.count === 0;
+}

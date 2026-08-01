@@ -196,7 +196,11 @@ async function finalizePipelineRun(input: {
   };
 }
 
-/** Kick off a deepfake intelligence scan. Runs synchronously but saves progress incrementally. */
+/**
+ * Create/acquire a RUNNING scan row and return immediately.
+ * Never waits for the discovery/verification pipeline — the client must call
+ * executeDeepfakeScanPipeline with the returned scan_id.
+ */
 export const runDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -226,13 +230,17 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
     const scanRunToken = createScanRunToken();
     const aliases = data.aliases ?? [];
     const handles = data.handles ?? [];
-    const target = {
-      name: data.target_name,
-      aliases,
-      handles,
-    };
 
-    await recoverExpiredScansForUser({ supabase, userId });
+    try {
+      await recoverExpiredScansForUser({ supabase, userId });
+    } catch (recoverError) {
+      console.warn(
+        "[DEEPFAKE] Lease recovery skipped during scan start:",
+        recoverError instanceof Error
+          ? recoverError.message
+          : String(recoverError),
+      );
+    }
 
     const activeScan = await findActiveScanForIdentity({
       supabase,
@@ -256,6 +264,16 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       heartbeat_at: new Date(nowMs).toISOString(),
       lease_expires_at: leaseExpiresAtIso(runtime.leaseTtlMs, nowMs),
       error_message: null,
+      // Persist start options so execute can resume without trusting the client
+      // for identity fields (google URL / limits only).
+      discovery_metrics: {
+        stage: "discovering",
+        start_options: {
+          google_images_url: data.google_images_url ?? null,
+          max_queries: data.max_queries ?? 56,
+          per_query_limit: data.per_query_limit ?? 20,
+        },
+      },
     };
 
     if (data.profile_id) {
@@ -265,7 +283,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
     const { data: scan, error: sErr } = await supabase
       .from("deepfake_scans")
       .insert(scanInsert as any)
-      .select("*")
+      .select("id, status")
       .single();
 
     if (sErr || !scan) {
@@ -283,11 +301,90 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       throw new Error(sErr?.message ?? "failed to create scan");
     }
 
+    return {
+      scan_id: scan.id,
+      total_results: 0,
+      discovered_results: 0,
+      status: "running" as const,
+      started: true as const,
+    };
+  });
+
+/**
+ * Run the interleaved pipeline for an already-created RUNNING scan.
+ * Called separately so scan-start can return the scan_id immediately.
+ */
+export const executeDeepfakeScanPipeline = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        scan_id: z.string().uuid(),
+        google_images_url: z.string().trim().max(5000).optional(),
+        max_queries: z.number().int().min(40).max(60).optional(),
+        per_query_limit: z.number().int().min(10).max(20).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: scan, error } = await supabase
+      .from("deepfake_scans")
+      .select("*")
+      .eq("id", data.scan_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!scan) throw new Error("Scan not found.");
+    if (scan.status !== "running") {
+      return {
+        scan_id: scan.id,
+        total_results: scan.total_results ?? 0,
+        discovered_results: scan.total_results ?? 0,
+        status: scan.status,
+      };
+    }
+
+    const scanRunToken = (scan as { scan_run_token?: string | null }).scan_run_token;
+    if (!scanRunToken) {
+      throw new Error(
+        "Scan ownership token is missing — restart the scan to acquire a new lease.",
+      );
+    }
+
+    const metrics = objectish(scan.discovery_metrics);
+    const startOptions = objectish(metrics?.start_options);
+    const googleImagesUrl =
+      data.google_images_url ??
+      (typeof startOptions?.google_images_url === "string"
+        ? startOptions.google_images_url
+        : undefined);
+    const maxQueries =
+      data.max_queries ??
+      (typeof startOptions?.max_queries === "number"
+        ? startOptions.max_queries
+        : 56);
+    const perQueryLimit =
+      data.per_query_limit ??
+      (typeof startOptions?.per_query_limit === "number"
+        ? startOptions.per_query_limit
+        : 20);
+
+    const runtime = createScanRuntime();
     const ownership: ScanOwnership = {
       scanId: scan.id,
       scanRunToken,
       runtime,
     };
+    const resumeCheckpoint = parseScanCheckpoint(scan.scan_checkpoint);
+    const target = {
+      name: scan.target_name,
+      aliases: scan.aliases ?? [],
+      handles: scan.handles ?? [],
+    };
+
     let pipelineResult: PipelineResult | null = null;
     let pipelineError: unknown = null;
 
@@ -299,17 +396,18 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         ownership,
         scanId: scan.id,
         target,
-        profileId: data.profile_id ?? null,
-        googleImagesUrl: data.google_images_url,
-        maxQueries: data.max_queries ?? 56,
-        perQueryLimit: data.per_query_limit ?? 20,
+        profileId: scan.profile_id ?? null,
+        googleImagesUrl,
+        maxQueries,
+        perQueryLimit,
         runtime,
+        resumeCheckpoint: resumeCheckpoint ?? undefined,
       });
-    } catch (error) {
-      pipelineError = error;
-      console.warn("[DEEPFAKE] Scan stopped before full completion:", {
+    } catch (err) {
+      pipelineError = err;
+      console.warn("[DEEPFAKE] Scan pipeline stopped:", {
         scan_id: scan.id,
-        error: error instanceof Error ? error.message : String(error),
+        error: err instanceof Error ? err.message : String(err),
       });
     }
 
@@ -319,6 +417,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       runtime,
       pipelineResult,
       pipelineError,
+      fallbackCheckpoint: resumeCheckpoint,
     });
 
     return {
@@ -329,6 +428,10 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
     };
   });
 
+/**
+ * Acquire PARTIAL → RUNNING and return immediately. Pipeline execution is a
+ * separate executeDeepfakeScanPipeline call from the client.
+ */
 export const continueDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -336,7 +439,16 @@ export const continueDeepfakeScan = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await recoverExpiredScanLease({ supabase, scanId: data.scan_id });
+    try {
+      await recoverExpiredScanLease({ supabase, scanId: data.scan_id });
+    } catch (recoverError) {
+      console.warn(
+        "[DEEPFAKE] Lease recovery skipped during continue:",
+        recoverError instanceof Error
+          ? recoverError.message
+          : String(recoverError),
+      );
+    }
 
     const { data: scan, error } = await supabase
       .from("deepfake_scans")
@@ -367,8 +479,6 @@ export const continueDeepfakeScan = createServerFn({ method: "POST" })
       return alreadyRunningResult(activeScan.id);
     }
 
-    const runtime = createScanRuntime();
-
     /*
      * Atomic PARTIAL → RUNNING via SECURITY DEFINER RPC. The DB trigger only
      * allows this transition when the continue GUC is set inside the RPC, so
@@ -395,55 +505,13 @@ export const continueDeepfakeScan = createServerFn({ method: "POST" })
       throw new Error("Unable to acquire the scan continuation lease.");
     }
 
-    const ownership: ScanOwnership = {
-      scanId: scan.id,
-      scanRunToken,
-      runtime,
-    };
-    const target = {
-      name: scan.target_name,
-      aliases: scan.aliases ?? [],
-      handles: scan.handles ?? [],
-    };
-    let pipelineResult: PipelineResult | null = null;
-    let pipelineError: unknown = null;
-
-    try {
-      assertNotAborted(runtime.signal);
-      pipelineResult = await executeInterleavedDeepfakePipeline({
-        supabase,
-        userId,
-        ownership,
-        scanId: scan.id,
-        target,
-        profileId: scan.profile_id ?? null,
-        maxQueries: resumeCheckpoint.max_queries,
-        perQueryLimit: resumeCheckpoint.per_query_limit,
-        runtime,
-        resumeCheckpoint,
-      });
-    } catch (error) {
-      pipelineError = error;
-      console.warn("[DEEPFAKE] Scan continuation stopped:", {
-        scan_id: scan.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-
-    const finalized = await finalizePipelineRun({
-      supabase,
-      ownership,
-      runtime,
-      pipelineResult,
-      pipelineError,
-      fallbackCheckpoint: resumeCheckpoint,
-    });
-
     return {
       scan_id: scan.id,
-      total_results: finalized.counts.clientVisibleCount,
-      discovered_results: finalized.counts.findingCount,
-      status: finalized.terminalStatus,
+      total_results: scan.total_results ?? 0,
+      discovered_results: scan.total_results ?? 0,
+      status: "running" as const,
+      started: true as const,
+      continued: true as const,
     };
   });
 
@@ -451,16 +519,31 @@ export const listDeepfakeScans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await recoverExpiredScansForUser({ supabase, userId });
+    try {
+      await recoverExpiredScansForUser({ supabase, userId });
+    } catch (recoverError) {
+      console.warn(
+        "[DEEPFAKE] Lease recovery skipped during history load:",
+        recoverError instanceof Error
+          ? recoverError.message
+          : String(recoverError),
+      );
+    }
 
     const { data, error } = await supabase
       .from("deepfake_scans")
       .select("*")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
     return (data ?? []) as ScanRow[];
   });
+
+function objectish(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
 
 export const getDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -468,10 +551,19 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
     z.object({ scan_id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await recoverExpiredScanLease({
-      supabase: context.supabase,
-      scanId: data.scan_id,
-    });
+    try {
+      await recoverExpiredScanLease({
+        supabase: context.supabase,
+        scanId: data.scan_id,
+      });
+    } catch (recoverError) {
+      console.warn(
+        "[DEEPFAKE] Lease recovery skipped during scan load:",
+        recoverError instanceof Error
+          ? recoverError.message
+          : String(recoverError),
+      );
+    }
 
     const [scanRes, findingsRes, discoveriesRes] = await Promise.all([
       context.supabase
