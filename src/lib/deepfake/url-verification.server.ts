@@ -944,6 +944,11 @@ export async function verifyCandidateUrls(
           crawled_at: crawledAt,
         });
 
+        const crawlFailedClosed =
+          !pageInspected &&
+          verification.url_verification_status !== "URL_VERIFIED" &&
+          /could not be crawled/i.test(verification.rejection_reason ?? "");
+
         return {
           hit,
           verification: {
@@ -951,12 +956,10 @@ export async function verifyCandidateUrls(
             canonical_url: canonical,
           },
           media: scraped,
-          // Reachability ok but Firecrawl/page scrape did not yield inspectable content.
-          networkFailureCategory:
-            !pageInspected &&
-            verification.url_verification_status !== "URL_VERIFIED"
-              ? ("crawl_provider_failed" as const)
-              : undefined,
+          // Only attribute Firecrawl/page-scrape failures — not content/URL gates.
+          networkFailureCategory: crawlFailedClosed
+            ? ("crawl_provider_failed" as const)
+            : undefined,
         };
       }),
     );
