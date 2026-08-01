@@ -125,6 +125,13 @@ function DeepfakeIntelPage() {
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
+  const [stalled, setStalled] = useState(false);
+  // Kept in a ref so the polling callbacks can react to an in-flight scan
+  // request without re-creating the query options on every render.
+  const runPendingRef = useRef(false);
+  const progressRef = useRef<{ signature: string; at: number } | null>(null);
+
+
 
   const profiles = useQuery({
     queryKey: ["deepfake-target-profiles"],
