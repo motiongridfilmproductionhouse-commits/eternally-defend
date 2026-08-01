@@ -10,6 +10,7 @@ import {
   evidenceLinkProps,
   filterFindings,
   isSafeStoredThumbnail,
+  normalizeClientFindings,
   resolveSafeFindingThumbnail,
   type ClientFinding,
 } from "./results-dashboard";
@@ -94,6 +95,22 @@ test("verified and probable findings appear; rejected/raw never appear", () => {
     item.finding_classification === "VERIFIED_DEEPFAKE" ||
     item.finding_classification === "PROBABLE_DEEPFAKE",
   ));
+});
+
+test("normalizes production snake_case and tolerant verification status", () => {
+  const rows = normalizeClientFindings([
+    {
+      id: "norm-1",
+      finding_classification: "probable_deepfake",
+      url_verification_status: "url_verified",
+      risk_level: "HIGH",
+      final_url: "https://host.example/a",
+      source_host: "host.example",
+    },
+  ]);
+  assert.equal(rows[0]?.finding_classification, "PROBABLE_DEEPFAKE");
+  assert.equal(rows[0]?.url_verification_status, "URL_VERIFIED");
+  assert.equal(displayableFindings(rows).length, 1);
 });
 
 test("same-domain distinct verified URLs remain separate", () => {

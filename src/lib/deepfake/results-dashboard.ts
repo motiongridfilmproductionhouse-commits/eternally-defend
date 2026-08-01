@@ -38,6 +38,7 @@ export type ClientFinding = EvidenceUrlFields & {
   synthetic_media_confidence?: number | null;
   matched_evidence?: string[] | null;
   classification_explanation?: string | null;
+  discovered_url?: string | null;
   http_status?: number | null;
   redirect_chain?: string[] | null;
   crawled_at?: string | null;
@@ -124,28 +125,165 @@ export function findingDomain(finding: ClientFinding): string {
   );
 }
 
+export function normalizeClassification(
+  value: unknown,
+): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase().replace(/\s+/g, "_");
+  return normalized || null;
+}
+
+export function normalizeUrlVerificationStatus(
+  value: unknown,
+): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase().replace(/\s+/g, "_");
+  if (!normalized) return null;
+  // Defensive: discovery rows use url_verified; findings use URL_VERIFIED.
+  if (normalized === "URL_VERIFIED") return "URL_VERIFIED";
+  if (normalized === "URL_REJECTED") return "URL_REJECTED";
+  return normalized;
+}
+
 export function isClientVisibleClassification(
   value: string | null | undefined,
 ): value is "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE" {
-  return value === "VERIFIED_DEEPFAKE" || value === "PROBABLE_DEEPFAKE";
+  const normalized = normalizeClassification(value);
+  return (
+    normalized === "VERIFIED_DEEPFAKE" || normalized === "PROBABLE_DEEPFAKE"
+  );
 }
 
-/** Client findings are already filtered server-side; this is a defensive UI guard. */
+function readField(
+  row: Record<string, unknown>,
+  snake: string,
+  camel: string,
+): unknown {
+  if (snake in row) return row[snake];
+  if (camel in row) return row[camel];
+  return undefined;
+}
+
+/**
+ * Normalize production getDeepfakeScan finding rows (snake_case) into the
+ * console ClientFinding shape. Tolerates accidental camelCase without
+ * inventing evidence fields.
+ */
+export function normalizeClientFinding(row: unknown): ClientFinding | null {
+  if (!row || typeof row !== "object" || Array.isArray(row)) return null;
+  const source = row as Record<string, unknown>;
+  const idRaw = readField(source, "id", "id");
+  if (typeof idRaw !== "string" || !idRaw.trim()) return null;
+
+  const classification = normalizeClassification(
+    readField(source, "finding_classification", "findingClassification"),
+  );
+  const urlStatus = normalizeUrlVerificationStatus(
+    readField(source, "url_verification_status", "urlVerificationStatus"),
+  );
+
+  const asString = (value: unknown): string | null =>
+    typeof value === "string" ? value : value == null ? null : String(value);
+  const asNumber = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+  const asBoolean = (value: unknown): boolean | null =>
+    typeof value === "boolean" ? value : null;
+  const asStringArray = (value: unknown): string[] | null =>
+    Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string")
+      : null;
+
+  return {
+    id: idRaw,
+    url: asString(readField(source, "url", "url")),
+    source_host: asString(readField(source, "source_host", "sourceHost")),
+    page_title: asString(readField(source, "page_title", "pageTitle")),
+    snippet: asString(readField(source, "snippet", "snippet")),
+    query: asString(readField(source, "query", "query")),
+    risk_level: asString(readField(source, "risk_level", "riskLevel")),
+    content_category: asString(
+      readField(source, "content_category", "contentCategory"),
+    ),
+    confidence: asNumber(readField(source, "confidence", "confidence")),
+    is_synthetic: asBoolean(readField(source, "is_synthetic", "isSynthetic")),
+    face_referenced: asBoolean(
+      readField(source, "face_referenced", "faceReferenced"),
+    ),
+    takedown_recommended: asBoolean(
+      readField(source, "takedown_recommended", "takedownRecommended"),
+    ),
+    ai_reasoning: asString(readField(source, "ai_reasoning", "aiReasoning")),
+    review_status: asString(readField(source, "review_status", "reviewStatus")),
+    finding_classification: classification,
+    page_type: asString(readField(source, "page_type", "pageType")),
+    identity_confidence: asNumber(
+      readField(source, "identity_confidence", "identityConfidence"),
+    ),
+    synthetic_media_confidence: asNumber(
+      readField(
+        source,
+        "synthetic_media_confidence",
+        "syntheticMediaConfidence",
+      ),
+    ),
+    matched_evidence: asStringArray(
+      readField(source, "matched_evidence", "matchedEvidence"),
+    ),
+    classification_explanation: asString(
+      readField(
+        source,
+        "classification_explanation",
+        "classificationExplanation",
+      ),
+    ),
+    url_verification_status: urlStatus,
+    final_url: asString(readField(source, "final_url", "finalUrl")),
+    canonical_url: asString(readField(source, "canonical_url", "canonicalUrl")),
+    discovered_url: asString(
+      readField(source, "discovered_url", "discoveredUrl"),
+    ),
+    verified_domain: asString(
+      readField(source, "verified_domain", "verifiedDomain"),
+    ),
+    http_status: asNumber(readField(source, "http_status", "httpStatus")),
+    redirect_chain: asStringArray(
+      readField(source, "redirect_chain", "redirectChain"),
+    ),
+    crawled_at: asString(readField(source, "crawled_at", "crawledAt")),
+    created_at: asString(readField(source, "created_at", "createdAt")),
+  };
+}
+
+export function normalizeClientFindings(rows: unknown): ClientFinding[] {
+  if (!Array.isArray(rows)) return [];
+  const out: ClientFinding[] = [];
+  for (const row of rows) {
+    const normalized = normalizeClientFinding(row);
+    if (normalized) out.push(normalized);
+  }
+  return out;
+}
+
+/**
+ * Client findings are already filtered server-side; this is a defensive UI
+ * guard that accepts normalized production shapes.
+ */
 export function isDisplayableFinding(finding: ClientFinding): boolean {
   if (!isClientVisibleClassification(finding.finding_classification)) {
     return false;
   }
-  if (
-    finding.url_verification_status &&
-    finding.url_verification_status !== "URL_VERIFIED"
-  ) {
+  const status = normalizeUrlVerificationStatus(
+    finding.url_verification_status,
+  );
+  // Missing status is allowed: getDeepfakeScan already applied server filters.
+  if (status && status !== "URL_VERIFIED") {
     return false;
   }
   return true;
 }
 
 export function displayableFindings(findings: ClientFinding[]): ClientFinding[] {
-  return findings.filter(isDisplayableFinding);
+  return normalizeClientFindings(findings).filter(isDisplayableFinding);
 }
 
 export function buildOverviewMetrics(input: {
