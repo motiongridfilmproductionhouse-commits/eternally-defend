@@ -107,25 +107,45 @@ async function loadAliases(
 
   // A watch-specific subject always takes priority. This prevents one
   // monitored channel from matching unrelated account identities.
+  const seedAliases = new Set<string>();
   if (configured.length > 0) {
-    return Array.from(new Set(configured));
-  }
+    for (const value of configured) seedAliases.add(value);
+  } else {
+    const { data } = await supabase
+      .from("client_profiles")
+      .select("display_name, full_name, company_name")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-  const { data } = await supabase
-    .from("client_profiles")
-    .select("display_name, full_name, company_name")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  const aliases = new Set<string>();
-  for (const key of ["display_name", "full_name", "company_name"] as const) {
-    const value = (data as Record<string, unknown> | null)?.[key];
-    if (typeof value === "string" && value.trim().length >= 2) {
-      aliases.add(value.trim());
+    for (const key of ["display_name", "full_name", "company_name"] as const) {
+      const value = (data as Record<string, unknown> | null)?.[key];
+      if (typeof value === "string" && value.trim().length >= 2) {
+        seedAliases.add(value.trim());
+      }
     }
   }
 
-  return Array.from(aliases);
+  // Expand identity variants (aliases / local-language / spelling) fail-open.
+  try {
+    const primary = [...seedAliases][0];
+    if (primary) {
+      const { resolveAndExpandSearchQuerySafe, expansionToIdentityList } = await import(
+        "@/lib/search/identity-search-expander.server"
+      );
+      const expansion = await resolveAndExpandSearchQuerySafe({
+        query: primary,
+        knownAliases: [...seedAliases].slice(1),
+        module: "monitoring",
+        userId,
+        offlineOnly: true,
+      });
+      for (const id of expansionToIdentityList(expansion)) seedAliases.add(id);
+    }
+  } catch {
+    /* keep seed aliases */
+  }
+
+  return Array.from(seedAliases);
 }
 
 function classify(input: {

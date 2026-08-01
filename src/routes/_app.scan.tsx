@@ -19,6 +19,7 @@ import { persistScan, listScanHits } from "@/lib/scans.functions";
 import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
 import { generateScanReportPdf } from "@/lib/scan-report-pdf.functions";
 import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
+import { IdentityExpansionPanel } from "@/components/search/IdentityExpansionPanel";
 import {
   cleanTitle,
   viaProxy,
@@ -606,6 +607,16 @@ function ScanPage() {
                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm"
               />
             </Field>
+            {q.trim().length >= 2 && (
+              <div className="md:col-span-2">
+                <IdentityExpansionPanel
+                  query={q}
+                  aliases={split(aliases)}
+                  handles={split(handles)}
+                  module="reputation"
+                />
+              </div>
+            )}
             <Field label="Social handles">
               <input
                 value={handles}

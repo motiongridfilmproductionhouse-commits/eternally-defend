@@ -1,6 +1,12 @@
 import { isFirecrawlConfigured } from "../firecrawl-client.server";
 import { filterDeepfakeCandidates } from "./filter.server";
 import { generateDeepfakeQueries } from "./query-generator.server";
+import {
+  expansionDiagnostics,
+  expansionToIdentityList,
+  resolveAndExpandSearchQuerySafe,
+} from "@/lib/search/identity-search-expander.server";
+import { upsertSearchIdentityProfile } from "@/lib/search/identity-profile.server";
 import { isBlockedHost } from "./queries";
 import {
   buildExecutedQueryPlan,
@@ -316,11 +322,17 @@ function buildScheduledQueries(input: {
   target: { name: string; aliases: string[]; handles: string[] };
   googleImagesUrl?: string;
   maxQueries: number;
+  /** Extra provider queries from identity expansion (already prioritized). */
+  expansionQueries?: string[];
 }): string[] {
   const generatedQueries = generateDeepfakeQueries(input.target, {
     maxQueries: input.maxQueries,
     minQueries: 1,
   });
+  const withExpansion = uniqueStrings([
+    ...(input.expansionQueries ?? []),
+    ...generatedQueries,
+  ]);
 
   let importedQueries: string[] = [];
   if (input.googleImagesUrl) {
@@ -330,7 +342,7 @@ function buildScheduledQueries(input: {
 
   const merged = buildExecutedQueryPlan({
     importedQueries,
-    generatedQueries,
+    generatedQueries: withExpansion,
     maxQueries: input.maxQueries,
   });
   const importedKeys = new Set(importedQueries.map((query) => query.toLowerCase()));
@@ -363,10 +375,41 @@ export async function executeInterleavedDeepfakePipeline(input: {
   const maxQueries = input.resumeCheckpoint?.max_queries ?? input.maxQueries ?? 56;
   const perQueryLimit =
     input.resumeCheckpoint?.per_query_limit ?? input.perQueryLimit ?? 20;
+
+  // Identity-aware expansion before provider queries (fail-open).
+  const expansion = await resolveAndExpandSearchQuerySafe({
+    query: input.target.name,
+    knownAliases: input.target.aliases,
+    knownHandles: input.target.handles,
+    module: "deepfake",
+    entityType: "person",
+    userId: input.userId,
+  });
+  const expandedIdentities = expansionToIdentityList(expansion);
+  const expandedTarget = {
+    name: expansion.canonicalName ?? input.target.name,
+    aliases: uniqueStrings([
+      ...input.target.aliases,
+      ...expandedIdentities.filter(
+        (id) => id.toLowerCase() !== (expansion.canonicalName ?? input.target.name).toLowerCase(),
+      ),
+    ]),
+    handles: uniqueStrings([...input.target.handles, ...expansion.usernames]),
+  };
+  void upsertSearchIdentityProfile(input.supabase, {
+    userId: input.userId,
+    expansion,
+    entityType: "person",
+  }).catch(() => null);
+
   const scheduledQueries = buildScheduledQueries({
-    target: input.target,
+    target: expandedTarget,
     googleImagesUrl: input.googleImagesUrl,
     maxQueries,
+    expansionQueries: expansion.searchQueries
+      .filter((q) => q.category !== "risk" || /deepfake|face swap|impersonation|morphed|nude|synthetic/i.test(q.query))
+      .map((q) => q.query)
+      .slice(0, 12),
   });
 
   const resumeCheckpoint = input.resumeCheckpoint
@@ -377,6 +420,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
     ...createDiscoveryFunnelMetrics(),
     ...(resumeCheckpoint?.metrics ?? {}),
   };
+  (metrics as Record<string, unknown>).identity_expansion =
+    expansionDiagnostics(expansion);
   metrics.queries_generated =
     resumeCheckpoint?.queries.length ?? scheduledQueries.length;
 
@@ -384,10 +429,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
     resumeCheckpoint ??
     createEmptyCheckpoint({
       queries: scheduledQueries,
-      targetName: input.target.name,
+      targetName: expandedTarget.name,
       profileId: input.profileId ?? null,
-      aliases: input.target.aliases,
-      handles: input.target.handles,
+      aliases: expandedTarget.aliases,
+      handles: expandedTarget.handles,
       perQueryLimit,
       maxQueries,
       initialWaveCount: INITIAL_PRIORITY_QUERY_COUNT,
@@ -407,8 +452,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
       "./serpapi-images.server"
     );
     checkpoint.serpapi_queries = buildSerpApiExactIdentityQueries({
-      name: input.target.name,
-      aliases: input.target.aliases,
+      name: expandedTarget.name,
+      aliases: expandedTarget.aliases,
     });
     checkpoint.serpapi_next_query_index = 0;
     checkpoint.serpapi_completed_query_ids =
@@ -486,7 +531,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     }
     pendingCandidates.set(key, {
       url,
-      query: input.target.name,
+      query: expandedTarget.name,
       source: "checkpoint_resume",
     });
   }
@@ -607,7 +652,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
         page_text: hit.page_text,
         page_inspected: hit.page_inspected,
         query: hit.query,
-        target: input.target,
+        target: expandedTarget,
         target_face_match: (hit as any).target_face_match,
         face_similarity: (hit as any).face_similarity,
       });
@@ -711,7 +756,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
               description: item.description,
               query: item.query,
             })),
-            input.target,
+            expandedTarget,
             { signal: input.runtime.signal },
           );
 
@@ -762,7 +807,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
           page_text: hit.page_text,
           page_inspected: hit.page_inspected,
           query: hit.query,
-          target: input.target,
+          target: expandedTarget,
           hive_deepfake_score: (media as any)?.hive_deepfake_score ?? null,
           hive_ai_generated_score:
             (media as any)?.hive_ai_generated_score ?? null,
@@ -920,7 +965,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
         content_match_score: hit.content_match_score,
         threat_signals: hit.threat_signals,
       })),
-      input.target,
+      expandedTarget,
       {
         maxPages,
         signal: input.runtime.signal,
@@ -930,7 +975,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
             supabase: input.supabase,
             userId: input.userId,
             scanId: input.scanId,
-            targetName: input.target.name,
+            targetName: expandedTarget.name,
             hostOf,
             rows: info.verifiedBatch,
             alreadyPersisted: persistedDiscoveryKeys,
@@ -979,7 +1024,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
         supabase: input.supabase,
         userId: input.userId,
         scanId: input.scanId,
-        targetName: input.target.name,
+        targetName: expandedTarget.name,
         hostOf,
         rows: verified,
         alreadyPersisted: persistedDiscoveryKeys,
@@ -1029,7 +1074,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     }
 
     const merged = mergeDiscoveredCandidates(eligibleHits, {
-      defaultQuery: input.target.name,
+      defaultQuery: expandedTarget.name,
     }) as ProviderHit[];
     metrics.unique_candidates += merged.length;
 
@@ -1038,7 +1083,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       return;
     }
 
-    const candidateFilter = filterDeepfakeCandidates(merged, input.target);
+    const candidateFilter = filterDeepfakeCandidates(merged, expandedTarget);
     const pagesToInspect = [
       ...candidateFilter.accepted,
       ...candidateFilter.triage.filter(hasThreatSignal),
@@ -1342,9 +1387,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
           "./youtube-discovery.server"
         );
         const hits = await searchRecentYouTubeMentions({
-          name: input.target.name,
-          aliases: input.target.aliases,
-          handles: input.target.handles,
+          name: expandedTarget.name,
+          aliases: expandedTarget.aliases,
+          handles: expandedTarget.handles,
           maxResults: 40,
           pages: 2,
           signal: input.runtime.signal,
@@ -1380,9 +1425,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
           "./reddit-discovery.server"
         );
         const hits = await searchRecentRedditMentions({
-          name: input.target.name,
-          aliases: input.target.aliases,
-          handles: input.target.handles,
+          name: expandedTarget.name,
+          aliases: expandedTarget.aliases,
+          handles: expandedTarget.handles,
           maxResults: 60,
           pages: 2,
           signal: input.runtime.signal,

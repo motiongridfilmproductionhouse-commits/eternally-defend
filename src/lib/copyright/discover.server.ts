@@ -455,6 +455,51 @@ export async function firecrawlDiscover(
 
   const a = analysis ?? (await analyzeReference(referenceDataUrl, workTitle));
   const plans = buildQueries(a, workTitle);
+
+  // Shared identity expander for film titles + actor seeds (copyright policy only).
+  // Never mixes reputation-risk terms into person scans; here module=copyright.
+  try {
+    const { resolveAndExpandSearchQuerySafe } = await import(
+      "@/lib/search/identity-search-expander.server"
+    );
+    const filmExpansion = await resolveAndExpandSearchQuerySafe({
+      query: workTitle,
+      entityType: "film",
+      module: "copyright",
+      knownAliases: a.altTitles,
+      offlineOnly: true,
+    });
+    const seenQ = new Set(plans.map((p) => p.query));
+    for (const q of filmExpansion.searchQueries) {
+      if (seenQ.has(q.query)) continue;
+      // Prefer copyright risk/canonical/alias/context terms from expander.
+      if (q.category === "risk" || q.category === "canonical" || q.category === "alias" || q.category === "context") {
+        plans.push({ query: q.query, recent: false });
+        seenQ.add(q.query);
+      }
+      if (plans.length >= 40) break;
+    }
+    for (const actor of a.actors.slice(0, 2)) {
+      const actorExpansion = await resolveAndExpandSearchQuerySafe({
+        query: actor,
+        entityType: "actor",
+        module: "copyright",
+        offlineOnly: true,
+      });
+      const actorName = actorExpansion.canonicalName ?? actor;
+      const titleQ = `"${(a.title || workTitle).replaceAll('"', "")}" "${actorName.replaceAll('"', "")}"`;
+      if (!seenQ.has(titleQ)) {
+        plans.push({ query: titleQ, recent: false });
+        seenQ.add(titleQ);
+      }
+    }
+  } catch (e) {
+    console.warn(
+      "[copyright] identity expansion skipped:",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
+
   const queriesGenerated = plans.length;
 
   const seen = new Set<string>();

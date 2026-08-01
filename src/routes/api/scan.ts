@@ -3095,18 +3095,54 @@ export const Route = createFileRoute("/api/scan")({
             .slice(0, 200);
           if (!query) return Response.json({ ok: false, error: "Query required" }, { status: 400 });
 
-          const aliases: string[] = Array.isArray(body?.aliases)
+          const aliasesIn: string[] = Array.isArray(body?.aliases)
             ? body.aliases.map((a: unknown) => String(a).slice(0, 60)).slice(0, 20)
             : [];
-          const variations: string[] = Array.isArray(body?.variations)
+          const variationsIn: string[] = Array.isArray(body?.variations)
             ? body.variations.map((a: unknown) => String(a).slice(0, 60)).slice(0, 40)
             : [];
           const hashtags: string[] = Array.isArray(body?.hashtags)
             ? body.hashtags.map((a: unknown) => String(a).slice(0, 40)).slice(0, 20)
             : [];
-          const handles: string[] = Array.isArray(body?.handles)
+          const handlesIn: string[] = Array.isArray(body?.handles)
             ? body.handles.map((a: unknown) => String(a).slice(0, 40)).slice(0, 20)
             : [];
+
+          // Shared identity-aware expansion before every provider search (fail-open).
+          const { resolveAndExpandSearchQuerySafe, expansionToIdentityList, expansionDiagnostics } =
+            await import("@/lib/search/identity-search-expander.server");
+          const identityExpansion = await resolveAndExpandSearchQuerySafe({
+            query,
+            knownAliases: aliasesIn,
+            knownHandles: handlesIn,
+            module: "reputation",
+            country: typeof body?.country === "string" ? body.country : undefined,
+          });
+          const resolvedName = identityExpansion.canonicalName ?? identityExpansion.correctedQuery ?? query;
+          const aliases = Array.from(
+            new Set([
+              ...aliasesIn,
+              ...expansionToIdentityList(identityExpansion).filter(
+                (a) => a.toLowerCase() !== resolvedName.toLowerCase(),
+              ),
+              ...identityExpansion.localLanguageNames,
+            ]),
+          ).slice(0, 20);
+          const variations = Array.from(
+            new Set([
+              ...variationsIn,
+              ...identityExpansion.nicknames,
+              ...identityExpansion.characterNames,
+              identityExpansion.correctedQuery,
+            ]),
+          )
+            .map((v) => String(v).slice(0, 60))
+            .filter(Boolean)
+            .slice(0, 40);
+          const handles = Array.from(
+            new Set([...handlesIn, ...identityExpansion.usernames]),
+          ).slice(0, 20);
+
           const limit = Math.min(Math.max(Number(body?.limit ?? 8), 1), 10);
           const ytTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 1500), 25), 2000);
           const sources: SourceKey[] =
@@ -3129,13 +3165,17 @@ export const Route = createFileRoute("/api/scan")({
           console.log(
             `[scan] range: ${monthWindow.label} (${monthWindow.startIso} → ${monthWindow.endIso})`,
           );
+          console.log(
+            `[scan] identity expansion: ${resolvedName} (conf=${identityExpansion.confidence}, ambiguous=${identityExpansion.ambiguous}, queries=${identityExpansion.searchQueries.length})`,
+          );
 
           const wantYouTube = sources.includes("youtube");
           const wantReddit = sources.includes("reddit");
           const nonYtOrRedditSources = sources.filter((s) => s !== "youtube" && s !== "reddit") as SourceKey[];
-          const expansionQuery = aliases.length
-            ? `${query} OR ${aliases.map((a) => `"${a}"`).join(" OR ")}`
-            : query;
+          const identityOrParts = Array.from(
+            new Set([resolvedName, query, ...aliases.slice(0, 8)]),
+          ).filter(Boolean);
+          const expansionQuery = identityOrParts.map((a) => `"${a.replaceAll('"', "")}"`).join(" OR ");
           const controversyQuery = `${expansionQuery} controversy OR allegations OR scandal OR expose OR leaked`;
 
           // ══════════════════════════════════════════════════════════════════════
@@ -3143,7 +3183,7 @@ export const Route = createFileRoute("/api/scan")({
           // ══════════════════════════════════════════════════════════════════════
           const [ytSettled, fcControversySettled, fcGeneralSettled, redditSettled] = await Promise.allSettled([
             wantYouTube
-              ? runYouTube(query, aliases, variations, hashtags, handles, ytTarget, monthWindow)
+              ? runYouTube(resolvedName, aliases, variations, hashtags, handles, ytTarget, monthWindow)
               : Promise.resolve({
                   raw: [] as RawHit[],
                   error: undefined as string | undefined,
@@ -3156,7 +3196,7 @@ export const Route = createFileRoute("/api/scan")({
             runFirecrawl(controversyQuery, nonYtOrRedditSources, Math.min(limit, 5)),
             runFirecrawl(expansionQuery, nonYtOrRedditSources, limit),
             wantReddit
-              ? runReddit(query, aliases, monthWindow)
+              ? runReddit(resolvedName, aliases, monthWindow)
               : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined }),
           ]);
 
@@ -3459,13 +3499,17 @@ export const Route = createFileRoute("/api/scan")({
               : undefined;
 
           const report = buildReport(
-            query,
+            resolvedName,
             [...aliases, ...variations, ...handles],
             monthWindow,
             sources,
             mergedRuns,
             overallErr,
           );
+          // Preserve original user query + expansion diagnostics for audit.
+          (report as unknown as Record<string, unknown>).originalQuery = query;
+          (report as unknown as Record<string, unknown>).identityExpansion =
+            expansionDiagnostics(identityExpansion);
 
           // Add the normalized unique results feed to the report
           report.results = uniqueNormalized;
@@ -3504,6 +3548,7 @@ export const Route = createFileRoute("/api/scan")({
               endIso: monthWindow.endIso,
             },
             sourceCounts,
+            identityExpansion: expansionDiagnostics(identityExpansion),
             totalRawFetched: mergedRuns.reduce((s, r) => s + r.raw.length, 0),
             sourcesWithResults: mergedRuns.filter((r) => r.raw.length > 0).map((r) => r.source),
             scannedAt: new Date().toISOString(),
