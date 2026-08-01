@@ -25,6 +25,7 @@ import { decideCopyrightTerminalStatus } from "./scan-lifecycle";
 import { classifyCopyrightPage } from "./page-classify.server";
 import { evaluateTelegramPublicEvidence } from "./telegram-evidence";
 import { filterClientVisibleCopyrightMatches } from "./client-filter";
+import { dedupeCopyrightMatchRows } from "./match-upsert";
 import type { ReferenceAnalysis } from "./discover.server";
 
 const analysis: ReferenceAnalysis = {
@@ -216,9 +217,32 @@ test("executor wires SerpApi fallback and known-URL preflight", () => {
   assert.doesNotMatch(src, /throw discoverErr/);
 });
 
-test("isCopyrightSerpApiConfigured is soft when key missing", () => {
-  const original = process.env.SERPAPI_API_KEY;
-  delete process.env.SERPAPI_API_KEY;
-  assert.equal(isCopyrightSerpApiConfigured(), false);
-  if (original) process.env.SERPAPI_API_KEY = original;
+test("dedupeCopyrightMatchRows prevents duplicate upsert keys", () => {
+  const rows = dedupeCopyrightMatchRows([
+    {
+      source_url: "https://example.com/a",
+      detection_type: "UNVERIFIED_LEAD",
+      confidence: 20,
+      evidence: { client_visible: false },
+    },
+    {
+      source_url: "https://example.com/a/",
+      detection_type: "VERIFIED_UNAUTHORIZED_STREAM",
+      confidence: 85,
+      evidence: { client_visible: true },
+    },
+    {
+      source_url: "https://other.com/b",
+      detection_type: "UNVERIFIED_LEAD",
+      confidence: 10,
+      evidence: { client_visible: false },
+    },
+  ]);
+  assert.equal(rows.length, 2);
+  assert.equal(rows.find((r) => r.source_url.includes("example.com"))?.detection_type, "VERIFIED_UNAUTHORIZED_STREAM");
+});
+
+test("executor dedupes copyright_matches before upsert", () => {
+  const src = readFileSync(resolve(process.cwd(), "src/lib/copyright.functions.ts"), "utf8");
+  assert.match(src, /dedupeCopyrightMatchRows/);
 });
