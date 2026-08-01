@@ -116,6 +116,23 @@ function asHttpUrlArray(value: unknown, maxItems: number): string[] {
   return asStringArray(value, maxItems).filter(isHttpUrl);
 }
 
+/** Prefer newest unique http(s) URLs when truncating (oldest dropped first). */
+function asHttpUrlArrayKeepNewest(value: unknown, maxItems: number): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (let index = value.length - 1; index >= 0; index--) {
+    const item = value[index];
+    if (typeof item !== "string") continue;
+    const trimmed = item.trim().slice(0, CHECKPOINT_MAX_STRING_LEN);
+    if (!trimmed || !isHttpUrl(trimmed) || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+    if (out.length >= maxItems) break;
+  }
+  return out.reverse();
+}
+
 function asStage(value: unknown): ScanStage {
   return STAGES.includes(value as ScanStage) ? (value as ScanStage) : "discovering";
 }
@@ -268,7 +285,7 @@ export function parseScanCheckpoint(value: unknown): ScanCheckpoint | null {
       CHECKPOINT_MAX_SERPAPI_QUERIES,
       500,
     ),
-    serpapi_seen_page_urls: asHttpUrlArray(
+    serpapi_seen_page_urls: asHttpUrlArrayKeepNewest(
       row.serpapi_seen_page_urls,
       CHECKPOINT_MAX_SERPAPI_PAGES,
     ),
@@ -336,7 +353,7 @@ export function enforceCheckpointBounds(checkpoint: ScanCheckpoint): ScanCheckpo
     ),
     serpapi_seen_page_urls: (checkpoint.serpapi_seen_page_urls ?? [])
       .filter(isHttpUrl)
-      .slice(0, CHECKPOINT_MAX_SERPAPI_PAGES),
+      .slice(-CHECKPOINT_MAX_SERPAPI_PAGES),
     serpapi_next_query_index: clampInt(
       checkpoint.serpapi_next_query_index ?? 0,
       0,
@@ -361,7 +378,8 @@ export function enforceCheckpointBounds(checkpoint: ScanCheckpoint): ScanCheckpo
     estimateCheckpointBytes(copy) > CHECKPOINT_MAX_BYTES &&
     copy.serpapi_seen_page_urls.length > 0
   ) {
-    copy.serpapi_seen_page_urls.pop();
+    // Drop oldest seen pages first so newest discoveries survive bounds.
+    copy.serpapi_seen_page_urls.shift();
   }
   while (
     estimateCheckpointBytes(copy) > CHECKPOINT_MAX_BYTES &&

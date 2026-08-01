@@ -21,8 +21,13 @@ import {
   isSafePublicHttpUrl,
   normalizeHostingPageUrl,
   resolvePublicAddresses,
+  setTestDnsLookupAll,
 } from "./url-safety.server";
-import { createEmptyCheckpoint, parseScanCheckpoint } from "./scan-checkpoint.server";
+import {
+  CHECKPOINT_MAX_SERPAPI_PAGES,
+  createEmptyCheckpoint,
+  parseScanCheckpoint,
+} from "./scan-checkpoint.server";
 import { createDiscoveryFunnelMetrics } from "./scan-ownership.server";
 import { resolveRedirectChain } from "./url-verification.server";
 
@@ -31,6 +36,7 @@ const ORIGINAL_KEY = process.env.SERPAPI_API_KEY;
 
 function restoreEnv() {
   globalThis.fetch = ORIGINAL_FETCH;
+  setTestDnsLookupAll(null);
   if (ORIGINAL_KEY === undefined) delete process.env.SERPAPI_API_KEY;
   else process.env.SERPAPI_API_KEY = ORIGINAL_KEY;
 }
@@ -533,6 +539,7 @@ test("private DNS resolution is rejected before fetch", async () => {
 test("unsafe redirect destinations are rejected without following them", async () => {
   const originalFetch = globalThis.fetch;
   let fetchedUrls: string[] = [];
+  setTestDnsLookupAll(async () => [{ address: "93.184.216.34", family: 4 }]);
   globalThis.fetch = (async (input) => {
     const url = String(input);
     fetchedUrls.push(url);
@@ -553,6 +560,7 @@ test("unsafe redirect destinations are rejected without following them", async (
     assert.equal(fetchedUrls.length, 1);
   } finally {
     globalThis.fetch = originalFetch;
+    setTestDnsLookupAll(null);
   }
 });
 
@@ -611,6 +619,36 @@ test("serpapi_face_rejected only attributes explicit face/identity outcomes", ()
     }
   }
   assert.equal(faceRejected, 1);
+});
+
+test("checkpoint bounds keep newest SerpApi seen pages", () => {
+  const metrics = createDiscoveryFunnelMetrics();
+  const checkpoint = createEmptyCheckpoint({
+    queries: ["q1"],
+    targetName: "Ada Lovelace",
+    aliases: [],
+    handles: [],
+    perQueryLimit: 20,
+    maxQueries: 40,
+    initialWaveCount: 12,
+    metrics,
+  });
+  const total = CHECKPOINT_MAX_SERPAPI_PAGES + 25;
+  checkpoint.serpapi_seen_page_urls = Array.from(
+    { length: total },
+    (_, index) => `https://pages.example.com/${index}`,
+  );
+  const parsed = parseScanCheckpoint(checkpoint);
+  assert.ok(parsed);
+  assert.equal(parsed!.serpapi_seen_page_urls.length, CHECKPOINT_MAX_SERPAPI_PAGES);
+  assert.equal(
+    parsed!.serpapi_seen_page_urls[0],
+    `https://pages.example.com/${total - CHECKPOINT_MAX_SERPAPI_PAGES}`,
+  );
+  assert.equal(
+    parsed!.serpapi_seen_page_urls.at(-1),
+    `https://pages.example.com/${total - 1}`,
+  );
 });
 
 test("checkpoint Continue preserves actual SerpApi request and credit counts", async () => {

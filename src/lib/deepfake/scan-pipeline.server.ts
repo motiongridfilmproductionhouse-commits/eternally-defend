@@ -1197,8 +1197,19 @@ export async function executeInterleavedDeepfakePipeline(input: {
       console.warn("[DEEPFAKE] SerpApi discovery isolated failure:", {
         error: error instanceof Error ? error.message : String(error),
       });
-      // Do not leave SerpApi permanently pending after an isolated crash.
-      checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      // Keep remaining SerpApi queries/budget for later waves or Continue.
+      // Only retire the plan when the HTTP attempt cap is already exhausted.
+      if (metrics.serpapi_requests >= SERPAPI_MAX_REQUESTS_PER_SCAN) {
+        checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
+      } else {
+        checkpoint.serpapi_next_query_index = Math.min(
+          checkpoint.serpapi_queries.length,
+          Math.max(
+            checkpoint.serpapi_next_query_index,
+            checkpoint.serpapi_completed_query_ids.length,
+          ),
+        );
+      }
     } finally {
       await heartbeat("discovering");
     }

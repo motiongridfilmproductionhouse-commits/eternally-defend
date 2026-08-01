@@ -276,28 +276,19 @@ export async function fetchPublicHttpUrl(
   };
 
   try {
-    if (typeof globalThis.fetch === "function") {
-      try {
-        return await globalThis.fetch(
-          parsed.toString(),
-          requestInit as RequestInit,
-        );
-      } catch (error) {
-        // Stubbed fetch implementations may reject unknown options — retry plain.
-        if (
-          error instanceof TypeError ||
-          (error instanceof Error && /dispatcher|unexpected/i.test(error.message))
-        ) {
-          return await globalThis.fetch(parsed.toString(), {
-            method: requestInit.method,
-            headers: requestInit.headers,
-            body: requestInit.body as BodyInit | null | undefined,
-            signal: requestInit.signal,
-            redirect: "manual",
-          });
-        }
-        throw error;
-      }
+    /*
+     * Test mode (DNS stub installed): allow mocked globalThis.fetch after the
+     * safety checks. Production always uses undici with a pinned dispatcher —
+     * never fall back to an unpinned connect (DNS-rebinding / TOCTOU).
+     */
+    if (testDnsLookupAll && typeof globalThis.fetch === "function") {
+      return await globalThis.fetch(parsed.toString(), {
+        method: requestInit.method,
+        headers: requestInit.headers,
+        body: requestInit.body as BodyInit | null | undefined,
+        signal: requestInit.signal,
+        redirect: "manual",
+      });
     }
 
     return (await undiciFetch(parsed.toString(), {
