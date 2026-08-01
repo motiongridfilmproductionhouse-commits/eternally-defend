@@ -147,20 +147,38 @@ export function acceptedKnownUrls(seeds: KnownUrlSeed[]): string[] {
 /**
  * Merge known-URL seeds ahead of provider candidates so they receive crawl budget.
  * Dedupes by canonical URL. Known URLs never bypass later evidence gates.
+ *
+ * Capacity is reserved: every accepted known URL is included before provider
+ * candidates, even when provider volume exceeds the page cap.
  */
 export function prioritizeKnownUrlLeads<T extends { url: string }>(
   known: T[],
   provider: T[],
   limit = 32,
 ): T[] {
+  const knownSlots = Math.min(known.length, MAX_KNOWN_URLS);
+  const effectiveCap = Math.max(limit, knownSlots);
+  const providerSlots = Math.max(0, effectiveCap - knownSlots);
+
   const leadSeen = new Set<string>();
   const out: T[] = [];
-  for (const lead of [...known, ...provider]) {
+
+  for (const lead of known.slice(0, knownSlots)) {
     const key = canonicalUrl(lead.url);
     if (leadSeen.has(key)) continue;
     leadSeen.add(key);
     out.push({ ...lead, url: key });
-    if (out.length >= limit) break;
   }
+
+  let providerAdded = 0;
+  for (const lead of provider) {
+    if (providerAdded >= providerSlots) break;
+    const key = canonicalUrl(lead.url);
+    if (leadSeen.has(key)) continue;
+    leadSeen.add(key);
+    out.push({ ...lead, url: key });
+    providerAdded += 1;
+  }
+
   return out;
 }

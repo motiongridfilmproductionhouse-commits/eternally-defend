@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -23,6 +23,11 @@ import {
   diagnosticsFromStats,
   explainZeroMatchFunnel,
 } from "@/lib/copyright/scan-diagnostics";
+import {
+  scopedScanMatches,
+  shouldShowAnalysisBanner,
+} from "@/lib/copyright/scan-scope";
+import { CRAWL_FAILURE_CATEGORIES } from "@/lib/copyright/crawl-failure";
 
 import {
   Copyright, Upload, Loader2, ExternalLink, ShieldCheck, AlertTriangle,
@@ -155,7 +160,34 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
       return getFn({ data: { scanId: selectedScanId } });
     },
     enabled: !!selectedScanId,
+    // Never reuse a previous scan's findings while a new selection is loading.
+    placeholderData: undefined,
   });
+
+  // Bind the analysis banner to the selected scan — never show Spider-Man meta for Unmadham.
+  useEffect(() => {
+    if (!selectedScanId) return;
+    const selected = (scans.data ?? []).find((s) => s.id === selectedScanId);
+    if (!selected) return;
+    setScanMeta((prev) =>
+      prev && prev.title === selected.title
+        ? prev
+        : { title: selected.title, kind: selected.reference_kind === "video" ? "video" : "image" },
+    );
+    const st = (selected.stats ?? {}) as Record<string, number>;
+    setSummary({
+      candidates: st.candidates ?? st.provider_candidates ?? 0,
+      matches: st.matches ?? st.client_visible_findings ?? 0,
+      graded: st.graded ?? 0,
+    });
+  }, [selectedScanId, scans.data]);
+
+  const selectScan = (scanId: string) => {
+    // Reset result state immediately so prior findings cannot flash.
+    setSelectedScanId(scanId);
+    setSelectedMatch(null);
+    setInvestigationOpen(false);
+  };
 
   const scan = useMutation({
     mutationFn: async () => {
@@ -164,9 +196,12 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
       const isVideo = file.type.startsWith("video/");
 
       // Close the registration modal and switch to the live scanning interface.
+      // Reset selected result state immediately when a new scan starts.
       setRegisterOpen(false);
       setSelectedScanId(null);
       setSummary(null);
+      setSelectedMatch(null);
+      setInvestigationOpen(false);
       setScanMeta({ title: title.trim(), kind: isVideo ? "video" : "image" });
       setStageIndex(0);
       setStage(isVideo ? "Extracting video frames…" : "Preparing reference…");
@@ -230,9 +265,11 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
       });
       setSelectedScanId(res.scanId);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
+      qc.invalidateQueries({ queryKey: ["copyright-scan", res.scanId] });
+      qc.invalidateQueries({ queryKey: ["distribution-monitor"] });
       toast.success(`${res.stats.matches} evidence-backed match(es) from ${res.stats.candidates} candidates`);
     },
-    onError: (e: Error) => { setStage(""); setScanMeta(null); toast.error(e.message); },
+    onError: (e: Error) => { setStage(""); setScanMeta(null); setSummary(null); toast.error(e.message); },
   });
 
 
@@ -241,7 +278,24 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
     onSuccess: () => qc.invalidateQueries({ queryKey: ["copyright-scan", selectedScanId] }),
   });
 
-  const matches = detail.data?.matches ?? [];
+  const detailAligned =
+    !!selectedScanId &&
+    !!detail.data?.scan?.id &&
+    detail.data.scan.id === selectedScanId &&
+    !detail.isLoading;
+  const matches = scopedScanMatches(selectedScanId, detail.data, {
+    isLoading: detail.isLoading,
+  });
+  const selectedScanTitle =
+    detailAligned && detail.data?.scan?.title
+      ? detail.data.scan.title
+      : (scans.data ?? []).find((s) => s.id === selectedScanId)?.title ?? null;
+  const showBanner = shouldShowAnalysisBanner({
+    scanPending: scan.isPending,
+    selectedScanId,
+    bannerTitle: scanMeta?.title,
+    selectedScanTitle,
+  });
 
   return (
     <div className="space-y-6">
@@ -278,7 +332,7 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
         </div>
       )}
 
-      {!scan.isPending && summary && scanMeta && (
+      {showBanner && summary && scanMeta && (
         <section className="animate-fade-in rounded-xl border border-primary/30 bg-card/60 p-5 backdrop-blur">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-primary" />
@@ -398,8 +452,6 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
       </Dialog>
 
 
-      <DistributionMonitorPanel />
-
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
 
         <aside className="space-y-2">
@@ -409,7 +461,7 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
             return (
               <button
                 key={s.id}
-                onClick={() => setSelectedScanId(s.id)}
+                onClick={() => selectScan(s.id)}
                 className={`w-full rounded-lg border p-3 text-left text-sm transition ${
                   selectedScanId === s.id ? "border-primary/50 bg-primary/10" : "border-border/60 bg-card/50 hover:border-primary/30"
                 }`}
@@ -441,12 +493,28 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                 <YoutubeMonitorPanel scanId={selectedScanId} />
               </TabsContent>
               <TabsContent value="sources" className="mt-3 space-y-3">
-          {detail.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-          {selectedScanId && !detail.isLoading && !matches.length && (
+          {detail.isLoading && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading findings for the selected scan…
+            </p>
+          )}
+          {selectedScanId && !detail.isLoading && detail.isError && (
+            <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+              Could not load findings for this scan. {detail.error instanceof Error ? detail.error.message : "Please try again."}
+            </p>
+          )}
+          {selectedScanId && !detail.isLoading && !detail.isError && !detailAligned && (
+            <p className="text-sm text-muted-foreground">
+              Waiting for selected-scan findings…
+            </p>
+          )}
+          {detailAligned && !matches.length && (
             <div className="space-y-3 rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
               <p>
-                No client-visible unauthorized-distribution findings. Pages need
-                exact-title identity plus exact-page access evidence (player,
+                No client-visible unauthorized-distribution findings for{" "}
+                <span className="font-medium text-foreground">{selectedScanTitle ?? "this scan"}</span>.
+                Pages need exact-title identity plus exact-page access evidence (player,
                 download, file-host, torrent/magnet, or theatre-print). Cinema,
                 trailers, reviews, cast, news, social and artwork-only matches stay rejected.
               </p>
@@ -457,26 +525,35 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                     ? (scanStats.rejection_funnel as string[])
                     : explainZeroMatchFunnel(scanStats);
                 const d = diagnosticsFromStats(scanStats);
+                const failByCat = (scanStats.crawl_failed_by_category ?? {}) as Record<string, number>;
+                const knownFailures = Array.isArray(scanStats.known_url_failure_reasons)
+                  ? (scanStats.known_url_failure_reasons as Array<Record<string, unknown>>)
+                  : [];
                 return (
                   <div className="space-y-3">
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       {[
-                        { label: "Known URLs submitted", value: Number(scanStats.known_urls_submitted ?? 0) },
-                        { label: "Known URLs accepted", value: Number(scanStats.known_urls_accepted ?? 0) },
-                        { label: "Known URLs rejected", value: Number(scanStats.known_urls_rejected ?? 0) },
+                        { label: "Known URLs submitted", value: Number(scanStats.known_urls_submitted ?? d.known_urls_submitted) },
+                        { label: "Known URLs attempted", value: Number(scanStats.known_urls_attempted ?? d.known_urls_attempted) },
+                        { label: "Known URLs retrieved", value: Number(scanStats.known_urls_retrieved ?? d.known_urls_retrieved) },
+                        { label: "Known URLs rendered", value: Number(scanStats.known_urls_rendered ?? d.known_urls_rendered) },
+                        { label: "Known URLs verified", value: Number(scanStats.known_urls_verified ?? d.known_urls_verified) },
+                        {
+                          label: "Known URLs rejected",
+                          value:
+                            Number(scanStats.known_urls_rejected ?? 0) +
+                            Number(scanStats.known_urls_rejected_after_crawl ?? 0),
+                        },
                         { label: "Provider candidates", value: Number(scanStats.provider_candidates ?? d.provider_results) },
-                        { label: "Queries", value: `${d.queries_executed}/${d.queries_generated}` },
+                        { label: "Crawl succeeded", value: Math.max(0, d.pages_crawled - d.pages_failed) },
+                        { label: "Crawl failed", value: d.pages_failed },
+                        { label: "Title rejected", value: d.title_identity_rejected },
+                        { label: "Access evidence missing", value: d.access_evidence_rejected },
+                        { label: "Official/catalog/promo", value: d.official_authorized_rejected + d.catalog_listing_rejected + d.youtube_promotional_rejected },
+                        { label: "Client-visible findings", value: d.client_visible_findings },
+                        { label: "Monitored sources created", value: Number(scanStats.registered_monitored_sources ?? d.registered_monitored_sources) },
                         { label: "Unique pages", value: d.unique_candidate_pages },
-                        { label: "Pages crawled", value: `${d.pages_crawled} (${d.pages_failed} failed)` },
                         { label: "Detail follows", value: d.detail_pages_followed },
-                        { label: "Official rejected", value: Number(scanStats.official_authorized_rejected ?? 0) },
-                        { label: "Catalog/listing rejected", value: Number(scanStats.catalog_listing_rejected ?? 0) },
-                        { label: "YouTube promo rejected", value: Number(scanStats.youtube_promotional_rejected ?? 0) },
-                        { label: "Hard negatives", value: d.hard_negative_rejected },
-                        { label: "No title identity", value: d.title_identity_rejected },
-                        { label: "No access evidence", value: d.access_evidence_rejected },
-                        { label: "Verified actionable", value: d.client_visible_findings },
-                        { label: "Monitored sources", value: Number(scanStats.registered_monitored_sources ?? 0) },
                       ].map((row) => (
                         <div key={row.label} className="rounded-md border border-border/50 bg-background/40 px-3 py-2">
                           <div className="text-sm font-medium text-foreground">{row.value}</div>
@@ -484,6 +561,30 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                         </div>
                       ))}
                     </div>
+                    {CRAWL_FAILURE_CATEGORIES.some((c) => (failByCat[c] ?? 0) > 0) && (
+                      <div className="rounded-md border border-border/50 bg-background/30 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Crawl failed by category</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {CRAWL_FAILURE_CATEGORIES.filter((c) => (failByCat[c] ?? 0) > 0).map((c) => (
+                            <Badge key={c} variant="outline" className="text-[10px]">
+                              {c}: {failByCat[c]}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {knownFailures.length > 0 && (
+                      <div className="rounded-md border border-border/50 bg-background/30 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Known URL failure reasons</p>
+                        <ul className="mt-2 space-y-1 text-xs">
+                          {knownFailures.slice(0, 6).map((row, idx) => (
+                            <li key={`${String(row.url)}-${idx}`} className="leading-relaxed">
+                              • {String(row.url ?? "url")} — {String(row.category ?? "unknown")}: {String(row.reason ?? "n/a")}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <ul className="space-y-1.5 text-xs">
                       {funnel.map((line) => (
                         <li key={line} className="leading-relaxed">• {line}</li>
@@ -496,7 +597,7 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
           )}
 
 
-          {matches.map((m) => {
+          {detailAligned && matches.map((m) => {
             const band = BAND[m.confidence_band] ?? BAND.review;
             const ev = (m.evidence ?? {}) as Record<string, unknown>;
             const contact = (m.contact ?? {}) as Record<string, string | null>;
@@ -688,6 +789,10 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
         </section>
 
       </div>
+
+      {/* Global monitor — clearly separate from selected-scan findings */}
+      <DistributionMonitorPanel />
+
 <InvestigationModal
   open={investigationOpen}
   onOpenChange={setInvestigationOpen}

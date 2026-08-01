@@ -49,6 +49,10 @@ function baseAnalysis(over: Partial<DistributionAnalysis>): DistributionAnalysis
     reason: "test",
     detailFollowUrls: [],
     crawlFailed: false,
+    crawlFailureCategory: null,
+    crawlFailureReason: null,
+    retrievalMethod: "static_html",
+    rendered: false,
     ...over,
   };
 }
@@ -170,6 +174,22 @@ test("supplied known URL enters verification before search results", () => {
     ordered.filter((l) => l.url.includes("flixbaba.org.uk")).length,
     1,
   );
+});
+
+test("known URL capacity is reserved when provider candidates exceed page cap", () => {
+  const known = [
+    { url: "https://ogomovies1.com.pk/movies/unmadham-2026/", query: "known_url_seed" },
+  ];
+  const provider = Array.from({ length: 40 }, (_, i) => ({
+    url: `https://provider.example/page-${i}`,
+    query: "provider",
+  }));
+  const ordered = prioritizeKnownUrlLeads(known, provider, 5);
+  assert.equal(ordered[0]?.url.includes("unmadham-2026"), true);
+  assert.equal(ordered[0]?.query, "known_url_seed");
+  assert.equal(ordered.length, 5);
+  assert.equal(ordered.filter((l) => l.query === "known_url_seed").length, 1);
+  assert.equal(ordered.filter((l) => l.query === "provider").length, 4);
 });
 
 test("known URL cannot bypass SSRF or private-host checks", async () => {
