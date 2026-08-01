@@ -273,20 +273,20 @@ export function decideTerminalStatus(input: {
   };
 }
 
+/**
+ * Valid progress for PARTIAL status requires rows that were actually
+ * persisted (discoveries and/or findings). In-memory crawl/classification
+ * counters alone must not produce PARTIAL.
+ */
 export function hasValidScanProgress(input: {
-  metrics: DiscoveryFunnelMetrics;
+  metrics?: DiscoveryFunnelMetrics;
   discoveryCount?: number;
   findingCount?: number;
   clientVisibleCount?: number;
 }): boolean {
   return (
     (input.findingCount ?? 0) > 0 ||
-    (input.discoveryCount ?? 0) > 0 ||
-    (input.clientVisibleCount ?? 0) > 0 ||
-    input.metrics.verified > 0 ||
-    input.metrics.probable > 0 ||
-    input.metrics.client_visible > 0 ||
-    input.metrics.crawl_succeeded > 0
+    (input.discoveryCount ?? 0) > 0
   );
 }
 

@@ -672,11 +672,24 @@ test("soft deadline leaves at least 60s before hard timeout", () => {
   );
 });
 
-test("hasValidScanProgress and discovery batch dedupe", async () => {
+test("hasValidScanProgress requires persisted discoveries or findings", async () => {
   const metrics = createDiscoveryFunnelMetrics();
   assert.equal(hasValidScanProgress({ metrics }), false);
-  metrics.crawl_succeeded = 1;
-  assert.equal(hasValidScanProgress({ metrics }), true);
+  metrics.crawl_succeeded = 5;
+  metrics.verified = 2;
+  assert.equal(
+    hasValidScanProgress({ metrics }),
+    false,
+    "in-memory crawl/classification alone must not grant PARTIAL",
+  );
+  assert.equal(
+    hasValidScanProgress({ metrics, discoveryCount: 1 }),
+    true,
+  );
+  assert.equal(
+    hasValidScanProgress({ metrics, findingCount: 1 }),
+    true,
+  );
 
   const persisted = new Set<string>();
   const upserts: unknown[] = [];
@@ -732,4 +745,47 @@ test("hasValidScanProgress and discovery batch dedupe", async () => {
   assert.equal(first, 1);
   assert.equal(second, 0);
   assert.equal(upserts.length, 1);
+});
+
+test("migration ensures discoveries unique page index for batch upserts", () => {
+  const sql = readFileSync(
+    resolve(
+      process.cwd(),
+      "supabase/migrations/20260801070000_deepfake_scan_runtime_ownership.sql",
+    ),
+    "utf8",
+  );
+  assert.match(sql, /deepfake_discoveries_unique_page/);
+  assert.match(sql, /scan_id, page_url/);
+});
+
+test("scrape abort throws instead of soft-continuing", async () => {
+  const originalKey = process.env.FIRECRAWL_API_KEY;
+  const originalFetch = globalThis.fetch;
+  process.env.FIRECRAWL_API_KEY = "fc-test";
+  const controller = new AbortController();
+
+  globalThis.fetch = (async () => {
+    controller.abort(new ScanDeadlineError());
+    throw new DOMException("The operation was aborted.", "AbortError");
+  }) as typeof fetch;
+
+  try {
+    const { scrapeMediaFromPage } = await import("./media-discovery.server");
+    await assert.rejects(
+      () =>
+        scrapeMediaFromPage(
+          {
+            url: "https://example.com/page",
+            query: "q",
+          },
+          { signal: controller.signal, softDeadlineMs: Date.now() + 20_000 },
+        ),
+      (error: unknown) => isAbortError(error),
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.FIRECRAWL_API_KEY;
+    else process.env.FIRECRAWL_API_KEY = originalKey;
+  }
 });

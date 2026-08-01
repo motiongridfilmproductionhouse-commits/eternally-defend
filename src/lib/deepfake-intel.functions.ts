@@ -1117,8 +1117,6 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
             );
           }
 
-          updateFindingMetrics(classified);
-
           const rows = classified.map((finding) =>
             findingRowFromClassification({
               scanId: scan.id,
@@ -1128,11 +1126,22 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
             }),
           );
 
-          await upsertFindingsBatch({
+          const persistedCount = await upsertFindingsBatch({
             supabase,
             rows,
             alreadyPersisted: persistedFindingKeys,
           });
+
+          /*
+           * Only count findings that were actually upserted. PARTIAL status
+           * must not be granted for in-memory classification alone.
+           */
+          if (persistedCount > 0) {
+            const persistedFindings = classified.filter((item) =>
+              persistedFindingKeys.has(findingPersistKey(item as any)),
+            );
+            updateFindingMetrics(persistedFindings);
+          }
 
           console.log("[DEEPFAKE] Result routing:", {
             metrics,

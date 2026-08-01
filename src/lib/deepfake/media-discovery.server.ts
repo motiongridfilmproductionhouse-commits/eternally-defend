@@ -380,8 +380,13 @@ export async function scrapeMediaFromPage(
           error instanceof Error ? error.message : String(error);
       }
 
+      /*
+       * Abort must never soft-continue into a "failed scrape" return — that
+       * would let the pipeline start more batches after cancellation.
+       */
+      assertNotAborted(options?.signal);
+
       if (
-        options?.signal?.aborted ||
         response?.ok ||
         (
           response
@@ -402,6 +407,8 @@ export async function scrapeMediaFromPage(
         options?.signal,
       );
     }
+
+    assertNotAborted(options?.signal);
 
     if (!response?.ok) {
       console.warn("[DEEPFAKE:MEDIA] Page scrape failed:", {
@@ -601,6 +608,10 @@ export async function scrapeMediaFromPage(
 
     return mediaHits;
   } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
     console.warn("[DEEPFAKE:MEDIA] Extraction error:", {
       url: hit.url,
       error:

@@ -193,6 +193,7 @@ async function fetchAndHash(
   const bytes = new Uint8Array(
     await response.arrayBuffer(),
   );
+  assertNotAborted(options?.signal);
 
   if (!bytes.length || bytes.length > MAX_HASH_BYTES) {
     return {

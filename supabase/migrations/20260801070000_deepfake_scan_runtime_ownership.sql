@@ -106,3 +106,18 @@ CREATE TRIGGER deepfake_scans_prevent_terminal_revive
 CREATE INDEX IF NOT EXISTS deepfake_scans_lease_recovery_idx
   ON public.deepfake_scans (lease_expires_at)
   WHERE status = 'running' AND lease_expires_at IS NOT NULL;
+
+-- 6) Ensure discoveries batch upserts are idempotent across retries/batches.
+-- Table already exists in production; guard for environments missing it.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'deepfake_discoveries'
+  ) THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS deepfake_discoveries_unique_page
+      ON public.deepfake_discoveries (scan_id, page_url);
+  END IF;
+END $$;

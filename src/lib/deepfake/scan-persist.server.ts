@@ -24,10 +24,13 @@ export async function upsertDiscoveriesBatch(input: {
   rows: Array<Record<string, unknown>>;
   alreadyPersisted: Set<string>;
 }): Promise<number> {
+  const seenInBatch = new Set<string>();
   const fresh = input.rows.filter((row) => {
     const key = String(row.canonical_url ?? row.page_url ?? "");
-    if (!key || input.alreadyPersisted.has(key)) return false;
-    input.alreadyPersisted.add(key);
+    if (!key || input.alreadyPersisted.has(key) || seenInBatch.has(key)) {
+      return false;
+    }
+    seenInBatch.add(key);
     return true;
   });
 
@@ -68,6 +71,11 @@ export async function upsertDiscoveriesBatch(input: {
     return 0;
   }
 
+  for (const hit of fresh) {
+    const key = String(hit.canonical_url ?? hit.page_url ?? "");
+    if (key) input.alreadyPersisted.add(key);
+  }
+
   return discoveryRows.length;
 }
 
@@ -76,10 +84,13 @@ export async function upsertFindingsBatch(input: {
   rows: Array<Record<string, unknown>>;
   alreadyPersisted: Set<string>;
 }): Promise<number> {
+  const seenInBatch = new Set<string>();
   const fresh = input.rows.filter((row) => {
     const key = findingPersistKey(row as any);
-    if (!key || input.alreadyPersisted.has(key)) return false;
-    input.alreadyPersisted.add(key);
+    if (!key || input.alreadyPersisted.has(key) || seenInBatch.has(key)) {
+      return false;
+    }
+    seenInBatch.add(key);
     return true;
   });
 
@@ -132,6 +143,11 @@ export async function upsertFindingsBatch(input: {
       console.warn("[deepfake] findings insert:", fErr.message);
       return 0;
     }
+  }
+
+  for (const row of fresh) {
+    const key = findingPersistKey(row as any);
+    if (key) input.alreadyPersisted.add(key);
   }
 
   return fresh.length;

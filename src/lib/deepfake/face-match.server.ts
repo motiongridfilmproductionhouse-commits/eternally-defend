@@ -101,6 +101,7 @@ export async function downloadFaceImage(
   }
 
   const buffer = await response.arrayBuffer();
+  assertNotAborted(options?.signal);
 
   if (!buffer.byteLength) {
     throw new Error(
