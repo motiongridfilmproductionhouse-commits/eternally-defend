@@ -1788,7 +1788,6 @@ export type Database = {
           aliases: string[]
           created_at: string
           critical_count: number
-          scan_checkpoint: Json | null
           discovery_metrics: Json
           error_message: string | null
           finished_at: string | null
@@ -1800,6 +1799,7 @@ export type Database = {
           low_count: number
           medium_count: number
           profile_id: string | null
+          scan_checkpoint: Json | null
           scan_run_token: string | null
           started_at: string
           status: string
@@ -1812,7 +1812,6 @@ export type Database = {
           aliases?: string[]
           created_at?: string
           critical_count?: number
-          scan_checkpoint?: Json | null
           discovery_metrics?: Json
           error_message?: string | null
           finished_at?: string | null
@@ -1824,6 +1823,7 @@ export type Database = {
           low_count?: number
           medium_count?: number
           profile_id?: string | null
+          scan_checkpoint?: Json | null
           scan_run_token?: string | null
           started_at?: string
           status?: string
@@ -1836,7 +1836,6 @@ export type Database = {
           aliases?: string[]
           created_at?: string
           critical_count?: number
-          scan_checkpoint?: Json | null
           discovery_metrics?: Json
           error_message?: string | null
           finished_at?: string | null
@@ -1848,6 +1847,7 @@ export type Database = {
           low_count?: number
           medium_count?: number
           profile_id?: string | null
+          scan_checkpoint?: Json | null
           scan_run_token?: string | null
           started_at?: string
           status?: string
@@ -6143,6 +6143,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_deepfake_scan_continuation: {
+        Args: { p_scan_id: string }
+        Returns: {
+          heartbeat_at: string
+          lease_expires_at: string
+          scan_id: string
+          scan_run_token: string
+        }[]
+      }
       get_public_verification: {
         Args: { _slug: string }
         Returns: {
