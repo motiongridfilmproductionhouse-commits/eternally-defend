@@ -195,6 +195,8 @@ export function IdentityExpansionPanel(props: {
 
   useEffect(() => {
     if (q.length < 2) return;
+    // Alias/handle edits refresh candidates — drop a stale Confirm selection.
+    setSelectedCandidate(null);
     const seq = ++requestSeq.current;
     const t = setTimeout(() => preview.mutate(seq), 450);
     return () => clearTimeout(t);
