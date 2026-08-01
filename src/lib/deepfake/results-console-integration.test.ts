@@ -308,6 +308,26 @@ test("route wires console mount helpers and keeps Continue for PARTIAL", () => {
   assert.match(src, /Continue scan/);
 });
 
+test("error boundaries reset when the selected scan changes", () => {
+  const boundary = readFileSync(
+    resolve(
+      process.cwd(),
+      "src/components/deepfake/results/ResultsConsoleErrorBoundary.tsx",
+    ),
+    "utf8",
+  );
+  const consoleSrc = readFileSync(
+    resolve(
+      process.cwd(),
+      "src/components/deepfake/results/ResultsIntelligenceConsole.tsx",
+    ),
+    "utf8",
+  );
+  assert.match(boundary, /getDerivedStateFromProps/);
+  assert.match(boundary, /resetKey/);
+  assert.match(consoleSrc, /resetKey=\{scanId\}/);
+});
+
 test("Evidence Network includes a domain node for a single finding", () => {
   const { html } = renderConsole(
     productionPayload({ status: "partial", findings: 1 }),

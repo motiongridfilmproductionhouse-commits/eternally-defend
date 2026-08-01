@@ -102,9 +102,11 @@ function FunnelFallback({ funnel }: { funnel: FunnelChartPoint[] }) {
 export function VerifiedThreatOverview({
   metrics,
   funnel,
+  resetKey,
 }: {
   metrics: OverviewMetrics;
   funnel: FunnelChartPoint[];
+  resetKey?: string | number | null;
 }) {
   const hasChartValues = funnel.some((point) => point.value > 0);
   const [chartReady, setChartReady] = useState(false);
@@ -160,6 +162,7 @@ export function VerifiedThreatOverview({
           chartReady ? (
             <ResultsConsoleErrorBoundary
               label="VerifiedThreatOverview.funnel"
+              resetKey={resetKey ?? funnel.map((point) => point.value).join("-")}
               fallback={<FunnelFallback funnel={funnel} />}
             >
               <FunnelChart funnel={funnel} />

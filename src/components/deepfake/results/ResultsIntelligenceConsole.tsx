@@ -287,6 +287,7 @@ export function ResultsIntelligenceConsole({
         <>
           <ResultsConsoleErrorBoundary
             label="VerifiedThreatOverview"
+            resetKey={scanId}
             fallback={
               <div
                 className="rounded-xl border border-sky-500/25 bg-[#07111f] p-4 text-sm text-slate-300"
@@ -298,10 +299,15 @@ export function ResultsIntelligenceConsole({
               </div>
             }
           >
-            <VerifiedThreatOverview metrics={overview} funnel={funnel} />
+            <VerifiedThreatOverview
+              metrics={overview}
+              funnel={funnel}
+              resetKey={scanId}
+            />
           </ResultsConsoleErrorBoundary>
           <ResultsConsoleErrorBoundary
             label="VerifiedEvidenceNetwork"
+            resetKey={scanId}
             fallback={
               <div
                 className="rounded-xl border border-sky-500/20 bg-[#07111f] p-4 text-sm text-slate-300"

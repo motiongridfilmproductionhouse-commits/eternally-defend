@@ -4,10 +4,13 @@ type Props = {
   children: ReactNode;
   fallback: ReactNode;
   label?: string;
+  /** Change this (e.g. scanId) to clear a previous child failure. */
+  resetKey?: string | number | null;
 };
 
 type State = {
   hasError: boolean;
+  resetKey: string | number | null | undefined;
 };
 
 /**
@@ -15,10 +18,23 @@ type State = {
  * (e.g. chart measurement). Never logs raw provider/finding payloads.
  */
 export class ResultsConsoleErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false };
+  state: State = {
+    hasError: false,
+    resetKey: this.props.resetKey,
+  };
 
-  static getDerivedStateFromError(): State {
+  static getDerivedStateFromError(): Pick<State, "hasError"> {
     return { hasError: true };
+  }
+
+  static getDerivedStateFromProps(
+    props: Props,
+    state: State,
+  ): Partial<State> | null {
+    if (props.resetKey !== state.resetKey) {
+      return { hasError: false, resetKey: props.resetKey };
+    }
+    return null;
   }
 
   componentDidCatch(error: Error, _info: ErrorInfo) {
