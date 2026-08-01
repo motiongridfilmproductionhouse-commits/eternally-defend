@@ -435,7 +435,7 @@ export function paginateFindings<T>(
 }
 
 /**
- * Only treat first-party storage URLs as safe preview sources.
+ * Only treat first-party Supabase storage URLs as safe preview sources.
  * Third-party discovery thumbnails must not be loaded.
  */
 export function isSafeStoredThumbnail(url: string | null | undefined): boolean {
@@ -444,11 +444,11 @@ export function isSafeStoredThumbnail(url: string | null | undefined): boolean {
     const parsed = new URL(url.trim());
     if (parsed.protocol !== "https:") return false;
     const host = parsed.hostname.toLowerCase();
-    return (
-      host.endsWith(".supabase.co") ||
-      host.endsWith(".supabase.in") ||
-      (host.includes("supabase") && parsed.pathname.includes("/storage/"))
-    );
+    // Exact Supabase project hosts only — no substring allowlist bypass.
+    const supabaseHost =
+      host.endsWith(".supabase.co") || host.endsWith(".supabase.in");
+    if (!supabaseHost) return false;
+    return parsed.pathname.includes("/storage/");
   } catch {
     return false;
   }

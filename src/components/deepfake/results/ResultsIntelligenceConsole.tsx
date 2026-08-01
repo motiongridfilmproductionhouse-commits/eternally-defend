@@ -6,6 +6,7 @@ import {
   buildOverviewMetrics,
   displayableFindings,
   filterFindings,
+  findingDomain,
   paginateFindings,
   sortFindings,
   type ClientFinding,
@@ -65,7 +66,6 @@ export function ResultsIntelligenceConsole({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
-  const [expandedNetwork, setExpandedNetwork] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const knownIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
@@ -109,17 +109,28 @@ export function ResultsIntelligenceConsole({
     () => buildFunnelChartData({ findings: visibleFindings, diagnostics }),
     [visibleFindings, diagnostics],
   );
+  // Network/domain hubs respect risk + classification so nodes match cards.
+  const networkFindings = useMemo(
+    () =>
+      filterFindings({
+        findings: visibleFindings,
+        riskFilter,
+        classificationFilter,
+      }),
+    [visibleFindings, riskFilter, classificationFilter],
+  );
+
   const domainRows = useMemo(
-    () => buildDomainRows(visibleFindings),
-    [visibleFindings],
+    () => buildDomainRows(networkFindings),
+    [networkFindings],
   );
   const network = useMemo(
     () =>
       buildNetworkGraph({
-        findings: visibleFindings,
+        findings: networkFindings,
         centerLabel: targetName,
       }),
-    [visibleFindings, targetName],
+    [networkFindings, targetName],
   );
 
   const filtered = useMemo(
@@ -145,10 +156,10 @@ export function ResultsIntelligenceConsole({
     [filtered, sortKey, sortDirection],
   );
 
-  const pageSize = expandedNetwork ? 24 : 12;
+  const pageSize = 12;
   const paged = useMemo(
     () => paginateFindings(sorted, page, pageSize),
-    [sorted, page, pageSize],
+    [sorted, page],
   );
 
   useEffect(() => {
@@ -156,13 +167,23 @@ export function ResultsIntelligenceConsole({
   }, [domainFilter, classificationFilter, search, riskFilter]);
 
   const selectFinding = (findingId: string) => {
+    const target = networkFindings.find((item) => item.id === findingId);
+    if (!target) return;
     setSelectedFindingId(findingId);
-    const node = cardRefs.current.get(findingId);
-    node?.scrollIntoView({
+    setDomainFilter(findingDomain(target));
+    setSearch("");
+    setPage(1);
+  };
+
+  useEffect(() => {
+    if (!selectedFindingId) return;
+    const node = cardRefs.current.get(selectedFindingId);
+    if (!node) return;
+    node.scrollIntoView({
       behavior: reduceMotion ? "auto" : "smooth",
       block: "center",
     });
-  };
+  }, [selectedFindingId, paged.items, reduceMotion]);
 
   const onSort = (key: FindingsSortKey) => {
     if (sortKey === key) {
@@ -235,10 +256,7 @@ export function ResultsIntelligenceConsole({
                 <button
                   type="button"
                   className="w-full rounded-md border border-cyan-500/40 py-2 text-[12px] text-cyan-300 hover:bg-cyan-500/10"
-                  onClick={() => {
-                    setExpandedNetwork(true);
-                    setPage((value) => value + 1);
-                  }}
+                  onClick={() => setPage((value) => value + 1)}
                 >
                   Load more findings
                 </button>

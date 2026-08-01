@@ -183,6 +183,16 @@ test("sensitive preview stays blocked for third-party thumbnails", () => {
     ),
     true,
   );
+  assert.equal(
+    isSafeStoredThumbnail(
+      "https://evil-supabase.attacker.example/storage/v1/object/public/x.jpg",
+    ),
+    false,
+  );
+  assert.equal(
+    isSafeStoredThumbnail("https://xyz.supabase.co/not-storage/a.jpg"),
+    false,
+  );
 
   const findingRow = finding({
     id: "t",
