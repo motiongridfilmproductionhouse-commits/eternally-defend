@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScanFace, UserRound } from "lucide-react";
 import {
   IDENTITY_SCAN_NODES,
@@ -11,14 +11,20 @@ import {
   type IdentityScanVizMode,
 } from "@/lib/deepfake/identity-scan-viz";
 import {
+  buildThreatDomainLabels,
+  isElevatedThreatTone,
+  isRedThreatTone,
+  resolveNewThreatFindingPulse,
   resolveThreatAwareRingTone,
   shouldAnimateThreatAwareScan,
   shouldShowThreatAwareScanBeam,
+  threatAlertBadgeLabel,
   threatAlertCountLines,
   threatAwareStatusCopy,
-  type ThreatAlertLevel,
+  type SeenThreatFindingsState,
   type ThreatAlertSummary,
 } from "@/lib/deepfake/threat-alert";
+import type { ClientFinding } from "@/lib/deepfake/results-dashboard";
 
 export type IdentityScanVisualizationProps = {
   artistName: string;
@@ -34,6 +40,10 @@ export type IdentityScanVisualizationProps = {
   compact?: boolean;
   /** Live threat alert recomputed from selected-scan findings. */
   threatSummary?: ThreatAlertSummary | null;
+  /** Complete client-visible findings for domain labels (pre-filter). */
+  threatFindings?: ClientFinding[] | null;
+  scanId?: string | null;
+  onSelectThreatDomain?: (domain: string) => void;
 };
 
 function usePrefersReducedMotion(): boolean {
@@ -89,59 +99,74 @@ const MESH_EDGES: Array<[number, number]> = [
   [9, 10],
 ];
 
-const RING_CLASS: Record<
-  ReturnType<typeof resolveThreatAwareRingTone>,
-  string
-> = {
+const RING_CLASS = {
   cyan: "stroke-sky-400/80",
   amber: "stroke-amber-400/80",
+  orange: "stroke-orange-500/85",
   green: "stroke-emerald-400/90",
   red: "stroke-red-500/90",
   muted: "stroke-slate-400/40",
-};
+} as const;
 
-const GLOW_CLASS: Record<
-  ReturnType<typeof resolveThreatAwareRingTone>,
-  string
-> = {
+const INNER_RING_CLASS = {
+  cyan: "stroke-sky-300/70",
+  amber: "stroke-amber-300/75",
+  orange: "stroke-orange-400/80",
+  green: "stroke-emerald-300/80",
+  red: "stroke-red-700/90",
+  muted: "stroke-slate-400/30",
+} as const;
+
+const GLOW_CLASS = {
   cyan: "shadow-[0_0_40px_-8px_rgba(56,189,248,0.55)]",
   amber: "shadow-[0_0_36px_-8px_rgba(251,191,36,0.45)]",
+  orange: "shadow-[0_0_36px_-8px_rgba(249,115,22,0.5)]",
   green: "shadow-[0_0_40px_-8px_rgba(52,211,153,0.5)]",
-  red: "shadow-[0_0_36px_-8px_rgba(239,68,68,0.45)]",
+  red: "shadow-[0_0_36px_-8px_rgba(239,68,68,0.55)]",
   muted: "",
-};
+} as const;
 
 function lineStroke(
   active: boolean,
-  threatLevel: ThreatAlertLevel,
+  tone: ThreatAlertSummary["tone"],
 ): string {
   if (!active) return "rgba(148,163,184,0.18)";
-  if (threatLevel === "multiple") return "rgba(248,113,113,0.55)";
-  if (threatLevel === "single") return "rgba(251,191,36,0.5)";
+  if (tone === "red") return "rgba(248,113,113,0.65)";
+  if (tone === "orange") return "rgba(251,146,60,0.6)";
+  if (tone === "amber") return "rgba(251,191,36,0.5)";
   return "rgba(56,189,248,0.45)";
 }
 
 function nodeToneClasses(
   active: boolean,
-  threatLevel: ThreatAlertLevel,
+  tone: ThreatAlertSummary["tone"],
 ): string {
   if (!active) return "border-white/10 bg-slate-900/70 text-slate-400";
-  if (threatLevel === "multiple") {
-    return "border-red-300/50 bg-red-500/15 text-red-100";
+  if (tone === "red") return "border-red-300/50 bg-red-500/15 text-red-100";
+  if (tone === "orange") {
+    return "border-orange-300/50 bg-orange-500/15 text-orange-100";
   }
-  if (threatLevel === "single") {
+  if (tone === "amber") {
     return "border-amber-300/50 bg-amber-500/15 text-amber-100";
   }
   return "border-sky-300/50 bg-sky-400/15 text-sky-100";
 }
 
 const EMPTY_SUMMARY: ThreatAlertSummary = {
-  level: "none",
+  tone: "cyan",
+  level: "cyan",
   total: 0,
   verified: 0,
   probable: 0,
   domains: 0,
+  findingIds: [],
 };
+
+const LABEL_SLOTS = [
+  { angle: -55, radius: 47 },
+  { angle: 35, radius: 48 },
+  { angle: 145, radius: 47 },
+] as const;
 
 export function IdentityScanVisualization({
   artistName,
@@ -156,24 +181,29 @@ export function IdentityScanVisualization({
   errorMessage,
   compact = false,
   threatSummary = null,
+  threatFindings = null,
+  scanId = null,
+  onSelectThreatDomain,
 }: IdentityScanVisualizationProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
   const summary = threatSummary ?? EMPTY_SUMMARY;
-  const threatLevel = summary.level;
+  const tone = summary.tone ?? summary.level ?? "cyan";
   const mode: IdentityScanVizMode = resolveIdentityScanVizMode({
     hasSelectedProfile: true,
     scanStatus,
   });
   const animate = shouldAnimateThreatAwareScan({
     mode,
-    threatLevel,
+    tone,
     prefersReducedMotion,
   });
   const showBeam = shouldShowThreatAwareScanBeam({
     mode,
     prefersReducedMotion,
   });
-  const ringTone = resolveThreatAwareRingTone({ mode, threatLevel });
+  const ringTone = resolveThreatAwareRingTone({ mode, tone });
+  const elevated = isElevatedThreatTone(tone);
+  const red = isRedThreatTone(tone);
   const activeNodes = useMemo(
     () =>
       new Set(
@@ -183,7 +213,7 @@ export function IdentityScanVisualization({
   );
   const stageMessage = threatAwareStatusCopy({
     mode,
-    threatLevel,
+    tone,
     stage,
     stageMessage:
       mode === "running"
@@ -191,132 +221,200 @@ export function IdentityScanVisualization({
         : null,
     statusHeadline: identityScanStatusHeadline(mode),
   });
-  const threatLines =
-    threatLevel === "multiple" ? threatAlertCountLines(summary) : [];
+  const threatLines = elevated ? threatAlertCountLines(summary) : [];
+  const domainLabels = useMemo(
+    () => buildThreatDomainLabels(threatFindings ?? [], 3),
+    [threatFindings],
+  );
   const { enrollmentLine, modelLine } = identityModelReadyCopy(enrolledCount);
   const metrics = identityScanProgressMetrics({
     executedQueries,
     plannedQueries,
     pagesVerified,
-    threatsSaved,
+    threatsSaved: summary.total > 0 ? summary.total : threatsSaved,
   });
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => {
     setImageFailed(false);
   }, [thumbnailUrl]);
 
+  const seenRef = useRef<SeenThreatFindingsState | null>(null);
+  const [pulseIds, setPulseIds] = useState<string[]>([]);
+  const [revealedCount, setRevealedCount] = useState(3);
+  const seededScanRef = useRef<string | null>(null);
+  const findingIdsKey = summary.findingIds.join("|");
+  const domainLabelsKey = domainLabels.map((row) => row.domain).join("|");
+
+  // Show ranked labels immediately (SSR/history). Sequential reveal only expands
+  // the count when new domains arrive during a live poll.
+  const renderedLabels = domainLabels.slice(0, Math.max(0, revealedCount));
+
+  useEffect(() => {
+    seenRef.current = null;
+    seededScanRef.current = null;
+    setPulseIds([]);
+    setRevealedCount(3);
+  }, [scanId]);
+
+  useEffect(() => {
+    const pulse = resolveNewThreatFindingPulse({
+      scanId,
+      findingIds: summary.findingIds,
+      previous: seenRef.current,
+    });
+    seenRef.current = pulse.next;
+    if (pulse.isInitialSeed) {
+      seededScanRef.current = scanId;
+      setPulseIds([]);
+      setRevealedCount(3);
+      return;
+    }
+    if (pulse.newIds.length) {
+      setPulseIds(pulse.newIds);
+      if (!prefersReducedMotion) {
+        const timer = window.setTimeout(() => setPulseIds([]), 1600);
+        return () => window.clearTimeout(timer);
+      }
+    }
+    return undefined;
+  }, [scanId, findingIdsKey, prefersReducedMotion]);
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setRevealedCount(3);
+      return;
+    }
+    if (seededScanRef.current !== scanId) return;
+    // After seed, newly ranked domains can enter via a short reveal queue.
+    if (domainLabels.length <= revealedCount) {
+      setRevealedCount(Math.min(3, domainLabels.length || 3));
+      return;
+    }
+    if (revealedCount >= 3) return;
+    const timer = window.setTimeout(() => {
+      setRevealedCount((value) => Math.min(3, value + 1));
+    }, 380);
+    return () => window.clearTimeout(timer);
+  }, [
+    domainLabelsKey,
+    domainLabels.length,
+    prefersReducedMotion,
+    revealedCount,
+    scanId,
+  ]);
+
   const showPhoto = Boolean(thumbnailUrl) && !imageFailed;
   const sizeClass = compact
     ? "min-h-[280px] max-w-md mx-auto"
     : "min-h-[420px] lg:min-h-[520px]";
+  const badgeLabel = threatAlertBadgeLabel({ mode, tone });
+  const badgeClass =
+    tone === "red"
+      ? "border-red-400/50 bg-red-500/15 text-red-200"
+      : tone === "orange"
+        ? "border-orange-400/45 bg-orange-500/12 text-orange-200"
+        : tone === "amber"
+          ? "border-amber-400/40 bg-amber-500/10 text-amber-300"
+          : mode === "completed"
+            ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
+            : mode === "failed"
+              ? "border-red-400/40 bg-red-500/10 text-red-300"
+              : mode === "partial"
+                ? "border-amber-400/40 bg-amber-500/10 text-amber-300"
+                : "border-sky-400/40 bg-sky-500/10 text-sky-300";
 
-  const badge =
-    threatLevel === "multiple"
+  const ringPulse = pulseIds.length > 0 && !prefersReducedMotion;
+  const outerRingAnimation =
+    ringPulse
       ? {
-          label: "Threats",
-          className: "border-red-400/40 bg-red-500/10 text-red-300",
+          transformOrigin: "50% 50%" as const,
+          transformBox: "fill-box" as const,
+          animation: "identityNewThreatPulse 1.4s ease-out 1",
         }
-      : threatLevel === "single"
-        ? {
-            label: "Threat",
-            className: "border-amber-400/40 bg-amber-500/10 text-amber-300",
-          }
-        : mode === "completed"
+      : animate && elevated
+        ? mode === "running"
           ? {
-              label: "Verified",
-              className: "border-emerald-400/40 bg-emerald-500/10 text-emerald-300",
-            }
-          : mode === "failed"
-            ? {
-                label: "Failed",
-                className: "border-red-400/40 bg-red-500/10 text-red-300",
-              }
-            : mode === "partial"
-              ? {
-                  label: "Paused",
-                  className: "border-amber-400/40 bg-amber-500/10 text-amber-300",
-                }
-              : mode === "running"
-                ? {
-                    label: "Scanning",
-                    className: "border-sky-400/40 bg-sky-500/10 text-sky-300",
-                  }
-                : {
-                    label: "Ready",
-                    className: "border-sky-400/40 bg-sky-500/10 text-sky-300",
-                  };
-
-  const ringAnimation =
-    animate && threatLevel === "multiple"
-      ? mode === "running"
-        ? {
-            transformOrigin: "50% 50%",
-            transformBox: "fill-box" as const,
-            animation: "identityThreatRadar 4.8s ease-in-out infinite",
-          }
-        : {
-            transformOrigin: "50% 50%",
-            transformBox: "fill-box" as const,
-            animation: "identityThreatBreath 3.8s ease-in-out infinite",
-          }
-      : animate && mode === "running"
-        ? {
-            transformOrigin: "50% 50%",
-            transformBox: "fill-box" as const,
-            animation: "identityRingSpin 10s linear infinite",
-          }
-        : animate
-          ? {
-              transformOrigin: "50% 50%",
+              transformOrigin: "50% 50%" as const,
               transformBox: "fill-box" as const,
-              animation: "identityBreath 3.6s ease-in-out infinite",
+              animation: "identityThreatRadar 4.8s ease-in-out infinite",
             }
-          : { transformOrigin: "50% 50%", transformBox: "fill-box" as const };
+          : {
+              transformOrigin: "50% 50%" as const,
+              transformBox: "fill-box" as const,
+              animation: "identityThreatBreath 3.8s ease-in-out infinite",
+            }
+        : animate && mode === "running"
+          ? {
+              transformOrigin: "50% 50%" as const,
+              transformBox: "fill-box" as const,
+              animation: "identityRingSpin 10s linear infinite",
+            }
+          : animate
+            ? {
+                transformOrigin: "50% 50%" as const,
+                transformBox: "fill-box" as const,
+                animation: "identityBreath 3.6s ease-in-out infinite",
+              }
+            : {
+                transformOrigin: "50% 50%" as const,
+                transformBox: "fill-box" as const,
+              };
 
   const innerRingAnimation =
-    animate && threatLevel === "multiple"
+    animate && elevated
       ? {
-          transformOrigin: "50% 50%",
+          transformOrigin: "50% 50%" as const,
           transformBox: "fill-box" as const,
           animation: "identityThreatBreath 3.2s ease-in-out infinite",
         }
       : animate
         ? mode === "running"
           ? {
-              transformOrigin: "50% 50%",
+              transformOrigin: "50% 50%" as const,
               transformBox: "fill-box" as const,
               animation: "identityRingSpin 7s linear infinite reverse",
             }
           : {
-              transformOrigin: "50% 50%",
+              transformOrigin: "50% 50%" as const,
               transformBox: "fill-box" as const,
               animation: "identityBreath 3.6s ease-in-out infinite",
             }
-        : { transformOrigin: "50% 50%", transformBox: "fill-box" as const };
+        : {
+            transformOrigin: "50% 50%" as const,
+            transformBox: "fill-box" as const,
+          };
 
   return (
     <section
       aria-label={`Identity scan visualization for ${artistName || "selected profile"}`}
       data-testid="identity-scan-visualization"
-      data-threat-level={threatLevel}
+      data-threat-tone={tone}
+      data-threat-level={tone}
       data-reduced-motion={prefersReducedMotion ? "true" : "false"}
       className={`relative overflow-hidden rounded-[22px] border ${
-        threatLevel === "multiple"
-          ? "border-red-500/35"
-          : threatLevel === "single"
-            ? "border-amber-500/30"
-            : "border-sky-500/20"
+        red
+          ? "border-red-500/40"
+          : tone === "orange"
+            ? "border-orange-500/35"
+            : tone === "amber"
+              ? "border-amber-500/30"
+              : "border-sky-500/20"
       } bg-[radial-gradient(ellipse_at_center,_rgba(14,30,56,0.96)_0%,_rgba(7,14,28,0.98)_70%)] text-slate-100 ${sizeClass} ${GLOW_CLASS[ringTone]}`}
     >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
-          backgroundImage:
-            threatLevel === "multiple"
-              ? "radial-gradient(rgba(248,113,113,0.14) 1px, transparent 1px)"
+          backgroundImage: red
+            ? "radial-gradient(rgba(248,113,113,0.16) 1px, transparent 1px)"
+            : tone === "orange"
+              ? "radial-gradient(rgba(251,146,60,0.14) 1px, transparent 1px)"
               : "radial-gradient(rgba(56,189,248,0.12) 1px, transparent 1px)",
           backgroundSize: "18px 18px",
+          animation:
+            animate && elevated && !prefersReducedMotion
+              ? "identityThreatBreath 4.5s ease-in-out infinite"
+              : undefined,
         }}
       />
 
@@ -325,11 +423,13 @@ export function IdentityScanVisualization({
           <div className="min-w-0">
             <div
               className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
-                threatLevel === "multiple"
+                red
                   ? "text-red-300/85"
-                  : threatLevel === "single"
-                    ? "text-amber-300/85"
-                    : "text-sky-300/80"
+                  : tone === "orange"
+                    ? "text-orange-300/85"
+                    : tone === "amber"
+                      ? "text-amber-300/85"
+                      : "text-sky-300/80"
               }`}
             >
               Identity lock
@@ -343,9 +443,10 @@ export function IdentityScanVisualization({
             )}
           </div>
           <div
-            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${badge.className}`}
+            className={`max-w-[9.5rem] rounded-full border px-2.5 py-1 text-center text-[9px] font-semibold uppercase leading-tight tracking-[0.12em] sm:text-[10px] ${badgeClass}`}
+            data-testid="identity-scan-badge"
           >
-            {badge.label}
+            {badgeLabel}
           </div>
         </header>
 
@@ -356,38 +457,27 @@ export function IdentityScanVisualization({
             role="img"
             aria-hidden
           >
-            <defs>
-              <linearGradient id="identity-scan-beam" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(56,189,248,0)" />
-                <stop offset="45%" stopColor="rgba(56,189,248,0.55)" />
-                <stop offset="100%" stopColor="rgba(56,189,248,0)" />
-              </linearGradient>
-              <linearGradient id="identity-threat-beam" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="rgba(248,113,113,0)" />
-                <stop offset="50%" stopColor="rgba(248,113,113,0.7)" />
-                <stop offset="100%" stopColor="rgba(248,113,113,0)" />
-              </linearGradient>
-            </defs>
-
             <circle
               cx="50"
               cy="50"
               r="46"
               fill="none"
-              strokeWidth="0.35"
+              strokeWidth="0.4"
               className={RING_CLASS[ringTone]}
               strokeDasharray="4 3.5"
-              style={ringAnimation}
+              style={outerRingAnimation}
+              data-testid="identity-outer-ring"
             />
             <circle
               cx="50"
               cy="50"
               r="40"
               fill="none"
-              strokeWidth="0.5"
-              className={RING_CLASS[ringTone]}
-              opacity={mode === "idle" && threatLevel === "none" ? 0.55 : 0.85}
+              strokeWidth="0.55"
+              className={INNER_RING_CLASS[ringTone]}
+              opacity={mode === "idle" && tone === "cyan" ? 0.55 : 0.9}
               style={innerRingAnimation}
+              data-testid="identity-inner-ring"
             />
 
             {IDENTITY_SCAN_NODES.map((node) => {
@@ -400,15 +490,14 @@ export function IdentityScanVisualization({
                   y1="50"
                   x2={pos.x}
                   y2={pos.y}
-                  stroke={lineStroke(active, threatLevel)}
-                  strokeWidth={active ? 0.45 : 0.25}
+                  stroke={lineStroke(active, tone)}
+                  strokeWidth={active ? 0.5 : 0.25}
                   style={
-                    active && animate && (mode === "running" || threatLevel === "multiple")
+                    active && animate && (mode === "running" || elevated)
                       ? {
-                          animation:
-                            threatLevel === "multiple"
-                              ? "identityThreatLine 2.8s ease-in-out infinite"
-                              : "identityPulse 2s ease-in-out infinite",
+                          animation: elevated
+                            ? "identityThreatLine 2.8s ease-in-out infinite"
+                            : "identityPulse 2s ease-in-out infinite",
                         }
                       : undefined
                   }
@@ -419,7 +508,7 @@ export function IdentityScanVisualization({
             {(mode === "running" ||
               mode === "idle" ||
               mode === "completed" ||
-              threatLevel !== "none") &&
+              tone !== "cyan") &&
               MESH_EDGES.map(([a, b], index) => {
                 const [x1, y1] = MESH_POINTS[a]!;
                 const [x2, y2] = MESH_POINTS[b]!;
@@ -431,57 +520,29 @@ export function IdentityScanVisualization({
                     x2={x2}
                     y2={y2}
                     stroke={
-                      threatLevel === "multiple"
+                      red
                         ? "rgba(248,113,113,0.4)"
-                        : threatLevel === "single"
-                          ? "rgba(251,191,36,0.4)"
-                          : "rgba(125,211,252,0.35)"
+                        : tone === "orange"
+                          ? "rgba(251,146,60,0.4)"
+                          : tone === "amber"
+                            ? "rgba(251,191,36,0.4)"
+                            : "rgba(125,211,252,0.35)"
                     }
                     strokeWidth="0.25"
-                    style={
-                      animate && mode === "running"
-                        ? { animation: "identityPulse 2.4s ease-in-out infinite" }
-                        : undefined
-                    }
                   />
                 );
               })}
-            {(mode === "running" ||
-              mode === "idle" ||
-              mode === "completed" ||
-              threatLevel !== "none") &&
-              MESH_POINTS.map(([x, y], index) => (
-                <circle
-                  key={`dot-${index}`}
-                  cx={x}
-                  cy={y}
-                  r={mode === "running" ? 0.7 : 0.45}
-                  fill={
-                    threatLevel === "multiple"
-                      ? "rgba(248,113,113,0.9)"
-                      : threatLevel === "single"
-                        ? "rgba(251,191,36,0.9)"
-                        : "rgba(125,211,252,0.85)"
-                  }
-                  style={
-                    animate && mode === "running"
-                      ? {
-                          animation: "identityPulse 1.8s ease-in-out infinite",
-                          animationDelay: `${index * 90}ms`,
-                        }
-                      : undefined
-                  }
-                />
-              ))}
           </svg>
 
           <div
             className={`absolute inset-[18%] overflow-hidden rounded-full border bg-slate-900/80 ${
-              threatLevel === "multiple"
-                ? "border-red-300/40"
-                : threatLevel === "single"
-                  ? "border-amber-300/35"
-                  : "border-sky-300/30"
+              red
+                ? "border-red-300/45"
+                : tone === "orange"
+                  ? "border-orange-300/40"
+                  : tone === "amber"
+                    ? "border-amber-300/35"
+                    : "border-sky-300/30"
             }`}
           >
             {showPhoto ? (
@@ -506,31 +567,16 @@ export function IdentityScanVisualization({
             {showBeam && (
               <div
                 aria-hidden
+                data-testid="identity-scan-beam"
                 className={`pointer-events-none absolute inset-x-0 top-0 h-1/3 ${
-                  threatLevel === "multiple"
+                  red
                     ? "bg-gradient-to-b from-red-300/0 via-red-300/35 to-red-300/0"
                     : "bg-gradient-to-b from-sky-300/0 via-sky-300/35 to-sky-300/0"
                 }`}
                 style={{ animation: "identityBeam 2.8s ease-in-out infinite" }}
               />
             )}
-            {mode === "idle" && animate && threatLevel === "none" && (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 bg-sky-400/10"
-                style={{ animation: "identityBreath 3.6s ease-in-out infinite" }}
-              />
-            )}
-            {threatLevel === "multiple" &&
-              !prefersReducedMotion &&
-              (mode === "running" || mode === "partial") && (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 rounded-full border-2 border-red-400/30"
-                  style={{ animation: "identityThreatBreath 3.8s ease-in-out infinite" }}
-                />
-              )}
-            {threatLevel === "multiple" && prefersReducedMotion && (
+            {red && prefersReducedMotion && (
               <div
                 aria-hidden
                 className="pointer-events-none absolute inset-0 rounded-full border-2 border-red-400/45"
@@ -549,16 +595,13 @@ export function IdentityScanVisualization({
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               >
                 <div
-                  className={`rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] shadow-sm backdrop-blur-sm sm:text-[10px] ${nodeToneClasses(active, threatLevel)}`}
+                  className={`rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] shadow-sm backdrop-blur-sm sm:text-[10px] ${nodeToneClasses(active, tone)}`}
                   style={
-                    active &&
-                    animate &&
-                    (mode === "running" || threatLevel === "multiple")
+                    active && animate && (mode === "running" || elevated)
                       ? {
-                          animation:
-                            threatLevel === "multiple"
-                              ? "identityThreatPulse 2.6s ease-in-out infinite"
-                              : "identityPulse 2s ease-in-out infinite",
+                          animation: elevated
+                            ? "identityThreatPulse 2.6s ease-in-out infinite"
+                            : "identityPulse 2s ease-in-out infinite",
                         }
                       : undefined
                   }
@@ -568,43 +611,70 @@ export function IdentityScanVisualization({
               </div>
             );
           })}
+
+          {/* High-risk domain intelligence labels (max 3) */}
+          {renderedLabels.map((label, index) => {
+            const slot = LABEL_SLOTS[index] ?? LABEL_SLOTS[0]!;
+            const pos = nodePosition(slot.angle, slot.radius);
+            return (
+              <button
+                key={label.domain}
+                type="button"
+                data-testid="threat-domain-label"
+                data-domain={label.domain}
+                title={`${label.wording} · ${label.detailLabel}`}
+                className={`absolute z-[2] max-w-[9.5rem] -translate-x-1/2 -translate-y-1/2 rounded-md border px-2 py-1 text-left text-[9px] font-semibold uppercase leading-tight tracking-[0.08em] shadow-md backdrop-blur-sm transition hover:scale-[1.02] ${
+                  label.tone === "red"
+                    ? "border-red-400/50 bg-red-950/80 text-red-100"
+                    : "border-orange-400/45 bg-orange-950/80 text-orange-100"
+                }`}
+                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                onClick={() => onSelectThreatDomain?.(label.domain)}
+              >
+                <span className="block truncate">{label.chipLabel}</span>
+                <span className="mt-0.5 block truncate text-[8px] font-medium normal-case tracking-normal opacity-80">
+                  {label.wording}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <footer className="mt-4 space-y-2 text-center">
           <div
             className={`flex items-center justify-center gap-2 text-sm font-medium ${
-              threatLevel === "multiple"
+              red
                 ? "text-red-100"
-                : threatLevel === "single"
-                  ? "text-amber-100"
-                  : "text-sky-100"
+                : tone === "orange"
+                  ? "text-orange-100"
+                  : tone === "amber"
+                    ? "text-amber-100"
+                    : "text-sky-100"
             }`}
           >
-            {(mode === "running" || mode === "idle" || threatLevel !== "none") && (
-              <ScanFace
-                className={`size-4 ${
-                  threatLevel === "multiple"
-                    ? "text-red-300"
-                    : threatLevel === "single"
+            <ScanFace
+              className={`size-4 ${
+                red
+                  ? "text-red-300"
+                  : tone === "orange"
+                    ? "text-orange-300"
+                    : tone === "amber"
                       ? "text-amber-300"
                       : "text-sky-300"
-                } ${
-                  animate && mode === "running" && !prefersReducedMotion
-                    ? "animate-pulse"
-                    : ""
-                }`}
-              />
-            )}
+              }`}
+            />
             <span aria-live="polite" data-testid="identity-scan-status-copy">
               {stageMessage}
             </span>
           </div>
 
-          {mode === "partial" && threatLevel === "multiple" && (
-            <p className="text-xs text-amber-200/90">Verified progress saved.</p>
+          {mode === "partial" && (
+            <p className="text-xs text-amber-200/90" data-testid="partial-progress-copy">
+              Verified progress saved.
+            </p>
           )}
 
-          {threatLevel === "multiple" && threatLines.length > 0 && (
+          {elevated && threatLines.length > 0 && (
             <div
               className="flex flex-wrap items-center justify-center gap-2 pt-1"
               data-testid="threat-alert-count-lines"
@@ -612,7 +682,11 @@ export function IdentityScanVisualization({
               {threatLines.map((line) => (
                 <span
                   key={line}
-                  className="rounded-full border border-red-400/30 bg-red-500/10 px-2.5 py-1 text-[10px] text-red-100"
+                  className={`rounded-full border px-2.5 py-1 text-[10px] ${
+                    red
+                      ? "border-red-400/30 bg-red-500/10 text-red-100"
+                      : "border-orange-400/30 bg-orange-500/10 text-orange-100"
+                  }`}
                 >
                   {line}
                 </span>
@@ -625,14 +699,6 @@ export function IdentityScanVisualization({
               {errorMessage}
             </p>
           )}
-
-          {mode === "completed" &&
-            threatLevel === "none" &&
-            typeof threatsSaved === "number" && (
-              <p className="text-xs text-emerald-300">
-                {threatsSaved} verified result{threatsSaved === 1 ? "" : "s"} saved
-              </p>
-            )}
 
           {metrics.length > 0 && (mode === "running" || mode === "partial") && (
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
@@ -682,6 +748,11 @@ export function IdentityScanVisualization({
         @keyframes identityThreatPulse {
           0%, 100% { opacity: 0.55; }
           50% { opacity: 1; }
+        }
+        @keyframes identityNewThreatPulse {
+          0% { opacity: 0.35; transform: scale(0.96); }
+          40% { opacity: 1; transform: scale(1.06); }
+          100% { opacity: 0.7; transform: scale(1); }
         }
         @media (prefers-reduced-motion: reduce) {
           section[aria-label^="Identity scan visualization"] * {

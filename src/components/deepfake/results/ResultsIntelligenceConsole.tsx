@@ -13,6 +13,11 @@ import {
   type FindingsSortKey,
   type RiskLevel,
 } from "@/lib/deepfake/results-dashboard";
+import {
+  compareThreatPresentationOrder,
+  isRedThreatTone,
+  type ThreatAlertTone,
+} from "@/lib/deepfake/threat-alert";
 import { VerifiedThreatOverview } from "./VerifiedThreatOverview";
 import { VerifiedEvidenceNetwork } from "./VerifiedEvidenceNetwork";
 import {
@@ -44,6 +49,8 @@ type Props = {
   ) => void;
   pending: boolean;
   emptyMessage?: string;
+  threatTone?: ThreatAlertTone;
+  focusDomain?: string | null;
 };
 
 export function ResultsIntelligenceConsole({
@@ -59,6 +66,8 @@ export function ResultsIntelligenceConsole({
   onUpdateFinding,
   pending,
   emptyMessage,
+  threatTone = "cyan",
+  focusDomain = null,
 }: Props) {
   const [domainFilter, setDomainFilter] = useState<string | null>(null);
   const [classificationFilter, setClassificationFilter] = useState<
@@ -74,6 +83,16 @@ export function ResultsIntelligenceConsole({
   const seededScanRef = useRef<string | null>(null);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const [countPulse, setCountPulse] = useState(false);
+  const lastVisibleCountRef = useRef<number | null>(null);
+  const redAlert = isRedThreatTone(threatTone);
+
+  useEffect(() => {
+    if (!focusDomain) return;
+    setDomainFilter(focusDomain);
+    setSearch("");
+    setPage(1);
+  }, [focusDomain, scanId]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -118,7 +137,10 @@ export function ResultsIntelligenceConsole({
       if (!knownIdsRef.current.has(id)) newcomers.add(id);
     }
     knownIdsRef.current = next;
-    if (newcomers.size && scanStatus === "running") {
+    if (
+      newcomers.size &&
+      (scanStatus === "running" || scanStatus === "partial")
+    ) {
       setNewIds(newcomers);
       if (!reduceMotion) {
         const timer = window.setTimeout(() => setNewIds(new Set()), 4_000);
@@ -127,6 +149,23 @@ export function ResultsIntelligenceConsole({
     }
     return undefined;
   }, [visibleFindings, scanStatus, reduceMotion, scanId]);
+
+  useEffect(() => {
+    const count = visibleFindings.length;
+    if (lastVisibleCountRef.current === null) {
+      lastVisibleCountRef.current = count;
+      return;
+    }
+    if (count !== lastVisibleCountRef.current) {
+      lastVisibleCountRef.current = count;
+      if (redAlert && !reduceMotion) {
+        setCountPulse(true);
+        const timer = window.setTimeout(() => setCountPulse(false), 1200);
+        return () => window.clearTimeout(timer);
+      }
+    }
+    return undefined;
+  }, [visibleFindings.length, redAlert, reduceMotion]);
 
   // Overview/network/cards share risk + classification so counts stay aligned.
   const scopedFindings = useMemo(
@@ -180,10 +219,12 @@ export function ResultsIntelligenceConsole({
     ],
   );
 
-  const sorted = useMemo(
-    () => sortFindings(filtered, sortKey, sortDirection),
-    [filtered, sortKey, sortDirection],
-  );
+  const sorted = useMemo(() => {
+    if (redAlert && sortKey === "risk") {
+      return [...filtered].sort(compareThreatPresentationOrder);
+    }
+    return sortFindings(filtered, sortKey, sortDirection);
+  }, [filtered, sortKey, sortDirection, redAlert]);
 
   const pageSize = 12;
   const paged = useMemo(
@@ -263,8 +304,15 @@ export function ResultsIntelligenceConsole({
   return (
     <div
       id="results-intelligence-console"
-      className="space-y-4"
+      className={[
+        "space-y-4 rounded-xl",
+        redAlert
+          ? "border border-red-500/45 p-1 shadow-[0_0_36px_-12px_rgba(239,68,68,0.55)]"
+          : "",
+        countPulse ? "animate-pulse" : "",
+      ].join(" ")}
       data-testid="results-intelligence-console"
+      data-threat-tone={threatTone}
     >
       {scanStatus === "completed" && (
         <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-300">
@@ -307,6 +355,7 @@ export function ResultsIntelligenceConsole({
               metrics={overview}
               funnel={funnel}
               resetKey={scanId}
+              highThreat={redAlert}
             />
           </ResultsConsoleErrorBoundary>
           <ResultsConsoleErrorBoundary
