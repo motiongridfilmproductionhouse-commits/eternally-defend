@@ -374,6 +374,82 @@ function DeepfakeIntelPage() {
     },
   });
 
+  const scanRequestPending = run.isPending || continueScan.isPending;
+  runPendingRef.current = scanRequestPending;
+
+  const selectedScanRow = selected.data?.scan ?? null;
+  const selectedScanStatus = selectedScanRow?.status ?? null;
+
+  /*
+   * The scan request itself runs the whole pipeline inline and can take
+   * minutes (or die on the server). Select the freshly created scan row as
+   * soon as it shows up in the history so live progress and saved findings
+   * render while the status is still "running".
+   */
+  useEffect(() => {
+    if (!scanRequestPending || selectedScanId) return;
+    const name = targetName.trim().toLowerCase();
+    const candidate = (scans.data ?? []).find(
+      (s) =>
+        s.status === "running" &&
+        (!name || s.target_name.trim().toLowerCase() === name),
+    );
+    if (candidate) setSelectedScanId(candidate.id);
+  }, [scanRequestPending, selectedScanId, scans.data, targetName]);
+
+  /*
+   * Polling is the source of truth for "is this scan still running". Once the
+   * row reaches a terminal status, drop the mutation's pending/loading state
+   * even if the original request never resolved.
+   */
+  useEffect(() => {
+    if (!selectedScanStatus || selectedScanStatus === "running") return;
+    if (run.isPending) run.reset();
+    if (continueScan.isPending) continueScan.reset();
+    setStalled(false);
+    qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedScanStatus, selectedScanId]);
+
+  // Polling health warning: no status/metrics/finding change for 15s.
+  useEffect(() => {
+    if (!selectedScanId) {
+      progressRef.current = null;
+      setStalled(false);
+      return;
+    }
+    if (selectedScanStatus !== "running") {
+      progressRef.current = null;
+      setStalled(false);
+      return;
+    }
+    const signature = JSON.stringify({
+      status: selectedScanStatus,
+      metrics: selectedScanRow?.discovery_metrics ?? null,
+      findings: selected.data?.findings?.length ?? 0,
+      discoveries: selected.data?.discoveries?.length ?? 0,
+    });
+    const now = Date.now();
+    if (progressRef.current?.signature !== signature) {
+      progressRef.current = { signature, at: now };
+      setStalled(false);
+    }
+    const startedAt = progressRef.current.at;
+    const timer = window.setTimeout(
+      () => setStalled(Date.now() - startedAt >= 15_000),
+      Math.max(15_000 - (now - startedAt), 500),
+    );
+    return () => window.clearTimeout(timer);
+  }, [
+    selectedScanId,
+    selectedScanStatus,
+    selectedScanRow?.discovery_metrics,
+    selected.data?.findings?.length,
+    selected.data?.discoveries?.length,
+    selected.dataUpdatedAt,
+  ]);
+
+
   const onRun = () => {
     const name = targetName.trim();
 
