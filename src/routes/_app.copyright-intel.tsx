@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
+import { ScanProgress } from "@/components/copyright/ScanProgress";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
 
@@ -137,7 +137,6 @@ function CopyrightIntelPage() {
   const [file, setFile] = useState<File | null>(null);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [stage, setStage] = useState("");
-  const [stageIndex, setStageIndex] = useState(0);
   const [previews, setPreviews] = useState<string[]>([]);
   const [scanMeta, setScanMeta] = useState<{ title: string; kind: "image" | "video" } | null>(null);
   const [summary, setSummary] = useState<{ candidates: number; matches: number; graded: number } | null>(null);
@@ -225,7 +224,6 @@ function CopyrightIntelPage() {
       };
     }) => {
       setStage("");
-      setStageIndex(SCAN_STAGES.length);
       setSelectedScanId(res.scanId);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       qc.invalidateQueries({ queryKey: ["copyright-scan", res.scanId] });
@@ -273,7 +271,6 @@ function CopyrightIntelPage() {
       setSelectedMatch(null);
       setInvestigationOpen(false);
       setScanMeta({ title: title.trim(), kind: isVideo ? "video" : "image" });
-      setStageIndex(0);
       setStage(isVideo ? "Extracting video frames…" : "Preparing reference…");
 
       const blobs: Blob[] = isVideo ? await extractFrames(file) : [file];
@@ -297,7 +294,6 @@ function CopyrightIntelPage() {
         keys.push(key);
       }
 
-      setStageIndex(1);
       setStage("Starting copyright scan…");
 
       const knownUrls = knownUrlsText
@@ -320,19 +316,11 @@ function CopyrightIntelPage() {
     onSuccess: (res: { scanId: string; started?: boolean; status?: string }) => {
       setSelectedScanId(res.scanId);
       setSummary(null);
-      setStageIndex(2);
-      setStage("Discovery executor starting…");
+      setStage("");
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       qc.invalidateQueries({ queryKey: ["copyright-scan", res.scanId] });
       toast.message("Scan started — running discovery executor…");
-      // Reliably invoke the separate copyright scan executor.
       executeScan.mutate(res.scanId);
-      const timers = [
-        setTimeout(() => { setStageIndex(3); setStage("Comparing online matches…"); }, 4000),
-        setTimeout(() => { setStageIndex(4); setStage("Generating report…"); }, 20000),
-      ];
-      // Cleared when executor settles via stage reset in executeScan handlers.
-      void timers;
     },
     onError: (e: Error) => { setStage(""); setScanMeta(null); setSummary(null); toast.error(e.message); },
   });
@@ -381,6 +369,12 @@ function CopyrightIntelPage() {
       selectedScanTitle,
     });
 
+  const activeScanStats = (
+    detailAligned && detail.data?.scan?.stats
+      ? detail.data.scan.stats
+      : selectedScanRow?.stats ?? {}
+  ) as Record<string, unknown>;
+
   return (
     <div className="space-y-6">
       <header className="flex items-start gap-3">
@@ -410,9 +404,13 @@ function CopyrightIntelPage() {
             previews={previews}
             title={scanMeta.title}
             kind={scanMeta.kind}
-            stageIndex={stageIndex}
-            note={stage || "Running copyright discovery…"}
+            scanStatus={selectedScanStatus}
+            scanId={selectedScanId}
+            stats={activeScanStats}
           />
+          {stage && (
+            <p className="mt-2 text-center text-xs text-muted-foreground">{stage}</p>
+          )}
         </div>
       )}
 

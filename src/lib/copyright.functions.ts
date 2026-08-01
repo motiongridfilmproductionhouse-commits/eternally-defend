@@ -45,6 +45,10 @@ import {
   type CrawlFailureCategory,
 } from "@/lib/copyright/crawl-failure";
 import {
+  ScanActivityRecorder,
+  flushScanActivity,
+} from "@/lib/copyright/scan-activity";
+import {
   decideCopyrightTerminalStatus,
   isExecutorWatchdogExpired,
   markStage,
@@ -217,7 +221,7 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         .update({
           status: "failed",
           error: "Scan has no reference storage keys.",
-          stats: failedStats,
+          stats: failedStats as never,
         })
         .eq("id", scan.id);
       return {
@@ -239,16 +243,47 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
       "executor_started",
     );
 
+    const activity = new ScanActivityRecorder();
+    activity.restoreFromStats(priorStats);
+    activity.setWorkflowStage("preparing_reference");
+    let abortedByDeadline = false;
+    let liveStats: Record<string, unknown> = {
+      ...priorStats,
+      ...stages,
+      executor_started_at: stages.executor_started,
+      discovery_never_started: false,
+    };
+
+    let lastActivityFlush = 0;
+    let activityFlushInFlight = false;
+
+    const pushActivity = (extra?: Record<string, unknown>, force = false) => {
+      if (abortedByDeadline) return Promise.resolve();
+      liveStats = activity.mergeToStats({ ...liveStats, ...stages, ...(extra ?? {}) });
+      const now = Date.now();
+      if (!force && (activityFlushInFlight || now - lastActivityFlush < 900)) {
+        return Promise.resolve();
+      }
+      lastActivityFlush = now;
+      activityFlushInFlight = true;
+      return flushScanActivity(
+        async (stats) => {
+          await supabase
+            .from("copyright_scans")
+            .update({ stats: stats as never })
+            .eq("id", scan.id);
+        },
+        liveStats,
+        activity,
+        extra,
+      ).finally(() => {
+        activityFlushInFlight = false;
+      });
+    };
+
     await supabase
       .from("copyright_scans")
-      .update({
-        stats: {
-          ...priorStats,
-          ...stages,
-          executor_started_at: stages.executor_started,
-          discovery_never_started: false,
-        },
-      })
+      .update({ stats: activity.mergeToStats(liveStats) as never })
       .eq("id", scan.id);
 
     try {
@@ -256,6 +291,9 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
       if (!firstBytes.length) throw new Error("Reference file is empty.");
       const sha256 = await sha256Hex(firstBytes);
       const referenceDataUrl = bytesToDataUrl(firstBytes, contentType);
+
+      activity.setWorkflowStage("analyzing_visual");
+      await pushActivity();
 
       // 1. AI-vision analysis + AWS Rekognition fingerprint of the reference material.
       const allFrames = await Promise.all(
@@ -266,6 +304,9 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         buildMovieFingerprint(allFrames.filter((b) => b.length > 0), workTitle),
       ]);
 
+      activity.setWorkflowStage("extracting_identifiers");
+      await pushActivity();
+
       // 2a. Optional known-URL seeds (high priority) — validated before provider search.
       const knownInputs = parseKnownUrlInputs(knownUrls);
       const knownSeeds = await validateKnownUrlSeeds(knownInputs);
@@ -274,21 +315,8 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
       // 2b. Firecrawl reverse discovery, seeded by that analysis.
       stages = markStage(stages, "queries_generated");
       stages = markStage(stages, "discovery_started");
-      await supabase
-        .from("copyright_scans")
-        .update({
-          stats: {
-            ...priorStats,
-            ...stages,
-            executor_started_at: stages.executor_started,
-            discovery_never_started: false,
-            queries_generated: 0,
-            last_progress_at: stages.last_progress_at,
-          },
-        })
-        .eq("id", scan.id);
-
-      let abortedByDeadline = false;
+      activity.setWorkflowStage("discovering_candidates");
+      await pushActivity({ queries_generated: 0 });
 
       // Known URLs are investigated before any provider search.
       const titleSeedsEarly = [workTitle, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
@@ -313,6 +341,11 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           break;
         }
         earlyKnownUrlsAttempted += 1;
+        activity.recordChecking({
+          url,
+          pageTitle: workTitle,
+          leadQuery: "known_url_seed",
+        });
         const dist = await analyzeDistributionPage({
           url,
           title: workTitle,
@@ -321,12 +354,27 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           preferRender: true,
           signal: AbortSignal.timeout(Math.max(1_000, knownPreDeadlineAt - Date.now())),
         });
+        activity.recordDistributionOutcome({
+          url: dist.url,
+          pageTitle: dist.pageTitle ?? workTitle,
+          leadQuery: "known_url_seed",
+          crawlFailed: dist.crawlFailed,
+          classification: dist.classification,
+          clientVisible: dist.clientVisible,
+          strongEvidence: dist.strongEvidence,
+          identityEvidence: dist.identityEvidence,
+          rendered: dist.rendered,
+        });
         earlyKnownInspected.add(canonicalUrl(dist.url));
         earlyKnownInvestigations.push({
           url: dist.url,
           retrieved: !dist.crawlFailed,
           rendered: dist.rendered,
           reason: dist.crawlFailureReason ?? dist.reason ?? null,
+        });
+        await pushActivity({
+          known_urls_attempted: earlyKnownUrlsAttempted,
+          pages_crawled: earlyKnownUrlsAttempted,
         });
       }
 
@@ -376,6 +424,32 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         if (!byUrl.has(c.url)) byUrl.set(c.url, c);
       }
 
+      for (const lead of discovery.pageLeads.slice(0, 20)) {
+        activity.recordDiscovered({
+          url: lead.url,
+          pageTitle: lead.title,
+          leadQuery: lead.query,
+        });
+      }
+      for (const lead of serpapiDiscovery.pageLeads.slice(0, 20)) {
+        activity.recordDiscovered({
+          url: lead.url,
+          pageTitle: lead.title,
+          leadQuery: lead.query ?? "serpapi:fallback",
+        });
+      }
+      activity.setWorkflowStage("retrieving_pages");
+      await pushActivity({
+        queries_executed: discovery.queriesExecuted,
+        provider_results: byUrl.size + discovery.pageLeads.length,
+        unique_candidate_pages: new Set([
+          ...byUrl.keys(),
+          ...discovery.pageLeads.map((l) => canonicalUrl(l.url)),
+        ]).size,
+        provider_failures: discovery.providerFailures,
+        firecrawl_circuit_opened: discovery.firecrawl_circuit_opened,
+        provider_failures_by_category: discovery.providerFailuresByCategory,
+      });
 
       // Prioritise high-signal piracy leads, keep the grading budget bounded.
       const ordered = [...byUrl.values()]
@@ -685,6 +759,11 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           classification: "INVESTIGATION_LEAD",
           client_visible: false,
         });
+        activity.recordBlocked({
+          url: seed.url,
+          pageTitle: seed.rejectDetail,
+          reason: seed.rejectReason,
+        });
       }
 
       let pagesCrawled = 0;
@@ -950,9 +1029,22 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           };
           internalRows.push(matchRow);
         }
+
+        activity.recordDistributionOutcome({
+          url: dist.url,
+          pageTitle: dist.pageTitle ?? leadTitle,
+          leadQuery,
+          crawlFailed: dist.crawlFailed,
+          classification: dist.classification,
+          clientVisible: dist.clientVisible,
+          strongEvidence: dist.strongEvidence,
+          identityEvidence: dist.identityEvidence,
+          rendered: dist.rendered,
+        });
       };
 
       // Phase A — known URLs first with reserved time budget (never starved by providers).
+      activity.setWorkflowStage("checking_access");
       const knownDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
       for (let offset = 0; offset < knownPhaseLeads.length; offset += 2) {
         if (isPastDeadline(knownDeadlineAt)) {
@@ -985,21 +1077,32 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           Math.max(1_000, knownDeadlineAt - Date.now()),
         );
         const analyses = await Promise.all(
-          batch.map(async (lead) => ({
-            lead,
-            analysis: await analyzeDistributionPage({
-              url: lead.url,
-              title: lead.title,
-              titles,
-              releaseDate,
-              signal,
-              preferRender: true,
-            }),
-          })),
+          batch.map(async (lead) => {
+            const key = canonicalUrl(lead.url);
+            if (!inspectedUrls.has(key)) {
+              activity.recordChecking({
+                url: lead.url,
+                pageTitle: lead.title,
+                leadQuery: lead.query,
+              });
+            }
+            return {
+              lead,
+              analysis: await analyzeDistributionPage({
+                url: lead.url,
+                title: lead.title,
+                titles,
+                releaseDate,
+                signal,
+                preferRender: true,
+              }),
+            };
+          }),
         );
         for (const { lead, analysis: dist } of analyses) {
           await ingestDistribution(dist, lead.query, lead.title);
         }
+        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed });
       }
 
       // Phase B — provider candidates with remaining budget / reserved leftover slots.
@@ -1022,24 +1125,37 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           Math.max(1_000, providerDeadlineAt - Date.now()),
         );
         const analyses = await Promise.all(
-          batch.map(async (lead) => ({
-            lead,
-            analysis: await analyzeDistributionPage({
-              url: lead.url,
-              title: lead.title,
-              titles,
-              releaseDate,
-              signal,
-            }),
-          })),
+          batch.map(async (lead) => {
+            const key = canonicalUrl(lead.url);
+            if (!inspectedUrls.has(key)) {
+              activity.recordChecking({
+                url: lead.url,
+                pageTitle: lead.title,
+                leadQuery: lead.query,
+              });
+            }
+            return {
+              lead,
+              analysis: await analyzeDistributionPage({
+                url: lead.url,
+                title: lead.title,
+                titles,
+                releaseDate,
+                signal,
+              }),
+            };
+          }),
         );
         for (const { lead, analysis: dist } of analyses) {
           await ingestDistribution(dist, lead.query, lead.title);
         }
+        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed });
       }
 
       if (pagesCrawled > 0) stages = markStage(stages, "first_page_crawled");
       stages = markStage(stages, "classification_started");
+      activity.setWorkflowStage("classifying_evidence");
+      await pushActivity({}, true);
 
       // Bounded same-domain detail follow from listing pages.
       const details = detailFollowQueue.slice(0, 12);
@@ -1053,21 +1169,32 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           Math.max(1_000, providerDeadlineAt - Date.now()),
         );
         const analyses = await Promise.all(
-          batch.map(async (url) =>
-            analyzeDistributionPage({
+          batch.map(async (url) => {
+            activity.recordChecking({
+              url,
+              leadQuery: "detail_follow",
+              stage: "detail_follow",
+            });
+            return analyzeDistributionPage({
               url,
               titles,
               releaseDate,
               skipDetailFollow: true,
               signal,
-            }),
-          ),
+            });
+          }),
         );
         for (const dist of analyses) {
           detailPagesFollowed += 1;
           await ingestDistribution(dist, "detail_follow", dist.pageTitle);
         }
+        await pushActivity({
+          detail_pages_followed: detailPagesFollowed,
+          pages_crawled: pagesCrawled,
+        });
       }
+
+      activity.setWorkflowStage("saving_report");
 
       // 5. Auto Monitor pass: re-check already-known distribution sources that
       //    were not crawled by this scan, so every movie scan covers the full
@@ -1327,11 +1454,18 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           ? `${terminal.reason}${providerFailureHint ? ` (${providerFailureHint})` : ""}${operatorHint}`
           : terminal.reason ?? discovery.firecrawl_circuit_reason;
 
-      const finalStats = {
+      const finalStats = activity.mergeToStats({
         ...stats,
         failure_reason: failureReason,
         terminal_status: terminal.status,
-      };
+        pages_crawled: Math.max(
+          pagesCrawled,
+          typeof liveStats.pages_crawled === "number" ? liveStats.pages_crawled : 0,
+          earlyKnownUrlsAttempted,
+        ),
+      });
+
+      await pushActivity({}, true);
 
       await supabase
         .from("copyright_scans")
@@ -1339,7 +1473,7 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           status: terminal.status,
           sha256,
           error: terminal.status === "failed" ? (failureReason ?? "Scan failed").slice(0, 500) : null,
-          stats: finalStats,
+          stats: finalStats as never,
         })
         .eq("id", scan.id);
 
@@ -1350,7 +1484,7 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
       };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      const failedStats = {
+      const failedStats = activity.mergeToStats({
         ...priorStats,
         ...stages,
         ...markStage(stages, "finished_at"),
@@ -1360,13 +1494,13 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         candidates: 0,
         matches: 0,
         graded: 0,
-      };
+      });
       await supabase
         .from("copyright_scans")
         .update({
           status: "failed",
           error: message.slice(0, 500),
-          stats: failedStats,
+          stats: failedStats as never,
         })
         .eq("id", scan.id);
       // Persist real failure — never convert to completed.
