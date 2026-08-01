@@ -10,8 +10,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "test:evidence": "node --import tsx --test src/lib/evidence-review.test.ts",
-    "test:deepfake": "node --import tsx --test src/lib/deepfake/page-evidence.test.ts src/lib/deepfake/url-verification.test.ts src/lib/deepfake/merge-readiness.test.ts src/lib/deepfake/evidence-url.test.ts src/lib/deepfake/discovery-coverage.test.ts src/lib/deepfake/scan-runtime-hotfix.test.ts src/lib/deepfake/discovery-dedupe.migration.test.ts src/lib/deepfake/scan-interleave.test.ts src/lib/deepfake/scan-ui-state.test.ts",
-    "test": "node --import tsx --test src/lib/evidence-review.test.ts src/lib/deepfake/page-evidence.test.ts src/lib/deepfake/url-verification.test.ts src/lib/deepfake/merge-readiness.test.ts src/lib/deepfake/evidence-url.test.ts src/lib/deepfake/discovery-coverage.test.ts src/lib/deepfake/scan-runtime-hotfix.test.ts src/lib/deepfake/discovery-dedupe.migration.test.ts src/lib/deepfake/scan-interleave.test.ts src/lib/deepfake/scan-ui-state.test.ts",
+    "test:deepfake": "node --import tsx --test src/lib/deepfake/page-evidence.test.ts src/lib/deepfake/url-verification.test.ts src/lib/deepfake/merge-readiness.test.ts src/lib/deepfake/evidence-url.test.ts src/lib/deepfake/discovery-coverage.test.ts src/lib/deepfake/scan-runtime-hotfix.test.ts src/lib/deepfake/discovery-dedupe.migration.test.ts src/lib/deepfake/scan-interleave.test.ts src/lib/deepfake/scan-ui-state.test.ts src/lib/deepfake/scan-start-immediate.test.ts",
+    "test": "node --import tsx --test src/lib/evidence-review.test.ts src/lib/deepfake/page-evidence.test.ts src/lib/deepfake/url-verification.test.ts src/lib/deepfake/merge-readiness.test.ts src/lib/deepfake/evidence-url.test.ts src/lib/deepfake/discovery-coverage.test.ts src/lib/deepfake/scan-runtime-hotfix.test.ts src/lib/deepfake/discovery-dedupe.migration.test.ts src/lib/deepfake/scan-interleave.test.ts src/lib/deepfake/scan-ui-state.test.ts src/lib/deepfake/scan-start-immediate.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."
