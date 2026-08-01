@@ -919,6 +919,16 @@ function DeepfakeIntelPage() {
                         {diagnostics?.client_visible ?? scan.total_results ?? 0} threats saved
                       </div>
                     )}
+                    {scan.status === "running" && stalled && (
+                      <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-500">
+                        <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
+                        <span>
+                          No new progress for 15s — the sweep may have stalled on
+                          the server. Saved results below stay visible; the status
+                          updates automatically once the run recovers or times out.
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={scan.status} />
