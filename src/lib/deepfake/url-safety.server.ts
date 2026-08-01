@@ -192,9 +192,40 @@ function defaultDnsLookupAll(
   return dnsPromises.lookup(hostname, options);
 }
 
+async function withAbortSignal<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    throw signal.reason instanceof Error
+      ? signal.reason
+      : new Error("Aborted");
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      reject(
+        signal.reason instanceof Error ? signal.reason : new Error("Aborted"),
+      );
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 export async function resolvePublicAddresses(
   hostname: string,
   lookupAll: DnsLookupAll = defaultDnsLookupAll,
+  signal?: AbortSignal,
 ): Promise<string[]> {
   const host = stripIpBrackets(hostname);
   if (!host) throw new Error("Empty hostname");
@@ -209,7 +240,10 @@ export async function resolvePublicAddresses(
     return [host];
   }
 
-  const records = await lookupAll(host, { all: true, verbatim: true });
+  const records = await withAbortSignal(
+    lookupAll(host, { all: true, verbatim: true }),
+    signal,
+  );
   const publicAddresses = records
     .map((record) => record.address)
     .filter((address) => !isPrivateOrReservedIpAddress(address));
@@ -223,6 +257,7 @@ export async function resolvePublicAddresses(
 export async function assertSafePublicUrlForFetch(
   url: string,
   lookupAll?: DnsLookupAll,
+  signal?: AbortSignal,
 ): Promise<{
   parsed: URL;
   addresses: string[];
@@ -231,7 +266,11 @@ export async function assertSafePublicUrlForFetch(
     throw new Error("URL failed public http(s) safety checks");
   }
   const parsed = new URL(url);
-  const addresses = await resolvePublicAddresses(parsed.hostname, lookupAll);
+  const addresses = await resolvePublicAddresses(
+    parsed.hostname,
+    lookupAll,
+    signal,
+  );
   return { parsed, addresses };
 }
 
@@ -253,6 +292,7 @@ export async function fetchPublicHttpUrl(
   const { parsed, addresses } = await assertSafePublicUrlForFetch(
     url,
     init?.lookupAll,
+    init?.signal,
   );
   const pinned = addresses[0]!;
   const family = net.isIP(pinned) === 6 ? 6 : 4;

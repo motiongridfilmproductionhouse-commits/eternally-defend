@@ -441,22 +441,6 @@ export async function resolveRedirectChain(
   for (let hop = 0; hop <= maxRedirects; hop++) {
     assertNotAborted(options?.signal);
 
-    try {
-      await assertSafePublicUrlForFetch(current);
-    } catch (error) {
-      return {
-        discovered_url: url,
-        final_url: current,
-        http_status: 0,
-        redirect_chain: chain,
-        ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "URL failed DNS/public-address safety checks.",
-      };
-    }
-
     for (let attempt = 0; attempt < 3; attempt++) {
       assertNotAborted(options?.signal);
       const hopTimeout = boundTimeoutMs(
@@ -470,6 +454,26 @@ export async function resolveRedirectChain(
       );
 
       try {
+        // DNS + fetch share the hop timeout / scan AbortSignal.
+        try {
+          await assertSafePublicUrlForFetch(current, undefined, signal);
+        } catch (error) {
+          if (options?.signal?.aborted || isAbortError(error)) {
+            throw error;
+          }
+          return {
+            discovered_url: url,
+            final_url: current,
+            http_status: 0,
+            redirect_chain: chain,
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "URL failed DNS/public-address safety checks.",
+          };
+        }
+
         let response: Response;
 
         try {
@@ -536,8 +540,11 @@ export async function resolveRedirectChain(
           }
 
           try {
-            await assertSafePublicUrlForFetch(next);
+            await assertSafePublicUrlForFetch(next, undefined, signal);
           } catch (error) {
+            if (options?.signal?.aborted || isAbortError(error)) {
+              throw error;
+            }
             return {
               discovered_url: url,
               final_url: current,
