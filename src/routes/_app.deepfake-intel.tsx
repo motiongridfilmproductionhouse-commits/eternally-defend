@@ -400,14 +400,13 @@ function DeepfakeIntelPage() {
    * render while the status is still "running".
    */
   useEffect(() => {
-    if (!scanRequestPending || selectedScanId) return;
-    const name = targetName.trim().toLowerCase();
-    const candidate = (scans.data ?? []).find(
-      (s) =>
-        s.status === "running" &&
-        (!name || s.target_name.trim().toLowerCase() === name),
-    );
-    if (candidate) setSelectedScanId(candidate.id);
+    const candidateId = pickLiveScanId({
+      scans: (scans.data ?? []) as Array<{ id: string; status: string; target_name: string }>,
+      targetName,
+      selectedScanId,
+      requestPending: scanRequestPending,
+    });
+    if (candidateId) setSelectedScanId(candidateId);
   }, [scanRequestPending, selectedScanId, scans.data, targetName]);
 
   /*
@@ -416,7 +415,7 @@ function DeepfakeIntelPage() {
    * even if the original request never resolved.
    */
   useEffect(() => {
-    if (!selectedScanStatus || selectedScanStatus === "running") return;
+    if (!isTerminalScanStatus(selectedScanStatus)) return;
     if (run.isPending) run.reset();
     if (continueScan.isPending) continueScan.reset();
     setStalled(false);
@@ -426,31 +425,29 @@ function DeepfakeIntelPage() {
 
   // Polling health warning: no status/metrics/finding change for 15s.
   useEffect(() => {
-    if (!selectedScanId) {
+    if (!selectedScanId || selectedScanStatus !== "running") {
       progressRef.current = null;
       setStalled(false);
       return;
     }
-    if (selectedScanStatus !== "running") {
-      progressRef.current = null;
-      setStalled(false);
-      return;
-    }
-    const signature = JSON.stringify({
+    const signature = scanProgressSignature({
       status: selectedScanStatus,
-      metrics: selectedScanRow?.discovery_metrics ?? null,
-      findings: selected.data?.findings?.length ?? 0,
-      discoveries: selected.data?.discoveries?.length ?? 0,
+      metrics: selectedScanRow?.discovery_metrics,
+      findingCount: selected.data?.findings?.length ?? 0,
+      discoveryCount: selected.data?.discoveries?.length ?? 0,
     });
     const now = Date.now();
     if (progressRef.current?.signature !== signature) {
       progressRef.current = { signature, at: now };
       setStalled(false);
     }
-    const startedAt = progressRef.current.at;
+    const lastChangeAt = progressRef.current.at;
     const timer = window.setTimeout(
-      () => setStalled(Date.now() - startedAt >= 15_000),
-      Math.max(15_000 - (now - startedAt), 500),
+      () =>
+        setStalled(
+          isScanStalled({ status: "running", lastChangeAt, now: Date.now() }),
+        ),
+      Math.max(SCAN_STALL_WARNING_MS - (now - lastChangeAt), 500),
     );
     return () => window.clearTimeout(timer);
   }, [
@@ -461,6 +458,7 @@ function DeepfakeIntelPage() {
     selected.data?.discoveries?.length,
     selected.dataUpdatedAt,
   ]);
+
 
 
   const onRun = () => {
