@@ -123,9 +123,10 @@ export async function upsertSearchIdentityProfile(
   },
 ): Promise<{ id: string } | null> {
   const expansion = opts.expansion;
-  // Never commit a spelling-corrected celebrity name while resolution is ambiguous.
+  // While ambiguous, persist a provisional row under the original query only —
+  // never a guessed celebrity canonical — so UI confirm/alias actions can work.
   const canonical = expansion.ambiguous
-    ? expansion.canonicalName?.trim() || null
+    ? expansion.canonicalName?.trim() || expansion.originalQuery.trim() || null
     : expansion.canonicalName?.trim() ||
       expansion.correctedQuery.trim() ||
       expansion.originalQuery.trim();
@@ -179,6 +180,8 @@ export async function upsertSearchIdentityProfile(
     organizations: expansion.organizations,
     identity_confidence: expansion.confidence,
     identity_ambiguous: expansion.ambiguous,
+    // Never auto-confirm ambiguous provisional rows.
+    reviewer_confirmed: existing?.reviewer_confirmed ?? false,
     identity_last_resolved_at: new Date().toISOString(),
     identity_resolution_source: expansion.resolutionSource,
     last_expansion: {
