@@ -304,6 +304,19 @@ test("16. Raw provider candidates cannot reach the UI", () => {
       evidence: { client_visible: true },
     },
     {
+      detection_type: "video_clip",
+      evidence: { identity_only: true },
+    },
+    {
+      detection_type: "ripped_copy",
+      evidence: {
+        distribution: {
+          content_type: "torrent_index_site",
+          strong_evidence: true,
+        },
+      },
+    },
+    {
       detection_type: "VERIFIED_UNAUTHORIZED_STREAM",
       evidence: {
         client_visible: true,
@@ -316,10 +329,29 @@ test("16. Raw provider candidates cannot reach the UI", () => {
     },
   ];
   const visible = filterClientVisibleCopyrightMatches(matches);
-  assert.equal(visible.length, 1);
-  assert.equal(visible[0]?.detection_type, "VERIFIED_UNAUTHORIZED_STREAM");
+  assert.equal(visible.length, 2);
+  assert.ok(visible.some((m) => m.detection_type === "VERIFIED_UNAUTHORIZED_STREAM"));
+  assert.ok(visible.some((m) => m.detection_type === "ripped_copy"));
   assert.equal(isClientVisibleCopyrightMatch(matches[2]!), false);
+  assert.equal(isClientVisibleCopyrightMatch(matches[3]!), false);
   assert.equal(normalizeClassification("ripped_copy"), "UNVERIFIED_LEAD");
+  assert.equal(normalizeClassification("video_clip"), "UNVERIFIED_LEAD");
+});
+
+test("cinema brand mention on piracy page does not hard-reject", () => {
+  const result = classifyCopyrightPage({
+    url: "https://streamexample.test/neon-horizon-hdcam",
+    pageTitle: "Neon Horizon HDCAM full movie — better than VOX Cinemas",
+    markdown: long(
+      "Watch full movie Neon Horizon HDCAM theatre print online free. Mention of VOX Cinemas for comparison only.",
+    ),
+    html: '<iframe src="https://doodstream.com/e/cam"></iframe>',
+    links: ["https://doodstream.com/e/cam"],
+    titles: TITLES,
+    pageInspected: true,
+  });
+  assert.equal(result.classification, "THEATRE_PRINT_DISTRIBUTION");
+  assert.equal(result.clientVisible, true);
 });
 
 test("17. Legacy ripped_copy / cinema discovery category never auto-actionable", () => {
@@ -333,13 +365,31 @@ test("17. Legacy ripped_copy / cinema discovery category never auto-actionable",
   );
   assert.equal(isActionablePiracy("ripped_copy"), false);
   assert.equal(isActionablePiracy("CINEMA_OR_SHOWTIME"), false);
+  // Identity-only legacy labels stay hidden.
+  assert.equal(
+    isClientVisiblePiracyMatch({
+      detectionType: "ripped_copy",
+      clientVisible: true,
+      strongEvidence: false,
+    }),
+    false,
+  );
+  assert.equal(
+    isClientVisiblePiracyMatch({
+      detectionType: "video_clip",
+      clientVisible: true,
+    }),
+    false,
+  );
+  // Legacy distribution rows with strong_evidence remain visible.
   assert.equal(
     isClientVisiblePiracyMatch({
       detectionType: "ripped_copy",
       clientVisible: true,
       strongEvidence: true,
+      contentType: "torrent_index_site",
     }),
-    false,
+    true,
   );
 });
 

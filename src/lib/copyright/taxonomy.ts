@@ -60,11 +60,15 @@ export const TYPE_LABEL: Record<CopyrightClassification, string> = {
   UNRELATED: "Unrelated",
 };
 
-/** Legacy detection_type values still present in older rows / AI grader output. */
+/**
+ * Legacy detection_type → taxonomy.
+ * Ambiguous legacy labels (ripped_copy, video_clip) stay UNVERIFIED unless
+ * distribution strong_evidence is present (see resolveClassification).
+ */
 const LEGACY_TO_TAXONOMY: Record<string, CopyrightClassification> = {
   ripped_copy: "UNVERIFIED_LEAD",
   cam_recording: "THEATRE_PRINT_DISTRIBUTION",
-  video_clip: "PROBABLE_UNAUTHORIZED_STREAM",
+  video_clip: "UNVERIFIED_LEAD",
   trailer_copy: "TRAILER_OR_PROMO",
   poster_copy: "DUPLICATE_ARTWORK_ONLY",
   reuploaded_artwork: "DUPLICATE_ARTWORK_ONLY",
@@ -78,6 +82,15 @@ const LEGACY_TO_TAXONOMY: Record<string, CopyrightClassification> = {
   forum_post: "SOCIAL_DISCUSSION",
   artwork_reupload: "DUPLICATE_ARTWORK_ONLY",
   web_lead: "UNVERIFIED_LEAD",
+};
+
+const LEGACY_CONTENT_TYPE_TO_TAXONOMY: Record<string, CopyrightClassification> = {
+  unauthorized_streaming_site: "PROBABLE_UNAUTHORIZED_STREAM",
+  movie_download_site: "DOWNLOAD_PAGE",
+  torrent_index_site: "TORRENT_OR_MAGNET",
+  file_distribution_site: "FILE_HOST_DISTRIBUTION",
+  reupload_platform: "VIDEO_HOST_REUPLOAD",
+  linking_page: "MIRROR_OR_REDIRECT",
 };
 
 export function isCopyrightClassification(
@@ -94,6 +107,42 @@ export function normalizeClassification(
   return LEGACY_TO_TAXONOMY[value] ?? "UNVERIFIED_LEAD";
 }
 
+/**
+ * Resolve classification for persisted matches, including legacy rows that
+ * stored ripped_copy/video_clip with distribution.strong_evidence.
+ */
+export function resolveClassification(opts: {
+  detectionType?: string | null;
+  distributionClassification?: string | null;
+  contentType?: string | null;
+  strongEvidence?: boolean | null;
+}): CopyrightClassification {
+  if (
+    opts.distributionClassification &&
+    isCopyrightClassification(opts.distributionClassification)
+  ) {
+    return opts.distributionClassification;
+  }
+
+  const raw = opts.detectionType ?? "";
+  if (isCopyrightClassification(raw)) return raw;
+
+  // Legacy actionable distribution rows: keep visible when strong evidence exists.
+  if (
+    opts.strongEvidence === true &&
+    (raw === "ripped_copy" || raw === "video_clip" || raw === "cam_recording")
+  ) {
+    if (opts.contentType && LEGACY_CONTENT_TYPE_TO_TAXONOMY[opts.contentType]) {
+      return LEGACY_CONTENT_TYPE_TO_TAXONOMY[opts.contentType]!;
+    }
+    if (raw === "cam_recording") return "THEATRE_PRINT_DISTRIBUTION";
+    if (raw === "video_clip") return "PROBABLE_UNAUTHORIZED_STREAM";
+    return "DOWNLOAD_PAGE";
+  }
+
+  return normalizeClassification(raw);
+}
+
 export function isActionablePiracy(
   classification: string | null | undefined,
 ): boolean {
@@ -106,11 +155,29 @@ export function isClientVisiblePiracyMatch(opts: {
   detectionType: string | null | undefined;
   clientVisible?: boolean | null;
   strongEvidence?: boolean | null;
+  distributionClassification?: string | null;
+  contentType?: string | null;
 }): boolean {
   if (opts.clientVisible === false) return false;
-  const cls = normalizeClassification(opts.detectionType);
+
+  const cls = resolveClassification({
+    detectionType: opts.detectionType,
+    distributionClassification: opts.distributionClassification,
+    contentType: opts.contentType,
+    strongEvidence: opts.strongEvidence,
+  });
+
   if (!ACTIONABLE_PIRACY_CLASSIFICATIONS.has(cls)) return false;
-  // Prefer an explicit strong-evidence flag when present.
+
+  // Legacy ambiguous labels require explicit strong distribution evidence.
+  const raw = opts.detectionType ?? "";
+  if (
+    (raw === "ripped_copy" || raw === "video_clip" || raw === "cam_recording") &&
+    opts.strongEvidence !== true
+  ) {
+    return false;
+  }
+
   if (opts.strongEvidence === false) return false;
   return true;
 }

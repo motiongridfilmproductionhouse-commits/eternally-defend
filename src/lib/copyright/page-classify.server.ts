@@ -169,6 +169,9 @@ export function hasExactTitleIdentity(
   return { match: false, evidence };
 }
 
+const DISTRIBUTION_OVERRIDE_RE =
+  /\b(watch\s*(the\s*)?full\s*movie|download\s*(the\s*)?full\s*movie|magnet:|\.torrent|webrip|web[- ]?dl|hdcam|camrip|theatre\s*print|theater\s*print|hdts|free\s*streaming|streaming\s*server|file\s*host)\b/i;
+
 export function detectPrimaryPurpose(opts: {
   url: string;
   pageTitle: string | null;
@@ -176,39 +179,62 @@ export function detectPrimaryPurpose(opts: {
   host: string | null;
 }): PrimaryPurpose {
   const blob = `${opts.host ?? ""} ${opts.url} ${opts.pageTitle ?? ""} ${opts.text.slice(0, 8000)}`;
+  const hasDistributionOverride = DISTRIBUTION_OVERRIDE_RE.test(blob);
 
-  if (isExcludedHost(opts.url) || CINEMA_HOST_HINTS.test(blob)) {
-    if (CINEMA_PURPOSE_RE.test(blob) || CINEMA_HOST_HINTS.test(blob)) {
+  // Official/licensed hosts without distribution override language.
+  if (isExcludedHost(opts.url) && !hasDistributionOverride) {
+    if (CINEMA_PURPOSE_RE.test(blob) || CINEMA_HOST_HINTS.test(opts.host ?? "") || CINEMA_HOST_HINTS.test(opts.url)) {
       return "cinema_or_showtime";
     }
-    if (isExcludedHost(opts.url)) return "official_or_authorized";
+    return "official_or_authorized";
   }
 
-  if (CINEMA_PURPOSE_RE.test(blob) && !FULL_MOVIE_RE.test(blob) && !THEATRE_PRINT_RE.test(blob)) {
+  // Cinema/showtime only when booking/showtime language is primary AND no piracy access language.
+  // Mere mention of a cinema brand on a piracy page must not hard-reject.
+  if (
+    !hasDistributionOverride &&
+    CINEMA_PURPOSE_RE.test(blob) &&
+    (CINEMA_HOST_HINTS.test(opts.host ?? "") ||
+      CINEMA_HOST_HINTS.test(opts.url) ||
+      CINEMA_PURPOSE_RE.test(`${opts.pageTitle ?? ""}`))
+  ) {
+    return "cinema_or_showtime";
+  }
+  if (
+    !hasDistributionOverride &&
+    CINEMA_PURPOSE_RE.test(blob) &&
+    !FULL_MOVIE_RE.test(blob) &&
+    !THEATRE_PRINT_RE.test(blob)
+  ) {
     return "cinema_or_showtime";
   }
 
   if (
+    !hasDistributionOverride &&
     TRAILER_PURPOSE_RE.test(blob) &&
     !FULL_MOVIE_RE.test(blob) &&
     !THEATRE_PRINT_RE.test(blob) &&
-    !/\b(full\s*movie|download\s*movie|magnet:)\b/i.test(blob)
+    !/\b(download\s*movie|magnet:)\b/i.test(blob)
   ) {
     return "trailer_or_promo";
   }
 
-  if (REVIEW_PURPOSE_RE.test(blob) && !FULL_MOVIE_RE.test(blob) && !THEATRE_PRINT_RE.test(blob)) {
-    // Reviews that also offer downloads are distribution — keep going.
-    if (!/\b(download\s*link|magnet:|\.torrent|watch\s*server)\b/i.test(blob)) {
-      return "review_or_news";
-    }
+  if (
+    !hasDistributionOverride &&
+    REVIEW_PURPOSE_RE.test(blob) &&
+    !FULL_MOVIE_RE.test(blob) &&
+    !THEATRE_PRINT_RE.test(blob) &&
+    !/\b(download\s*link|magnet:|\.torrent|watch\s*server)\b/i.test(blob)
+  ) {
+    return "review_or_news";
   }
 
-  if (CAST_PURPOSE_RE.test(blob) && !FULL_MOVIE_RE.test(blob)) {
+  if (!hasDistributionOverride && CAST_PURPOSE_RE.test(blob) && !FULL_MOVIE_RE.test(blob)) {
     return "cast_or_information";
   }
 
   if (
+    !hasDistributionOverride &&
     (/(reddit\.com|\/r\/)/i.test(opts.url) || SOCIAL_PURPOSE_RE.test(blob)) &&
     !FULL_MOVIE_RE.test(blob) &&
     !/\b(magnet:|\.torrent|mega\.nz|mediafire|download\s*link)\b/i.test(blob)
@@ -219,12 +245,14 @@ export function detectPrimaryPurpose(opts: {
   if (
     LISTING_PURPOSE_RE.test(`${opts.url} ${blob}`) &&
     !FULL_MOVIE_RE.test(opts.pageTitle ?? "") &&
-    !THEATRE_PRINT_RE.test(opts.pageTitle ?? "")
+    !THEATRE_PRINT_RE.test(opts.pageTitle ?? "") &&
+    !hasDistributionOverride
   ) {
     return "listing_or_search";
   }
 
   if (
+    !hasDistributionOverride &&
     /\b(poster\s*gallery|wallpaper|fan\s*art|image\s*gallery)\b/i.test(blob) &&
     !FULL_MOVIE_RE.test(blob)
   ) {

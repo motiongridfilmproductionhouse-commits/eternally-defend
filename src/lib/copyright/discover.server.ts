@@ -471,15 +471,19 @@ export async function firecrawlDiscover(
       // Reviews / commentary / cinema showtimes are not distribution sources.
       if (/(review|recap|explained|reaction|opinion|box office|interview|press release|now showing|showtimes?|book tickets?)/i.test(text)) continue;
       const category = piracyCategory(`${text} ${query}`);
+      const piracySignal = PIRACY_HINTS.test(text);
+      // Drop pure cinema/trailer/review noise, but keep mixed-signal leads
+      // (e.g. snippet mentions showtimes AND cam/torrent/download language).
       if (
-        category === "cinema_or_showtime" ||
-        category === "trailer_or_promo" ||
-        category === "review_or_news"
+        !piracySignal &&
+        (category === "cinema_or_showtime" ||
+          category === "trailer_or_promo" ||
+          category === "review_or_news")
       ) {
         continue;
       }
       const lead = { url: key, title: web.title ?? null, query, text };
-      if (PIRACY_HINTS.test(text) || isSuspiciousType(websiteTypeFor(key, `${text} ${query}`))) strongLeads.push(lead);
+      if (piracySignal || isSuspiciousType(websiteTypeFor(key, `${text} ${query}`))) strongLeads.push(lead);
       else weakLeads.push(lead);
     }
   }

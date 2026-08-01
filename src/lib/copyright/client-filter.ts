@@ -7,7 +7,7 @@
 import {
   isActionablePiracy,
   isClientVisiblePiracyMatch,
-  normalizeClassification,
+  resolveClassification,
   type CopyrightClassification,
 } from "./taxonomy";
 
@@ -39,16 +39,25 @@ export function isClientVisibleCopyrightMatch(match: CopyrightMatchLike): boolea
   if (ev.client_visible === false) return false;
   if (dist.client_visible === false) return false;
   if (ev.snippet_only === true) return false;
+  if (ev.identity_only === true) return false;
 
-  const classification =
+  const distributionClassification =
     (typeof dist.classification === "string" && dist.classification) ||
-    match.detection_type;
+    (typeof ev.classification === "string" && ev.classification) ||
+    null;
+  const contentType =
+    (typeof dist.content_type === "string" && dist.content_type) ||
+    (typeof ev.website_type === "string" && ev.website_type) ||
+    null;
+  const strongEvidence =
+    typeof dist.strong_evidence === "boolean" ? dist.strong_evidence : undefined;
 
   return isClientVisiblePiracyMatch({
-    detectionType: classification,
-    clientVisible: ev.client_visible !== false && dist.client_visible !== false,
-    strongEvidence:
-      typeof dist.strong_evidence === "boolean" ? dist.strong_evidence : undefined,
+    detectionType: match.detection_type,
+    clientVisible: true,
+    strongEvidence,
+    distributionClassification,
+    contentType,
   });
 }
 
@@ -61,10 +70,15 @@ export function filterClientVisibleCopyrightMatches<T extends CopyrightMatchLike
 export function classificationOf(match: CopyrightMatchLike): CopyrightClassification {
   const ev = evidenceRecord(match.evidence);
   const dist = distributionRecord(ev);
-  if (typeof dist.classification === "string") {
-    return normalizeClassification(dist.classification);
-  }
-  return normalizeClassification(match.detection_type);
+  return resolveClassification({
+    detectionType: match.detection_type,
+    distributionClassification:
+      (typeof dist.classification === "string" && dist.classification) || null,
+    contentType:
+      (typeof dist.content_type === "string" && dist.content_type) || null,
+    strongEvidence:
+      typeof dist.strong_evidence === "boolean" ? dist.strong_evidence : undefined,
+  });
 }
 
 export function assertNoRawProviderLeak(matches: CopyrightMatchLike[]): void {
