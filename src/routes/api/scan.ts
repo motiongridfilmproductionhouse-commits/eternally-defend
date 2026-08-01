@@ -3150,17 +3150,22 @@ export const Route = createFileRoute("/api/scan")({
               );
             }
           }
+          // Client identityAliases/canonical are only trusted when a server-verified
+          // reviewer-confirmed profile was loaded. Otherwise they can reintroduce
+          // competing celebrity forms while the expansion is still ambiguous.
+          const verifiedConfirmed = Boolean(persistedProfile?.reviewerConfirmed);
+          const identityCanonicalHint =
+            typeof body?.identityCanonical === "string"
+              ? body.identityCanonical.trim().slice(0, 200)
+              : "";
           const identityExpansion = await resolveAndExpandSearchQuerySafe({
             query,
             knownAliases: Array.from(
-              new Set([
-                ...aliasesIn,
-                ...identityAliasHints,
-                // Soft UI hint only — does not lock identity without server profile.
-                typeof body?.identityCanonical === "string"
-                  ? body.identityCanonical.trim().slice(0, 200)
-                  : "",
-              ].filter(Boolean)),
+              new Set(
+                verifiedConfirmed
+                  ? [...aliasesIn, ...identityAliasHints, identityCanonicalHint].filter(Boolean)
+                  : aliasesIn,
+              ),
             ),
             knownHandles: handlesIn,
             module: "reputation",
@@ -3172,15 +3177,17 @@ export const Route = createFileRoute("/api/scan")({
           const resolvedName = identityExpansion.ambiguous
             ? query
             : (identityExpansion.canonicalName ?? identityExpansion.correctedQuery ?? query);
-          // When ambiguous, avoid promoting competing celebrity names into match aliases.
+          // When ambiguous, only user-typed aliases — never stale UI celebrity hints.
           const expandedIds = identityExpansion.ambiguous
-            ? [query, ...aliasesIn, ...identityAliasHints]
+            ? [query, ...aliasesIn]
             : expansionToIdentityList(identityExpansion);
           const aliases = Array.from(
             new Set([
               ...aliasesIn,
               ...expandedIds.filter((a) => a.toLowerCase() !== resolvedName.toLowerCase()),
-              ...identityExpansion.localLanguageNames,
+              ...(identityExpansion.ambiguous
+                ? []
+                : identityExpansion.localLanguageNames),
             ]),
           ).slice(0, 20);
           const variations = Array.from(
