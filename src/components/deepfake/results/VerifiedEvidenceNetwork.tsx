@@ -12,6 +12,7 @@ type Props = {
   onSelectDomain: (domain: string | null) => void;
   onSelectFinding: (findingId: string) => void;
   reduceMotion?: boolean;
+  emptyMessage?: string;
 };
 
 function nodeColor(classification: "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE") {
@@ -26,6 +27,7 @@ export function VerifiedEvidenceNetwork({
   onSelectDomain,
   onSelectFinding,
   reduceMotion = false,
+  emptyMessage,
 }: Props) {
   const gradientId = useId();
   const [expanded, setExpanded] = useState(false);
@@ -61,7 +63,8 @@ export function VerifiedEvidenceNetwork({
       <section className="rounded-xl border border-sky-500/20 bg-[#07111f] p-4 text-slate-200">
         <h3 className="text-sm font-semibold text-white">Verified Evidence Network</h3>
         <p className="mt-2 text-sm text-slate-400">
-          Network visualization appears when verified findings are saved.
+          {emptyMessage ||
+            "Network visualization appears when verified findings are saved."}
         </p>
       </section>
     );

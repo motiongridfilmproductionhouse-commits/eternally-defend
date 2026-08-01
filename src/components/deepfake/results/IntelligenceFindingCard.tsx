@@ -14,8 +14,8 @@ import {
   asRiskLevel,
   evidenceLinkProps,
   findingDomain,
-  formatConfidence,
   formatDash,
+  formatEvidenceConfidence,
   formatTimestamp,
   resolveSafeFindingThumbnail,
 } from "@/lib/deepfake/results-dashboard";
@@ -126,9 +126,21 @@ export function IntelligenceFindingCard({
           </h4>
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
             <span>Domain · {domain}</span>
-            <span>Identity · {formatConfidence(finding.identity_confidence)}</span>
             <span>
-              Synthetic · {formatConfidence(finding.synthetic_media_confidence)}
+              Identity ·{" "}
+              {formatEvidenceConfidence({
+                value: finding.identity_confidence,
+                kind: "identity",
+                finding,
+              })}
+            </span>
+            <span>
+              Synthetic ·{" "}
+              {formatEvidenceConfidence({
+                value: finding.synthetic_media_confidence,
+                kind: "synthetic",
+                finding,
+              })}
             </span>
             <span>Page · {formatDash(finding.page_type?.replace(/_/g, " "))}</span>
             <span>
@@ -216,12 +228,20 @@ export function IntelligenceFindingCard({
           )}
           <p>
             <span className="text-slate-500">Identity evidence · </span>
-            {formatConfidence(finding.identity_confidence)}
+            {formatEvidenceConfidence({
+              value: finding.identity_confidence,
+              kind: "identity",
+              finding,
+            })}
             {finding.face_referenced ? " · face referenced" : ""}
           </p>
           <p>
             <span className="text-slate-500">Synthetic / impersonation · </span>
-            {formatConfidence(finding.synthetic_media_confidence)}
+            {formatEvidenceConfidence({
+              value: finding.synthetic_media_confidence,
+              kind: "synthetic",
+              finding,
+            })}
             {finding.is_synthetic ? " · synthetic markers" : ""}
           </p>
 

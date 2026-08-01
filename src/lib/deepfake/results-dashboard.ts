@@ -335,6 +335,32 @@ export function formatConfidence(value: number | null | undefined): string {
   return `${Math.round(value)}%`;
 }
 
+function hasVisualConfirmation(finding: ClientFinding): boolean {
+  return (
+    finding.finding_classification === "VERIFIED_DEEPFAKE" ||
+    (finding.matched_evidence ?? []).some((item) =>
+      /\b(?:hive|face-match)\b/i.test(item),
+    )
+  );
+}
+
+/** Preserve prior probable/text-only confidence wording. */
+export function formatEvidenceConfidence(input: {
+  value: number | null | undefined;
+  kind: "identity" | "synthetic";
+  finding: ClientFinding;
+}): string {
+  if (
+    input.finding.finding_classification === "PROBABLE_DEEPFAKE" &&
+    !hasVisualConfirmation(input.finding)
+  ) {
+    return input.kind === "synthetic"
+      ? "synth text evidence"
+      : "id text evidence";
+  }
+  return formatConfidence(input.value);
+}
+
 export function formatTimestamp(value: string | null | undefined): string {
   if (!value) return "—";
   const date = new Date(value);

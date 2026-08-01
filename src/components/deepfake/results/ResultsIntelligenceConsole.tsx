@@ -274,6 +274,11 @@ export function ResultsIntelligenceConsole({
             onSelectDomain={setDomainFilter}
             onSelectFinding={selectFinding}
             reduceMotion={reduceMotion}
+            emptyMessage={
+              visibleFindings.length > 0
+                ? "No verified nodes match the current risk or classification filters."
+                : undefined
+            }
           />
           <div className="grid gap-4 xl:grid-cols-2">
             <TopVerifiedDomainsTable
