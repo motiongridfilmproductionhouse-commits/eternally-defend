@@ -465,3 +465,37 @@ test("production fixture summary type includes findingIds", () => {
   );
   assert.equal(summary.findingIds.length, 12);
 });
+
+test("domain labels expose filterKey matching findings domain", () => {
+  const fixture = productionPartialFixture();
+  const labels = buildThreatDomainLabels(fixture.findings, 3);
+  assert.ok(labels.length > 0);
+  for (const label of labels) {
+    assert.ok(label.filterKey);
+    assert.ok(
+      fixture.findings.some(
+        (row) =>
+          row.source_host === label.filterKey ||
+          row.verified_domain === label.filterKey ||
+          (row.final_url && row.final_url.includes(label.domain)),
+      ),
+    );
+  }
+});
+
+test("empty seed then backlog must be treated as initial seed by caller readiness", () => {
+  // Simulates route gating: do not call pulse helper until findingsReady.
+  const empty = resolveNewThreatFindingPulse({
+    scanId: "scan",
+    findingIds: [],
+    previous: null,
+  });
+  assert.equal(empty.isInitialSeed, true);
+  const backlog = resolveNewThreatFindingPulse({
+    scanId: "scan",
+    findingIds: ["1", "2", "3"],
+    previous: null, // caller resets / waits rather than using empty seed
+  });
+  assert.equal(backlog.isInitialSeed, true);
+  assert.deepEqual(backlog.newIds, []);
+});

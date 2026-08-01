@@ -37,7 +37,10 @@ export type ThreatAlertSummary = {
 };
 
 export type ThreatDomainLabel = {
+  /** Sanitized hostname for display. */
   domain: string;
+  /** Value used to filter the results console (matches findingDomain). */
+  filterKey: string;
   threatCount: number;
   verified: number;
   probable: number;
@@ -207,6 +210,7 @@ export function buildThreatDomainLabels(
   const byDomain = new Map<
     string,
     {
+      filterKey: string;
       verified: number;
       probable: number;
       risks: RiskLevel[];
@@ -220,12 +224,15 @@ export function buildThreatDomainLabels(
     if (seenUrls.has(key)) continue;
     seenUrls.add(key);
 
+    const rawDomain = findingDomain(finding);
     const domain =
-      sanitizeThreatHostname(findingDomain(finding)) ||
+      sanitizeThreatHostname(rawDomain) ||
       sanitizeThreatHostname(finding.verified_domain) ||
       sanitizeThreatHostname(finding.source_host) ||
+      rawDomain ||
       "unknown";
     const bucket = byDomain.get(domain) ?? {
+      filterKey: rawDomain || domain,
       verified: 0,
       probable: 0,
       risks: [],
@@ -260,6 +267,7 @@ export function buildThreatDomainLabels(
           : "HIGH RISK";
     rows.push({
       domain,
+      filterKey: bucket.filterKey,
       threatCount,
       verified: bucket.verified,
       probable: bucket.probable,

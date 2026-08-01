@@ -43,6 +43,8 @@ export type IdentityScanVisualizationProps = {
   /** Complete client-visible findings for domain labels (pre-filter). */
   threatFindings?: ClientFinding[] | null;
   scanId?: string | null;
+  /** True once the selected scan’s findings payload has loaded (may be empty). */
+  threatFindingsReady?: boolean;
   onSelectThreatDomain?: (domain: string) => void;
 };
 
@@ -183,6 +185,7 @@ export function IdentityScanVisualization({
   threatSummary = null,
   threatFindings = null,
   scanId = null,
+  threatFindingsReady = true,
   onSelectThreatDomain,
 }: IdentityScanVisualizationProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -257,6 +260,9 @@ export function IdentityScanVisualization({
   }, [scanId]);
 
   useEffect(() => {
+    // Wait until the selected scan findings have loaded so we don't seed an
+    // empty seen-set and then pulse the entire backlog as "new".
+    if (!scanId || !threatFindingsReady) return;
     const pulse = resolveNewThreatFindingPulse({
       scanId,
       findingIds: summary.findingIds,
@@ -277,7 +283,7 @@ export function IdentityScanVisualization({
       }
     }
     return undefined;
-  }, [scanId, findingIdsKey, prefersReducedMotion]);
+  }, [scanId, findingIdsKey, prefersReducedMotion, threatFindingsReady]);
 
   useEffect(() => {
     if (prefersReducedMotion) {
@@ -629,7 +635,9 @@ export function IdentityScanVisualization({
                     : "border-orange-400/45 bg-orange-950/80 text-orange-100"
                 }`}
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                onClick={() => onSelectThreatDomain?.(label.domain)}
+                onClick={() =>
+                  onSelectThreatDomain?.(label.filterKey || label.domain)
+                }
               >
                 <span className="block truncate">{label.chipLabel}</span>
                 <span className="mt-0.5 block truncate text-[8px] font-medium normal-case tracking-normal opacity-80">

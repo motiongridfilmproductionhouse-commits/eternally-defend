@@ -559,8 +559,10 @@ export function filterFindings(input: {
     ) {
       return false;
     }
-    if (input.domainFilter && findingDomain(finding) !== input.domainFilter) {
-      return false;
+    if (input.domainFilter) {
+      const wanted = input.domainFilter.trim().toLowerCase().replace(/^www\./, "");
+      const actual = findingDomain(finding).trim().toLowerCase().replace(/^www\./, "");
+      if (actual !== wanted) return false;
     }
     if (
       input.classificationFilter &&

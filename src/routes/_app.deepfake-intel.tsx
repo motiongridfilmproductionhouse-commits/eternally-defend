@@ -1218,6 +1218,11 @@ function DeepfakeIntelPage() {
               threatSummary={threatSummary}
               threatFindings={findings}
               scanId={selectedScanId}
+              threatFindingsReady={Boolean(
+                selectedScanId &&
+                  selected.data?.scan?.id === selectedScanId &&
+                  !selected.isLoading,
+              )}
               onSelectThreatDomain={(domain) => {
                 setRiskFilter("ALL");
                 setThreatDomainFocus(domain);
