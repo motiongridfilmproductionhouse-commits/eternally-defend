@@ -171,6 +171,29 @@ function DeepfakeIntelPage() {
 
   const identityScanLocked = Boolean(activeScanForIdentity);
 
+  const activeScanForSelectedScan = (selectedScan: {
+    id: string;
+    target_name: string;
+    profile_id?: string | null;
+  } | null) => {
+    if (!selectedScan) return null;
+    return (scans.data ?? []).find((scan) => {
+      if (scan.status !== "running") return false;
+      if (scan.id === selectedScan.id) return false;
+      if (
+        normalizeTarget(scan.target_name) !==
+        normalizeTarget(selectedScan.target_name)
+      ) {
+        return false;
+      }
+      const scanProfileId =
+        (scan as { profile_id?: string | null }).profile_id ?? null;
+      const selectedProfile =
+        (selectedScan as { profile_id?: string | null }).profile_id ?? null;
+      return scanProfileId === selectedProfile;
+    }) ?? null;
+  };
+
   const run = useMutation({
     mutationFn: (input: {
       target_name: string;
@@ -839,7 +862,9 @@ function DeepfakeIntelPage() {
                           Scan paused with verified progress saved.
                         </div>
                         <div className="mt-0.5 text-amber-500/90">
-                          Continue resumes from the checkpoint without repeating completed queries.
+                          {activeScanForSelectedScan(scan)
+                            ? "Another scan is already running for this identity. Continue is unavailable until that run finishes."
+                            : "Continue resumes from the checkpoint without repeating completed queries."}
                         </div>
                       </div>
                     </div>
@@ -848,7 +873,10 @@ function DeepfakeIntelPage() {
                       size="sm"
                       variant="outline"
                       className="border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
-                      disabled={continueScan.isPending}
+                      disabled={
+                        continueScan.isPending ||
+                        Boolean(activeScanForSelectedScan(scan))
+                      }
                       onClick={() => continueScan.mutate(scan.id)}
                     >
                       {continueScan.isPending ? (

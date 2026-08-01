@@ -63,61 +63,99 @@ function ownershipFilter(query: any, ownership: ScanOwnership) {
     .eq("scan_run_token", ownership.scanRunToken);
 }
 
-async function applyUpdateWithLegacyFallback(input: {
+function isMissingColumnError(message: string, column: string): boolean {
+  return new RegExp(`${column}|column .* does not exist|schema cache`, "i").test(
+    message,
+  );
+}
+
+/**
+ * Prefer service-role writer so runtime fields stay server-managed under RLS
+ * triggers. Fall back to the caller client in tests / local without admin key.
+ */
+async function resolveScanWriter(fallback: any): Promise<any> {
+  try {
+    const mod = await import("@/integrations/supabase/client.server");
+    void Reflect.get(mod.supabaseAdmin, "from");
+    return mod.supabaseAdmin;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Ownership-safe update. Always requires scan id + running + scan_run_token.
+ * Optional columns may be stripped and retried, but the token filter is never
+ * removed — stale invocations after continuation cannot write.
+ */
+async function applyOwnedUpdate(input: {
   supabase: any;
   ownership: ScanOwnership;
   patch: Record<string, unknown>;
 }): Promise<number> {
-  const { supabase, ownership, patch } = input;
+  const supabase = await resolveScanWriter(input.supabase);
+  const { ownership } = input;
+  let patch = { ...input.patch };
 
-  let updateQuery = ownershipFilter(
-    supabase.from("deepfake_scans").update(patch as any),
-    ownership,
-  );
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data, error } = await ownershipFilter(
+      supabase.from("deepfake_scans").update(patch as any),
+      ownership,
+    ).select("id");
 
-  let { data, error } = await updateQuery.select("id");
-
-  if (error) {
-    const missingColumn =
-      /scan_run_token|heartbeat_at|lease_expires_at|discovery_metrics|scan_checkpoint|column .* does not exist|schema cache/i.test(
-        error.message,
-      );
-
-    if (!missingColumn) {
-      throw new Error(error.message);
+    if (!error) {
+      return Array.isArray(data) ? data.length : 0;
     }
 
-    const legacy = { ...patch };
-    delete legacy.scan_run_token;
-    delete legacy.heartbeat_at;
-    delete legacy.lease_expires_at;
-    if (/discovery_metrics/i.test(error.message)) {
-      delete legacy.discovery_metrics;
+    const message = error.message ?? "";
+    let stripped = false;
+
+    if (
+      "scan_checkpoint" in patch &&
+      isMissingColumnError(message, "scan_checkpoint")
+    ) {
+      delete patch.scan_checkpoint;
+      stripped = true;
     }
-    if (/scan_checkpoint/i.test(error.message)) {
-      delete legacy.scan_checkpoint;
+    if (
+      "discovery_metrics" in patch &&
+      isMissingColumnError(message, "discovery_metrics")
+    ) {
+      delete patch.discovery_metrics;
+      stripped = true;
+    }
+    if (
+      "heartbeat_at" in patch &&
+      isMissingColumnError(message, "heartbeat_at")
+    ) {
+      delete patch.heartbeat_at;
+      stripped = true;
+    }
+    if (
+      "lease_expires_at" in patch &&
+      isMissingColumnError(message, "lease_expires_at")
+    ) {
+      delete patch.lease_expires_at;
+      stripped = true;
     }
 
     /*
-     * Without scan_run_token column, fall back to id + status = running only.
-     * This still refuses to revive terminal rows.
+     * Pre-ownership schemas without scan_run_token cannot enforce CAS.
+     * Fail closed rather than writing with id+running only — continuation
+     * safety requires the token column from the ownership migration.
      */
-    const legacyResult = await supabase
-      .from("deepfake_scans")
-      .update(legacy as any)
-      .eq("id", ownership.scanId)
-      .eq("status", "running")
-      .select("id");
-
-    if (legacyResult.error) {
-      throw new Error(legacyResult.error.message);
+    if (isMissingColumnError(message, "scan_run_token")) {
+      throw new Error(
+        "deepfake_scans.scan_run_token is required for ownership-safe writes",
+      );
     }
 
-    data = legacyResult.data;
-    error = null;
+    if (!stripped) {
+      throw new Error(message);
+    }
   }
 
-  return Array.isArray(data) ? data.length : 0;
+  return 0;
 }
 
 /**
@@ -140,7 +178,7 @@ export async function touchScanProgress(input: {
     ...(input.patch ?? {}),
   };
 
-  const affected = await applyUpdateWithLegacyFallback({
+  const affected = await applyOwnedUpdate({
     supabase: input.supabase,
     ownership: input.ownership,
     patch: heartbeatPatch,
@@ -159,6 +197,8 @@ export async function touchScanProgress(input: {
 /**
  * Idempotent terminal transition. Clears/invalidates scan_run_token.
  * Only updates rows that are still running with this token.
+ * Never falls back to a tokenless write — a continued scan with a new token
+ * must leave the stale invocation unable to finalize.
  */
 export async function finalizeScanStatus(input: {
   supabase: any;
@@ -182,7 +222,7 @@ export async function finalizeScanStatus(input: {
     terminalPatch.error_message = input.errorMessage.slice(0, 500);
   }
 
-  const affected = await applyUpdateWithLegacyFallback({
+  const affected = await applyOwnedUpdate({
     supabase: input.supabase,
     ownership: input.ownership,
     patch: terminalPatch,
@@ -193,44 +233,30 @@ export async function finalizeScanStatus(input: {
   }
 
   /*
-   * Idempotent: if another path already finalized this scan, treat as success
-   * when the row is already terminal.
+   * Idempotent: if another path already finalized this scan, or ownership
+   * was lost to continuation, treat as success only when the row is already
+   * terminal. Do NOT write without the token.
    */
   const { data } = await input.supabase
     .from("deepfake_scans")
-    .select("id, status")
+    .select("id, status, scan_run_token")
     .eq("id", input.ownership.scanId)
     .maybeSingle();
 
-  const status = (data as { status?: string } | null)?.status;
+  const row = data as { status?: string; scan_run_token?: string | null } | null;
+  const status = row?.status;
   if (status === "completed" || status === "partial" || status === "failed") {
     return { applied: false };
   }
 
-  /*
-   * Last-resort write without token match — still refuse to revive by only
-   * updating running rows. Prefer failed so nothing stays RUNNING.
-   */
-  const fallback = await input.supabase
-    .from("deepfake_scans")
-    .update({
-      status: input.status,
-      scan_run_token: null,
-      finished_at: new Date(nowMs).toISOString(),
-      lease_expires_at: null,
-      error_message:
-        input.errorMessage?.slice(0, 500) ??
-        (terminalPatch.error_message as string | undefined) ??
-        null,
-      ...(input.patch ?? {}),
-    } as any)
-    .eq("id", input.ownership.scanId)
-    .eq("status", "running")
-    .select("id");
+  if (
+    row?.scan_run_token &&
+    row.scan_run_token !== input.ownership.scanRunToken
+  ) {
+    return { applied: false };
+  }
 
-  return {
-    applied: Array.isArray(fallback.data) && fallback.data.length > 0,
-  };
+  return { applied: false };
 }
 
 export function decideTerminalStatus(input: {
@@ -320,8 +346,9 @@ export async function recoverExpiredScanLease(input: {
   nowMs?: number;
 }): Promise<{ recovered: boolean; status?: string }> {
   const nowIso = new Date(input.nowMs ?? Date.now()).toISOString();
+  const supabase = await resolveScanWriter(input.supabase);
 
-  const { data, error } = await input.supabase
+  const { data, error } = await supabase
     .from("deepfake_scans")
     .update({
       status: "failed",
@@ -363,8 +390,9 @@ export async function recoverExpiredScansForUser(input: {
   nowMs?: number;
 }): Promise<number> {
   const nowIso = new Date(input.nowMs ?? Date.now()).toISOString();
+  const supabase = await resolveScanWriter(input.supabase);
 
-  const { data, error } = await input.supabase
+  const { data, error } = await supabase
     .from("deepfake_scans")
     .update({
       status: "failed",

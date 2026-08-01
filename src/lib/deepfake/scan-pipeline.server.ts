@@ -27,7 +27,9 @@ import {
 import {
   checkpointHasPendingWork,
   createEmptyCheckpoint,
+  enforceCheckpointBounds,
   markQueryCompleted,
+  parseScanCheckpoint,
   recordProviderLatency,
   type ScanCheckpoint,
 } from "./scan-checkpoint.server";
@@ -353,13 +355,17 @@ export async function executeInterleavedDeepfakePipeline(input: {
     maxQueries,
   });
 
-  const metrics =
-    input.resumeCheckpoint?.metrics ?? createDiscoveryFunnelMetrics();
-  metrics.queries_generated =
-    input.resumeCheckpoint?.queries.length ?? scheduledQueries.length;
+  const resumeCheckpoint = input.resumeCheckpoint
+    ? parseScanCheckpoint(input.resumeCheckpoint)
+    : null;
 
-  const checkpoint =
-    input.resumeCheckpoint ??
+  const metrics =
+    resumeCheckpoint?.metrics ?? createDiscoveryFunnelMetrics();
+  metrics.queries_generated =
+    resumeCheckpoint?.queries.length ?? scheduledQueries.length;
+
+  let checkpoint =
+    resumeCheckpoint ??
     createEmptyCheckpoint({
       queries: scheduledQueries,
       targetName: input.target.name,
@@ -372,12 +378,15 @@ export async function executeInterleavedDeepfakePipeline(input: {
       metrics,
     });
 
-  checkpoint.queries = input.resumeCheckpoint?.queries ?? scheduledQueries;
+  if (!resumeCheckpoint) {
+    checkpoint.queries = scheduledQueries;
+  }
   checkpoint.planned_query_count = checkpoint.queries.length;
   checkpoint.initial_wave_count =
     checkpoint.initial_wave_count || INITIAL_PRIORITY_QUERY_COUNT;
   checkpoint.per_query_limit = perQueryLimit;
   checkpoint.max_queries = maxQueries;
+  checkpoint = enforceCheckpointBounds(checkpoint);
 
   const budget = createScanBudget(input.runtime);
   const riskCounts: RiskCounts = { ...checkpoint.risk_counts };
@@ -385,20 +394,68 @@ export async function executeInterleavedDeepfakePipeline(input: {
   let findingCount = checkpoint.finding_count;
   let clientVisibleCount = checkpoint.client_visible_count;
 
-  const persistedDiscoveryKeys = new Set(checkpoint.verified_canonical_urls);
-  const persistedFindingKeys = new Set(checkpoint.verified_canonical_urls);
-  const countedFindingKeys = new Set<string>();
+  /*
+   * Rehydrate durable dedupe keys from the database — never trust checkpoint
+   * verified_canonical_urls as proof that URL_VERIFIED / identity gates passed.
+   * Pending URLs are only candidate seeds and must be re-verified.
+   */
+  const persistedDiscoveryKeys = new Set<string>();
+  const persistedFindingKeys = new Set<string>();
+  try {
+    const { data: existingDiscoveries } = await input.supabase
+      .from("deepfake_discoveries")
+      .select("page_url, canonical_url, analysis_status")
+      .eq("scan_id", input.scanId)
+      .eq("user_id", input.userId)
+      .limit(500);
+    for (const row of existingDiscoveries ?? []) {
+      const status = String((row as any).analysis_status ?? "");
+      if (status && status !== "url_verified") continue;
+      const key = canonicalUrl(
+        String((row as any).canonical_url || (row as any).page_url || ""),
+      );
+      if (key) persistedDiscoveryKeys.add(key);
+    }
+
+    const { data: existingFindings } = await input.supabase
+      .from("deepfake_findings")
+      .select("canonical_url, evidence_page_url, url, url_verification_status")
+      .eq("scan_id", input.scanId)
+      .eq("user_id", input.userId)
+      .limit(500);
+    for (const row of existingFindings ?? []) {
+      if (!isUrlVerified((row as any).url_verification_status)) continue;
+      const key = findingPersistKey(row as any);
+      if (key) persistedFindingKeys.add(key);
+    }
+  } catch (rehydrateError) {
+    console.warn(
+      "[DEEPFAKE] Failed to rehydrate persisted keys; using empty dedupe sets:",
+      rehydrateError instanceof Error
+        ? rehydrateError.message
+        : String(rehydrateError),
+    );
+  }
+
+  discoveryCount = Math.max(discoveryCount, persistedDiscoveryKeys.size);
+  findingCount = Math.max(findingCount, persistedFindingKeys.size);
+
+  const countedFindingKeys = new Set<string>(persistedFindingKeys);
   const seenCandidateKeys = new Set<string>();
-  for (const url of [
-    ...checkpoint.verified_canonical_urls,
-    ...checkpoint.pending_candidate_urls,
-  ]) {
+  for (const url of persistedDiscoveryKeys) {
+    seenCandidateKeys.add(`page:${canonicalUrl(url)}`);
+  }
+  for (const url of persistedFindingKeys) {
     seenCandidateKeys.add(`page:${canonicalUrl(url)}`);
   }
 
   const pendingCandidates = new Map<string, ProviderHit>();
   for (const url of checkpoint.pending_candidate_urls) {
-    pendingCandidates.set(canonicalUrl(url), {
+    const key = canonicalUrl(url);
+    if (!key || persistedDiscoveryKeys.has(key) || persistedFindingKeys.has(key)) {
+      continue;
+    }
+    pendingCandidates.set(key, {
       url,
       query: input.target.name,
       source: "checkpoint_resume",
@@ -413,14 +470,19 @@ export async function executeInterleavedDeepfakePipeline(input: {
     checkpoint.discovery_count = discoveryCount;
     checkpoint.finding_count = findingCount;
     checkpoint.client_visible_count = clientVisibleCount;
-    checkpoint.pending_candidate_urls = Array.from(pendingCandidates.values()).map(
-      (item) => item.url,
-    );
+    checkpoint.pending_candidate_urls = Array.from(pendingCandidates.values())
+      .map((item) => item.url)
+      .filter((url) => /^https?:\/\//i.test(url));
     checkpoint.verified_canonical_urls = Array.from(
-      new Set(checkpoint.verified_canonical_urls.map(canonicalUrl)),
-    );
+      new Set([
+        ...persistedDiscoveryKeys,
+        ...persistedFindingKeys,
+        ...checkpoint.verified_canonical_urls.map(canonicalUrl),
+      ]),
+    ).filter(Boolean);
     checkpoint.pending_work = checkpointHasPendingWork(checkpoint);
     checkpoint.last_checkpoint_at = new Date().toISOString();
+    checkpoint = enforceCheckpointBounds(checkpoint);
   };
 
   const heartbeat = async (
@@ -502,7 +564,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
   const classifyAndPersist = async (mediaCandidates: VerifiedCandidate[]) => {
     if (!mediaCandidates.length) return;
+    if (!canStartVerification(budget)) return;
 
+    const classifyStartedAt = Date.now();
     await heartbeat("classifying");
 
     const inspectedCandidates = mediaCandidates.map((hit) => {
@@ -796,6 +860,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
         await heartbeat("saving");
       }
     }
+
+    recordSpend(budget, "verification", Date.now() - classifyStartedAt);
   };
 
   const verifyAndClassify = async (
@@ -803,6 +869,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     maxPages = VERIFY_CANDIDATE_BATCH_SIZE,
   ) => {
     if (!candidates.length) return;
+    if (!canStartVerification(budget)) return;
     const startedAt = Date.now();
     await heartbeat("verifying");
 

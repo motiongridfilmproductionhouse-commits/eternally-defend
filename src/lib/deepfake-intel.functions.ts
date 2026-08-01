@@ -368,25 +368,30 @@ export const continueDeepfakeScan = createServerFn({ method: "POST" })
     }
 
     const runtime = createScanRuntime();
-    const scanRunToken = createScanRunToken();
-    const nowMs = Date.now();
-    const update = await supabase
-      .from("deepfake_scans")
-      .update({
-        status: "running",
-        scan_run_token: scanRunToken,
-        heartbeat_at: new Date(nowMs).toISOString(),
-        lease_expires_at: leaseExpiresAtIso(runtime.leaseTtlMs, nowMs),
-        finished_at: null,
-        error_message: null,
-      } as any)
-      .eq("id", scan.id)
-      .eq("user_id", userId)
-      .eq("status", "partial")
-      .select("id");
 
-    if (update.error) throw new Error(update.error.message);
-    if (!Array.isArray(update.data) || update.data.length !== 1) {
+    /*
+     * Atomic PARTIAL → RUNNING via SECURITY DEFINER RPC. The DB trigger only
+     * allows this transition when the continue GUC is set inside the RPC, so
+     * unrestricted client UPDATEs cannot revive partial scans.
+     */
+    const { data: acquiredRows, error: acquireError } = await supabase.rpc(
+      "acquire_deepfake_scan_continuation" as any,
+      { p_scan_id: scan.id },
+    );
+
+    if (acquireError) {
+      throw new Error(
+        acquireError.message || "Unable to acquire the scan continuation lease.",
+      );
+    }
+
+    const acquired = Array.isArray(acquiredRows) ? acquiredRows[0] : acquiredRows;
+    const scanRunToken =
+      acquired && typeof acquired === "object"
+        ? String((acquired as { scan_run_token?: string }).scan_run_token ?? "")
+        : "";
+
+    if (!scanRunToken) {
       throw new Error("Unable to acquire the scan continuation lease.");
     }
 
