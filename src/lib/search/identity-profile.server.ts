@@ -123,10 +123,12 @@ export async function upsertSearchIdentityProfile(
   },
 ): Promise<{ id: string } | null> {
   const expansion = opts.expansion;
-  const canonical =
-    expansion.canonicalName?.trim() ||
-    expansion.correctedQuery.trim() ||
-    expansion.originalQuery.trim();
+  // Never commit a spelling-corrected celebrity name while resolution is ambiguous.
+  const canonical = expansion.ambiguous
+    ? expansion.canonicalName?.trim() || null
+    : expansion.canonicalName?.trim() ||
+      expansion.correctedQuery.trim() ||
+      expansion.originalQuery.trim();
   if (!canonical) return null;
 
   const { data: existing } = await supabase

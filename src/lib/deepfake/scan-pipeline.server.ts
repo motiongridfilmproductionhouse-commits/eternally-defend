@@ -496,15 +496,24 @@ export async function executeInterleavedDeepfakePipeline(input: {
   if (!resumeCheckpoint) {
     checkpoint.queries = scheduledQueries;
   } else {
-    // Merge any newly generated expansion queries into the resume plan without
-    // rewinding already-completed query indexes.
-    const existing = new Set(checkpoint.queries.map((q) => q.toLowerCase()));
-    for (const q of scheduledQueries) {
-      if (!existing.has(q.toLowerCase())) {
-        checkpoint.queries.push(q);
-        existing.add(q.toLowerCase());
-      }
+    // Prefer newly generated expansion queries, then keep unfinished prior ones.
+    // Exclude already-completed query strings so resetting the index is safe.
+    const completed = new Set(
+      (checkpoint.completed_query_ids ?? []).map((q) => String(q).toLowerCase()),
+    );
+    const priorRemaining = checkpoint.queries.filter(
+      (q) => !completed.has(q.toLowerCase()),
+    );
+    const merged: string[] = [];
+    const seen = new Set<string>();
+    for (const q of [...scheduledQueries, ...priorRemaining]) {
+      const key = q.toLowerCase();
+      if (seen.has(key) || completed.has(key)) continue;
+      seen.add(key);
+      merged.push(q);
     }
+    checkpoint.queries = merged.slice(0, Math.max(maxQueries, 60));
+    checkpoint.next_query_index = 0;
   }
   checkpoint.planned_query_count = checkpoint.queries.length;
   checkpoint.initial_wave_count =

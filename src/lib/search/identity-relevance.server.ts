@@ -115,8 +115,14 @@ export function scoreIdentityRelevance(opts: {
   }
 
   const confidence = Math.max(0, Math.min(0.99, score));
-  const quarantine = firstOnly || Boolean(conflictingIdentity) || confidence < 0.35;
-  const matchedIdentity = confidence >= 0.35 && !quarantine;
+  // Ambiguous expansions must not auto-attach findings to a monitored identity.
+  const ambiguous = Boolean(opts.expansion.ambiguous);
+  const quarantine =
+    firstOnly ||
+    Boolean(conflictingIdentity) ||
+    confidence < 0.35 ||
+    ambiguous;
+  const matchedIdentity = confidence >= 0.35 && !quarantine && !ambiguous;
 
   return {
     matchedIdentity,
@@ -125,11 +131,13 @@ export function scoreIdentityRelevance(opts: {
     conflictingIdentity,
     quarantine,
     reason: quarantine
-      ? conflictingIdentity
-        ? `Possible conflicting identity (${conflictingIdentity}) — do not auto-attach.`
-        : firstOnly
-          ? "Only a generic first-name match — quarantined."
-          : "Identity relevance below threshold — quarantined pending review."
+      ? ambiguous
+        ? "Identity resolution is ambiguous — results remain unverified until confirmed."
+        : conflictingIdentity
+          ? `Possible conflicting identity (${conflictingIdentity}) — do not auto-attach.`
+          : firstOnly
+            ? "Only a generic first-name match — quarantined."
+            : "Identity relevance below threshold — quarantined pending review."
       : "Identity signals support attaching this lead for review.",
   };
 }
