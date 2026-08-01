@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
 import { analyzeReference, firecrawlDiscover } from "@/lib/copyright/discover.server";
+import { runCopyrightSerpApiDiscovery } from "@/lib/copyright/serpapi-discovery.server";
 import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.server";
 import { readStoredObject } from "@/lib/copyright/storage.server";
 
@@ -286,44 +287,85 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         })
         .eq("id", scan.id);
 
+      let abortedByDeadline = false;
+
+      // Known URLs are investigated before any provider search.
+      const titleSeedsEarly = [workTitle, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
+      const titlesEarly = [
+        ...new Set([
+          ...titleSeedsEarly,
+          ...titleSeedsEarly.flatMap((t) => expandTitleVariants(t).filter((v) => /[\s-]/.test(v))),
+        ]),
+      ].slice(0, 12);
+      const earlyKnownInspected = new Set<string>();
+      const earlyKnownInvestigations: Array<{
+        url: string;
+        retrieved: boolean;
+        rendered: boolean;
+        reason?: string | null;
+      }> = [];
+      let earlyKnownUrlsAttempted = 0;
+      const knownPreDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
+      for (const url of knownAccepted) {
+        if (isPastDeadline(knownPreDeadlineAt)) {
+          abortedByDeadline = true;
+          break;
+        }
+        earlyKnownUrlsAttempted += 1;
+        const dist = await analyzeDistributionPage({
+          url,
+          title: workTitle,
+          titles: titlesEarly,
+          releaseDate: analysis.releaseDate,
+          preferRender: true,
+          signal: AbortSignal.timeout(Math.max(1_000, knownPreDeadlineAt - Date.now())),
+        });
+        earlyKnownInspected.add(canonicalUrl(dist.url));
+        earlyKnownInvestigations.push({
+          url: dist.url,
+          retrieved: !dist.crawlFailed,
+          rendered: dist.rendered,
+          reason: dist.crawlFailureReason ?? dist.reason ?? null,
+        });
+      }
+
+      const discoveryDeadlineAt = Date.now() + PROVIDER_CRAWL_BUDGET_MS;
+      const discoverySignal = AbortSignal.timeout(
+        Math.max(5_000, discoveryDeadlineAt - Date.now()),
+      );
+
       const byUrl = new Map<string, DiscoveryCandidate>();
-      let discovery: Awaited<ReturnType<typeof firecrawlDiscover>>;
-      try {
-        discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis);
-      } catch (discoverErr) {
-        const msg =
-          discoverErr instanceof Error
-            ? discoverErr.message
-            : "Discovery failed to start";
-        const cat =
-          (discoverErr as Error & { failureCategory?: ProviderFailureCategory })
-            .failureCategory ?? "provider_unavailable";
-        const failedStats = {
-          ...priorStats,
-          ...stages,
-          ...markStage(stages, "finished_at"),
-          executor_started_at: stages.executor_started,
-          discovery_never_started: true,
-          queries_generated: 0,
-          queries_executed: 0,
-          provider_requests: 0,
-          provider_successes: 0,
-          provider_failures: 1,
-          provider_failures_by_category: { [cat]: 1 },
-          failure_reason: msg.slice(0, 500),
-          failure_category: cat,
-          candidates: 0,
-          matches: 0,
-          graded: 0,
-        };
-        await supabase
-          .from("copyright_scans")
-          .update({ status: "failed", error: msg.slice(0, 500), stats: failedStats, sha256 })
-          .eq("id", scan.id);
-        return {
-          scanId: scan.id as string,
-          status: "failed" as const,
-          stats: serializeCopyrightStats(failedStats),
+      let discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
+        signal: discoverySignal,
+        deadlineAt: discoveryDeadlineAt,
+        analysis,
+      });
+
+      let serpapiDiscovery = await runCopyrightSerpApiDiscovery({
+        analysis,
+        workTitle,
+        signal: discoverySignal,
+        deadlineAt: discoveryDeadlineAt,
+        onlyWhenFirecrawlFailed: true,
+        firecrawlHadSuccess: discovery.providerSuccesses > 0,
+      });
+
+      if (serpapiDiscovery.pageLeads.length) {
+        const mergedLeads = [...discovery.pageLeads];
+        const seenLeadUrls = new Set(mergedLeads.map((l) => canonicalUrl(l.url)));
+        for (const lead of serpapiDiscovery.pageLeads) {
+          const key = canonicalUrl(lead.url);
+          if (seenLeadUrls.has(key)) continue;
+          seenLeadUrls.add(key);
+          mergedLeads.push(lead);
+        }
+        discovery = {
+          ...discovery,
+          pageLeads: mergedLeads,
+          candidates_by_provider: {
+            ...discovery.candidates_by_provider,
+            serpapi: serpapiDiscovery.candidates,
+          },
         };
       }
 
@@ -332,8 +374,6 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
       for (const c of discovery.candidates) {
         if (!byUrl.has(c.url)) byUrl.set(c.url, c);
       }
-
-      let abortedByDeadline = false;
 
 
       // Prioritise high-signal piracy leads, keep the grading budget bounded.
@@ -569,7 +609,7 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
       const distributionRows: MatchInsert[] = [];
       const internalRows: MatchInsert[] = [];
       const inspectedDomains = new Set<string>();
-      const inspectedUrls = new Set<string>();
+      const inspectedUrls = new Set<string>(earlyKnownInspected);
       const detailFollowQueue: string[] = [];
       type KnownUrlInvestigation = {
         url: string;
@@ -1060,6 +1100,19 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
       }
 
       const clientVisibleFindings = filterClientVisibleCopyrightMatches(distributionRows);
+      const verifiedFindingsByProvider = {
+        firecrawl: 0,
+        serpapi: 0,
+        known_url: 0,
+        telegram: 0,
+      };
+      for (const row of clientVisibleFindings) {
+        const q = String((row.evidence as Record<string, unknown> | undefined)?.discovery_query ?? "");
+        if (q === "known_url_seed") verifiedFindingsByProvider.known_url += 1;
+        else if (q.startsWith("serpapi:")) verifiedFindingsByProvider.serpapi += 1;
+        else if (/\btelegram\b/i.test(q)) verifiedFindingsByProvider.telegram += 1;
+        else verifiedFindingsByProvider.firecrawl += 1;
+      }
 
       const uniqueCandidatePages = new Set([
         ...byUrl.keys(),
@@ -1085,20 +1138,43 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         provider_failures: discovery.providerFailures,
         provider_failures_by_category: discovery.providerFailuresByCategory,
         provider_failure_samples: discovery.providerFailureSamples,
+        firecrawl_requests: discovery.firecrawl_requests,
+        firecrawl_successes: discovery.firecrawl_successes,
+        firecrawl_failures: discovery.firecrawl_failures,
+        firecrawl_circuit_opened: discovery.firecrawl_circuit_opened,
+        firecrawl_circuit_reason: discovery.firecrawl_circuit_reason,
+        firecrawl_operator_action: discovery.firecrawl_operator_action,
+        firecrawl_stopped_early: discovery.firecrawl_stopped_early,
+        firecrawl_stopped_early_reason: discovery.firecrawl_stopped_early_reason,
+        serpapi_requests: serpapiDiscovery.requests,
+        serpapi_successes: serpapiDiscovery.successes,
+        serpapi_failures: serpapiDiscovery.failures,
+        serpapi_candidates: serpapiDiscovery.candidates,
+        serpapi_failure_messages: serpapiDiscovery.failureMessages.slice(0, 6),
+        candidates_by_provider: {
+          ...discovery.candidates_by_provider,
+          known_url: knownAccepted.length,
+        },
+        verified_findings_by_provider: verifiedFindingsByProvider,
         provider_candidates: byUrl.size,
         provider_results: byUrl.size + discovery.pageLeads.length,
-        telegram_queries: discovery.telegramQueries,
-        telegram_posts: discovery.telegramPosts,
-        telegram_candidates: discovery.telegramCandidates,
-        telegram_failures: discovery.telegramFailures,
+        telegram_queries: discovery.telegram_queries,
+        telegram_requests: discovery.telegram_requests,
+        telegram_posts: discovery.telegram_posts,
+        telegram_candidates: discovery.telegram_candidates,
+        telegram_failures: discovery.telegram_failures,
         unique_candidate_pages: uniqueCandidatePages,
         unique_pages: uniqueCandidatePages,
         known_urls_submitted: knownInputs.length,
         known_urls_accepted: knownAccepted.length,
         known_urls_rejected: knownSeeds.filter((s) => !s.accepted).length,
-        known_urls_attempted: knownUrlsAttempted,
-        known_urls_retrieved: knownUrlsRetrieved,
-        known_urls_rendered: knownUrlsRendered,
+        known_urls_attempted: Math.max(knownUrlsAttempted, earlyKnownUrlsAttempted),
+        known_urls_retrieved:
+          knownUrlsRetrieved +
+          earlyKnownInvestigations.filter((k) => k.retrieved).length,
+        known_urls_rendered:
+          knownUrlsRendered +
+          earlyKnownInvestigations.filter((k) => k.rendered).length,
         known_urls_verified: knownUrlsVerified,
         known_urls_rejected_after_crawl: knownUrlsRejectedAfterCrawl,
         known_url_failure_reasons: knownUrlInvestigations
@@ -1109,7 +1185,18 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
             category: k.crawl_failure_category || k.reject_reason || null,
           }))
           .slice(0, 12),
-        known_url_investigations: knownUrlInvestigations.slice(0, 12),
+        known_url_investigations: [
+          ...earlyKnownInvestigations.map((k) => ({
+            url: k.url,
+            accepted: true,
+            attempted: true,
+            retrieved: k.retrieved,
+            rendered: k.rendered,
+            reason: k.reason,
+            phase: "preflight_before_search",
+          })),
+          ...knownUrlInvestigations.slice(0, 12),
+        ],
         crawl_slots_reserved_known: slotAllocation.knownSlots,
         crawl_slots_provider: slotAllocation.providerSlots,
         listing_pages_found: listingPagesFound,
@@ -1210,22 +1297,29 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         executorStarted: true,
         queriesGenerated: discovery.queriesGenerated,
         queriesExecuted: discovery.queriesExecuted,
-        providerSuccesses: discovery.providerSuccesses,
+        providerSuccesses: discovery.providerSuccesses + serpapiDiscovery.successes,
         providerFailures: discovery.providerFailures,
         providerCandidates: byUrl.size + discovery.pageLeads.length,
-        knownUrlsAttempted,
+        knownUrlsAttempted: Math.max(knownUrlsAttempted, earlyKnownUrlsAttempted),
+        knownUrlsAccepted: knownAccepted.length,
         pagesCrawled,
         clientVisibleFindings: clientVisibleFindings.length,
         abortedByDeadline,
+        firecrawlCircuitOpened: discovery.firecrawl_circuit_opened,
+        serpapiSuccesses: serpapiDiscovery.successes,
+        serpapiCandidates: serpapiDiscovery.candidates,
       });
 
       const providerFailureHint = summarizeProviderFailures({
         provider_failures_by_category: discovery.providerFailuresByCategory,
       });
+      const operatorHint = discovery.firecrawl_operator_action
+        ? ` ${discovery.firecrawl_operator_action}`
+        : "";
       const failureReason =
-        terminal.reason && providerFailureHint && terminal.status === "failed"
-          ? `${terminal.reason} (${providerFailureHint})`
-          : terminal.reason;
+        terminal.reason && terminal.status === "failed"
+          ? `${terminal.reason}${providerFailureHint ? ` (${providerFailureHint})` : ""}${operatorHint}`
+          : terminal.reason ?? discovery.firecrawl_circuit_reason;
 
       const finalStats = {
         ...stats,

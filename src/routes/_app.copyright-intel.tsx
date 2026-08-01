@@ -437,7 +437,9 @@ function CopyrightIntelPage() {
                 {providerFailCats.some((r) => r.category === "authentication_failed") &&
                   " Check FIRECRAWL_API_KEY and LOVABLE_API_KEY (for lovc_ gateway keys)."}
                 {providerFailCats.some((r) => r.category === "rate_limited") &&
-                  " Discovery now batches searches to reduce rate limits — retry the scan."}
+                  " Discovery batches Firecrawl in groups of 3 with circuit breaker — retry the scan."}
+                {Boolean(scanStats.firecrawl_operator_action) &&
+                  ` ${String(scanStats.firecrawl_operator_action)}`}
               </p>
             )}
             {providerFailCats.length > 0 && (

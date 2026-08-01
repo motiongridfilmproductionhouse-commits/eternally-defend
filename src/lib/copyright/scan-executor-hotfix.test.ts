@@ -183,10 +183,9 @@ test("copyright discovery batches Firecrawl searches", () => {
     resolve(process.cwd(), "src/lib/copyright/discover.server.ts"),
     "utf8",
   );
-  assert.match(src, /searchPlansWithConcurrency/);
-  assert.match(src, /DISCOVERY_SEARCH_CONCURRENCY/);
-  assert.match(src, /DISCOVERY_SEARCH_MAX_ATTEMPTS/);
-  assert.doesNotMatch(src, /Promise\.all\(plans\.map\(\(p\) => search/);
+  assert.match(src, /runBatchedDiscovery/);
+  assert.match(src, /FIRECRAWL_MAX_RETRIES/);
+  assert.doesNotMatch(src, /DISCOVERY_SEARCH_MAX_ATTEMPTS/);
 });
 
 test("selected scan never shows another movie’s findings", () => {

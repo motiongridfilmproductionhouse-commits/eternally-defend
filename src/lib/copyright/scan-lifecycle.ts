@@ -35,9 +35,13 @@ export interface DiscoveryOutcomeInput {
   providerCandidates: number;
   /** Accepted known URLs that received a crawl attempt. */
   knownUrlsAttempted?: number;
+  knownUrlsAccepted?: number;
   pagesCrawled: number;
   clientVisibleFindings: number;
   abortedByDeadline?: boolean;
+  firecrawlCircuitOpened?: boolean;
+  serpapiSuccesses?: number;
+  serpapiCandidates?: number;
   /** Explicit fatal reason when discovery could not start. */
   fatalReason?: string | null;
 }
@@ -79,7 +83,12 @@ export function decideCopyrightTerminalStatus(
     };
   }
 
-  if (input.queriesExecuted <= 0) {
+  const knownAttempted = input.knownUrlsAttempted ?? 0;
+  const knownAccepted = input.knownUrlsAccepted ?? 0;
+  const serpapiSuccesses = input.serpapiSuccesses ?? 0;
+  const serpapiCandidates = input.serpapiCandidates ?? 0;
+
+  if (input.queriesExecuted <= 0 && knownAccepted <= 0 && serpapiCandidates <= 0) {
     return {
       status: "failed",
       reason:
@@ -87,9 +96,17 @@ export function decideCopyrightTerminalStatus(
     };
   }
 
-  const knownAttempted = input.knownUrlsAttempted ?? 0;
+  const anyDiscoverySuccess =
+    input.providerSuccesses > 0 || serpapiSuccesses > 0 || serpapiCandidates > 0;
+  const anyCandidates = input.providerCandidates > 0 || serpapiCandidates > 0;
 
-  if (input.providerSuccesses <= 0 && input.providerFailures > 0 && knownAttempted <= 0) {
+  if (
+    input.providerSuccesses <= 0 &&
+    input.providerFailures > 0 &&
+    knownAttempted <= 0 &&
+    serpapiSuccesses <= 0 &&
+    serpapiCandidates <= 0
+  ) {
     return {
       status: "failed",
       reason:
@@ -97,15 +114,24 @@ export function decideCopyrightTerminalStatus(
     };
   }
 
-  if (
-    input.providerSuccesses <= 0 &&
-    input.providerCandidates <= 0 &&
-    knownAttempted <= 0
-  ) {
+  if (!anyDiscoverySuccess && !anyCandidates && knownAttempted <= 0 && knownAccepted <= 0) {
     return {
       status: "failed",
       reason:
         "Discovery never received a successful provider response — not a legitimate zero-result scan.",
+    };
+  }
+
+  if (
+    input.firecrawlCircuitOpened &&
+    (knownAttempted > 0 || anyCandidates || input.pagesCrawled > 0 || input.clientVisibleFindings > 0)
+  ) {
+    return {
+      status: "partial",
+      reason:
+        input.abortedByDeadline
+          ? "Scan deadline reached after partial progress — saved crawled pages and findings."
+          : "Firecrawl circuit opened after consecutive provider failures — partial discovery saved; see firecrawl_operator_action.",
     };
   }
 
