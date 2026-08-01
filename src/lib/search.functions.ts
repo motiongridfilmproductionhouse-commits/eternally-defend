@@ -70,6 +70,9 @@ export const previewSearchExpansion = createServerFn({ method: "POST" })
         entityType: data.entityType,
       }).catch(() => null);
       profileId = saved?.id ?? null;
+    } else {
+      // Surface an existing profile id even when preview does not re-persist.
+      profileId = persistedProfile?.profileId ?? null;
     }
 
     return {
@@ -81,6 +84,7 @@ export const previewSearchExpansion = createServerFn({ method: "POST" })
         ...expansion.characterNames,
         ...expansion.relatedShows.map((s) => `${s} (show)`),
       ].slice(0, 12),
+      removableAliases: expansion.aliases.slice(0, 12),
       ambiguous: expansion.ambiguous,
       ambiguityCandidates: expansion.ambiguityCandidates,
       searchQueries: expansion.searchQueries,

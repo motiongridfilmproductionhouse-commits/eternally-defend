@@ -58,6 +58,7 @@ export async function loadPersistedIdentityHints(
       ? (match.aliases_detailed as StoredAlias[])
       : [];
     return {
+      profileId: String(match.id),
       canonicalName: match.reviewer_confirmed ? String(match.canonical_name) : null,
       aliases: [
         ...((match.aliases as string[] | null) ?? []),

@@ -54,6 +54,8 @@ export type AliasSource =
   | "heuristic";
 
 export type PersistedIdentityHints = {
+  /** Existing DB row id when a persisted profile matched. */
+  profileId?: string | null;
   canonicalName?: string | null;
   aliases?: string[];
   handles?: string[];

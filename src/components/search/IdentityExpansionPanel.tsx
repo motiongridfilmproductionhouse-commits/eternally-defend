@@ -12,6 +12,7 @@ import {
 type PreviewResult = {
   searchingAs: string;
   alsoSearching: string[];
+  removableAliases?: string[];
   ambiguous: boolean;
   ambiguityCandidates: Array<{ name: string; reason: string; confidence: number }>;
   searchQueries: Array<{ query: string; category: string; priority: number }>;
@@ -64,7 +65,7 @@ export function IdentityExpansionPanel(props: {
       // Ignore stale responses from earlier keystrokes.
       if (seq !== requestSeq.current) return;
       setLocalAlso(res.alsoSearching);
-      // Non-persist previews return profileId=null — keep any already-known id.
+      // Keep any already-known id if preview does not resolve one.
       if (res.profileId) setProfileId(res.profileId);
       setPreviewData(res);
       props.onExpansion?.(res);
@@ -133,14 +134,14 @@ export function IdentityExpansionPanel(props: {
     },
   });
 
-  // Reset stale panel state whenever the target identity input changes.
+  // Reset identity linkage only when the primary query/module changes.
   useEffect(() => {
     setLocalAlso([]);
     setPreviewData(null);
     setProfileId(null);
     setAliasDraft("");
     setSelectedCandidate(null);
-  }, [q, aliasesKey, handlesKey, props.module]);
+  }, [q, props.module]);
 
   useEffect(() => {
     if (q.length < 2) return;
@@ -184,26 +185,29 @@ export function IdentityExpansionPanel(props: {
           <div className="text-xs text-muted-foreground">Also searching:</div>
           <div className="flex flex-wrap gap-1.5">
             {also.slice(0, 10).map((term) => {
-              const isShowBadge = / \(show\)$/i.test(term);
+              // Only true aliases are removable — not show/character display labels.
+              const canRemove =
+                Boolean(profileId) &&
+                (previewData?.removableAliases ?? []).includes(term);
               return (
-              <Badge key={term} variant="outline" className="gap-1 font-normal">
-                {term}
-                {profileId && !isShowBadge && (
-                  <button
-                    type="button"
-                    className="ml-0.5 opacity-60 hover:opacity-100"
-                    title="Remove incorrect alias"
-                    onClick={() =>
-                      aliasMut.mutate({
-                        action: "remove_alias",
-                        value: term,
-                      })
-                    }
-                  >
-                    <X className="size-3" />
-                  </button>
-                )}
-              </Badge>
+                <Badge key={term} variant="outline" className="gap-1 font-normal">
+                  {term}
+                  {canRemove && (
+                    <button
+                      type="button"
+                      className="ml-0.5 opacity-60 hover:opacity-100"
+                      title="Remove incorrect alias"
+                      onClick={() =>
+                        aliasMut.mutate({
+                          action: "remove_alias",
+                          value: term,
+                        })
+                      }
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
+                </Badge>
               );
             })}
           </div>

@@ -496,24 +496,24 @@ export async function executeInterleavedDeepfakePipeline(input: {
   if (!resumeCheckpoint) {
     checkpoint.queries = scheduledQueries;
   } else {
-    // Prefer newly generated expansion queries, then keep unfinished prior ones.
-    // Exclude already-completed query strings so resetting the index is safe.
+    // Insert only brand-new expansion queries at the current cursor so resume
+    // does not rewind and replay already-scheduled work.
     const completed = new Set(
       (checkpoint.completed_query_ids ?? []).map((q) => String(q).toLowerCase()),
     );
-    const priorRemaining = checkpoint.queries.filter(
-      (q) => !completed.has(q.toLowerCase()),
-    );
-    const merged: string[] = [];
-    const seen = new Set<string>();
-    for (const q of [...scheduledQueries, ...priorRemaining]) {
+    const existing = new Set(checkpoint.queries.map((q) => q.toLowerCase()));
+    const newcomers = scheduledQueries.filter((q) => {
       const key = q.toLowerCase();
-      if (seen.has(key) || completed.has(key)) continue;
-      seen.add(key);
-      merged.push(q);
+      return !existing.has(key) && !completed.has(key);
+    });
+    if (newcomers.length) {
+      const idx = Math.max(0, Math.min(checkpoint.next_query_index, checkpoint.queries.length));
+      checkpoint.queries = [
+        ...checkpoint.queries.slice(0, idx),
+        ...newcomers,
+        ...checkpoint.queries.slice(idx),
+      ].slice(0, Math.max(maxQueries, 60));
     }
-    checkpoint.queries = merged.slice(0, Math.max(maxQueries, 60));
-    checkpoint.next_query_index = 0;
   }
   checkpoint.planned_query_count = checkpoint.queries.length;
   checkpoint.initial_wave_count =
