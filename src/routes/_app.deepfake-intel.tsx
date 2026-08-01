@@ -38,6 +38,8 @@ import {
   shouldShowHistoryLoading,
   shouldShowResultsLoader,
 } from "@/lib/deepfake/scan-ui-state";
+import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
+import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
@@ -167,6 +169,27 @@ function DeepfakeIntelPage() {
 
   const enrolledFaces =
     selectedProfile?.deepfake_reference_faces ?? [];
+
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const file = referenceFiles[0];
+    if (!file) {
+      setLocalPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [referenceFiles]);
+
+  const { thumbnailUrl } = useReferenceFaceThumbnail({
+    faces: enrolledFaces as Array<{
+      id: string;
+      storage_path?: string | null;
+      created_at?: string | null;
+    }>,
+    localPreviewUrl,
+  });
 
   const scans = useQuery({
     queryKey: ["deepfake-scans"],
@@ -588,9 +611,12 @@ function DeepfakeIntelPage() {
   const diagnostics = metricRecord(scan?.discovery_metrics);
   const discoveryMetricObject = objectRecord(scan?.discovery_metrics);
   const checkpoint = objectRecord(scan?.scan_checkpoint);
-  const liveStage =
-    stageLabel(discoveryMetricObject?.stage) ??
-    stageLabel(checkpoint?.stage);
+  const rawStage =
+    (typeof discoveryMetricObject?.stage === "string"
+      ? discoveryMetricObject.stage
+      : null) ??
+    (typeof checkpoint?.stage === "string" ? checkpoint.stage : null);
+  const liveStage = stageLabel(rawStage);
   const plannedQueries =
     (typeof checkpoint?.planned_query_count === "number"
       ? checkpoint.planned_query_count
@@ -968,14 +994,47 @@ function DeepfakeIntelPage() {
           </div>
         </div>
 
-        {/* Right: findings */}
+        {/* Right: identity visualization + findings */}
         <div className="space-y-4">
-          {!scan ? (
+          {selectedProfileId ? (
+            <IdentityScanVisualization
+              artistName={
+                selectedProfile?.target_name ||
+                scan?.target_name ||
+                targetName ||
+                "Protected identity"
+              }
+              enrolledCount={enrolledFaces.length}
+              thumbnailUrl={thumbnailUrl}
+              scanStatus={scan?.status ?? null}
+              stage={rawStage}
+              executedQueries={scan ? executedQueries : null}
+              plannedQueries={scan ? plannedQueries : null}
+              pagesVerified={
+                scan ? (diagnostics?.crawl_succeeded ?? null) : null
+              }
+              threatsSaved={
+                scan
+                  ? (diagnostics?.client_visible ??
+                    scan.total_results ??
+                    null)
+                  : null
+              }
+              errorMessage={scan?.error_message ?? null}
+            />
+          ) : null}
+
+          {!scan && !selectedProfileId ? (
             <div className="card-surface p-10 text-center text-sm text-muted-foreground">
               <ShieldAlert className="size-8 mx-auto mb-2 text-muted-foreground/60" strokeWidth={1.2} />
               Run a sweep or select a scan from history to view findings.
             </div>
-          ) : (
+          ) : !scan && selectedProfileId ? (
+            <div className="card-surface p-4 text-center text-sm text-muted-foreground">
+              Identity profile ready. Run a Face-Verified Sweep or select a scan
+              from history — results stay visible here as they are saved.
+            </div>
+          ) : scan ? (
             <>
               <div className="card-surface p-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1195,7 +1254,7 @@ function DeepfakeIntelPage() {
                 </div>
               )}
             </>
-          )}
+          ) : null}
         </div>
       </section>
     </div>
