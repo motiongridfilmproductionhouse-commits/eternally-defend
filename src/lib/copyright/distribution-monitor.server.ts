@@ -228,7 +228,7 @@ export async function monitorOneSource(
   const changes: string[] = [];
   let incidents = 0;
 
-  if (!analysis) {
+  if (!analysis || analysis.crawlFailed) {
     await supabase
       .from("distribution_sources")
       .update({

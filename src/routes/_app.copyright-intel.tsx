@@ -46,13 +46,31 @@ const BAND: Record<string, { label: string; cls: string }> = {
 };
 
 const TYPE_LABEL: Record<string, string> = {
+  VERIFIED_UNAUTHORIZED_STREAM: "Verified unauthorized stream",
+  PROBABLE_UNAUTHORIZED_STREAM: "Probable unauthorized stream",
+  DOWNLOAD_PAGE: "Download page",
+  FILE_HOST_DISTRIBUTION: "File-host distribution",
+  TORRENT_OR_MAGNET: "Torrent or magnet",
+  VIDEO_HOST_REUPLOAD: "Video-host reupload",
+  THEATRE_PRINT_DISTRIBUTION: "Theatre-print distribution",
+  MIRROR_OR_REDIRECT: "Mirror or redirect",
+  DUPLICATE_ARTWORK_ONLY: "Duplicate artwork only",
+  OFFICIAL_OR_AUTHORIZED: "Official or authorized",
+  TRAILER_OR_PROMO: "Trailer or promo",
+  CINEMA_OR_SHOWTIME: "Cinema or showtime",
+  REVIEW_OR_NEWS: "Review or news",
+  CAST_OR_INFORMATION: "Cast or information",
+  SOCIAL_DISCUSSION: "Social discussion",
+  UNVERIFIED_LEAD: "Unverified lead",
+  UNRELATED: "Unrelated",
+  // Legacy rows (should not appear as client-visible piracy)
   reuploaded_artwork: "Re-uploaded artwork",
   poster_copy: "Poster copy",
   movie_screenshot: "Movie screenshot",
-  trailer_copy: "Trailer copy",
+  trailer_copy: "Trailer or promo",
   video_clip: "Video clip",
-  cam_recording: "Leaked cam recording",
-  ripped_copy: "Ripped copy",
+  cam_recording: "Theatre-print distribution",
+  ripped_copy: "Unverified lead",
   edited_derivative: "Edited derivative",
 };
 
@@ -407,39 +425,53 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
             const dist = (ev.distribution ?? null) as null | {
               domain_risk?: string;
               content_type?: string;
+              classification?: string;
               release_timing?: string;
               release_offset_days?: number | null;
               piracy_indicators?: Array<{ key: string; detail: string; strong?: boolean }>;
               distribution_links?: string[];
               quality_tags?: string[];
+              identity_evidence?: string[];
+              access_evidence?: string[];
+              confidence_breakdown?: {
+                identity?: number;
+                access?: number;
+                releaseWindow?: number;
+                penalties?: number;
+              };
+              evidence_screenshot?: string | null;
+              embed_sources?: string[];
             };
+            const classification = dist?.classification ?? m.detection_type;
             const riskCls =
               dist?.domain_risk === "high" ? "border-destructive/50 text-destructive"
               : dist?.domain_risk === "medium" ? "border-amber-500/50 text-amber-500"
               : "text-muted-foreground";
+            const host = typeof ev.host === "string" ? ev.host : null;
+            const canonical = m.source_url;
+            const breakdown = dist?.confidence_breakdown;
 
             return (
               <article key={m.id} className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur">
                 <div className="flex gap-4">
-                  {m.thumbnail_url && (
-                    <img src={m.thumbnail_url} alt={`Matched evidence frame from ${m.platform ?? "source"}`} loading="lazy"
-                      className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover" />
+                  {(dist?.evidence_screenshot || m.thumbnail_url) && (
+                    <img
+                      src={dist?.evidence_screenshot || m.thumbnail_url || ""}
+                      alt={`Matched evidence frame from ${m.platform ?? "source"}`}
+                      loading="lazy"
+                      className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover"
+                    />
                   )}
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline" className={band.cls}>{m.confidence}% · {band.label}</Badge>
-                      <Badge variant="outline" className="text-[10px]">{TYPE_LABEL[m.detection_type] ?? m.detection_type}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{TYPE_LABEL[classification] ?? classification}</Badge>
                       <Badge variant="outline" className="text-[10px]">{m.platform ?? "Unknown platform"}</Badge>
-                      {String(ev.discovery) === "piracy_lead" && (
-                        <Badge variant="outline" className="text-[10px] text-primary">piracy lead</Badge>
-                      )}
+                      {host && <Badge variant="outline" className="text-[10px]">{host}</Badge>}
                       {dist && (
                         <>
                           <Badge variant="outline" className={`text-[10px] uppercase ${riskCls}`}>
-                            {dist.domain_risk} risk domain
-                          </Badge>
-                          <Badge variant="outline" className="text-[10px]">
-                            {(dist.content_type ?? "").replace(/_/g, " ")}
+                            {dist.domain_risk} risk
                           </Badge>
                           {dist.release_timing && dist.release_timing !== "unknown" && (
                             <Badge variant="outline" className="text-[10px]">
@@ -453,11 +485,34 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                         <Badge variant="outline" className="text-[10px]">{m.review_status.replace("_", " ")}</Badge>
                       )}
                     </div>
-                    <a href={m.source_url} target="_blank" rel="noopener noreferrer"
+                    <a href={canonical} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1 truncate text-sm text-primary hover:underline">
-                      {m.page_title || m.source_url} <ExternalLink className="h-3 w-3 shrink-0" />
+                      Open verified evidence page <ExternalLink className="h-3 w-3 shrink-0" />
                     </a>
-                    {m.reason && <p className="text-xs text-muted-foreground">{m.reason}</p>}
+                    <p className="truncate text-[11px] text-muted-foreground">{m.page_title || canonical}</p>
+                    {m.reason && (
+                      <p className="text-xs text-muted-foreground">
+                        {m.reason} Evidence for rights-holder review — not a final legal determination.
+                      </p>
+                    )}
+                    {(dist?.identity_evidence?.length || dist?.access_evidence?.length) ? (
+                      <div className="space-y-1 text-[11px] text-muted-foreground">
+                        {dist?.identity_evidence?.length ? (
+                          <p><span className="font-medium">Title identity:</span> {dist.identity_evidence.join(", ")}</p>
+                        ) : null}
+                        {dist?.access_evidence?.length ? (
+                          <p><span className="font-medium">Distribution access:</span> {dist.access_evidence.slice(0, 3).join(" ")}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {breakdown && (
+                      <p className="text-[11px] text-muted-foreground">
+                        <span className="font-medium">Confidence:</span>{" "}
+                        identity {breakdown.identity ?? 0} · access {breakdown.access ?? 0}
+                        · release {breakdown.releaseWindow ?? 0}
+                        {(breakdown.penalties ?? 0) > 0 ? ` · penalties -${breakdown.penalties}` : ""}
+                      </p>
+                    )}
                     {dist?.piracy_indicators?.length ? (
                       <ul className="space-y-1 rounded-lg border border-border/60 bg-background/40 p-2">
                         {dist.piracy_indicators.slice(0, 6).map((i) => (
@@ -470,8 +525,21 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                     ) : null}
                     {dist?.distribution_links?.length ? (
                       <p className="text-[11px] text-muted-foreground">
-                        <span className="font-medium">Distribution links:</span> {dist.distribution_links.length} detected
-                        {" · "}{dist.distribution_links.slice(0, 2).join(", ").slice(0, 120)}
+                        <span className="font-medium">Player / download / file-host / torrent:</span>{" "}
+                        {dist.distribution_links.slice(0, 3).map((link, idx) => (
+                          <span key={link}>
+                            {idx > 0 ? " · " : ""}
+                            {link.startsWith("magnet:") ? (
+                              <span className="break-all">{link.slice(0, 64)}…</span>
+                            ) : /^https?:\/\//i.test(link) ? (
+                              <a href={link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                                {link.slice(0, 80)}
+                              </a>
+                            ) : (
+                              link.slice(0, 80)
+                            )}
+                          </span>
+                        ))}
                       </p>
                     ) : null}
 
