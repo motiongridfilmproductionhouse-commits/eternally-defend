@@ -150,8 +150,10 @@ function DeepfakeIntelPage() {
     queryFn: () => listFn({}),
     refetchInterval: (q) => {
       const data = q.state.data as Array<{ status: string }> | undefined;
-      if (runPendingRef.current) return 3_000;
-      return data?.some((s) => s.status === "running") ? 3_000 : false;
+      return scanPollInterval({
+        status: data?.some((s) => s.status === "running") ? "running" : null,
+        requestPending: runPendingRef.current,
+      });
     },
   });
 
@@ -161,8 +163,10 @@ function DeepfakeIntelPage() {
     enabled: !!selectedScanId,
     refetchInterval: (q) => {
       const d = q.state.data as { scan?: { status?: string } } | null | undefined;
-      if (!d?.scan) return runPendingRef.current ? 3_000 : false;
-      return d.scan.status === "running" ? 3_000 : false;
+      return scanPollInterval({
+        status: d?.scan?.status ?? null,
+        requestPending: runPendingRef.current,
+      });
     },
   });
 
