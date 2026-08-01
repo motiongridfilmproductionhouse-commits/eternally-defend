@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -26,6 +26,15 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 import { buildVerifiedEvidenceLink } from "@/lib/deepfake/evidence-url";
+import {
+  isScanStalled,
+  isTerminalScanStatus,
+  pickLiveScanId,
+  scanPollInterval,
+  scanProgressSignature,
+  SCAN_STALL_WARNING_MS,
+  shouldShowResultsLoader,
+} from "@/lib/deepfake/scan-ui-state";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
@@ -125,6 +134,13 @@ function DeepfakeIntelPage() {
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
+  const [stalled, setStalled] = useState(false);
+  // Kept in a ref so the polling callbacks can react to an in-flight scan
+  // request without re-creating the query options on every render.
+  const runPendingRef = useRef(false);
+  const progressRef = useRef<{ signature: string; at: number } | null>(null);
+
+
 
   const profiles = useQuery({
     queryKey: ["deepfake-target-profiles"],
@@ -143,7 +159,10 @@ function DeepfakeIntelPage() {
     queryFn: () => listFn({}),
     refetchInterval: (q) => {
       const data = q.state.data as Array<{ status: string }> | undefined;
-      return data?.some((s) => s.status === "running") ? 3_000 : false;
+      return scanPollInterval({
+        status: data?.some((s) => s.status === "running") ? "running" : null,
+        requestPending: runPendingRef.current,
+      });
     },
   });
 
@@ -153,7 +172,10 @@ function DeepfakeIntelPage() {
     enabled: !!selectedScanId,
     refetchInterval: (q) => {
       const d = q.state.data as { scan?: { status?: string } } | null | undefined;
-      return d?.scan?.status === "running" ? 3_000 : false;
+      return scanPollInterval({
+        status: d?.scan?.status ?? null,
+        requestPending: runPendingRef.current,
+      });
     },
   });
 
@@ -364,6 +386,80 @@ function DeepfakeIntelPage() {
       qc.invalidateQueries({ queryKey: ["deepfake-scan", selectedScanId] });
     },
   });
+
+  const scanRequestPending = run.isPending || continueScan.isPending;
+  runPendingRef.current = scanRequestPending;
+
+  const selectedScanRow = selected.data?.scan ?? null;
+  const selectedScanStatus = selectedScanRow?.status ?? null;
+
+  /*
+   * The scan request itself runs the whole pipeline inline and can take
+   * minutes (or die on the server). Select the freshly created scan row as
+   * soon as it shows up in the history so live progress and saved findings
+   * render while the status is still "running".
+   */
+  useEffect(() => {
+    const candidateId = pickLiveScanId({
+      scans: (scans.data ?? []) as Array<{ id: string; status: string; target_name: string }>,
+      targetName,
+      selectedScanId,
+      requestPending: scanRequestPending,
+    });
+    if (candidateId) setSelectedScanId(candidateId);
+  }, [scanRequestPending, selectedScanId, scans.data, targetName]);
+
+  /*
+   * Polling is the source of truth for "is this scan still running". Once the
+   * row reaches a terminal status, drop the mutation's pending/loading state
+   * even if the original request never resolved.
+   */
+  useEffect(() => {
+    if (!isTerminalScanStatus(selectedScanStatus)) return;
+    if (run.isPending) run.reset();
+    if (continueScan.isPending) continueScan.reset();
+    setStalled(false);
+    qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedScanStatus, selectedScanId]);
+
+  // Polling health warning: no status/metrics/finding change for 15s.
+  useEffect(() => {
+    if (!selectedScanId || selectedScanStatus !== "running") {
+      progressRef.current = null;
+      setStalled(false);
+      return;
+    }
+    const signature = scanProgressSignature({
+      status: selectedScanStatus,
+      metrics: selectedScanRow?.discovery_metrics,
+      findingCount: selected.data?.findings?.length ?? 0,
+      discoveryCount: selected.data?.discoveries?.length ?? 0,
+    });
+    const now = Date.now();
+    if (progressRef.current?.signature !== signature) {
+      progressRef.current = { signature, at: now };
+      setStalled(false);
+    }
+    const lastChangeAt = progressRef.current.at;
+    const timer = window.setTimeout(
+      () =>
+        setStalled(
+          isScanStalled({ status: "running", lastChangeAt, now: Date.now() }),
+        ),
+      Math.max(SCAN_STALL_WARNING_MS - (now - lastChangeAt), 500),
+    );
+    return () => window.clearTimeout(timer);
+  }, [
+    selectedScanId,
+    selectedScanStatus,
+    selectedScanRow?.discovery_metrics,
+    selected.data?.findings?.length,
+    selected.data?.discoveries?.length,
+    selected.dataUpdatedAt,
+  ]);
+
+
 
   const onRun = () => {
     const name = targetName.trim();
@@ -834,6 +930,16 @@ function DeepfakeIntelPage() {
                         {diagnostics?.client_visible ?? scan.total_results ?? 0} threats saved
                       </div>
                     )}
+                    {scan.status === "running" && stalled && (
+                      <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-500">
+                        <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
+                        <span>
+                          No new progress for 15s — the sweep may have stalled on
+                          the server. Saved results below stay visible; the status
+                          updates automatically once the run recovers or times out.
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={scan.status} />
@@ -940,7 +1046,7 @@ function DeepfakeIntelPage() {
                 )}
               </div>
 
-              {selected.isLoading ? (
+              {shouldShowResultsLoader({ isLoading: selected.isLoading, hasScan: Boolean(scan) }) ? (
                 <div className="card-surface p-8 text-center text-sm text-muted-foreground">
                   <Loader2 className="size-5 mx-auto animate-spin mb-2" /> Loading findings…
                 </div>
