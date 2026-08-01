@@ -135,6 +135,20 @@ function DeepfakeIntelPage() {
     },
   });
 
+  const normalizeTarget = (value: string) => value.trim().toLowerCase();
+
+  const activeScanForIdentity = (scans.data ?? []).find((scan) => {
+    if (scan.status !== "running") return false;
+    if (normalizeTarget(scan.target_name) !== normalizeTarget(targetName)) {
+      return false;
+    }
+    const scanProfileId = (scan as { profile_id?: string | null }).profile_id ?? null;
+    const selected = selectedProfileId || null;
+    return scanProfileId === selected;
+  });
+
+  const identityScanLocked = Boolean(activeScanForIdentity);
+
   const run = useMutation({
     mutationFn: (input: {
       target_name: string;
@@ -144,11 +158,32 @@ function DeepfakeIntelPage() {
       google_images_url?: string;
     }) => runFn({ data: input }),
     onSuccess: (res) => {
+      setSelectedScanId(res.scan_id);
+      qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
+      qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
+
+      if ((res as { already_running?: boolean }).already_running) {
+        toast.message(
+          "A scan is already running for this identity — showing live progress.",
+        );
+        return;
+      }
+
+      if (res.status === "partial") {
+        toast.message(
+          `Partial results — ${res.total_results} threats saved before the scan deadline.`,
+        );
+        return;
+      }
+
+      if (res.status === "failed") {
+        toast.error("Scan failed before verified progress was saved.");
+        return;
+      }
+
       toast.success(
         `Scan complete — ${res.total_results} threats classified from ${res.discovered_results} latest public leads`,
       );
-      setSelectedScanId(res.scan_id);
-      qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
   });
@@ -258,6 +293,14 @@ function DeepfakeIntelPage() {
 
     if (!name) {
       toast.error("Enter a target name");
+      return;
+    }
+
+    if (activeScanForIdentity) {
+      setSelectedScanId(activeScanForIdentity.id);
+      toast.message(
+        "A scan is already running for this identity — showing live progress.",
+      );
       return;
     }
 
@@ -596,6 +639,7 @@ function DeepfakeIntelPage() {
               onClick={onRun}
               disabled={
                 run.isPending ||
+                identityScanLocked ||
                 (
                   !googleImagesUrl.trim() &&
                   (
@@ -605,10 +649,12 @@ function DeepfakeIntelPage() {
                 )
               }
             >
-              {run.isPending ? (
+              {run.isPending || identityScanLocked ? (
                 <>
                   <Loader2 className="size-4 mr-2 animate-spin" />
-                  Face-verifying and scanning…
+                  {identityScanLocked && !run.isPending
+                    ? "Scan already running for this identity…"
+                    : "Face-verifying and scanning…"}
                 </>
               ) : (
                 <>
@@ -621,7 +667,9 @@ function DeepfakeIntelPage() {
               )}
             </Button>
             <p className="text-[11px] text-muted-foreground">
-              Searches public web pages for exact-identity synthetic, face-swap, and explicit-media threats.
+              {identityScanLocked
+                ? "Another active scan for this identity is in progress. Results stay visible as they are saved."
+                : "Searches public web pages for exact-identity synthetic, face-swap, and explicit-media threats."}
             </p>
           </div>
 
@@ -679,8 +727,16 @@ function DeepfakeIntelPage() {
                     <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">TARGET</div>
                     <div className="text-lg font-semibold">{scan.target_name}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {scan.total_queries} fresh queries · {scan.total_results} classified threats · {discoveries.length} public leads
+                      {(diagnostics?.queries_executed ?? scan.total_queries)} fresh queries · {scan.total_results} classified threats · {discoveries.length} public leads
                     </div>
+                    {scan.status === "running" && diagnostics && (
+                      <div className="mt-1 text-[11px] text-blue-400">
+                        Live progress: {diagnostics.queries_executed ?? 0}/
+                        {diagnostics.queries_generated ?? scan.total_queries ?? 0} queries ·{" "}
+                        {diagnostics.crawl_succeeded ?? 0} pages verified ·{" "}
+                        {diagnostics.client_visible ?? 0} threats saved
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={scan.status} />
@@ -700,15 +756,27 @@ function DeepfakeIntelPage() {
                     </div>
                   </div>
                 </div>
-                {scan.error_message && (
+                {scan.status === "partial" && (
+                  <div className="mt-3 text-xs text-amber-500 flex items-start gap-2">
+                    <AlertTriangle className="size-3.5 mt-0.5" />
+                    Partial results — verified findings saved before the scan deadline are listed below.
+                    {scan.error_message ? ` ${scan.error_message}` : ""}
+                  </div>
+                )}
+                {scan.status === "failed" && scan.error_message && (
                   <div className="mt-3 text-xs text-red-500 flex items-start gap-2">
                     <AlertTriangle className="size-3.5 mt-0.5" /> {scan.error_message}
                   </div>
                 )}
-                {diagnostics && (
-                  <details className="mt-3 rounded-md border border-border/70 bg-secondary/20 p-3">
+                {scan.status !== "partial" && scan.status !== "failed" && scan.error_message && (
+                  <div className="mt-3 text-xs text-red-500 flex items-start gap-2">
+                    <AlertTriangle className="size-3.5 mt-0.5" /> {scan.error_message}
+                  </div>
+                )}
+                {(diagnostics || scan.status === "running") && (
+                  <details className="mt-3 rounded-md border border-border/70 bg-secondary/20 p-3" open={scan.status === "running"}>
                     <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Discovery Diagnostics
+                      {scan.status === "running" ? "Live Discovery Progress" : "Discovery Diagnostics"}
                     </summary>
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                       {DIAGNOSTIC_KEYS.map((key) => (
@@ -720,13 +788,13 @@ function DeepfakeIntelPage() {
                             {metricLabel(key)}
                           </div>
                           <div className="mt-0.5 text-sm font-semibold">
-                            {diagnostics[key] ?? 0}
+                            {diagnostics?.[key] ?? 0}
                           </div>
                         </div>
                       ))}
                     </div>
-                    {typeof diagnostics.crawl_failed === "number" &&
-                      typeof diagnostics.crawl_succeeded === "number" && (
+                    {typeof diagnostics?.crawl_failed === "number" &&
+                      typeof diagnostics?.crawl_succeeded === "number" && (
                         <div className="mt-2 text-[11px] text-muted-foreground">
                           Crawl failure rate{" "}
                           {Math.round(
@@ -752,8 +820,12 @@ function DeepfakeIntelPage() {
               ) : filtered.length === 0 ? (
                 <div className="card-surface p-10 text-center text-sm text-muted-foreground">
                   {scan.status === "running"
-                    ? "Sweep in progress — results appear as classification completes."
-                    : "No findings at this risk level."}
+                    ? "Sweep in progress — verified results appear as batches are saved."
+                    : scan.status === "partial"
+                      ? "Partial scan finished with no client-visible threats at this risk level. Check public leads below."
+                      : scan.status === "failed"
+                        ? (scan.error_message || "Scan failed before verified progress was saved.")
+                        : "No findings at this risk level."}
                 </div>
               ) : (
                 <ul className="space-y-2.5">
@@ -857,12 +929,17 @@ function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     running:   "bg-blue-500/15 text-blue-400 border-blue-500/40",
     completed: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
+    partial:   "bg-amber-500/15 text-amber-400 border-amber-500/40",
     failed:    "bg-red-500/15 text-red-400 border-red-500/40",
   };
+  const label =
+    status === "partial"
+      ? "partial results"
+      : status;
   const cls = map[status] ?? "bg-secondary text-muted-foreground border-border/60";
   return (
     <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${cls}`}>
-      {status}
+      {label}
     </span>
   );
 }

@@ -255,20 +255,44 @@ export async function readResponseText(
   const chunks: Uint8Array[] = [];
   const decoder = new TextDecoder();
 
+  const onAbort = () => {
+    try {
+      void reader.cancel(signal?.reason ?? new ScanAbortedError());
+    } catch {
+      // ignore
+    }
+  };
+
+  signal?.addEventListener("abort", onAbort, { once: true });
+
   try {
     while (true) {
       assertNotAborted(signal);
       const { done, value } = await reader.read();
+      /*
+       * Cancelled streams often resolve read() with done=true instead of
+       * rejecting. Treat parent abort as failure even after a clean done.
+       */
+      assertNotAborted(signal);
       if (done) break;
       if (value) chunks.push(value);
     }
+  } catch (error) {
+    if (signal?.aborted || isAbortError(error)) {
+      assertNotAborted(signal);
+      throw error;
+    }
+    throw error;
   } finally {
+    signal?.removeEventListener("abort", onAbort);
     try {
       reader.releaseLock();
     } catch {
       // ignore
     }
   }
+
+  assertNotAborted(signal);
 
   let total = 0;
   for (const chunk of chunks) total += chunk.byteLength;

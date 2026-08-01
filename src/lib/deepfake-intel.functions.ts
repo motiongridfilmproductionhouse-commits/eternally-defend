@@ -149,10 +149,14 @@ const EMPTY_VERIFICATION_METRICS: VerificationMetrics = {
 
 const MEDIA_PROCESS_BATCH_SIZE = 12;
 
-function alreadyRunningError(scanId: string): Error {
-  return new Error(
-    `A scan is already running for this identity (scan_id: ${scanId})`,
-  );
+function alreadyRunningResult(scanId: string) {
+  return {
+    scan_id: scanId,
+    total_results: 0,
+    discovered_results: 0,
+    status: "running" as const,
+    already_running: true as const,
+  };
 }
 
 function syncVerificationMetrics(
@@ -308,7 +312,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
     });
 
     if (activeScan) {
-      throw alreadyRunningError(activeScan.id);
+      return alreadyRunningResult(activeScan.id);
     }
 
     const nowMs = Date.now();
@@ -343,7 +347,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           targetName: data.target_name,
         });
         if (concurrent) {
-          throw alreadyRunningError(concurrent.id);
+          return alreadyRunningResult(concurrent.id);
         }
       }
       throw new Error(sErr?.message ?? "failed to create scan");
