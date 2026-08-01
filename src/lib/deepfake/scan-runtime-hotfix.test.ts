@@ -172,13 +172,20 @@ function createFakeSupabase(initialRows: FakeRow[] = []) {
               const matched = rows.filter((row) => matches(row, state.filters));
               for (const row of matched) {
                 if (
-                  (row.status === "completed" ||
-                    row.status === "failed" ||
-                    row.status === "partial") &&
+                  (row.status === "completed" || row.status === "failed") &&
                   state.patch?.status === "running"
                 ) {
                   throw new Error(
                     "deepfake_scans: terminal status cannot transition back to running",
+                  );
+                }
+                if (
+                  row.status === "partial" &&
+                  state.patch?.status === "running" &&
+                  state.filters.status !== "partial"
+                ) {
+                  throw new Error(
+                    "deepfake_scans: partial → running is only allowed through continue_scan",
                   );
                 }
                 Object.assign(row, state.patch);
@@ -797,4 +804,91 @@ test("scrape abort throws instead of soft-continuing", async () => {
     if (originalKey === undefined) delete process.env.FIRECRAWL_API_KEY;
     else process.env.FIRECRAWL_API_KEY = originalKey;
   }
+});
+
+test("stale token cannot finalize after continuation issues a new token", async () => {
+  const scanId = crypto.randomUUID();
+  const oldToken = createScanRunToken();
+  const newToken = createScanRunToken();
+  const runtime = createScanRuntime({ hardTimeoutMs: 120_000 });
+  const supabase = createFakeSupabase([
+    {
+      id: scanId,
+      status: "running",
+      scan_run_token: newToken,
+      user_id: "u1",
+      target_name: "Honey Rose",
+    },
+  ]);
+
+  const stale = await finalizeScanStatus({
+    supabase,
+    ownership: { scanId, scanRunToken: oldToken, runtime },
+    status: "failed",
+    errorMessage: "stale invocation must not overwrite continued scan",
+  });
+
+  assert.equal(stale.applied, false);
+  assert.equal(supabase.rows[0]?.status, "running");
+  assert.equal(supabase.rows[0]?.scan_run_token, newToken);
+  assert.equal(supabase.rows[0]?.error_message, undefined);
+
+  await touchScanProgress({
+    supabase,
+    ownership: { scanId, scanRunToken: newToken, runtime },
+    patch: { total_queries: 12 },
+  }).catch(() => {
+    /* heartbeat may still succeed */
+  });
+
+  await assert.rejects(
+    () =>
+      touchScanProgress({
+        supabase,
+        ownership: { scanId, scanRunToken: oldToken, runtime },
+        patch: { total_queries: 99 },
+      }),
+    (error: unknown) => error instanceof ScanOwnershipLostError,
+  );
+  assert.notEqual(supabase.rows[0]?.total_queries, 99);
+});
+
+test("two continue-style acquires cannot both claim the same partial scan", async () => {
+  const scanId = crypto.randomUUID();
+  const supabase = createFakeSupabase([
+    {
+      id: scanId,
+      status: "partial",
+      scan_run_token: null,
+      user_id: "u1",
+      target_name: "Honey Rose",
+      profile_id: null,
+    },
+  ]);
+
+  const first = await supabase
+    .from("deepfake_scans")
+    .update({
+      status: "running",
+      scan_run_token: createScanRunToken(),
+      finished_at: null,
+    })
+    .eq("id", scanId)
+    .eq("status", "partial")
+    .select("id");
+
+  const second = await supabase
+    .from("deepfake_scans")
+    .update({
+      status: "running",
+      scan_run_token: createScanRunToken(),
+      finished_at: null,
+    })
+    .eq("id", scanId)
+    .eq("status", "partial")
+    .select("id");
+
+  assert.equal(first.data?.length, 1);
+  assert.equal(second.data?.length, 0);
+  assert.equal(supabase.rows[0]?.status, "running");
 });

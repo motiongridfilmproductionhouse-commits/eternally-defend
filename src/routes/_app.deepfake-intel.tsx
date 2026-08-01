@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   runDeepfakeScan,
+  continueDeepfakeScan,
   listDeepfakeScans,
   getDeepfakeScan,
   updateDeepfakeFinding,
@@ -80,12 +81,33 @@ function metricRecord(value: unknown): Record<string, number> | null {
   return Object.keys(out).length ? out : null;
 }
 
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
 function metricLabel(key: string): string {
   return key.replace(/_/g, " ");
 }
 
+function stageLabel(stage?: unknown): string | null {
+  if (typeof stage !== "string") return null;
+  const labels: Record<string, string> = {
+    discovering: "Discovering",
+    verifying: "Verifying",
+    classifying: "Classifying",
+    saving: "Saving",
+    checkpoint: "Checkpoint saved",
+    done: "Done",
+  };
+  return labels[stage] ?? null;
+}
+
 function DeepfakeIntelPage() {
   const runFn = useServerFn(runDeepfakeScan);
+  const continueFn = useServerFn(continueDeepfakeScan);
   const listFn = useServerFn(listDeepfakeScans);
   const getFn = useServerFn(getDeepfakeScan);
   const updFn = useServerFn(updateDeepfakeFinding);
@@ -149,6 +171,29 @@ function DeepfakeIntelPage() {
 
   const identityScanLocked = Boolean(activeScanForIdentity);
 
+  const activeScanForSelectedScan = (selectedScan: {
+    id: string;
+    target_name: string;
+    profile_id?: string | null;
+  } | null) => {
+    if (!selectedScan) return null;
+    return (scans.data ?? []).find((scan) => {
+      if (scan.status !== "running") return false;
+      if (scan.id === selectedScan.id) return false;
+      if (
+        normalizeTarget(scan.target_name) !==
+        normalizeTarget(selectedScan.target_name)
+      ) {
+        return false;
+      }
+      const scanProfileId =
+        (scan as { profile_id?: string | null }).profile_id ?? null;
+      const selectedProfile =
+        (selectedScan as { profile_id?: string | null }).profile_id ?? null;
+      return scanProfileId === selectedProfile;
+    }) ?? null;
+  };
+
   const run = useMutation({
     mutationFn: (input: {
       target_name: string;
@@ -186,6 +231,38 @@ function DeepfakeIntelPage() {
       );
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
+  });
+
+  const continueScan = useMutation({
+    mutationFn: (scan_id: string) => continueFn({ data: { scan_id } }),
+    onSuccess: (res) => {
+      setSelectedScanId(res.scan_id);
+      qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
+      qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
+
+      if ((res as { already_running?: boolean }).already_running) {
+        toast.message(
+          "A scan is already running for this identity — showing live progress.",
+        );
+        return;
+      }
+
+      if (res.status === "partial") {
+        toast.message("Scan checkpoint saved again. Continue when ready.");
+        return;
+      }
+
+      if (res.status === "failed") {
+        toast.error("Scan could not continue before verified progress was saved.");
+        return;
+      }
+
+      toast.success(`Scan complete — ${res.total_results} threats saved`);
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "Unable to continue scan",
+      ),
   });
 
   const createProfile = useMutation({
@@ -372,6 +449,26 @@ function DeepfakeIntelPage() {
   const discoveries = selected.data?.discoveries ?? [];
   const filtered = riskFilter === "ALL" ? findings : findings.filter((f) => f.risk_level === riskFilter);
   const diagnostics = metricRecord(scan?.discovery_metrics);
+  const discoveryMetricObject = objectRecord(scan?.discovery_metrics);
+  const checkpoint = objectRecord(scan?.scan_checkpoint);
+  const liveStage =
+    stageLabel(discoveryMetricObject?.stage) ??
+    stageLabel(checkpoint?.stage);
+  const plannedQueries =
+    (typeof checkpoint?.planned_query_count === "number"
+      ? checkpoint.planned_query_count
+      : undefined) ??
+    (typeof checkpoint?.queries === "object" && Array.isArray(checkpoint.queries)
+      ? checkpoint.queries.length
+      : undefined) ??
+    diagnostics?.queries_generated ??
+    scan?.total_queries ??
+    0;
+  const executedQueries =
+    diagnostics?.queries_executed ??
+    (typeof checkpoint?.next_query_index === "number"
+      ? checkpoint.next_query_index
+      : 0);
 
   return (
     <div className="space-y-6">
@@ -727,14 +824,14 @@ function DeepfakeIntelPage() {
                     <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">TARGET</div>
                     <div className="text-lg font-semibold">{scan.target_name}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {(diagnostics?.queries_executed ?? scan.total_queries)} fresh queries · {scan.total_results} classified threats · {discoveries.length} public leads
+                      {executedQueries}/{plannedQueries} fresh queries · {scan.total_results} classified threats · {discoveries.length} public leads
                     </div>
-                    {scan.status === "running" && diagnostics && (
+                    {(scan.status === "running" || scan.status === "partial") && (
                       <div className="mt-1 text-[11px] text-blue-400">
-                        Live progress: {diagnostics.queries_executed ?? 0}/
-                        {diagnostics.queries_generated ?? scan.total_queries ?? 0} queries ·{" "}
-                        {diagnostics.crawl_succeeded ?? 0} pages verified ·{" "}
-                        {diagnostics.client_visible ?? 0} threats saved
+                        {liveStage ? `${liveStage} · ` : "Progress · "}
+                        {executedQueries}/{plannedQueries} queries ·{" "}
+                        {diagnostics?.crawl_succeeded ?? 0} pages verified ·{" "}
+                        {diagnostics?.client_visible ?? scan.total_results ?? 0} threats saved
                       </div>
                     )}
                   </div>
@@ -757,10 +854,40 @@ function DeepfakeIntelPage() {
                   </div>
                 </div>
                 {scan.status === "partial" && (
-                  <div className="mt-3 text-xs text-amber-500 flex items-start gap-2">
-                    <AlertTriangle className="size-3.5 mt-0.5" />
-                    Partial results — verified findings saved before the scan deadline are listed below.
-                    {scan.error_message ? ` ${scan.error_message}` : ""}
+                  <div className="mt-3 flex flex-col gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-500 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="font-medium">
+                          Scan paused with verified progress saved.
+                        </div>
+                        <div className="mt-0.5 text-amber-500/90">
+                          {activeScanForSelectedScan(scan)
+                            ? "Another scan is already running for this identity. Continue is unavailable until that run finishes."
+                            : "Continue resumes from the checkpoint without repeating completed queries."}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+                      disabled={
+                        continueScan.isPending ||
+                        Boolean(activeScanForSelectedScan(scan))
+                      }
+                      onClick={() => continueScan.mutate(scan.id)}
+                    >
+                      {continueScan.isPending ? (
+                        <>
+                          <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                          Continuing…
+                        </>
+                      ) : (
+                        "Continue scan"
+                      )}
+                    </Button>
                   </div>
                 )}
                 {scan.status === "failed" && scan.error_message && (
