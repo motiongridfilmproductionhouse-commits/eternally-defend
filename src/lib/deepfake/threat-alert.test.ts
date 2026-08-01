@@ -238,6 +238,17 @@ test("page reload / history selection uses status role", () => {
   assert.equal(reload.next.hasAnnouncedMultiple, true);
 });
 
+test("history selection after loading placeholder does not alert", () => {
+  // Route records distinctTotal:-1 while the new scan query is in flight.
+  // First loaded payload must be treated like previous:null → status.
+  const afterLoad = resolveThreatAlertAnnouncement({
+    scanId: "scan-history",
+    distinctTotal: 2,
+    previous: null,
+  });
+  assert.equal(afterLoad.role, "status");
+});
+
 test("changing selected scans recalculates and does not reuse prior alert announcement", () => {
   const scanA = resolveThreatAlertAnnouncement({
     scanId: "a",

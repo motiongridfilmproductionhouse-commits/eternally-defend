@@ -637,16 +637,51 @@ function DeepfakeIntelPage() {
   const [threatBannerRole, setThreatBannerRole] = useState<"alert" | "status">(
     "status",
   );
-  // useLayoutEffect so role="alert" is applied before paint on the <2→2+ crossing.
+  // useLayoutEffect so role="alert" is applied before paint on the live <2→2+ crossing.
+  // Skip zero-total baselines while the newly selected scan is still loading so
+  // history selection / reload of an already-saved multi-threat scan stays role="status".
   useLayoutEffect(() => {
+    if (!selectedScanId) {
+      threatAnnouncementRef.current = null;
+      setThreatBannerRole("status");
+      return;
+    }
+
+    const loadedScanId = selected.data?.scan?.id ?? null;
+    if (loadedScanId !== selectedScanId || selected.isLoading) {
+      if (threatAnnouncementRef.current?.scanId !== selectedScanId) {
+        // Mark the selection change without recording distinctTotal: 0.
+        threatAnnouncementRef.current = {
+          scanId: selectedScanId,
+          distinctTotal: -1,
+          hasAnnouncedMultiple: false,
+        };
+        setThreatBannerRole("status");
+      }
+      return;
+    }
+
+    const previous = threatAnnouncementRef.current;
+    const effectivePrevious =
+      !previous ||
+      previous.scanId !== selectedScanId ||
+      previous.distinctTotal < 0
+        ? null
+        : previous;
+
     const decision = resolveThreatAlertAnnouncement({
       scanId: selectedScanId,
       distinctTotal: threatSummary.total,
-      previous: threatAnnouncementRef.current,
+      previous: effectivePrevious,
     });
     threatAnnouncementRef.current = decision.next;
     setThreatBannerRole(decision.role);
-  }, [selectedScanId, threatSummary.total]);
+  }, [
+    selectedScanId,
+    selected.data?.scan?.id,
+    selected.isLoading,
+    threatSummary.total,
+  ]);
 
   const scrollToThreatSection = (elementIds: string | string[]) => {
     if (typeof document === "undefined") return;
