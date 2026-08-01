@@ -3186,9 +3186,13 @@ export const Route = createFileRoute("/api/scan")({
           const variations = Array.from(
             new Set([
               ...variationsIn,
-              ...identityExpansion.nicknames,
-              ...identityExpansion.characterNames,
-              identityExpansion.correctedQuery,
+              ...(identityExpansion.ambiguous
+                ? []
+                : [
+                    ...identityExpansion.nicknames,
+                    ...identityExpansion.characterNames,
+                    identityExpansion.correctedQuery,
+                  ]),
             ]),
           )
             .map((v) => String(v).slice(0, 60))

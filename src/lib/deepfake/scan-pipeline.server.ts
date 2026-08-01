@@ -396,21 +396,23 @@ export async function executeInterleavedDeepfakePipeline(input: {
     userId: input.userId,
     persistedProfile,
   });
-  // When ambiguous, do not promote competing candidate names into match aliases.
+  // When ambiguous, do not promote competing / spelling-corrected celebrity forms.
   const expandedIdentities = expansion.ambiguous
-    ? uniqueStrings([
-        input.target.name,
-        expansion.correctedQuery,
-        ...input.target.aliases,
-        ...expansion.localLanguageNames,
-      ])
+    ? uniqueStrings([input.target.name, ...input.target.aliases])
     : expansionToIdentityList(expansion);
   const expandedTarget = {
-    name: expansion.canonicalName ?? input.target.name,
+    name: expansion.ambiguous
+      ? input.target.name
+      : (expansion.canonicalName ?? input.target.name),
     aliases: uniqueStrings([
       ...input.target.aliases,
       ...expandedIdentities.filter(
-        (id) => id.toLowerCase() !== (expansion.canonicalName ?? input.target.name).toLowerCase(),
+        (id) =>
+          id.toLowerCase() !==
+          (expansion.ambiguous
+            ? input.target.name
+            : (expansion.canonicalName ?? input.target.name)
+          ).toLowerCase(),
       ),
     ]),
     handles: uniqueStrings([...input.target.handles, ...expansion.usernames]),
