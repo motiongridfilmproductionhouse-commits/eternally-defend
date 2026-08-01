@@ -1223,6 +1223,7 @@ function DeepfakeIntelPage() {
                 </div>
               ) : (
                 <ResultsIntelligenceConsole
+                  scanId={scan.id}
                   scanStatus={scan.status}
                   targetName={scan.target_name}
                   artistThumbnailUrl={thumbnailUrl}

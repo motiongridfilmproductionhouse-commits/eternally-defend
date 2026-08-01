@@ -23,6 +23,7 @@ import {
 import { IntelligenceFindingCard } from "./IntelligenceFindingCard";
 
 type Props = {
+  scanId: string;
   scanStatus: string;
   targetName: string;
   artistThumbnailUrl?: string | null;
@@ -45,6 +46,7 @@ type Props = {
 };
 
 export function ResultsIntelligenceConsole({
+  scanId,
   scanStatus,
   targetName,
   artistThumbnailUrl,
@@ -68,6 +70,7 @@ export function ResultsIntelligenceConsole({
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const knownIdsRef = useRef<Set<string>>(new Set());
+  const seededScanRef = useRef<string | null>(null);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
@@ -79,6 +82,21 @@ export function ResultsIntelligenceConsole({
     return () => media.removeEventListener("change", update);
   }, []);
 
+  // Reset local console state when the selected scan changes.
+  useEffect(() => {
+    setDomainFilter(null);
+    setClassificationFilter("ALL");
+    setSearch("");
+    setSortKey("risk");
+    setSortDirection("desc");
+    setPage(1);
+    setSelectedFindingId(null);
+    setNewIds(new Set());
+    knownIdsRef.current = new Set();
+    seededScanRef.current = null;
+    cardRefs.current.clear();
+  }, [scanId]);
+
   const visibleFindings = useMemo(
     () => displayableFindings(findings),
     [findings],
@@ -86,6 +104,14 @@ export function ResultsIntelligenceConsole({
 
   useEffect(() => {
     const next = new Set(visibleFindings.map((finding) => finding.id));
+    if (seededScanRef.current !== scanId) {
+      // First observation of this scan: seed without pulsing the backlog.
+      knownIdsRef.current = next;
+      seededScanRef.current = scanId;
+      setNewIds(new Set());
+      return;
+    }
+
     const newcomers = new Set<string>();
     for (const id of next) {
       if (!knownIdsRef.current.has(id)) newcomers.add(id);
@@ -99,7 +125,7 @@ export function ResultsIntelligenceConsole({
       }
     }
     return undefined;
-  }, [visibleFindings, scanStatus, reduceMotion]);
+  }, [visibleFindings, scanStatus, reduceMotion, scanId]);
 
   const overview = useMemo(
     () => buildOverviewMetrics({ findings: visibleFindings, diagnostics }),
@@ -165,6 +191,17 @@ export function ResultsIntelligenceConsole({
   useEffect(() => {
     setPage(1);
   }, [domainFilter, classificationFilter, search, riskFilter]);
+
+  // Drop a stale domain filter when risk/classification no longer includes it.
+  useEffect(() => {
+    if (!domainFilter) return;
+    const stillPresent = networkFindings.some(
+      (finding) => findingDomain(finding) === domainFilter,
+    );
+    if (!stillPresent) {
+      setDomainFilter(null);
+    }
+  }, [domainFilter, networkFindings]);
 
   const selectFinding = (findingId: string) => {
     const target = networkFindings.find((item) => item.id === findingId);
