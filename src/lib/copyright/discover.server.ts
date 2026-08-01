@@ -274,6 +274,7 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
     "full movie",
     "download",
     "stream",
+    "server",
     "CAM",
     "HDCAM",
     "HDTS",

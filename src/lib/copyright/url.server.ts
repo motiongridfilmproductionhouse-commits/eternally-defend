@@ -37,6 +37,10 @@ const OFFICIAL_HOSTS = [
   "sonyliv.com", "zee5.com", "jiocinema.com", "jiohotstar.com", "aha.video", "sunnxt.com",
   "mubi.com", "crunchyroll.com", "roku.com", "vudu.com", "fandangonow.com", "microsoft.com",
   "manoramamax.com", "simplysouth.tv", "erosnow.com", "voot.com", "lionsgateplay.com",
+  // authorized catalog / discovery (Plex etc.) — never piracy sources by hostname
+  "plex.tv", "watch.plex.tv", "app.plex.tv",
+  // YouTube is handled with exact-watch rules; exclude ordinary discovery hits
+  "youtube.com", "youtu.be", "m.youtube.com", "music.youtube.com",
   // studios / distributors / official
   "marvel.com", "sonypictures.com", "warnerbros.com", "universalpictures.com", "paramount.com",
   "20thcenturystudios.com", "focusfeatures.com", "a24films.com", "lionsgate.com", "mgm.com",
@@ -69,7 +73,8 @@ const FILE_HOST_HINTS = [
 
 const VIDEO_HOST_HINTS = [
   "dailymotion.com", "ok.ru", "vk.com", "rumble.com", "bitchute.com", "archive.org",
-  "vimeo.com", "youtube.com", "youtu.be", "streamable.com", "odysee.com",
+  "vimeo.com", "streamable.com", "odysee.com",
+  // youtube.com / youtu.be intentionally omitted — official-platform gate handles them
 ];
 
 const TORRENT_HINTS = [

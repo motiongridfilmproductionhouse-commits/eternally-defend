@@ -22,6 +22,8 @@ import {
   analyzeDistributionPage,
   type DistributionAnalysis,
 } from "./distribution.server";
+import { isNeverMonitoredDomain } from "./official-platforms";
+import { isActionablePiracy } from "./taxonomy";
 
 type DB = SupabaseClient<Database>;
 type SourceRow = Database["public"]["Tables"]["distribution_sources"]["Row"];
@@ -73,8 +75,40 @@ function linkDomains(links: string[]): string[] {
 }
 
 /**
+ * Whether an analysis may create/update a monitored distribution source.
+ * Requires exact-title identity, access evidence, actionable non-official
+ * classification, and a URL-verified exact page — never hostname reputation.
+ */
+export function shouldRegisterMonitoredSource(a: DistributionAnalysis): boolean {
+  if (!a.strongEvidence || !a.clientVisible) return false;
+  if (!isActionablePiracy(a.classification)) return false;
+  if (isNeverMonitoredDomain(a.url)) return false;
+  if (
+    a.classification === "OFFICIAL_OR_AUTHORIZED" ||
+    a.classification === "CATALOG_OR_LISTING" ||
+    a.classification === "TRAILER_OR_PROMO" ||
+    a.contentType === "official_platform" ||
+    a.contentType === "cinema_or_showtime" ||
+    a.contentType === "trailer_or_promo" ||
+    a.contentType === "news_or_review"
+  ) {
+    return false;
+  }
+  if (!a.identityEvidence.length || !a.accessEvidence.length) return false;
+  if (a.crawlFailed) return false;
+  // Never register a bare homepage / root path as the monitored target.
+  try {
+    const path = new URL(a.url).pathname.replace(/\/$/, "") || "/";
+    if (path === "/" && !a.indicatorKeys.includes("torrent_or_magnet")) return false;
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Upsert a discovered distribution source and register it in the Auto Monitor.
- * Returns the stored source row, or null when the analysis is not strong enough.
+ * Stores the exact evidence page URL. Returns null when registration gates fail.
  */
 export async function registerDistributionSource(
   supabase: DB,
@@ -87,8 +121,11 @@ export async function registerDistributionSource(
   },
 ): Promise<SourceRow | null> {
   const a = opts.analysis;
+  if (!shouldRegisterMonitoredSource(a)) return null;
+
   const domain = a.domain ?? hostOf(a.url);
   if (!domain) return null;
+  const evidenceUrl = canonicalUrl(a.url);
 
   const kind = sourceKindFor(a.url, a.contentType);
   const nowIso = new Date().toISOString();
@@ -99,6 +136,14 @@ export async function registerDistributionSource(
     .eq("user_id", opts.userId)
     .eq("domain", domain)
     .maybeSingle();
+
+  // Prefer keeping a more specific evidence URL over a homepage if one exists.
+  const priorUrl = existing?.url ? canonicalUrl(existing.url) : null;
+  const preferUrl =
+    priorUrl && priorUrl !== evidenceUrl && /\/.+/.test(new URL(priorUrl).pathname) &&
+    (new URL(evidenceUrl).pathname.replace(/\/$/, "") || "/") === "/"
+      ? priorUrl
+      : evidenceUrl;
 
   const titles = new Set<string>([
     ...((existing?.tracked_titles as string[] | null) ?? []),
@@ -114,12 +159,19 @@ export async function registerDistributionSource(
     release_offset_days: a.releaseOffsetDays,
     reason: a.reason,
     last_page_title: a.pageTitle,
+    exact_evidence_url: evidenceUrl,
+    canonical_url: evidenceUrl,
+    source_host: domain,
+    classification: a.classification,
+    identity_evidence: a.identityEvidence,
+    access_evidence: a.accessEvidence,
+    acceptance_explanation: a.reason,
   };
 
   const payload = {
     user_id: opts.userId,
     domain,
-    url: canonicalUrl(a.url),
+    url: preferUrl,
     source_kind: kind,
     content_type: a.contentType,
     platform: opts.platform ?? null,
@@ -156,9 +208,17 @@ export async function registerDistributionSource(
       incidentType: "new_source_discovered",
       severity: a.domainRisk,
       confidence: a.confidence,
-      url: a.url,
-      summary: `New unauthorized distribution source discovered (${kind.replace(/_/g, " ")}): ${domain}.`,
-      evidence: { indicators: a.indicatorKeys, reason: a.reason, screenshot: a.screenshot },
+      url: evidenceUrl,
+      summary: `New unauthorized distribution evidence page discovered (${kind.replace(/_/g, " ")}): ${evidenceUrl}.`,
+      evidence: {
+        indicators: a.indicatorKeys,
+        reason: a.reason,
+        screenshot: a.screenshot,
+        exact_evidence_url: evidenceUrl,
+        classification: a.classification,
+        identity_evidence: a.identityEvidence,
+        access_evidence: a.accessEvidence,
+      },
     });
   }
 

@@ -16,11 +16,15 @@ export const COPYRIGHT_CLASSIFICATIONS = [
   "MIRROR_OR_REDIRECT",
   "DUPLICATE_ARTWORK_ONLY",
   "OFFICIAL_OR_AUTHORIZED",
+  "OFFICIAL_OR_AUTHORIZED_PAGE",
   "TRAILER_OR_PROMO",
+  "TRAILER_OR_PROMOTIONAL",
   "CINEMA_OR_SHOWTIME",
   "REVIEW_OR_NEWS",
   "CAST_OR_INFORMATION",
   "SOCIAL_DISCUSSION",
+  "CATALOG_OR_LISTING",
+  "INVESTIGATION_LEAD",
   "UNVERIFIED_LEAD",
   "UNRELATED",
 ] as const;
@@ -51,11 +55,15 @@ export const TYPE_LABEL: Record<CopyrightClassification, string> = {
   MIRROR_OR_REDIRECT: "Mirror or redirect",
   DUPLICATE_ARTWORK_ONLY: "Duplicate artwork only",
   OFFICIAL_OR_AUTHORIZED: "Official or authorized",
+  OFFICIAL_OR_AUTHORIZED_PAGE: "Official or authorized page",
   TRAILER_OR_PROMO: "Trailer or promo",
+  TRAILER_OR_PROMOTIONAL: "Trailer or promotional",
   CINEMA_OR_SHOWTIME: "Cinema or showtime",
   REVIEW_OR_NEWS: "Review or news",
   CAST_OR_INFORMATION: "Cast or information",
   SOCIAL_DISCUSSION: "Social discussion",
+  CATALOG_OR_LISTING: "Catalog or listing",
+  INVESTIGATION_LEAD: "Investigation lead",
   UNVERIFIED_LEAD: "Unverified lead",
   UNRELATED: "Unrelated",
 };
@@ -82,6 +90,9 @@ const LEGACY_TO_TAXONOMY: Record<string, CopyrightClassification> = {
   forum_post: "SOCIAL_DISCUSSION",
   artwork_reupload: "DUPLICATE_ARTWORK_ONLY",
   web_lead: "UNVERIFIED_LEAD",
+  OFFICIAL_OR_AUTHORIZED_PAGE: "OFFICIAL_OR_AUTHORIZED",
+  TRAILER_OR_PROMOTIONAL: "TRAILER_OR_PROMO",
+  INVESTIGATION_LEAD: "UNVERIFIED_LEAD",
 };
 
 const LEGACY_CONTENT_TYPE_TO_TAXONOMY: Record<string, CopyrightClassification> = {
@@ -146,9 +157,31 @@ export function resolveClassification(opts: {
 export function isActionablePiracy(
   classification: string | null | undefined,
 ): boolean {
-  return ACTIONABLE_PIRACY_CLASSIFICATIONS.has(
-    normalizeClassification(classification),
-  );
+  const cls = normalizeClassification(classification);
+  // YouTube-style VIDEO_HOST_REUPLOAD is actionable only when client-visible
+  // gates also pass; official aliases never are.
+  if (
+    cls === "OFFICIAL_OR_AUTHORIZED" ||
+    cls === "OFFICIAL_OR_AUTHORIZED_PAGE" ||
+    cls === "CATALOG_OR_LISTING" ||
+    cls === "TRAILER_OR_PROMO" ||
+    cls === "TRAILER_OR_PROMOTIONAL" ||
+    cls === "INVESTIGATION_LEAD"
+  ) {
+    return false;
+  }
+  return ACTIONABLE_PIRACY_CLASSIFICATIONS.has(cls);
+}
+
+/** Alias normalization for newer outcome labels. */
+export function canonicalClassification(
+  value: string | null | undefined,
+): CopyrightClassification {
+  const raw = value ?? "";
+  if (raw === "OFFICIAL_OR_AUTHORIZED_PAGE") return "OFFICIAL_OR_AUTHORIZED";
+  if (raw === "TRAILER_OR_PROMOTIONAL") return "TRAILER_OR_PROMO";
+  if (raw === "INVESTIGATION_LEAD") return "UNVERIFIED_LEAD";
+  return normalizeClassification(raw);
 }
 
 export function isClientVisiblePiracyMatch(opts: {

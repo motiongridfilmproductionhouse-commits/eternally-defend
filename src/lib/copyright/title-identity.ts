@@ -71,26 +71,38 @@ export function expandTitleVariants(title: string): string[] {
   return [...out].filter((v) => v.length >= 3).slice(0, 24);
 }
 
-/** Titles safe to quote in discovery queries (spaced / hyphenated forms only). */
+/** Titles safe to quote in discovery queries (preserve official punctuation when present). */
 export function queryTitleVariants(title: string, altTitles: string[] = []): string[] {
   const seeds = [...new Set([title, ...altTitles].map((t) => t.trim()).filter(Boolean))];
   const out: string[] = [];
   const seen = new Set<string>();
+  const push = (v: string) => {
+    const key = normalizeSpaced(v);
+    if (key.length < 3 || seen.has(key)) return;
+    if (significantTokens(v).length < 2 && compact(v).length < 10) return;
+    seen.add(key);
+    out.push(v);
+  };
+
   for (const seed of seeds) {
+    // Prefer original punctuation (e.g. "Spider-Man: Brand New Day") first.
+    push(seed.trim());
     const spaced = normalizeSpaced(seed);
-    const hyphen = spaced.replace(/\s+/g, "-");
-    for (const v of [seed.trim(), spaced, hyphen, ...expandTitleVariants(seed)]) {
-      // Prefer human-readable query forms (with spaces or hyphens), not pure compact.
-      if (!/[\s-]/.test(v) && v === compact(v) && significantTokens(seed).length > 1) {
-        // Recreate spaced from original seed tokens when compact-only.
-        continue;
-      }
-      const key = normalizeSpaced(v);
-      if (key.length < 3 || seen.has(key)) continue;
-      // Reject single generic tokens as query titles.
-      if (significantTokens(v).length < 2 && compact(v).length < 10) continue;
-      seen.add(key);
-      out.push(v.includes(" ") || v.includes("-") ? v : spaced);
+    push(spaced);
+    push(spaced.replace(/\s+/g, "-"));
+    // Franchise spelling variants: Spiderman / Spider Man / Spider-Man
+    if (/spiderman/i.test(seed) || /spider[\s-]+man/i.test(seed)) {
+      const rest = spaced
+        .replace(/^spiderman\s*/i, "")
+        .replace(/^spider\s+man\s*/i, "")
+        .trim();
+      push(rest ? `Spider-Man ${rest}` : "Spider-Man");
+      push(rest ? `Spider Man ${rest}` : "Spider Man");
+      push(rest ? `spiderman ${rest}` : "spiderman");
+    }
+    for (const v of expandTitleVariants(seed)) {
+      if (!/[\s-]/.test(v) && v === compact(v) && significantTokens(seed).length > 1) continue;
+      push(v.includes(" ") || v.includes("-") ? v : spaced);
     }
   }
   return out.slice(0, 8);

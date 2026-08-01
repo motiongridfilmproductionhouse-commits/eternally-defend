@@ -17,6 +17,7 @@ import {
   hasExactTitleIdentity,
   titleSlugCandidates,
 } from "./title-identity";
+import { officialPlatformDecision } from "./official-platforms";
 
 export { hasExactTitleIdentity } from "./title-identity";
 
@@ -246,7 +247,7 @@ function purposeToClassification(purpose: PrimaryPurpose): CopyrightClassificati
     case "artwork_gallery":
       return "DUPLICATE_ARTWORK_ONLY";
     case "listing_or_search":
-      return "UNVERIFIED_LEAD";
+      return "CATALOG_OR_LISTING";
     default:
       return null;
   }
@@ -389,6 +390,36 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     input.titles,
     input.releaseYear ?? input.releaseDate?.slice(0, 4),
   );
+
+  // Official / authorized / YouTube gates before any access-evidence scoring.
+  const official = officialPlatformDecision({
+    url: input.url,
+    pageTitle,
+    text: markdown,
+  });
+  if (official) {
+    let classification: CopyrightClassification = "OFFICIAL_OR_AUTHORIZED";
+    if (official.classification === "CATALOG_OR_LISTING") classification = "CATALOG_OR_LISTING";
+    else if (official.classification === "TRAILER_OR_PROMO") classification = "TRAILER_OR_PROMO";
+    else if (official.classification === "VIDEO_HOST_REUPLOAD") classification = "VIDEO_HOST_REUPLOAD";
+    else if (official.classification === "UNVERIFIED_LEAD") classification = "UNVERIFIED_LEAD";
+    else classification = "OFFICIAL_OR_AUTHORIZED";
+
+    return empty(classification, official.reason, {
+      primaryPurpose:
+        official.kind === "youtube_promo" ? "trailer_or_promo" : "official_or_authorized",
+      identityMatch: identity.match,
+      identityEvidence: identity.evidence,
+      confidence:
+        official.kind === "youtube_internal_reupload" && identity.match ? 40 : identity.match ? 20 : 5,
+      confidenceBreakdown: {
+        identity: identity.match ? 20 : 0,
+        access: 0,
+        releaseWindow: 0,
+        penalties: 50,
+      },
+    });
+  }
 
   // Access override for soft negatives. Do NOT treat a generic trailer iframe
   // as override — require piracy/full-movie/file/torrent language or non-YouTube
