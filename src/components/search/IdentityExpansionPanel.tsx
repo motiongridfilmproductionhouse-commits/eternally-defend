@@ -17,6 +17,10 @@ type PreviewResult = {
   ambiguityCandidates: Array<{ name: string; reason: string; confidence: number }>;
   searchQueries: Array<{ query: string; category: string; priority: number }>;
   profileId: string | null;
+  reviewerConfirmed?: boolean;
+  canonicalName?: string | null;
+  localLanguageNames?: string[];
+  usernames?: string[];
 };
 
 export function IdentityExpansionPanel(props: {

@@ -3111,13 +3111,41 @@ export const Route = createFileRoute("/api/scan")({
           // Shared identity-aware expansion before every provider search (fail-open).
           const { resolveAndExpandSearchQuerySafe, expansionToIdentityList, expansionDiagnostics } =
             await import("@/lib/search/identity-search-expander.server");
-          // Reputation scan API is unauthenticated in places; persisted hints are optional.
+          // Scan UI may send confirmed identity hints from IdentityExpansionPanel /
+          // persisted profile actions (API itself is often cookie-less).
+          const identityCanonical =
+            typeof body?.identityCanonical === "string"
+              ? body.identityCanonical.trim().slice(0, 200)
+              : "";
+          const identityConfirmed = body?.identityConfirmed === true;
+          const identityAliasHints: string[] = Array.isArray(body?.identityAliases)
+            ? body.identityAliases.map((a: unknown) => String(a).slice(0, 60)).slice(0, 20)
+            : [];
+          const persistedProfile =
+            identityCanonical && identityConfirmed
+              ? {
+                  canonicalName: identityCanonical,
+                  aliases: [...aliasesIn, ...identityAliasHints],
+                  handles: handlesIn,
+                  reviewerConfirmed: true,
+                  rejectedAliases: [] as string[],
+                }
+              : identityCanonical && !body?.identityAmbiguous
+                ? {
+                    canonicalName: identityCanonical,
+                    aliases: [...aliasesIn, ...identityAliasHints],
+                    handles: handlesIn,
+                    reviewerConfirmed: false,
+                    rejectedAliases: [] as string[],
+                  }
+                : null;
           const identityExpansion = await resolveAndExpandSearchQuerySafe({
             query,
-            knownAliases: aliasesIn,
+            knownAliases: Array.from(new Set([...aliasesIn, ...identityAliasHints])),
             knownHandles: handlesIn,
             module: "reputation",
             country: typeof body?.country === "string" ? body.country : undefined,
+            persistedProfile,
           });
           // When ambiguous/unverified, keep the original query as the report identity —
           // never promote a spelling-corrected celebrity guess into resolvedName.

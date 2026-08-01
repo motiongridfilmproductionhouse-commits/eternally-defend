@@ -89,6 +89,10 @@ export const previewSearchExpansion = createServerFn({ method: "POST" })
       ambiguityCandidates: expansion.ambiguityCandidates,
       searchQueries: expansion.searchQueries,
       profileId,
+      reviewerConfirmed: Boolean(persistedProfile?.reviewerConfirmed && !expansion.ambiguous),
+      canonicalName: expansion.canonicalName,
+      localLanguageNames: expansion.localLanguageNames,
+      usernames: expansion.usernames,
     };
   });
 

@@ -199,6 +199,14 @@ function ScanPage() {
   const [country, setCountry] = useState("");
   const [industry, setIndustry] = useState("");
   const [monthFilter, setMonthFilter] = useState<"24h" | "7d" | "30d" | "12m" | "all">("12m");
+  const [identityHints, setIdentityHints] = useState<{
+    searchingAs: string;
+    alsoSearching: string[];
+    ambiguous: boolean;
+    reviewerConfirmed?: boolean;
+    canonicalName?: string | null;
+    profileId: string | null;
+  } | null>(null);
 
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
@@ -212,6 +220,10 @@ function ScanPage() {
 
   const m = useMutation({ mutationFn: runScan });
   const autoScanStarted = useRef(false);
+
+  useEffect(() => {
+    setIdentityHints(null);
+  }, [q]);
 
   useEffect(() => {
     if (typeof window === "undefined" || autoScanStarted.current) return;
@@ -401,6 +413,14 @@ function ScanPage() {
       limit: 8,
       youtubeTarget: 1500,
       context: [industry, country, site].filter(Boolean).join(" "),
+      // Carry IdentityExpansionPanel confirmations into the unauthenticated scan API.
+      identityCanonical:
+        identityHints?.canonicalName ||
+        (!identityHints?.ambiguous ? identityHints?.searchingAs : undefined),
+      identityAliases: identityHints?.alsoSearching ?? [],
+      identityAmbiguous: Boolean(identityHints?.ambiguous),
+      identityConfirmed: Boolean(identityHints?.reviewerConfirmed),
+      profileId: identityHints?.profileId ?? undefined,
     });
   };
 
@@ -614,6 +634,29 @@ function ScanPage() {
                   aliases={split(aliases)}
                   handles={split(handles)}
                   module="reputation"
+                  onExpansion={(res) => {
+                    setIdentityHints({
+                      searchingAs: res.searchingAs,
+                      alsoSearching: res.alsoSearching,
+                      ambiguous: res.ambiguous,
+                      reviewerConfirmed: res.reviewerConfirmed,
+                      canonicalName: res.canonicalName,
+                      profileId: res.profileId,
+                    });
+                    // When the user confirms an identity, surface the canonical
+                    // name into the aliases field so it is also searchable.
+                    if (res.reviewerConfirmed && res.canonicalName) {
+                      const current = new Set(split(aliases).map((a) => a.toLowerCase()));
+                      if (!current.has(res.canonicalName.toLowerCase()) &&
+                          res.canonicalName.toLowerCase() !== q.trim().toLowerCase()) {
+                        setAliases((prev) =>
+                          prev.trim()
+                            ? `${prev.replace(/,\s*$/, "")}, ${res.canonicalName}`
+                            : res.canonicalName!,
+                        );
+                      }
+                    }
+                  }}
                 />
               </div>
             )}
