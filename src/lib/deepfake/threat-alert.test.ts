@@ -320,6 +320,10 @@ test("route wires threat alert from complete findings and keeps Continue", () =>
   assert.match(ui, /buildThreatAlertSummary\(\s*findings\s*\)/);
   assert.match(ui, /ThreatAlertBanner/);
   assert.match(ui, /threatSummary/);
+  assert.match(ui, /vizThreatSummary/);
+  assert.match(ui, /useLayoutEffect/);
+  assert.match(ui, /finding-cards-heading/);
+  assert.match(ui, /results-intelligence-console/);
   assert.match(ui, /Continue scan/);
   assert.match(ui, /continueScan\.mutate/);
   assert.doesNotMatch(ui, /buildThreatAlertSummary\(\s*paged/);

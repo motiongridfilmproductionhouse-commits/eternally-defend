@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -637,7 +637,8 @@ function DeepfakeIntelPage() {
   const [threatBannerRole, setThreatBannerRole] = useState<"alert" | "status">(
     "status",
   );
-  useEffect(() => {
+  // useLayoutEffect so role="alert" is applied before paint on the <2→2+ crossing.
+  useLayoutEffect(() => {
     const decision = resolveThreatAlertAnnouncement({
       scanId: selectedScanId,
       distinctTotal: threatSummary.total,
@@ -647,17 +648,21 @@ function DeepfakeIntelPage() {
     setThreatBannerRole(decision.role);
   }, [selectedScanId, threatSummary.total]);
 
-  const scrollToThreatSection = (elementId: string) => {
+  const scrollToThreatSection = (elementIds: string | string[]) => {
     if (typeof document === "undefined") return;
-    const node = document.getElementById(elementId);
-    if (!node) return;
+    const ids = Array.isArray(elementIds) ? elementIds : [elementIds];
     const reduceMotion =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    node.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
-      block: "start",
-    });
+    for (const elementId of ids) {
+      const node = document.getElementById(elementId);
+      if (!node) continue;
+      node.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+      return;
+    }
   };
 
   const discoveries = selected.data?.discoveries ?? [];
@@ -771,6 +776,19 @@ function DeepfakeIntelPage() {
   const vizThreatsSaved =
     vizSourceMetrics?.client_visible ?? vizSourceScan?.total_results ?? null;
   const vizErrorMessage = vizSourceScan?.error_message ?? null;
+  // Threat counts always come from the selected scan's polled findings.
+  // Only paint them onto the identity viz when that viz is showing the same scan
+  // (avoids pairing a live run's blue/amber status with another row's threats).
+  const vizThreatSummary =
+    !vizSourceScan || vizSourceScan.id === selectedScanId
+      ? threatSummary
+      : {
+          level: "none" as const,
+          total: 0,
+          verified: 0,
+          probable: 0,
+          domains: 0,
+        };
 
   return (
     <div className="space-y-6">
@@ -1152,7 +1170,7 @@ function DeepfakeIntelPage() {
               pagesVerified={vizPagesVerified}
               threatsSaved={vizThreatsSaved}
               errorMessage={vizErrorMessage}
-              threatSummary={threatSummary}
+              threatSummary={vizThreatSummary}
             />
           ) : null}
 
@@ -1161,10 +1179,20 @@ function DeepfakeIntelPage() {
               summary={threatSummary}
               ariaRole={threatBannerRole}
               onReviewThreats={() =>
-                scrollToThreatSection("finding-cards-heading")
+                scrollToThreatSection([
+                  "finding-cards-heading",
+                  "results-intelligence-console",
+                  "verified-threat-overview-heading",
+                  "deepfake-results-panel",
+                ])
               }
               onViewAffectedDomains={() =>
-                scrollToThreatSection("top-verified-domains")
+                scrollToThreatSection([
+                  "top-verified-domains",
+                  "intelligence-tables",
+                  "results-intelligence-console",
+                  "deepfake-results-panel",
+                ])
               }
             />
           ) : null}
