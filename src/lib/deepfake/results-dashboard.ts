@@ -167,17 +167,19 @@ export function buildOverviewMetrics(input: {
     probable_deepfakes: probable,
     url_verified_pages: findings.length,
     unique_domains: domains.size,
+    // Reject counters remain scan-wide diagnostic facts (not finding-derived).
     identity_rejected: Number(diagnostics.identity_rejected ?? 0) || 0,
     url_rejected: Number(diagnostics.url_rejected ?? 0) || 0,
     crawl_failed: Number(diagnostics.crawl_failed ?? 0) || 0,
-    client_visible:
-      Number(diagnostics.client_visible ?? findings.length) || findings.length,
+    // Finding-derived visibility follows the scoped findings list.
+    client_visible: findings.length,
   };
 }
 
 /**
  * Categorical funnel from real diagnostic counters + saved findings.
- * No fabricated time-series.
+ * No fabricated time-series. Finding-derived steps follow scoped findings;
+ * discovery/crawl steps remain scan-wide diagnostics when available.
  */
 export function buildFunnelChartData(input: {
   findings: ClientFinding[];
@@ -188,12 +190,9 @@ export function buildFunnelChartData(input: {
   const discovered =
     Number(d.unique_candidates ?? d.provider_candidates ?? 0) || 0;
   const crawled = Number(d.crawl_succeeded ?? 0) || 0;
-  const identityMatched =
-    Number(d.verified ?? 0) + Number(d.probable ?? 0) ||
-    findings.length;
+  const identityMatched = findings.length;
   const evidenceVerified = findings.length;
-  const clientVisible =
-    Number(d.client_visible ?? findings.length) || findings.length;
+  const clientVisible = findings.length;
 
   return [
     { key: "discovered", label: "Discovered candidates", value: discovered },

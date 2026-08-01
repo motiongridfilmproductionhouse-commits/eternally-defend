@@ -7,8 +7,8 @@ import type {
 import {
   evidenceLinkProps,
   findingDomain,
-  formatConfidence,
   formatDash,
+  formatEvidenceConfidence,
   formatTimestamp,
 } from "@/lib/deepfake/results-dashboard";
 import { ExternalLink } from "lucide-react";
@@ -177,10 +177,18 @@ export function VerifiedFindingsTable({
                     </td>
                     <td className="py-2.5 pr-3">{findingDomain(finding)}</td>
                     <td className="py-2.5 pr-3">
-                      {formatConfidence(finding.identity_confidence)}
+                      {formatEvidenceConfidence({
+                        value: finding.identity_confidence,
+                        kind: "identity",
+                        finding,
+                      })}
                     </td>
                     <td className="py-2.5 pr-3">
-                      {formatConfidence(finding.synthetic_media_confidence)}
+                      {formatEvidenceConfidence({
+                        value: finding.synthetic_media_confidence,
+                        kind: "synthetic",
+                        finding,
+                      })}
                     </td>
                     <td className="py-2.5 pr-3">
                       {formatDash(finding.http_status)}

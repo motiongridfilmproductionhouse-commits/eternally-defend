@@ -62,11 +62,12 @@ test("summary uses only real metrics and saved findings", () => {
     diagnostics: {
       unique_candidates: 12,
       crawl_succeeded: 8,
-      verified: 1,
-      probable: 1,
-      client_visible: 2,
+      verified: 99,
+      probable: 99,
+      client_visible: 99,
     },
   });
+  // Discovery/crawl stay diagnostic; finding-derived steps follow scoped findings.
   assert.deepEqual(
     funnel.map((point) => point.value),
     [12, 8, 2, 2, 2],
