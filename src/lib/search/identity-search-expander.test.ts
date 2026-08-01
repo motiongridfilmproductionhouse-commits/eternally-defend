@@ -82,6 +82,17 @@ test("Common first name → ambiguity retained", async () => {
   }
 });
 
+test("Zero KB candidates stay unverified (spelling correction is not a resolved identity)", async () => {
+  invalidateIdentityExpansionCache({ all: true });
+  const result = await resolveAndExpandSearchQuery({
+    query: "Unknown Personxyz",
+    module: "reputation",
+    offlineOnly: true,
+  });
+  assert.equal(result.canonicalName, null);
+  assert.equal(result.ambiguous, true);
+});
+
 test("Wrong show association → result rejected", async () => {
   invalidateIdentityExpansionCache({ all: true });
   const expansion = await resolveAndExpandSearchQuery({

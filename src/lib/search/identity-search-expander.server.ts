@@ -407,13 +407,43 @@ export async function resolveAndExpandSearchQuery(
     top && top.confidence >= IDENTITY_CONFIDENCE_THRESHOLD && !closeRace
       ? top.identity
       : null;
-  const canonicalName =
+
+  const entityType: SearchEntityType =
+    asEntityType(input.entityType) !== "unknown"
+      ? asEntityType(input.entityType)
+      : (identity?.entityType ??
+        (hints.profession === "actress" || hints.profession === "actor"
+          ? (hints.profession as SearchEntityType)
+          : hints.show
+            ? "actress"
+            : "person"));
+
+  const titleEntity =
+    module === "copyright" ||
+    entityType === "film" ||
+    entityType === "television_series" ||
+    entityType === "product" ||
+    entityType === "brand" ||
+    entityType === "company" ||
+    entityType === "organization";
+
+  // Person/social identities stay null when unresolved. Title-like entities use
+  // the query text itself as the canonical title so copyright scans stay usable.
+  let canonicalName =
     persisted?.canonicalName ??
     identity?.canonicalName ??
     null;
+  if (!canonicalName && titleEntity && !closeRace) {
+    canonicalName = corrected || original;
+  }
+
   const confidence = persisted?.reviewerConfirmed
     ? Math.max(top?.confidence ?? 0.9, 0.9)
     : (top?.confidence ?? (corrected !== original ? 0.5 : 0.35));
+
+  // Any unresolved non-title identity is unverified — including zero KB candidates
+  // where surname spelling correction must not be treated as a resolved person.
+  const isAmbiguous = !canonicalName;
 
   const userAliases = uniqueStrings([
     ...(input.knownAliases ?? []),
@@ -467,16 +497,6 @@ export async function resolveAndExpandSearchQuery(
     hints.profession,
   ]);
 
-  const entityType: SearchEntityType =
-    asEntityType(input.entityType) !== "unknown"
-      ? asEntityType(input.entityType)
-      : (identity?.entityType ??
-        (hints.profession === "actress" || hints.profession === "actor"
-          ? (hints.profession as SearchEntityType)
-          : hints.show
-            ? "actress"
-            : "person"));
-
   const aliasSources: Record<string, AliasSource> = {};
   for (const a of userAliases) aliasSources[a] = "user_provided";
   for (const a of identity?.aliases ?? []) {
@@ -486,8 +506,8 @@ export async function resolveAndExpandSearchQuery(
   const searchQueries = buildQueries({
     original,
     corrected,
-    // Prefer committed canonical; otherwise search the corrected/original forms.
-    canonical: canonicalName ?? (ambiguous ? null : corrected),
+    // Prefer committed canonical; otherwise search corrected/original forms.
+    canonical: canonicalName,
     identity,
     aliases,
     localNames: localLanguageNames,
@@ -501,7 +521,7 @@ export async function resolveAndExpandSearchQuery(
   });
 
   // Investigative-only queries for ambiguity candidates (not identity aliases).
-  if (ambiguous) {
+  if (isAmbiguous || ambiguous) {
     for (const c of candidates.slice(0, 3)) {
       pushQuery(
         searchQueries,
@@ -530,7 +550,7 @@ export async function resolveAndExpandSearchQuery(
     canonicalName,
     entityType,
     confidence: Number(confidence.toFixed(4)),
-    ambiguous: Boolean(ambiguous && candidates.length > 0),
+    ambiguous: isAmbiguous,
     aliases,
     localLanguageNames,
     nicknames,
