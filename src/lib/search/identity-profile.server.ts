@@ -323,9 +323,30 @@ export async function mutateIdentityAlias(
       }
       break;
     }
-    case "report_wrong_identity":
+    case "report_wrong_identity": {
       reviewerConfirmed = false;
+      // Reject the reported identity and current canonical so rediscovery cannot
+      // re-lock the same wrong person on the next preview/scan.
+      upsertAlias("rejected", false);
+      const currentCanon = String(profile.canonical_name ?? "").trim();
+      if (currentCanon && normalizeKey(currentCanon) !== key) {
+        const canonKey = normalizeKey(currentCanon);
+        const idx = detailed.findIndex(
+          (a) => (normalizeKey(a.alias) || a.alias) === canonKey,
+        );
+        if (idx >= 0) detailed[idx] = { alias: currentCanon, source: "rejected", active: false };
+        else detailed.push({ alias: currentCanon, source: "rejected", active: false });
+      }
+      const originalQuery =
+        profile.last_expansion &&
+        typeof profile.last_expansion === "object" &&
+        typeof (profile.last_expansion as { original_query?: string }).original_query ===
+          "string"
+          ? String((profile.last_expansion as { original_query: string }).original_query).trim()
+          : "";
+      if (originalQuery) canonicalName = originalQuery;
       break;
+    }
     default:
       break;
   }

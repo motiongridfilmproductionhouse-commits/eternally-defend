@@ -656,19 +656,9 @@ function ScanPage() {
                       canonicalName: res.canonicalName,
                       profileId: res.profileId,
                     });
-                    // When the user confirms an identity, surface the canonical
-                    // name into the aliases field so it is also searchable.
-                    if (res.reviewerConfirmed && res.canonicalName) {
-                      const current = new Set(split(aliases).map((a) => a.toLowerCase()));
-                      if (!current.has(res.canonicalName.toLowerCase()) &&
-                          res.canonicalName.toLowerCase() !== q.trim().toLowerCase()) {
-                        setAliases((prev) =>
-                          prev.trim()
-                            ? `${prev.replace(/,\s*$/, "")}, ${res.canonicalName}`
-                            : res.canonicalName!,
-                        );
-                      }
-                    }
+                    // Do not mutate the aliases input from confirmations — that
+                    // contaminates the next subject when the primary query changes.
+                    // Confirmed identity is carried via identityHints + server profile.
                   }}
                 />
               </div>

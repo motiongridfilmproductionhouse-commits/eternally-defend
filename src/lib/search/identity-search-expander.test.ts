@@ -323,6 +323,23 @@ test("Reviewer-confirmed persisted profile overrides ambiguity", async () => {
   assert.ok(!result.aliases.includes("Manju Warrier"));
 });
 
+test("Reported wrong identity is not auto-resolved again", async () => {
+  invalidateIdentityExpansionCache({ all: true });
+  const result = await resolveAndExpandSearchQuery({
+    query: "Manju Pathrose",
+    module: "reputation",
+    offlineOnly: true,
+    persistedProfile: {
+      canonicalName: "Manju Pathrose",
+      reviewerConfirmed: false,
+      rejectedAliases: ["Manju Pathrose"],
+    },
+  });
+  assert.equal(result.canonicalName, null);
+  assert.equal(result.ambiguous, true);
+  assert.ok(!result.aliases.some((a) => /pathrose/i.test(a)));
+});
+
 test("Query limits respected", async () => {
   invalidateIdentityExpansionCache({ all: true });
   const result = await resolveAndExpandSearchQuery({

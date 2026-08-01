@@ -377,8 +377,15 @@ export async function resolveAndExpandSearchQuery(
     ]),
   });
 
-  const top = candidates[0] ?? null;
-  const second = candidates[1] ?? null;
+  const rejectedIdentityKeys = new Set(
+    (persisted?.rejectedAliases ?? []).map((a) => normalizeKey(a)).filter(Boolean),
+  );
+  const usableCandidates = candidates.filter(
+    (c) => !rejectedIdentityKeys.has(normalizeKey(c.identity.canonicalName)),
+  );
+
+  const top = usableCandidates[0] ?? null;
+  const second = usableCandidates[1] ?? null;
   const closeRace =
     second != null &&
     top != null &&
@@ -389,12 +396,17 @@ export async function resolveAndExpandSearchQuery(
     top.confidence < IDENTITY_CONFIDENCE_THRESHOLD ||
     closeRace;
 
-  // Reviewer-confirmed profiles override ambiguity for that user.
-  if (persisted?.reviewerConfirmed && persisted.canonicalName) {
+  // Reviewer-confirmed profiles override ambiguity for that user —
+  // unless that confirmed name was later reported as wrong.
+  if (
+    persisted?.reviewerConfirmed &&
+    persisted.canonicalName &&
+    !rejectedIdentityKeys.has(normalizeKey(persisted.canonicalName))
+  ) {
     ambiguous = false;
   }
 
-  const ambiguityCandidates: AmbiguityCandidate[] = candidates.slice(0, 5).map((c) => ({
+  const ambiguityCandidates: AmbiguityCandidate[] = usableCandidates.slice(0, 5).map((c) => ({
     name: c.identity.canonicalName,
     reason: c.reasons.join(", ") || "name_similarity",
     confidence: Number(c.confidence.toFixed(4)),
@@ -429,8 +441,13 @@ export async function resolveAndExpandSearchQuery(
 
   // Person/social identities stay null when unresolved. Title-like entities use
   // the query text itself as the canonical title so copyright scans stay usable.
+  const persistedCanonOk =
+    persisted?.canonicalName &&
+    !rejectedIdentityKeys.has(normalizeKey(persisted.canonicalName))
+      ? persisted.canonicalName
+      : null;
   let canonicalName =
-    persisted?.canonicalName ??
+    persistedCanonOk ??
     identity?.canonicalName ??
     null;
   if (!canonicalName && titleEntity && !closeRace) {
@@ -524,7 +541,7 @@ export async function resolveAndExpandSearchQuery(
 
   // Investigative-only queries for ambiguity candidates (not identity aliases).
   if (isAmbiguous || ambiguous) {
-    for (const c of candidates.slice(0, 3)) {
+    for (const c of usableCandidates.slice(0, 3)) {
       pushQuery(
         searchQueries,
         quote(c.identity.canonicalName),
