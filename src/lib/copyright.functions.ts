@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
@@ -41,6 +42,13 @@ import {
   emptyCrawlFailureCounts,
   type CrawlFailureCategory,
 } from "@/lib/copyright/crawl-failure";
+import {
+  decideCopyrightTerminalStatus,
+  isExecutorWatchdogExpired,
+  markStage,
+  watchdogFailureStats,
+} from "@/lib/copyright/scan-lifecycle";
+import type { ProviderFailureCategory } from "@/lib/copyright/provider-failures";
 
 import {
   buildMovieFingerprint,
@@ -54,6 +62,7 @@ import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
 import type { Database } from "@/integrations/supabase/types";
 
 type MatchInsert = Database["public"]["Tables"]["copyright_matches"]["Insert"];
+type ContextSupabase = SupabaseClient<Database>;
 
 /** Presigned upload slot for a reference image or an extracted video frame. */
 export const prepareCopyrightUpload = createServerFn({ method: "POST" })
@@ -95,22 +104,29 @@ export const uploadCopyrightReference = createServerFn({ method: "POST" })
     return { key };
   });
 
+const copyrightScanInputSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  referenceKind: z.enum(["image", "video"]),
+  contentType: z.enum(copyrightImageTypes),
+  /** Frame keys: one for a still, several sampled frames for a video. */
+  keys: z.array(z.string().min(10).max(500)).min(1).max(6),
+  /** Optional known public URLs to investigate first (max 10). Never auto-guilty. */
+  knownUrls: z.array(z.string().trim().min(8).max(2000)).max(10).optional(),
+});
+
+/**
+ * Start a copyright scan: create the row and return the scan ID immediately.
+ * Does NOT run discovery inline — the client must call executeCopyrightScan.
+ */
 export const runCopyrightScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({
-    title: z.string().trim().min(1).max(200),
-    referenceKind: z.enum(["image", "video"]),
-    contentType: z.enum(copyrightImageTypes),
-    /** Frame keys: one for a still, several sampled frames for a video. */
-    keys: z.array(z.string().min(10).max(500)).min(1).max(6),
-    /** Optional known public URLs to investigate first (max 10). Never auto-guilty. */
-    knownUrls: z.array(z.string().trim().min(8).max(2000)).max(10).optional(),
-  }).parse(raw))
+  .inputValidator((raw) => copyrightScanInputSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const prefix = `clients/${userId}/copyright/`;
     if (data.keys.some((k) => !k.startsWith(prefix))) throw new Error("Invalid reference storage path.");
 
+    const nowIso = new Date().toISOString();
     const { data: scan, error: sErr } = await supabase.from("copyright_scans").insert({
       user_id: userId,
       title: data.title,
@@ -118,35 +134,206 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       storage_path: data.keys[0],
       frame_paths: data.keys,
       status: "running",
+      stats: {
+        scan_created: nowIso,
+        scan_created_at: nowIso,
+        last_progress_at: nowIso,
+        executor_started_at: null,
+        discovery_never_started: true,
+        pending_input: {
+          contentType: data.contentType,
+          knownUrls: data.knownUrls ?? [],
+          keys: data.keys,
+        },
+      },
     }).select("id").single();
     if (sErr || !scan) throw new Error(sErr?.message ?? "Could not start scan.");
 
+    // Immediate start — must not imply completion or zero-result success.
+    return {
+      scanId: scan.id as string,
+      started: true as const,
+      status: "running" as const,
+    };
+  });
+
+/**
+ * Long-running copyright discovery + exact-page evidence pipeline.
+ * Must be invoked separately after runCopyrightScan returns a scanId.
+ */
+export const executeCopyrightScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: scan, error: sErr } = await supabase
+      .from("copyright_scans")
+      .select("*")
+      .eq("id", data.scanId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (sErr) throw new Error(sErr.message);
+    if (!scan) throw new Error("Scan not found.");
+
+    if (scan.status !== "running") {
+      return {
+        scanId: scan.id as string,
+        status: scan.status,
+        stats: serializeCopyrightStats(scan.stats),
+      };
+    }
+
+    const priorStats = (scan.stats ?? {}) as Record<string, unknown>;
+    const pending = (priorStats.pending_input ?? {}) as {
+      contentType?: string;
+      knownUrls?: string[];
+      keys?: string[];
+    };
+    const keys = (
+      Array.isArray(pending.keys) && pending.keys.length
+        ? pending.keys
+        : (scan.frame_paths as string[] | null) ?? []
+    ).filter((k): k is string => typeof k === "string");
+    const contentType = (
+      pending.contentType && copyrightImageTypes.includes(pending.contentType as typeof copyrightImageTypes[number])
+        ? pending.contentType
+        : "image/jpeg"
+    ) as typeof copyrightImageTypes[number];
+    const knownUrls = Array.isArray(pending.knownUrls) ? pending.knownUrls : [];
+    const workTitle = scan.title;
+
+    if (!keys.length) {
+      const failedStats = {
+        ...priorStats,
+        ...watchdogFailureStats(priorStats),
+        finished_at: new Date().toISOString(),
+        failure_reason: "Scan has no reference storage keys — executor cannot run discovery.",
+      };
+      await supabase
+        .from("copyright_scans")
+        .update({
+          status: "failed",
+          error: "Scan has no reference storage keys.",
+          stats: failedStats,
+        })
+        .eq("id", scan.id);
+      return {
+        scanId: scan.id as string,
+        status: "failed" as const,
+        stats: serializeCopyrightStats(failedStats),
+      };
+    }
+
+    let stages: Record<string, string> = markStage(
+      {
+        scan_created:
+          typeof priorStats.scan_created === "string"
+            ? priorStats.scan_created
+            : typeof priorStats.scan_created_at === "string"
+              ? priorStats.scan_created_at
+              : scan.created_at,
+      },
+      "executor_started",
+    );
+
+    await supabase
+      .from("copyright_scans")
+      .update({
+        stats: {
+          ...priorStats,
+          ...stages,
+          executor_started_at: stages.executor_started,
+          discovery_never_started: false,
+        },
+      })
+      .eq("id", scan.id);
+
     try {
-      const firstBytes = await readStoredObject(data.keys[0]);
+      const firstBytes = await readStoredObject(keys[0]!);
       if (!firstBytes.length) throw new Error("Reference file is empty.");
       const sha256 = await sha256Hex(firstBytes);
-      const referenceDataUrl = bytesToDataUrl(firstBytes, data.contentType);
+      const referenceDataUrl = bytesToDataUrl(firstBytes, contentType);
 
       // 1. AI-vision analysis + AWS Rekognition fingerprint of the reference material.
       const allFrames = await Promise.all(
-        data.keys.slice(0, 4).map(async (k, i) => (i === 0 ? firstBytes : await readStoredObject(k).catch(() => new Uint8Array()))),
+        keys.slice(0, 4).map(async (k, i) => (i === 0 ? firstBytes : await readStoredObject(k).catch(() => new Uint8Array()))),
       );
       const [analysis, fingerprint] = await Promise.all([
-        analyzeReference(referenceDataUrl, data.title),
-        buildMovieFingerprint(allFrames.filter((b) => b.length > 0), data.title),
+        analyzeReference(referenceDataUrl, workTitle),
+        buildMovieFingerprint(allFrames.filter((b) => b.length > 0), workTitle),
       ]);
 
       // 2a. Optional known-URL seeds (high priority) — validated before provider search.
-      const knownInputs = parseKnownUrlInputs(data.knownUrls ?? []);
+      const knownInputs = parseKnownUrlInputs(knownUrls);
       const knownSeeds = await validateKnownUrlSeeds(knownInputs);
       const knownAccepted = acceptedKnownUrls(knownSeeds);
 
       // 2b. Firecrawl reverse discovery, seeded by that analysis.
+      stages = markStage(stages, "queries_generated");
+      stages = markStage(stages, "discovery_started");
+      await supabase
+        .from("copyright_scans")
+        .update({
+          stats: {
+            ...priorStats,
+            ...stages,
+            executor_started_at: stages.executor_started,
+            discovery_never_started: false,
+            queries_generated: 0,
+            last_progress_at: stages.last_progress_at,
+          },
+        })
+        .eq("id", scan.id);
+
       const byUrl = new Map<string, DiscoveryCandidate>();
-      const discovery = await firecrawlDiscover(referenceDataUrl, data.title, 0, analysis);
+      let discovery: Awaited<ReturnType<typeof firecrawlDiscover>>;
+      try {
+        discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis);
+      } catch (discoverErr) {
+        const msg =
+          discoverErr instanceof Error
+            ? discoverErr.message
+            : "Discovery failed to start";
+        const cat =
+          (discoverErr as Error & { failureCategory?: ProviderFailureCategory })
+            .failureCategory ?? "provider_unavailable";
+        const failedStats = {
+          ...priorStats,
+          ...stages,
+          ...markStage(stages, "finished_at"),
+          executor_started_at: stages.executor_started,
+          discovery_never_started: true,
+          queries_generated: 0,
+          queries_executed: 0,
+          provider_requests: 0,
+          provider_successes: 0,
+          provider_failures: 1,
+          provider_failures_by_category: { [cat]: 1 },
+          failure_reason: msg.slice(0, 500),
+          failure_category: cat,
+          candidates: 0,
+          matches: 0,
+          graded: 0,
+        };
+        await supabase
+          .from("copyright_scans")
+          .update({ status: "failed", error: msg.slice(0, 500), stats: failedStats, sha256 })
+          .eq("id", scan.id);
+        return {
+          scanId: scan.id as string,
+          status: "failed" as const,
+          stats: serializeCopyrightStats(failedStats),
+        };
+      }
+
+      stages = markStage(stages, "first_provider_response");
+
       for (const c of discovery.candidates) {
         if (!byUrl.has(c.url)) byUrl.set(c.url, c);
       }
+
+      let abortedByDeadline = false;
 
 
       // Prioritise high-signal piracy leads, keep the grading budget bounded.
@@ -184,7 +371,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           transformations,
           evidence: {
             reference_frame_index: candidate.frameIndex,
-            reference_frame_path: data.keys[candidate.frameIndex] ?? data.keys[0],
+            reference_frame_path: keys[candidate.frameIndex] ?? keys[0],
             candidate_image_url: candidate.imageUrl ?? candidate.thumbnail,
             discovery: candidate.exact ? "piracy_lead" : "visual_match",
             discovery_query: candidate.query ?? null,
@@ -241,7 +428,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           if (fingerprint.available) {
             const fetched = await fetchImageBytes(img).catch(() => null);
             if (fetched?.bytes?.length) {
-              rek = await matchCandidateAgainstFingerprint(fingerprint, fetched.bytes, data.title);
+              rek = await matchCandidateAgainstFingerprint(fingerprint, fetched.bytes, workTitle);
             }
           }
 
@@ -251,7 +438,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             candidatePageUrl: candidate.url,
             candidateTitle: candidate.title,
             platform: candidate.source,
-            workTitle: data.title,
+            workTitle: workTitle,
             highSignal: candidate.exact || rek.signals.length >= 2,
             referenceOcrText: analysis.ocrText,
             referenceWatermark: analysis.watermark,
@@ -339,7 +526,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
               result?.ocrText ?? null,
               result?.watermark ?? rek.watermarkMatch,
               (result?.reason ||
-                `Unverified discovery lead (${candidate.category ?? "web_lead"}) from "${candidate.keywordMatch ?? candidate.query ?? data.title}" — requires exact-page distribution evidence.`) + rekReason,
+                `Unverified discovery lead (${candidate.category ?? "web_lead"}) from "${candidate.keywordMatch ?? candidate.query ?? workTitle}" — requires exact-page distribution evidence.`) + rekReason,
               rek,
             );
             leadRow.evidence = {
@@ -354,7 +541,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
       // 4. Unauthorized-distribution site inspection. Exact-page crawl required.
       //    Identity (title/poster/OCR) alone never qualifies. Fail closed on crawl failure.
-      const titleSeeds = [data.title, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
+      const titleSeeds = [workTitle, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
       const titles = [...new Set([
         ...titleSeeds,
         ...titleSeeds.flatMap((t) => expandTitleVariants(t).filter((v) => /[\s-]/.test(v))),
@@ -363,9 +550,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       // Known URLs first so they receive crawl budget before provider candidates.
       const knownLeadUrls = knownAccepted.map((url) => ({
         url,
-        title: data.title,
+        title: workTitle,
         query: "known_url_seed",
-        text: data.title,
+        text: workTitle,
         strong: true as const,
       }));
       const providerLeads = discovery.pageLeads
@@ -694,7 +881,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           const registered = await registerDistributionSource(supabase, {
             userId,
             scanId: scan.id,
-            workTitle: data.title,
+            workTitle: workTitle,
             platform: contact.platform,
             analysis: dist,
           }).catch(() => null);
@@ -728,6 +915,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const knownDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
       for (let offset = 0; offset < knownPhaseLeads.length; offset += 2) {
         if (isPastDeadline(knownDeadlineAt)) {
+          abortedByDeadline = true;
           for (const lead of knownPhaseLeads.slice(offset)) {
             const key = canonicalUrl(lead.url);
             if (inspectedUrls.has(key)) continue;
@@ -777,6 +965,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const providerDeadlineAt = Date.now() + PROVIDER_CRAWL_BUDGET_MS;
       for (let offset = 0; offset < providerPhaseLeads.length; offset += 4) {
         if (isPastDeadline(providerDeadlineAt)) {
+          abortedByDeadline = true;
           for (const lead of providerPhaseLeads.slice(offset)) {
             const key = canonicalUrl(lead.url);
             if (inspectedUrls.has(key)) continue;
@@ -808,10 +997,16 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         }
       }
 
+      if (pagesCrawled > 0) stages = markStage(stages, "first_page_crawled");
+      stages = markStage(stages, "classification_started");
+
       // Bounded same-domain detail follow from listing pages.
       const details = detailFollowQueue.slice(0, 12);
       for (let offset = 0; offset < details.length; offset += 4) {
-        if (isPastDeadline(providerDeadlineAt)) break;
+        if (isPastDeadline(providerDeadlineAt)) {
+          abortedByDeadline = true;
+          break;
+        }
         const batch = details.slice(offset, offset + 4);
         const signal = AbortSignal.timeout(
           Math.max(1_000, providerDeadlineAt - Date.now()),
@@ -885,9 +1080,19 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         leads: internalPersist.length,
         queries_generated: discovery.queriesGenerated,
         queries_executed: discovery.queriesExecuted,
+        provider_requests: discovery.providerRequests,
+        provider_successes: discovery.providerSuccesses,
+        provider_failures: discovery.providerFailures,
+        provider_failures_by_category: discovery.providerFailuresByCategory,
+        provider_failure_samples: discovery.providerFailureSamples,
         provider_candidates: byUrl.size,
         provider_results: byUrl.size + discovery.pageLeads.length,
+        telegram_queries: discovery.telegramQueries,
+        telegram_posts: discovery.telegramPosts,
+        telegram_candidates: discovery.telegramCandidates,
+        telegram_failures: discovery.telegramFailures,
         unique_candidate_pages: uniqueCandidatePages,
+        unique_pages: uniqueCandidatePages,
         known_urls_submitted: knownInputs.length,
         known_urls_accepted: knownAccepted.length,
         known_urls_rejected: knownSeeds.filter((s) => !s.accepted).length,
@@ -989,20 +1194,153 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         release_date: analysis.releaseDate,
 
         ignored,
-        frames: data.keys.length,
+        frames: keys.length,
         sha256,
         confirmed: clientVisibleFindings.filter((r) => r.confidence_band === "confirmed").length,
         probable: clientVisibleFindings.filter((r) => r.confidence_band === "probable").length,
         review: clientVisibleFindings.filter((r) => r.confidence_band === "review").length,
+        ...markStage(stages, "finished_at"),
+        executor_started_at: stages.executor_started,
+        scan_created_at: stages.scan_created,
+        last_progress_at: new Date().toISOString(),
+        discovery_never_started: false,
       };
-      await supabase.from("copyright_scans").update({ status: "completed", sha256, stats }).eq("id", scan.id);
-      return { scanId: scan.id as string, stats };
+
+      const terminal = decideCopyrightTerminalStatus({
+        executorStarted: true,
+        queriesGenerated: discovery.queriesGenerated,
+        queriesExecuted: discovery.queriesExecuted,
+        providerSuccesses: discovery.providerSuccesses,
+        providerFailures: discovery.providerFailures,
+        providerCandidates: byUrl.size + discovery.pageLeads.length,
+        knownUrlsAttempted,
+        pagesCrawled,
+        clientVisibleFindings: clientVisibleFindings.length,
+        abortedByDeadline,
+      });
+
+      const finalStats = {
+        ...stats,
+        failure_reason: terminal.reason,
+        terminal_status: terminal.status,
+      };
+
+      await supabase
+        .from("copyright_scans")
+        .update({
+          status: terminal.status,
+          sha256,
+          error: terminal.status === "failed" ? (terminal.reason ?? "Scan failed").slice(0, 500) : null,
+          stats: finalStats,
+        })
+        .eq("id", scan.id);
+
+      return {
+        scanId: scan.id as string,
+        status: terminal.status,
+        stats: serializeCopyrightStats(finalStats),
+      };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      await supabase.from("copyright_scans").update({ status: "failed", error: message.slice(0, 500) }).eq("id", scan.id);
-      throw new Error(message);
+      const failedStats = {
+        ...priorStats,
+        ...stages,
+        ...markStage(stages, "finished_at"),
+        executor_started_at: stages.executor_started ?? null,
+        discovery_never_started: !stages.discovery_started,
+        failure_reason: message.slice(0, 500),
+        candidates: 0,
+        matches: 0,
+        graded: 0,
+      };
+      await supabase
+        .from("copyright_scans")
+        .update({
+          status: "failed",
+          error: message.slice(0, 500),
+          stats: failedStats,
+        })
+        .eq("id", scan.id);
+      // Persist real failure — never convert to completed.
+      return {
+        scanId: scan.id as string,
+        status: "failed" as const,
+        stats: serializeCopyrightStats(failedStats),
+      };
     }
   });
+
+/** Ensure server-fn return stats are JSON-serializable for TanStack Start. */
+function serializeCopyrightStats(stats: unknown): {
+  candidates?: number;
+  matches?: number;
+  graded?: number;
+  failure_reason?: string | null;
+  queries_generated?: number;
+  queries_executed?: number;
+  provider_successes?: number;
+  provider_failures?: number;
+  executor_started_at?: string | null;
+  last_progress_at?: string | null;
+} {
+  try {
+    return JSON.parse(JSON.stringify(stats ?? {})) as {
+      candidates?: number;
+      matches?: number;
+      graded?: number;
+      failure_reason?: string | null;
+      queries_generated?: number;
+      queries_executed?: number;
+      provider_successes?: number;
+      provider_failures?: number;
+      executor_started_at?: string | null;
+      last_progress_at?: string | null;
+    };
+  } catch {
+    return { failure_reason: "Unable to serialize scan stats" };
+  }
+}
+
+async function applyExecutorWatchdog(
+  supabase: ContextSupabase,
+  rows: Array<Record<string, unknown>>,
+): Promise<Array<Record<string, unknown>>> {
+  const out = [];
+  for (const row of rows) {
+    const stats = (row.stats ?? {}) as Record<string, unknown>;
+    const expired = isExecutorWatchdogExpired({
+      status: String(row.status ?? ""),
+      createdAt: typeof row.created_at === "string" ? row.created_at : null,
+      executorStartedAt:
+        typeof stats.executor_started_at === "string"
+          ? stats.executor_started_at
+          : typeof stats.executor_started === "string"
+            ? stats.executor_started
+            : null,
+    });
+    if (!expired) {
+      out.push(row);
+      continue;
+    }
+    const failedStats = {
+      ...stats,
+      ...watchdogFailureStats(stats),
+      failure_reason:
+        "Copyright scan executor never started within the watchdog window (executor_not_started).",
+    };
+    await supabase
+      .from("copyright_scans")
+      .update({
+        status: "failed",
+        error:
+          "Copyright scan executor never started within the watchdog window (executor_not_started).",
+        stats: failedStats,
+      })
+      .eq("id", row.id as string);
+    out.push({ ...row, status: "failed", error: failedStats.failure_reason, stats: failedStats });
+  }
+  return out;
+}
 
 export const listCopyrightScans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -1011,7 +1349,11 @@ export const listCopyrightScans = createServerFn({ method: "GET" })
       .from("copyright_scans").select("*")
       .order("created_at", { ascending: false }).limit(30);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const rows = await applyExecutorWatchdog(
+      context.supabase,
+      (data ?? []) as Array<Record<string, unknown>>,
+    );
+    return rows as typeof data;
   });
 
 export const getCopyrightScan = createServerFn({ method: "GET" })
@@ -1021,13 +1363,17 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
     const { data: scan, error } = await context.supabase
       .from("copyright_scans").select("*").eq("id", data.scanId).single();
     if (error) throw new Error(error.message);
+    const [watched] = await applyExecutorWatchdog(context.supabase, [
+      scan as unknown as Record<string, unknown>,
+    ]);
+    const watchedScan = (watched ?? scan) as typeof scan;
     const { data: matches, error: mErr } = await context.supabase
       .from("copyright_matches").select("*").eq("scan_id", data.scanId)
       .order("confidence", { ascending: false });
     if (mErr) throw new Error(mErr.message);
     // Raw / non-actionable / identity-only rows stay internal — never as piracy UI.
     return {
-      scan,
+      scan: watchedScan,
       matches: filterClientVisibleCopyrightMatches(matches ?? []),
     };
   });

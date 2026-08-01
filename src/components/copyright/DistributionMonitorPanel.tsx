@@ -65,7 +65,6 @@ export function DistributionMonitorPanel() {
   const toggleFn = useServerFn(setDistributionSourceMonitoring);
   const qc = useQueryClient();
   const [openId, setOpenId] = useState<string | null>(null);
-  const [showDeactivated, setShowDeactivated] = useState(false);
 
   const monitor = useQuery({
     queryKey: ["distribution-monitor"],
@@ -91,12 +90,10 @@ export function DistributionMonitorPanel() {
   });
 
   const allSources = monitor.data?.sources ?? [];
+  // Active monitor never shows deactivated YouTube/Plex FPs — audit rows remain in DB only.
   const sources = useMemo(
-    () =>
-      showDeactivated
-        ? allSources
-        : allSources.filter((s) => s.status !== "deactivated"),
-    [allSources, showDeactivated],
+    () => allSources.filter((s) => s.status !== "deactivated"),
+    [allSources],
   );
   const incidents = (monitor.data?.incidents ?? []).filter((i) => {
     const ev = (i.evidence ?? {}) as Record<string, unknown>;
@@ -141,13 +138,6 @@ export function DistributionMonitorPanel() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setShowDeactivated((v) => !v)}
-          >
-            {showDeactivated ? "Hide deactivated" : "Show deactivated"}
-          </Button>
           <Button size="sm" variant="outline" className="shrink-0" onClick={() => sweep.mutate({})} disabled={sweep.isPending}>
             {sweep.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             Run monitor now
