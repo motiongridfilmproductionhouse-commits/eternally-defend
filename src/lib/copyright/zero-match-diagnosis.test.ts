@@ -272,3 +272,14 @@ test("expandTitleVariants produces spider-man compounds", () => {
   assert.ok(variants.some((v) => /spider\s+man\s+brand\s+new\s+day/i.test(v)));
   assert.ok(variants.some((v) => v.replace(/\s+/g, "") === "spidermanbrandnewday"));
 });
+
+test("short single-word titles still establish identity", () => {
+  assert.equal(
+    hasExactTitleIdentity("Watch Soul full movie online free", ["Soul"]).match,
+    true,
+  );
+  assert.equal(
+    hasExactTitleIdentity("Nope official theatre print watch online", ["Nope"]).match,
+    true,
+  );
+});

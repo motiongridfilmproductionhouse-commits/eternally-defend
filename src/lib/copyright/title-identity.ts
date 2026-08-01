@@ -112,14 +112,22 @@ export function hasExactTitleIdentity(
     for (const v of variants) {
       const spacedV = normalizeSpaced(v);
       const compactV = compact(v);
-      if (spacedV.length >= 5 && spacedBlob.includes(spacedV)) {
-        evidence.push(`exact_title:${raw}`);
-        if (year && (spacedBlob.includes(year) || blob.includes(year))) {
-          evidence.push(`release_year:${year}`);
+      // Spaced full-title match (allow short titles like "Soul" / "Nope").
+      if (spacedV.length >= 3 && spacedBlob.includes(spacedV)) {
+        // Guard single short tokens: require word boundary-ish presence.
+        const tokenOk =
+          significantTokens(spacedV).length >= 2 ||
+          spacedV.length >= 4 ||
+          new RegExp(`(?:^|\\s)${spacedV.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`).test(spacedBlob);
+        if (tokenOk) {
+          evidence.push(`exact_title:${raw}`);
+          if (year && (spacedBlob.includes(year) || blob.includes(year))) {
+            evidence.push(`release_year:${year}`);
+          }
+          return { match: true, evidence };
         }
-        return { match: true, evidence };
       }
-      if (compactV.length >= 8 && compactBlob.includes(compactV)) {
+      if (compactV.length >= 6 && compactBlob.includes(compactV)) {
         evidence.push(`exact_title_compact:${raw}`);
         if (year && (spacedBlob.includes(year) || blob.includes(year))) {
           evidence.push(`release_year:${year}`);
@@ -145,6 +153,15 @@ export function hasExactTitleIdentity(
       ).length;
       if (hit >= Math.ceil(tokens.length * 0.8)) {
         evidence.push(`title_tokens:${raw}`);
+        if (year && (spacedBlob.includes(year) || blob.includes(year))) {
+          evidence.push(`release_year:${year}`);
+        }
+        return { match: true, evidence };
+      }
+    } else if (tokens.length === 1 && tokens[0]!.length >= 4) {
+      const tok = tokens[0]!;
+      if (new RegExp(`(?:^|\\s)${tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`).test(spacedBlob)) {
+        evidence.push(`exact_title:${raw}`);
         if (year && (spacedBlob.includes(year) || blob.includes(year))) {
           evidence.push(`release_year:${year}`);
         }
