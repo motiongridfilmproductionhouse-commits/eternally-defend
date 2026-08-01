@@ -21,6 +21,7 @@ import {
   VerifiedFindingsTable,
 } from "./IntelligenceTables";
 import { IntelligenceFindingCard } from "./IntelligenceFindingCard";
+import { ResultsConsoleErrorBoundary } from "./ResultsConsoleErrorBoundary";
 
 type Props = {
   scanId: string;
@@ -284,24 +285,60 @@ export function ResultsIntelligenceConsole({
 
       {showOverview && (
         <>
-          <VerifiedThreatOverview metrics={overview} funnel={funnel} />
-          <VerifiedEvidenceNetwork
-            graph={network}
-            centerThumbnailUrl={artistThumbnailUrl}
-            selectedDomain={domainFilter}
-            selectedFindingId={selectedFindingId}
-            onSelectDomain={setDomainFilter}
-            onSelectFinding={(findingId) =>
-              selectFinding(findingId, { syncDomain: true })
+          <ResultsConsoleErrorBoundary
+            label="VerifiedThreatOverview"
+            resetKey={scanId}
+            fallback={
+              <div
+                className="rounded-xl border border-sky-500/25 bg-[#07111f] p-4 text-sm text-slate-300"
+                data-testid="verified-threat-overview-fallback"
+              >
+                Verified Threat Overview unavailable — {overview.client_visible}{" "}
+                client-visible finding
+                {overview.client_visible === 1 ? "" : "s"} still listed below.
+              </div>
             }
-            reduceMotion={reduceMotion}
-            emptyMessage={
-              visibleFindings.length > 0
-                ? "No verified nodes match the current risk or classification filters."
-                : undefined
+          >
+            <VerifiedThreatOverview
+              metrics={overview}
+              funnel={funnel}
+              resetKey={scanId}
+            />
+          </ResultsConsoleErrorBoundary>
+          <ResultsConsoleErrorBoundary
+            label="VerifiedEvidenceNetwork"
+            resetKey={scanId}
+            fallback={
+              <div
+                className="rounded-xl border border-sky-500/20 bg-[#07111f] p-4 text-sm text-slate-300"
+                data-testid="evidence-network-fallback"
+              >
+                Evidence Network unavailable — domain and finding tables remain
+                below.
+              </div>
             }
-          />
-          <div className="grid gap-4 xl:grid-cols-2">
+          >
+            <VerifiedEvidenceNetwork
+              graph={network}
+              centerThumbnailUrl={artistThumbnailUrl}
+              selectedDomain={domainFilter}
+              selectedFindingId={selectedFindingId}
+              onSelectDomain={setDomainFilter}
+              onSelectFinding={(findingId) =>
+                selectFinding(findingId, { syncDomain: true })
+              }
+              reduceMotion={reduceMotion}
+              emptyMessage={
+                visibleFindings.length > 0
+                  ? "No verified nodes match the current risk or classification filters."
+                  : undefined
+              }
+            />
+          </ResultsConsoleErrorBoundary>
+          <div
+            className="grid gap-4 xl:grid-cols-2"
+            data-testid="intelligence-tables"
+          >
             <TopVerifiedDomainsTable
               rows={domainRows}
               selectedDomain={domainFilter}
@@ -358,7 +395,11 @@ export function ResultsIntelligenceConsole({
             : "No findings match the current filters."}
         </div>
       ) : (
-        <section aria-labelledby="finding-cards-heading" className="space-y-2.5">
+        <section
+          aria-labelledby="finding-cards-heading"
+          className="space-y-2.5"
+          data-testid="intelligence-finding-cards"
+        >
           <div className="flex items-center justify-between gap-2">
             <h3
               id="finding-cards-heading"

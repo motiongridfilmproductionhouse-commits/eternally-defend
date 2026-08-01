@@ -37,6 +37,13 @@ import {
   shouldShowHistoryLoading,
   shouldShowResultsLoader,
 } from "@/lib/deepfake/scan-ui-state";
+import {
+  decideResultsConsoleMount,
+  emptyFindingsStatusMessage,
+  explainResultsConsoleMountDecision,
+  extractClientVisibleFindings,
+  shouldRenderLegacyFindingCards,
+} from "@/lib/deepfake/results-console-mount";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
 import { scanBelongsToSelectedProfile } from "@/lib/deepfake/identity-scan-viz";
@@ -613,9 +620,47 @@ function DeepfakeIntelPage() {
   };
 
   const scan = selected.data?.scan ?? null;
-  const findings = selected.data?.findings ?? [];
+  // Normalize production snake_case getDeepfakeScan findings at the UI boundary.
+  const findings = extractClientVisibleFindings(selected.data ?? null);
   const discoveries = selected.data?.discoveries ?? [];
   const diagnostics = metricRecord(scan?.discovery_metrics);
+  const showResultsLoader = shouldShowResultsLoader({
+    isLoading: selected.isLoading,
+    hasScan: Boolean(scan),
+  });
+  const consoleMount = decideResultsConsoleMount({
+    selectedScanId,
+    hasScanRow: Boolean(scan),
+    visibleFindingCount: findings.length,
+    showLoader: showResultsLoader,
+  });
+  const mountResultsConsole = consoleMount.mount;
+  const renderLegacyFindingCards = shouldRenderLegacyFindingCards({
+    consoleMounted: mountResultsConsole,
+  });
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!selectedScanId) return;
+    // Temporary mount assertion — counts/status only, never raw provider rows.
+    console.info(
+      "[deepfake-intel]",
+      explainResultsConsoleMountDecision({
+        selectedScanId,
+        hasScanRow: Boolean(scan),
+        visibleFindingCount: findings.length,
+        showLoader: showResultsLoader,
+        scanStatus: scan?.status ?? null,
+      }),
+    );
+  }, [
+    selectedScanId,
+    scan?.id,
+    scan?.status,
+    findings.length,
+    showResultsLoader,
+    consoleMount.reason,
+  ]);
   const discoveryMetricObject = objectRecord(scan?.discovery_metrics);
   const checkpoint = objectRecord(scan?.scan_checkpoint);
   const rawStage =
@@ -1217,36 +1262,47 @@ function DeepfakeIntelPage() {
                 )}
               </div>
 
-              {shouldShowResultsLoader({ isLoading: selected.isLoading, hasScan: Boolean(scan) }) ? (
-                <div className="card-surface p-8 text-center text-sm text-muted-foreground">
-                  <Loader2 className="size-5 mx-auto animate-spin mb-2" /> Loading findings…
-                </div>
-              ) : (
-                <ResultsIntelligenceConsole
-                  scanId={scan.id}
-                  scanStatus={scan.status}
-                  targetName={scan.target_name}
-                  artistThumbnailUrl={thumbnailUrl}
-                  findings={findings}
-                  discoveries={discoveries}
-                  diagnostics={diagnostics}
-                  riskFilter={riskFilter}
-                  onRiskFilterChange={setRiskFilter}
-                  pending={upd.isPending}
-                  onUpdateFinding={(findingId, status) =>
-                    upd.mutate({ finding_id: findingId, review_status: status })
-                  }
-                  emptyMessage={
-                    scan.status === "running"
-                      ? "Sweep in progress — verified results appear as batches are saved."
-                      : scan.status === "partial"
-                        ? "Partial scan finished with no client-visible threats at this risk level. Check public leads below."
-                        : scan.status === "failed"
-                          ? (scan.error_message || "Scan failed before verified progress was saved.")
-                          : "No findings at this risk level."
-                  }
-                />
-              )}
+              <div
+                data-testid="deepfake-results-panel"
+                data-legacy-finding-cards={renderLegacyFindingCards ? "enabled" : "disabled"}
+                data-console-mounted={mountResultsConsole ? "true" : "false"}
+              >
+                {showResultsLoader ? (
+                  <div className="card-surface p-8 text-center text-sm text-muted-foreground">
+                    <Loader2 className="size-5 mx-auto animate-spin mb-2" /> Loading findings…
+                  </div>
+                ) : mountResultsConsole ? (
+                  <ResultsIntelligenceConsole
+                    scanId={scan.id}
+                    scanStatus={scan.status}
+                    targetName={scan.target_name}
+                    artistThumbnailUrl={thumbnailUrl}
+                    findings={findings}
+                    discoveries={discoveries}
+                    diagnostics={diagnostics}
+                    riskFilter={riskFilter}
+                    onRiskFilterChange={setRiskFilter}
+                    pending={upd.isPending}
+                    onUpdateFinding={(findingId, status) =>
+                      upd.mutate({ finding_id: findingId, review_status: status })
+                    }
+                    emptyMessage={emptyFindingsStatusMessage({
+                      status: scan.status,
+                      errorMessage: scan.error_message,
+                    })}
+                  />
+                ) : (
+                  <div
+                    className="card-surface p-10 text-center text-sm text-muted-foreground"
+                    data-testid="deepfake-results-empty"
+                  >
+                    {emptyFindingsStatusMessage({
+                      status: scan.status,
+                      errorMessage: scan.error_message,
+                    })}
+                  </div>
+                )}
+              </div>
 
               {discoveries.length > 0 && (
                 <div className="card-surface p-4">

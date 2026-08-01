@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -9,6 +10,7 @@ import {
   Cell,
 } from "recharts";
 import type { FunnelChartPoint, OverviewMetrics } from "@/lib/deepfake/results-dashboard";
+import { ResultsConsoleErrorBoundary } from "./ResultsConsoleErrorBoundary";
 
 const METRIC_CARDS: Array<{
   key: keyof OverviewMetrics;
@@ -33,19 +35,91 @@ const BAR_COLORS: Record<string, string> = {
   client: "#f87171",
 };
 
+function FunnelChart({ funnel }: { funnel: FunnelChartPoint[] }) {
+  return (
+    <div className="h-52 w-full min-w-0 overflow-x-auto" data-testid="verification-funnel-chart">
+      <div className="min-w-[420px] h-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={funnel} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+            <CartesianGrid stroke="rgba(148,163,184,0.15)" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: "#94a3b8", fontSize: 10 }}
+              interval={0}
+              height={48}
+              tickFormatter={(value: string) =>
+                value.replace(" candidates", "").replace(" findings", "")
+              }
+            />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fill: "#94a3b8", fontSize: 10 }}
+              width={36}
+            />
+            <Tooltip
+              cursor={{ fill: "rgba(56,189,248,0.08)" }}
+              contentStyle={{
+                background: "#0b1728",
+                border: "1px solid rgba(56,189,248,0.35)",
+                borderRadius: 8,
+                color: "#e2e8f0",
+                fontSize: 12,
+              }}
+            />
+            <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+              {funnel.map((entry) => (
+                <Cell
+                  key={entry.key}
+                  fill={BAR_COLORS[entry.key] ?? "#38bdf8"}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function FunnelFallback({ funnel }: { funnel: FunnelChartPoint[] }) {
+  return (
+    <ul className="grid gap-1.5 py-2" data-testid="verification-funnel-fallback">
+      {funnel.map((point) => (
+        <li
+          key={point.key}
+          className="flex items-center justify-between rounded border border-white/10 px-2.5 py-1.5 text-[12px]"
+        >
+          <span className="text-slate-400">{point.label}</span>
+          <span className="font-semibold tabular-nums text-slate-100">
+            {point.value}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function VerifiedThreatOverview({
   metrics,
   funnel,
+  resetKey,
 }: {
   metrics: OverviewMetrics;
   funnel: FunnelChartPoint[];
+  resetKey?: string | number | null;
 }) {
   const hasChartValues = funnel.some((point) => point.value > 0);
+  const [chartReady, setChartReady] = useState(false);
+
+  useEffect(() => {
+    setChartReady(true);
+  }, []);
 
   return (
     <section
       className="rounded-xl border border-sky-500/25 bg-[linear-gradient(160deg,rgba(8,24,48,0.96),rgba(10,18,32,0.98))] p-4 text-slate-100 shadow-[0_0_40px_rgba(30,123,255,0.08)]"
       aria-labelledby="verified-threat-overview-heading"
+      data-testid="verified-threat-overview"
     >
       <div className="mb-4 flex items-end justify-between gap-3 flex-wrap">
         <div>
@@ -85,47 +159,17 @@ export function VerifiedThreatOverview({
           Verification funnel
         </div>
         {hasChartValues ? (
-          <div className="h-52 w-full min-w-0 overflow-x-auto">
-            <div className="min-w-[420px] h-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={funnel} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
-                  <CartesianGrid stroke="rgba(148,163,184,0.15)" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fill: "#94a3b8", fontSize: 10 }}
-                    interval={0}
-                    height={48}
-                    tickFormatter={(value: string) =>
-                      value.replace(" candidates", "").replace(" findings", "")
-                    }
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tick={{ fill: "#94a3b8", fontSize: 10 }}
-                    width={36}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(56,189,248,0.08)" }}
-                    contentStyle={{
-                      background: "#0b1728",
-                      border: "1px solid rgba(56,189,248,0.35)",
-                      borderRadius: 8,
-                      color: "#e2e8f0",
-                      fontSize: 12,
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {funnel.map((entry) => (
-                      <Cell
-                        key={entry.key}
-                        fill={BAR_COLORS[entry.key] ?? "#38bdf8"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          chartReady ? (
+            <ResultsConsoleErrorBoundary
+              label="VerifiedThreatOverview.funnel"
+              resetKey={resetKey ?? funnel.map((point) => point.value).join("-")}
+              fallback={<FunnelFallback funnel={funnel} />}
+            >
+              <FunnelChart funnel={funnel} />
+            </ResultsConsoleErrorBoundary>
+          ) : (
+            <FunnelFallback funnel={funnel} />
+          )
         ) : (
           <p className="py-8 text-center text-sm text-slate-500">
             Funnel metrics appear once discovery diagnostics are saved.
