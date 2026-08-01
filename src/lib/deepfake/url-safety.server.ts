@@ -1,7 +1,10 @@
 /**
  * Shared public-URL safety checks for discovery/verification network I/O.
- * Rejects non-http(s), localhost, private/reserved IPs (incl. IPv4-mapped IPv6),
- * and supports DNS resolution + pinned undici fetch where available.
+ * Rejects non-http(s), localhost, private/reserved IPs (incl. IPv4-mapped IPv6).
+ *
+ * Core verification uses validate-then-plain-fetch (Vercel-compatible).
+ * Optional undici IP pinning is available for SerpApi/media only and must
+ * preserve TLS SNI; Node 22 autoSelectFamily lookup shapes are supported.
  */
 
 import dns from "node:dns";
@@ -11,6 +14,16 @@ import { Agent, fetch as undiciFetch } from "undici";
 
 export const MAX_SAFE_RESPONSE_BYTES = 1_500_000;
 export const MAX_SAFE_TEXT_LEN = 500;
+
+export type SafeFetchFailureCategory =
+  | "dns_resolution_failed"
+  | "private_address_rejected"
+  | "tls_connection_failed"
+  | "request_timeout"
+  | "redirect_rejected"
+  | "crawl_provider_failed"
+  | "network_failed"
+  | "url_safety_rejected";
 
 export function sanitizeProviderText(
   value: unknown,
@@ -222,6 +235,13 @@ async function withAbortSignal<T>(
   });
 }
 
+/** Prefer IPv4 on dual-stack hosts — more reliable on Vercel/serverless. */
+export function preferIpv4Addresses(addresses: string[]): string[] {
+  const v4 = addresses.filter((address) => net.isIP(address) === 4);
+  const v6 = addresses.filter((address) => net.isIP(address) === 6);
+  return v4.length ? [...v4, ...v6] : addresses;
+}
+
 export async function resolvePublicAddresses(
   hostname: string,
   lookupAll: DnsLookupAll = defaultDnsLookupAll,
@@ -240,16 +260,34 @@ export async function resolvePublicAddresses(
     return [host];
   }
 
-  const records = await withAbortSignal(
-    lookupAll(host, { all: true, verbatim: true }),
-    signal,
+  let records: dns.LookupAddress[];
+  try {
+    records = await withAbortSignal(
+      lookupAll(host, { all: true, verbatim: true }),
+      signal,
+    );
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    const wrapped = new Error(`DNS resolution failed for ${host}: ${message}`);
+    (wrapped as Error & { failureCategory?: SafeFetchFailureCategory }).failureCategory =
+      "dns_resolution_failed";
+    throw wrapped;
+  }
+
+  const publicAddresses = preferIpv4Addresses(
+    records
+      .map((record) => record.address)
+      .filter((address) => !isPrivateOrReservedIpAddress(address)),
   );
-  const publicAddresses = records
-    .map((record) => record.address)
-    .filter((address) => !isPrivateOrReservedIpAddress(address));
 
   if (!publicAddresses.length) {
-    throw new Error(`DNS for ${host} resolved only to private/reserved addresses`);
+    const err = new Error(
+      `DNS for ${host} resolved only to private/reserved addresses`,
+    );
+    (err as Error & { failureCategory?: SafeFetchFailureCategory }).failureCategory =
+      "private_address_rejected";
+    throw err;
   }
   return publicAddresses;
 }
@@ -263,7 +301,10 @@ export async function assertSafePublicUrlForFetch(
   addresses: string[];
 }> {
   if (!isSafePublicHttpUrl(url)) {
-    throw new Error("URL failed public http(s) safety checks");
+    const err = new Error("URL failed public http(s) safety checks");
+    (err as Error & { failureCategory?: SafeFetchFailureCategory }).failureCategory =
+      "url_safety_rejected";
+    throw err;
   }
   const parsed = new URL(url);
   const addresses = await resolvePublicAddresses(
@@ -275,12 +316,84 @@ export async function assertSafePublicUrlForFetch(
 }
 
 /**
- * Fetch a public URL after DNS validation. Pins the TCP connect to a validated
- * public address via undici (DNS-rebinding protection) and never auto-follows
- * redirects — callers must validate each Location hop.
- *
- * Uses globalThis.fetch when available so unit tests can stub network I/O
- * after the safety checks run; undici is the production fallback.
+ * Classify network/DNS/TLS failures into safe diagnostic categories.
+ * Never includes secrets, raw bodies, or provider payloads.
+ */
+export function classifySafeFetchFailure(
+  error: unknown,
+): SafeFetchFailureCategory {
+  if (error && typeof error === "object") {
+    const tagged = (error as { failureCategory?: SafeFetchFailureCategory })
+      .failureCategory;
+    if (tagged) return tagged;
+  }
+
+  const message =
+    error instanceof Error
+      ? `${error.name} ${error.message} ${(error as Error & { cause?: unknown }).cause ?? ""}`
+      : String(error);
+  const lower = message.toLowerCase();
+
+  if (/private|reserved|blocked private/i.test(message)) {
+    return "private_address_rejected";
+  }
+  if (/dns resolution failed|enotfound|eai_again|getaddrinfo/i.test(lower)) {
+    return "dns_resolution_failed";
+  }
+  if (
+    /cert|ssl|tls|sni|handshake|err_tls|unable to verify|altname/i.test(lower)
+  ) {
+    return "tls_connection_failed";
+  }
+  if (/timeout|timed out|etimedout|abort.*timeout/i.test(lower)) {
+    return "request_timeout";
+  }
+  if (/redirect/i.test(lower)) {
+    return "redirect_rejected";
+  }
+  if (/firecrawl|crawl provider|scrape/i.test(lower)) {
+    return "crawl_provider_failed";
+  }
+  return "network_failed";
+}
+
+/**
+ * Vercel-compatible path for core URL verification:
+ * DNS-validate (reject private) then plain global fetch. No custom dispatcher.
+ */
+export async function fetchValidatedPublicHttpUrl(
+  url: string,
+  init?: RequestInit & {
+    signal?: AbortSignal;
+    lookupAll?: DnsLookupAll;
+  },
+): Promise<Response> {
+  await assertSafePublicUrlForFetch(url, init?.lookupAll, init?.signal);
+
+  if (testDnsLookupAll && typeof globalThis.fetch === "function") {
+    return globalThis.fetch(url, {
+      method: init?.method ?? "GET",
+      headers: init?.headers,
+      body: init?.body,
+      signal: init?.signal,
+      redirect: "manual",
+    });
+  }
+
+  return globalThis.fetch(url, {
+    method: init?.method ?? "GET",
+    headers: init?.headers,
+    body: init?.body,
+    signal: init?.signal,
+    redirect: "manual",
+  });
+}
+
+/**
+ * Optional pinned fetch for SerpApi/media candidates only.
+ * Preserves original hostname for TLS SNI via connect.servername.
+ * Supports Node 22 autoSelectFamily (options.all → address array).
+ * Callers must soft-fail if this throws — never use for Firecrawl SDK.
  */
 export async function fetchPublicHttpUrl(
   url: string,
@@ -296,51 +409,56 @@ export async function fetchPublicHttpUrl(
   );
   const pinned = addresses[0]!;
   const family = net.isIP(pinned) === 6 ? 6 : 4;
+  const servername = stripIpBrackets(parsed.hostname);
 
   const agent = new Agent({
     connect: {
-      lookup(_hostname, _options, callback) {
+      // Preserve the original hostname for TLS SNI / certificate validation.
+      servername,
+      lookup(_hostname, options, callback) {
+        const opts =
+          typeof options === "object" && options
+            ? (options as { all?: boolean })
+            : {};
+        // Node 22+ autoSelectFamily uses options.all=true and expects an array.
+        if (opts.all) {
+          callback(null, [{ address: pinned, family }] as any);
+          return;
+        }
         callback(null, pinned, family);
       },
     },
   });
 
-  const requestInit = {
-    method: init?.method ?? "GET",
-    headers: init?.headers,
-    body: init?.body,
-    signal: init?.signal,
-    redirect: "manual" as const,
-    // undici-specific: pin connect to the pre-validated public address
-    dispatcher: agent,
-  };
-
   try {
-    /*
-     * Test mode (DNS stub installed): allow mocked globalThis.fetch after the
-     * safety checks. Production always uses undici with a pinned dispatcher —
-     * never fall back to an unpinned connect (DNS-rebinding / TOCTOU).
-     */
     if (testDnsLookupAll && typeof globalThis.fetch === "function") {
       return await globalThis.fetch(parsed.toString(), {
-        method: requestInit.method,
-        headers: requestInit.headers,
-        body: requestInit.body as BodyInit | null | undefined,
-        signal: requestInit.signal,
+        method: init?.method ?? "GET",
+        headers: init?.headers,
+        body: init?.body as BodyInit | null | undefined,
+        signal: init?.signal,
         redirect: "manual",
       });
     }
 
     return (await undiciFetch(parsed.toString(), {
-      method: requestInit.method,
-      headers: requestInit.headers as any,
-      body: requestInit.body as any,
-      signal: requestInit.signal as any,
+      method: init?.method ?? "GET",
+      headers: init?.headers as any,
+      body: init?.body as any,
+      signal: init?.signal as any,
       redirect: "manual",
       dispatcher: agent,
     })) as unknown as Response;
+  } catch (error) {
+    const category = classifySafeFetchFailure(error);
+    const wrapped =
+      error instanceof Error
+        ? error
+        : new Error(typeof error === "string" ? error : "Pinned fetch failed");
+    (wrapped as Error & { failureCategory?: SafeFetchFailureCategory }).failureCategory =
+      category;
+    throw wrapped;
   } finally {
-    // Close after the current turn so header-only callers can finish first.
     queueMicrotask(() => {
       void agent.close();
     });

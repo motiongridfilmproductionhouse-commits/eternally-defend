@@ -20,6 +20,13 @@ export type DiscoveryFunnelMetrics = {
   identity_rejected: number;
   page_type_rejected: number;
   url_rejected: number;
+  dns_resolution_failed: number;
+  private_address_rejected: number;
+  tls_connection_failed: number;
+  request_timeout: number;
+  redirect_rejected: number;
+  crawl_provider_failed: number;
+  network_failed: number;
   unverified: number;
   probable: number;
   verified: number;
@@ -46,6 +53,13 @@ export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
     identity_rejected: 0,
     page_type_rejected: 0,
     url_rejected: 0,
+    dns_resolution_failed: 0,
+    private_address_rejected: 0,
+    tls_connection_failed: 0,
+    request_timeout: 0,
+    redirect_rejected: 0,
+    crawl_provider_failed: 0,
+    network_failed: 0,
     unverified: 0,
     probable: 0,
     verified: 0,

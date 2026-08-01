@@ -21,12 +21,15 @@ import {
   assertNotAborted,
   boundTimeoutMs,
   isAbortError,
+  isDeadlineOrTimeoutError,
   mergeAbortSignals,
 } from "./scan-runtime.server";
 import {
   assertSafePublicUrlForFetch,
-  fetchPublicHttpUrl,
+  classifySafeFetchFailure,
+  fetchValidatedPublicHttpUrl,
   isSafePublicHttpUrl,
+  type SafeFetchFailureCategory,
 } from "./url-safety.server";
 
 export type UrlVerificationStatus = "URL_VERIFIED" | "URL_REJECTED";
@@ -79,6 +82,13 @@ export interface UrlVerificationMetrics {
   identity_rejected: number;
   page_type_rejected: number;
   url_rejected: number;
+  dns_resolution_failed: number;
+  private_address_rejected: number;
+  tls_connection_failed: number;
+  request_timeout: number;
+  redirect_rejected: number;
+  crawl_provider_failed: number;
+  network_failed: number;
 }
 
 const MIN_PRIMARY_CONTENT_CHARS = 80;
@@ -399,7 +409,9 @@ export function isUrlVerified(
 
 /**
  * Follow redirects manually and capture the chain + final URL + HTTP status.
- * Resolves and validates every hop (including redirect targets) before fetch.
+ * SSRF: validate public URL + DNS (reject private) before each hop, then use
+ * plain global fetch (Vercel-compatible). No custom undici dispatcher here —
+ * pinning is reserved for optional SerpApi/media candidates only.
  * Exact-page verification gates in evaluateUrlVerification are unchanged.
  */
 export async function resolveRedirectChain(
@@ -417,6 +429,7 @@ export async function resolveRedirectChain(
   redirect_chain: string[];
   ok: boolean;
   error?: string;
+  failure_category?: SafeFetchFailureCategory;
 }> {
   const maxRedirects = options?.maxRedirects ?? 8;
   const timeoutMs = boundTimeoutMs(
@@ -435,6 +448,7 @@ export async function resolveRedirectChain(
       redirect_chain: chain,
       ok: false,
       error: "URL failed public http(s) safety checks.",
+      failure_category: "url_safety_rejected",
     };
   }
 
@@ -454,11 +468,15 @@ export async function resolveRedirectChain(
       );
 
       try {
-        // DNS + fetch share the hop timeout / scan AbortSignal.
+        // DNS validation (private reject) under the hop timeout, then plain fetch.
         try {
           await assertSafePublicUrlForFetch(current, undefined, signal);
         } catch (error) {
-          if (options?.signal?.aborted || isAbortError(error)) {
+          // Scan-level abort must propagate; hop-level timeouts soft-fail.
+          if (options?.signal?.aborted) {
+            throw error;
+          }
+          if (isAbortError(error) && !isDeadlineOrTimeoutError(error)) {
             throw error;
           }
           return {
@@ -471,13 +489,14 @@ export async function resolveRedirectChain(
               error instanceof Error
                 ? error.message
                 : "URL failed DNS/public-address safety checks.",
+            failure_category: classifySafeFetchFailure(error),
           };
         }
 
         let response: Response;
 
         try {
-          response = await fetchPublicHttpUrl(current, {
+          response = await fetchValidatedPublicHttpUrl(current, {
             method: "HEAD",
             signal,
             headers: {
@@ -486,10 +505,16 @@ export async function resolveRedirectChain(
             },
           });
         } catch (headError) {
-          if (options?.signal?.aborted || isAbortError(headError)) {
+          if (options?.signal?.aborted) {
             throw headError;
           }
-          response = await fetchPublicHttpUrl(current, {
+          if (
+            isAbortError(headError) &&
+            !isDeadlineOrTimeoutError(headError)
+          ) {
+            throw headError;
+          }
+          response = await fetchValidatedPublicHttpUrl(current, {
             method: "GET",
             signal,
             headers: {
@@ -511,6 +536,7 @@ export async function resolveRedirectChain(
               redirect_chain: chain,
               ok: false,
               error: "Redirect response missing Location header.",
+              failure_category: "redirect_rejected",
             };
           }
 
@@ -525,6 +551,7 @@ export async function resolveRedirectChain(
               redirect_chain: chain,
               ok: false,
               error: "Redirect Location was not a valid URL.",
+              failure_category: "redirect_rejected",
             };
           }
 
@@ -536,13 +563,17 @@ export async function resolveRedirectChain(
               redirect_chain: chain,
               ok: false,
               error: "Redirect target failed public http(s) safety checks.",
+              failure_category: "redirect_rejected",
             };
           }
 
           try {
             await assertSafePublicUrlForFetch(next, undefined, signal);
           } catch (error) {
-            if (options?.signal?.aborted || isAbortError(error)) {
+            if (options?.signal?.aborted) {
+              throw error;
+            }
+            if (isAbortError(error) && !isDeadlineOrTimeoutError(error)) {
               throw error;
             }
             return {
@@ -555,6 +586,7 @@ export async function resolveRedirectChain(
                 error instanceof Error
                   ? `Unsafe redirect target: ${error.message}`
                   : "Unsafe redirect target.",
+              failure_category: classifySafeFetchFailure(error),
             };
           }
 
@@ -566,6 +598,7 @@ export async function resolveRedirectChain(
               redirect_chain: chain,
               ok: false,
               error: "Redirect loop detected.",
+              failure_category: "redirect_rejected",
             };
           }
 
@@ -591,18 +624,31 @@ export async function resolveRedirectChain(
           ok: status >= 200 && status < 400,
         };
       } catch (error) {
-        if (options?.signal?.aborted || isAbortError(error)) {
+        // Parent/scan abort propagates. Per-hop AbortSignal.timeout soft-fails
+        // the candidate as request_timeout so verification can continue.
+        if (options?.signal?.aborted) {
+          throw error;
+        }
+        if (isAbortError(error) && !isDeadlineOrTimeoutError(error)) {
           throw error;
         }
 
         if (
           attempt < 2 &&
-          error instanceof Error &&
-          /\b(?:timeout|timed out|econnreset|etimedout)\b/i.test(
-            error.message,
-          )
+          (isDeadlineOrTimeoutError(error) ||
+            (error instanceof Error &&
+              /\b(?:timeout|timed out|econnreset|etimedout)\b/i.test(
+                error.message,
+              )))
         ) {
-          await abortableSleep((attempt + 1) * 1_000, options?.signal);
+          await abortableSleep(
+            boundTimeoutMs(
+              (attempt + 1) * 1_000,
+              options?.signal,
+              options?.softDeadlineMs,
+            ),
+            options?.signal,
+          );
           continue;
         }
 
@@ -614,6 +660,7 @@ export async function resolveRedirectChain(
           ok: false,
           error:
             error instanceof Error ? error.message : String(error),
+          failure_category: classifySafeFetchFailure(error),
         };
       }
     }
@@ -630,6 +677,7 @@ export async function resolveRedirectChain(
     redirect_chain: chain,
     ok: false,
     error: "Too many redirects.",
+    failure_category: "redirect_rejected",
   };
 }
 
@@ -736,6 +784,42 @@ export async function verifyCandidateUrls(
     identity_rejected: 0,
     page_type_rejected: 0,
     url_rejected: 0,
+    dns_resolution_failed: 0,
+    private_address_rejected: 0,
+    tls_connection_failed: 0,
+    request_timeout: 0,
+    redirect_rejected: 0,
+    crawl_provider_failed: 0,
+    network_failed: 0,
+  };
+
+  const bumpNetworkCategory = (category?: SafeFetchFailureCategory) => {
+    switch (category) {
+      case "dns_resolution_failed":
+        metrics.dns_resolution_failed++;
+        break;
+      case "private_address_rejected":
+        metrics.private_address_rejected++;
+        break;
+      case "tls_connection_failed":
+        metrics.tls_connection_failed++;
+        break;
+      case "request_timeout":
+        metrics.request_timeout++;
+        break;
+      case "redirect_rejected":
+        metrics.redirect_rejected++;
+        break;
+      case "crawl_provider_failed":
+        metrics.crawl_provider_failed++;
+        break;
+      case "url_safety_rejected":
+        metrics.url_rejected++;
+        break;
+      default:
+        metrics.network_failed++;
+        break;
+    }
   };
   const batchSize = 3;
 
@@ -770,7 +854,12 @@ export async function verifyCandidateUrls(
             search_snippet: searchSnippet,
             target,
           });
-          return { hit, verification: failed, media: null as null };
+          return {
+            hit,
+            verification: failed,
+            media: null as null,
+            networkFailureCategory: resolved.failure_category ?? "network_failed",
+          };
         }
 
         const finalUrl = resolved.final_url;
@@ -839,6 +928,7 @@ export async function verifyCandidateUrls(
           null;
 
         const crawledAt = new Date().toISOString();
+        const pageInspected = Boolean(pageRecord?.page_inspected);
         const verification = evaluateUrlVerification({
           discovered_url: discovered,
           final_url: finalUrl,
@@ -847,7 +937,7 @@ export async function verifyCandidateUrls(
           crawled_title: pageRecord?.title ?? null,
           crawled_description: pageRecord?.description ?? null,
           crawled_page_text: pageRecord?.page_text ?? "",
-          page_inspected: Boolean(pageRecord?.page_inspected),
+          page_inspected: pageInspected,
           search_title: searchTitle,
           search_snippet: searchSnippet,
           target,
@@ -861,33 +951,50 @@ export async function verifyCandidateUrls(
             canonical_url: canonical,
           },
           media: scraped,
+          // Reachability ok but Firecrawl/page scrape did not yield inspectable content.
+          networkFailureCategory:
+            !pageInspected &&
+            verification.url_verification_status !== "URL_VERIFIED"
+              ? ("crawl_provider_failed" as const)
+              : undefined,
         };
       }),
     );
 
     for (const item of batchResults) {
       const { hit, verification, media } = item;
+      const networkFailureCategory =
+        "networkFailureCategory" in item
+          ? (item as { networkFailureCategory?: SafeFetchFailureCategory })
+              .networkFailureCategory
+          : undefined;
 
       if (verification.url_verification_status !== "URL_VERIFIED") {
-        metrics.url_rejected++;
         if (verification.page_inspected) {
           metrics.crawl_succeeded++;
         } else {
           metrics.crawl_failed++;
         }
-        if (
-          /\b(?:identity|protected identity|target)\b/i.test(
-            verification.rejection_reason ?? "",
-          )
-        ) {
-          metrics.identity_rejected++;
-        }
-        if (
-          /\b(?:homepage|search|tag|category|listing|performer|page type)\b/i.test(
-            verification.rejection_reason ?? "",
-          )
-        ) {
-          metrics.page_type_rejected++;
+
+        if (networkFailureCategory) {
+          // Distinct network/DNS/TLS/timeout categories — not blanket url_rejected.
+          bumpNetworkCategory(networkFailureCategory);
+        } else {
+          metrics.url_rejected++;
+          if (
+            /\b(?:identity|protected identity|target)\b/i.test(
+              verification.rejection_reason ?? "",
+            )
+          ) {
+            metrics.identity_rejected++;
+          }
+          if (
+            /\b(?:homepage|search|tag|category|listing|performer|page type)\b/i.test(
+              verification.rejection_reason ?? "",
+            )
+          ) {
+            metrics.page_type_rejected++;
+          }
         }
         rejected.push(verification);
         continue;
