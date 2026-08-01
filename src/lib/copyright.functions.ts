@@ -22,7 +22,7 @@ import {
 import { filterClientVisibleCopyrightMatches } from "@/lib/copyright/client-filter";
 import { detectPrimaryPurpose } from "@/lib/copyright/page-classify.server";
 import { expandTitleVariants } from "@/lib/copyright/title-identity";
-import { explainZeroMatchFunnel } from "@/lib/copyright/scan-diagnostics";
+import { explainZeroMatchFunnel, summarizeProviderFailures } from "@/lib/copyright/scan-diagnostics";
 import {
   acceptedKnownUrls,
   parseKnownUrlInputs,
@@ -1219,9 +1219,17 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         abortedByDeadline,
       });
 
+      const providerFailureHint = summarizeProviderFailures({
+        provider_failures_by_category: discovery.providerFailuresByCategory,
+      });
+      const failureReason =
+        terminal.reason && providerFailureHint && terminal.status === "failed"
+          ? `${terminal.reason} (${providerFailureHint})`
+          : terminal.reason;
+
       const finalStats = {
         ...stats,
-        failure_reason: terminal.reason,
+        failure_reason: failureReason,
         terminal_status: terminal.status,
       };
 
@@ -1230,7 +1238,7 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         .update({
           status: terminal.status,
           sha256,
-          error: terminal.status === "failed" ? (terminal.reason ?? "Scan failed").slice(0, 500) : null,
+          error: terminal.status === "failed" ? (failureReason ?? "Scan failed").slice(0, 500) : null,
           stats: finalStats,
         })
         .eq("id", scan.id);
