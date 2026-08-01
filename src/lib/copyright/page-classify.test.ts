@@ -354,6 +354,23 @@ test("cinema brand mention on piracy page does not hard-reject", () => {
   assert.equal(result.clientVisible, true);
 });
 
+test("now showing + watch online player is not rejected as cinema", () => {
+  const result = classifyCopyrightPage({
+    url: "https://streamexample.test/neon-horizon-now-showing",
+    pageTitle: "Neon Horizon now showing — watch online",
+    markdown: long(
+      "Neon Horizon now showing. Watch online free on streaming server 1. Download available.",
+    ),
+    html: '<iframe src="https://streamtape.com/e/watchonline"></iframe>',
+    links: ["https://streamtape.com/e/watchonline"],
+    titles: TITLES,
+    pageInspected: true,
+  });
+  assert.notEqual(result.classification, "CINEMA_OR_SHOWTIME");
+  assert.equal(result.clientVisible, true);
+  assert.ok(isActionablePiracy(result.classification));
+});
+
 test("17. Legacy ripped_copy / cinema discovery category never auto-actionable", () => {
   assert.equal(
     piracyCategory("Neon Horizon now showing VOX Cinemas showtimes book tickets"),

@@ -361,7 +361,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         indicators: string[];
       }> = [];
 
-      const ingestDistribution = (
+      const ingestDistribution = async (
         dist: Awaited<ReturnType<typeof analyzeDistributionPage>>,
         leadQuery: string | null,
         leadTitle: string | null,
@@ -471,7 +471,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         };
 
         if (dist.clientVisible && dist.strongEvidence && isActionablePiracy(dist.classification)) {
-          void registerDistributionSource(supabase, {
+          await registerDistributionSource(supabase, {
             userId,
             scanId: scan.id,
             workTitle: data.title,
@@ -504,7 +504,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         );
 
         for (const { lead, analysis: dist } of analyses) {
-          ingestDistribution(dist, lead.query, lead.title);
+          await ingestDistribution(dist, lead.query, lead.title);
         }
       }
 
@@ -524,7 +524,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         );
         for (const dist of analyses) {
           detailPagesFollowed += 1;
-          ingestDistribution(dist, "detail_follow", dist.pageTitle);
+          await ingestDistribution(dist, "detail_follow", dist.pageTitle);
         }
       }
 

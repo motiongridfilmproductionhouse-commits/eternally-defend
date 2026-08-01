@@ -170,7 +170,7 @@ export function hasExactTitleIdentity(
 }
 
 const DISTRIBUTION_OVERRIDE_RE =
-  /\b(watch\s*(the\s*)?full\s*movie|download\s*(the\s*)?full\s*movie|magnet:|\.torrent|webrip|web[- ]?dl|hdcam|camrip|theatre\s*print|theater\s*print|hdts|free\s*streaming|streaming\s*server|file\s*host)\b/i;
+  /\b(watch\s*(the\s*)?full\s*movie|download\s*(the\s*)?full\s*movie|watch\s*online|free\s*download|magnet:|\.torrent|webrip|web[- ]?dl|hdcam|camrip|theatre\s*print|theater\s*print|hdts|free\s*streaming|streaming\s*server|file\s*host|embedded\s*player|watch\s*server|download\s*server|\.mkv|\.mp4)\b/i;
 
 export function detectPrimaryPurpose(opts: {
   url: string;
@@ -423,6 +423,15 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     input.releaseYear ?? input.releaseDate?.slice(0, 4),
   );
 
+  // Quick access-signal scan so soft cinema/trailer/review language cannot
+  // hard-reject a page that already exposes player/download/torrent evidence.
+  const earlyAccessSignal =
+    DISTRIBUTION_OVERRIDE_RE.test(blobLower) ||
+    /<iframe[^>]+(src|data-src)=["'][^"']*(embed|player|stream|video|\/e\/|\/v\/)/i.test(html) ||
+    /magnet:\?xt=urn:btih/i.test(html) ||
+    /\.torrent(\?|"|'|\s|$)/i.test(html) ||
+    FILE_HOSTS.some((h) => html.toLowerCase().includes(h) && /(download|watch|stream|embed|player)/i.test(blobLower));
+
   const purpose = detectPrimaryPurpose({
     url: input.url,
     pageTitle,
@@ -431,10 +440,14 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
   });
   const purposeClass = purposeToClassification(purpose);
 
-  // Hard negative gates — never actionable piracy from these primary purposes.
-  if (purposeClass && purpose !== "unknown" && purpose !== "distribution") {
-    // Exception: listing pages may still be inspected for detail follow elsewhere;
-    // they are never themselves actionable.
+  // Hard negative gates — never actionable piracy from these primary purposes
+  // unless exact-page access signals are already present (then continue).
+  if (
+    purposeClass &&
+    purpose !== "unknown" &&
+    purpose !== "distribution" &&
+    !earlyAccessSignal
+  ) {
     return empty(purposeClass, `Primary page purpose is ${purpose.replace(/_/g, " ")} — rejected as unauthorized distribution.`, {
       primaryPurpose: purpose,
       identityMatch: identity.match,
@@ -449,7 +462,7 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     });
   }
 
-  if (isExcludedHost(input.url)) {
+  if (isExcludedHost(input.url) && !earlyAccessSignal) {
     return empty("OFFICIAL_OR_AUTHORIZED", "Official, licensed, ticketing, or news host — not unauthorized distribution.", {
       primaryPurpose: "official_or_authorized",
       identityMatch: identity.match,
