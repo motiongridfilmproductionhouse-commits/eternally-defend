@@ -201,6 +201,43 @@ export async function mutateIdentityAlias(
     .filter((a) => a.active && a.source !== "rejected")
     .map((a) => a.alias);
 
+  // If confirming to a canonical name that already exists for this user,
+  // merge into that row instead of violating UNIQUE(user_id, canonical_name).
+  if (
+    opts.action === "confirm_identity" &&
+    canonicalName &&
+    normalizeKey(canonicalName) !== normalizeKey(String(profile.canonical_name ?? ""))
+  ) {
+    const { data: existingCanon } = await supabase
+      .from("search_identity_profiles")
+      .select("id")
+      .eq("user_id", opts.userId)
+      .eq("canonical_name", canonicalName)
+      .maybeSingle();
+    if (existingCanon?.id && existingCanon.id !== opts.profileId) {
+      const { error: mergeErr } = await supabase
+        .from("search_identity_profiles")
+        .update({
+          aliases: activeAliases,
+          aliases_detailed: detailed,
+          official_handles: handles,
+          reviewer_confirmed: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingCanon.id)
+        .eq("user_id", opts.userId);
+      if (!mergeErr) {
+        await supabase
+          .from("search_identity_profiles")
+          .delete()
+          .eq("id", opts.profileId)
+          .eq("user_id", opts.userId);
+      }
+      invalidateIdentityExpansionCache({ all: true });
+      return !mergeErr;
+    }
+  }
+
   const { error } = await supabase
     .from("search_identity_profiles")
     .update({

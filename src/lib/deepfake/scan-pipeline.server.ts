@@ -882,10 +882,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
               ? Number((media as any)?.face_similarity ?? (hit as any).face_similarity)
               : null,
         });
+        // Re-score at finalization (after crawl/face). Do not sticky-OR the
+        // pre-crawl quarantine flag — strong face evidence may recover a hit.
         const quarantineIdentity =
-          Boolean((hit as any).identity_relevance_quarantine) ||
-          relevance.quarantine ||
-          !relevance.matchedIdentity;
+          relevance.quarantine || !relevance.matchedIdentity;
 
         // Force UNVERIFIED_LEAD so existing client filters / metrics exclude it.
         const effectiveFields = quarantineIdentity

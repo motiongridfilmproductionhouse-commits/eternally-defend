@@ -22,18 +22,24 @@ export function scoreIdentityRelevance(opts: {
   const blob = normalizeKey(
     `${opts.title ?? ""} ${opts.snippet ?? ""} ${opts.url ?? ""}`,
   );
-  if (!blob) {
-    return {
-      matchedIdentity: false,
-      confidence: 0,
-      matchedTerms: [],
-      quarantine: true,
-      reason: "Empty result text — quarantined pending review.",
-    };
-  }
-
   const matchedTerms: string[] = [];
   let score = 0;
+
+  // Face similarity can establish identity even when crawl text is empty.
+  if (typeof opts.faceSimilarity === "number" && opts.faceSimilarity >= 0.85) {
+    matchedTerms.push("reference_face");
+    score += 0.4;
+  }
+
+  if (!blob && score < 0.35) {
+    return {
+      matchedIdentity: false,
+      confidence: score,
+      matchedTerms,
+      quarantine: true,
+      reason: "Empty result text and no strong face match — quarantined pending review.",
+    };
+  }
 
   const push = (term: string, weight: number, label: string) => {
     const n = normalizeKey(term);
@@ -67,11 +73,6 @@ export function scoreIdentityRelevance(opts: {
   for (const handle of opts.expansion.usernames) {
     const h = handle.replace(/^@/, "");
     push(h, 0.35, `handle:${h}`);
-  }
-
-  if (typeof opts.faceSimilarity === "number" && opts.faceSimilarity >= 0.85) {
-    matchedTerms.push("reference_face");
-    score += 0.4;
   }
 
   // Generic first-name-only trap: e.g. "Manju" without Pathrose/Aliyans/Thankam.
