@@ -1046,7 +1046,7 @@ function DeepfakeIntelPage() {
                 )}
               </div>
 
-              {selected.isLoading && !scan ? (
+              {shouldShowResultsLoader({ isLoading: selected.isLoading, hasScan: Boolean(scan) }) ? (
                 <div className="card-surface p-8 text-center text-sm text-muted-foreground">
                   <Loader2 className="size-5 mx-auto animate-spin mb-2" /> Loading findings…
                 </div>
