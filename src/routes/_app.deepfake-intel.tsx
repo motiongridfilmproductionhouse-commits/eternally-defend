@@ -26,6 +26,15 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 import { buildVerifiedEvidenceLink } from "@/lib/deepfake/evidence-url";
+import {
+  isScanStalled,
+  isTerminalScanStatus,
+  pickLiveScanId,
+  scanPollInterval,
+  scanProgressSignature,
+  SCAN_STALL_WARNING_MS,
+  shouldShowResultsLoader,
+} from "@/lib/deepfake/scan-ui-state";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
