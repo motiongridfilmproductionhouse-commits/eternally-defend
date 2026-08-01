@@ -7,7 +7,10 @@ import {
   resolveAndExpandSearchQuerySafe,
 } from "@/lib/search/identity-search-expander.server";
 import type { SearchExpansionResult } from "@/lib/search/identity-types";
-import { upsertSearchIdentityProfile } from "@/lib/search/identity-profile.server";
+import {
+  loadPersistedIdentityHints,
+  upsertSearchIdentityProfile,
+} from "@/lib/search/identity-profile.server";
 import { scoreIdentityRelevance } from "@/lib/search/identity-relevance.server";
 import { isBlockedHost } from "./queries";
 import {
@@ -379,6 +382,11 @@ export async function executeInterleavedDeepfakePipeline(input: {
     input.resumeCheckpoint?.per_query_limit ?? input.perQueryLimit ?? 20;
 
   // Identity-aware expansion before provider queries (fail-open).
+  const persistedProfile = await loadPersistedIdentityHints(input.supabase, {
+    userId: input.userId,
+    query: input.target.name,
+    knownAliases: input.target.aliases,
+  }).catch(() => null);
   const expansion: SearchExpansionResult = await resolveAndExpandSearchQuerySafe({
     query: input.target.name,
     knownAliases: input.target.aliases,
@@ -386,6 +394,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     module: "deepfake",
     entityType: "person",
     userId: input.userId,
+    persistedProfile,
   });
   // When ambiguous, do not promote competing candidate names into match aliases.
   const expandedIdentities = expansion.ambiguous

@@ -201,6 +201,25 @@ test("Copyright module adds piracy terms; reputation does not", async () => {
   assert.ok(person.searchQueries.some((q) => /controversy|impersonation|deepfake|fake/i.test(q.query)));
 });
 
+test("Reviewer-confirmed persisted profile overrides ambiguity", async () => {
+  invalidateIdentityExpansionCache({ all: true });
+  const result = await resolveAndExpandSearchQuery({
+    query: "Manju",
+    module: "reputation",
+    offlineOnly: true,
+    persistedProfile: {
+      canonicalName: "Manju Pathrose",
+      aliases: ["Manju Sunichen"],
+      reviewerConfirmed: true,
+      rejectedAliases: ["Manju Warrier"],
+    },
+  });
+  assert.equal(result.canonicalName, "Manju Pathrose");
+  assert.equal(result.ambiguous, false);
+  assert.ok(result.aliases.includes("Manju Sunichen"));
+  assert.ok(!result.aliases.includes("Manju Warrier"));
+});
+
 test("Query limits respected", async () => {
   invalidateIdentityExpansionCache({ all: true });
   const result = await resolveAndExpandSearchQuery({

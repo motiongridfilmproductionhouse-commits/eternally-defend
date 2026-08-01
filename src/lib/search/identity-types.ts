@@ -53,6 +53,15 @@ export type AliasSource =
   | "knowledge_base"
   | "heuristic";
 
+export type PersistedIdentityHints = {
+  canonicalName?: string | null;
+  aliases?: string[];
+  handles?: string[];
+  localLanguageNames?: string[];
+  reviewerConfirmed?: boolean;
+  rejectedAliases?: string[];
+};
+
 export type SearchExpansionInput = {
   query: string;
   entityType?: string;
@@ -67,6 +76,8 @@ export type SearchExpansionInput = {
   userId?: string | null;
   /** Skip network/AI enrichment (tests). */
   offlineOnly?: boolean;
+  /** Reviewer/user-persisted identity hints (loaded by callers). */
+  persistedProfile?: PersistedIdentityHints | null;
 };
 
 export type ExpandedSearchQuery = {

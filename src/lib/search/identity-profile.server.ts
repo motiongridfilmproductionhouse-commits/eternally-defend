@@ -4,7 +4,11 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { SearchExpansionResult, AliasSource } from "./identity-types";
+import type {
+  AliasSource,
+  PersistedIdentityHints,
+  SearchExpansionResult,
+} from "./identity-types";
 import { invalidateIdentityExpansionCache } from "./identity-search-expander.server";
 import { normalizeKey } from "./identity-knowledge.server";
 
@@ -15,6 +19,77 @@ export type StoredAlias = {
   source: AliasSource;
   active: boolean;
 };
+
+/** Load reviewer/user persisted identity hints for expansion. */
+export async function loadPersistedIdentityHints(
+  supabase: DB,
+  opts: {
+    userId: string;
+    query: string;
+    knownAliases?: string[];
+  },
+): Promise<PersistedIdentityHints | null> {
+  try {
+    const needles = [opts.query, ...(opts.knownAliases ?? [])]
+      .map((n) => n.trim())
+      .filter(Boolean);
+    if (!needles.length) return null;
+    const { data } = await supabase
+      .from("search_identity_profiles")
+      .select("*")
+      .eq("user_id", opts.userId)
+      .order("updated_at", { ascending: false })
+      .limit(25);
+    if (!data?.length) return null;
+    const normNeedles = new Set(needles.map((n) => normalizeKey(n)));
+    const match = data.find((row) => {
+      const names = [
+        row.canonical_name,
+        row.corrected_name,
+        ...((row.aliases as string[] | null) ?? []),
+        ...((row.local_language_names as string[] | null) ?? []),
+      ]
+        .filter(Boolean)
+        .map((n) => normalizeKey(String(n)));
+      return names.some((n) => normNeedles.has(n));
+    });
+    if (!match) return null;
+    const detailed = Array.isArray(match.aliases_detailed)
+      ? (match.aliases_detailed as StoredAlias[])
+      : [];
+    return {
+      canonicalName: match.reviewer_confirmed ? String(match.canonical_name) : null,
+      aliases: [
+        ...((match.aliases as string[] | null) ?? []),
+        ...detailed
+          .filter((a) => a.active && a.source !== "rejected")
+          .map((a) => a.alias),
+      ],
+      handles: (match.official_handles as string[] | null) ?? [],
+      localLanguageNames: (match.local_language_names as string[] | null) ?? [],
+      reviewerConfirmed: Boolean(match.reviewer_confirmed),
+      rejectedAliases: detailed
+        .filter((a) => a.source === "rejected" || !a.active)
+        .map((a) => a.alias),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function uniqueHandles(values: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const v of values) {
+    const t = v.trim();
+    if (!t) continue;
+    const key = normalizeKey(t) || t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
 
 function mergeAliasLists(
   existing: StoredAlias[],
@@ -215,12 +290,32 @@ export async function mutateIdentityAlias(
       .eq("canonical_name", canonicalName)
       .maybeSingle();
     if (existingCanon?.id && existingCanon.id !== opts.profileId) {
+      const { data: targetRow } = await supabase
+        .from("search_identity_profiles")
+        .select("*")
+        .eq("id", existingCanon.id)
+        .eq("user_id", opts.userId)
+        .maybeSingle();
+      const targetDetailed = Array.isArray(targetRow?.aliases_detailed)
+        ? (targetRow!.aliases_detailed as StoredAlias[])
+        : [];
+      const mergedDetailed = mergeAliasLists(
+        targetDetailed,
+        detailed.map((a) => ({ alias: a.alias, source: a.source })),
+      );
+      const mergedHandles = uniqueHandles([
+        ...((targetRow?.official_handles as string[] | null) ?? []),
+        ...handles,
+      ]);
+      const mergedAliases = mergedDetailed
+        .filter((a) => a.active && a.source !== "rejected")
+        .map((a) => a.alias);
       const { error: mergeErr } = await supabase
         .from("search_identity_profiles")
         .update({
-          aliases: activeAliases,
-          aliases_detailed: detailed,
-          official_handles: handles,
+          aliases: mergedAliases,
+          aliases_detailed: mergedDetailed,
+          official_handles: mergedHandles,
           reviewer_confirmed: true,
           updated_at: new Date().toISOString(),
         })

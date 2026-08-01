@@ -6,6 +6,7 @@ import {
   resolveAndExpandSearchQuerySafe,
 } from "@/lib/search/identity-search-expander.server";
 import {
+  loadPersistedIdentityHints,
   mutateIdentityAlias,
   upsertSearchIdentityProfile,
 } from "@/lib/search/identity-profile.server";
@@ -44,6 +45,11 @@ export const previewSearchExpansion = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const persistedProfile = await loadPersistedIdentityHints(context.supabase, {
+      userId: context.userId,
+      query: data.query,
+      knownAliases: data.knownAliases,
+    }).catch(() => null);
     const expansion = await resolveAndExpandSearchQuerySafe({
       query: data.query,
       entityType: data.entityType,
@@ -53,6 +59,7 @@ export const previewSearchExpansion = createServerFn({ method: "POST" })
       country: data.country,
       language: data.language,
       userId: context.userId,
+      persistedProfile,
     });
 
     let profileId: string | null = null;

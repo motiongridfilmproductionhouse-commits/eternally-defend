@@ -3111,6 +3111,7 @@ export const Route = createFileRoute("/api/scan")({
           // Shared identity-aware expansion before every provider search (fail-open).
           const { resolveAndExpandSearchQuerySafe, expansionToIdentityList, expansionDiagnostics } =
             await import("@/lib/search/identity-search-expander.server");
+          // Reputation scan API is unauthenticated in places; persisted hints are optional.
           const identityExpansion = await resolveAndExpandSearchQuerySafe({
             query,
             knownAliases: aliasesIn,

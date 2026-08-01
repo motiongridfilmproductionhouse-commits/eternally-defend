@@ -326,6 +326,17 @@ export async function resolveAndExpandSearchQuery(
     };
   }
 
+  const persisted = input.persistedProfile
+    ? {
+        canonicalName: input.persistedProfile.canonicalName ?? null,
+        aliases: input.persistedProfile.aliases ?? [],
+        handles: input.persistedProfile.handles ?? [],
+        localLanguageNames: input.persistedProfile.localLanguageNames ?? [],
+        reviewerConfirmed: Boolean(input.persistedProfile.reviewerConfirmed),
+        rejectedAliases: input.persistedProfile.rejectedAliases ?? [],
+      }
+    : null;
+
   const hints = extractContextHints(original);
   const corrected = correctSpellingAgainstKnown(original);
   const module = (input.module ?? "general") as SearchModulePolicy;
@@ -337,8 +348,14 @@ export async function resolveAndExpandSearchQuery(
     show: hints.show,
     character: hints.character,
     partialName: hints.partialName,
-    knownAliases: input.knownAliases,
-    knownHandles: input.knownHandles,
+    knownAliases: uniqueStrings([
+      ...(input.knownAliases ?? []),
+      ...(persisted?.aliases ?? []),
+    ]),
+    knownHandles: uniqueStrings([
+      ...(input.knownHandles ?? []),
+      ...(persisted?.handles ?? []),
+    ]),
   });
 
   const top = candidates[0] ?? null;
@@ -348,10 +365,15 @@ export async function resolveAndExpandSearchQuery(
     top != null &&
     top.confidence - second.confidence < 0.15 &&
     second.confidence >= 0.25;
-  const ambiguous =
+  let ambiguous =
     !top ||
     top.confidence < IDENTITY_CONFIDENCE_THRESHOLD ||
     closeRace;
+
+  // Reviewer-confirmed profiles override ambiguity for that user.
+  if (persisted?.reviewerConfirmed && persisted.canonicalName) {
+    ambiguous = false;
+  }
 
   const ambiguityCandidates: AmbiguityCandidate[] = candidates.slice(0, 5).map((c) => ({
     name: c.identity.canonicalName,
@@ -366,11 +388,27 @@ export async function resolveAndExpandSearchQuery(
     top && top.confidence >= IDENTITY_CONFIDENCE_THRESHOLD && !closeRace
       ? top.identity
       : null;
-  const canonicalName = identity?.canonicalName ?? null;
-  const confidence = top?.confidence ?? (corrected !== original ? 0.5 : 0.35);
+  const canonicalName =
+    persisted?.canonicalName ??
+    identity?.canonicalName ??
+    null;
+  const confidence = persisted?.reviewerConfirmed
+    ? Math.max(top?.confidence ?? 0.9, 0.9)
+    : (top?.confidence ?? (corrected !== original ? 0.5 : 0.35));
 
-  const userAliases = uniqueStrings(input.knownAliases ?? []);
-  const userHandles = uniqueStrings(input.knownHandles ?? []);
+  const userAliases = uniqueStrings([
+    ...(input.knownAliases ?? []),
+    ...(persisted?.aliases ?? []),
+  ]).filter(
+    (a) =>
+      !(persisted?.rejectedAliases ?? []).some(
+        (r) => normalizeKey(r) === normalizeKey(a),
+      ),
+  );
+  const userHandles = uniqueStrings([
+    ...(input.knownHandles ?? []),
+    ...(persisted?.handles ?? []),
+  ]);
 
   // When ambiguous: do NOT put competing people into aliases used for auto-matching.
   // Keep them only in ambiguityCandidates + dedicated investigative search queries.
@@ -382,7 +420,10 @@ export async function resolveAndExpandSearchQuery(
     original !== (canonicalName ?? corrected) ? original : null,
   ]).filter((a) => normalizeKey(a) !== normalizeKey(canonicalName ?? ""));
 
-  const localLanguageNames = uniqueStrings(identity?.localLanguageNames ?? []);
+  const localLanguageNames = uniqueStrings([
+    ...(identity?.localLanguageNames ?? []),
+    ...(persisted?.localLanguageNames ?? []),
+  ]);
   const nicknames = uniqueStrings(identity?.nicknames ?? []);
   const formerNames = uniqueStrings(identity?.formerNames ?? []);
   const usernames = uniqueStrings([...(identity?.usernames ?? []), ...userHandles]);
@@ -483,6 +524,8 @@ export async function resolveAndExpandSearchQuery(
       identity ? "knowledge_base" : "unresolved",
       ...(input.knownAliases?.length ? ["user_aliases"] : []),
       ...(input.knownHandles?.length ? ["user_handles"] : []),
+      ...(persisted?.reviewerConfirmed ? ["reviewer_confirmed"] : []),
+      ...(persisted ? ["persisted_profile"] : []),
     ],
     aliasSources,
     diagnostics: {
