@@ -423,14 +423,19 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     input.releaseYear ?? input.releaseDate?.slice(0, 4),
   );
 
-  // Quick access-signal scan so soft cinema/trailer/review language cannot
-  // hard-reject a page that already exposes player/download/torrent evidence.
+  // Access override for soft negatives. Do NOT treat a generic trailer iframe
+  // as override — require piracy/full-movie/file/torrent language or non-YouTube
+  // file-host embeds.
+  const nonPromoEmbed =
+    /<iframe[^>]+(src|data-src)=["'][^"']+/i.test(html) &&
+    !/(youtube\.com|youtu\.be|vimeo\.com)/i.test(html) &&
+    (FILE_HOSTS.some((h) => html.toLowerCase().includes(h)) ||
+      /(doodstream|streamtape|mixdrop|filemoon|\/e\/|\/v\/)/i.test(html));
   const earlyAccessSignal =
     DISTRIBUTION_OVERRIDE_RE.test(blobLower) ||
-    /<iframe[^>]+(src|data-src)=["'][^"']*(embed|player|stream|video|\/e\/|\/v\/)/i.test(html) ||
     /magnet:\?xt=urn:btih/i.test(html) ||
     /\.torrent(\?|"|'|\s|$)/i.test(html) ||
-    FILE_HOSTS.some((h) => html.toLowerCase().includes(h) && /(download|watch|stream|embed|player)/i.test(blobLower));
+    nonPromoEmbed;
 
   const purpose = detectPrimaryPurpose({
     url: input.url,
