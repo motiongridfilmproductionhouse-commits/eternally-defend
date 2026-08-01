@@ -64,6 +64,7 @@ function quote(value: string): string {
 }
 
 function cacheKey(input: SearchExpansionInput): string {
+  const p = input.persistedProfile;
   return JSON.stringify({
     q: input.query.trim().toLowerCase(),
     e: input.entityType ?? "",
@@ -73,6 +74,17 @@ function cacheKey(input: SearchExpansionInput): string {
     c: input.country ?? "",
     l: input.language ?? "",
     u: input.userId ?? "",
+    // Include persisted reviewer state so confirm/alias writes cannot be masked
+    // by a stale in-memory expansion cache entry.
+    p: p
+      ? {
+          canon: (p.canonicalName ?? "").toLowerCase(),
+          confirmed: Boolean(p.reviewerConfirmed),
+          aliases: [...(p.aliases ?? [])].map((x) => x.toLowerCase()).sort(),
+          rejected: [...(p.rejectedAliases ?? [])].map((x) => x.toLowerCase()).sort(),
+          handles: [...(p.handles ?? [])].map((x) => x.toLowerCase()).sort(),
+        }
+      : null,
   });
 }
 

@@ -495,6 +495,16 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
   if (!resumeCheckpoint) {
     checkpoint.queries = scheduledQueries;
+  } else {
+    // Merge any newly generated expansion queries into the resume plan without
+    // rewinding already-completed query indexes.
+    const existing = new Set(checkpoint.queries.map((q) => q.toLowerCase()));
+    for (const q of scheduledQueries) {
+      if (!existing.has(q.toLowerCase())) {
+        checkpoint.queries.push(q);
+        existing.add(q.toLowerCase());
+      }
+    }
   }
   checkpoint.planned_query_count = checkpoint.queries.length;
   checkpoint.initial_wave_count =

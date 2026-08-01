@@ -97,14 +97,16 @@ export function IdentityExpansionPanel(props: {
             persist: true,
           },
         })) as PreviewResult;
-        // Drop stale persist results if the user changed the query mid-flight.
-        if (startedForQuery !== props.query.trim() || seqAtStart !== requestSeq.current) {
-          return { ok: false as const, stale: true as const };
-        }
         activeProfileId = persisted.profileId;
-        setProfileId(persisted.profileId);
-        setPreviewData(persisted);
-        setLocalAlso(persisted.alsoSearching);
+        if (startedForQuery === props.query.trim() && seqAtStart === requestSeq.current) {
+          setProfileId(persisted.profileId);
+          setPreviewData(persisted);
+          setLocalAlso(persisted.alsoSearching);
+        }
+      }
+      // Drop stale mutations if the user changed the query mid-flight.
+      if (startedForQuery !== props.query.trim() || seqAtStart !== requestSeq.current) {
+        return { ok: false as const, stale: true as const };
       }
       if (!activeProfileId) throw new Error("Could not persist identity profile.");
       await updateSearchIdentityAlias({
@@ -175,10 +177,12 @@ export function IdentityExpansionPanel(props: {
         <div className="space-y-1.5">
           <div className="text-xs text-muted-foreground">Also searching:</div>
           <div className="flex flex-wrap gap-1.5">
-            {also.slice(0, 10).map((term) => (
+            {also.slice(0, 10).map((term) => {
+              const isShowBadge = / \(show\)$/i.test(term);
+              return (
               <Badge key={term} variant="outline" className="gap-1 font-normal">
                 {term}
-                {profileId && (
+                {profileId && !isShowBadge && (
                   <button
                     type="button"
                     className="ml-0.5 opacity-60 hover:opacity-100"
@@ -186,7 +190,7 @@ export function IdentityExpansionPanel(props: {
                     onClick={() =>
                       aliasMut.mutate({
                         action: "remove_alias",
-                        value: term.replace(/ \(show\)$/, ""),
+                        value: term,
                       })
                     }
                   >
@@ -194,7 +198,8 @@ export function IdentityExpansionPanel(props: {
                   </button>
                 )}
               </Badge>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
