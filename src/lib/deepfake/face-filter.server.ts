@@ -1,4 +1,8 @@
 import { compareAgainstReferences } from "./face-match.server";
+import {
+  assertNotAborted,
+  isAbortError,
+} from "./scan-runtime.server";
 
 export type FaceFilterCandidate = {
   url: string;
@@ -175,12 +179,16 @@ export async function filterCandidatesByTargetFace(input: {
   profileId: string;
   candidates: FaceFilterCandidate[];
   similarityThreshold?: number;
+  signal?: AbortSignal;
+  softDeadlineMs?: number;
 }): Promise<{
   matched: FaceVerifiedCandidate[];
   rejected: FaceVerifiedCandidate[];
   errors: FaceVerifiedCandidate[];
   targetName: string;
 }> {
+  assertNotAborted(input.signal);
+
   const references = await loadReferenceImages({
     supabase: input.supabase,
     userId: input.userId,
@@ -205,6 +213,7 @@ export async function filterCandidatesByTargetFace(input: {
     start < input.candidates.length;
     start += batchSize
   ) {
+    assertNotAborted(input.signal);
     const batch = input.candidates.slice(
       start,
       start + batchSize,
@@ -212,6 +221,7 @@ export async function filterCandidatesByTargetFace(input: {
 
     const results = await Promise.all(
       batch.map(async (candidate) => {
+        assertNotAborted(input.signal);
         const discoveredImageUrl =
           imageUrlForCandidate(candidate);
 
@@ -233,6 +243,8 @@ export async function filterCandidatesByTargetFace(input: {
                 references.imageBytes,
               discoveredImageUrl,
               similarityThreshold: threshold,
+              signal: input.signal,
+              softDeadlineMs: input.softDeadlineMs,
             });
 
           const matchedReferenceIndex =
@@ -262,6 +274,9 @@ export async function filterCandidatesByTargetFace(input: {
                 : ("different_person" as const),
           };
         } catch (error) {
+          if (isAbortError(error)) {
+            throw error;
+          }
           console.warn(
             "[DEEPFAKE:FACE] Candidate comparison failed:",
             {

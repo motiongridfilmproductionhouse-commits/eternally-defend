@@ -2,6 +2,13 @@ import type {
   RawHit,
   ClassifiedHit,
 } from "./classify.server";
+import {
+  assertNotAborted,
+  boundTimeoutMs,
+  isAbortError,
+  mergeAbortSignals,
+  readResponseText,
+} from "./scan-runtime.server";
 
 const HIVE_ENDPOINT =
   process.env.HIVE_API_URL ??
@@ -188,6 +195,7 @@ async function callHive(
   mediaUrl: string,
   model: HiveModel,
   postId: string,
+  options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<unknown> {
   const apiKey = process.env.HIVE_API_KEY?.trim();
 
@@ -195,49 +203,53 @@ async function callHive(
     throw new Error("HIVE_API_KEY is missing");
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  assertNotAborted(options?.signal);
+  const timeoutMs = boundTimeoutMs(
+    30_000,
+    options?.signal,
+    options?.softDeadlineMs,
+  );
+  const signal = mergeAbortSignals(
+    options?.signal,
+    AbortSignal.timeout(timeoutMs),
+  );
+
+  const response = await fetch(HIVE_ENDPOINT, {
+    method: "POST",
+    headers: {
+      authorization: `token ${apiKey}`,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      user_id: "eterna-deepfake-intel",
+      post_id: postId.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 80),
+      url: mediaUrl,
+      models: [model],
+    }),
+    signal,
+  });
+
+  const responseText = await readResponseText(response, signal);
+
+  let payload: unknown;
 
   try {
-    const response = await fetch(HIVE_ENDPOINT, {
-      method: "POST",
-      headers: {
-        authorization: `token ${apiKey}`,
-        "content-type": "application/json",
-        accept: "application/json",
-      },
-      body: JSON.stringify({
-        user_id: "eterna-deepfake-intel",
-        post_id: postId.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 80),
-        url: mediaUrl,
-        models: [model],
-      }),
-      signal: controller.signal,
-    });
-
-    const responseText = await response.text();
-
-    let payload: unknown;
-
-    try {
-      payload = responseText ? JSON.parse(responseText) : {};
-    } catch {
-      payload = {
-        raw_response: responseText.slice(0, 1_000),
-      };
-    }
-
-    if (!response.ok) {
-      throw new Error(
-        `Hive ${model} request failed (${response.status}): ` +
-          JSON.stringify(payload).slice(0, 1_500),
-      );
-    }
-
-    return payload;
-  } finally {
-    clearTimeout(timeout);
+    payload = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    payload = {
+      raw_response: responseText.slice(0, 1_000),
+    };
   }
+
+  if (!response.ok) {
+    throw new Error(
+      `Hive ${model} request failed (${response.status}): ` +
+        JSON.stringify(payload).slice(0, 1_500),
+    );
+  }
+
+  return payload;
 }
 
 const EXPLICIT_SEXUAL_PATTERNS = [
@@ -374,7 +386,9 @@ function createUnclassifiedResult(
 async function classifyOneWithHive(
   hit: RawHit,
   index: number,
+  options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<ClassifiedHit> {
+  assertNotAborted(options?.signal);
   const mediaUrl = getMediaUrl(hit);
 
   if (!mediaUrl) {
@@ -394,11 +408,13 @@ async function classifyOneWithHive(
           mediaUrl,
           "ai_generated_media",
           `eterna-ai-${uniqueId}`,
+          options,
         ),
         callHive(
           mediaUrl,
           "deepfake",
           `eterna-df-${uniqueId}`,
+          options,
         ),
       ]);
 
@@ -504,6 +520,10 @@ async function classifyOneWithHive(
       },
     } as ClassifiedHit;
   } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -525,7 +545,10 @@ async function classifyOneWithHive(
 
 export async function classifyHitsWithHive(
   hits: RawHit[],
+  options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<ClassifiedHit[]> {
+  assertNotAborted(options?.signal);
+
   if (!process.env.HIVE_API_KEY?.trim()) {
     const { classifyHitsWithVision, isVisionClassifierConfigured } =
       await import("./vision-classify.server");
@@ -535,7 +558,7 @@ export async function classifyHitsWithHive(
         "[DEEPFAKE:HIVE] HIVE_API_KEY is missing. Falling back to AI vision media analysis.",
       );
 
-      return classifyHitsWithVision(hits);
+      return classifyHitsWithVision(hits, options);
     }
 
     console.warn(
@@ -561,11 +584,12 @@ export async function classifyHitsWithHive(
   const batchSize = 3;
 
   for (let start = 0; start < hits.length; start += batchSize) {
+    assertNotAborted(options?.signal);
     const batch = hits.slice(start, start + batchSize);
 
     const batchResults = await Promise.all(
       batch.map((hit, offset) =>
-        classifyOneWithHive(hit, start + offset),
+        classifyOneWithHive(hit, start + offset, options),
       ),
     );
 

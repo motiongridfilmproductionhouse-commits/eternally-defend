@@ -1,3 +1,11 @@
+import {
+  assertNotAborted,
+  boundTimeoutMs,
+  isAbortError,
+  mergeAbortSignals,
+  readResponseText,
+} from "./scan-runtime.server";
+
 export interface RedditDiscoveryHit {
   url: string;
   title: string;
@@ -54,6 +62,8 @@ export async function searchRecentRedditMentions(input: {
   handles?: string[];
   maxResults?: number;
   pages?: number;
+  signal?: AbortSignal;
+  softDeadlineMs?: number;
 }): Promise<RedditDiscoveryHit[]> {
   const identities = Array.from(
     new Set(
@@ -73,6 +83,7 @@ export async function searchRecentRedditMentions(input: {
   let after: string | null | undefined;
 
   for (let page = 0; page < pages && hits.length < limit; page++) {
+    assertNotAborted(input.signal);
     const endpoint = new URL("https://www.reddit.com/search.json");
     endpoint.searchParams.set("q", query);
     endpoint.searchParams.set("sort", "new");
@@ -85,19 +96,31 @@ export async function searchRecentRedditMentions(input: {
 
     let payload: RedditSearchResponse = {};
     try {
+      const timeoutMs = boundTimeoutMs(
+        10_000,
+        input.signal,
+        input.softDeadlineMs,
+      );
+      const signal = mergeAbortSignals(
+        input.signal,
+        AbortSignal.timeout(timeoutMs),
+      );
       const response = await fetch(endpoint, {
         headers: {
           Accept: "application/json",
           "User-Agent": "EternaSentinel/1.0 public-reputation-monitoring",
         },
-        signal: AbortSignal.timeout(10_000),
+        signal,
       });
 
-      const rawBody = await response.text();
+      const rawBody = await readResponseText(response, signal);
       if (response.ok && response.headers.get("content-type")?.includes("json")) {
         payload = JSON.parse(rawBody) as RedditSearchResponse;
       }
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
       console.warn("[REDDIT] Direct public search unavailable", {
         error: error instanceof Error ? error.message : String(error),
       });

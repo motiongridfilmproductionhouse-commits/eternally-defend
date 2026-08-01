@@ -1792,11 +1792,14 @@ export type Database = {
           error_message: string | null
           finished_at: string | null
           handles: string[]
+          heartbeat_at: string | null
           high_count: number
           id: string
+          lease_expires_at: string | null
           low_count: number
           medium_count: number
           profile_id: string | null
+          scan_run_token: string | null
           started_at: string
           status: string
           target_name: string
@@ -1812,11 +1815,14 @@ export type Database = {
           error_message?: string | null
           finished_at?: string | null
           handles?: string[]
+          heartbeat_at?: string | null
           high_count?: number
           id?: string
+          lease_expires_at?: string | null
           low_count?: number
           medium_count?: number
           profile_id?: string | null
+          scan_run_token?: string | null
           started_at?: string
           status?: string
           target_name: string
@@ -1832,11 +1838,14 @@ export type Database = {
           error_message?: string | null
           finished_at?: string | null
           handles?: string[]
+          heartbeat_at?: string | null
           high_count?: number
           id?: string
+          lease_expires_at?: string | null
           low_count?: number
           medium_count?: number
           profile_id?: string | null
+          scan_run_token?: string | null
           started_at?: string
           status?: string
           target_name?: string

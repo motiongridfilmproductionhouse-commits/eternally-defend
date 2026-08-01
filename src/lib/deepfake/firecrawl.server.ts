@@ -1,4 +1,11 @@
 import { firecrawlFetch } from "@/lib/firecrawl-client.server";
+import {
+  abortableSleep,
+  assertNotAborted,
+  boundTimeoutMs,
+  isAbortError,
+  readResponseText,
+} from "./scan-runtime.server";
 
 export interface FirecrawlSearchHit {
   url: string;
@@ -48,6 +55,12 @@ export async function searchQueriesWithBoundedConcurrency<T>(
     concurrency: number;
     provider: string;
     search: (query: string) => Promise<T[]>;
+    signal?: AbortSignal;
+    onBatchComplete?: (info: {
+      batchIndex: number;
+      queriesExecuted: number;
+      hitsSoFar: number;
+    }) => Promise<void> | void;
   },
 ): Promise<{
   hits: T[];
@@ -57,8 +70,11 @@ export async function searchQueriesWithBoundedConcurrency<T>(
   const concurrency = Math.max(1, options.concurrency);
   const hits: T[] = [];
   const failures: ProviderQueryFailure[] = [];
+  let queriesExecuted = 0;
 
   for (let i = 0; i < queries.length; i += concurrency) {
+    assertNotAborted(options.signal);
+
     const batch = queries.slice(i, i + concurrency);
     const results = await Promise.allSettled(
       batch.map((query) => options.search(query)),
@@ -67,9 +83,12 @@ export async function searchQueriesWithBoundedConcurrency<T>(
     for (let index = 0; index < results.length; index++) {
       const query = batch[index] ?? "";
       const result = results[index];
+      queriesExecuted++;
 
       if (result.status === "fulfilled") {
         hits.push(...result.value);
+      } else if (isAbortError(result.reason)) {
+        throw result.reason;
       } else {
         failures.push({
           query,
@@ -81,11 +100,19 @@ export async function searchQueriesWithBoundedConcurrency<T>(
         });
       }
     }
+
+    if (options.onBatchComplete) {
+      await options.onBatchComplete({
+        batchIndex: Math.floor(i / concurrency),
+        queriesExecuted,
+        hitsSoFar: hits.length,
+      });
+    }
   }
 
   return {
     hits,
-    queriesExecuted: queries.length,
+    queriesExecuted,
     failures,
   };
 }
@@ -115,13 +142,13 @@ function isTransientFirecrawlFailure(
   return status === 429 || (status >= 500 && status < 600);
 }
 
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function firecrawlSearch(
   query: string,
   maxResults = 20,
+  options?: {
+    signal?: AbortSignal;
+    softDeadlineMs?: number;
+  },
 ): Promise<FirecrawlSearchHit[]> {
   if (!process.env.FIRECRAWL_API_KEY) {
     throw new Error("FIRECRAWL_API_KEY is missing");
@@ -132,31 +159,53 @@ export async function firecrawlSearch(
   const limit = Math.min(Math.max(maxResults, 1), 20);
 
   for (let attempt = 0; attempt < 3; attempt++) {
+    assertNotAborted(options?.signal);
     let requestError: unknown = null;
 
+    const requestTimeoutMs = boundTimeoutMs(
+      20_000,
+      options?.signal,
+      options?.softDeadlineMs,
+    );
+
     try {
-      response = await firecrawlFetch("/search", {
-        query,
-        limit,
-        sources: ["web", "images"],
-        tbs: "qdr:m",
-        timeout: 20_000,
-      });
+      response = await firecrawlFetch(
+        "/search",
+        {
+          query,
+          limit,
+          sources: ["web", "images"],
+          tbs: "qdr:m",
+          timeout: requestTimeoutMs,
+        },
+        { signal: options?.signal },
+      );
+      /*
+       * Drain the body before deciding on retries / cleanup so a stalled
+       * response cannot outlive the scan abort controller.
+       */
+      rawBody = await readResponseText(response, options?.signal);
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
       requestError = error;
       response = null;
+      rawBody = "";
     }
-
-    rawBody = response ? await response.text() : "";
 
     if (response?.ok) {
       break;
     }
 
     if (
+      options?.signal?.aborted ||
       !isTransientFirecrawlFailure(response, requestError) ||
       attempt === 2
     ) {
+      if (isAbortError(requestError)) {
+        throw requestError;
+      }
       throw new Error(
         requestError instanceof Error
           ? requestError.message
@@ -172,13 +221,13 @@ export async function firecrawlSearch(
       ? Number.parseInt(retryAfterHeader, 10)
       : 4 * (attempt + 1);
 
-    const safeDelayMs =
+    const safeDelayMs = boundTimeoutMs(
       Number.isFinite(retrySeconds)
-        ? Math.min(
-            Math.max(retrySeconds, 2),
-            12,
-          ) * 1_000
-        : 4_000;
+        ? Math.min(Math.max(retrySeconds, 2), 12) * 1_000
+        : 4_000,
+      options?.signal,
+      options?.softDeadlineMs,
+    );
 
     console.warn("[DEEPFAKE:FIRECRAWL] Rate limited", {
       query,
@@ -186,7 +235,7 @@ export async function firecrawlSearch(
       retryInMs: safeDelayMs,
     });
 
-    await sleep(safeDelayMs);
+    await abortableSleep(safeDelayMs, options?.signal);
   }
 
   if (!response?.ok) {

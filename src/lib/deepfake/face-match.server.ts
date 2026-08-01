@@ -2,6 +2,12 @@ import {
   CompareFacesCommand,
   RekognitionClient,
 } from "@aws-sdk/client-rekognition";
+import {
+  assertNotAborted,
+  boundTimeoutMs,
+  isAbortError,
+  mergeAbortSignals,
+} from "./scan-runtime.server";
 
 const region =
   process.env.AWS_REKOGNITION_REGION ??
@@ -43,70 +49,72 @@ function isAllowedImageType(
 
 export async function downloadFaceImage(
   url: string,
+  options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<Uint8Array> {
-  const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
+  assertNotAborted(options?.signal);
+  const timeoutMs = boundTimeoutMs(
     20_000,
+    options?.signal,
+    options?.softDeadlineMs,
+  );
+  const signal = mergeAbortSignals(
+    options?.signal,
+    AbortSignal.timeout(timeoutMs),
   );
 
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "image/jpeg,image/png,image/webp,image/*",
-        "User-Agent":
-          "Mozilla/5.0 EternaSentinel/1.0",
-      },
-      redirect: "follow",
-      signal: controller.signal,
-    });
+  const response = await fetch(url, {
+    headers: {
+      Accept: "image/jpeg,image/png,image/webp,image/*",
+      "User-Agent":
+        "Mozilla/5.0 EternaSentinel/1.0",
+    },
+    redirect: "follow",
+    signal,
+  });
 
-    if (!response.ok) {
-      throw new Error(
-        `Image download failed with status ${response.status}.`,
-      );
-    }
-
-    const contentType =
-      response.headers.get("content-type") ?? "";
-
-    if (!isAllowedImageType(contentType)) {
-      throw new Error(
-        `Unsupported image content type: ${contentType || "unknown"}.`,
-      );
-    }
-
-    const contentLength = Number(
-      response.headers.get("content-length") ?? 0,
+  if (!response.ok) {
+    throw new Error(
+      `Image download failed with status ${response.status}.`,
     );
-
-    if (
-      Number.isFinite(contentLength) &&
-      contentLength > MAX_IMAGE_BYTES
-    ) {
-      throw new Error(
-        "Image exceeds the 10 MB processing limit.",
-      );
-    }
-
-    const buffer = await response.arrayBuffer();
-
-    if (!buffer.byteLength) {
-      throw new Error(
-        "Downloaded image is empty.",
-      );
-    }
-
-    if (buffer.byteLength > MAX_IMAGE_BYTES) {
-      throw new Error(
-        "Image exceeds the 10 MB processing limit.",
-      );
-    }
-
-    return new Uint8Array(buffer);
-  } finally {
-    clearTimeout(timeout);
   }
+
+  const contentType =
+    response.headers.get("content-type") ?? "";
+
+  if (!isAllowedImageType(contentType)) {
+    throw new Error(
+      `Unsupported image content type: ${contentType || "unknown"}.`,
+    );
+  }
+
+  const contentLength = Number(
+    response.headers.get("content-length") ?? 0,
+  );
+
+  if (
+    Number.isFinite(contentLength) &&
+    contentLength > MAX_IMAGE_BYTES
+  ) {
+    throw new Error(
+      "Image exceeds the 10 MB processing limit.",
+    );
+  }
+
+  const buffer = await response.arrayBuffer();
+
+  if (!buffer.byteLength) {
+    throw new Error(
+      "Downloaded image is empty.",
+    );
+  }
+
+  if (buffer.byteLength > MAX_IMAGE_BYTES) {
+    throw new Error(
+      "Image exceeds the 10 MB processing limit.",
+    );
+  }
+
+  return new Uint8Array(buffer);
 }
 
 export type FaceMatchResult = {
@@ -199,11 +207,15 @@ export async function compareAgainstReferences(input: {
   referenceImages: Uint8Array[];
   discoveredImageUrl: string;
   similarityThreshold?: number;
+  signal?: AbortSignal;
+  softDeadlineMs?: number;
 }): Promise<
   FaceMatchResult & {
     matchedReferenceIndex: number | null;
   }
 > {
+  assertNotAborted(input.signal);
+
   if (!input.referenceImages.length) {
     throw new Error(
       "At least one reference image is required.",
@@ -213,6 +225,10 @@ export async function compareAgainstReferences(input: {
   const discoveredImageBytes =
     await downloadFaceImage(
       input.discoveredImageUrl,
+      {
+        signal: input.signal,
+        softDeadlineMs: input.softDeadlineMs,
+      },
     );
 
   let bestResult:
@@ -226,6 +242,7 @@ export async function compareAgainstReferences(input: {
     index < input.referenceImages.length;
     index++
   ) {
+    assertNotAborted(input.signal);
     try {
       const result = await compareReferenceFace({
         referenceImageBytes:
@@ -246,6 +263,9 @@ export async function compareAgainstReferences(input: {
         };
       }
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
       console.warn(
         "[DEEPFAKE:FACE] Reference comparison failed:",
         {
