@@ -84,7 +84,8 @@ export function diagnosticsFromStats(
     known_urls_retrieved: n("known_urls_retrieved"),
     known_urls_rendered: n("known_urls_rendered"),
     known_urls_verified: n("known_urls_verified"),
-    known_urls_rejected: n("known_urls_rejected") || n("known_urls_rejected_after_crawl"),
+    known_urls_rejected:
+      n("known_urls_rejected") + n("known_urls_rejected_after_crawl"),
     official_authorized_rejected: n("official_authorized_rejected"),
     catalog_listing_rejected: n("catalog_listing_rejected"),
     youtube_promotional_rejected: n("youtube_promotional_rejected"),

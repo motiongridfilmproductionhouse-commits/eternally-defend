@@ -157,10 +157,10 @@ export function DistributionMonitorPanel() {
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
-          { label: "Active sources", value: stats?.total ?? 0 },
+          { label: "Sources", value: stats?.total ?? 0 },
           { label: "High risk", value: stats?.high ?? 0 },
+          { label: "Status active", value: stats?.active ?? 0 },
           { label: "Auto-monitored", value: stats?.monitored ?? 0 },
-          { label: "New (24h)", value: stats?.newLast24h ?? 0 },
           { label: "Incidents (24h)", value: stats?.incidents24h ?? 0 },
           { label: "Deactivated", value: stats?.deactivated ?? 0 },
         ].map((s) => (

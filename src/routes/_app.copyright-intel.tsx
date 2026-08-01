@@ -493,10 +493,20 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                 <YoutubeMonitorPanel scanId={selectedScanId} />
               </TabsContent>
               <TabsContent value="sources" className="mt-3 space-y-3">
-          {(detail.isLoading || (selectedScanId && !detailAligned)) && (
+          {detail.isLoading && (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading findings for the selected scan…
+            </p>
+          )}
+          {selectedScanId && !detail.isLoading && detail.isError && (
+            <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+              Could not load findings for this scan. {detail.error instanceof Error ? detail.error.message : "Please try again."}
+            </p>
+          )}
+          {selectedScanId && !detail.isLoading && !detail.isError && !detailAligned && (
+            <p className="text-sm text-muted-foreground">
+              Waiting for selected-scan findings…
             </p>
           )}
           {detailAligned && !matches.length && (
@@ -528,7 +538,12 @@ const [selectedMatch, setSelectedMatch] = useState<any>(null);
                         { label: "Known URLs retrieved", value: Number(scanStats.known_urls_retrieved ?? d.known_urls_retrieved) },
                         { label: "Known URLs rendered", value: Number(scanStats.known_urls_rendered ?? d.known_urls_rendered) },
                         { label: "Known URLs verified", value: Number(scanStats.known_urls_verified ?? d.known_urls_verified) },
-                        { label: "Known URLs rejected", value: Number(scanStats.known_urls_rejected ?? d.known_urls_rejected) },
+                        {
+                          label: "Known URLs rejected",
+                          value:
+                            Number(scanStats.known_urls_rejected ?? 0) +
+                            Number(scanStats.known_urls_rejected_after_crawl ?? 0),
+                        },
                         { label: "Provider candidates", value: Number(scanStats.provider_candidates ?? d.provider_results) },
                         { label: "Crawl succeeded", value: Math.max(0, d.pages_crawled - d.pages_failed) },
                         { label: "Crawl failed", value: d.pages_failed },

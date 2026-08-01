@@ -236,13 +236,13 @@ test("5. accepted known URL attempted before provider candidates", () => {
 
 // 6. Known URL capacity reserved when provider candidates exceed limits.
 test("6. known URL capacity reserved when providers exceed page cap", () => {
-  const known = Array.from({ length: 3 }, (_, i) => ({
+  const known: Array<{ url: string; query: string }> = Array.from({ length: 3 }, (_, i) => ({
     url: `https://known.example/movie-${i}`,
-    query: "known_url_seed" as const,
+    query: "known_url_seed",
   }));
-  const provider = Array.from({ length: 50 }, (_, i) => ({
+  const provider: Array<{ url: string; query: string }> = Array.from({ length: 50 }, (_, i) => ({
     url: `https://provider.example/p-${i}`,
-    query: "provider" as const,
+    query: "provider",
   }));
   const slots = allocateCrawlSlots(known.length, provider.length, 8);
   assert.equal(slots.knownSlots, 3);

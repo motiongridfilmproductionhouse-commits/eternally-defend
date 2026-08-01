@@ -729,6 +729,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       for (let offset = 0; offset < knownPhaseLeads.length; offset += 2) {
         if (isPastDeadline(knownDeadlineAt)) {
           for (const lead of knownPhaseLeads.slice(offset)) {
+            const key = canonicalUrl(lead.url);
+            if (inspectedUrls.has(key)) continue;
+            inspectedUrls.add(key);
             knownUrlsAttempted += 1;
             bumpCrawlFailure(crawlFailedByCategory, "aborted_by_deadline");
             pagesCrawled += 1;
@@ -775,10 +778,12 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       for (let offset = 0; offset < providerPhaseLeads.length; offset += 4) {
         if (isPastDeadline(providerDeadlineAt)) {
           for (const lead of providerPhaseLeads.slice(offset)) {
+            const key = canonicalUrl(lead.url);
+            if (inspectedUrls.has(key)) continue;
+            inspectedUrls.add(key);
             bumpCrawlFailure(crawlFailedByCategory, "aborted_by_deadline");
             pagesCrawled += 1;
             pagesFailed += 1;
-            void lead;
           }
           break;
         }

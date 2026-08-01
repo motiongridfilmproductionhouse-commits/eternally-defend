@@ -29,7 +29,10 @@ export const getDistributionMonitor = createServerFn({ method: "GET" })
     if (sources.error) throw new Error(sources.error.message);
 
     const rows = sources.data ?? [];
-    const activeRows = rows.filter((s) => s.status === "active" && s.monitor_enabled);
+    // Non-deactivated sources (includes paused). Deactivated stale official FPs are excluded from counters.
+    const liveRows = rows.filter((s) => s.status !== "deactivated");
+    const monitoredRows = liveRows.filter((s) => s.monitor_enabled);
+    const activeStatusRows = liveRows.filter((s) => s.status === "active");
     const activeIncidents = (incidents.data ?? []).filter((i) => incidentIsActive(i.evidence));
     const now = Date.now();
     return {
@@ -38,12 +41,12 @@ export const getDistributionMonitor = createServerFn({ method: "GET" })
       runs: runs.data ?? [],
       staleCleanup: stale,
       stats: {
-        total: activeRows.length,
-        high: activeRows.filter((s) => s.risk_level === "high").length,
-        active: activeRows.length,
-        monitored: activeRows.filter((s) => s.monitor_enabled).length,
-        due: activeRows.filter((s) => s.monitor_enabled && Date.parse(s.next_check_at) <= now).length,
-        newLast24h: activeRows.filter((s) => now - Date.parse(s.first_seen_at) < 86_400_000).length,
+        total: liveRows.length,
+        high: liveRows.filter((s) => s.risk_level === "high").length,
+        active: activeStatusRows.length,
+        monitored: monitoredRows.length,
+        due: monitoredRows.filter((s) => Date.parse(s.next_check_at) <= now).length,
+        newLast24h: liveRows.filter((s) => now - Date.parse(s.first_seen_at) < 86_400_000).length,
         incidents24h: activeIncidents.filter((i) => now - Date.parse(i.detected_at) < 86_400_000).length,
         deactivated: rows.filter((s) => s.status === "deactivated").length,
       },
