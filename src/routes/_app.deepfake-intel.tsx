@@ -45,8 +45,14 @@ import {
   shouldRenderLegacyFindingCards,
 } from "@/lib/deepfake/results-console-mount";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
+import { ThreatAlertBanner } from "@/components/deepfake/ThreatAlertBanner";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
 import { scanBelongsToSelectedProfile } from "@/lib/deepfake/identity-scan-viz";
+import {
+  buildThreatAlertSummary,
+  resolveThreatAlertAnnouncement,
+  type ThreatAlertAnnouncementState,
+} from "@/lib/deepfake/threat-alert";
 import { ResultsIntelligenceConsole } from "@/components/deepfake/results/ResultsIntelligenceConsole";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
@@ -622,6 +628,38 @@ function DeepfakeIntelPage() {
   const scan = selected.data?.scan ?? null;
   // Normalize production snake_case getDeepfakeScan findings at the UI boundary.
   const findings = extractClientVisibleFindings(selected.data ?? null);
+  // Threat alert always uses the complete client-visible findings array
+  // (never console filters / pagination).
+  const threatSummary = buildThreatAlertSummary(findings);
+  const threatAnnouncementRef = useRef<ThreatAlertAnnouncementState | null>(
+    null,
+  );
+  const [threatBannerRole, setThreatBannerRole] = useState<"alert" | "status">(
+    "status",
+  );
+  useEffect(() => {
+    const decision = resolveThreatAlertAnnouncement({
+      scanId: selectedScanId,
+      distinctTotal: threatSummary.total,
+      previous: threatAnnouncementRef.current,
+    });
+    threatAnnouncementRef.current = decision.next;
+    setThreatBannerRole(decision.role);
+  }, [selectedScanId, threatSummary.total]);
+
+  const scrollToThreatSection = (elementId: string) => {
+    if (typeof document === "undefined") return;
+    const node = document.getElementById(elementId);
+    if (!node) return;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  };
+
   const discoveries = selected.data?.discoveries ?? [];
   const diagnostics = metricRecord(scan?.discovery_metrics);
   const showResultsLoader = shouldShowResultsLoader({
@@ -1114,6 +1152,20 @@ function DeepfakeIntelPage() {
               pagesVerified={vizPagesVerified}
               threatsSaved={vizThreatsSaved}
               errorMessage={vizErrorMessage}
+              threatSummary={threatSummary}
+            />
+          ) : null}
+
+          {selectedScanId && threatSummary.level === "multiple" ? (
+            <ThreatAlertBanner
+              summary={threatSummary}
+              ariaRole={threatBannerRole}
+              onReviewThreats={() =>
+                scrollToThreatSection("finding-cards-heading")
+              }
+              onViewAffectedDomains={() =>
+                scrollToThreatSection("top-verified-domains")
+              }
             />
           ) : null}
 

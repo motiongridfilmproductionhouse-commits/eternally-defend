@@ -23,8 +23,14 @@ export function TopVerifiedDomainsTable({
   onSelectDomain: (domain: string | null) => void;
 }) {
   return (
-    <section className="rounded-xl border border-sky-500/20 bg-[#07111f] p-4 text-slate-200">
-      <h3 className="text-sm font-semibold text-white">Top Verified Domains</h3>
+    <section
+      id="top-verified-domains"
+      className="rounded-xl border border-sky-500/20 bg-[#07111f] p-4 text-slate-200"
+      aria-labelledby="top-verified-domains-heading"
+    >
+      <h3 id="top-verified-domains-heading" className="text-sm font-semibold text-white">
+        Top Verified Domains
+      </h3>
       <div className="mt-3 hidden overflow-x-auto md:block">
         <table className="w-full min-w-[640px] text-left text-[12px]">
           <thead className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
