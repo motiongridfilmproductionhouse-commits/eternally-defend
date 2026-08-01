@@ -38,6 +38,9 @@ import {
   shouldShowHistoryLoading,
   shouldShowResultsLoader,
 } from "@/lib/deepfake/scan-ui-state";
+import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
+import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
+import { scanBelongsToSelectedProfile } from "@/lib/deepfake/identity-scan-viz";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
@@ -167,6 +170,27 @@ function DeepfakeIntelPage() {
 
   const enrolledFaces =
     selectedProfile?.deepfake_reference_faces ?? [];
+
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const file = referenceFiles[0];
+    if (!file) {
+      setLocalPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [referenceFiles]);
+
+  const { thumbnailUrl } = useReferenceFaceThumbnail({
+    faces: enrolledFaces as Array<{
+      id: string;
+      storage_path?: string | null;
+      created_at?: string | null;
+    }>,
+    localPreviewUrl,
+  });
 
   const scans = useQuery({
     queryKey: ["deepfake-scans"],
@@ -588,9 +612,12 @@ function DeepfakeIntelPage() {
   const diagnostics = metricRecord(scan?.discovery_metrics);
   const discoveryMetricObject = objectRecord(scan?.discovery_metrics);
   const checkpoint = objectRecord(scan?.scan_checkpoint);
-  const liveStage =
-    stageLabel(discoveryMetricObject?.stage) ??
-    stageLabel(checkpoint?.stage);
+  const rawStage =
+    (typeof discoveryMetricObject?.stage === "string"
+      ? discoveryMetricObject.stage
+      : null) ??
+    (typeof checkpoint?.stage === "string" ? checkpoint.stage : null);
+  const liveStage = stageLabel(rawStage);
   const plannedQueries =
     (typeof checkpoint?.planned_query_count === "number"
       ? checkpoint.planned_query_count
@@ -606,6 +633,55 @@ function DeepfakeIntelPage() {
     (typeof checkpoint?.next_query_index === "number"
       ? checkpoint.next_query_index
       : 0);
+
+  const selectedScanMatchesProfile = Boolean(
+    scan &&
+      scanBelongsToSelectedProfile({
+        scanProfileId:
+          (scan as { profile_id?: string | null }).profile_id ?? null,
+        scanTargetName: scan.target_name,
+        selectedProfileId,
+        selectedProfileName: selectedProfile?.target_name || targetName,
+      }),
+  );
+
+  // Prefer the live in-progress scan for this identity over a stale history
+  // selection (e.g. an older completed row still highlighted).
+  const vizSourceScan = activeScanForIdentity
+    ? activeScanForIdentity
+    : selectedScanMatchesProfile
+      ? scan
+      : null;
+  const vizSourceMetrics = metricRecord(vizSourceScan?.discovery_metrics);
+  const vizSourceMetricObject = objectRecord(vizSourceScan?.discovery_metrics);
+  const vizSourceCheckpoint = objectRecord(vizSourceScan?.scan_checkpoint);
+  const vizStage =
+    (typeof vizSourceMetricObject?.stage === "string"
+      ? vizSourceMetricObject.stage
+      : null) ??
+    (typeof vizSourceCheckpoint?.stage === "string"
+      ? vizSourceCheckpoint.stage
+      : null);
+  const vizScanStatus = vizSourceScan?.status ?? null;
+  const vizExecutedQueries =
+    vizSourceMetrics?.queries_executed ??
+    (typeof vizSourceCheckpoint?.next_query_index === "number"
+      ? vizSourceCheckpoint.next_query_index
+      : null);
+  const vizPlannedQueries =
+    (typeof vizSourceCheckpoint?.planned_query_count === "number"
+      ? vizSourceCheckpoint.planned_query_count
+      : null) ??
+    (Array.isArray(vizSourceCheckpoint?.queries)
+      ? vizSourceCheckpoint.queries.length
+      : null) ??
+    vizSourceMetrics?.queries_generated ??
+    vizSourceScan?.total_queries ??
+    null;
+  const vizPagesVerified = vizSourceMetrics?.crawl_succeeded ?? null;
+  const vizThreatsSaved =
+    vizSourceMetrics?.client_visible ?? vizSourceScan?.total_results ?? null;
+  const vizErrorMessage = vizSourceScan?.error_message ?? null;
 
   return (
     <div className="space-y-6">
@@ -682,6 +758,7 @@ function DeepfakeIntelPage() {
                   onChange={(event) => {
                     const profileId = event.target.value;
                     setSelectedProfileId(profileId);
+                    setReferenceFiles([]);
 
                     const profile = (profiles.data ?? []).find(
                       (item) => item.id === profileId,
@@ -968,14 +1045,38 @@ function DeepfakeIntelPage() {
           </div>
         </div>
 
-        {/* Right: findings */}
+        {/* Right: identity visualization + findings */}
         <div className="space-y-4">
-          {!scan ? (
+          {selectedProfileId ? (
+            <IdentityScanVisualization
+              artistName={
+                selectedProfile?.target_name ||
+                targetName ||
+                "Protected identity"
+              }
+              enrolledCount={enrolledFaces.length}
+              thumbnailUrl={thumbnailUrl}
+              scanStatus={vizScanStatus}
+              stage={vizStage}
+              executedQueries={vizExecutedQueries}
+              plannedQueries={vizPlannedQueries}
+              pagesVerified={vizPagesVerified}
+              threatsSaved={vizThreatsSaved}
+              errorMessage={vizErrorMessage}
+            />
+          ) : null}
+
+          {!scan && !selectedProfileId ? (
             <div className="card-surface p-10 text-center text-sm text-muted-foreground">
               <ShieldAlert className="size-8 mx-auto mb-2 text-muted-foreground/60" strokeWidth={1.2} />
               Run a sweep or select a scan from history to view findings.
             </div>
-          ) : (
+          ) : !scan && selectedProfileId ? (
+            <div className="card-surface p-4 text-center text-sm text-muted-foreground">
+              Identity profile ready. Run a Face-Verified Sweep or select a scan
+              from history — results stay visible here as they are saved.
+            </div>
+          ) : scan ? (
             <>
               <div className="card-surface p-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1195,7 +1296,7 @@ function DeepfakeIntelPage() {
                 </div>
               )}
             </>
-          )}
+          ) : null}
         </div>
       </section>
     </div>
