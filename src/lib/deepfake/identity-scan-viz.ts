@@ -243,3 +243,20 @@ export function pickPrimaryReferenceFace<T extends { created_at?: string | null 
     return aAt - bAt;
   })[0] ?? null;
 }
+
+/** True when a history scan row should drive this profile's visualization. */
+export function scanBelongsToSelectedProfile(input: {
+  scanProfileId?: string | null;
+  scanTargetName?: string | null;
+  selectedProfileId: string;
+  selectedProfileName?: string | null;
+}): boolean {
+  const selectedId = input.selectedProfileId.trim();
+  if (!selectedId) return false;
+  if (input.scanProfileId) {
+    return input.scanProfileId === selectedId;
+  }
+  const scanName = (input.scanTargetName ?? "").trim().toLowerCase();
+  const profileName = (input.selectedProfileName ?? "").trim().toLowerCase();
+  return Boolean(scanName && profileName && scanName === profileName);
+}

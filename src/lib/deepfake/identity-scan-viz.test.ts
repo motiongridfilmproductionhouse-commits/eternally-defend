@@ -9,6 +9,7 @@ import {
   identityScanStatusHeadline,
   pickPrimaryReferenceFace,
   resolveIdentityScanVizMode,
+  scanBelongsToSelectedProfile,
   shouldAnimateIdentityScan,
 } from "./identity-scan-viz";
 
@@ -149,4 +150,41 @@ test("reduced-motion disables animation for idle and running", () => {
   assert.equal(shouldAnimateIdentityScan("idle", true), false);
   assert.equal(shouldAnimateIdentityScan("running", true), false);
   assert.equal(shouldAnimateIdentityScan("partial", true), false);
+});
+
+test("scan telemetry binds only to the matching identity profile", () => {
+  assert.equal(
+    scanBelongsToSelectedProfile({
+      scanProfileId: "profile-a",
+      selectedProfileId: "profile-a",
+      selectedProfileName: "Ada Lovelace",
+    }),
+    true,
+  );
+  assert.equal(
+    scanBelongsToSelectedProfile({
+      scanProfileId: "profile-b",
+      selectedProfileId: "profile-a",
+      selectedProfileName: "Ada Lovelace",
+    }),
+    false,
+  );
+  assert.equal(
+    scanBelongsToSelectedProfile({
+      scanProfileId: null,
+      scanTargetName: "Ada Lovelace",
+      selectedProfileId: "profile-a",
+      selectedProfileName: "Ada Lovelace",
+    }),
+    true,
+  );
+  assert.equal(
+    scanBelongsToSelectedProfile({
+      scanProfileId: null,
+      scanTargetName: "Other Person",
+      selectedProfileId: "profile-a",
+      selectedProfileName: "Ada Lovelace",
+    }),
+    false,
+  );
 });

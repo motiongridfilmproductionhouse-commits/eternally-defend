@@ -40,6 +40,7 @@ import {
 } from "@/lib/deepfake/scan-ui-state";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
+import { scanBelongsToSelectedProfile } from "@/lib/deepfake/identity-scan-viz";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
@@ -633,6 +634,33 @@ function DeepfakeIntelPage() {
       ? checkpoint.next_query_index
       : 0);
 
+  const selectedScanMatchesProfile = Boolean(
+    scan &&
+      scanBelongsToSelectedProfile({
+        scanProfileId:
+          (scan as { profile_id?: string | null }).profile_id ?? null,
+        scanTargetName: scan.target_name,
+        selectedProfileId,
+        selectedProfileName: selectedProfile?.target_name || targetName,
+      }),
+  );
+
+  const vizScanStatus = selectedScanMatchesProfile
+    ? (scan?.status ?? null)
+    : (activeScanForIdentity?.status ?? null);
+  const vizStage = selectedScanMatchesProfile ? rawStage : null;
+  const vizExecutedQueries = selectedScanMatchesProfile ? executedQueries : null;
+  const vizPlannedQueries = selectedScanMatchesProfile ? plannedQueries : null;
+  const vizPagesVerified = selectedScanMatchesProfile
+    ? (diagnostics?.crawl_succeeded ?? null)
+    : null;
+  const vizThreatsSaved = selectedScanMatchesProfile
+    ? (diagnostics?.client_visible ?? scan?.total_results ?? null)
+    : null;
+  const vizErrorMessage = selectedScanMatchesProfile
+    ? (scan?.error_message ?? null)
+    : null;
+
   return (
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
@@ -1000,27 +1028,18 @@ function DeepfakeIntelPage() {
             <IdentityScanVisualization
               artistName={
                 selectedProfile?.target_name ||
-                scan?.target_name ||
                 targetName ||
                 "Protected identity"
               }
               enrolledCount={enrolledFaces.length}
               thumbnailUrl={thumbnailUrl}
-              scanStatus={scan?.status ?? null}
-              stage={rawStage}
-              executedQueries={scan ? executedQueries : null}
-              plannedQueries={scan ? plannedQueries : null}
-              pagesVerified={
-                scan ? (diagnostics?.crawl_succeeded ?? null) : null
-              }
-              threatsSaved={
-                scan
-                  ? (diagnostics?.client_visible ??
-                    scan.total_results ??
-                    null)
-                  : null
-              }
-              errorMessage={scan?.error_message ?? null}
+              scanStatus={vizScanStatus}
+              stage={vizStage}
+              executedQueries={vizExecutedQueries}
+              plannedQueries={vizPlannedQueries}
+              pagesVerified={vizPagesVerified}
+              threatsSaved={vizThreatsSaved}
+              errorMessage={vizErrorMessage}
             />
           ) : null}
 
