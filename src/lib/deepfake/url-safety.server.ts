@@ -2,9 +2,11 @@
  * Shared public-URL safety checks for discovery/verification network I/O.
  * Rejects non-http(s), localhost, private/reserved IPs (incl. IPv4-mapped IPv6).
  *
- * Core verification uses validate-then-plain-fetch (Vercel-compatible).
- * Optional undici IP pinning is available for SerpApi/media only and must
- * preserve TLS SNI; Node 22 autoSelectFamily lookup shapes are supported.
+ * Direct URL verification uses DNS-rebinding-safe undici IP pinning:
+ * connect only to a validated public address while preserving TLS SNI via
+ * the original hostname. Node 22 autoSelectFamily lookup shapes are supported.
+ *
+ * Custom dispatchers must never be attached to Firecrawl SDK/API calls.
  */
 
 import dns from "node:dns";
@@ -14,6 +16,8 @@ import { Agent, fetch as undiciFetch } from "undici";
 
 export const MAX_SAFE_RESPONSE_BYTES = 1_500_000;
 export const MAX_SAFE_TEXT_LEN = 500;
+/** Bound for fallback drain when body.cancel() is unavailable. */
+const MAX_PROBE_DRAIN_BYTES = 64_000;
 
 export type SafeFetchFailureCategory =
   | "dns_resolution_failed"
@@ -195,6 +199,46 @@ export function setTestDnsLookupAll(lookupAll: DnsLookupAll | null): void {
   testDnsLookupAll = lookupAll;
 }
 
+export type PinnedLookupCallback = (
+  hostname: string,
+  options: unknown,
+  callback: (
+    err: Error | null,
+    address?: string | Array<{ address: string; family: number }>,
+    family?: number,
+  ) => void,
+) => void;
+
+export type PinnedFetchPin = {
+  address: string;
+  family: 4 | 6;
+  servername: string;
+  lookup: PinnedLookupCallback;
+};
+
+export type TestPinnedHttpFetch = (
+  url: string,
+  init: {
+    method?: string;
+    headers?: HeadersInit;
+    body?: BodyInit | null;
+    signal?: AbortSignal;
+    redirect: "manual";
+  },
+  pin: PinnedFetchPin,
+) => Promise<Response>;
+
+let testPinnedHttpFetch: TestPinnedHttpFetch | null = null;
+
+/**
+ * Test-only override for the HTTP transport after DNS pin selection.
+ * The pin metadata is always computed from the validated DNS result first;
+ * implementations must not perform a second unvalidated DNS lookup.
+ */
+export function setTestPinnedHttpFetch(fn: TestPinnedHttpFetch | null): void {
+  testPinnedHttpFetch = fn;
+}
+
 function defaultDnsLookupAll(
   hostname: string,
   options: dns.LookupAllOptions,
@@ -240,6 +284,36 @@ export function preferIpv4Addresses(addresses: string[]): string[] {
   const v4 = addresses.filter((address) => net.isIP(address) === 4);
   const v6 = addresses.filter((address) => net.isIP(address) === 6);
   return v4.length ? [...v4, ...v6] : addresses;
+}
+
+/**
+ * Node 22-compatible pinned connect.lookup:
+ * - options.all=true → callback(null, [{ address, family }])
+ * - otherwise → callback(null, address, family)
+ * Always returns the pre-validated public address (DNS-rebinding safe).
+ */
+export function createPinnedLookup(
+  pinned: string,
+  family: 4 | 6,
+): PinnedLookupCallback {
+  if (isPrivateOrReservedIpAddress(pinned)) {
+    throw Object.assign(
+      new Error(`Refusing to pin private/reserved address: ${pinned}`),
+      { failureCategory: "private_address_rejected" as const },
+    );
+  }
+
+  return (_hostname, options, callback) => {
+    const opts =
+      typeof options === "object" && options
+        ? (options as { all?: boolean })
+        : {};
+    if (opts.all) {
+      callback(null, [{ address: pinned, family }]);
+      return;
+    }
+    callback(null, pinned, family);
+  };
 }
 
 export async function resolvePublicAddresses(
@@ -357,45 +431,105 @@ export function classifySafeFetchFailure(
   return "network_failed";
 }
 
-/**
- * Vercel-compatible path for core URL verification:
- * DNS-validate (reject private) then plain global fetch. No custom dispatcher.
- */
-export async function fetchValidatedPublicHttpUrl(
-  url: string,
-  init?: RequestInit & {
-    signal?: AbortSignal;
-    lookupAll?: DnsLookupAll;
-  },
-): Promise<Response> {
-  await assertSafePublicUrlForFetch(url, init?.lookupAll, init?.signal);
-
-  if (testDnsLookupAll && typeof globalThis.fetch === "function") {
-    return globalThis.fetch(url, {
-      method: init?.method ?? "GET",
-      headers: init?.headers,
-      body: init?.body,
-      signal: init?.signal,
-      redirect: "manual",
-    });
-  }
-
-  return globalThis.fetch(url, {
-    method: init?.method ?? "GET",
-    headers: init?.headers,
-    body: init?.body,
-    signal: init?.signal,
-    redirect: "manual",
-  });
+function tagFetchError(error: unknown): Error {
+  const category = classifySafeFetchFailure(error);
+  const wrapped =
+    error instanceof Error
+      ? error
+      : new Error(typeof error === "string" ? error : "Pinned fetch failed");
+  (wrapped as Error & { failureCategory?: SafeFetchFailureCategory }).failureCategory =
+    category;
+  return wrapped;
 }
 
 /**
- * Optional pinned fetch for SerpApi/media candidates only.
- * Preserves original hostname for TLS SNI via connect.servername.
- * Supports Node 22 autoSelectFamily (options.all → address array).
- * Callers must soft-fail if this throws — never use for Firecrawl SDK.
+ * Cancel (or boundedly drain) a redirect-probe response body before retry,
+ * redirect follow, or return. Keeps AbortSignal active; scan abort propagates.
  */
-export async function fetchPublicHttpUrl(
+export async function releaseProbeResponseBody(
+  response: Response | null | undefined,
+  signal?: AbortSignal | null,
+): Promise<void> {
+  if (!response) {
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error
+        ? signal.reason
+        : new Error("Aborted");
+    }
+    return;
+  }
+
+  const body = response.body;
+  if (!body) {
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error
+        ? signal.reason
+        : new Error("Aborted");
+    }
+    return;
+  }
+
+  if (signal?.aborted) {
+    try {
+      await body.cancel(signal.reason);
+    } catch {
+      // ignore cancel races
+    }
+    throw signal.reason instanceof Error
+      ? signal.reason
+      : new Error("Aborted");
+  }
+
+  const onAbort = () => {
+    try {
+      void body.cancel(signal?.reason);
+    } catch {
+      // ignore
+    }
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
+
+  try {
+    await body.cancel();
+  } catch {
+    // Fallback: bounded drain under the same abort signal.
+    try {
+      const reader = body.getReader();
+      let read = 0;
+      try {
+        while (read < MAX_PROBE_DRAIN_BYTES) {
+          if (signal?.aborted) break;
+          const { done, value } = await reader.read();
+          if (done) break;
+          read += value?.byteLength ?? 0;
+        }
+      } finally {
+        try {
+          await reader.cancel(signal?.reason);
+        } catch {
+          // ignore
+        }
+        try {
+          reader.releaseLock();
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // ignore cleanup failures
+    }
+  } finally {
+    signal?.removeEventListener("abort", onAbort);
+  }
+
+  if (signal?.aborted) {
+    throw signal.reason instanceof Error
+      ? signal.reason
+      : new Error("Aborted");
+  }
+}
+
+async function pinnedPublicHttpFetch(
   url: string,
   init?: RequestInit & {
     signal?: AbortSignal;
@@ -408,59 +542,121 @@ export async function fetchPublicHttpUrl(
     init?.signal,
   );
   const pinned = addresses[0]!;
-  const family = net.isIP(pinned) === 6 ? 6 : 4;
+  const family: 4 | 6 = net.isIP(pinned) === 6 ? 6 : 4;
+  // Preserve original hostname for TLS SNI / certificate validation.
   const servername = stripIpBrackets(parsed.hostname);
+  const lookup = createPinnedLookup(pinned, family);
+  const requestUrl = parsed.toString();
+  const requestInit = {
+    method: init?.method ?? "GET",
+    headers: init?.headers,
+    body: init?.body ?? null,
+    signal: init?.signal,
+    redirect: "manual" as const,
+  };
+  const pin: PinnedFetchPin = {
+    address: pinned,
+    family,
+    servername,
+    lookup,
+  };
+
+  if (testPinnedHttpFetch) {
+    return testPinnedHttpFetch(requestUrl, requestInit, pin);
+  }
+
+  /*
+   * Unit-test adapter: when DNS is stubbed, route through globalThis.fetch
+   * AFTER selecting/validating the pin and exercising the Node 22 lookup
+   * shape. This never performs a second DNS lookup for connect.
+   * Production never takes this branch.
+   */
+  if (testDnsLookupAll) {
+    await new Promise<void>((resolve, reject) => {
+      lookup(servername, { all: true }, (err, result) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const addr = Array.isArray(result) ? result[0]?.address : undefined;
+        if (!addr || isPrivateOrReservedIpAddress(addr)) {
+          reject(
+            Object.assign(
+              new Error("Pinned lookup refused private/reserved address"),
+              { failureCategory: "private_address_rejected" as const },
+            ),
+          );
+          return;
+        }
+        if (addr !== pinned) {
+          reject(new Error("Pinned lookup diverged from validated DNS result"));
+          return;
+        }
+        resolve();
+      });
+    });
+
+    return globalThis.fetch(requestUrl, {
+      method: requestInit.method,
+      headers: requestInit.headers,
+      body: requestInit.body,
+      signal: requestInit.signal,
+      redirect: "manual",
+    });
+  }
 
   const agent = new Agent({
     connect: {
-      // Preserve the original hostname for TLS SNI / certificate validation.
       servername,
-      lookup(_hostname, options, callback) {
-        const opts =
-          typeof options === "object" && options
-            ? (options as { all?: boolean })
-            : {};
-        // Node 22+ autoSelectFamily uses options.all=true and expects an array.
-        if (opts.all) {
-          callback(null, [{ address: pinned, family }] as any);
-          return;
-        }
-        callback(null, pinned, family);
+      lookup(hostname, options, callback) {
+        lookup(hostname, options, callback as any);
       },
     },
   });
 
   try {
-    if (testDnsLookupAll && typeof globalThis.fetch === "function") {
-      return await globalThis.fetch(parsed.toString(), {
-        method: init?.method ?? "GET",
-        headers: init?.headers,
-        body: init?.body as BodyInit | null | undefined,
-        signal: init?.signal,
-        redirect: "manual",
-      });
-    }
-
-    return (await undiciFetch(parsed.toString(), {
-      method: init?.method ?? "GET",
-      headers: init?.headers as any,
-      body: init?.body as any,
-      signal: init?.signal as any,
+    // Never fall back to unpinned global fetch if this throws.
+    return (await undiciFetch(requestUrl, {
+      method: requestInit.method,
+      headers: requestInit.headers as any,
+      body: requestInit.body as any,
+      signal: requestInit.signal as any,
       redirect: "manual",
       dispatcher: agent,
     })) as unknown as Response;
   } catch (error) {
-    const category = classifySafeFetchFailure(error);
-    const wrapped =
-      error instanceof Error
-        ? error
-        : new Error(typeof error === "string" ? error : "Pinned fetch failed");
-    (wrapped as Error & { failureCategory?: SafeFetchFailureCategory }).failureCategory =
-      category;
-    throw wrapped;
+    throw tagFetchError(error);
   } finally {
     queueMicrotask(() => {
       void agent.close();
     });
   }
+}
+
+/**
+ * DNS-rebinding-safe public HTTP(S) fetch for core URL verification.
+ * Connects only to a validated public address; preserves TLS SNI hostname.
+ */
+export async function fetchValidatedPublicHttpUrl(
+  url: string,
+  init?: RequestInit & {
+    signal?: AbortSignal;
+    lookupAll?: DnsLookupAll;
+  },
+): Promise<Response> {
+  return pinnedPublicHttpFetch(url, init);
+}
+
+/**
+ * Same pinned transport as fetchValidatedPublicHttpUrl.
+ * Reserved for optional SerpApi/media candidate fetches — never Firecrawl SDK.
+ */
+export async function fetchPublicHttpUrl(
+  url: string,
+  init?: RequestInit & {
+    signal?: AbortSignal;
+    lookupAll?: DnsLookupAll;
+  },
+): Promise<Response> {
+  return pinnedPublicHttpFetch(url, init);
 }

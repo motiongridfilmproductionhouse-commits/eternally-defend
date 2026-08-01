@@ -29,6 +29,7 @@ import {
   classifySafeFetchFailure,
   fetchValidatedPublicHttpUrl,
   isSafePublicHttpUrl,
+  releaseProbeResponseBody,
   type SafeFetchFailureCategory,
 } from "./url-safety.server";
 
@@ -409,9 +410,10 @@ export function isUrlVerified(
 
 /**
  * Follow redirects manually and capture the chain + final URL + HTTP status.
- * SSRF: validate public URL + DNS (reject private) before each hop, then use
- * plain global fetch (Vercel-compatible). No custom undici dispatcher here —
- * pinning is reserved for optional SerpApi/media candidates only.
+ * SSRF: validate public URL + DNS (reject private) before each hop, then
+ * DNS-rebinding-safe pinned fetch (validated address + TLS SNI hostname).
+ * Redirect:"manual"; every redirect destination is re-validated before connect.
+ * Probe response bodies are cancelled before retry/redirect/return.
  * Exact-page verification gates in evaluateUrlVerification are unchanged.
  */
 export async function resolveRedirectChain(
@@ -467,8 +469,10 @@ export async function resolveRedirectChain(
         AbortSignal.timeout(hopTimeout),
       );
 
+      let response: Response | null = null;
+
       try {
-        // DNS validation (private reject) under the hop timeout, then plain fetch.
+        // DNS validation (private reject) under the hop timeout, then pinned fetch.
         try {
           await assertSafePublicUrlForFetch(current, undefined, signal);
         } catch (error) {
@@ -492,8 +496,6 @@ export async function resolveRedirectChain(
             failure_category: classifySafeFetchFailure(error),
           };
         }
-
-        let response: Response;
 
         try {
           response = await fetchValidatedPublicHttpUrl(current, {
@@ -529,6 +531,8 @@ export async function resolveRedirectChain(
         if ([301, 302, 303, 307, 308].includes(status)) {
           const location = response.headers.get("location");
           if (!location) {
+            await releaseProbeResponseBody(response, signal);
+            response = null;
             return {
               discovered_url: url,
               final_url: current,
@@ -544,6 +548,8 @@ export async function resolveRedirectChain(
           try {
             next = new URL(location, current).toString();
           } catch {
+            await releaseProbeResponseBody(response, signal);
+            response = null;
             return {
               discovered_url: url,
               final_url: current,
@@ -556,6 +562,8 @@ export async function resolveRedirectChain(
           }
 
           if (!isSafePublicHttpUrl(next)) {
+            await releaseProbeResponseBody(response, signal);
+            response = null;
             return {
               discovered_url: url,
               final_url: current,
@@ -570,6 +578,8 @@ export async function resolveRedirectChain(
           try {
             await assertSafePublicUrlForFetch(next, undefined, signal);
           } catch (error) {
+            await releaseProbeResponseBody(response, signal);
+            response = null;
             if (options?.signal?.aborted) {
               throw error;
             }
@@ -591,6 +601,8 @@ export async function resolveRedirectChain(
           }
 
           if (chain.includes(next)) {
+            await releaseProbeResponseBody(response, signal);
+            response = null;
             return {
               discovered_url: url,
               final_url: current,
@@ -602,6 +614,8 @@ export async function resolveRedirectChain(
             };
           }
 
+          await releaseProbeResponseBody(response, signal);
+          response = null;
           chain.push(next);
           current = next;
           break;
@@ -612,10 +626,21 @@ export async function resolveRedirectChain(
           attempt < 2 &&
           !options?.signal?.aborted
         ) {
-          await abortableSleep((attempt + 1) * 1_000, options?.signal);
+          await releaseProbeResponseBody(response, signal);
+          response = null;
+          await abortableSleep(
+            boundTimeoutMs(
+              (attempt + 1) * 1_000,
+              options?.signal,
+              options?.softDeadlineMs,
+            ),
+            options?.signal,
+          );
           continue;
         }
 
+        await releaseProbeResponseBody(response, signal);
+        response = null;
         return {
           discovered_url: url,
           final_url: current,
@@ -624,6 +649,17 @@ export async function resolveRedirectChain(
           ok: status >= 200 && status < 400,
         };
       } catch (error) {
+        if (response) {
+          try {
+            await releaseProbeResponseBody(response, signal);
+          } catch (cleanupError) {
+            if (options?.signal?.aborted) {
+              throw cleanupError;
+            }
+          }
+          response = null;
+        }
+
         // Parent/scan abort propagates. Per-hop AbortSignal.timeout soft-fails
         // the candidate as request_timeout so verification can continue.
         if (options?.signal?.aborted) {

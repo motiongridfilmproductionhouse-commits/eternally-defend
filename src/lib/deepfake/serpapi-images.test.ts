@@ -22,6 +22,7 @@ import {
   normalizeHostingPageUrl,
   resolvePublicAddresses,
   setTestDnsLookupAll,
+  setTestPinnedHttpFetch,
 } from "./url-safety.server";
 import {
   CHECKPOINT_MAX_SERPAPI_PAGES,
@@ -37,6 +38,7 @@ const ORIGINAL_KEY = process.env.SERPAPI_API_KEY;
 function restoreEnv() {
   globalThis.fetch = ORIGINAL_FETCH;
   setTestDnsLookupAll(null);
+  setTestPinnedHttpFetch(null);
   if (ORIGINAL_KEY === undefined) delete process.env.SERPAPI_API_KEY;
   else process.env.SERPAPI_API_KEY = ORIGINAL_KEY;
 }
