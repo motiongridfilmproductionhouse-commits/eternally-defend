@@ -261,7 +261,11 @@ export function ResultsIntelligenceConsole({
   const showOverview = visibleFindings.length > 0;
 
   return (
-    <div className="space-y-4" data-testid="results-intelligence-console">
+    <div
+      id="results-intelligence-console"
+      className="space-y-4"
+      data-testid="results-intelligence-console"
+    >
       {scanStatus === "completed" && (
         <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-300">
           Scan completed · {scopedFindings.length} finding
@@ -336,6 +340,7 @@ export function ResultsIntelligenceConsole({
             />
           </ResultsConsoleErrorBoundary>
           <div
+            id="intelligence-tables"
             className="grid gap-4 xl:grid-cols-2"
             data-testid="intelligence-tables"
           >
