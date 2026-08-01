@@ -18,6 +18,11 @@ import {
   titleSlugCandidates,
 } from "./title-identity";
 import { officialPlatformDecision } from "./official-platforms";
+import {
+  evaluateTelegramPublicEvidence,
+  isPublicTelegramMessageUrl,
+  isTelegramHost,
+} from "./telegram-evidence";
 
 export { hasExactTitleIdentity } from "./title-identity";
 
@@ -592,12 +597,40 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     add("cam_theatre_print", "Cam / theatre-print release indicators on the page.", 22, true);
   }
 
-  // Telegram / channel offering full movie explicitly
-  if (
-    /(t\.me|telegram\.me|telegram)/i.test(blobLower) &&
+  // Telegram: only public exact-message URLs with title + access signal.
+  // Private/joinchat/inaccessible links fail closed. Channel name alone is insufficient.
+  if (isTelegramHost(input.url)) {
+    const tg = evaluateTelegramPublicEvidence({
+      url: input.url,
+      pageTitle,
+      markdown,
+      html,
+      titles: input.titles,
+    });
+    if (tg.eligible) {
+      add(
+        "telegram_full_movie",
+        `Public Telegram exact-message evidence preserved at ${tg.evidenceUrl}.`,
+        22,
+        true,
+      );
+    }
+  } else if (
+    isPublicTelegramMessageUrl(input.url) === false &&
+    /(t\.me|telegram\.me)\//i.test(blobLower) &&
     FULL_MOVIE_RE.test(blobLower)
   ) {
-    add("telegram_full_movie", "Telegram/channel link explicitly offers the full movie.", 22, true);
+    // Non-Telegram page merely mentioning a Telegram link — weak outbound hint only.
+    // Do not treat as strong access without an exact public message URL among links.
+    const publicTgLink = allDest.find((l) => isPublicTelegramMessageUrl(l));
+    if (publicTgLink) {
+      add(
+        "telegram_full_movie",
+        `Outbound public Telegram message link offers the full movie (${publicTgLink}).`,
+        22,
+        true,
+      );
+    }
   }
 
   // Runtime / multipart hints consistent with a full work

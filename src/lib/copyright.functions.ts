@@ -29,6 +29,18 @@ import {
   validateKnownUrlSeeds,
 } from "@/lib/copyright/known-urls.server";
 import { isNeverMonitoredDomain } from "@/lib/copyright/official-platforms";
+import {
+  allocateCrawlSlots,
+  isPastDeadline,
+  KNOWN_URL_BUDGET_MS,
+  PROVIDER_CRAWL_BUDGET_MS,
+  splitKnownAndProviderLeads,
+} from "@/lib/copyright/crawl-budget";
+import {
+  bumpCrawlFailure,
+  emptyCrawlFailureCounts,
+  type CrawlFailureCategory,
+} from "@/lib/copyright/crawl-failure";
 
 import {
   buildMovieFingerprint,
@@ -359,6 +371,13 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       const providerLeads = discovery.pageLeads
         .sort((a2, b2) => Number(b2.strong) - Number(a2.strong));
       const leadUrls = prioritizeKnownUrlLeads(knownLeadUrls, providerLeads, 32);
+      const slotAllocation = allocateCrawlSlots(
+        knownLeadUrls.length,
+        providerLeads.length,
+        32,
+      );
+      const { known: knownPhaseLeads, provider: providerPhaseLeads } =
+        splitKnownAndProviderLeads(leadUrls);
 
       const distributionRows: MatchInsert[] = [];
       const internalRows: MatchInsert[] = [];
@@ -375,6 +394,10 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         client_visible: boolean;
         strong_evidence?: boolean;
         crawl_failed?: boolean;
+        crawl_failure_category?: CrawlFailureCategory | null;
+        crawl_failure_reason?: string | null;
+        retrieval_method?: string | null;
+        rendered?: boolean;
         page_title?: string | null;
         identity_evidence?: string[];
         access_evidence?: string[];
@@ -384,8 +407,16 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         reason?: string | null;
         registered?: boolean;
         visibility_decision?: string;
+        attempted?: boolean;
+        verified?: boolean;
       };
       const knownUrlInvestigations: KnownUrlInvestigation[] = [];
+      const crawlFailedByCategory = emptyCrawlFailureCounts();
+      let knownUrlsAttempted = 0;
+      let knownUrlsRetrieved = 0;
+      let knownUrlsRendered = 0;
+      let knownUrlsVerified = 0;
+      let knownUrlsRejectedAfterCrawl = 0;
 
       // Persist unsafe/rejected known URLs as internal investigation leads (fail closed).
       for (const seed of knownSeeds.filter((s) => !s.accepted)) {
@@ -474,54 +505,60 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         inspectedDomains.add((dist.domain ?? "").toLowerCase());
         pagesCrawled += 1;
 
-        if (dist.crawlFailed) pagesFailed += 1;
-
-        switch (dist.classification) {
-          case "CINEMA_OR_SHOWTIME":
-            cinemaRejected += 1;
-            hardNegativeRejected += 1;
-            break;
-          case "TRAILER_OR_PROMO":
-            trailerRejected += 1;
-            hardNegativeRejected += 1;
-            break;
-          case "REVIEW_OR_NEWS":
-          case "CAST_OR_INFORMATION":
-            reviewRejected += 1;
-            hardNegativeRejected += 1;
-            break;
-          case "SOCIAL_DISCUSSION":
-            socialRejected += 1;
-            hardNegativeRejected += 1;
-            break;
-          case "OFFICIAL_OR_AUTHORIZED":
-          case "OFFICIAL_OR_AUTHORIZED_PAGE":
-            officialRejected += 1;
-            hardNegativeRejected += 1;
-            break;
-          case "CATALOG_OR_LISTING":
-            catalogListingRejected += 1;
-            hardNegativeRejected += 1;
-            break;
-          case "DUPLICATE_ARTWORK_ONLY":
-            artworkRejected += 1;
-            break;
-          default:
-            break;
-        }
-        if (
-          dist.classification === "TRAILER_OR_PROMO" &&
-          isNeverMonitoredDomain(dist.url)
-        ) {
-          youtubePromoRejected += 1;
+        if (dist.crawlFailed) {
+          pagesFailed += 1;
+          bumpCrawlFailure(crawlFailedByCategory, dist.crawlFailureCategory);
+          // Network/render failures are never counted as content rejection below.
+        } else {
+          switch (dist.classification) {
+            case "CINEMA_OR_SHOWTIME":
+              cinemaRejected += 1;
+              hardNegativeRejected += 1;
+              break;
+            case "TRAILER_OR_PROMO":
+              trailerRejected += 1;
+              hardNegativeRejected += 1;
+              break;
+            case "REVIEW_OR_NEWS":
+            case "CAST_OR_INFORMATION":
+              reviewRejected += 1;
+              hardNegativeRejected += 1;
+              break;
+            case "SOCIAL_DISCUSSION":
+              socialRejected += 1;
+              hardNegativeRejected += 1;
+              break;
+            case "OFFICIAL_OR_AUTHORIZED":
+            case "OFFICIAL_OR_AUTHORIZED_PAGE":
+              officialRejected += 1;
+              hardNegativeRejected += 1;
+              break;
+            case "CATALOG_OR_LISTING":
+              catalogListingRejected += 1;
+              hardNegativeRejected += 1;
+              break;
+            case "DUPLICATE_ARTWORK_ONLY":
+              artworkRejected += 1;
+              break;
+            default:
+              break;
+          }
+          if (
+            dist.classification === "TRAILER_OR_PROMO" &&
+            isNeverMonitoredDomain(dist.url)
+          ) {
+            youtubePromoRejected += 1;
+          }
         }
 
         if (dist.detailFollowUrls.length) listingPagesFound += 1;
 
+        // Content-rejection counters only apply to successfully retrieved pages.
         if (!dist.crawlFailed && !dist.identityEvidence.length && !dist.clientVisible) {
           titleIdentityRejected += 1;
         }
         if (
+          !dist.crawlFailed &&
           dist.identityEvidence.length &&
           !dist.strongEvidence &&
           !dist.clientVisible &&
@@ -613,13 +650,25 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         };
 
         if (leadQuery === "known_url_seed") {
+          knownUrlsAttempted += 1;
+          if (!dist.crawlFailed) knownUrlsRetrieved += 1;
+          if (dist.rendered) knownUrlsRendered += 1;
+          if (dist.clientVisible && dist.strongEvidence) knownUrlsVerified += 1;
+          else if (!dist.crawlFailed) knownUrlsRejectedAfterCrawl += 1;
           knownUrlInvestigations.push({
             url: dist.url,
             host: dist.domain,
+            accepted: true,
+            attempted: true,
             classification: dist.classification,
             client_visible: dist.clientVisible,
             strong_evidence: dist.strongEvidence,
             crawl_failed: dist.crawlFailed,
+            crawl_failure_category: dist.crawlFailureCategory,
+            crawl_failure_reason: dist.crawlFailureReason,
+            retrieval_method: dist.retrievalMethod,
+            rendered: dist.rendered,
+            verified: Boolean(dist.clientVisible && dist.strongEvidence),
             page_title: dist.pageTitle,
             identity_evidence: dist.identityEvidence,
             access_evidence: dist.accessEvidence,
@@ -631,7 +680,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
             visibility_decision: dist.clientVisible
               ? "client_visible_actionable"
               : dist.crawlFailed
-                ? "fail_closed_crawl"
+                ? `fail_closed_crawl:${dist.crawlFailureCategory ?? "unknown"}`
                 : "internal_or_non_actionable",
           });
         }
@@ -675,8 +724,34 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         }
       };
 
-      for (let offset = 0; offset < leadUrls.length; offset += 4) {
-        const batch = leadUrls.slice(offset, offset + 4);
+      // Phase A — known URLs first with reserved time budget (never starved by providers).
+      const knownDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
+      for (let offset = 0; offset < knownPhaseLeads.length; offset += 2) {
+        if (isPastDeadline(knownDeadlineAt)) {
+          for (const lead of knownPhaseLeads.slice(offset)) {
+            knownUrlsAttempted += 1;
+            bumpCrawlFailure(crawlFailedByCategory, "aborted_by_deadline");
+            pagesCrawled += 1;
+            pagesFailed += 1;
+            knownUrlInvestigations.push({
+              url: lead.url,
+              host: hostOf(lead.url),
+              accepted: true,
+              attempted: true,
+              classification: "UNVERIFIED_LEAD",
+              client_visible: false,
+              crawl_failed: true,
+              crawl_failure_category: "aborted_by_deadline",
+              crawl_failure_reason: "Known-URL reserved budget exhausted before attempt completed",
+              visibility_decision: "fail_closed_crawl:aborted_by_deadline",
+            });
+          }
+          break;
+        }
+        const batch = knownPhaseLeads.slice(offset, offset + 2);
+        const signal = AbortSignal.timeout(
+          Math.max(1_000, knownDeadlineAt - Date.now()),
+        );
         const analyses = await Promise.all(
           batch.map(async (lead) => ({
             lead,
@@ -685,10 +760,44 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
               title: lead.title,
               titles,
               releaseDate,
+              signal,
+              preferRender: true,
             }),
           })),
         );
+        for (const { lead, analysis: dist } of analyses) {
+          await ingestDistribution(dist, lead.query, lead.title);
+        }
+      }
 
+      // Phase B — provider candidates with remaining budget / reserved leftover slots.
+      const providerDeadlineAt = Date.now() + PROVIDER_CRAWL_BUDGET_MS;
+      for (let offset = 0; offset < providerPhaseLeads.length; offset += 4) {
+        if (isPastDeadline(providerDeadlineAt)) {
+          for (const lead of providerPhaseLeads.slice(offset)) {
+            bumpCrawlFailure(crawlFailedByCategory, "aborted_by_deadline");
+            pagesCrawled += 1;
+            pagesFailed += 1;
+            void lead;
+          }
+          break;
+        }
+        const batch = providerPhaseLeads.slice(offset, offset + 4);
+        const signal = AbortSignal.timeout(
+          Math.max(1_000, providerDeadlineAt - Date.now()),
+        );
+        const analyses = await Promise.all(
+          batch.map(async (lead) => ({
+            lead,
+            analysis: await analyzeDistributionPage({
+              url: lead.url,
+              title: lead.title,
+              titles,
+              releaseDate,
+              signal,
+            }),
+          })),
+        );
         for (const { lead, analysis: dist } of analyses) {
           await ingestDistribution(dist, lead.query, lead.title);
         }
@@ -697,7 +806,11 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       // Bounded same-domain detail follow from listing pages.
       const details = detailFollowQueue.slice(0, 12);
       for (let offset = 0; offset < details.length; offset += 4) {
+        if (isPastDeadline(providerDeadlineAt)) break;
         const batch = details.slice(offset, offset + 4);
+        const signal = AbortSignal.timeout(
+          Math.max(1_000, providerDeadlineAt - Date.now()),
+        );
         const analyses = await Promise.all(
           batch.map(async (url) =>
             analyzeDistributionPage({
@@ -705,6 +818,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
               titles,
               releaseDate,
               skipDetailFollow: true,
+              signal,
             }),
           ),
         );
@@ -772,11 +886,27 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         known_urls_submitted: knownInputs.length,
         known_urls_accepted: knownAccepted.length,
         known_urls_rejected: knownSeeds.filter((s) => !s.accepted).length,
+        known_urls_attempted: knownUrlsAttempted,
+        known_urls_retrieved: knownUrlsRetrieved,
+        known_urls_rendered: knownUrlsRendered,
+        known_urls_verified: knownUrlsVerified,
+        known_urls_rejected_after_crawl: knownUrlsRejectedAfterCrawl,
+        known_url_failure_reasons: knownUrlInvestigations
+          .filter((k) => k.crawl_failed || k.reject_reason)
+          .map((k) => ({
+            url: k.url,
+            reason: k.crawl_failure_reason || k.reject_detail || k.reason || null,
+            category: k.crawl_failure_category || k.reject_reason || null,
+          }))
+          .slice(0, 12),
         known_url_investigations: knownUrlInvestigations.slice(0, 12),
+        crawl_slots_reserved_known: slotAllocation.knownSlots,
+        crawl_slots_provider: slotAllocation.providerSlots,
         listing_pages_found: listingPagesFound,
         detail_pages_followed: detailPagesFollowed,
         pages_crawled: pagesCrawled,
         pages_failed: pagesFailed,
+        crawl_failed_by_category: crawlFailedByCategory,
         title_identity_rejected: titleIdentityRejected,
         hard_negative_rejected: hardNegativeRejected,
         access_evidence_rejected: accessEvidenceRejected,
@@ -823,6 +953,27 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           theatre_print_findings: theatrePrintFindings,
           internal_leads_persisted: internalPersist.length,
           client_visible_findings: clientVisibleFindings.length,
+          known_urls_submitted: knownInputs.length,
+          known_urls_accepted: knownAccepted.length,
+          known_urls_attempted: knownUrlsAttempted,
+          known_urls_retrieved: knownUrlsRetrieved,
+          known_urls_rendered: knownUrlsRendered,
+          known_urls_verified: knownUrlsVerified,
+          known_urls_rejected: knownSeeds.filter((s) => !s.accepted).length,
+          known_urls_rejected_after_crawl: knownUrlsRejectedAfterCrawl,
+          known_url_failure_reasons: knownUrlInvestigations
+            .filter((k) => k.crawl_failed || k.reject_reason)
+            .map((k) => ({
+              url: k.url,
+              reason: k.crawl_failure_reason || k.reject_detail || k.reason || null,
+              category: k.crawl_failure_category || k.reject_reason || null,
+            }))
+            .slice(0, 12),
+          crawl_failed_by_category: crawlFailedByCategory,
+          official_authorized_rejected: officialRejected,
+          catalog_listing_rejected: catalogListingRejected,
+          youtube_promotional_rejected: youtubePromoRejected,
+          registered_monitored_sources: registeredMonitoredSources,
         }),
         title_variants_used: titles.slice(0, 8),
         monitored_sources_checked: monitorPass.checked,

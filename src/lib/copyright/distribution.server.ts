@@ -1,8 +1,8 @@
 /**
  * Unauthorized movie-distribution site detection.
  *
- * Discovery hands us candidate pages; this module fetches each page with
- * Firecrawl (markdown + html + links + screenshot) and classifies with the
+ * Discovery hands us candidate pages; this module retrieves each page with
+ * safe static HTML + Firecrawl rendered fallback and classifies with the
  * exact-page evidence gates in page-classify.server.ts.
  *
  * A page is only classified as piracy when identity + access evidence exist.
@@ -11,7 +11,6 @@
  * Evidence collection only — nothing here reports or takes down content.
  */
 
-import { firecrawlFetch } from "@/lib/firecrawl-client.server";
 import { isSafePublicHttpUrl } from "@/lib/deepfake/url-safety.server";
 import { hostOf } from "./url.server";
 import {
@@ -20,6 +19,8 @@ import {
   type PageClassifyResult,
   type PiracyIndicator,
 } from "./page-classify.server";
+import { retrieveCopyrightPage } from "./page-retrieve.server";
+import type { CrawlFailureCategory } from "./crawl-failure";
 import { releaseTimingFor, type ReleaseTiming } from "./release-timing";
 import type { CopyrightClassification } from "./taxonomy";
 
@@ -70,44 +71,14 @@ export interface DistributionAnalysis {
   detailFollowUrls: string[];
   /** true when exact-page crawl failed or URL was unsafe */
   crawlFailed: boolean;
-}
-
-interface ScrapeInner {
-  markdown?: string;
-  html?: string;
-  links?: string[];
-  screenshot?: string;
-  metadata?: Record<string, unknown>;
-}
-interface ScrapeResponse extends ScrapeInner {
-  success?: boolean;
-  data?: ScrapeInner;
-  error?: string;
-}
-
-async function scrapePage(url: string): Promise<ScrapeInner | null> {
-  if (!isSafePublicHttpUrl(url)) return null;
-  try {
-    const res = await firecrawlFetch("/scrape", {
-      url,
-      formats: ["markdown", "html", "links", "screenshot"],
-      onlyMainContent: false,
-      waitFor: 1200,
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as ScrapeResponse;
-    const inner = json.data ?? json;
-    return inner ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeShot(shot: string | undefined): string | null {
-  if (!shot) return null;
-  return shot.startsWith("data:") || shot.startsWith("http")
-    ? shot
-    : `data:image/png;base64,${shot}`;
+  /** Exact failure category when crawlFailed — never a content-rejection label. */
+  crawlFailureCategory: CrawlFailureCategory | null;
+  /** Sanitized diagnostic reason for retrieval failure. */
+  crawlFailureReason: string | null;
+  /** How the page body was retrieved. */
+  retrievalMethod: "static_html" | "firecrawl_render" | "none";
+  /** True when Firecrawl rendered fallback was used. */
+  rendered: boolean;
 }
 
 function toLegacyContentType(
@@ -162,6 +133,10 @@ function fromClassify(
   classified: PageClassifyResult,
   detailFollowUrls: string[] = [],
   crawlFailed = false,
+  crawlFailureCategory: CrawlFailureCategory | null = null,
+  crawlFailureReason: string | null = null,
+  retrievalMethod: DistributionAnalysis["retrievalMethod"] = "none",
+  rendered = false,
 ): DistributionAnalysis {
   return {
     url,
@@ -187,12 +162,17 @@ function fromClassify(
     reason: classified.reason,
     detailFollowUrls,
     crawlFailed,
+    crawlFailureCategory,
+    crawlFailureReason,
+    retrievalMethod,
+    rendered,
   };
 }
 
 /**
  * Inspect one candidate page for unauthorized-distribution evidence.
  * Returns a fail-closed UNVERIFIED_LEAD analysis when the page cannot be fetched.
+ * Network/render failures set crawlFailed + category — never content rejection.
  */
 export async function analyzeDistributionPage(opts: {
   url: string;
@@ -202,6 +182,9 @@ export async function analyzeDistributionPage(opts: {
   screenshot?: string | null;
   /** When true, skip detail-link follow (used for already-followed detail pages). */
   skipDetailFollow?: boolean;
+  signal?: AbortSignal;
+  /** Prefer Firecrawl render (used for known evidence URLs). */
+  preferRender?: boolean;
 }): Promise<DistributionAnalysis> {
   if (!isSafePublicHttpUrl(opts.url)) {
     return fromClassify(
@@ -217,11 +200,14 @@ export async function analyzeDistributionPage(opts: {
       }),
       [],
       true,
+      "private_or_reserved_address",
+      "URL failed public http(s) safety checks",
+      "none",
+      false,
     );
   }
 
-  const page = await scrapePage(opts.url);
-  if (!page) {
+  if (opts.signal?.aborted) {
     return fromClassify(
       opts.url,
       opts.title ?? null,
@@ -235,20 +221,47 @@ export async function analyzeDistributionPage(opts: {
       }),
       [],
       true,
+      "aborted_by_deadline",
+      "Aborted by scan deadline before retrieval",
+      "none",
+      false,
     );
   }
 
-  const markdown = page.markdown ?? "";
-  const html = page.html ?? "";
-  const links = (Array.isArray(page.links) ? page.links : []).filter(
-    (l): l is string => typeof l === "string",
-  );
-  const meta = (page.metadata ?? {}) as Record<string, unknown>;
-  const pageTitle =
-    (typeof meta.title === "string" && meta.title) || opts.title || null;
+  const retrieved = await retrieveCopyrightPage(opts.url, {
+    signal: opts.signal,
+    preferRender: opts.preferRender,
+  });
+
+  if (!retrieved.ok) {
+    return fromClassify(
+      retrieved.finalUrl || opts.url,
+      opts.title ?? null,
+      opts.screenshot ?? null,
+      classifyCopyrightPage({
+        url: retrieved.finalUrl || opts.url,
+        pageTitle: opts.title,
+        titles: opts.titles,
+        releaseDate: opts.releaseDate,
+        pageInspected: false,
+      }),
+      [],
+      true,
+      retrieved.failureCategory,
+      retrieved.failureReason,
+      retrieved.method,
+      retrieved.rendered,
+    );
+  }
+
+  const markdown = retrieved.markdown ?? "";
+  const html = retrieved.html ?? "";
+  const links = retrieved.links;
+  const meta = retrieved.metadata;
+  const pageTitle = retrieved.pageTitle || opts.title || null;
 
   const classified = classifyCopyrightPage({
-    url: opts.url,
+    url: retrieved.finalUrl,
     pageTitle,
     markdown,
     html,
@@ -263,12 +276,12 @@ export async function analyzeDistributionPage(opts: {
   let detailFollowUrls: string[] = [];
   const looksLikeListing =
     classified.primaryPurpose === "listing_or_search" ||
-    /\/(search|category|tag|genre|latest|movies|browse)(\/|$|\?)/i.test(opts.url) ||
+    /\/(search|category|tag|genre|latest|movies|browse)(\/|$|\?)/i.test(retrieved.finalUrl) ||
     links.length >= 15;
   if (!opts.skipDetailFollow && !classified.clientVisible && looksLikeListing) {
     // Bounded same-host title-detail follow. Listing pages themselves are never evidence.
     detailFollowUrls = extractTitleMatchedDetailLinks({
-      pageUrl: opts.url,
+      pageUrl: retrieved.finalUrl,
       html,
       markdown,
       links,
@@ -278,11 +291,16 @@ export async function analyzeDistributionPage(opts: {
   }
 
   return fromClassify(
-    opts.url,
+    retrieved.finalUrl,
     pageTitle,
-    normalizeShot(page.screenshot) ?? opts.screenshot ?? null,
+    retrieved.screenshot ?? opts.screenshot ?? null,
     classified,
     detailFollowUrls,
+    false,
+    null,
+    null,
+    retrieved.method,
+    retrieved.rendered,
   );
 }
 
@@ -297,6 +315,7 @@ export async function analyzeListingWithDetailFollow(opts: {
   titles: string[];
   releaseDate?: string | null;
   maxDetails?: number;
+  signal?: AbortSignal;
 }): Promise<DistributionAnalysis[]> {
   const listing = await analyzeDistributionPage({
     ...opts,
@@ -307,11 +326,13 @@ export async function analyzeListingWithDetailFollow(opts: {
   const out: DistributionAnalysis[] = [listing];
 
   for (const detailUrl of details) {
+    if (opts.signal?.aborted) break;
     const analysis = await analyzeDistributionPage({
       url: detailUrl,
       titles: opts.titles,
       releaseDate: opts.releaseDate,
       skipDetailFollow: true,
+      signal: opts.signal,
     });
     out.push(analysis);
   }
