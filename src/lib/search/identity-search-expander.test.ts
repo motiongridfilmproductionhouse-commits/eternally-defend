@@ -132,6 +132,38 @@ test("Strong face match recovers fail-open ambiguous expansion", async () => {
   assert.ok(relevance.matchedTerms.includes("reference_face"));
 });
 
+test("True multi-candidate ambiguity stays quarantined even with face match", async () => {
+  invalidateIdentityExpansionCache({ all: true });
+  const expansion = await resolveAndExpandSearchQuery({
+    query: "Manju",
+    module: "deepfake",
+    offlineOnly: true,
+  });
+  assert.ok(expansion.ambiguous);
+  assert.ok(!expansion.diagnostics.fallback);
+  const relevance = scoreIdentityRelevance({
+    expansion,
+    title: "Manju on television",
+    snippet: "an actress named Manju",
+    faceSimilarity: 0.92,
+  });
+  assert.equal(relevance.quarantine, true);
+  assert.equal(relevance.matchedIdentity, false);
+});
+
+test("Ambiguous expansion identity list does not promote competing celebrities", async () => {
+  invalidateIdentityExpansionCache({ all: true });
+  const expansion = await resolveAndExpandSearchQuery({
+    query: "Manju",
+    module: "social",
+    offlineOnly: true,
+  });
+  assert.ok(expansion.ambiguous);
+  const ids = expansionToIdentityList(expansion).map((s) => s.toLowerCase());
+  assert.ok(!ids.some((s) => s.includes("pathrose") || s.includes("warrier") || s.includes("pillai")));
+  assert.ok(ids.includes("manju"));
+});
+
 test("Official username → strong identity match", async () => {
   invalidateIdentityExpansionCache({ all: true });
   // Seed handle onto knowledge via knownHandles overlapping expansion usernames after resolve

@@ -146,9 +146,9 @@ export function scoreIdentityRelevance(opts: {
   const confidence = Math.max(0, Math.min(0.99, score));
   const ambiguous = Boolean(opts.expansion.ambiguous);
   const fallback = Boolean(opts.expansion.diagnostics?.fallback);
-  // Ambiguous expansions normally stay unverified, but strong face evidence
-  // (especially after fail-open recovery) may attach a lead for human review.
-  const faceRecoversAmbiguity = strongFace && (fallback || confidence >= 0.4);
+  // Only fail-open recovery may use strong face evidence to clear ambiguity.
+  // True multi-candidate ambiguity stays quarantined until reviewer confirmation.
+  const faceRecoversAmbiguity = strongFace && fallback;
   const quarantine =
     firstOnly ||
     Boolean(conflictingIdentity) ||

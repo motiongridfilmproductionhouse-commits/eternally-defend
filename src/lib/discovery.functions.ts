@@ -116,13 +116,21 @@ export const discoverAccounts = createServerFn({ method: "POST" })
       entityType: subject.subject_kind === "brand" || subject.subject_kind === "company" ? subject.subject_kind : "person",
       userId: context.userId,
     });
+    // When ambiguous, seed only safe identity forms (original / mild correction /
+    // user aliases) — never competing celebrity candidates.
     const identityQueries = Array.from(
-      new Set([
-        expansion.canonicalName ?? subject.query,
-        subject.query,
-        ...expansionToIdentityList(expansion).slice(0, 4),
-      ]),
-    ).filter(Boolean).slice(0, 4);
+      new Set(
+        expansion.ambiguous
+          ? [subject.query, ...expansionToIdentityList(expansion)]
+          : [
+              expansion.canonicalName ?? subject.query,
+              subject.query,
+              ...expansionToIdentityList(expansion),
+            ],
+      ),
+    )
+      .filter(Boolean)
+      .slice(0, 4);
 
     // 1) Optional website scrape — gives us outbound social links.
     let outboundHosts: string[] = [];

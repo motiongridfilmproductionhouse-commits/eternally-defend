@@ -592,6 +592,24 @@ export async function resolveAndExpandSearchQuerySafe(
 
 /** Convenience: identity strings for provider matching / query generators. */
 export function expansionToIdentityList(expansion: SearchExpansionResult): string[] {
+  // Ambiguous / unconfirmed: never promote competing celebrity KB forms.
+  if (expansion.ambiguous || !expansion.canonicalName) {
+    const original = expansion.originalQuery.trim();
+    const corrected = expansion.correctedQuery.trim();
+    const mildCorrection =
+      corrected &&
+      corrected.toLowerCase() !== original.toLowerCase() &&
+      corrected.split(/\s+/).filter(Boolean).length ===
+        original.split(/\s+/).filter(Boolean).length
+        ? [corrected]
+        : [];
+    return uniqueStrings([
+      original,
+      ...mildCorrection,
+      ...expansion.aliases,
+      ...expansion.usernames,
+    ]);
+  }
   return uniqueStrings([
     expansion.canonicalName,
     expansion.correctedQuery,
