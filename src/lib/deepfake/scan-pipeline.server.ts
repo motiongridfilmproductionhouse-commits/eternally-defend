@@ -140,6 +140,13 @@ type VerificationMetrics = {
   identity_rejected: number;
   page_type_rejected: number;
   url_rejected: number;
+  dns_resolution_failed?: number;
+  private_address_rejected?: number;
+  tls_connection_failed?: number;
+  request_timeout?: number;
+  redirect_rejected?: number;
+  crawl_provider_failed?: number;
+  network_failed?: number;
 };
 
 type RiskCounts = {
@@ -242,6 +249,13 @@ function addVerificationMetrics(
   metrics.identity_rejected += next.identity_rejected;
   metrics.page_type_rejected += next.page_type_rejected;
   metrics.url_rejected += next.url_rejected;
+  metrics.dns_resolution_failed += next.dns_resolution_failed ?? 0;
+  metrics.private_address_rejected += next.private_address_rejected ?? 0;
+  metrics.tls_connection_failed += next.tls_connection_failed ?? 0;
+  metrics.request_timeout += next.request_timeout ?? 0;
+  metrics.redirect_rejected += next.redirect_rejected ?? 0;
+  metrics.crawl_provider_failed += next.crawl_provider_failed ?? 0;
+  metrics.network_failed += next.network_failed ?? 0;
 }
 
 function hasThreatSignal(hit: { threat_signals?: string[] }): boolean {

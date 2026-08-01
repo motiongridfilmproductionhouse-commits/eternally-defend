@@ -38,7 +38,10 @@ import {
 } from "./scan-persist.server";
 import { firecrawlSearch } from "./firecrawl.server";
 import { resolveRedirectChain } from "./url-verification.server";
-import { setTestDnsLookupAll } from "./url-safety.server";
+import {
+  setTestDnsLookupAll,
+  setTestPinnedHttpFetch,
+} from "./url-safety.server";
 
 type FakeRow = Record<string, unknown>;
 
@@ -399,6 +402,7 @@ test("abort during URL verification does not retry after parent abort", async ()
   } finally {
     globalThis.fetch = originalFetch;
     setTestDnsLookupAll(null);
+    setTestPinnedHttpFetch(null);
   }
 });
 

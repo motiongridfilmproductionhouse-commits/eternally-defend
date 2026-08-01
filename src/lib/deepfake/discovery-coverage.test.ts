@@ -9,7 +9,10 @@ import {
   discoveredCandidateKey,
   mergeDiscoveredCandidates,
 } from "./discovery-plan.server";
-import { setTestDnsLookupAll } from "./url-safety.server";
+import {
+  setTestDnsLookupAll,
+  setTestPinnedHttpFetch,
+} from "./url-safety.server";
 
 type FetchLike = typeof globalThis.fetch;
 
@@ -20,6 +23,7 @@ const originalYouTubeKey = process.env.YOUTUBE_API_KEY;
 function restoreGlobals() {
   globalThis.fetch = originalFetch;
   setTestDnsLookupAll(null);
+  setTestPinnedHttpFetch(null);
   if (originalFirecrawlKey === undefined) {
     delete process.env.FIRECRAWL_API_KEY;
   } else {
