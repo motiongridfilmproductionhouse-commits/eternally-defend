@@ -47,6 +47,11 @@ import { filterClientVisibleCopyrightMatches } from "@/lib/copyright/client-filt
 import { dedupeCopyrightMatchRows } from "@/lib/copyright/match-upsert";
 import { detectPrimaryPurpose } from "@/lib/copyright/page-classify.server";
 import { expandTitleVariants } from "@/lib/copyright/title-identity";
+import {
+  sanitizeCopyrightScanRowForClient,
+  sanitizeCopyrightStatsForClient,
+  sanitizeDiscoveryQueryForClient,
+} from "@/lib/copyright/public-surface";
 import { explainZeroMatchFunnel, summarizeProviderFailures } from "@/lib/copyright/scan-diagnostics";
 import {
   acceptedKnownUrls,
@@ -692,7 +697,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       scanId: scan.id as string,
       started: true as const,
       status: "queued" as const,
-      configuredProviders: configuredCopyrightScanProviders().map((p) => p.provider),
+      configuredProviders: configuredCopyrightScanProviders().map((p) => p.label),
     };
   });
 
@@ -2593,7 +2598,9 @@ export const listCopyrightScans = createServerFn({ method: "GET" })
       context.supabase,
       (data ?? []) as Array<Record<string, unknown>>,
     );
-    return rows as typeof data;
+    return rows.map((row) =>
+      sanitizeCopyrightScanRowForClient(row as Record<string, unknown>),
+    ) as typeof data;
   });
 
 export const getCopyrightScan = createServerFn({ method: "GET" })
@@ -2653,11 +2660,16 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
               ? ("insufficient_evidence" as const)
               : ("no_match" as const),
         reason: m.reason,
-        discovery_query: (ev.discovery_query as string) ?? null,
+        discovery_query: sanitizeDiscoveryQueryForClient(
+          (ev.discovery_query as string) ?? null,
+        ),
       };
     });
+    const sanitizedScan = sanitizeCopyrightScanRowForClient(
+      watchedScan as unknown as Record<string, unknown>,
+    );
     return {
-      scan: watchedScan,
+      scan: sanitizedScan,
       matches: filterClientVisibleCopyrightMatches(matches ?? []),
       allSources,
     };

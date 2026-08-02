@@ -29,9 +29,9 @@ export interface ScanBootstrapState {
 }
 
 const BOOTSTRAP_PROVIDER_CATALOG: Array<{ provider: string; label: string }> = [
-  { provider: "bright_data", label: "Bright Data" },
-  { provider: "firecrawl", label: "Firecrawl" },
-  { provider: "youtube", label: "YouTube" },
+  { provider: "bright_data", label: "Expanded Discovery" },
+  { provider: "firecrawl", label: "Public Web" },
+  { provider: "youtube", label: "Public Video" },
 ];
 
 export function bootstrapProvidersForConfigured(
@@ -74,27 +74,18 @@ function bootstrapSourceEntries(
 
 export function bootstrapOperationalWebsiteEvents(scanId: string): ScanActivityEvent[] {
   const at = new Date().toISOString();
-  const row = (
-    id: string,
-    label: string,
-    stageLabel: string,
-  ): ScanActivityEvent => ({
-    id: `bootstrap:${scanId}:${id}`,
-    hostname: label,
-    page_label: stageLabel,
-    provider: "firecrawl",
-    stage: "discovered",
-    stage_label: stageLabel,
-    threat: "checking",
-    threat_label: "CONNECTING",
-    occurred_at: at,
-  });
-
   return [
-    row("queries", "Preparing search queries", "Initializing"),
-    row("providers", "Connecting providers", "Initializing"),
-    row("candidate", "Waiting for first public candidate", "Queued"),
-    row("verify", "Initializing page verification", "Queued"),
+    {
+      id: `bootstrap:${scanId}:initializing`,
+      hostname: "Eterna investigation",
+      page_label: "Preparing reference material and discovery channels",
+      provider: "firecrawl",
+      stage: "discovered",
+      stage_label: "Initializing",
+      threat: "checking",
+      threat_label: "INITIALIZING",
+      occurred_at: at,
+    },
   ];
 }
 
@@ -302,43 +293,12 @@ export function bootstrapReelOperationalCards(
   subtitle: string;
   badge: string;
 }> {
-  const providerCards = providers.map((p) => {
-    const subtitle =
-      p.provider === "bright_data"
-        ? "Starting search"
-        : p.provider === "firecrawl"
-          ? "Preparing discovery"
-          : p.provider === "youtube"
-            ? "Preparing video search"
-            : "Starting";
-    return {
-      key: `bootstrap-provider-${p.provider}`,
-      title: p.label,
-      subtitle,
-      badge: "starting",
-    };
-  });
-  return [
-    ...providerCards,
-    {
-      key: "bootstrap-trailer",
-      title: "Trailer discovery",
-      subtitle: "Waiting",
-      badge: "waiting",
-    },
-    {
-      key: "bootstrap-poster",
-      title: "Poster discovery",
-      subtitle: "Waiting",
-      badge: "waiting",
-    },
-    {
-      key: "bootstrap-website",
-      title: "Website investigation",
-      subtitle: "Initializing",
-      badge: "initializing",
-    },
-  ];
+  return providers.map((p) => ({
+    key: `bootstrap-provider-${p.provider}`,
+    title: p.label,
+    subtitle: "Initializing channel",
+    badge: "starting",
+  }));
 }
 
 export function providerLabel(provider: string): string {

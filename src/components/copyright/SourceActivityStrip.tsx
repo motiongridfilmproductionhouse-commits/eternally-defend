@@ -35,7 +35,8 @@ function Chip({ entry }: { entry: SourceActivityEntry }) {
         <span className="uppercase tracking-wide opacity-80">{entry.status}</span>
       </div>
       <div className="mt-0.5 tabular-nums opacity-80">
-        req {entry.requests} · cand {entry.candidates} · fail {entry.failures}
+        {entry.candidates} found · {entry.requests} reviewed
+        {entry.failures > 0 ? ` · ${entry.failures} limited` : ""}
       </div>
     </div>
   );
@@ -48,7 +49,7 @@ export function SourceActivityStrip({ stats }: SourceActivityStripProps) {
   return (
     <div className="space-y-1.5">
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-        Provider activity
+        Investigation channels
       </p>
       <div className="flex flex-wrap gap-2">
         {entries.map((entry) => (

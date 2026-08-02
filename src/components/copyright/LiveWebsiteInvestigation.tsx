@@ -210,8 +210,8 @@ export function LiveWebsiteInvestigation({
   const bootstrapActive = stats?.scan_bootstrap === true;
   const emptyMessage = scanning
     ? bootstrapActive
-      ? "Connecting to discovery providers…"
-      : "Connecting to discovery providers…"
+      ? "Initializing Eterna investigation channels…"
+      : "Initializing Eterna investigation channels…"
     : "No website investigation activity recorded for this scan.";
 
   return (

@@ -6,6 +6,7 @@
 import { sanitizeEvidenceUrl } from "@/lib/deepfake/evidence-url";
 import { isActionablePiracy } from "./taxonomy";
 import { hostOf } from "./url.server";
+import { publicCapabilityLabel } from "./public-surface";
 
 /** Maximum persisted investigation events (newest retained). */
 export const SCAN_ACTIVITY_MAX_EVENTS = 25;
@@ -181,21 +182,8 @@ export function resolveActivityProvider(
   return "firecrawl";
 }
 
-export function providerDisplayLabel(provider: ScanActivityProvider): string {
-  switch (provider) {
-    case "known_url":
-      return "Known URL";
-    case "firecrawl":
-      return "Firecrawl";
-    case "brightdata":
-      return "Bright Data";
-    case "serpapi":
-      return "SerpApi";
-    case "telegram":
-      return "Telegram";
-    default:
-      return provider;
-  }
+export function providerDisplayLabel(provider: ScanActivityProvider | string): string {
+  return publicCapabilityLabel(provider);
 }
 
 export function workflowStageIndex(
@@ -589,7 +577,7 @@ export function resolveCopyrightThreatBadge(input: {
     return { tone: "potential", label: "POTENTIAL THREAT DETECTED" };
   }
   if (providerLimited && status === "running") {
-    return { tone: "provider_limited", label: "DISCOVERY PROVIDER LIMITED" };
+    return { tone: "provider_limited", label: "DISCOVERY CHANNEL LIMITED" };
   }
   return { tone: "scanning", label: "SCANNING — NO VERIFIED THREAT YET" };
 }

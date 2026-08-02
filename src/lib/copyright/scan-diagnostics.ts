@@ -234,7 +234,7 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
     `Crawl: ${d.pages_crawled} pages crawled (${d.pages_failed} failed), ${d.listing_pages_found} listing/search pages, ${d.detail_pages_followed} title-detail pages followed.`,
   );
   lines.push(
-    `Render ladder: ${d.static_fetch_succeeded} static pages fetched, ${d.static_fetch_empty} empty static, ${d.browser_fallback_attempted} browser fallbacks attempted (${d.browser_fallback_succeeded} recovered, ${d.browser_fallback_failed} failed), ${d.crawl4ai_fallback_succeeded} Crawl4AI recovered, ${d.pages_rendered} rendered pages inspected.`,
+    `Render ladder: ${d.static_fetch_succeeded} static pages fetched, ${d.static_fetch_empty} empty static, ${d.browser_fallback_attempted} dynamic render attempts (${d.browser_fallback_succeeded} recovered, ${d.browser_fallback_failed} failed), ${d.pages_rendered} rendered pages inspected.`,
   );
   lines.push(
     `Evidence funnel: ${d.exact_title_pages_found} exact-title pages, ${d.pages_with_access_evidence} with access evidence, ${d.pages_rejected_by_title} title rejected, ${d.pages_rejected_as_official_or_promo} official/promo rejected, ${d.pages_missing_access_evidence} missing access evidence, ${d.findings_created} findings created.`,
@@ -283,7 +283,7 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
       "Primary bottleneck: known URL(s) were retrieved but failed exact-title identity and/or distribution-access evidence gates.",
     );
   } else if (d.queries_executed === 0 && d.provider_results === 0 && d.known_urls_attempted === 0) {
-    lines.push("Primary bottleneck: discovery returned no provider results — check Firecrawl configuration and query coverage.");
+    lines.push("Primary bottleneck: discovery returned no candidate results — check public discovery configuration and query coverage.");
   } else if (d.pages_crawled === 0) {
     lines.push("Primary bottleneck: no candidate pages were crawled for exact-page distribution evidence.");
   } else if (d.pages_failed > 0 && d.pages_failed >= d.pages_crawled * 0.6) {

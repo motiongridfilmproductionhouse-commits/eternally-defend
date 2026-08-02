@@ -14,16 +14,18 @@ import {
 
 export type ProviderSeedSupabase = Pick<SupabaseClient, "from">;
 
+import { publicCapabilityLabel } from "@/lib/copyright/public-surface";
+
 export function configuredCopyrightScanProviders(): Array<{ provider: string; label: string }> {
   const providers: Array<{ provider: string; label: string }> = [];
   if (isFirecrawlConfigured()) {
-    providers.push({ provider: "firecrawl", label: "Firecrawl" });
+    providers.push({ provider: "firecrawl", label: publicCapabilityLabel("firecrawl") });
   }
   if (isYoutubeConfigured()) {
-    providers.push({ provider: "youtube", label: "YouTube" });
+    providers.push({ provider: "youtube", label: publicCapabilityLabel("youtube") });
   }
   if (isBrightDataConfigured()) {
-    providers.push({ provider: "bright_data", label: "Bright Data" });
+    providers.push({ provider: "bright_data", label: publicCapabilityLabel("bright_data") });
   }
   return providers.sort((a, b) => a.label.localeCompare(b.label));
 }

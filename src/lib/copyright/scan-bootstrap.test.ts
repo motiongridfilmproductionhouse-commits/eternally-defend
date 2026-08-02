@@ -31,9 +31,9 @@ test("A: bootstrap stats render providers immediately before any poll", () => {
   });
 
   assert.equal(parseSourceActivity(stats).length, 3);
-  assert.equal(parseWebsiteActivity(stats).length, 4);
+  assert.equal(parseWebsiteActivity(stats).length, 1);
   assert.equal(stats.scan_bootstrap, true);
-  assert.equal(bootstrapReelOperationalCards(bootstrap.providers).length, 6);
+  assert.equal(bootstrapReelOperationalCards(bootstrap.providers).length, 3);
 });
 
 test("B: first empty poll keeps bootstrap animation cards", () => {
@@ -47,7 +47,7 @@ test("B: first empty poll keeps bootstrap animation cards", () => {
 
   assert.equal(parseSourceActivity(stats).length, 3);
   assert.equal(parseSourceActivity(stats)[0]?.status, "starting");
-  assert.equal(parseWebsiteActivity(stats).length, 4);
+  assert.equal(parseWebsiteActivity(stats).length, 1);
 });
 
 test("C: real source_activity replaces bootstrap providers in place", () => {
@@ -55,7 +55,7 @@ test("C: real source_activity replaces bootstrap providers in place", () => {
   const realProviders = [
     {
       provider: "firecrawl",
-      label: "Firecrawl",
+      label: "Public Web",
       status: "queued" as const,
       requests: 0,
       candidates: 0,
@@ -64,7 +64,7 @@ test("C: real source_activity replaces bootstrap providers in place", () => {
     },
     {
       provider: "youtube",
-      label: "YouTube",
+      label: "Public Video",
       status: "searching" as const,
       requests: 2,
       candidates: 1,
@@ -99,7 +99,7 @@ test("D: later empty poll does not erase remembered real telemetry", () => {
     source_activity: [
       {
         provider: "firecrawl",
-        label: "Firecrawl",
+        label: "Public Web",
         status: "searching",
         requests: 3,
         candidates: 2,

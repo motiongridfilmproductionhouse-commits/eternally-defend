@@ -590,7 +590,7 @@ function CopyrightIntelPage() {
                 {providerFailCats.some((r) => r.category === "authentication_failed") &&
                   " Check FIRECRAWL_API_KEY and LOVABLE_API_KEY (for lovc_ gateway keys)."}
                 {providerFailCats.some((r) => r.category === "rate_limited") &&
-                  " Discovery batches Firecrawl in groups of 3 with circuit breaker — retry the scan."}
+                  " Public discovery is temporarily rate-limited — retry the scan."}
                 {Boolean(scanStats.firecrawl_operator_action) &&
                   ` ${String(scanStats.firecrawl_operator_action)}`}
               </p>
@@ -708,7 +708,7 @@ function CopyrightIntelPage() {
               <TabsList>
                 <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
                 <TabsTrigger value="all">All sources</TabsTrigger>
-                <TabsTrigger value="youtube">YouTube monitoring</TabsTrigger>
+                <TabsTrigger value="youtube">Video monitoring</TabsTrigger>
               </TabsList>
               <TabsContent value="all" className="mt-3">
                 <AllSourcesPanel sources={(detail.data?.allSources ?? []) as never} />
@@ -770,10 +770,10 @@ function CopyrightIntelPage() {
                             Number(scanStats.known_urls_rejected ?? 0) +
                             Number(scanStats.known_urls_rejected_after_crawl ?? 0),
                         },
-                        { label: "Provider candidates", value: provider.result_count },
-                        { label: "Provider requests", value: provider.requested },
-                        { label: "Provider successes", value: provider.succeeded },
-                        { label: "Provider failures", value: provider.failed },
+                        { label: "Discovery candidates", value: provider.result_count },
+                        { label: "Discovery requests", value: provider.requested },
+                        { label: "Discovery successes", value: provider.succeeded },
+                        { label: "Discovery errors", value: provider.failed },
                         { label: "Static pages fetched", value: crawl.static_fetch_succeeded },
                         { label: "Empty static HTML", value: crawl.static_fetch_empty },
                         { label: "Browser fallbacks tried", value: crawl.browser_fallback_attempted },
@@ -819,7 +819,7 @@ function CopyrightIntelPage() {
                     )}
                     {providerFailureCategoryLines(scanStats).length > 0 && (
                       <div className="rounded-md border border-border/50 bg-background/30 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Provider failures by category</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Discovery errors by category</p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {providerFailureCategoryLines(scanStats).map(({ category, count }) => (
                             <Badge key={category} variant="outline" className="text-[10px]">

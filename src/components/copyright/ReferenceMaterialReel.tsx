@@ -7,7 +7,6 @@ import {
   Play,
   Radar,
   Search,
-  Youtube,
 } from "lucide-react";
 import {
   parseWebsiteActivity,
@@ -26,6 +25,7 @@ import {
   type SourceActivityEntry,
   type SourceActivityStatus,
 } from "@/lib/copyright/source-activity";
+import { publicSourceActivityStatusLabel } from "@/lib/copyright/public-surface";
 
 export interface ReferenceMaterialReelProps {
   originalPreview?: string | null;
@@ -37,7 +37,7 @@ export interface ReferenceMaterialReelProps {
   forceLive?: boolean;
 }
 
-type ReelCardKind = "poster" | "video" | "provider" | "website" | "status";
+type ReelCardKind = "poster" | "video" | "channel" | "website";
 
 interface ReelCard {
   key: string;
@@ -47,8 +47,6 @@ interface ReelCard {
   imageUrl?: string | null;
   badge?: string;
   classification?: ReferenceMaterialClassification | string;
-  provider?: string;
-  status?: string;
   pulse?: boolean;
 }
 
@@ -77,11 +75,11 @@ function classificationTone(cls: string): string {
   }
 }
 
-function providerStatusTone(status: SourceActivityStatus | string): string {
+function channelStatusTone(status: SourceActivityStatus | string): string {
   switch (status) {
     case "starting":
-      return "border-primary/35 bg-primary/10 text-primary";
     case "searching":
+    case "queued":
       return "border-primary/40 bg-primary/10 text-primary";
     case "completed":
       return "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
@@ -100,44 +98,41 @@ function materialTypeLabel(type: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function materialToCard(m: ReferenceMaterial): ReelCard {
-  const isVideo = Boolean(m.video_url);
+function materialToCard(m: ReferenceMaterial): ReelCard | null {
+  const hasImage = Boolean(m.image_url);
+  const hasVideo = Boolean(m.video_url);
+  if (!hasImage && !hasVideo && !m.title && !m.source_domain) return null;
   return {
     key: m.id,
-    kind: isVideo ? "video" : "poster",
+    kind: hasVideo ? "video" : "poster",
     title: m.title ?? m.source_domain ?? "Discovered material",
     subtitle: m.channel_name ?? m.source_domain,
     imageUrl: m.image_url ? proxiedReferenceImageUrl(m.image_url) : null,
     badge: materialTypeLabel(m.material_type),
     classification: m.classification,
-    provider: m.provider,
-    status: m.status,
+    pulse: m.status === "searching",
   };
 }
 
-function providerToCard(entry: SourceActivityEntry): ReelCard {
-  const starting = entry.status === "starting";
+function channelToCard(entry: SourceActivityEntry): ReelCard | null {
+  if (entry.status === "starting" && entry.requests === 0 && entry.candidates === 0) {
+    return null;
+  }
   return {
-    key: `provider-${entry.provider}`,
-    kind: "provider",
+    key: `channel-${entry.provider}`,
+    kind: "channel",
     title: entry.label,
-    subtitle: starting
-      ? entry.provider === "bright_data"
-        ? "Starting search"
-        : entry.provider === "firecrawl"
-          ? "Preparing discovery"
-          : entry.provider === "youtube"
-            ? "Preparing video search"
-            : "Starting"
-      : `${entry.requests} req · ${entry.candidates} found · ${entry.failures} fail`,
-    badge: entry.status,
-    provider: entry.provider,
-    status: entry.status,
-    pulse: starting || entry.status === "searching" || entry.status === "queued",
+    subtitle:
+      entry.status === "starting" || entry.status === "queued"
+        ? "Initializing"
+        : `${entry.candidates} candidate${entry.candidates === 1 ? "" : "s"} reviewed`,
+    badge: publicSourceActivityStatusLabel(entry.status),
+    pulse: entry.status === "starting" || entry.status === "searching" || entry.status === "queued",
   };
 }
 
-function websiteToCard(event: ScanActivityEvent): ReelCard {
+function websiteToCard(event: ScanActivityEvent): ReelCard | null {
+  if (event.id.startsWith("bootstrap:")) return null;
   return {
     key: `web-${event.id}`,
     kind: "website",
@@ -145,65 +140,37 @@ function websiteToCard(event: ScanActivityEvent): ReelCard {
     subtitle: event.page_label,
     badge: scanActivityStageLabel(event.stage),
     classification: event.threat_label,
-    provider: event.provider,
-    status: event.stage,
     pulse: event.threat === "checking",
   };
 }
 
-function buildBootstrapStatusCards(): ReelCard[] {
-  return [
-    {
-      key: "bootstrap-trailer",
-      kind: "status",
-      title: "Trailer discovery",
-      subtitle: "Waiting",
-      badge: "waiting",
-      pulse: true,
-    },
-    {
-      key: "bootstrap-poster",
-      kind: "status",
-      title: "Poster discovery",
-      subtitle: "Waiting",
-      badge: "waiting",
-      pulse: true,
-    },
-    {
-      key: "bootstrap-website",
-      kind: "status",
-      title: "Website investigation",
-      subtitle: "Initializing",
-      badge: "initializing",
-      pulse: true,
-    },
-  ];
-}
-
 function buildReelCards(input: {
   materials: ReferenceMaterial[];
-  providers: SourceActivityEntry[];
+  channels: SourceActivityEntry[];
   websites: ScanActivityEvent[];
-  bootstrapActive?: boolean;
 }): ReelCard[] {
   const cards: ReelCard[] = [];
-
-  for (const p of input.providers) {
-    cards.push(providerToCard(p));
-  }
+  const seen = new Set<string>();
 
   for (const m of input.materials) {
-    cards.push(materialToCard(m));
+    const card = materialToCard(m);
+    if (!card || seen.has(card.key)) continue;
+    seen.add(card.key);
+    cards.push(card);
   }
 
-  for (const w of input.websites.slice(0, 8)) {
-    cards.push(websiteToCard(w));
+  for (const w of input.websites) {
+    const card = websiteToCard(w);
+    if (!card || seen.has(card.key)) continue;
+    seen.add(card.key);
+    cards.push(card);
   }
 
-  if (input.bootstrapActive && input.materials.length === 0) {
-    for (const card of buildBootstrapStatusCards()) {
-      cards.push(card);
-    }
+  for (const c of input.channels) {
+    const card = channelToCard(c);
+    if (!card || seen.has(card.key)) continue;
+    seen.add(card.key);
+    cards.push(card);
   }
 
   return cards;
@@ -258,13 +225,11 @@ function ReelCardView({ card }: { card: ReelCard }) {
   const Icon =
     card.kind === "video"
       ? Play
-      : card.kind === "provider"
+      : card.kind === "channel"
         ? Radar
         : card.kind === "website"
           ? Globe
-          : card.kind === "status"
-            ? Search
-            : Film;
+          : Film;
 
   return (
     <article
@@ -310,8 +275,8 @@ function ReelCardView({ card }: { card: ReelCard }) {
           {card.badge && (
             <span
               className={`rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide ${
-                card.kind === "provider"
-                  ? providerStatusTone(card.badge)
+                card.kind === "channel"
+                  ? channelStatusTone(card.badge)
                   : "border border-border/40 bg-background/40 text-muted-foreground"
               }`}
             >
@@ -325,14 +290,37 @@ function ReelCardView({ card }: { card: ReelCard }) {
               {card.classification}
             </span>
           )}
-          {card.provider && card.kind !== "provider" && (
-            <span className="rounded border border-border/30 bg-background/20 px-1.5 py-0.5 text-[9px] text-muted-foreground">
-              {providerDisplayLabel(card.provider as never) || card.provider}
-            </span>
-          )}
         </div>
       </div>
     </article>
+  );
+}
+
+function CandidateLoadingPanel({ message }: { message: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-5">
+      <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" />
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">Searching public sources</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function CandidateEmptyState({ completed }: { completed: boolean }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border/50 bg-background/20 px-4 py-5 text-center">
+      <Search className="mx-auto mb-2 h-5 w-5 text-muted-foreground/70" />
+      <p className="text-sm font-medium text-foreground">
+        {completed ? "No additional candidates surfaced" : "Awaiting candidates"}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {completed
+          ? "Eterna did not find extra reference materials beyond your upload for this scan."
+          : "Candidate cards appear here as public web and video sources are discovered."}
+      </p>
+    </div>
   );
 }
 
@@ -348,9 +336,8 @@ export function ReferenceMaterialReel({
   const completed = scanStatus === "completed" || scanStatus === "partial";
   const failed = scanStatus === "failed";
 
-  const bootstrapActive = stats?.scan_bootstrap === true;
   const materials = useMemo(() => parseReferenceMaterials(stats), [stats]);
-  const providers = useMemo(() => parseSourceActivity(stats), [stats]);
+  const channels = useMemo(() => parseSourceActivity(stats), [stats]);
   const websites = useMemo(
     () => parseWebsiteActivity(stats).slice(0, 8),
     [stats],
@@ -360,34 +347,30 @@ export function ReferenceMaterialReel({
     () =>
       buildReelCards({
         materials,
-        providers,
+        channels,
         websites,
-        bootstrapActive,
       }),
-    [materials, providers, websites, bootstrapActive],
+    [materials, channels, websites],
   );
 
   const loopCards = useMemo(() => {
-    if (!baseCards.length) return [];
-    let cards = baseCards;
-    while (cards.length < 4) {
-      cards = [...cards, ...baseCards];
-    }
-    return [...cards, ...cards];
+    if (baseCards.length < 2) return baseCards;
+    return [...baseCards, ...baseCards];
   }, [baseCards]);
 
   const [paused, setPaused] = useState(false);
-  const shouldAnimate = !reducedMotion && !paused && (active || completed);
+  const shouldAnimate = !reducedMotion && !paused && baseCards.length >= 2 && (active || completed);
 
   const statusLine = active
-    ? bootstrapActive
-      ? "Connecting to discovery providers…"
-      : "Searching public web and video sources"
+    ? "Eterna is mapping public web and video sources for title intelligence"
     : failed
-      ? "Scan ended — collected materials preserved"
+      ? "Investigation ended — collected materials preserved"
       : completed
         ? "Title intelligence map complete"
         : "Building title intelligence map";
+
+  const searching = active && baseCards.length === 0;
+  const showEmpty = !active && baseCards.length === 0;
 
   return (
     <div className="space-y-3">
@@ -406,7 +389,6 @@ export function ReferenceMaterialReel({
         )}
       </div>
 
-      {/* Large original poster — always visible */}
       <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent shadow-lg">
         <div className="relative aspect-[2/3] max-h-[280px] w-full overflow-hidden sm:max-h-[320px]">
           {originalPreview ? (
@@ -433,66 +415,51 @@ export function ReferenceMaterialReel({
         <p className="px-3 py-2 text-[11px] text-muted-foreground">{statusLine}</p>
       </div>
 
-      {/* Mixed media intelligence reel */}
-      {loopCards.length > 0 && (
-      <div
-        className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/20 shadow-inner"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-      >
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-background to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-background to-transparent" />
+      {searching && (
+        <CandidateLoadingPanel message="Scanning public web, video, and submitted sources for title-matched candidates." />
+      )}
 
+      {baseCards.length > 0 && (
         <div
-          className={`flex w-max gap-3 p-3 ${shouldAnimate ? "animate-[intelReel_var(--reel-duration)_linear_infinite]" : "overflow-x-auto"}`}
-          style={{ ["--reel-duration" as string]: `${REEL_DURATION_S}s` }}
+          className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/20 shadow-inner"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
         >
-          {loopCards.map((card, index) => (
-            <ReelCardView key={`${card.key}-${index}`} card={card} />
-          ))}
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-background to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-background to-transparent" />
+
+          <div
+            className={`flex w-max gap-3 p-3 ${shouldAnimate ? "animate-[intelReel_var(--reel-duration)_linear_infinite]" : "overflow-x-auto"}`}
+            style={{ ["--reel-duration" as string]: `${REEL_DURATION_S}s` }}
+          >
+            {loopCards.map((card, index) => (
+              <ReelCardView key={`${card.key}-${index}`} card={card} />
+            ))}
+          </div>
         </div>
-      </div>
       )}
 
-      {providers.length === 0 && active && !bootstrapActive && (
-        <p className="rounded-lg border border-dashed border-border/50 bg-background/20 px-3 py-3 text-center text-[11px] text-muted-foreground">
-          Connecting to discovery providers…
-        </p>
-      )}
+      {showEmpty && <CandidateEmptyState completed={completed || failed} />}
 
-      {/* Provider activity strip */}
-      {providers.length > 0 && (
+      {channels.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {providers.map((entry) => (
+          {channels.map((entry) => (
             <div
               key={entry.provider}
-              className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[10px] ${providerStatusTone(entry.status)}`}
+              className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[10px] ${channelStatusTone(entry.status)}`}
             >
-              {entry.provider === "youtube" ? (
-                <Youtube className="h-3.5 w-3.5 shrink-0" />
-              ) : entry.status === "searching" || entry.status === "starting" ? (
+              {entry.status === "searching" || entry.status === "starting" ? (
                 <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
               ) : (
                 <Radar className="h-3.5 w-3.5 shrink-0" />
               )}
-              <span className="font-semibold">{entry.label}</span>
-              <span className="opacity-80">{entry.status}</span>
-              {entry.status !== "starting" && (
-                <span className="tabular-nums opacity-70">
-                  {entry.candidates}c · {entry.requests}r
-                </span>
+              <span className="font-semibold">{providerDisplayLabel(entry.provider)}</span>
+              <span className="opacity-80">{publicSourceActivityStatusLabel(entry.status)}</span>
+              {entry.status !== "starting" && entry.candidates > 0 && (
+                <span className="tabular-nums opacity-70">{entry.candidates} found</span>
               )}
             </div>
           ))}
-        </div>
-      )}
-
-      {import.meta.env.DEV && (
-        <div className="rounded border border-dashed border-border/50 bg-background/20 px-2 py-1.5 text-[10px] text-muted-foreground">
-          <p>reference_materials: {materials.length}</p>
-          <p>reel cards: {baseCards.length}</p>
-          <p>source_activity: {providers.length}</p>
-          <p>websites in reel: {websites.length}</p>
         </div>
       )}
 
