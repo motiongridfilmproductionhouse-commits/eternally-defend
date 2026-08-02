@@ -106,65 +106,97 @@ export function buildYoutubeQueries(meta: {
 /** Search YouTube for every query and hydrate statistics for the unique videos. */
 export async function discoverYoutubeVideos(
   queries: string[],
-  opts: { publishedAfter?: string | null; perQuery?: number } = {},
+  opts: {
+    publishedAfter?: string | null;
+    perQuery?: number;
+    /** Called after each search batch with newly hydrated videos (streaming telemetry). */
+    onBatch?: (videos: YtVideo[]) => void | Promise<void>;
+  } = {},
 ): Promise<YtVideo[]> {
   const found = new Map<string, { snippet: any; query: string }>();
+  const videos: YtVideo[] = [];
+  const hydrated = new Set<string>();
+
+  const hydrateIds = async (ids: string[]) => {
+    const pending = ids.filter((id) => !hydrated.has(id));
+    if (!pending.length) return;
+    for (let i = 0; i < pending.length; i += 50) {
+      const chunk = pending.slice(i, i + 50);
+      const json = await ytFetch("videos", {
+        part: "snippet,statistics,contentDetails",
+        id: chunk.join(","),
+      }).catch(() => ({ items: [] }));
+
+      const batchOut: YtVideo[] = [];
+      for (const v of (json.items ?? []) as any[]) {
+        hydrated.add(v.id);
+        const sn = v.snippet ?? {};
+        const st = v.statistics ?? {};
+        const thumbs = sn.thumbnails ?? {};
+        const row: YtVideo = {
+          videoId: v.id,
+          videoUrl: `https://www.youtube.com/watch?v=${v.id}`,
+          title: String(sn.title ?? "").slice(0, 300),
+          description: String(sn.description ?? "").slice(0, 4000),
+          channelId: sn.channelId ?? null,
+          channelTitle: sn.channelTitle ?? null,
+          channelUrl: sn.channelId ? `https://www.youtube.com/channel/${sn.channelId}` : null,
+          thumbnailUrl:
+            thumbs.maxres?.url ??
+            thumbs.high?.url ??
+            thumbs.medium?.url ??
+            thumbs.default?.url ??
+            null,
+          publishedAt: sn.publishedAt ?? null,
+          viewCount: st.viewCount != null ? Number(st.viewCount) : null,
+          likeCount: st.likeCount != null ? Number(st.likeCount) : null,
+          commentCount: st.commentCount != null ? Number(st.commentCount) : null,
+          durationSeconds: parseIsoDuration(v.contentDetails?.duration),
+          matchedQuery: found.get(v.id)?.query ?? "",
+        };
+        videos.push(row);
+        batchOut.push(row);
+      }
+      if (batchOut.length && opts.onBatch) {
+        await opts.onBatch(batchOut);
+      }
+    }
+  };
 
   for (let i = 0; i < queries.length; i += 4) {
     const batch = queries.slice(i, i + 4);
-    const results = await Promise.all(batch.map(async (q) => {
-      try {
-        const params: Record<string, string> = {
-          part: "snippet", type: "video", maxResults: String(opts.perQuery ?? 10),
-          order: "relevance", q, safeSearch: "none",
-        };
-        if (opts.publishedAfter) params.publishedAfter = opts.publishedAfter;
-        const json = await ytFetch("search", params);
-        return { q, items: (json.items ?? []) as any[] };
-      } catch (e) {
-        console.warn("[yt-monitor] search failed", q, (e as Error).message);
-        return { q, items: [] as any[] };
-      }
-    }));
+    const results = await Promise.all(
+      batch.map(async (q) => {
+        try {
+          const params: Record<string, string> = {
+            part: "snippet",
+            type: "video",
+            maxResults: String(opts.perQuery ?? 10),
+            order: "relevance",
+            q,
+            safeSearch: "none",
+          };
+          if (opts.publishedAfter) params.publishedAfter = opts.publishedAfter;
+          const json = await ytFetch("search", params);
+          return { q, items: (json.items ?? []) as any[] };
+        } catch (e) {
+          console.warn("[yt-monitor] search failed", q, (e as Error).message);
+          return { q, items: [] as any[] };
+        }
+      }),
+    );
+    const newIds: string[] = [];
     for (const { q, items } of results) {
       for (const it of items) {
         const id = it?.id?.videoId;
-        if (id && !found.has(id)) found.set(id, { snippet: it.snippet, query: q });
+        if (id && !found.has(id)) {
+          found.set(id, { snippet: it.snippet, query: q });
+          newIds.push(id);
+        }
       }
     }
-  }
-
-  const ids = [...found.keys()].slice(0, 120);
-  const videos: YtVideo[] = [];
-
-  for (let i = 0; i < ids.length; i += 50) {
-    const chunk = ids.slice(i, i + 50);
-    const json = await ytFetch("videos", {
-      part: "snippet,statistics,contentDetails",
-      id: chunk.join(","),
-    }).catch(() => ({ items: [] }));
-
-    for (const v of (json.items ?? []) as any[]) {
-      const sn = v.snippet ?? {};
-      const st = v.statistics ?? {};
-      const thumbs = sn.thumbnails ?? {};
-      videos.push({
-        videoId: v.id,
-        videoUrl: `https://www.youtube.com/watch?v=${v.id}`,
-        title: String(sn.title ?? "").slice(0, 300),
-        description: String(sn.description ?? "").slice(0, 4000),
-        channelId: sn.channelId ?? null,
-        channelTitle: sn.channelTitle ?? null,
-        channelUrl: sn.channelId ? `https://www.youtube.com/channel/${sn.channelId}` : null,
-        thumbnailUrl: thumbs.maxres?.url ?? thumbs.high?.url ?? thumbs.medium?.url ?? thumbs.default?.url ?? null,
-        publishedAt: sn.publishedAt ?? null,
-        viewCount: st.viewCount != null ? Number(st.viewCount) : null,
-        likeCount: st.likeCount != null ? Number(st.likeCount) : null,
-        commentCount: st.commentCount != null ? Number(st.commentCount) : null,
-        durationSeconds: parseIsoDuration(v.contentDetails?.duration),
-        matchedQuery: found.get(v.id)?.query ?? "",
-      });
-    }
+    await hydrateIds(newIds.slice(0, 120 - videos.length));
+    if (videos.length >= 120) break;
   }
 
   return videos;

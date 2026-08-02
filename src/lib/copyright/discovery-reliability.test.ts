@@ -253,12 +253,14 @@ test("raw provider results never reach the UI", () => {
   assert.equal((visible[0].evidence as Record<string, unknown>).client_visible, true);
 });
 
-test("executor uses Firecrawl-only discovery and known-URL preflight", () => {
+test("executor uses Firecrawl-only discovery and streams known-URL preflight", () => {
   const src = readFileSync(resolve(process.cwd(), "src/lib/copyright.functions.ts"), "utf8");
-  assert.match(src, /Firecrawl v2 is the sole copyright discovery/);
+  assert.match(src, /firecrawlDiscover/);
   assert.doesNotMatch(src, /runCopyrightSerpApiDiscovery/);
   assert.doesNotMatch(src, /runBrightDataDiscovery/);
-  assert.match(src, /Known URLs are investigated before any provider search/);
+  assert.match(src, /runKnownUrlEarlyPhase/);
+  assert.match(src, /onProgress: async \(progress\)/);
+  assert.match(src, /ScanTelemetryWriter/);
   assert.doesNotMatch(src, /throw discoverErr/);
 });
 

@@ -215,6 +215,53 @@ export interface FirecrawlDiscoverOptions {
   onProgress?: (progress: DiscoveryProgress) => void | Promise<void>;
 }
 
+function extractAttemptProgress(
+  attempt: ProviderSearchAttempt,
+  progressSeen: Set<string>,
+  imageSeen: Set<string>,
+): Pick<DiscoveryProgress, "leads" | "referenceImages"> {
+  const leads: DiscoveryProgress["leads"] = [];
+  const referenceImages: DiscoveryProgress["referenceImages"] = [];
+  if (!attempt.ok || !attempt.payload) return { leads, referenceImages };
+
+  for (const img of attempt.payload.data?.images ?? []) {
+    const page = img.url ?? img.sourceUrl;
+    const image = img.imageUrl ?? img.thumbnailUrl;
+    if (!page || !image) continue;
+    const pageKey = canonicalUrl(page);
+    if (isExcludedHost(pageKey)) continue;
+    const imageKey = image.trim();
+    if (imageSeen.has(imageKey)) continue;
+    imageSeen.add(imageKey);
+    referenceImages.push({
+      pageUrl: pageKey,
+      imageUrl: imageKey,
+      title: img.title ?? null,
+      query: attempt.query,
+    });
+  }
+
+  const rows = [
+    ...(attempt.payload.data?.web ?? []).map((w) => ({
+      url: w.url,
+      title: w.title ?? null,
+    })),
+    ...(attempt.payload.data?.images ?? []).map((i) => ({
+      url: i.url ?? i.sourceUrl,
+      title: i.title ?? null,
+    })),
+  ];
+  for (const row of rows) {
+    if (!row.url) continue;
+    const key = canonicalUrl(row.url);
+    if (progressSeen.has(key) || isExcludedHost(key)) continue;
+    progressSeen.add(key);
+    leads.push({ url: key, title: row.title, query: attempt.query });
+  }
+
+  return { leads, referenceImages };
+}
+
 async function search(
   query: string,
   recent: boolean,
@@ -779,6 +826,35 @@ export async function firecrawlDiscover(
   };
 
   const progressSeen = new Set<string>();
+  const imageSeen = new Set<string>();
+  const emitDiscoveryProgress = async (
+    attemptSlice: ProviderSearchAttempt[],
+    totals: {
+      requests: number;
+      successes: number;
+      failures: number;
+      uniquePages: number;
+    },
+  ) => {
+    if (!options.onProgress) return;
+    const leads: DiscoveryProgress["leads"] = [];
+    const referenceImages: DiscoveryProgress["referenceImages"] = [];
+    for (const attempt of attemptSlice) {
+      const chunk = extractAttemptProgress(attempt, progressSeen, imageSeen);
+      leads.push(...chunk.leads);
+      referenceImages.push(...chunk.referenceImages);
+    }
+    await options.onProgress({
+      queriesGenerated,
+      queriesExecuted: totals.requests,
+      providerSuccesses: totals.successes,
+      providerFailures: totals.failures,
+      uniquePages: totals.uniquePages,
+      leads,
+      referenceImages,
+    });
+  };
+
   const batched = await runBatchedDiscovery({
     plans,
     signal: options.signal,
@@ -786,57 +862,9 @@ export async function firecrawlDiscover(
     earlyStopUniquePages: DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
     uniquePageCount: countUniquePages,
     execute: (plan, signal) => search(plan.query, plan.recent, signal, deadlineAt),
-    onWave: options.onProgress
-      ? async (waveAttempts, totals) => {
-          const leads: DiscoveryProgress["leads"] = [];
-          const referenceImages: DiscoveryProgress["referenceImages"] = [];
-          const imageSeen = new Set<string>();
-          for (const attempt of waveAttempts) {
-            if (!attempt.ok || !attempt.payload) continue;
-            for (const img of attempt.payload.data?.images ?? []) {
-              const page = img.url ?? img.sourceUrl;
-              const image = img.imageUrl ?? img.thumbnailUrl;
-              if (!page || !image) continue;
-              const pageKey = canonicalUrl(page);
-              if (isExcludedHost(pageKey)) continue;
-              const imageKey = image.trim();
-              if (imageSeen.has(imageKey)) continue;
-              imageSeen.add(imageKey);
-              referenceImages.push({
-                pageUrl: pageKey,
-                imageUrl: imageKey,
-                title: img.title ?? null,
-                query: attempt.query,
-              });
-            }
-            const rows = [
-              ...(attempt.payload.data?.web ?? []).map((w) => ({
-                url: w.url,
-                title: w.title ?? null,
-              })),
-              ...(attempt.payload.data?.images ?? []).map((i) => ({
-                url: i.url ?? i.sourceUrl,
-                title: i.title ?? null,
-              })),
-            ];
-            for (const row of rows) {
-              if (!row.url) continue;
-              const key = canonicalUrl(row.url);
-              if (progressSeen.has(key) || isExcludedHost(key)) continue;
-              progressSeen.add(key);
-              leads.push({ url: key, title: row.title, query: attempt.query });
-              if (leads.length >= 12) break;
-            }
-          }
-          await options.onProgress?.({
-            queriesGenerated,
-            queriesExecuted: totals.requests,
-            providerSuccesses: totals.successes,
-            providerFailures: totals.failures,
-            uniquePages: totals.uniquePages,
-            leads,
-            referenceImages,
-          });
+    onAttempt: options.onProgress
+      ? async (attempt, totals) => {
+          await emitDiscoveryProgress([attempt], totals);
         }
       : undefined,
   });

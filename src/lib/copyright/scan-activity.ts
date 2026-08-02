@@ -312,6 +312,17 @@ export function parseRecentActivity(
   return out;
 }
 
+/** Website investigation stream — prefers dedicated website_activity, falls back to recent_activity. */
+export function parseWebsiteActivity(
+  stats: Record<string, unknown> | null | undefined,
+): ScanActivityEvent[] {
+  const dedicated = stats?.website_activity;
+  if (Array.isArray(dedicated) && dedicated.length > 0) {
+    return parseRecentActivity({ recent_activity: dedicated });
+  }
+  return parseRecentActivity(stats);
+}
+
 /** Newest-first ordering for UI. */
 export function sortActivityNewestFirst(
   events: ScanActivityEvent[],
@@ -876,6 +887,19 @@ export class ScanActivityRecorder {
           : 0,
       ),
       last_progress_at: new Date().toISOString(),
+      website_activity: this.events.map((e) => ({
+        id: e.id,
+        hostname: e.hostname,
+        page_label: e.page_label,
+        provider: e.provider,
+        stage: e.stage,
+        stage_label: e.stage_label,
+        threat: e.threat,
+        threat_label: e.threat_label,
+        classification: e.classification ?? null,
+        evidence_href: e.evidence_href ?? null,
+        occurred_at: e.occurred_at,
+      })),
     };
   }
 

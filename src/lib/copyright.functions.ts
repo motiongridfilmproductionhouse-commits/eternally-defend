@@ -74,12 +74,12 @@ import {
 } from "@/lib/copyright/scan-worker-dispatch.server";
 import {
   ScanActivityRecorder,
-  flushScanActivity,
 } from "@/lib/copyright/scan-activity";
 import {
   SourceActivityRecorder,
   type SourceActivityStatus,
 } from "@/lib/copyright/source-activity";
+import { ScanTelemetryWriter } from "@/lib/copyright/scan-telemetry";
 import {
   decideCopyrightTerminalStatus,
   EXECUTOR_START_WATCHDOG_MS,
@@ -770,37 +770,29 @@ export async function executeCopyrightScanById(opts: {
     };
 
     let lastActivityFlush = 0;
-    let activityFlushInFlight = false;
 
-    const pushActivity = (extra?: Record<string, unknown>, force = false) => {
-      if (abortedByDeadline) return Promise.resolve();
+    const buildTelemetryStats = (extra?: Record<string, unknown>) => {
       const merged = activity.mergeToStats({
         ...liveStats,
         ...stages,
         ...(extra ?? {}),
       });
-      liveStats = sourceActivity.mergeToStats(mergeReferenceStats(merged));
-      const now = Date.now();
-      if (!force && (activityFlushInFlight || now - lastActivityFlush < 900)) {
-        return Promise.resolve();
-      }
-      lastActivityFlush = now;
-      activityFlushInFlight = true;
-      return flushScanActivity(
-        async (stats) => {
-          const payload = sourceActivity.mergeToStats(mergeReferenceStats(stats));
-          await supabase
-            .from("copyright_scans")
-            .update({ stats: payload as never })
-            .eq("id", scan.id)
-            .eq("status", "running");
-        },
-        liveStats,
-        activity,
-        extra,
-      ).finally(() => {
-        activityFlushInFlight = false;
-      });
+      return sourceActivity.mergeToStats(mergeReferenceStats(merged));
+    };
+
+    const telemetryWriter = new ScanTelemetryWriter(async (payload) => {
+      await supabase
+        .from("copyright_scans")
+        .update({ stats: payload as never })
+        .eq("id", scan.id)
+        .eq("status", "running");
+      lastActivityFlush = Date.now();
+    });
+
+    const pushActivity = (extra?: Record<string, unknown>, force = false) => {
+      if (abortedByDeadline) return Promise.resolve();
+      liveStats = buildTelemetryStats(extra);
+      return telemetryWriter.flush(() => buildTelemetryStats(), force);
     };
 
     await supabase
@@ -820,7 +812,7 @@ export async function executeCopyrightScanById(opts: {
       const referenceDataUrl = bytesToDataUrl(firstBytes, contentType);
 
       activity.setWorkflowStage("analyzing_visual");
-      await pushActivity();
+      await pushActivity({}, true);
 
       // 1. AI-vision analysis + AWS Rekognition fingerprint of the reference material.
       const allFrames = await Promise.all(
@@ -832,7 +824,7 @@ export async function executeCopyrightScanById(opts: {
       ]);
 
       activity.setWorkflowStage("extracting_identifiers");
-      await pushActivity();
+      await pushActivity({}, true);
 
       // 2a. Optional known-URL seeds (high priority) — validated before provider search.
       const knownInputs = parseKnownUrlInputs(knownUrls);
@@ -846,7 +838,7 @@ export async function executeCopyrightScanById(opts: {
       const runYoutubeDiscovery = async () => {
         if (!isYoutubeConfigured()) return;
         sourceActivity.upsert({ provider: "youtube", status: "searching" });
-        await pushActivity();
+        await pushActivity({}, true);
         try {
           const queries = buildYoutubeQueries({
             title: workTitle,
@@ -854,13 +846,29 @@ export async function executeCopyrightScanById(opts: {
             actors: analysis.actors,
             language: analysis.language ?? undefined,
           });
-          const videos = await discoverYoutubeVideos(queries.slice(0, 8), { perQuery: 6 });
-          const additions = videos
-            .map(materialFromYoutubeVideo)
-            .filter((m): m is NonNullable<ReturnType<typeof materialFromYoutubeVideo>> =>
-              Boolean(m),
-            );
-          if (additions.length) referenceMaterials.append(additions);
+          let youtubeCandidates = 0;
+          const videos = await discoverYoutubeVideos(queries.slice(0, 8), {
+            perQuery: 6,
+            onBatch: async (batch) => {
+              for (const video of batch) {
+                const material = materialFromYoutubeVideo(video);
+                if (material) referenceMaterials.append([material]);
+                activity.recordDiscovered({
+                  url: video.videoUrl,
+                  pageTitle: video.title,
+                  leadQuery: `youtube:${video.matchedQuery || "discovery"}`,
+                });
+                youtubeCandidates += 1;
+              }
+              sourceActivity.upsert({
+                provider: "youtube",
+                status: "searching",
+                requests: Math.min(queries.length, 8),
+                candidates: youtubeCandidates,
+              });
+              await pushActivity({}, true);
+            },
+          });
           sourceActivity.upsert({
             provider: "youtube",
             status: videos.length ? "completed" : "no_results",
@@ -870,7 +878,7 @@ export async function executeCopyrightScanById(opts: {
         } catch {
           sourceActivity.upsert({ provider: "youtube", status: "failed", failures: 1 });
         }
-        await pushActivity();
+        await pushActivity({}, true);
       };
       void runYoutubeDiscovery();
 
@@ -878,9 +886,8 @@ export async function executeCopyrightScanById(opts: {
       stages = markStage(stages, "queries_generated");
       stages = markStage(stages, "discovery_started");
       activity.setWorkflowStage("discovering_candidates");
-      await pushActivity({ queries_generated: 0 });
+      await pushActivity({ queries_generated: 0 }, true);
 
-      // Known URLs are investigated before any provider search.
       const titleSeedsEarly = [workTitle, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
       const titlesEarly = [
         ...new Set([
@@ -897,55 +904,65 @@ export async function executeCopyrightScanById(opts: {
       }> = [];
       let earlyKnownUrlsAttempted = 0;
       const knownPreDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
-      if (knownAccepted.length) {
+      const discoveryDeadlineAt = Date.now() + PROVIDER_CRAWL_BUDGET_MS;
+      const discoverySignal = AbortSignal.timeout(
+        Math.max(5_000, discoveryDeadlineAt - Date.now()),
+      );
+      const byUrl = new Map<string, DiscoveryCandidate>();
+      let discoveredLeadCount = 0;
+
+      const runKnownUrlEarlyPhase = async () => {
+        if (!knownAccepted.length) return;
         sourceActivity.upsert({ provider: "known_url", status: "searching" });
-      }
-      for (const url of knownAccepted) {
-        if (isPastDeadline(knownPreDeadlineAt)) {
-          abortedByDeadline = true;
-          break;
+        await pushActivity({}, true);
+        for (const url of knownAccepted) {
+          if (isPastDeadline(knownPreDeadlineAt)) {
+            abortedByDeadline = true;
+            break;
+          }
+          earlyKnownUrlsAttempted += 1;
+          activity.recordChecking({
+            url,
+            pageTitle: workTitle,
+            leadQuery: "known_url_seed",
+          });
+          const dist = await analyzeDistributionPage({
+            url,
+            title: workTitle,
+            titles: titlesEarly,
+            releaseDate: analysis.releaseDate,
+            preferRender: true,
+            signal: AbortSignal.timeout(Math.max(1_000, knownPreDeadlineAt - Date.now())),
+          });
+          activity.recordDistributionOutcome({
+            url: dist.url,
+            pageTitle: dist.pageTitle ?? workTitle,
+            leadQuery: "known_url_seed",
+            crawlFailed: dist.crawlFailed,
+            classification: dist.classification,
+            clientVisible: dist.clientVisible,
+            strongEvidence: dist.strongEvidence,
+            identityEvidence: dist.identityEvidence,
+            rendered: dist.rendered,
+          });
+          earlyKnownInspected.add(canonicalUrl(dist.url));
+          earlyKnownInvestigations.push({
+            url: dist.url,
+            retrieved: !dist.crawlFailed,
+            rendered: dist.rendered,
+            reason: dist.crawlFailureReason ?? dist.reason ?? null,
+          });
+          if (dist.pageReferenceImages?.length) {
+            appendDiscoveredImages(dist.pageReferenceImages);
+          }
+          await pushActivity(
+            {
+              known_urls_attempted: earlyKnownUrlsAttempted,
+              pages_crawled: earlyKnownUrlsAttempted,
+            },
+            true,
+          );
         }
-        earlyKnownUrlsAttempted += 1;
-        activity.recordChecking({
-          url,
-          pageTitle: workTitle,
-          leadQuery: "known_url_seed",
-        });
-        const dist = await analyzeDistributionPage({
-          url,
-          title: workTitle,
-          titles: titlesEarly,
-          releaseDate: analysis.releaseDate,
-          preferRender: true,
-          signal: AbortSignal.timeout(Math.max(1_000, knownPreDeadlineAt - Date.now())),
-        });
-        activity.recordDistributionOutcome({
-          url: dist.url,
-          pageTitle: dist.pageTitle ?? workTitle,
-          leadQuery: "known_url_seed",
-          crawlFailed: dist.crawlFailed,
-          classification: dist.classification,
-          clientVisible: dist.clientVisible,
-          strongEvidence: dist.strongEvidence,
-          identityEvidence: dist.identityEvidence,
-          rendered: dist.rendered,
-        });
-        earlyKnownInspected.add(canonicalUrl(dist.url));
-        earlyKnownInvestigations.push({
-          url: dist.url,
-          retrieved: !dist.crawlFailed,
-          rendered: dist.rendered,
-          reason: dist.crawlFailureReason ?? dist.reason ?? null,
-        });
-        if (dist.pageReferenceImages?.length) {
-          appendDiscoveredImages(dist.pageReferenceImages);
-        }
-        await pushActivity({
-          known_urls_attempted: earlyKnownUrlsAttempted,
-          pages_crawled: earlyKnownUrlsAttempted,
-        });
-      }
-      if (knownAccepted.length) {
         sourceActivity.upsert({
           provider: "known_url",
           status: earlyKnownUrlsAttempted > 0 ? "completed" : "no_results",
@@ -953,32 +970,21 @@ export async function executeCopyrightScanById(opts: {
           candidates: earlyKnownUrlsAttempted,
           failures: earlyKnownInvestigations.filter((r) => !r.retrieved).length,
         });
-      }
+        await pushActivity({}, true);
+      };
 
-      const discoveryDeadlineAt = Date.now() + PROVIDER_CRAWL_BUDGET_MS;
-      const discoverySignal = AbortSignal.timeout(
-        Math.max(5_000, discoveryDeadlineAt - Date.now()),
-      );
-
-      const byUrl = new Map<string, DiscoveryCandidate>();
-
-      // Firecrawl v2 is the sole copyright discovery and rendered-page provider.
-      // Keeping neutral legacy telemetry preserves older report compatibility.
       await pushActivity({
-        brightdata_configured: false,
+        brightdata_configured: isBrightDataConfigured(),
         brightdata_diagnostic: brightDataDiagnostic(),
         brightdata_running: false,
-        brightdata_last_status: "disabled",
-      });
+        brightdata_last_status: isBrightDataConfigured() ? "idle" : "disabled",
+      }, true);
 
-      let discoveredLeadCount = 0;
       sourceActivity.upsert({ provider: "firecrawl", status: "searching" });
-      let discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
+      const discoveryPromise = firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
         signal: discoverySignal,
         deadlineAt: discoveryDeadlineAt,
         analysis,
-        // Stream live discovery telemetry so the investigation feed and the
-        // counters move while the sweeps are still running.
         onProgress: async (progress) => {
           for (const lead of progress.leads) {
             activity.recordDiscovered({
@@ -1006,16 +1012,22 @@ export async function executeCopyrightScanById(opts: {
             candidates: progress.uniquePages,
             failures: progress.providerFailures,
           });
-          await pushActivity({
-            queries_generated: progress.queriesGenerated,
-            queries_executed: progress.queriesExecuted,
-            firecrawl_queries_completed: progress.queriesExecuted,
-            provider_failures: progress.providerFailures,
-            provider_results: discoveredLeadCount,
-            unique_candidate_pages: progress.uniquePages,
-          });
+          await pushActivity(
+            {
+              queries_generated: progress.queriesGenerated,
+              queries_executed: progress.queriesExecuted,
+              firecrawl_queries_completed: progress.queriesExecuted,
+              provider_failures: progress.providerFailures,
+              provider_results: discoveredLeadCount,
+              unique_candidate_pages: progress.uniquePages,
+            },
+            true,
+          );
         },
       });
+
+      let discovery: Awaited<ReturnType<typeof firecrawlDiscover>>;
+      [, discovery] = await Promise.all([runKnownUrlEarlyPhase(), discoveryPromise]);
       for (const candidate of discovery.candidates) {
         const img = candidate.thumbnail ?? candidate.imageUrl;
         if (!img) continue;
@@ -1128,17 +1140,20 @@ export async function executeCopyrightScanById(opts: {
         });
       }
       activity.setWorkflowStage("retrieving_pages");
-      await pushActivity({
-        queries_executed: discovery.queriesExecuted,
-        provider_results: byUrl.size + discovery.pageLeads.length,
-        unique_candidate_pages: new Set([
-          ...byUrl.keys(),
-          ...discovery.pageLeads.map((l) => canonicalUrl(l.url)),
-        ]).size,
-        provider_failures: discovery.providerFailures,
-        firecrawl_circuit_opened: discovery.firecrawl_circuit_opened,
-        provider_failures_by_category: discovery.providerFailuresByCategory,
-      });
+      await pushActivity(
+        {
+          queries_executed: discovery.queriesExecuted,
+          provider_results: byUrl.size + discovery.pageLeads.length,
+          unique_candidate_pages: new Set([
+            ...byUrl.keys(),
+            ...discovery.pageLeads.map((l) => canonicalUrl(l.url)),
+          ]).size,
+          provider_failures: discovery.providerFailures,
+          firecrawl_circuit_opened: discovery.firecrawl_circuit_opened,
+          provider_failures_by_category: discovery.providerFailuresByCategory,
+        },
+        true,
+      );
 
       // Prioritise high-signal piracy leads, keep the grading budget bounded.
       const ordered = [...byUrl.values()]
@@ -1803,7 +1818,7 @@ export async function executeCopyrightScanById(opts: {
         for (const { lead, analysis: dist } of analyses) {
           await ingestDistribution(dist, lead.query, lead.title);
         }
-        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed });
+        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed }, true);
       }
 
       // Phase B — provider candidates with remaining budget / reserved leftover slots.
@@ -1850,7 +1865,7 @@ export async function executeCopyrightScanById(opts: {
         for (const { lead, analysis: dist } of analyses) {
           await ingestDistribution(dist, lead.query, lead.title);
         }
-        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed });
+        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed }, true);
       }
 
       if (pagesCrawled > 0) stages = markStage(stages, "first_page_crawled");
@@ -2269,6 +2284,17 @@ type SerializedCopyrightStats = {
     candidates: number;
     failures: number;
     updated_at: string;
+  }>;
+  website_activity?: Array<{
+    id: string;
+    hostname: string;
+    page_label: string;
+    provider: string;
+    stage: string;
+    stage_label: string;
+    threat: string;
+    threat_label: string;
+    occurred_at: string;
   }>;
 };
 
