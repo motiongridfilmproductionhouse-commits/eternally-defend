@@ -106,7 +106,12 @@ export function brightDataDiagnostic(): BrightDataDiagnostic {
   };
 }
 
-/** Exact quoted-title distribution queries only — never bare tokens. */
+/**
+ * Exact quoted-title distribution queries only — never bare tokens.
+ * Enriched with release year, language, alternate/transliterated titles and
+ * lead cast when the reference analysis provides them, so unrelated
+ * same-name collisions stay out of the candidate set.
+ */
 export function buildBrightDataQueries(
   analysis: ReferenceAnalysis,
   workTitle: string,
@@ -119,23 +124,42 @@ export function buildBrightDataQueries(
     analysis.title ?? "",
     ...analysis.altTitles,
   ]).slice(0, 4);
+
+  const year = (analysis.releaseDate ?? "").slice(0, 4);
+  const language = (analysis.language ?? "").trim();
+  const actor = (analysis.actors?.[0] ?? "").trim();
+  const qualifiers = [year, language].filter(Boolean).join(" ");
+
   const phrases = [
-    "watch full movie online free",
-    "download full movie",
+    "watch online full movie free",
+    "full movie download",
+    "streaming online free",
     "torrent magnet download",
-    "HDCAM CAM print theatre leak",
+    "CAM print HDCAM theatre print leak",
+    "WEBRip WEB-DL HDRip full movie",
     "full movie telegram link",
   ] as const;
+
   const out: string[] = [];
+  const push = (value: string) => {
+    const q = value.replace(/\s+/g, " ").trim();
+    if (q && !out.includes(q)) out.push(q);
+  };
+
   for (const name of names) {
     const quoted = `"${name.replaceAll('"', "").trim()}"`;
     for (const phrase of phrases) {
-      out.push(`${quoted} ${phrase}`);
-      if (out.length >= maxQueries) return out;
+      push(`${quoted} ${qualifiers} ${phrase}`);
+      if (out.length >= maxQueries) return out.slice(0, maxQueries);
+    }
+    if (actor) {
+      push(`${quoted} ${actor} full movie download`);
+      if (out.length >= maxQueries) return out.slice(0, maxQueries);
     }
   }
   return out.slice(0, maxQueries);
 }
+
 
 function searchUrlFor(query: string): string {
   const params = new URLSearchParams({ q: query, num: "20", brd_json: "1" });
