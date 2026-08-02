@@ -62,6 +62,14 @@ import {
   flushScanActivity,
 } from "@/lib/copyright/scan-activity";
 import {
+  ReferenceImageRecorder,
+  referenceImageFromDiscoveryCandidate,
+} from "@/lib/copyright/reference-images";
+import {
+  SourceActivityRecorder,
+  type SourceActivityStatus,
+} from "@/lib/copyright/source-activity";
+import {
   decideCopyrightTerminalStatus,
   EXECUTOR_START_WATCHDOG_MS,
   isExecutorWatchdogExpired,
@@ -717,6 +725,10 @@ export async function executeCopyrightScanById(opts: {
 
     const activity = new ScanActivityRecorder();
     activity.restoreFromStats(priorStats);
+    const referenceImages = new ReferenceImageRecorder();
+    referenceImages.restoreFromStats(priorStats);
+    const sourceActivity = new SourceActivityRecorder();
+    sourceActivity.restoreFromStats(priorStats);
     activity.setWorkflowStage("preparing_reference");
     let abortedByDeadline = false;
     let liveStats: Record<string, unknown> = {
@@ -731,7 +743,12 @@ export async function executeCopyrightScanById(opts: {
 
     const pushActivity = (extra?: Record<string, unknown>, force = false) => {
       if (abortedByDeadline) return Promise.resolve();
-      liveStats = activity.mergeToStats({ ...liveStats, ...stages, ...(extra ?? {}) });
+      const merged = activity.mergeToStats({
+        ...liveStats,
+        ...stages,
+        ...(extra ?? {}),
+      });
+      liveStats = sourceActivity.mergeToStats(referenceImages.mergeToStats(merged));
       const now = Date.now();
       if (!force && (activityFlushInFlight || now - lastActivityFlush < 900)) {
         return Promise.resolve();
@@ -740,9 +757,12 @@ export async function executeCopyrightScanById(opts: {
       activityFlushInFlight = true;
       return flushScanActivity(
         async (stats) => {
+          const payload = sourceActivity.mergeToStats(
+            referenceImages.mergeToStats(stats),
+          );
           await supabase
             .from("copyright_scans")
-            .update({ stats: stats as never })
+            .update({ stats: payload as never })
             .eq("id", scan.id)
             .eq("status", "running");
         },
@@ -756,7 +776,11 @@ export async function executeCopyrightScanById(opts: {
 
     await supabase
       .from("copyright_scans")
-      .update({ stats: activity.mergeToStats(liveStats) as never })
+      .update({
+        stats: sourceActivity.mergeToStats(
+          referenceImages.mergeToStats(activity.mergeToStats(liveStats)),
+        ) as never,
+      })
       .eq("id", scan.id)
       .eq("status", "running");
 
@@ -786,6 +810,11 @@ export async function executeCopyrightScanById(opts: {
       const knownSeeds = await validateKnownUrlSeeds(knownInputs);
       const knownAccepted = acceptedKnownUrls(knownSeeds);
 
+      sourceActivity.upsert({ provider: "firecrawl", status: "queued" });
+      if (knownAccepted.length) {
+        sourceActivity.upsert({ provider: "known_url", status: "queued" });
+      }
+
       // 2b. Firecrawl reverse discovery, seeded by that analysis.
       stages = markStage(stages, "queries_generated");
       stages = markStage(stages, "discovery_started");
@@ -809,6 +838,9 @@ export async function executeCopyrightScanById(opts: {
       }> = [];
       let earlyKnownUrlsAttempted = 0;
       const knownPreDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
+      if (knownAccepted.length) {
+        sourceActivity.upsert({ provider: "known_url", status: "searching" });
+      }
       for (const url of knownAccepted) {
         if (isPastDeadline(knownPreDeadlineAt)) {
           abortedByDeadline = true;
@@ -846,9 +878,21 @@ export async function executeCopyrightScanById(opts: {
           rendered: dist.rendered,
           reason: dist.crawlFailureReason ?? dist.reason ?? null,
         });
+        if (dist.pageReferenceImages?.length) {
+          referenceImages.append(dist.pageReferenceImages);
+        }
         await pushActivity({
           known_urls_attempted: earlyKnownUrlsAttempted,
           pages_crawled: earlyKnownUrlsAttempted,
+        });
+      }
+      if (knownAccepted.length) {
+        sourceActivity.upsert({
+          provider: "known_url",
+          status: earlyKnownUrlsAttempted > 0 ? "completed" : "no_results",
+          requests: earlyKnownUrlsAttempted,
+          candidates: earlyKnownUrlsAttempted,
+          failures: earlyKnownInvestigations.filter((r) => !r.retrieved).length,
         });
       }
 
@@ -869,6 +913,7 @@ export async function executeCopyrightScanById(opts: {
       });
 
       let discoveredLeadCount = 0;
+      sourceActivity.upsert({ provider: "firecrawl", status: "searching" });
       let discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
         signal: discoverySignal,
         deadlineAt: discoveryDeadlineAt,
@@ -884,6 +929,24 @@ export async function executeCopyrightScanById(opts: {
             });
             discoveredLeadCount += 1;
           }
+          const additions = (progress.referenceImages ?? [])
+            .map((img) =>
+              referenceImageFromDiscoveryCandidate({
+                pageUrl: img.pageUrl,
+                imageUrl: img.imageUrl,
+                title: img.title,
+                provider: "firecrawl",
+              }),
+            )
+            .filter((img): img is NonNullable<typeof img> => Boolean(img));
+          if (additions.length) referenceImages.append(additions);
+          sourceActivity.upsert({
+            provider: "firecrawl",
+            status: "searching",
+            requests: progress.queriesExecuted,
+            candidates: progress.uniquePages,
+            failures: progress.providerFailures,
+          });
           await pushActivity({
             queries_generated: progress.queriesGenerated,
             queries_executed: progress.queriesExecuted,
@@ -893,6 +956,30 @@ export async function executeCopyrightScanById(opts: {
             unique_candidate_pages: progress.uniquePages,
           });
         },
+      });
+      for (const candidate of discovery.candidates) {
+        const img = candidate.thumbnail ?? candidate.imageUrl;
+        if (!img) continue;
+        const entry = referenceImageFromDiscoveryCandidate({
+          pageUrl: candidate.url,
+          imageUrl: img,
+          title: candidate.title,
+          provider: "firecrawl",
+        });
+        if (entry) referenceImages.append([entry]);
+      }
+      const firecrawlStatus: SourceActivityStatus =
+        discovery.providerFailures > 0 && discovery.providerSuccesses === 0
+          ? "failed"
+          : discovery.candidates.length === 0 && discovery.pageLeads.length === 0
+            ? "no_results"
+            : "completed";
+      sourceActivity.upsert({
+        provider: "firecrawl",
+        status: firecrawlStatus,
+        requests: discovery.providerRequests,
+        candidates: discovery.candidates.length + discovery.pageLeads.length,
+        failures: discovery.providerFailures,
       });
       const brightDataDiscovery = emptyBrightDataDiscovery();
 
@@ -1354,6 +1441,17 @@ export async function executeCopyrightScanById(opts: {
         inspectedUrls.add(key);
         inspectedDomains.add((dist.domain ?? "").toLowerCase());
         pagesCrawled += 1;
+
+        if (dist.pageReferenceImages?.length) {
+          referenceImages.append(dist.pageReferenceImages);
+        }
+        sourceActivity.upsert({
+          provider: dist.rendered ? "firecrawl" : "direct_retrieval",
+          status: dist.crawlFailed ? "failed" : "searching",
+          requests: pagesCrawled,
+          candidates: referenceImages.count(),
+          failures: pagesFailed + (dist.crawlFailed ? 1 : 0),
+        });
 
         if (dist.crawlFailed) {
           pagesFailed += 1;
@@ -2067,7 +2165,7 @@ export async function executeCopyrightScanById(opts: {
 }
 
 /** Ensure server-fn return stats are JSON-serializable for TanStack Start. */
-function serializeCopyrightStats(stats: unknown): {
+type SerializedCopyrightStats = {
   candidates?: number;
   matches?: number;
   graded?: number;
@@ -2078,20 +2176,30 @@ function serializeCopyrightStats(stats: unknown): {
   provider_failures?: number;
   executor_started_at?: string | null;
   last_progress_at?: string | null;
-} {
+  reference_images?: Array<{
+    image_url: string;
+    page_url: string;
+    source_domain: string | null;
+    source_type: string;
+    title: string | null;
+    provider: string;
+    status: string;
+    discovered_at: string;
+  }>;
+  source_activity?: Array<{
+    provider: string;
+    label: string;
+    status: string;
+    requests: number;
+    candidates: number;
+    failures: number;
+    updated_at: string;
+  }>;
+};
+
+function serializeCopyrightStats(stats: unknown): SerializedCopyrightStats {
   try {
-    return JSON.parse(JSON.stringify(stats ?? {})) as {
-      candidates?: number;
-      matches?: number;
-      graded?: number;
-      failure_reason?: string | null;
-      queries_generated?: number;
-      queries_executed?: number;
-      provider_successes?: number;
-      provider_failures?: number;
-      executor_started_at?: string | null;
-      last_progress_at?: string | null;
-    };
+    return JSON.parse(JSON.stringify(stats ?? {})) as SerializedCopyrightStats;
   } catch {
     return { failure_reason: "Unable to serialize scan stats" };
   }

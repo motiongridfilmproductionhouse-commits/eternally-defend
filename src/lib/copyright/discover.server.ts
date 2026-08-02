@@ -199,6 +199,13 @@ export interface DiscoveryProgress {
   uniquePages: number;
   /** New page leads seen in this wave (streamed to the live investigation UI). */
   leads: Array<{ url: string; title: string | null; query: string }>;
+  /** Image-search hits with remote thumbnails for the reference carousel. */
+  referenceImages: Array<{
+    pageUrl: string;
+    imageUrl: string;
+    title: string | null;
+    query: string;
+  }>;
 }
 
 export interface FirecrawlDiscoverOptions {
@@ -782,8 +789,26 @@ export async function firecrawlDiscover(
     onWave: options.onProgress
       ? async (waveAttempts, totals) => {
           const leads: DiscoveryProgress["leads"] = [];
+          const referenceImages: DiscoveryProgress["referenceImages"] = [];
+          const imageSeen = new Set<string>();
           for (const attempt of waveAttempts) {
             if (!attempt.ok || !attempt.payload) continue;
+            for (const img of attempt.payload.data?.images ?? []) {
+              const page = img.url ?? img.sourceUrl;
+              const image = img.imageUrl ?? img.thumbnailUrl;
+              if (!page || !image) continue;
+              const pageKey = canonicalUrl(page);
+              if (isExcludedHost(pageKey)) continue;
+              const imageKey = image.trim();
+              if (imageSeen.has(imageKey)) continue;
+              imageSeen.add(imageKey);
+              referenceImages.push({
+                pageUrl: pageKey,
+                imageUrl: imageKey,
+                title: img.title ?? null,
+                query: attempt.query,
+              });
+            }
             const rows = [
               ...(attempt.payload.data?.web ?? []).map((w) => ({
                 url: w.url,
@@ -810,6 +835,7 @@ export async function firecrawlDiscover(
             providerFailures: totals.failures,
             uniquePages: totals.uniquePages,
             leads,
+            referenceImages,
           });
         }
       : undefined,
