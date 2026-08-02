@@ -864,6 +864,15 @@ export async function executeCopyrightScanById(opts: {
 
       // Firecrawl and Bright Data run independently: one provider failing (or
       // being unconfigured) must never cancel the other.
+      const brightDataStartedAt = Date.now();
+      await pushActivity({
+        brightdata_configured: isBrightDataConfigured(),
+        brightdata_diagnostic: brightDataDiagnostic(),
+        brightdata_running: isBrightDataConfigured(),
+        brightdata_started_at: brightDataStartedAt,
+        brightdata_last_status: isBrightDataConfigured() ? "initializing" : "missing_api_key",
+      });
+
       const [firecrawlSettled, brightDataSettled] = await Promise.allSettled([
         firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
           signal: discoverySignal,
@@ -879,9 +888,24 @@ export async function executeCopyrightScanById(opts: {
             if (event.status === "searching") {
               activity.setWorkflowStage("discovering_candidates");
             }
+            const t = event.telemetry;
             await pushActivity({
+              brightdata_running: true,
               brightdata_last_query: event.query.slice(0, 160),
               brightdata_last_status: event.status,
+              brightdata_last_failure_category: event.category ?? null,
+              brightdata_elapsed_ms: Date.now() - brightDataStartedAt,
+              ...(t
+                ? {
+                    brightdata_queries_generated: t.queriesGenerated,
+                    brightdata_queries_completed: t.queryIndex,
+                    brightdata_requests: t.requests,
+                    brightdata_successes: t.successes,
+                    brightdata_failures: t.failures,
+                    brightdata_candidates: t.candidatesTotal,
+                    brightdata_unique_urls: t.uniqueUrls,
+                  }
+                : {}),
             });
           },
         }),
@@ -893,6 +917,25 @@ export async function executeCopyrightScanById(opts: {
         brightDataSettled.status === "fulfilled"
           ? brightDataSettled.value
           : emptyBrightDataDiscovery();
+
+      await pushActivity({
+        brightdata_running: false,
+        brightdata_configured: brightDataDiscovery.configured,
+        brightdata_diagnostic: brightDataDiscovery.diagnostic,
+        brightdata_duration_ms: Date.now() - brightDataStartedAt,
+        brightdata_running: false,
+        brightdata_queries_generated: brightDataDiscovery.queriesGenerated,
+        brightdata_requests: brightDataDiscovery.requests,
+        brightdata_successes: brightDataDiscovery.successes,
+        brightdata_failures: brightDataDiscovery.failures,
+        brightdata_candidates: brightDataDiscovery.candidates,
+        brightdata_duplicates_dropped: brightDataDiscovery.duplicatesDropped,
+        brightdata_failures_by_category: brightDataDiscovery.failuresByCategory,
+        brightdata_failure_samples: brightDataDiscovery.failureSamples.slice(0, 6),
+        brightdata_duration_ms: Date.now() - brightDataStartedAt,
+        brightdata_last_status:
+          brightDataSettled.status === "rejected" ? "provider_unavailable" : "completed",
+      });
 
       let serpapiDiscovery = await runCopyrightSerpApiDiscovery({
         analysis,
@@ -951,7 +994,7 @@ export async function executeCopyrightScanById(opts: {
         activity.recordDiscovered({
           url: lead.url,
           pageTitle: lead.title,
-          leadQuery: lead.query ?? "brightdata:discovery",
+          leadQuery: `brightdata:${lead.query ?? "discovery"}`,
         });
       }
       for (const lead of serpapiDiscovery.pageLeads.slice(0, 20)) {
