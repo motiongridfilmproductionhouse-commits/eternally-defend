@@ -4,7 +4,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
-import { analyzeReference, firecrawlDiscover } from "@/lib/copyright/discover.server";
+import {
+  analyzeReference,
+  firecrawlDiscover,
+  type PageLead,
+} from "@/lib/copyright/discover.server";
 import {
   brightDataDiagnostic,
   type BrightDataDiscoveryResult,
@@ -890,7 +894,7 @@ export async function executeCopyrightScanById(opts: {
       });
 
       const serpapiDiscovery = {
-        pageLeads: [],
+        pageLeads: [] as PageLead[],
         requests: 0,
         successes: 0,
         failures: 0,
