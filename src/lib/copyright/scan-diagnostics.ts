@@ -63,6 +63,18 @@ export interface CopyrightScanDiagnostics {
   pages_rejected_by_title: number;
   pages_rejected_as_official_or_promo: number;
   pages_missing_access_evidence: number;
+  fresh_discovery_candidates: number;
+  historical_candidates_restored: number;
+  monitored_sources_rechecked: number;
+  known_risk_domains_searched: number;
+  mirror_redirect_candidates: number;
+  candidates_before_dedup: number;
+  candidates_after_dedup: number;
+  detail_links_discovered: number;
+  detail_pages_queued: number;
+  suspected_review_pages: number;
+  historical_findings_reconfirmed: number;
+  historical_sources_temporarily_unreachable: number;
 }
 
 export function crawlMetricsFromStats(
@@ -165,6 +177,18 @@ export function diagnosticsFromStats(
     registered_monitored_sources: n("registered_monitored_sources"),
     ...crawl,
     detail_pages_followed: Math.max(n("detail_pages_followed"), crawl.detail_pages_followed),
+    fresh_discovery_candidates: n("fresh_discovery_candidates"),
+    historical_candidates_restored: n("historical_candidates_restored"),
+    monitored_sources_rechecked: n("monitored_sources_rechecked"),
+    known_risk_domains_searched: n("known_risk_domains_searched"),
+    mirror_redirect_candidates: n("mirror_redirect_candidates"),
+    candidates_before_dedup: n("candidates_before_dedup"),
+    candidates_after_dedup: n("candidates_after_dedup"),
+    detail_links_discovered: n("detail_links_discovered"),
+    detail_pages_queued: n("detail_pages_queued"),
+    suspected_review_pages: n("suspected_review_pages"),
+    historical_findings_reconfirmed: n("historical_findings_reconfirmed"),
+    historical_sources_temporarily_unreachable: n("historical_sources_temporarily_unreachable"),
   };
 }
 
@@ -230,14 +254,23 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
   lines.push(
     `Discovery: ${d.queries_generated} queries generated, ${d.queries_executed} executed, ${d.provider_results} provider results, ${d.unique_candidate_pages} unique candidate pages.`,
   );
+  if (
+    d.fresh_discovery_candidates > 0 ||
+    d.historical_candidates_restored > 0 ||
+    d.known_risk_domains_searched > 0
+  ) {
+    lines.push(
+      `Candidate union: ${d.fresh_discovery_candidates} fresh discovery, ${d.historical_candidates_restored} historical/monitored restored, ${d.monitored_sources_rechecked} monitored sources rechecked, ${d.known_risk_domains_searched} known-risk domains searched, ${d.mirror_redirect_candidates} mirror/redirect candidates, ${d.candidates_before_dedup} before dedup → ${d.candidates_after_dedup} after dedup.`,
+    );
+  }
   lines.push(
-    `Crawl: ${d.pages_crawled} pages crawled (${d.pages_failed} failed), ${d.listing_pages_found} listing/search pages, ${d.detail_pages_followed} title-detail pages followed.`,
+    `Crawl: ${d.pages_crawled} pages crawled (${d.pages_failed} failed), ${d.listing_pages_found} listing/search pages, ${d.detail_pages_followed} title-detail pages followed (${d.detail_links_discovered} links discovered, ${d.detail_pages_queued} queued).`,
   );
   lines.push(
     `Render ladder: ${d.static_fetch_succeeded} static pages fetched, ${d.static_fetch_empty} empty static, ${d.browser_fallback_attempted} dynamic render attempts (${d.browser_fallback_succeeded} recovered, ${d.browser_fallback_failed} failed), ${d.pages_rendered} rendered pages inspected.`,
   );
   lines.push(
-    `Evidence funnel: ${d.exact_title_pages_found} exact-title pages, ${d.pages_with_access_evidence} with access evidence, ${d.pages_rejected_by_title} title rejected, ${d.pages_rejected_as_official_or_promo} official/promo rejected, ${d.pages_missing_access_evidence} missing access evidence, ${d.findings_created} findings created.`,
+    `Evidence funnel: ${d.exact_title_pages_found} exact-title pages, ${d.pages_with_access_evidence} with strong access evidence, ${d.suspected_review_pages} suspected (requires review), ${d.pages_rejected_by_title} title rejected, ${d.pages_rejected_as_official_or_promo} official/promo rejected, ${d.pages_missing_access_evidence} missing access evidence, ${d.findings_created} findings created.`,
   );
   lines.push(...crawlFailureBreakdownLines(stats));
   lines.push(
@@ -247,7 +280,7 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
     `Access signals seen: ${d.access_evidence_pages} pages with access evidence, ${d.embedded_players} embedded players, ${d.download_pages} download pages, ${d.file_host_destinations} file-host, ${d.torrents_magnets} torrent/magnet, ${d.theatre_print_findings} theatre-print.`,
   );
   lines.push(
-    `Outcome: ${d.internal_leads_persisted} internal leads retained, ${d.client_visible_findings} client-visible piracy findings, ${d.registered_monitored_sources} monitored sources created (require exact title + exact-page access evidence).`,
+    `Outcome: ${d.internal_leads_persisted} internal leads retained, ${d.client_visible_findings} client-visible piracy findings, ${d.historical_findings_reconfirmed} historical findings reconfirmed, ${d.historical_sources_temporarily_unreachable} historical sources temporarily unreachable, ${d.registered_monitored_sources} monitored sources created (require exact title + exact-page access evidence).`,
   );
 
   const provider = providerMetricsFromStats(stats);

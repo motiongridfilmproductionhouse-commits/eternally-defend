@@ -23,6 +23,7 @@ import { retrieveCopyrightPage } from "./page-retrieve.server";
 import type { CrawlFailureCategory } from "./crawl-failure";
 import { releaseTimingFor, type ReleaseTiming } from "./release-timing";
 import { isLikelyListingPage } from "./page-extract.server";
+import type { DetailFollowRecorder } from "./detail-follow.server";
 import type { CopyrightClassification } from "./taxonomy";
 import {
   extractReferenceImagesFromPage,
@@ -192,6 +193,10 @@ export async function analyzeDistributionPage(opts: {
   signal?: AbortSignal;
   /** Prefer Firecrawl render (used for known evidence URLs). */
   preferRender?: boolean;
+  /** Skip browser-render fallback when the scan render budget is exhausted. */
+  allowBrowserFallback?: boolean;
+  /** Optional detail-follow diagnostics recorder. */
+  detailFollow?: DetailFollowRecorder;
 }): Promise<DistributionAnalysis> {
   if (!isSafePublicHttpUrl(opts.url)) {
     return fromClassify(
@@ -238,6 +243,7 @@ export async function analyzeDistributionPage(opts: {
   const retrieved = await retrieveCopyrightPage(opts.url, {
     signal: opts.signal,
     preferRender: opts.preferRender,
+    allowBrowserFallback: opts.allowBrowserFallback !== false,
   });
 
   if (!retrieved.ok) {
@@ -281,17 +287,24 @@ export async function analyzeDistributionPage(opts: {
   });
 
   let detailFollowUrls: string[] = [];
+  const listingByPurpose =
+    classified.primaryPurpose === "listing_or_search" ||
+    classified.classification === "CATALOG_OR_LISTING";
   const looksLikeListing =
-    !classified.clientVisible &&
-    isLikelyListingPage({
+    !opts.skipDetailFollow &&
+    (isLikelyListingPage({
       url: retrieved.finalUrl,
       primaryPurpose: classified.primaryPurpose,
       linkCount: links.length,
       html,
       markdown,
-    });
-  if (!opts.skipDetailFollow && looksLikeListing) {
-    // Bounded title-detail follow. Listing pages themselves are never evidence.
+    }) ||
+      listingByPurpose ||
+      (links.length >= 10 && !classified.clientVisible));
+
+  if (looksLikeListing) {
+    opts.detailFollow?.recordListingDetected(retrieved.finalUrl, links.length);
+    opts.detailFollow?.recordLinksExtracted(retrieved.finalUrl, links.length);
     detailFollowUrls = extractTitleMatchedDetailLinks({
       pageUrl: retrieved.finalUrl,
       html,
@@ -301,6 +314,10 @@ export async function analyzeDistributionPage(opts: {
       limit: 5,
       metadata: meta,
     });
+    opts.detailFollow?.recordTitleCandidatesScored(
+      retrieved.finalUrl,
+      detailFollowUrls.length,
+    );
   }
 
   return {
