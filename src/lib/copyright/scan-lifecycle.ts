@@ -42,6 +42,11 @@ export interface DiscoveryOutcomeInput {
   firecrawlCircuitOpened?: boolean;
   serpapiSuccesses?: number;
   serpapiCandidates?: number;
+  /** Bright Data SERP discovery runs independently of Firecrawl. */
+  brightDataQueriesGenerated?: number;
+  brightDataRequests?: number;
+  brightDataSuccesses?: number;
+  brightDataCandidates?: number;
   /** Explicit fatal reason when discovery could not start. */
   fatalReason?: string | null;
 }
