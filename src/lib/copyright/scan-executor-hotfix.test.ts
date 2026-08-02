@@ -202,19 +202,19 @@ test("provider error isolation categories", () => {
   );
 });
 
-test("worker HMAC verifier reports safe failure reasons without secret values", () => {
+test("worker HMAC verifier reports safe failure reasons without secret values", async () => {
   const original = process.env.COPYRIGHT_SCAN_WORKER_SECRET;
   try {
     delete process.env.COPYRIGHT_SCAN_WORKER_SECRET;
-    const missing = verifyCopyrightScanWorkerRequestDetailed("{}", String(Date.now()), "abc");
+    const missing = await verifyCopyrightScanWorkerRequestDetailed("{}", String(Date.now()), "abc");
     assert.equal(missing.ok, false);
     assert.equal(missing.reason, "secret_missing");
     assert.equal(missing.worker_secret_present, false);
 
     process.env.COPYRIGHT_SCAN_WORKER_SECRET = "same-secret";
     const body = JSON.stringify({ scan_id: "00000000-0000-0000-0000-000000000000" });
-    const signed = signCopyrightScanWorkerRequest(body);
-    const ok = verifyCopyrightScanWorkerRequestDetailed(
+    const signed = await signCopyrightScanWorkerRequest(body);
+    const ok = await verifyCopyrightScanWorkerRequestDetailed(
       body,
       signed.timestamp,
       signed.signature,
@@ -223,7 +223,7 @@ test("worker HMAC verifier reports safe failure reasons without secret values", 
     assert.equal(ok.reason, "ok");
     assert.equal(ok.worker_secret_length, "same-secret".length);
 
-    const bad = verifyCopyrightScanWorkerRequestDetailed(body, signed.timestamp, "bad");
+    const bad = await verifyCopyrightScanWorkerRequestDetailed(body, signed.timestamp, "bad");
     assert.equal(bad.ok, false);
     assert.equal(bad.reason, "signature_mismatch");
     assert.equal(JSON.stringify(bad).includes("same-secret"), false);
