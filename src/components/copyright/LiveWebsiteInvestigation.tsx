@@ -206,9 +206,12 @@ export function LiveWebsiteInvestigation({
     }
   }, [scanId]);
 
-  const scanning = isScanning ?? (scanStatus === "running" || scanStatus === "pending");
+  const scanning = isScanning ?? (scanStatus === "queued" || scanStatus === "running" || scanStatus === "pending");
+  const bootstrapActive = stats?.scan_bootstrap === true;
   const emptyMessage = scanning
-    ? "Waiting for the first real website candidate…"
+    ? bootstrapActive
+      ? "Connecting to discovery providers…"
+      : "Connecting to discovery providers…"
     : "No website investigation activity recorded for this scan.";
 
   return (

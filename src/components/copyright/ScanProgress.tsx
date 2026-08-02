@@ -95,6 +95,9 @@ function currentStageLabel(
   stats: Record<string, unknown> | null | undefined,
   workflowIndex: number,
 ): string {
+  if (stats?.scan_bootstrap === true) {
+    return "Starting copyright investigation";
+  }
   const wf = resolveWorkflowStageFromStats(stats);
   const idx = workflowStageIndex(wf);
   return COPYRIGHT_WORKFLOW_STAGES[Math.min(idx, COPYRIGHT_WORKFLOW_STAGES.length - 1)]!.label;
