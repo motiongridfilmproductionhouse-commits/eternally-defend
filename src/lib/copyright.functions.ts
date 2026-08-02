@@ -11,10 +11,7 @@ import {
   runBrightDataDiscovery,
   type BrightDataDiscoveryResult,
 } from "@/lib/copyright/brightdata-provider.server";
-import {
-  emptyProviderFailureCounts,
-  type ProviderFailureCategory,
-} from "@/lib/copyright/provider-failures";
+import { emptyProviderFailureCounts } from "@/lib/copyright/provider-failures";
 import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.server";
 import { readStoredObject } from "@/lib/copyright/storage.server";
 
