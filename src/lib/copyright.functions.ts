@@ -8,6 +8,8 @@ import { analyzeReference, firecrawlDiscover } from "@/lib/copyright/discover.se
 import { runCopyrightSerpApiDiscovery } from "@/lib/copyright/serpapi-discovery.server";
 import {
   brightDataDiagnostic,
+  isBrightDataConfigured,
+
   runBrightDataDiscovery,
   type BrightDataDiscoveryResult,
 } from "@/lib/copyright/brightdata-provider.server";
