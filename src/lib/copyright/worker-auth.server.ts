@@ -8,6 +8,17 @@ function workerSecret(): string {
   return value;
 }
 
+export function copyrightScanWorkerSecretDiagnostic(env: NodeJS.ProcessEnv = process.env): {
+  worker_secret_present: boolean;
+  worker_secret_length: number;
+} {
+  const value = env.COPYRIGHT_SCAN_WORKER_SECRET?.trim();
+  return {
+    worker_secret_present: Boolean(value),
+    worker_secret_length: value?.length ?? 0,
+  };
+}
+
 export function signCopyrightScanWorkerRequest(
   body: string,
   timestamp = Date.now(),
@@ -23,15 +34,72 @@ export function verifyCopyrightScanWorkerRequest(
   timestampHeader: string | null,
   signatureHeader: string | null,
 ): boolean {
-  if (!timestampHeader || !signatureHeader) return false;
-  const timestamp = Number(timestampHeader);
-  if (!Number.isFinite(timestamp)) return false;
-  if (Math.abs(Date.now() - timestamp) > WINDOW_MS) return false;
+  return verifyCopyrightScanWorkerRequestDetailed(
+    rawBody,
+    timestampHeader,
+    signatureHeader,
+  ).ok;
+}
 
-  const expected = createHmac("sha256", workerSecret())
-    .update(`${timestamp}.${rawBody}`)
-    .digest("hex");
+export function verifyCopyrightScanWorkerRequestDetailed(
+  rawBody: string,
+  timestampHeader: string | null,
+  signatureHeader: string | null,
+): {
+  ok: boolean;
+  reason: "ok" | "missing_header" | "invalid_timestamp" | "timestamp_outside_window" | "secret_missing" | "signature_mismatch";
+  timestamp_age_ms: number | null;
+  worker_secret_present: boolean;
+  worker_secret_length: number;
+} {
+  const diagnostic = copyrightScanWorkerSecretDiagnostic();
+  if (!timestampHeader || !signatureHeader) {
+    return {
+      ok: false,
+      reason: "missing_header",
+      timestamp_age_ms: null,
+      ...diagnostic,
+    };
+  }
+  const timestamp = Number(timestampHeader);
+  if (!Number.isFinite(timestamp)) {
+    return {
+      ok: false,
+      reason: "invalid_timestamp",
+      timestamp_age_ms: null,
+      ...diagnostic,
+    };
+  }
+  const timestampAgeMs = Date.now() - timestamp;
+  if (Math.abs(timestampAgeMs) > WINDOW_MS) {
+    return {
+      ok: false,
+      reason: "timestamp_outside_window",
+      timestamp_age_ms: timestampAgeMs,
+      ...diagnostic,
+    };
+  }
+
+  let expected: string;
+  try {
+    expected = createHmac("sha256", workerSecret())
+      .update(`${timestamp}.${rawBody}`)
+      .digest("hex");
+  } catch {
+    return {
+      ok: false,
+      reason: "secret_missing",
+      timestamp_age_ms: timestampAgeMs,
+      ...diagnostic,
+    };
+  }
   const actual = Buffer.from(signatureHeader);
   const wanted = Buffer.from(expected);
-  return actual.length === wanted.length && timingSafeEqual(actual, wanted);
+  const ok = actual.length === wanted.length && timingSafeEqual(actual, wanted);
+  return {
+    ok,
+    reason: ok ? "ok" : "signature_mismatch",
+    timestamp_age_ms: timestampAgeMs,
+    ...diagnostic,
+  };
 }
