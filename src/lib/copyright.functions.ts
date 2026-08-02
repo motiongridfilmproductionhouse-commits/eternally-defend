@@ -69,6 +69,10 @@ import {
   KNOWN_URL_BUDGET_MS,
   PROVIDER_CRAWL_BUDGET_MS,
   splitKnownAndProviderLeads,
+  absoluteScanDeadlineAt,
+  knownUrlDeadlineAt,
+  discoveryPhaseDeadlineAt,
+  providerCrawlDeadlineAt,
 } from "@/lib/copyright/crawl-budget";
 import { CrawlMetricsRecorder } from "@/lib/copyright/crawl-metrics";
 import { DetailFollowRecorder } from "@/lib/copyright/detail-follow.server";
@@ -1054,8 +1058,10 @@ export async function executeCopyrightScanById(opts: {
         reason?: string | null;
       }> = [];
       let earlyKnownUrlsAttempted = 0;
-      const knownPreDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
-      const discoveryDeadlineAt = Date.now() + PROVIDER_CRAWL_BUDGET_MS;
+      const scanStartedAt = Date.now();
+      const scanDeadlineAt = absoluteScanDeadlineAt(scanStartedAt);
+      const knownPreDeadlineAt = knownUrlDeadlineAt(scanStartedAt, scanDeadlineAt);
+      const discoveryDeadlineAt = discoveryPhaseDeadlineAt(scanStartedAt, scanDeadlineAt);
       const discoverySignal = AbortSignal.timeout(
         Math.max(5_000, discoveryDeadlineAt - Date.now()),
       );
@@ -1895,6 +1901,16 @@ export async function executeCopyrightScanById(opts: {
         });
 
         const contact = resolveAbuseContact(dist.url);
+        const isHistoricalRecheck =
+          leadQuery === "historical_finding_recheck" ||
+          leadQuery === "monitored_source_recheck";
+        const recheckStatus = isHistoricalRecheck
+          ? dist.crawlFailed
+            ? "temporarily_unreachable"
+            : dist.clientVisible && dist.strongEvidence
+              ? "active"
+              : "requires_review"
+          : null;
         const matchRow: MatchInsert = {
           scan_id: scan.id,
           user_id: userId,
@@ -1921,6 +1937,10 @@ export async function executeCopyrightScanById(opts: {
             confidence_breakdown: dist.confidenceBreakdown,
             embed_sources: dist.embedSources,
             page_evidence: pageEvidence,
+            crawl_failed: dist.crawlFailed,
+            crawl_failure_category: dist.crawlFailureCategory,
+            crawl_failure_reason: dist.crawlFailureReason,
+            ...(recheckStatus ? { recheck_status: recheckStatus } : {}),
             distribution: {
               domain: dist.domain,
               domain_risk: dist.domainRisk,
@@ -1941,6 +1961,10 @@ export async function executeCopyrightScanById(opts: {
               confidence_breakdown: dist.confidenceBreakdown,
               evidence_screenshot: dist.screenshot,
               embed_sources: dist.embedSources,
+              crawl_failed: dist.crawlFailed,
+              crawl_failure_category: dist.crawlFailureCategory,
+              crawl_failure_reason: dist.crawlFailureReason,
+              ...(recheckStatus ? { recheck_status: recheckStatus } : {}),
             },
           },
           ocr_text: null,
@@ -2040,7 +2064,7 @@ export async function executeCopyrightScanById(opts: {
 
       // Phase A — known URLs first with reserved time budget (never starved by providers).
       activity.setWorkflowStage("checking_access");
-      const knownDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
+      const knownDeadlineAt = scanDeadlineAt;
       for (let offset = 0; offset < knownPhaseLeads.length; offset += 2) {
         if (isPastDeadline(knownDeadlineAt)) {
           abortedByDeadline = true;
@@ -2113,9 +2137,8 @@ export async function executeCopyrightScanById(opts: {
       }
 
       // Phase B — provider candidates with remaining budget (detail follow reserved).
-      const providerPhaseStart = Date.now();
-      const providerDeadlineAt = providerPhaseStart + PROVIDER_CRAWL_BUDGET_MS - DETAIL_FOLLOW_BUDGET_MS;
-      const detailFollowDeadlineAt = providerPhaseStart + PROVIDER_CRAWL_BUDGET_MS;
+      const providerDeadlineAt = providerCrawlDeadlineAt(scanDeadlineAt);
+      const detailFollowDeadlineAt = scanDeadlineAt;
       for (let offset = 0; offset < providerPhaseLeads.length; offset += 4) {
         if (isPastDeadline(providerDeadlineAt)) {
           abortedByDeadline = true;
@@ -2841,8 +2864,38 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
           ? (ev.access_evidence as string[])
           : [];
       const crawlFailed = ev.crawl_failed === true || dist.crawl_failed === true;
+      const historicalPreservation = ev.historical_preservation === true;
+      const recheckStatus =
+        typeof ev.recheck_status === "string"
+          ? ev.recheck_status
+          : typeof dist.recheck_status === "string"
+            ? (dist.recheck_status as string)
+            : null;
       const clientVisible = ev.client_visible !== false && dist.client_visible !== false;
       const strong = dist.strong_evidence === true;
+      let status:
+        | "verified_piracy"
+        | "insufficient_evidence"
+        | "no_match"
+        | "unreachable"
+        | "historical_unreachable"
+        | "historical_preserved";
+      if (historicalPreservation && recheckStatus === "temporarily_unreachable") {
+        status = "historical_unreachable";
+      } else if (
+        historicalPreservation &&
+        (recheckStatus === "pending" || recheckStatus === "requires_review")
+      ) {
+        status = "historical_preserved";
+      } else if (crawlFailed) {
+        status = "unreachable";
+      } else if (clientVisible && strong) {
+        status = "verified_piracy";
+      } else if (identity.length || access.length) {
+        status = "insufficient_evidence";
+      } else {
+        status = "no_match";
+      }
       return {
         id: m.id,
         url: m.source_url,
@@ -2852,19 +2905,17 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
         content_type: (dist.content_type as string) ?? (ev.website_type as string) ?? null,
         domain_risk: (dist.domain_risk as string) ?? null,
         confidence: m.confidence,
-        checked: !crawlFailed,
+        checked: historicalPreservation
+          ? recheckStatus === "active"
+          : !crawlFailed,
         crawl_failure_reason:
-          (ev.crawl_failure_reason as string) ?? (dist.crawl_failure_reason as string) ?? null,
+          (ev.crawl_failure_reason as string) ??
+          (dist.crawl_failure_reason as string) ??
+          null,
         identity_evidence: identity.slice(0, 4),
         access_evidence: access.slice(0, 4),
         quality_tags: Array.isArray(dist.quality_tags) ? (dist.quality_tags as string[]).slice(0, 6) : [],
-        status: crawlFailed
-          ? ("unreachable" as const)
-          : clientVisible && strong
-            ? ("verified_piracy" as const)
-            : identity.length || access.length
-              ? ("insufficient_evidence" as const)
-              : ("no_match" as const),
+        status,
         reason: m.reason,
         discovery_query: sanitizeDiscoveryQueryForClient(
           (ev.discovery_query as string) ?? null,

@@ -19,6 +19,27 @@ export const BROWSER_FALLBACK_BUDGET_MS = 60_000;
 export const KNOWN_SOURCE_RECHECK_BUDGET_MS = 45_000;
 /** Maximum wall-clock time spent rendering a single page. */
 export const PER_PAGE_BROWSER_BUDGET_MS = 28_000;
+/** Absolute wall-clock ceiling for one copyright scan executor run. */
+export const SCAN_TOTAL_BUDGET_MS = KNOWN_URL_BUDGET_MS + PROVIDER_CRAWL_BUDGET_MS;
+
+export function absoluteScanDeadlineAt(scanStartedAt: number): number {
+  return scanStartedAt + SCAN_TOTAL_BUDGET_MS;
+}
+
+/** Known-URL early/phase budget capped by the absolute scan deadline. */
+export function knownUrlDeadlineAt(scanStartedAt: number, scanDeadlineAt: number): number {
+  return Math.min(scanStartedAt + KNOWN_URL_BUDGET_MS, scanDeadlineAt);
+}
+
+/** Discovery provider budget capped by the absolute scan deadline. */
+export function discoveryPhaseDeadlineAt(scanStartedAt: number, scanDeadlineAt: number): number {
+  return Math.min(scanStartedAt + PROVIDER_CRAWL_BUDGET_MS, scanDeadlineAt);
+}
+
+/** Provider crawl phase ends before the reserved detail-follow window. */
+export function providerCrawlDeadlineAt(scanDeadlineAt: number): number {
+  return scanDeadlineAt - DETAIL_FOLLOW_BUDGET_MS;
+}
 
 export interface CrawlSlotAllocation {
   knownSlots: number;

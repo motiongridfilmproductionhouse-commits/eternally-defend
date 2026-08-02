@@ -15,7 +15,13 @@ export type DiscoveredSource = {
   identity_evidence: string[];
   access_evidence: string[];
   quality_tags: string[];
-  status: "verified_piracy" | "insufficient_evidence" | "no_match" | "unreachable";
+  status:
+    | "verified_piracy"
+    | "insufficient_evidence"
+    | "no_match"
+    | "unreachable"
+    | "historical_unreachable"
+    | "historical_preserved";
   reason: string | null;
   discovery_query: string | null;
 };
@@ -34,6 +40,14 @@ const STATUS: Record<
   },
   no_match: { label: "No match on page", cls: "text-muted-foreground" },
   unreachable: { label: "Not reachable", cls: "border-border/60 text-muted-foreground" },
+  historical_unreachable: {
+    label: "Historical source unreachable",
+    cls: "border-orange-500/50 text-orange-500",
+  },
+  historical_preserved: {
+    label: "Historical evidence preserved",
+    cls: "border-sky-500/50 text-sky-500",
+  },
 };
 
 /**
@@ -119,7 +133,13 @@ export function AllSourcesPanel({ sources }: { sources: DiscoveredSource[] }) {
                 <p className="truncate text-[11px] text-muted-foreground">{s.page_title}</p>
               )}
               <p className="mt-1 text-[11px] text-muted-foreground">
-                {s.checked ? "Page retrieved and checked." : "Page could not be retrieved."}
+                {s.status === "historical_unreachable"
+                  ? "Previously confirmed source could not be reached this scan. Historical evidence is preserved separately."
+                  : s.status === "historical_preserved"
+                    ? "Historical finding from a prior scan — not reconfirmed as currently active this scan."
+                    : s.checked
+                      ? "Page retrieved and checked."
+                      : "Page could not be retrieved."}
                 {s.crawl_failure_reason ? ` ${s.crawl_failure_reason}` : ""}
                 {s.identity_evidence.length
                   ? ` Title identity: ${s.identity_evidence.join(", ")}.`
