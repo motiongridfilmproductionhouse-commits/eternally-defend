@@ -229,7 +229,17 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
         }
       }
 
-      if (options.uniquePageCount(attempts) >= earlyStopAt) {
+      const uniqueSoFar = options.uniquePageCount(attempts);
+      if (options.onWave) {
+        await options.onWave(waveResults, {
+          requests: attempts.length,
+          successes,
+          failures,
+          uniquePages: uniqueSoFar,
+        });
+      }
+
+      if (uniqueSoFar >= earlyStopAt) {
         stoppedEarly = true;
         stoppedEarlyReason = `Early stop: ${earlyStopAt} unique candidate pages collected.`;
         break;
