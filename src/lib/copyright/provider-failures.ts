@@ -6,10 +6,14 @@
 export const PROVIDER_FAILURE_CATEGORIES = [
   "missing_api_key",
   "authentication_failed",
+  "invalid_credentials",
+  "insufficient_credits",
   "rate_limited",
   "timeout",
   "provider_unavailable",
   "malformed_response",
+  "invalid_response",
+  "no_results",
   "executor_not_started",
 ] as const;
 

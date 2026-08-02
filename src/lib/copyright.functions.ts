@@ -6,6 +6,12 @@ import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
 import { analyzeReference, firecrawlDiscover } from "@/lib/copyright/discover.server";
 import { runCopyrightSerpApiDiscovery } from "@/lib/copyright/serpapi-discovery.server";
+import {
+  brightDataDiagnostic,
+  runBrightDataDiscovery,
+  type BrightDataDiscoveryResult,
+} from "@/lib/copyright/brightdata-provider.server";
+import { emptyProviderFailureCounts } from "@/lib/copyright/provider-failures";
 import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.server";
 import { readStoredObject } from "@/lib/copyright/storage.server";
 
@@ -91,6 +97,42 @@ function errorMessage(error: unknown): string {
   }
   return String(error);
 }
+
+/** Bright Data result placeholder used when the provider run itself rejects. */
+function emptyBrightDataDiscovery(): BrightDataDiscoveryResult {
+  return {
+    provider: "brightdata",
+    configured: false,
+    hits: [],
+    pageLeads: [],
+    queriesGenerated: 0,
+    requests: 0,
+    successes: 0,
+    failures: 1,
+    candidates: 0,
+    duplicatesDropped: 0,
+    failuresByCategory: {
+      ...emptyProviderFailureCounts(),
+      provider_unavailable: 1,
+    },
+    failureSamples: [
+      { query: "", category: "provider_unavailable", detail: "Bright Data discovery failed" },
+    ],
+    diagnostic: brightDataDiagnostic(),
+  };
+}
+
+function mergeProviderFailureCounts(
+  a: Record<string, number>,
+  b: Record<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = { ...emptyProviderFailureCounts(), ...a };
+  for (const [key, value] of Object.entries(b)) {
+    out[key] = (out[key] ?? 0) + value;
+  }
+  return out;
+}
+
 
 function plainStats(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -819,11 +861,38 @@ export async function executeCopyrightScanById(opts: {
       );
 
       const byUrl = new Map<string, DiscoveryCandidate>();
-      let discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
-        signal: discoverySignal,
-        deadlineAt: discoveryDeadlineAt,
-        analysis,
-      });
+
+      // Firecrawl and Bright Data run independently: one provider failing (or
+      // being unconfigured) must never cancel the other.
+      const [firecrawlSettled, brightDataSettled] = await Promise.allSettled([
+        firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
+          signal: discoverySignal,
+          deadlineAt: discoveryDeadlineAt,
+          analysis,
+        }),
+        runBrightDataDiscovery({
+          analysis,
+          workTitle,
+          signal: discoverySignal,
+          deadlineAt: discoveryDeadlineAt,
+          onActivity: async (event) => {
+            if (event.status === "searching") {
+              activity.setWorkflowStage("discovering_candidates");
+            }
+            await pushActivity({
+              brightdata_last_query: event.query.slice(0, 160),
+              brightdata_last_status: event.status,
+            });
+          },
+        }),
+      ]);
+
+      if (firecrawlSettled.status === "rejected") throw firecrawlSettled.reason;
+      let discovery = firecrawlSettled.value;
+      const brightDataDiscovery =
+        brightDataSettled.status === "fulfilled"
+          ? brightDataSettled.value
+          : emptyBrightDataDiscovery();
 
       let serpapiDiscovery = await runCopyrightSerpApiDiscovery({
         analysis,
@@ -831,23 +900,35 @@ export async function executeCopyrightScanById(opts: {
         signal: discoverySignal,
         deadlineAt: discoveryDeadlineAt,
         onlyWhenFirecrawlFailed: true,
-        firecrawlHadSuccess: discovery.providerSuccesses > 0,
+        firecrawlHadSuccess:
+          discovery.providerSuccesses > 0 || brightDataDiscovery.candidates > 0,
       });
 
-      if (serpapiDiscovery.pageLeads.length) {
+      // Normalize + dedupe candidate URLs across providers.
+      const extraLeads = [...brightDataDiscovery.pageLeads, ...serpapiDiscovery.pageLeads];
+      if (extraLeads.length) {
         const mergedLeads = [...discovery.pageLeads];
         const seenLeadUrls = new Set(mergedLeads.map((l) => canonicalUrl(l.url)));
-        for (const lead of serpapiDiscovery.pageLeads) {
+        for (const lead of extraLeads) {
           const key = canonicalUrl(lead.url);
           if (seenLeadUrls.has(key)) continue;
           seenLeadUrls.add(key);
-          mergedLeads.push(lead);
+          mergedLeads.push({ ...lead, url: key });
         }
         discovery = {
           ...discovery,
           pageLeads: mergedLeads,
+          providerFailuresByCategory: mergeProviderFailureCounts(
+            discovery.providerFailuresByCategory,
+            brightDataDiscovery.failuresByCategory,
+          ),
+          providerFailureSamples: [
+            ...discovery.providerFailureSamples,
+            ...brightDataDiscovery.failureSamples,
+          ].slice(0, 12),
           candidates_by_provider: {
             ...discovery.candidates_by_provider,
+            brightdata: brightDataDiscovery.candidates,
             serpapi: serpapiDiscovery.candidates,
           },
         };
@@ -864,6 +945,13 @@ export async function executeCopyrightScanById(opts: {
           url: lead.url,
           pageTitle: lead.title,
           leadQuery: lead.query,
+        });
+      }
+      for (const lead of brightDataDiscovery.pageLeads.slice(0, 20)) {
+        activity.recordDiscovered({
+          url: lead.url,
+          pageTitle: lead.title,
+          leadQuery: lead.query ?? "brightdata:discovery",
         });
       }
       for (const lead of serpapiDiscovery.pageLeads.slice(0, 20)) {
@@ -1720,8 +1808,19 @@ export async function executeCopyrightScanById(opts: {
         serpapi_failures: serpapiDiscovery.failures,
         serpapi_candidates: serpapiDiscovery.candidates,
         serpapi_failure_messages: serpapiDiscovery.failureMessages.slice(0, 6),
+        brightdata_configured: brightDataDiscovery.configured,
+        brightdata_queries_generated: brightDataDiscovery.queriesGenerated,
+        brightdata_requests: brightDataDiscovery.requests,
+        brightdata_successes: brightDataDiscovery.successes,
+        brightdata_failures: brightDataDiscovery.failures,
+        brightdata_candidates: brightDataDiscovery.candidates,
+        brightdata_duplicates_dropped: brightDataDiscovery.duplicatesDropped,
+        brightdata_failures_by_category: brightDataDiscovery.failuresByCategory,
+        brightdata_failure_samples: brightDataDiscovery.failureSamples.slice(0, 6),
+        brightdata_diagnostic: brightDataDiscovery.diagnostic,
         candidates_by_provider: {
           ...discovery.candidates_by_provider,
+          brightdata: brightDataDiscovery.candidates,
           known_url: knownAccepted.length,
         },
         verified_findings_by_provider: verifiedFindingsByProvider,
