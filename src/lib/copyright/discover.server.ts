@@ -212,6 +212,8 @@ export interface FirecrawlDiscoverOptions {
   signal?: AbortSignal;
   deadlineAt?: number;
   analysis?: ReferenceAnalysis;
+  /** Additional leak-monitoring queries prepended before default plans. */
+  extraQueryStrings?: string[];
   onProgress?: (progress: DiscoveryProgress) => void | Promise<void>;
 }
 
@@ -791,8 +793,16 @@ export async function firecrawlDiscover(
 
   const a = analysis ?? (await analyzeReference(referenceDataUrl, workTitle));
   const allPlans = buildQueries(a, workTitle);
-  const telegramPlans = allPlans.filter((p) => /\btelegram\b/i.test(p.query));
-  const webPlans = allPlans.filter((p) => !/\btelegram\b/i.test(p.query));
+  const extraPlans: QueryPlan[] = (options.extraQueryStrings ?? [])
+    .map((q) => q.trim())
+    .filter(Boolean)
+    .map((query) => ({
+      query,
+      recent: true,
+    }));
+  const mergedPlans = [...extraPlans, ...allPlans];
+  const telegramPlans = mergedPlans.filter((p) => /\btelegram\b/i.test(p.query));
+  const webPlans = mergedPlans.filter((p) => !/\btelegram\b/i.test(p.query));
   const plans = [...webPlans, ...telegramPlans].slice(0, DISCOVERY_MAX_QUERIES_PER_SCAN);
   const queriesGenerated = plans.length;
   const deadlineAt =

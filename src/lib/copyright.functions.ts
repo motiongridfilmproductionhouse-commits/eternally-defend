@@ -104,6 +104,18 @@ import {
 import { fetchImageBytes } from "@/lib/aws/s3.server";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  buildReleaseProtectionDiscoveryQueries,
+  type AlertThreshold,
+  type ReleaseProtectionSettings,
+  type ReferencePackage,
+} from "@/lib/copyright/release-protection";
+import { createReleaseProtectionRecord } from "@/lib/copyright/release-protection.server";
+import {
+  findingsFromDistributionMatches,
+  finalizeReleaseMonitorRun,
+  syncReleaseProtectionIncidentsFromScan,
+} from "@/lib/copyright/release-protection-incidents.server";
 
 type MatchInsert = Database["public"]["Tables"]["copyright_matches"]["Insert"];
 type ContextSupabase = SupabaseClient<Database>;
@@ -344,7 +356,7 @@ async function dispatchCopyrightScanExecutionInline(
   }
 }
 
-async function dispatchCopyrightScanExecution(
+export async function dispatchCopyrightScanExecution(
   scanId: string,
   supabase?: ContextSupabase,
 ): Promise<void> {
@@ -529,6 +541,36 @@ export const uploadCopyrightReference = createServerFn({ method: "POST" })
     return { key };
   });
 
+const releaseProtectionSettingsSchema = z.object({
+  enabled: z.boolean(),
+  release_date: z.string(),
+  release_timezone: z.string(),
+  release_type: z.enum(["theatrical", "festival", "streaming", "television", "direct-to-video"]),
+  release_countries: z.array(z.string()),
+  languages: z.array(z.string()),
+  primary_language: z.string(),
+  alternate_titles: z.array(z.string()).optional(),
+  studio: z.string(),
+  distributor: z.string(),
+  ott_platform: z.string().optional(),
+  premiere_date: z.string().optional(),
+  censor_date: z.string().optional(),
+  press_screening_date: z.string().optional(),
+  trailer_release_date: z.string().optional(),
+  embargo_date: z.string().optional(),
+  digital_release_date: z.string().optional(),
+  home_video_release_date: z.string().optional(),
+  alert_threshold: z.enum(["critical_only", "high_and_critical", "all_verified", "daily_summary"]),
+  cadence_profile: z.enum(["default", "custom"]),
+  custom_cadence_minutes: z.number().optional(),
+});
+
+const referencePackageSchema = z.object({
+  primary_poster_key: z.string().optional(),
+  additional_visual_keys: z.array(z.string()).default([]),
+  video_reference_keys: z.array(z.string()).default([]),
+});
+
 const copyrightScanInputSchema = z.object({
   title: z.string().trim().min(1).max(200),
   referenceKind: z.enum(["image", "video"]),
@@ -537,6 +579,12 @@ const copyrightScanInputSchema = z.object({
   keys: z.array(z.string().min(10).max(500)).min(1).max(6),
   /** Optional known public URLs to investigate first (max 10). Never auto-guilty. */
   knownUrls: z.array(z.string().trim().min(8).max(2000)).max(10).optional(),
+  releaseProtection: z
+    .object({
+      settings: releaseProtectionSettingsSchema,
+      referencePackage: referencePackageSchema,
+    })
+    .optional(),
 });
 
 /**
@@ -598,6 +646,43 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         stats: failedStats,
       });
       throw new Error(message);
+    }
+
+    if (data.releaseProtection?.settings?.enabled) {
+      const pkg: ReferencePackage = {
+        primary_poster_key:
+          data.releaseProtection.referencePackage.primary_poster_key ?? data.keys[0],
+        additional_visual_keys: data.releaseProtection.referencePackage.additional_visual_keys,
+        video_reference_keys: data.releaseProtection.referencePackage.video_reference_keys,
+      };
+      const protection = await createReleaseProtectionRecord(supabase, {
+        userId,
+        scanId: scan.id as string,
+        title: data.title,
+        settings: data.releaseProtection.settings as ReleaseProtectionSettings,
+        referencePackage: pkg,
+      });
+      await supabase
+        .from("copyright_scans")
+        .update({
+          stats: {
+            scan_created: nowIso,
+            scan_created_at: nowIso,
+            last_progress_at: nowIso,
+            discovery_never_started: true,
+            release_protection_id: protection.id,
+            release_protection_enabled: true,
+            release_date: data.releaseProtection.settings.release_date,
+            release_alt_titles: data.releaseProtection.settings.alternate_titles ?? [],
+            release_alert_threshold: data.releaseProtection.settings.alert_threshold,
+            pending_input: {
+              contentType: data.contentType,
+              knownUrls: data.knownUrls ?? [],
+              keys: data.keys,
+            },
+          } as never,
+        })
+        .eq("id", scan.id);
     }
 
     // Immediate start — must not imply completion or zero-result success.
@@ -715,6 +800,18 @@ export async function executeCopyrightScanById(opts: {
     ) as typeof copyrightImageTypes[number];
     const knownUrls = Array.isArray(pending.knownUrls) ? pending.knownUrls : [];
     const workTitle = scan.title;
+    const releaseProtectionId =
+      typeof priorStats.release_protection_id === "string"
+        ? priorStats.release_protection_id
+        : undefined;
+    const releaseProtectionRun = Boolean(priorStats.release_protection_run);
+    const releaseProtectionReleaseDate =
+      typeof priorStats.release_date === "string" ? priorStats.release_date : undefined;
+    const releaseProtectionAltTitles = Array.isArray(priorStats.release_alt_titles)
+      ? (priorStats.release_alt_titles as string[])
+      : [];
+    const releaseAlertThreshold = (priorStats.release_alert_threshold ??
+      "high_and_critical") as AlertThreshold;
 
     if (!keys.length) {
       const failedStats = {
@@ -852,12 +949,25 @@ export async function executeCopyrightScanById(opts: {
         sourceActivity.upsert({ provider: "youtube", status: "searching" });
         await pushActivity({}, true);
         try {
-          const queries = buildYoutubeQueries({
-            title: workTitle,
-            altTitles: analysis.altTitles,
-            actors: analysis.actors,
-            language: analysis.language ?? undefined,
-          });
+          const protectionReleaseDate = releaseProtectionReleaseDate ?? analysis.releaseDate;
+          const protectionQueries =
+            releaseProtectionRun && protectionReleaseDate
+              ? buildReleaseProtectionDiscoveryQueries(
+                  workTitle,
+                  protectionReleaseDate,
+                  [...releaseProtectionAltTitles, ...analysis.altTitles],
+                  analysis.title ?? undefined,
+                )
+              : [];
+          const queries = [
+            ...protectionQueries,
+            ...buildYoutubeQueries({
+              title: workTitle,
+              altTitles: [...releaseProtectionAltTitles, ...analysis.altTitles],
+              actors: analysis.actors,
+              language: analysis.language ?? undefined,
+            }),
+          ].slice(0, 16);
           let youtubeCandidates = 0;
           const videos = await discoverYoutubeVideos(queries.slice(0, 8), {
             perQuery: 6,
@@ -993,10 +1103,22 @@ export async function executeCopyrightScanById(opts: {
       }, true);
 
       sourceActivity.upsert({ provider: "firecrawl", status: "searching" });
+      const protectionReleaseDateForDiscovery =
+        releaseProtectionReleaseDate ?? analysis.releaseDate;
+      const releaseProtectionQueries =
+        releaseProtectionRun && protectionReleaseDateForDiscovery
+          ? buildReleaseProtectionDiscoveryQueries(
+              workTitle,
+              protectionReleaseDateForDiscovery,
+              [...releaseProtectionAltTitles, ...analysis.altTitles],
+              analysis.title ?? undefined,
+            )
+          : [];
       const discoveryPromise = firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
         signal: discoverySignal,
         deadlineAt: discoveryDeadlineAt,
         analysis,
+        extraQueryStrings: releaseProtectionQueries,
         onProgress: async (progress) => {
           for (const lead of progress.leads) {
             activity.recordDiscovered({
@@ -1377,7 +1499,7 @@ export async function executeCopyrightScanById(opts: {
         ...titleSeeds,
         ...titleSeeds.flatMap((t) => expandTitleVariants(t).filter((v) => /[\s-]/.test(v))),
       ])].slice(0, 12);
-      const releaseDate = analysis.releaseDate;
+      const releaseDate = releaseProtectionReleaseDate ?? analysis.releaseDate;
       // Known URLs first so they receive crawl budget before provider candidates.
       const knownLeadUrls = knownAccepted.map((url) => ({
         url,
@@ -2217,6 +2339,54 @@ export async function executeCopyrightScanById(opts: {
         error: terminal.status === "failed" ? (failureReason ?? "Scan failed").slice(0, 500) : null,
         stats: finalStats,
       });
+
+      if (releaseProtectionId && releaseProtectionRun && releaseProtectionReleaseDate) {
+        const incidentFindings = findingsFromDistributionMatches(
+          [
+            ...clientVisibleFindings,
+            ...distributionRows.filter((row) => {
+              const ev = (row.evidence ?? {}) as Record<string, unknown>;
+              return Boolean(ev.client_visible) || Boolean(ev.strong_evidence);
+            }),
+          ].map((row) => ({
+            source_url: row.source_url,
+            page_title: row.page_title,
+            platform: row.platform,
+            evidence:
+              row.evidence && typeof row.evidence === "object" && !Array.isArray(row.evidence)
+                ? (row.evidence as Record<string, unknown>)
+                : null,
+          })),
+        );
+        const incidentSync = await syncReleaseProtectionIncidentsFromScan(supabase, {
+          protectionId: releaseProtectionId,
+          userId,
+          releaseDateIso: releaseProtectionReleaseDate,
+          alertThreshold: releaseAlertThreshold,
+          findings: incidentFindings,
+        });
+        await finalizeReleaseMonitorRun(supabase, {
+          scanId: scan.id as string,
+          protectionId: releaseProtectionId,
+          status: terminal.status,
+          providersAttempted:
+            discovery.providerRequests +
+            serpapiDiscovery.requests +
+            brightDataDiscovery.requests,
+          providersSucceeded:
+            discovery.providerSuccesses +
+            serpapiDiscovery.successes +
+            brightDataDiscovery.successes,
+          providersFailed:
+            discovery.providerFailures +
+            serpapiDiscovery.failures +
+            brightDataDiscovery.failures,
+          candidatesFound: incidentSync.candidatesFound,
+          incidentsCreated: incidentSync.incidentsCreated,
+          preReleaseFindings: incidentSync.preReleaseFindings,
+          errorSummary: terminal.status === "failed" ? failureReason ?? null : null,
+        });
+      }
 
       return {
         scanId: scan.id as string,
