@@ -2021,6 +2021,10 @@ export async function executeCopyrightScanById(opts: {
         firecrawlCircuitOpened: discovery.firecrawl_circuit_opened,
         serpapiSuccesses: serpapiDiscovery.successes,
         serpapiCandidates: serpapiDiscovery.candidates,
+        brightDataQueriesGenerated: brightDataDiscovery.queriesGenerated,
+        brightDataRequests: brightDataDiscovery.requests,
+        brightDataSuccesses: brightDataDiscovery.successes,
+        brightDataCandidates: brightDataDiscovery.candidates,
       });
 
       const providerFailureHint = summarizeProviderFailures({
