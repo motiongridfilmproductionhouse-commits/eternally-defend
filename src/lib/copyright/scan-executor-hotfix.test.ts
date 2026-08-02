@@ -29,6 +29,7 @@ import { evaluateTelegramPublicEvidence } from "./telegram-evidence";
 
 const FUNCTIONS_PATH = resolve(process.cwd(), "src/lib/copyright.functions.ts");
 const UI_PATH = resolve(process.cwd(), "src/routes/_app.copyright-intel.tsx");
+const WORKER_AUTH_PATH = resolve(process.cwd(), "src/lib/copyright/worker-auth.server.ts");
 const MONITOR_PATH = resolve(
   process.cwd(),
   "src/components/copyright/DistributionMonitorPanel.tsx",
@@ -41,13 +42,16 @@ function uiSource(): string {
   return readFileSync(UI_PATH, "utf8");
 }
 
-test("button starts a real executor (run + execute wired)", () => {
+test("backend dispatches executor after scan row creation", () => {
   const src = functionsSource();
   const ui = uiSource();
   assert.match(src, /export const runCopyrightScan/);
   assert.match(src, /export const executeCopyrightScan/);
-  assert.match(ui, /executeCopyrightScan/);
-  assert.match(ui, /executeScan\.mutate\(res\.scanId\)/);
+  assert.match(src, /dispatchCopyrightScanExecution\(scan\.id as string\)/);
+  assert.match(src, /COPYRIGHT_SCAN_WORKER_URL/);
+  assert.match(readFileSync(WORKER_AUTH_PATH, "utf8"), /COPYRIGHT_SCAN_WORKER_SECRET/);
+  assert.doesNotMatch(ui, /executeCopyrightScan/);
+  assert.doesNotMatch(ui, /executeScan\.mutate\(res\.scanId\)/);
   assert.match(ui, /runFn\(/);
 
   const runStart = src.indexOf("export const runCopyrightScan");
@@ -55,7 +59,7 @@ test("button starts a real executor (run + execute wired)", () => {
   assert.ok(executeStart > runStart);
   const runBlock = src.slice(runStart, executeStart);
   assert.match(runBlock, /started: true/);
-  assert.match(runBlock, /status: "running"/);
+  assert.match(runBlock, /status: "queued"/);
   assert.doesNotMatch(runBlock, /firecrawlDiscover/);
   assert.doesNotMatch(runBlock, /status: "completed"/);
 });
@@ -65,7 +69,7 @@ test("immediate scan ID does not mean immediate completion", () => {
     isImmediateStartResponse({
       scanId: "scan-1",
       started: true,
-      status: "running",
+      status: "queued",
       stats: null,
     }),
     true,
@@ -274,6 +278,14 @@ test("executor watchdog fails scans stuck without executor_started_at", () => {
   const created = new Date(Date.now() - EXECUTOR_START_WATCHDOG_MS - 1000).toISOString();
   assert.equal(
     isExecutorWatchdogExpired({
+      status: "queued",
+      createdAt: created,
+      executorStartedAt: null,
+    }),
+    true,
+  );
+  assert.equal(
+    isExecutorWatchdogExpired({
       status: "running",
       createdAt: created,
       executorStartedAt: null,
@@ -291,6 +303,60 @@ test("executor watchdog fails scans stuck without executor_started_at", () => {
   const stages = markStage({}, "scan_created");
   assert.ok(stages.scan_created);
   assert.ok(stages.last_progress_at);
+});
+
+test("executor claims queued scans atomically and duplicate invocation does not rerun", () => {
+  const src = functionsSource();
+  const claimStart = src.indexOf("export async function executeCopyrightScanById");
+  assert.ok(claimStart >= 0);
+  const claimBlock = src.slice(claimStart, src.indexOf("const priorStats", claimStart));
+  assert.match(claimBlock, /\.update\(\{ status: "running" \}\)/);
+  assert.match(claimBlock, /\.eq\("status", "queued"\)/);
+  assert.match(claimBlock, /\.select\("\*"\)/);
+  assert.match(claimBlock, /if \(!claimedScan\)/);
+  assert.match(claimBlock, /return \{\s*scanId: existing\.id as string,\s*status: existing\.status,/s);
+});
+
+test("terminal updates require exactly one active row or idempotent same terminal state", () => {
+  const src = functionsSource();
+  const terminalStart = src.indexOf("async function updateTerminalScanRow");
+  assert.ok(terminalStart >= 0);
+  const terminalBlock = src.slice(
+    terminalStart,
+    src.indexOf("export async function writeCopyrightTerminalStatus", terminalStart),
+  );
+  assert.match(terminalBlock, /\.in\("status", \[\.\.\.ACTIVE_COPYRIGHT_SCAN_STATUSES\]\)/);
+  assert.match(terminalBlock, /\.select\("id,status"\)/);
+  assert.match(terminalBlock, /\.maybeSingle\(\)/);
+  assert.match(terminalBlock, /if \(data\?\.id === scanId\) return/);
+  assert.match(terminalBlock, /inspectCopyrightScanTerminalState\(supabase, scanId, update\.status\)/);
+
+  const inspectBlock = src.slice(
+    src.indexOf("async function inspectCopyrightScanTerminalState"),
+    terminalStart,
+  );
+  assert.match(inspectBlock, /if \(!data\)/);
+  assert.match(inspectBlock, /data\.status === intendedStatus/);
+  assert.match(inspectBlock, /terminal_state_conflict/);
+});
+
+test("terminal status transient failures retry and permanent failures surface", () => {
+  const src = functionsSource();
+  const writerStart = src.indexOf("export async function writeCopyrightTerminalStatus");
+  const writerBlock = src.slice(writerStart, src.indexOf("async function dispatchCopyrightScanExecution", writerStart));
+  assert.match(writerBlock, /TERMINAL_STATUS_RETRY_DELAYS_MS/);
+  assert.match(writerBlock, /console\.error\("copyright_scan_terminal_update_failed"/);
+  assert.match(writerBlock, /copyright_scan_terminal_fallback_failed/);
+  assert.match(writerBlock, /throw lastError instanceof Error/);
+});
+
+test("stale recovery uses guarded terminal transition", () => {
+  const src = functionsSource();
+  const watchdogStart = src.indexOf("async function applyExecutorWatchdog");
+  const watchdogBlock = src.slice(watchdogStart, src.indexOf("export const listCopyrightScans", watchdogStart));
+  assert.match(watchdogBlock, /isExecutorWatchdogExpired/);
+  assert.match(watchdogBlock, /writeCopyrightTerminalStatus\(supabase, row\.id as string/);
+  assert.doesNotMatch(watchdogBlock, /\.update\(\{\s*status: "failed"/);
 });
 
 test("partial status when deadline cuts after crawl progress", () => {

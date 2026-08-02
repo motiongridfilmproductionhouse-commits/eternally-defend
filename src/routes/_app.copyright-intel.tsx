@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  uploadCopyrightReference, runCopyrightScan, executeCopyrightScan, listCopyrightScans,
+  uploadCopyrightReference, runCopyrightScan, listCopyrightScans,
   getCopyrightScan, updateCopyrightMatch,
 } from "@/lib/copyright.functions";
 import { Button } from "@/components/ui/button";
@@ -126,7 +126,6 @@ async function extractFrames(file: File, count = 4): Promise<Blob[]> {
 function CopyrightIntelPage() {
   const uploadFn = useServerFn(uploadCopyrightReference);
   const runFn = useServerFn(runCopyrightScan);
-  const executeFn = useServerFn(executeCopyrightScan);
   const listFn = useServerFn(listCopyrightScans);
   const getFn = useServerFn(getCopyrightScan);
   const updFn = useServerFn(updateCopyrightMatch);
@@ -160,7 +159,7 @@ function CopyrightIntelPage() {
     queryFn: () => listFn({}),
     refetchInterval: (q) => {
       const rows = q.state.data ?? [];
-      return rows.some((s) => s.status === "running" || s.status === "pending") ? 2500 : false;
+      return rows.some((s) => s.status === "queued" || s.status === "running" || s.status === "pending") ? 2500 : false;
     },
   });
   const detail = useQuery({
@@ -174,7 +173,7 @@ function CopyrightIntelPage() {
     placeholderData: undefined,
     refetchInterval: (q) => {
       const status = q.state.data?.scan?.status;
-      return status === "running" || status === "pending" ? 2500 : false;
+      return status === "queued" || status === "running" || status === "pending" ? 2500 : false;
     },
   });
 
@@ -191,7 +190,7 @@ function CopyrightIntelPage() {
         ? prev
         : { title: selected.title, kind: selected.reference_kind === "video" ? "video" : "image" },
     );
-    if (selected.status === "running" || selected.status === "pending") {
+    if (selected.status === "queued" || selected.status === "running" || selected.status === "pending") {
       setSummary(null);
       return;
     }
@@ -210,52 +209,6 @@ function CopyrightIntelPage() {
     setInvestigationOpen(false);
     setSummary(null);
   };
-
-  const executeScan = useMutation({
-    mutationFn: (scanId: string) => executeFn({ data: { scanId } }),
-    onSuccess: (res: {
-      scanId: string;
-      status: string;
-      stats?: {
-        candidates?: number;
-        matches?: number;
-        graded?: number;
-        failure_reason?: string | null;
-      };
-    }) => {
-      setStage("");
-      setSelectedScanId(res.scanId);
-      qc.invalidateQueries({ queryKey: ["copyright-scans"] });
-      qc.invalidateQueries({ queryKey: ["copyright-scan", res.scanId] });
-      qc.invalidateQueries({ queryKey: ["distribution-monitor"] });
-
-      const st = res.stats ?? {};
-      if (res.status === "failed") {
-        setSummary(null);
-        toast.error(st.failure_reason || "Copyright scan failed before discovery completed.");
-        return;
-      }
-      setSummary({
-        candidates: st.candidates ?? 0,
-        matches: st.matches ?? 0,
-        graded: st.graded ?? 0,
-      });
-      if (res.status === "partial") {
-        toast.message(
-          `Partial results — ${st.matches ?? 0} match(es) saved before the scan deadline.`,
-        );
-        return;
-      }
-      toast.success(
-        `${st.matches ?? 0} evidence-backed match(es) from ${st.candidates ?? 0} candidates`,
-      );
-    },
-    onError: (e: Error) => {
-      setStage("");
-      toast.error(e.message);
-      qc.invalidateQueries({ queryKey: ["copyright-scans"] });
-    },
-  });
 
   const scan = useMutation({
     mutationFn: async () => {
@@ -319,22 +272,20 @@ function CopyrightIntelPage() {
       setStage("");
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       qc.invalidateQueries({ queryKey: ["copyright-scan", res.scanId] });
-      toast.message("Scan started — running discovery executor…");
-      executeScan.mutate(res.scanId);
+      toast.message("Scan queued — discovery will update here automatically.");
     },
     onError: (e: Error) => { setStage(""); setScanMeta(null); setSummary(null); toast.error(e.message); },
   });
 
   const scanBusy =
     scan.isPending ||
-    executeScan.isPending ||
+    selectedScanStatus === "queued" ||
     selectedScanStatus === "running" ||
     selectedScanStatus === "pending";
 
   useEffect(() => {
     if (!selectedScanId) return;
     if (selectedScanStatus === "completed" || selectedScanStatus === "partial" || selectedScanStatus === "failed") {
-      if (executeScan.isPending) executeScan.reset();
       if (scan.isPending) scan.reset();
       setStage("");
     }
