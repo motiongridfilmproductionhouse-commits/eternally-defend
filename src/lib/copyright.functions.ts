@@ -255,8 +255,15 @@ async function dispatchCopyrightScanExecution(scanId: string): Promise<void> {
     await sleep(300 * (attempt + 1));
   }
 
-  throw lastError instanceof Error ? lastError : new Error(errorMessage(lastError));
+  // Remote hook unreachable (misconfigured URL, env gap, cold start). Run the
+  // executor in-process so the scan still completes instead of failing hard.
+  console.error("copyright_scan_worker_dispatch_fallback_inline", {
+    scan_id: scanId,
+    error: errorMessage(lastError),
+  });
+  await dispatchCopyrightScanExecutionInline(scanId);
 }
+
 
 /** Presigned upload slot for a reference image or an extracted video frame. */
 export const prepareCopyrightUpload = createServerFn({ method: "POST" })
