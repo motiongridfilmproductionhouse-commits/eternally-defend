@@ -734,6 +734,7 @@ export async function firecrawlDiscover(
     return uniquePageKeys.size;
   };
 
+  const progressSeen = new Set<string>();
   const batched = await runBatchedDiscovery({
     plans,
     signal: options.signal,
@@ -741,6 +742,40 @@ export async function firecrawlDiscover(
     earlyStopUniquePages: DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
     uniquePageCount: countUniquePages,
     execute: (plan, signal) => search(plan.query, plan.recent, signal, deadlineAt),
+    onWave: options.onProgress
+      ? async (waveAttempts, totals) => {
+          const leads: DiscoveryProgress["leads"] = [];
+          for (const attempt of waveAttempts) {
+            if (!attempt.ok || !attempt.payload) continue;
+            const rows = [
+              ...(attempt.payload.data?.web ?? []).map((w) => ({
+                url: w.url,
+                title: w.title ?? null,
+              })),
+              ...(attempt.payload.data?.images ?? []).map((i) => ({
+                url: i.url ?? i.sourceUrl,
+                title: i.title ?? null,
+              })),
+            ];
+            for (const row of rows) {
+              if (!row.url) continue;
+              const key = canonicalUrl(row.url);
+              if (progressSeen.has(key) || isExcludedHost(key)) continue;
+              progressSeen.add(key);
+              leads.push({ url: key, title: row.title, query: attempt.query });
+              if (leads.length >= 12) break;
+            }
+          }
+          await options.onProgress?.({
+            queriesGenerated,
+            queriesExecuted: totals.requests,
+            providerSuccesses: totals.successes,
+            providerFailures: totals.failures,
+            uniquePages: totals.uniquePages,
+            leads,
+          });
+        }
+      : undefined,
   });
 
   const results = batched.attempts;
