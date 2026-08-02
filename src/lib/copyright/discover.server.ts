@@ -407,6 +407,20 @@ const FILE_HOST_FILTER =
 const STREAM_SITE_FILTER =
   "(site:movierulz.vc OR site:ibomma.bet OR site:tamilrockers.ws OR site:123movies.ai OR site:fmovies.to OR site:soap2day.day OR site:vegamovies.nl OR site:mp4moviez.ink OR site:9xmovies.gold) full movie";
 
+/**
+ * Piracy site families grouped into search-engine friendly clusters. These are
+ * discovery seeds only — every hit still has to pass exact-page evidence.
+ */
+const PIRACY_SITE_CLUSTERS: string[] = [
+  "(site:ogomovies1.com.pk OR site:ogomovies.com OR site:einthusan.tv OR site:mallumv.co OR site:malluvilla.in)",
+  "(site:movierulz.vc OR site:movierulz2.com OR site:5movierulz.re OR site:todaypk.mx OR site:movieswood.com)",
+  "(site:tamilmv.vip OR site:1tamilmv.com OR site:tamilblasters.hair OR site:moviesda.mobi OR site:isaimini.com)",
+  "(site:hdhub4u.tv OR site:filmy4wap.co.in OR site:vegamovies.nl OR site:bolly4u.org OR site:sdmoviespoint.cc)",
+  "(site:katmoviehd.tw OR site:cinevood.pics OR site:dvdplay.com.tz OR site:mp4moviez.ink OR site:9xmovies.gold)",
+  "(site:t.me OR site:telegram.me) movie download",
+  "(site:dailymotion.com OR site:ok.ru OR site:vk.com OR site:archive.org OR site:rumble.com) full movie",
+];
+
 function localTermsFor(langs: string[]): string[] {
   const out: string[] = [];
   for (const l of langs) {
