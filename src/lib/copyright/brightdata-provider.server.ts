@@ -50,7 +50,14 @@ export interface BrightDataDiscoveryHit {
   title: string | null;
   text: string;
   query: string;
+  /** SERP metadata (discovery only — never used as evidence). */
+  snippet: string | null;
+  rank: number | null;
+  domain: string | null;
+  provider: "bright_data";
+  discoveredAt: string;
 }
+
 
 export interface BrightDataDiscoveryResult {
   provider: "brightdata";
@@ -99,7 +106,12 @@ export function brightDataDiagnostic(): BrightDataDiagnostic {
   };
 }
 
-/** Exact quoted-title distribution queries only — never bare tokens. */
+/**
+ * Exact quoted-title distribution queries only — never bare tokens.
+ * Enriched with release year, language, alternate/transliterated titles and
+ * lead cast when the reference analysis provides them, so unrelated
+ * same-name collisions stay out of the candidate set.
+ */
 export function buildBrightDataQueries(
   analysis: ReferenceAnalysis,
   workTitle: string,
@@ -112,23 +124,42 @@ export function buildBrightDataQueries(
     analysis.title ?? "",
     ...analysis.altTitles,
   ]).slice(0, 4);
+
+  const year = (analysis.releaseDate ?? "").slice(0, 4);
+  const language = (analysis.language ?? "").trim();
+  const actor = (analysis.actors?.[0] ?? "").trim();
+  const qualifiers = [year, language].filter(Boolean).join(" ");
+
   const phrases = [
-    "watch full movie online free",
-    "download full movie",
+    "watch online full movie free",
+    "full movie download",
+    "streaming online free",
     "torrent magnet download",
-    "HDCAM CAM print theatre leak",
+    "CAM print HDCAM theatre print leak",
+    "WEBRip WEB-DL HDRip full movie",
     "full movie telegram link",
   ] as const;
+
   const out: string[] = [];
+  const push = (value: string) => {
+    const q = value.replace(/\s+/g, " ").trim();
+    if (q && !out.includes(q)) out.push(q);
+  };
+
   for (const name of names) {
     const quoted = `"${name.replaceAll('"', "").trim()}"`;
     for (const phrase of phrases) {
-      out.push(`${quoted} ${phrase}`);
-      if (out.length >= maxQueries) return out;
+      push(`${quoted} ${qualifiers} ${phrase}`);
+      if (out.length >= maxQueries) return out.slice(0, maxQueries);
+    }
+    if (actor) {
+      push(`${quoted} ${actor} full movie download`);
+      if (out.length >= maxQueries) return out.slice(0, maxQueries);
     }
   }
   return out.slice(0, maxQueries);
 }
+
 
 function searchUrlFor(query: string): string {
   const params = new URLSearchParams({ q: query, num: "20", brd_json: "1" });
@@ -170,7 +201,9 @@ export function brightDataHitsFromPayload(
   query: string,
 ): BrightDataDiscoveryHit[] {
   const hits: BrightDataDiscoveryHit[] = [];
+  let index = 0;
   for (const item of organicRows(payload)) {
+    index += 1;
     const raw = item.link ?? item.url ?? item.href;
     const link = typeof raw === "string" ? raw.trim() : "";
     if (!link.startsWith("http")) continue;
@@ -180,10 +213,29 @@ export function brightDataHitsFromPayload(
     const title = typeof item.title === "string" ? item.title : null;
     const snippetRaw = item.description ?? item.snippet ?? item.text;
     const snippet = typeof snippetRaw === "string" ? snippetRaw : "";
-    hits.push({ url: key, title, text: `${title ?? ""} ${snippet} ${key}`, query });
+    const rankRaw = item.rank ?? item.position ?? item.global_rank;
+    const rank = typeof rankRaw === "number" && Number.isFinite(rankRaw) ? rankRaw : index;
+    let domain: string | null = null;
+    try {
+      domain = new URL(key).hostname.replace(/^www\./, "");
+    } catch {
+      domain = null;
+    }
+    hits.push({
+      url: key,
+      title,
+      text: `${title ?? ""} ${snippet} ${key}`,
+      query,
+      snippet: snippet || null,
+      rank,
+      domain,
+      provider: "bright_data",
+      discoveredAt: new Date().toISOString(),
+    });
   }
   return hits;
 }
+
 
 export function classifyBrightDataFailure(opts: {
   status?: number | null;

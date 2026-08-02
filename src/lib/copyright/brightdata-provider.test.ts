@@ -285,3 +285,108 @@ test("sends the configured zone with bearer auth", async () => {
   assert.equal(seenZone, "serp_api1");
   restore();
 });
+
+test("parses organic_results, results and body-nested organic shapes", () => {
+  const rows = [{ link: "https://piracy-example.test/a", title: "t", description: "download" }];
+  assert.equal(brightDataHitsFromPayload({ organic_results: rows }, "q").length, 1);
+  assert.equal(brightDataHitsFromPayload({ results: rows }, "q").length, 1);
+  assert.equal(brightDataHitsFromPayload({ body: { organic: rows } }, "q").length, 1);
+  assert.equal(
+    brightDataHitsFromPayload({ body: JSON.stringify({ organic_results: rows }) }, "q").length,
+    1,
+  );
+});
+
+test("hits carry provider, rank, domain and discovery timestamp", () => {
+  const [hit] = brightDataHitsFromPayload(
+    { organic: [{ link: "https://piracy-example.test/x", title: "t", description: "torrent", rank: 4 }] },
+    "q",
+  );
+  assert.equal(hit.provider, "bright_data");
+  assert.equal(hit.rank, 4);
+  assert.equal(hit.domain, "piracy-example.test");
+  assert.ok(!Number.isNaN(Date.parse(hit.discoveredAt)));
+});
+
+test("queries include release year, language and lead actor when available", () => {
+  setup();
+  const queries = buildBrightDataQueries(
+    { ...analysis, actors: ["Lead Actor"] },
+    "Balan The Boy",
+    8,
+  );
+  assert.ok(queries.some((q) => q.includes("2026")));
+  assert.ok(queries.some((q) => q.includes("Malayalam")));
+  assert.ok(queries.some((q) => q.includes("Lead Actor")));
+  restore();
+});
+
+test("403 maps to invalid_credentials and stops further requests", async () => {
+  setup();
+  const calls = mockFetch(() => new Response("Forbidden", { status: 403 }));
+  const result = await runBrightDataDiscovery({
+    analysis,
+    workTitle: "Balan The Boy",
+    maxQueries: 4,
+  });
+  assert.equal(calls(), 1);
+  assert.equal(result.failuresByCategory.invalid_credentials, 1);
+  restore();
+});
+
+test("5xx retries once then reports provider_unavailable", async () => {
+  setup();
+  const calls = mockFetch(() => new Response("boom", { status: 502 }));
+  const result = await runBrightDataDiscovery({
+    analysis,
+    workTitle: "Balan The Boy",
+    maxQueries: 1,
+  });
+  assert.equal(calls(), 2);
+  assert.equal(result.failuresByCategory.provider_unavailable, 1);
+  restore();
+});
+
+test("missing zone env falls back to serp_api1 and honors overrides", async () => {
+  setup();
+  let zone: string | null = null;
+  mockFetch((body) => {
+    zone = (body as { zone: string }).zone;
+    return new Response(JSON.stringify({ organic: [] }), { status: 200 });
+  });
+  await runBrightDataDiscovery({ analysis, workTitle: "Balan The Boy", maxQueries: 1 });
+  assert.equal(zone, "serp_api1");
+  process.env.BRIGHT_DATA_ZONE = "zone_from_env";
+  await runBrightDataDiscovery({ analysis, workTitle: "Balan The Boy", maxQueries: 1 });
+  assert.equal(zone, "zone_from_env");
+  delete process.env.BRIGHT_DATA_ZONE;
+  restore();
+});
+
+test("official and trailer style hosts never become candidates", () => {
+  const hits = brightDataHitsFromPayload(
+    serpPayload([
+      "https://www.imdb.com/title/tt1",
+      "https://www.youtube.com/watch?v=trailer",
+      "https://piracy-example.test/full",
+    ]),
+    "q",
+  );
+  assert.deepEqual(
+    hits.map((h) => h.domain),
+    ["piracy-example.test"],
+  );
+});
+
+test("candidate leads stay discovery-only pending page evidence", async () => {
+  setup();
+  mockFetch(
+    () => new Response(JSON.stringify(serpPayload(["https://piracy-example.test/x"])), { status: 200 }),
+  );
+  const result = await runBrightDataDiscovery({ analysis, workTitle: "Balan The Boy", maxQueries: 1 });
+  for (const lead of result.pageLeads) {
+    assert.equal("finding" in lead, false);
+    assert.equal("verified" in lead, false);
+  }
+  restore();
+});
