@@ -80,6 +80,7 @@ import {
   type SourceActivityStatus,
 } from "@/lib/copyright/source-activity";
 import { ScanTelemetryWriter } from "@/lib/copyright/scan-telemetry";
+import { forcePersistCopyrightScanProviderSeed } from "@/lib/copyright/scan-provider-seed.server";
 import {
   decideCopyrightTerminalStatus,
   EXECUTOR_START_WATCHDOG_MS,
@@ -682,9 +683,17 @@ export async function executeCopyrightScanById(opts: {
       scan_id: scan.id,
       source: opts.source ?? "user",
     });
-    const userId = scan.user_id as string;
 
-    const priorStats = (scan.stats ?? {}) as Record<string, unknown>;
+    let priorStats = (scan.stats ?? {}) as Record<string, unknown>;
+    const seedResult = await forcePersistCopyrightScanProviderSeed({
+      supabase,
+      scanId: scan.id as string,
+      scanStatus: "running",
+      priorStats,
+    });
+    priorStats = seedResult.stats;
+
+    const userId = scan.user_id as string;
     const pending = (priorStats.pending_input ?? {}) as {
       contentType?: string;
       knownUrls?: string[];
@@ -752,14 +761,6 @@ export async function executeCopyrightScanById(opts: {
       referenceMaterials.appendImages(images);
     };
 
-    sourceActivity.upsert({ provider: "firecrawl", status: "queued" });
-    if (isYoutubeConfigured()) {
-      sourceActivity.upsert({ provider: "youtube", status: "queued" });
-    }
-    if (isBrightDataConfigured()) {
-      sourceActivity.upsert({ provider: "bright_data", label: "Bright Data", status: "queued" });
-    }
-
     activity.setWorkflowStage("preparing_reference");
     let abortedByDeadline = false;
     let liveStats: Record<string, unknown> = {
@@ -795,15 +796,22 @@ export async function executeCopyrightScanById(opts: {
       return telemetryWriter.flush(() => buildTelemetryStats(), force);
     };
 
-    await supabase
+    const executorBootstrapStats = sourceActivity.mergeToStats(
+      mergeReferenceStats(activity.mergeToStats(liveStats)),
+    );
+    const { data: bootstrapRows, error: bootstrapErr } = await supabase
       .from("copyright_scans")
-      .update({
-        stats: sourceActivity.mergeToStats(
-          mergeReferenceStats(activity.mergeToStats(liveStats)),
-        ) as never,
-      })
+      .update({ stats: executorBootstrapStats as never })
       .eq("id", scan.id)
-      .eq("status", "running");
+      .eq("status", "running")
+      .select("id, stats");
+    if (bootstrapErr) {
+      throw new Error(`Executor bootstrap stats write failed: ${bootstrapErr.message}`);
+    }
+    if (!bootstrapRows?.length) {
+      throw new Error("Executor bootstrap stats write updated zero rows.");
+    }
+    priorStats = (bootstrapRows[0] as { stats?: Record<string, unknown> }).stats ?? executorBootstrapStats;
 
     try {
       const firstBytes = await readStoredObject(keys[0]!);

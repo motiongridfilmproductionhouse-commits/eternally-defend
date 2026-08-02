@@ -34,6 +34,22 @@ export function sourceActivityLabel(provider: string): string {
   return PROVIDER_LABELS[provider] ?? provider.replace(/_/g, " ");
 }
 
+export function mergeSourceActivityIntoStats(
+  stats: Record<string, unknown>,
+  entries: SourceActivityEntry[],
+): Record<string, unknown> {
+  return {
+    ...stats,
+    source_activity: entries,
+    source_activity_count: entries.length,
+    source_activity_updated_at: entries.reduce(
+      (max, e) => (e.updated_at > max ? e.updated_at : max),
+      entries[0]?.updated_at ??
+        (typeof stats.last_progress_at === "string" ? stats.last_progress_at : new Date().toISOString()),
+    ),
+  };
+}
+
 export function parseSourceActivity(
   stats: Record<string, unknown> | null | undefined,
 ): SourceActivityEntry[] {
@@ -100,15 +116,7 @@ export class SourceActivityRecorder {
     const entries = [...this.entries.values()].sort((a, b) =>
       a.label.localeCompare(b.label),
     );
-    return {
-      ...stats,
-      source_activity: entries,
-      source_activity_count: entries.length,
-      source_activity_updated_at: entries.reduce(
-        (max, e) => (e.updated_at > max ? e.updated_at : max),
-        entries[0]?.updated_at ?? stats.last_progress_at ?? new Date().toISOString(),
-      ),
-    };
+    return mergeSourceActivityIntoStats(stats, entries);
   }
 
   count(): number {
