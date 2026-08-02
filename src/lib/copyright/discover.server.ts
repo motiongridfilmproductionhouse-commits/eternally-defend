@@ -191,10 +191,21 @@ export interface ProviderSearchAttempt {
 /** Focused query cap — early-stop may finish sooner when enough pages are found. */
 const DISCOVERY_MAX_QUERIES_PER_SCAN = 35;
 
+export interface DiscoveryProgress {
+  queriesGenerated: number;
+  queriesExecuted: number;
+  providerSuccesses: number;
+  providerFailures: number;
+  uniquePages: number;
+  /** New page leads seen in this wave (streamed to the live investigation UI). */
+  leads: Array<{ url: string; title: string | null; query: string }>;
+}
+
 export interface FirecrawlDiscoverOptions {
   signal?: AbortSignal;
   deadlineAt?: number;
   analysis?: ReferenceAnalysis;
+  onProgress?: (progress: DiscoveryProgress) => void | Promise<void>;
 }
 
 async function search(
@@ -396,6 +407,20 @@ const FILE_HOST_FILTER =
 const STREAM_SITE_FILTER =
   "(site:movierulz.vc OR site:ibomma.bet OR site:tamilrockers.ws OR site:123movies.ai OR site:fmovies.to OR site:soap2day.day OR site:vegamovies.nl OR site:mp4moviez.ink OR site:9xmovies.gold) full movie";
 
+/**
+ * Piracy site families grouped into search-engine friendly clusters. These are
+ * discovery seeds only — every hit still has to pass exact-page evidence.
+ */
+const PIRACY_SITE_CLUSTERS: string[] = [
+  "(site:ogomovies1.com.pk OR site:ogomovies.com OR site:einthusan.tv OR site:mallumv.co OR site:malluvilla.in)",
+  "(site:movierulz.vc OR site:movierulz2.com OR site:5movierulz.re OR site:todaypk.mx OR site:movieswood.com)",
+  "(site:tamilmv.vip OR site:1tamilmv.com OR site:tamilblasters.hair OR site:moviesda.mobi OR site:isaimini.com)",
+  "(site:hdhub4u.tv OR site:filmy4wap.co.in OR site:vegamovies.nl OR site:bolly4u.org OR site:sdmoviespoint.cc)",
+  "(site:katmoviehd.tw OR site:cinevood.pics OR site:dvdplay.com.tz OR site:mp4moviez.ink OR site:9xmovies.gold)",
+  "(site:t.me OR site:telegram.me) movie download",
+  "(site:dailymotion.com OR site:ok.ru OR site:vk.com OR site:archive.org OR site:rumble.com) full movie",
+];
+
 function localTermsFor(langs: string[]): string[] {
   const out: string[] = [];
   for (const l of langs) {
@@ -528,16 +553,39 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
     for (const n of names.slice(1, 3)) push(`"${n}" site:${seed}`, isFresh);
   }
 
-  push(`"${base}" full movie ${PIRACY_SITE_FILTER}`, isFresh);
-  push(`"${base}" ${FILE_HOST_FILTER}`, isFresh);
-  push(`"${base}" ${STREAM_SITE_FILTER}`, isFresh);
-  push(`"${base}" torrent magnet ${NEG}`, isFresh);
-  push(`"${base}" telegram full movie ${NEG}`, isFresh);
+  // High-yield piracy families and natural-language piracy phrasing. These are
+  // prioritised ahead of the generic phrase sweep so the bounded query budget
+  // always spends part of itself on the sites that actually host copies.
+  const priority: QueryPlan[] = [];
+  const pushPriority = (query: string) => {
+    if (query.trim()) priority.push({ query, recent: isFresh });
+  };
+
+  for (const cluster of PIRACY_SITE_CLUSTERS) {
+    pushPriority(`"${base}" ${cluster}`);
+  }
+  pushPriority(`"${base}" full movie ${PIRACY_SITE_FILTER}`);
+  pushPriority(`"${base}" ${FILE_HOST_FILTER}`);
+  pushPriority(`"${base}" ${STREAM_SITE_FILTER}`);
+  pushPriority(`"${base}" torrent magnet ${NEG}`);
+  pushPriority(`"${base}" (site:t.me OR site:telegram.me) full movie`);
+
+  // Native-language piracy phrasing (title always stays exact-quoted).
+  const langWord = a.language ? a.language.toLowerCase() : "";
+  for (const phrase of [
+    "movie download",
+    "full movie watch online free",
+    "movie download hdrip 720p",
+    "movie telegram link",
+    "movie download link",
+  ]) {
+    pushPriority(`"${base}" ${langWord} ${phrase} ${NEG}`.replace(/\s+/g, " "));
+  }
 
   const seen = new Set<string>();
-  return plans
+  return [...priority.slice(0, 12), ...plans, ...priority.slice(12)]
     .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
-    .slice(0, 40);
+    .slice(0, 44);
 }
 
 /**
@@ -723,6 +771,7 @@ export async function firecrawlDiscover(
     return uniquePageKeys.size;
   };
 
+  const progressSeen = new Set<string>();
   const batched = await runBatchedDiscovery({
     plans,
     signal: options.signal,
@@ -730,6 +779,40 @@ export async function firecrawlDiscover(
     earlyStopUniquePages: DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
     uniquePageCount: countUniquePages,
     execute: (plan, signal) => search(plan.query, plan.recent, signal, deadlineAt),
+    onWave: options.onProgress
+      ? async (waveAttempts, totals) => {
+          const leads: DiscoveryProgress["leads"] = [];
+          for (const attempt of waveAttempts) {
+            if (!attempt.ok || !attempt.payload) continue;
+            const rows = [
+              ...(attempt.payload.data?.web ?? []).map((w) => ({
+                url: w.url,
+                title: w.title ?? null,
+              })),
+              ...(attempt.payload.data?.images ?? []).map((i) => ({
+                url: i.url ?? i.sourceUrl,
+                title: i.title ?? null,
+              })),
+            ];
+            for (const row of rows) {
+              if (!row.url) continue;
+              const key = canonicalUrl(row.url);
+              if (progressSeen.has(key) || isExcludedHost(key)) continue;
+              progressSeen.add(key);
+              leads.push({ url: key, title: row.title, query: attempt.query });
+              if (leads.length >= 12) break;
+            }
+          }
+          await options.onProgress?.({
+            queriesGenerated,
+            queriesExecuted: totals.requests,
+            providerSuccesses: totals.successes,
+            providerFailures: totals.failures,
+            uniquePages: totals.uniquePages,
+            leads,
+          });
+        }
+      : undefined,
   });
 
   const results = batched.attempts;

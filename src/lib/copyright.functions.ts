@@ -868,10 +868,31 @@ export async function executeCopyrightScanById(opts: {
         brightdata_last_status: "disabled",
       });
 
+      let discoveredLeadCount = 0;
       let discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
         signal: discoverySignal,
         deadlineAt: discoveryDeadlineAt,
         analysis,
+        // Stream live discovery telemetry so the investigation feed and the
+        // counters move while the sweeps are still running.
+        onProgress: async (progress) => {
+          for (const lead of progress.leads) {
+            activity.recordDiscovered({
+              url: lead.url,
+              pageTitle: lead.title,
+              leadQuery: lead.query,
+            });
+            discoveredLeadCount += 1;
+          }
+          await pushActivity({
+            queries_generated: progress.queriesGenerated,
+            queries_executed: progress.queriesExecuted,
+            firecrawl_queries_completed: progress.queriesExecuted,
+            provider_failures: progress.providerFailures,
+            provider_results: discoveredLeadCount,
+            unique_candidate_pages: progress.uniquePages,
+          });
+        },
       });
       const brightDataDiscovery = emptyBrightDataDiscovery();
 

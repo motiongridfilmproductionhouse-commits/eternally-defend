@@ -455,6 +455,7 @@ async function fetchStaticHtml(
 async function firecrawlRender(
   url: string,
   signal?: AbortSignal,
+  proxy: "basic" | "stealth" = "basic",
 ): Promise<{
   ok: boolean;
   data: ScrapeInner | null;
@@ -471,6 +472,9 @@ async function firecrawlRender(
         formats: ["markdown", "html", "links", "screenshot"],
         onlyMainContent: false,
         waitFor: 2500,
+        // Piracy hosts frequently block plain crawlers; the caller retries with
+        // the stealth proxy so those pages still yield evidence.
+        proxy,
       },
       { signal: hopSignal },
     );
@@ -615,8 +619,16 @@ export async function retrieveCopyrightPage(
     };
   }
 
-  // 4. Firecrawl rendered exact-page fallback
-  const renderedPage = await firecrawlRender(finalUrl, signal);
+  // 4. Firecrawl rendered exact-page fallback (stealth retry when blocked)
+  let renderedPage = await firecrawlRender(finalUrl, signal);
+  if (
+    !renderedPage.ok &&
+    (renderedPage.failureCategory === "blocked_403" ||
+      renderedPage.failureCategory === "render_failure" ||
+      renderedPage.failureCategory === "provider_failure")
+  ) {
+    renderedPage = await firecrawlRender(finalUrl, signal, "stealth");
+  }
   if (renderedPage.ok && renderedPage.data) {
     const data = renderedPage.data;
     html = data.html ?? html;

@@ -147,6 +147,19 @@ export interface RunBatchedDiscoveryOptions<TPlan, TAttempt extends ProviderSear
   deadlineAt?: number;
   earlyStopUniquePages?: number;
   uniquePageCount: (attempts: TAttempt[]) => number;
+  /**
+   * Called after every completed concurrency wave so callers can stream live
+   * discovery telemetry (queries done, leads found) while the scan is running.
+   */
+  onWave?: (
+    waveAttempts: TAttempt[],
+    totals: {
+      requests: number;
+      successes: number;
+      failures: number;
+      uniquePages: number;
+    },
+  ) => void | Promise<void>;
 }
 
 export interface RunBatchedDiscoveryResult<TAttempt extends ProviderSearchAttemptLike> {
@@ -216,7 +229,17 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
         }
       }
 
-      if (options.uniquePageCount(attempts) >= earlyStopAt) {
+      const uniqueSoFar = options.uniquePageCount(attempts);
+      if (options.onWave) {
+        await options.onWave(waveResults, {
+          requests: attempts.length,
+          successes,
+          failures,
+          uniquePages: uniqueSoFar,
+        });
+      }
+
+      if (uniqueSoFar >= earlyStopAt) {
         stoppedEarly = true;
         stoppedEarlyReason = `Early stop: ${earlyStopAt} unique candidate pages collected.`;
         break;
