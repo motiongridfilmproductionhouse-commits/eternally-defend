@@ -30,6 +30,7 @@ import { evaluateTelegramPublicEvidence } from "./telegram-evidence";
 const FUNCTIONS_PATH = resolve(process.cwd(), "src/lib/copyright.functions.ts");
 const UI_PATH = resolve(process.cwd(), "src/routes/_app.copyright-intel.tsx");
 const WORKER_AUTH_PATH = resolve(process.cwd(), "src/lib/copyright/worker-auth.server.ts");
+const DISPATCH_PATH = resolve(process.cwd(), "src/lib/copyright/scan-worker-dispatch.server.ts");
 const MONITOR_PATH = resolve(
   process.cwd(),
   "src/components/copyright/DistributionMonitorPanel.tsx",
@@ -48,7 +49,8 @@ test("backend dispatches executor after scan row creation", () => {
   assert.match(src, /export const runCopyrightScan/);
   assert.match(src, /export const executeCopyrightScan/);
   assert.match(src, /dispatchCopyrightScanExecution\(scan\.id as string\)/);
-  assert.match(src, /COPYRIGHT_SCAN_WORKER_URL/);
+  assert.match(src, /resolveCopyrightScanWorkerUrl/);
+  assert.match(readFileSync(DISPATCH_PATH, "utf8"), /COPYRIGHT_SCAN_WORKER_URL/);
   assert.match(readFileSync(WORKER_AUTH_PATH, "utf8"), /COPYRIGHT_SCAN_WORKER_SECRET/);
   assert.doesNotMatch(ui, /executeCopyrightScan/);
   assert.doesNotMatch(ui, /executeScan\.mutate\(res\.scanId\)/);

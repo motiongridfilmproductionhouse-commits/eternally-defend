@@ -45,6 +45,10 @@ import {
   type CrawlFailureCategory,
 } from "@/lib/copyright/crawl-failure";
 import {
+  isCopyrightScanWorkerSecretConfigured,
+  resolveCopyrightScanWorkerUrl,
+} from "@/lib/copyright/scan-worker-dispatch.server";
+import {
   ScanActivityRecorder,
   flushScanActivity,
 } from "@/lib/copyright/scan-activity";
@@ -195,9 +199,33 @@ export async function writeCopyrightTerminalStatus(
   throw lastError instanceof Error ? lastError : new Error(errorMessage(lastError));
 }
 
+async function dispatchCopyrightScanExecutionInline(scanId: string): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  void executeCopyrightScanById({
+    supabase: supabaseAdmin,
+    scanId,
+    source: "worker",
+  }).catch((error) => {
+    console.error("copyright_scan_inline_executor_failed", {
+      scan_id: scanId,
+      error: errorMessage(error),
+    });
+  });
+}
+
 async function dispatchCopyrightScanExecution(scanId: string): Promise<void> {
-  const workerUrl = process.env.COPYRIGHT_SCAN_WORKER_URL?.trim();
-  if (!workerUrl) throw new Error("COPYRIGHT_SCAN_WORKER_URL is not configured.");
+  const workerUrl = resolveCopyrightScanWorkerUrl();
+  if (!workerUrl) {
+    await dispatchCopyrightScanExecutionInline(scanId);
+    return;
+  }
+
+  if (!isCopyrightScanWorkerSecretConfigured()) {
+    // Development / single-node fallback when the signed hook secret is not set.
+    await dispatchCopyrightScanExecutionInline(scanId);
+    return;
+  }
+
   const body = JSON.stringify({ scan_id: scanId });
   const { signCopyrightScanWorkerRequest } = await import("@/lib/copyright/worker-auth.server");
   const { signature, timestamp } = signCopyrightScanWorkerRequest(body);
