@@ -4,6 +4,7 @@
  */
 
 export type SourceActivityStatus =
+  | "starting"
   | "queued"
   | "searching"
   | "completed"
@@ -61,9 +62,18 @@ export function parseSourceActivity(
     const r = row as Record<string, unknown>;
     const provider = typeof r.provider === "string" ? r.provider : null;
     const label = typeof r.label === "string" ? r.label : null;
-    const status = typeof r.status === "string" ? (r.status as SourceActivityStatus) : null;
+    const status = typeof r.status === "string" ? r.status : null;
     const updatedAt = typeof r.updated_at === "string" ? r.updated_at : null;
     if (!provider || !label || !status || !updatedAt) continue;
+    const allowed: SourceActivityStatus[] = [
+      "starting",
+      "queued",
+      "searching",
+      "completed",
+      "failed",
+      "no_results",
+    ];
+    if (!allowed.includes(status as SourceActivityStatus)) continue;
     const num = (key: string) => {
       const v = r[key];
       return typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -71,7 +81,7 @@ export function parseSourceActivity(
     out.push({
       provider,
       label,
-      status,
+      status: status as SourceActivityStatus,
       requests: num("requests"),
       candidates: num("candidates"),
       failures: num("failures"),

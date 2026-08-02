@@ -80,7 +80,10 @@ import {
   type SourceActivityStatus,
 } from "@/lib/copyright/source-activity";
 import { ScanTelemetryWriter } from "@/lib/copyright/scan-telemetry";
-import { forcePersistCopyrightScanProviderSeed } from "@/lib/copyright/scan-provider-seed.server";
+import {
+  configuredCopyrightScanProviders,
+  forcePersistCopyrightScanProviderSeed,
+} from "@/lib/copyright/scan-provider-seed.server";
 import {
   decideCopyrightTerminalStatus,
   EXECUTOR_START_WATCHDOG_MS,
@@ -602,6 +605,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       scanId: scan.id as string,
       started: true as const,
       status: "queued" as const,
+      configuredProviders: configuredCopyrightScanProviders().map((p) => p.provider),
     };
   });
 

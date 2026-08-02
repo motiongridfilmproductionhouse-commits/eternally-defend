@@ -79,6 +79,8 @@ function classificationTone(cls: string): string {
 
 function providerStatusTone(status: SourceActivityStatus | string): string {
   switch (status) {
+    case "starting":
+      return "border-primary/35 bg-primary/10 text-primary";
     case "searching":
       return "border-primary/40 bg-primary/10 text-primary";
     case "completed":
@@ -114,15 +116,24 @@ function materialToCard(m: ReferenceMaterial): ReelCard {
 }
 
 function providerToCard(entry: SourceActivityEntry): ReelCard {
+  const starting = entry.status === "starting";
   return {
     key: `provider-${entry.provider}`,
     kind: "provider",
     title: entry.label,
-    subtitle: `${entry.requests} req · ${entry.candidates} found · ${entry.failures} fail`,
+    subtitle: starting
+      ? entry.provider === "bright_data"
+        ? "Starting search"
+        : entry.provider === "firecrawl"
+          ? "Preparing discovery"
+          : entry.provider === "youtube"
+            ? "Preparing video search"
+            : "Starting"
+      : `${entry.requests} req · ${entry.candidates} found · ${entry.failures} fail`,
     badge: entry.status,
     provider: entry.provider,
     status: entry.status,
-    pulse: entry.status === "searching" || entry.status === "queued",
+    pulse: starting || entry.status === "searching" || entry.status === "queued",
   };
 }
 
@@ -140,10 +151,40 @@ function websiteToCard(event: ScanActivityEvent): ReelCard {
   };
 }
 
+function buildBootstrapStatusCards(): ReelCard[] {
+  return [
+    {
+      key: "bootstrap-trailer",
+      kind: "status",
+      title: "Trailer discovery",
+      subtitle: "Waiting",
+      badge: "waiting",
+      pulse: true,
+    },
+    {
+      key: "bootstrap-poster",
+      kind: "status",
+      title: "Poster discovery",
+      subtitle: "Waiting",
+      badge: "waiting",
+      pulse: true,
+    },
+    {
+      key: "bootstrap-website",
+      kind: "status",
+      title: "Website investigation",
+      subtitle: "Initializing",
+      badge: "initializing",
+      pulse: true,
+    },
+  ];
+}
+
 function buildReelCards(input: {
   materials: ReferenceMaterial[];
   providers: SourceActivityEntry[];
   websites: ScanActivityEvent[];
+  bootstrapActive?: boolean;
 }): ReelCard[] {
   const cards: ReelCard[] = [];
 
@@ -157,6 +198,12 @@ function buildReelCards(input: {
 
   for (const w of input.websites.slice(0, 8)) {
     cards.push(websiteToCard(w));
+  }
+
+  if (input.bootstrapActive && input.materials.length === 0) {
+    for (const card of buildBootstrapStatusCards()) {
+      cards.push(card);
+    }
   }
 
   return cards;
@@ -301,6 +348,7 @@ export function ReferenceMaterialReel({
   const completed = scanStatus === "completed" || scanStatus === "partial";
   const failed = scanStatus === "failed";
 
+  const bootstrapActive = stats?.scan_bootstrap === true;
   const materials = useMemo(() => parseReferenceMaterials(stats), [stats]);
   const providers = useMemo(() => parseSourceActivity(stats), [stats]);
   const websites = useMemo(
@@ -314,8 +362,9 @@ export function ReferenceMaterialReel({
         materials,
         providers,
         websites,
+        bootstrapActive,
       }),
-    [materials, providers, websites],
+    [materials, providers, websites, bootstrapActive],
   );
 
   const loopCards = useMemo(() => {
@@ -331,7 +380,9 @@ export function ReferenceMaterialReel({
   const shouldAnimate = !reducedMotion && !paused && (active || completed);
 
   const statusLine = active
-    ? "Searching public web and video sources"
+    ? bootstrapActive
+      ? "Connecting to discovery providers…"
+      : "Searching public web and video sources"
     : failed
       ? "Scan ended — collected materials preserved"
       : completed
@@ -403,9 +454,9 @@ export function ReferenceMaterialReel({
       </div>
       )}
 
-      {providers.length === 0 && active && (
+      {providers.length === 0 && active && !bootstrapActive && (
         <p className="rounded-lg border border-dashed border-border/50 bg-background/20 px-3 py-3 text-center text-[11px] text-muted-foreground">
-          Awaiting first provider telemetry…
+          Connecting to discovery providers…
         </p>
       )}
 
@@ -419,16 +470,18 @@ export function ReferenceMaterialReel({
             >
               {entry.provider === "youtube" ? (
                 <Youtube className="h-3.5 w-3.5 shrink-0" />
-              ) : entry.status === "searching" ? (
+              ) : entry.status === "searching" || entry.status === "starting" ? (
                 <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
               ) : (
                 <Radar className="h-3.5 w-3.5 shrink-0" />
               )}
               <span className="font-semibold">{entry.label}</span>
               <span className="opacity-80">{entry.status}</span>
-              <span className="tabular-nums opacity-70">
-                {entry.candidates}c · {entry.requests}r
-              </span>
+              {entry.status !== "starting" && (
+                <span className="tabular-nums opacity-70">
+                  {entry.candidates}c · {entry.requests}r
+                </span>
+              )}
             </div>
           ))}
         </div>

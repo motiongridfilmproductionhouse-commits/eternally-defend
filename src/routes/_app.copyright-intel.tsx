@@ -6,8 +6,15 @@ import {
   uploadCopyrightReference, runCopyrightScan, listCopyrightScans,
   getCopyrightScan, updateCopyrightMatch,
 } from "@/lib/copyright.functions";
+import {
+  bootstrapStatsFromState,
+  createScanBootstrap,
+  isActiveScanStatus,
+  mergeActiveScanStats,
+  rememberNonEmptyScanTelemetry,
+  type ScanBootstrapState,
+} from "@/lib/copyright/scan-bootstrap";
 import { parseSourceActivity } from "@/lib/copyright/source-activity";
-import { mergeCopyrightPollStats } from "@/lib/copyright/scan-poll-stats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -147,6 +154,8 @@ function CopyrightIntelPage() {
 
   const [investigationOpen, setInvestigationOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [bootstrapByScanId, setBootstrapByScanId] = useState<Record<string, ScanBootstrapState>>({});
+  const lastKnownStatsRef = useRef<Record<string, Record<string, unknown>>>({});
   const blobToBase64 = async (blob: Blob): Promise<string> => {
     const buffer = await blob.arrayBuffer();
     let binary = "";
@@ -179,9 +188,6 @@ function CopyrightIntelPage() {
       return status === "queued" || status === "running" || status === "pending" ? 2500 : false;
     },
   });
-
-  const selectedScanRow = (scans.data ?? []).find((s) => s.id === selectedScanId) ?? null;
-  const selectedScanStatus = selectedScanRow?.status ?? detail.data?.scan?.status ?? null;
 
   // Bind banner/summary only for terminal selected-scan stats — never flash zeros as "complete".
   useEffect(() => {
@@ -270,16 +276,44 @@ function CopyrightIntelPage() {
         },
       });
     },
-    onSuccess: (res: { scanId: string; started?: boolean; status?: string }) => {
+    onSuccess: (res: {
+      scanId: string;
+      started?: boolean;
+      status?: string;
+      configuredProviders?: string[];
+    }) => {
+      const bootstrap = createScanBootstrap({
+        scanId: res.scanId,
+        configuredProviderIds:
+          res.configuredProviders?.length
+            ? res.configuredProviders
+            : ["firecrawl", "youtube", "bright_data"],
+      });
+      setBootstrapByScanId((prev) => ({ ...prev, [res.scanId]: bootstrap }));
       setSelectedScanId(res.scanId);
       setSummary(null);
       setStage("");
+      qc.setQueryData(
+        ["copyright-scans"],
+        (old: Array<Record<string, unknown>> | undefined) => {
+          const optimistic = {
+            id: res.scanId,
+            title: scanMeta?.title ?? "",
+            status: "queued",
+            reference_kind: scanMeta?.kind === "video" ? "video" : "image",
+            created_at: new Date().toISOString(),
+            stats: bootstrapStatsFromState(bootstrap),
+          };
+          return [optimistic, ...(old ?? []).filter((row) => row.id !== res.scanId)];
+        },
+      );
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       qc.invalidateQueries({ queryKey: ["copyright-scan", res.scanId] });
       toast.message("Scan queued — discovery will update here automatically.");
     },
     onError: async (e: Error) => {
       setStage("");
+      setBootstrapByScanId({});
       toast.error(e.message);
       await qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       const rows = qc.getQueryData<Array<{ id: string; title: string; status: string }>>([
@@ -297,21 +331,37 @@ function CopyrightIntelPage() {
     },
   });
 
+  const selectedScanRow = (scans.data ?? []).find((s) => s.id === selectedScanId) ?? null;
+  const bootstrapForSelected = selectedScanId ? bootstrapByScanId[selectedScanId] ?? null : null;
+  const selectedScanStatus =
+    selectedScanRow?.status ??
+    detail.data?.scan?.status ??
+    (bootstrapForSelected ? "queued" : null) ??
+    (scan.isPending ? "queued" : null);
+
   const scanBusy =
     scan.isPending ||
-    selectedScanStatus === "queued" ||
-    selectedScanStatus === "running" ||
-    selectedScanStatus === "pending";
+    isActiveScanStatus(selectedScanStatus) ||
+    !!bootstrapForSelected;
 
   useEffect(() => {
     if (!selectedScanId) return;
-    if (selectedScanStatus === "completed" || selectedScanStatus === "partial" || selectedScanStatus === "failed") {
+    if (
+      selectedScanStatus === "completed" ||
+      selectedScanStatus === "partial" ||
+      selectedScanStatus === "failed"
+    ) {
       if (scan.isPending) scan.reset();
       setStage("");
+      setBootstrapByScanId((prev) => {
+        if (!prev[selectedScanId]) return prev;
+        const next = { ...prev };
+        delete next[selectedScanId];
+        return next;
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedScanStatus, selectedScanId]);
-
 
   const review = useMutation({
     mutationFn: (v: { matchId: string; reviewStatus: "pending" | "evidence_ready" | "dismissed" }) => updFn({ data: v }),
@@ -340,14 +390,53 @@ function CopyrightIntelPage() {
       selectedScanTitle,
     });
 
-  const activeScanStats = mergeCopyrightPollStats(
-    selectedScanId && selectedScanRow?.id === selectedScanId
-      ? (selectedScanRow.stats as Record<string, unknown> | null | undefined)
-      : null,
-    detail.data?.scan?.id === selectedScanId
-      ? (detail.data.scan.stats as Record<string, unknown> | null | undefined)
-      : null,
-  );
+  const polledStats = mergeActiveScanStats({
+    listStats:
+      selectedScanId && selectedScanRow?.id === selectedScanId
+        ? (selectedScanRow.stats as Record<string, unknown> | null | undefined)
+        : null,
+    detailStats:
+      detail.data?.scan?.id === selectedScanId
+        ? (detail.data.scan.stats as Record<string, unknown> | null | undefined)
+        : null,
+    bootstrap: bootstrapForSelected,
+    lastKnown: selectedScanId ? lastKnownStatsRef.current[selectedScanId] ?? null : null,
+  });
+
+  useEffect(() => {
+    if (!selectedScanId) return;
+    const listStats =
+      selectedScanId && selectedScanRow?.id === selectedScanId
+        ? (selectedScanRow.stats as Record<string, unknown> | null | undefined)
+        : null;
+    const detailStats =
+      detail.data?.scan?.id === selectedScanId
+        ? (detail.data.scan.stats as Record<string, unknown> | null | undefined)
+        : null;
+    const polled = mergeActiveScanStats({
+      listStats,
+      detailStats,
+      bootstrap: null,
+      lastKnown: null,
+    });
+    const remembered = rememberNonEmptyScanTelemetry(
+      lastKnownStatsRef.current[selectedScanId] ?? null,
+      polled,
+    );
+    if (remembered) {
+      lastKnownStatsRef.current[selectedScanId] = remembered;
+    }
+  }, [selectedScanId, selectedScanRow, detail.data]);
+
+  const activeScanStats =
+    scan.isPending && scanMeta && !selectedScanId
+      ? bootstrapStatsFromState(
+          createScanBootstrap({
+            scanId: "pending",
+            configuredProviderIds: ["firecrawl", "youtube", "bright_data"],
+          }),
+        )
+      : polledStats;
 
   useEffect(() => {
     if (!import.meta.env.DEV || !scanBusy || !selectedScanId) return;
@@ -391,7 +480,7 @@ function CopyrightIntelPage() {
             previews={previews}
             title={scanMeta.title}
             kind={scanMeta.kind}
-            scanStatus={selectedScanStatus}
+            scanStatus={selectedScanStatus ?? "queued"}
             scanId={selectedScanId}
             stats={activeScanStats}
           />
