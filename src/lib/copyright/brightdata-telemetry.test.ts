@@ -68,3 +68,10 @@ test("all failures with no successes surfaces error status", () => {
   assert.equal(t.status, "error");
   assert.deepEqual(t.errors, ["Invalid credentials (2)"]);
 });
+
+test("no provider stats yet reads as pending, not missing api key", () => {
+  const t = brightDataTelemetryFromStats({}, "running");
+  assert.equal(t.status, "pending");
+  assert.equal(t.statusLabel, "Pending");
+  assert.deepEqual(t.errors, []);
+});
