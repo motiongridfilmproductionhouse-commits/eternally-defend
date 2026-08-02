@@ -7,7 +7,6 @@ import {
   Globe,
   FileCheck,
   CheckCircle2,
-  Film,
   Radar,
   Search,
   Download,
@@ -26,6 +25,8 @@ import {
 } from "@/lib/copyright/scan-activity";
 import { LiveWebsiteInvestigation } from "@/components/copyright/LiveWebsiteInvestigation";
 import { brightDataTelemetryFromStats } from "@/lib/copyright/scan-activity";
+import { ReferenceMaterialCarousel } from "@/components/copyright/ReferenceMaterialCarousel";
+import { SourceActivityStrip } from "@/components/copyright/SourceActivityStrip";
 
 export interface ScanProgressProps {
   previews: string[];
@@ -213,40 +214,33 @@ export function ScanProgress({
       </div>
 
       <div className="relative mt-5 grid gap-5 lg:grid-cols-[minmax(0,240px)_1fr]">
-        <div className="space-y-2">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            {kind === "video" ? "Extracted frames" : "Reference material"}
-          </p>
-          <div className="relative overflow-hidden rounded-lg border border-border/60 bg-background/40">
-            {previews[0] ? (
-              <img
-                src={previews[0]}
-                alt={`Reference material for ${title}`}
-                className="h-36 w-full object-cover sm:h-40"
-              />
-            ) : (
-              <div className="grid h-36 w-full place-items-center text-muted-foreground sm:h-40">
-                {kind === "video" ? <Film className="h-6 w-6" /> : <ImageIcon className="h-6 w-6" />}
+        <div className="space-y-3">
+          <ReferenceMaterialCarousel
+            originalPreview={previews[0] ?? null}
+            stats={stats}
+            scanStatus={scanStatus}
+            reducedMotion={reducedMotion}
+          />
+          <SourceActivityStrip stats={stats} />
+          {kind === "video" && previews.length > 1 && (
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Extracted frames
+              </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {previews.map((src, i) => (
+                  <div
+                    key={src}
+                    className={`relative overflow-hidden rounded border transition-all duration-500 ${
+                      i < visibleFrames
+                        ? "border-primary/40 opacity-100"
+                        : "border-border/40 opacity-0"
+                    }`}
+                  >
+                    <img src={src} alt={`Frame ${i + 1}`} className="h-12 w-full object-cover" />
+                  </div>
+                ))}
               </div>
-            )}
-            {animate && (
-              <span className="pointer-events-none absolute inset-x-0 top-0 h-10 animate-[scanSweep_2.4s_ease-in-out_infinite] bg-gradient-to-b from-primary/40 to-transparent" />
-            )}
-          </div>
-          {previews.length > 1 && (
-            <div className="grid grid-cols-4 gap-1.5">
-              {previews.map((src, i) => (
-                <div
-                  key={src}
-                  className={`relative overflow-hidden rounded border transition-all duration-500 ${
-                    i < visibleFrames
-                      ? "border-primary/40 opacity-100"
-                      : "border-border/40 opacity-0"
-                  }`}
-                >
-                  <img src={src} alt={`Frame ${i + 1}`} className="h-12 w-full object-cover" />
-                </div>
-              ))}
             </div>
           )}
         </div>

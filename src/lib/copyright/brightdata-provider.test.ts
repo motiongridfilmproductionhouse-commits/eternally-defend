@@ -308,6 +308,22 @@ test("hits carry provider, rank, domain and discovery timestamp", () => {
   assert.ok(!Number.isNaN(Date.parse(hit.discoveredAt)));
 });
 
+test("extracts organic SERP thumbnail when present", () => {
+  const [hit] = brightDataHitsFromPayload(
+    {
+      organic: [
+        {
+          link: "https://piracy-example.test/x",
+          title: "t",
+          thumbnail: "https://cdn.example.com/thumb.jpg",
+        },
+      ],
+    },
+    "q",
+  );
+  assert.equal(hit.imageUrl, "https://cdn.example.com/thumb.jpg");
+});
+
 test("queries include release year, language and lead actor when available", () => {
   setup();
   const queries = buildBrightDataQueries(

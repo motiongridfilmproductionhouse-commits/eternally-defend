@@ -23,6 +23,10 @@ import { retrieveCopyrightPage } from "./page-retrieve.server";
 import type { CrawlFailureCategory } from "./crawl-failure";
 import { releaseTimingFor, type ReleaseTiming } from "./release-timing";
 import type { CopyrightClassification } from "./taxonomy";
+import {
+  extractReferenceImagesFromPage,
+  type ReferenceImage,
+} from "./reference-images";
 
 export type { ReleaseTiming, PiracyIndicator };
 export { releaseTimingFor };
@@ -79,6 +83,8 @@ export interface DistributionAnalysis {
   retrievalMethod: "static_html" | "firecrawl_render" | "none";
   /** True when Firecrawl rendered fallback was used. */
   rendered: boolean;
+  /** Thumbnails discovered on this page for the live reference carousel only. */
+  pageReferenceImages?: ReferenceImage[];
 }
 
 function toLegacyContentType(
@@ -290,18 +296,28 @@ export async function analyzeDistributionPage(opts: {
     });
   }
 
-  return fromClassify(
-    retrieved.finalUrl,
-    pageTitle,
-    retrieved.screenshot ?? opts.screenshot ?? null,
-    classified,
-    detailFollowUrls,
-    false,
-    null,
-    null,
-    retrieved.method,
-    retrieved.rendered,
-  );
+  return {
+    ...fromClassify(
+      retrieved.finalUrl,
+      pageTitle,
+      retrieved.screenshot ?? opts.screenshot ?? null,
+      classified,
+      detailFollowUrls,
+      false,
+      null,
+      null,
+      retrieved.method,
+      retrieved.rendered,
+    ),
+    pageReferenceImages: extractReferenceImagesFromPage({
+      pageUrl: retrieved.finalUrl,
+      title: pageTitle,
+      metadata: meta,
+      html,
+      screenshot: retrieved.screenshot ?? opts.screenshot ?? null,
+      provider: retrieved.rendered ? "firecrawl" : "direct_retrieval",
+    }),
+  };
 }
 
 /**

@@ -56,6 +56,8 @@ export interface BrightDataDiscoveryHit {
   snippet: string | null;
   rank: number | null;
   domain: string | null;
+  /** Organic SERP thumbnail when returned by Bright Data (carousel only). */
+  imageUrl: string | null;
   provider: "bright_data";
   discoveredAt: string;
 }
@@ -264,6 +266,18 @@ export function brightDataHitsFromPayload(
     } catch {
       domain = null;
     }
+    const thumbRaw =
+      item.thumbnail ??
+      item.image ??
+      item.imageUrl ??
+      item.image_url ??
+      (item.rich_snippet && typeof item.rich_snippet === "object"
+        ? (item.rich_snippet as Record<string, unknown>).image
+        : null);
+    const imageUrl =
+      typeof thumbRaw === "string" && thumbRaw.trim().startsWith("http")
+        ? thumbRaw.trim()
+        : null;
     hits.push({
       url: key,
       title,
@@ -272,6 +286,7 @@ export function brightDataHitsFromPayload(
       snippet: snippet || null,
       rank,
       domain,
+      imageUrl,
       provider: "bright_data",
       discoveredAt: new Date().toISOString(),
     });
