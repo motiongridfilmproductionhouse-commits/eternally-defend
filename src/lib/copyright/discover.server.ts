@@ -8,7 +8,12 @@
  * piracy indexes, forums, social platforms and video hosts.
  */
 
-import { firecrawlFetch, isFirecrawlConfigured } from "@/lib/firecrawl-client.server";
+import {
+  firecrawlEnvironmentDiagnostic,
+  firecrawlFetch,
+  isFirecrawlConfigured,
+  type FirecrawlEnvironmentDiagnostic,
+} from "@/lib/firecrawl-client.server";
 import {
   canonicalUrl,
   hostOf,
@@ -620,6 +625,7 @@ export interface DiscoveryResult {
   telegram_candidates: number;
   telegram_failures: number;
   telegram_requests: number;
+  firecrawl_env_diagnostic: FirecrawlEnvironmentDiagnostic;
 }
 
 /**
@@ -671,6 +677,7 @@ export async function firecrawlDiscover(
     telegram_candidates: 0,
     telegram_failures: 0,
     telegram_requests: 0,
+    firecrawl_env_diagnostic: firecrawlEnvironmentDiagnostic(),
   });
 
   if (!isFirecrawlConfigured()) {
@@ -919,6 +926,6 @@ export async function firecrawlDiscover(
     telegram_candidates: telegramCandidates,
     telegram_failures: telegramFailures,
     telegram_requests: telegramRequests,
+    firecrawl_env_diagnostic: firecrawlEnvironmentDiagnostic(),
   };
 }
-
