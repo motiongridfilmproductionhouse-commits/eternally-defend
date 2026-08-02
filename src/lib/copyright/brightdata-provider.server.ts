@@ -31,7 +31,7 @@ import {
 
 export const BRIGHTDATA_ENDPOINT = "https://api.brightdata.com/request";
 export const BRIGHTDATA_DEFAULT_ZONE = "serp_api1";
-export const BRIGHTDATA_MAX_QUERIES_PER_SCAN = 6;
+export const BRIGHTDATA_MAX_QUERIES_PER_SCAN = 14;
 export const BRIGHTDATA_MAX_UNIQUE_PAGES = 100;
 export const BRIGHTDATA_MAX_RETRIES = 1;
 export const BRIGHTDATA_REQUEST_TIMEOUT_MS = 15_000;
