@@ -13,13 +13,33 @@
 const DIRECT_BASE = "https://api.firecrawl.dev/v2";
 const GATEWAY_BASE = "https://connector-gateway.lovable.dev/firecrawl/v2";
 
+export interface FirecrawlEnvironmentDiagnostic {
+  firecrawl_api_key_present: boolean;
+  firecrawl_api_key_length: number;
+  firecrawl_api_key_mode: "lovable_gateway" | "direct" | "missing";
+  lovable_api_key_present: boolean;
+  lovable_api_key_length: number;
+  lovable_api_key_required: boolean;
+  configured: boolean;
+}
+
+export function firecrawlEnvironmentDiagnostic(): FirecrawlEnvironmentDiagnostic {
+  const firecrawlKey = process.env.FIRECRAWL_API_KEY?.trim() ?? "";
+  const lovableKey = process.env.LOVABLE_API_KEY?.trim() ?? "";
+  const gateway = firecrawlKey.startsWith("lovc_");
+  return {
+    firecrawl_api_key_present: firecrawlKey.length > 0,
+    firecrawl_api_key_length: firecrawlKey.length,
+    firecrawl_api_key_mode: firecrawlKey.length === 0 ? "missing" : gateway ? "lovable_gateway" : "direct",
+    lovable_api_key_present: lovableKey.length > 0,
+    lovable_api_key_length: lovableKey.length,
+    lovable_api_key_required: gateway,
+    configured: firecrawlKey.length > 0 && (!gateway || lovableKey.length > 0),
+  };
+}
+
 export function isFirecrawlConfigured(): boolean {
-  const key = process.env.FIRECRAWL_API_KEY?.trim();
-  if (!key) return false;
-  if (key.startsWith("lovc_")) {
-    return Boolean(process.env.LOVABLE_API_KEY?.trim());
-  }
-  return true;
+  return firecrawlEnvironmentDiagnostic().configured;
 }
 
 /** POST to a Firecrawl v2 path (e.g. "/search"). Returns the raw Response. */
