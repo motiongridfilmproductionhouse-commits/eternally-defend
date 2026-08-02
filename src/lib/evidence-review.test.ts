@@ -97,6 +97,8 @@ test("manifest hashes are deterministic and independently recalculable", () => {
 });
 
 test("verified ZIP contains every supplied artifact and manifest", () => {
+  const originalTz = process.env.TZ;
+  process.env.TZ = "UTC";
   const files = [
     {
       path: "report.pdf",
@@ -111,11 +113,16 @@ test("verified ZIP contains every supplied artifact and manifest", () => {
       objectType: "transcript",
     },
   ];
-  const zip = buildDeterministicEvidenceZip("ETR-1", files);
-  const entries = unzipSync(zip.bytes);
-  assert.deepEqual(Object.keys(entries).sort(), [
-    "manifest.json",
-    "report.pdf",
-    "transcripts/item.txt",
-  ]);
+  try {
+    const zip = buildDeterministicEvidenceZip("ETR-1", files);
+    const entries = unzipSync(zip.bytes);
+    assert.deepEqual(Object.keys(entries).sort(), [
+      "manifest.json",
+      "report.pdf",
+      "transcripts/item.txt",
+    ]);
+  } finally {
+    if (originalTz === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTz;
+  }
 });
