@@ -1,97 +1,97 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-const steps = [
+const STEPS = [
   "> Connecting to target...",
   "✓ Connected",
-
   "> Resolving DNS...",
   "✓ DNS Complete",
-
   "> Querying RDAP...",
   "✓ RDAP Complete",
-
   "> Querying WHOIS...",
   "✓ WHOIS Complete",
-
   "> Downloading webpage...",
   "✓ HTML Downloaded",
-
   "> Detecting CMS...",
   "✓ WordPress detected",
-
   "> Detecting Framework...",
   "✓ Framework analyzed",
-
   "> Detecting CDN...",
   "✓ Cloudflare detected",
-
   "> Detecting Hosting...",
   "✓ Cloudflare Inc.",
-
   "> Finding download links...",
   "✓ Download links detected",
-
   "> Searching embedded player...",
   "✓ Analysis complete",
-
   "> Calculating Threat Score...",
-  "✓ Investigation Complete"
-];
+  "✓ Investigation Complete",
+] as const;
 
-export default function InvestigationTerminal() {
+export type InvestigationTerminalProps = {
+  active: boolean;
+  progress?: number;
+};
+
+export function InvestigationTerminal({ active, progress }: InvestigationTerminalProps) {
   const [lines, setLines] = useState<string[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const indexRef = useRef(0);
 
   useEffect(() => {
-    let i = 0;
+    if (!active) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+      return;
+    }
 
-    const timer = setInterval(() => {
-      setLines((prev) => [...prev, steps[i]]);
-      i++;
+    setLines([]);
+    indexRef.current = 0;
 
-      if (i >= steps.length) {
-        clearInterval(timer);
+    timerRef.current = setInterval(() => {
+      const i = indexRef.current;
+      if (i >= STEPS.length) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
+        return;
       }
+      setLines((prev) => [...prev, STEPS[i]!]);
+      indexRef.current += 1;
     }, 300);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+    };
+  }, [active]);
 
-  const progress = Math.round((lines.length / steps.length) * 100);
+  const animatedProgress = Math.round((lines.length / STEPS.length) * 100);
+  const displayProgress =
+    typeof progress === "number"
+      ? Math.max(0, Math.min(100, Math.round(progress)))
+      : animatedProgress;
 
   return (
-    <div className="bg-black rounded-xl p-6 text-green-400 font-mono h-[600px] overflow-auto">
-
-      <div className="text-xl font-bold mb-4">
-        ETERNA CYBER INVESTIGATION
-      </div>
-
-      <div className="mb-6 text-green-500">
-        Digital Infrastructure Intelligence Engine
-      </div>
+    <div className="h-[600px] overflow-auto rounded-xl bg-black p-6 font-mono text-green-400">
+      <div className="mb-4 text-xl font-bold">ETERNA CYBER INVESTIGATION</div>
+      <div className="mb-6 text-green-500">Digital Infrastructure Intelligence Engine</div>
 
       {lines.map((line, index) => (
-        <div key={index} className="mb-1">
+        <div key={`${line}-${index}`} className="mb-1">
           {line}
         </div>
       ))}
 
       <div className="mt-10">
-
-        <div className="w-full h-3 bg-zinc-800 rounded">
-
+        <div className="h-3 w-full rounded bg-zinc-800">
           <div
-            className="bg-green-500 h-3 rounded transition-all duration-300"
-            style={{ width: `${progress}%` }}
+            className="h-3 rounded bg-green-500 transition-all duration-300"
+            style={{ width: `${displayProgress}%` }}
           />
-
         </div>
-
-        <div className="mt-2 text-green-300">
-          {progress}% Complete
-        </div>
-
+        <div className="mt-2 text-green-300">{displayProgress}% Complete</div>
       </div>
-
     </div>
   );
 }
+
+export default InvestigationTerminal;
