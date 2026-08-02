@@ -25,7 +25,6 @@ import {
   type SeenActivityThreatState,
 } from "@/lib/copyright/scan-activity";
 import { LiveWebsiteInvestigation } from "@/components/copyright/LiveWebsiteInvestigation";
-import { BrightDataProviderPanel } from "@/components/copyright/BrightDataProviderPanel";
 import { brightDataTelemetryFromStats } from "@/lib/copyright/scan-activity";
 
 export interface ScanProgressProps {
@@ -283,8 +282,6 @@ export function ScanProgress({
               );
             })}
           </ol>
-
-          <BrightDataProviderPanel stats={stats} scanStatus={scanStatus ?? "running"} />
 
           <LiveWebsiteInvestigation
             stats={stats}
