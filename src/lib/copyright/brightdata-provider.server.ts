@@ -177,7 +177,9 @@ export function brightDataHitsFromPayload(
   query: string,
 ): BrightDataDiscoveryHit[] {
   const hits: BrightDataDiscoveryHit[] = [];
+  let index = 0;
   for (const item of organicRows(payload)) {
+    index += 1;
     const raw = item.link ?? item.url ?? item.href;
     const link = typeof raw === "string" ? raw.trim() : "";
     if (!link.startsWith("http")) continue;
@@ -187,10 +189,29 @@ export function brightDataHitsFromPayload(
     const title = typeof item.title === "string" ? item.title : null;
     const snippetRaw = item.description ?? item.snippet ?? item.text;
     const snippet = typeof snippetRaw === "string" ? snippetRaw : "";
-    hits.push({ url: key, title, text: `${title ?? ""} ${snippet} ${key}`, query });
+    const rankRaw = item.rank ?? item.position ?? item.global_rank;
+    const rank = typeof rankRaw === "number" && Number.isFinite(rankRaw) ? rankRaw : index;
+    let domain: string | null = null;
+    try {
+      domain = new URL(key).hostname.replace(/^www\./, "");
+    } catch {
+      domain = null;
+    }
+    hits.push({
+      url: key,
+      title,
+      text: `${title ?? ""} ${snippet} ${key}`,
+      query,
+      snippet: snippet || null,
+      rank,
+      domain,
+      provider: "bright_data",
+      discoveredAt: new Date().toISOString(),
+    });
   }
   return hits;
 }
+
 
 export function classifyBrightDataFailure(opts: {
   status?: number | null;
