@@ -390,3 +390,21 @@ test("candidate leads stay discovery-only pending page evidence", async () => {
   }
   restore();
 });
+
+test("uuid-shaped zone env is ignored in favour of the default SERP zone", async () => {
+  setup();
+  process.env.BRIGHT_DATA_SERP_ZONE = "e8608fef-42d7-4b3e-a9aa-4d2f6cbf6954";
+  const diag = brightDataDiagnostic();
+  assert.equal(diag.zone, "serp_api1");
+  assert.equal(diag.zone_present, true);
+  assert.equal(diag.zone_env_invalid, true);
+  let seenZone: string | null = null;
+  mockFetch((body) => {
+    seenZone = (body as { zone: string }).zone;
+    return new Response(JSON.stringify({ organic: [] }), { status: 200 });
+  });
+  await runBrightDataDiscovery({ analysis, workTitle: "Balan The Boy", maxQueries: 1 });
+  assert.equal(seenZone, "serp_api1");
+  delete process.env.BRIGHT_DATA_SERP_ZONE;
+  restore();
+});
