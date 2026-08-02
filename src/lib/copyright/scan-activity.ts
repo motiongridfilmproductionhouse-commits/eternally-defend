@@ -345,11 +345,21 @@ export function activityCountersFromStats(
     (e) => e.threat === "verified_finding",
   ).length;
   return {
-    queries_completed: n("queries_executed"),
-    candidate_pages:
-      n("unique_candidate_pages") ||
-      n("provider_results") ||
+    // Query progress can come from the crawl phase (`queries_executed`) or,
+    // earlier in the run, from live search-sweep telemetry.
+    queries_completed: Math.max(
+      n("queries_executed"),
+      n("brightdata_queries_completed"),
+      n("firecrawl_queries_completed"),
+    ),
+    candidate_pages: Math.max(
+      n("unique_candidate_pages"),
+      n("provider_results"),
       n("candidates"),
+      n("leads"),
+      n("brightdata_unique_urls"),
+      n("brightdata_candidates"),
+    ),
     websites_checked:
       Math.max(
         n("websites_checked"),
@@ -363,8 +373,12 @@ export function activityCountersFromStats(
       n("client_visible_findings") ||
       n("verified_findings") ||
       verifiedFromEvents,
-    provider_failures: n("provider_failures"),
+    provider_failures: Math.max(
+      n("provider_failures"),
+      n("brightdata_failures"),
+    ),
   };
+
 }
 
 export type BrightDataProviderStatus =
