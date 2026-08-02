@@ -37,9 +37,11 @@ import { ReleaseProtectionPanel } from "@/components/copyright/ReleaseProtection
 import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  crawlMetricsFromStats,
   diagnosticsFromStats,
   explainZeroMatchFunnel,
   providerFailureCategoryLines,
+  providerMetricsFromStats,
   summarizeProviderFailures,
 } from "@/lib/copyright/scan-diagnostics";
 import { PROVIDER_FAILURE_CATEGORIES } from "@/lib/copyright/provider-failures";
@@ -747,6 +749,8 @@ function CopyrightIntelPage() {
                     ? (scanStats.rejection_funnel as string[])
                     : explainZeroMatchFunnel(scanStats);
                 const d = diagnosticsFromStats(scanStats);
+                const crawl = crawlMetricsFromStats(scanStats);
+                const provider = providerMetricsFromStats(scanStats);
                 const failByCat = (scanStats.crawl_failed_by_category ?? {}) as Record<string, number>;
                 const knownFailures = Array.isArray(scanStats.known_url_failure_reasons)
                   ? (scanStats.known_url_failure_reasons as Array<Record<string, unknown>>)
@@ -766,10 +770,18 @@ function CopyrightIntelPage() {
                             Number(scanStats.known_urls_rejected ?? 0) +
                             Number(scanStats.known_urls_rejected_after_crawl ?? 0),
                         },
-                        { label: "Provider candidates", value: Number(scanStats.provider_candidates ?? d.provider_results) },
-                        { label: "Provider requests", value: Number(scanStats.provider_requests ?? d.queries_executed) },
-                        { label: "Provider successes", value: Number(scanStats.provider_successes ?? 0) },
-                        { label: "Provider failures", value: Number(scanStats.provider_failures ?? 0) },
+                        { label: "Provider candidates", value: provider.result_count },
+                        { label: "Provider requests", value: provider.requested },
+                        { label: "Provider successes", value: provider.succeeded },
+                        { label: "Provider failures", value: provider.failed },
+                        { label: "Static pages fetched", value: crawl.static_fetch_succeeded },
+                        { label: "Empty static HTML", value: crawl.static_fetch_empty },
+                        { label: "Browser fallbacks tried", value: crawl.browser_fallback_attempted },
+                        { label: "Browser fallbacks recovered", value: crawl.browser_fallback_succeeded },
+                        { label: "Rendered pages inspected", value: crawl.pages_rendered },
+                        { label: "Detail pages followed", value: crawl.detail_pages_followed || d.detail_pages_followed },
+                        { label: "Exact-title pages", value: crawl.exact_title_pages_found },
+                        { label: "Pages with access evidence", value: crawl.pages_with_access_evidence },
                         { label: "Telegram candidates", value: Number(scanStats.telegram_candidates ?? 0) },
                         { label: "Crawl succeeded", value: Math.max(0, d.pages_crawled - d.pages_failed) },
                         { label: "Crawl failed", value: d.pages_failed },

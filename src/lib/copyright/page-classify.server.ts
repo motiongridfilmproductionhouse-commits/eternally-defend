@@ -786,10 +786,11 @@ export function extractTitleMatchedDetailLinks(opts: {
   links: string[];
   titles: string[];
   limit?: number;
+  metadata?: Record<string, unknown>;
 }): string[] {
   const host = hostOf(opts.pageUrl);
   if (!host) return [];
-  const limit = opts.limit ?? 6;
+  const limit = opts.limit ?? 5;
   const slugs = opts.titles.flatMap((t) => titleSlugCandidates(t));
   const candidates = safeHttpLinks(opts.links);
   const out: string[] = [];
@@ -802,13 +803,22 @@ export function extractTitleMatchedDetailLinks(opts: {
     return slugs.some((slug) => slug.length >= 5 && lower.includes(slug));
   };
 
-  for (const href of candidates) {
+  const allowHost = (href: string): boolean => {
     const h = hostOf(href);
-    if (!h || h !== host) continue;
+    if (!h) return false;
+    if (h === host) return true;
+    return /(mega\.nz|mediafire\.com|gofile\.io|drive\.google\.com|youtube\.com|youtu\.be|ok\.ru|dailymotion\.com)/i.test(
+      h,
+    );
+  };
+
+  for (const href of candidates) {
+    if (!allowHost(href)) continue;
     if (href === opts.pageUrl) continue;
-    // Skip obvious listing/search/home paths — follow detail destinations only.
     if (LISTING_PURPOSE_RE.test(href)) continue;
-    if (/\/(home|index|latest|movies\/?)$/i.test(href.replace(/\/$/, ""))) continue;
+    if (/\/(home|index|latest|movies\/?|privacy|contact|about)$/i.test(href.replace(/\/$/, ""))) {
+      continue;
+    }
     if (!matchesTitle(href)) continue;
     if (seen.has(href)) continue;
     seen.add(href);
@@ -816,7 +826,7 @@ export function extractTitleMatchedDetailLinks(opts: {
     if (out.length >= limit) break;
   }
 
-  // Also pull anchors from HTML with title-ish text
+  // Also pull anchors from HTML with title-ish text and image alt text
   if (out.length < limit) {
     for (const m of opts.html.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
       const hrefRaw = m[1]?.trim();
@@ -829,13 +839,33 @@ export function extractTitleMatchedDetailLinks(opts: {
         continue;
       }
       if (!isSafePublicHttpUrl(href)) continue;
-      if (hostOf(href) !== host) continue;
+      if (!allowHost(href)) continue;
       if (LISTING_PURPOSE_RE.test(href)) continue;
       if (!matchesTitle(href, label)) continue;
       if (seen.has(href)) continue;
       seen.add(href);
       out.push(href);
       if (out.length >= limit) break;
+    }
+  }
+
+  if (out.length < limit) {
+    for (const m of opts.html.matchAll(/<img[^>]+alt=["']([^"']+)["'][^>]*>/gi)) {
+      const alt = normalizeTitle(m[1] ?? "");
+      if (!alt || !hasExactTitleIdentity(alt, opts.titles).match) continue;
+      const nearby = opts.html.slice(Math.max(0, (m.index ?? 0) - 200), (m.index ?? 0) + 400);
+      const href = nearby.match(/href=["']([^"']+)["']/i)?.[1];
+      if (!href) continue;
+      try {
+        const resolved = new URL(href, opts.pageUrl).toString();
+        if (!isSafePublicHttpUrl(resolved) || !allowHost(resolved)) continue;
+        if (!matchesTitle(resolved, alt) || seen.has(resolved)) continue;
+        seen.add(resolved);
+        out.push(resolved);
+        if (out.length >= limit) break;
+      } catch {
+        continue;
+      }
     }
   }
 

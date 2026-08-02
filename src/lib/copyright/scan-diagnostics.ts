@@ -4,6 +4,14 @@
  */
 
 import { CRAWL_FAILURE_CATEGORIES } from "./crawl-failure";
+import { emptyCrawlMetrics, type CrawlMetrics } from "./crawl-metrics";
+
+export interface ProviderRunMetrics {
+  requested: number;
+  succeeded: number;
+  failed: number;
+  result_count: number;
+}
 
 export interface CopyrightScanDiagnostics {
   queries_generated: number;
@@ -41,6 +49,71 @@ export interface CopyrightScanDiagnostics {
   catalog_listing_rejected: number;
   youtube_promotional_rejected: number;
   registered_monitored_sources: number;
+  static_fetch_succeeded: number;
+  static_fetch_empty: number;
+  browser_fallback_attempted: number;
+  browser_fallback_succeeded: number;
+  browser_fallback_failed: number;
+  crawl4ai_fallback_attempted: number;
+  crawl4ai_fallback_succeeded: number;
+  pages_rendered: number;
+  exact_title_pages_found: number;
+  pages_with_access_evidence: number;
+  findings_created: number;
+  pages_rejected_by_title: number;
+  pages_rejected_as_official_or_promo: number;
+  pages_missing_access_evidence: number;
+}
+
+export function crawlMetricsFromStats(
+  stats: Record<string, unknown> | null | undefined,
+): CrawlMetrics {
+  const nested =
+    stats?.crawl_metrics && typeof stats.crawl_metrics === "object"
+      ? (stats.crawl_metrics as Record<string, unknown>)
+      : null;
+  const source = nested ?? stats ?? {};
+  const n = (key: keyof CrawlMetrics) => {
+    const v = source[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
+  const base = emptyCrawlMetrics();
+  return {
+    static_fetch_succeeded: n("static_fetch_succeeded"),
+    static_fetch_empty: n("static_fetch_empty"),
+    browser_fallback_attempted: n("browser_fallback_attempted"),
+    browser_fallback_succeeded: n("browser_fallback_succeeded"),
+    browser_fallback_failed: n("browser_fallback_failed"),
+    crawl4ai_fallback_attempted: n("crawl4ai_fallback_attempted"),
+    crawl4ai_fallback_succeeded: n("crawl4ai_fallback_succeeded"),
+    detail_pages_followed: n("detail_pages_followed"),
+    pages_rendered: n("pages_rendered"),
+    pages_rejected_by_title: n("pages_rejected_by_title"),
+    pages_rejected_as_official_or_promo: n("pages_rejected_as_official_or_promo"),
+    pages_missing_access_evidence: n("pages_missing_access_evidence"),
+    findings_created: n("findings_created"),
+    exact_title_pages_found: n("exact_title_pages_found"),
+    pages_with_access_evidence: n("pages_with_access_evidence"),
+  };
+}
+
+/** Canonical provider telemetry — discovery success is independent of crawl outcomes. */
+export function providerMetricsFromStats(
+  stats: Record<string, unknown> | null | undefined,
+): ProviderRunMetrics {
+  const n = (key: string) => {
+    const v = stats?.[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
+  const requested = n("provider_requests") || n("queries_executed");
+  const succeeded = n("provider_successes");
+  const failed = n("provider_failures");
+  const result_count =
+    n("provider_results") ||
+    n("provider_candidates") ||
+    n("candidates") ||
+    n("unique_candidate_pages");
+  return { requested, succeeded, failed, result_count };
 }
 
 export function diagnosticsFromStats(
@@ -50,13 +123,13 @@ export function diagnosticsFromStats(
     const v = stats?.[key];
     return typeof v === "number" && Number.isFinite(v) ? v : 0;
   };
+  const crawl = crawlMetricsFromStats(stats);
   return {
     queries_generated: n("queries_generated"),
     queries_executed: n("queries_executed"),
     provider_results: n("provider_results") || n("provider_candidates") || n("candidates"),
     unique_candidate_pages: n("unique_candidate_pages"),
     listing_pages_found: n("listing_pages_found"),
-    detail_pages_followed: n("detail_pages_followed"),
     pages_crawled: n("pages_crawled"),
     pages_failed: n("pages_failed"),
     title_identity_rejected: n("title_identity_rejected"),
@@ -90,6 +163,8 @@ export function diagnosticsFromStats(
     catalog_listing_rejected: n("catalog_listing_rejected"),
     youtube_promotional_rejected: n("youtube_promotional_rejected"),
     registered_monitored_sources: n("registered_monitored_sources"),
+    ...crawl,
+    detail_pages_followed: Math.max(n("detail_pages_followed"), crawl.detail_pages_followed),
   };
 }
 
@@ -158,6 +233,12 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
   lines.push(
     `Crawl: ${d.pages_crawled} pages crawled (${d.pages_failed} failed), ${d.listing_pages_found} listing/search pages, ${d.detail_pages_followed} title-detail pages followed.`,
   );
+  lines.push(
+    `Render ladder: ${d.static_fetch_succeeded} static pages fetched, ${d.static_fetch_empty} empty static, ${d.browser_fallback_attempted} browser fallbacks attempted (${d.browser_fallback_succeeded} recovered, ${d.browser_fallback_failed} failed), ${d.crawl4ai_fallback_succeeded} Crawl4AI recovered, ${d.pages_rendered} rendered pages inspected.`,
+  );
+  lines.push(
+    `Evidence funnel: ${d.exact_title_pages_found} exact-title pages, ${d.pages_with_access_evidence} with access evidence, ${d.pages_rejected_by_title} title rejected, ${d.pages_rejected_as_official_or_promo} official/promo rejected, ${d.pages_missing_access_evidence} missing access evidence, ${d.findings_created} findings created.`,
+  );
   lines.push(...crawlFailureBreakdownLines(stats));
   lines.push(
     `Rejected (content gates on retrieved pages only): ${d.title_identity_rejected} lacking exact title identity, ${d.hard_negative_rejected} hard negatives (cinema/trailer/review/social/official), ${d.access_evidence_rejected} lacking distribution-access evidence, ${d.artwork_only_rejected} artwork-only. Official/catalog ${d.official_authorized_rejected}/${d.catalog_listing_rejected}, YouTube promo ${d.youtube_promotional_rejected}.`,
@@ -169,12 +250,10 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
     `Outcome: ${d.internal_leads_persisted} internal leads retained, ${d.client_visible_findings} client-visible piracy findings, ${d.registered_monitored_sources} monitored sources created (require exact title + exact-page access evidence).`,
   );
 
-  const providerSuccesses = n("provider_successes");
-  const providerFailures = n("provider_failures");
-  const providerRequests = n("provider_requests") || d.queries_executed;
-  if (providerRequests > 0 || providerFailures > 0) {
+  const provider = providerMetricsFromStats(stats);
+  if (provider.requested > 0 || provider.failed > 0) {
     lines.push(
-      `Providers: ${providerRequests} requests, ${providerSuccesses} successful, ${providerFailures} failed.`,
+      `Providers: ${provider.requested} requests, ${provider.succeeded} successful, ${provider.failed} failed, ${provider.result_count} candidate results (discovery success is separate from crawl failures).`,
     );
   }
   if (stats?.provider_failures_by_category && typeof stats.provider_failures_by_category === "object") {
@@ -195,7 +274,7 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
     lines.push(
       "Primary bottleneck: accepted known URL(s) could not be retrieved (network/render failure) — not a content rejection.",
     );
-  } else if (providerSuccesses === 0 && (providerFailures > 0 || d.queries_executed === 0)) {
+  } else if (provider.succeeded === 0 && (provider.failed > 0 || d.queries_executed === 0)) {
     lines.push(
       "Primary bottleneck: discovery providers never returned a successful response — scan should be failed, not completed.",
     );

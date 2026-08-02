@@ -7,15 +7,22 @@ export const CRAWL_FAILURE_CATEGORIES = [
   "dns_failure",
   "private_or_reserved_address",
   "redirect_rejected",
+  "redirect_loop",
   "connect_failure",
   "tls_failure",
   "timeout",
+  "navigation_timeout",
   "blocked_403",
   "blocked_robots",
+  "access_denied",
   "response_too_large",
   "unsupported_mime",
+  "unsupported_content_type",
   "empty_static_html",
+  "javascript_required",
+  "cloudflare_challenge",
   "render_failure",
+  "browser_render_empty",
   "provider_failure",
   "aborted_by_deadline",
 ] as const;
@@ -50,7 +57,12 @@ export function mapSafeFetchToCrawlFailure(
   if (/redirect/.test(lower)) return "redirect_rejected";
   if (/cert|ssl|tls|sni|handshake|err_tls|altname/.test(lower)) return "tls_failure";
   if (/timeout|etimedout|timed out/.test(lower)) return "timeout";
-  if (/403|forbidden/.test(lower)) return "blocked_403";
+  if (/403|forbidden|access denied/.test(lower)) return "access_denied";
+  if (/cloudflare|checking your browser|cf-browser/.test(lower)) return "cloudflare_challenge";
+  if (/javascript required|enable javascript/.test(lower)) return "javascript_required";
+  if (/redirect loop/.test(lower)) return "redirect_loop";
+  if (/navigation timeout|navigating timeout/.test(lower)) return "navigation_timeout";
+  if (/browser render empty|crawl4ai returned empty/.test(lower)) return "browser_render_empty";
   if (/robots/.test(lower)) return "blocked_robots";
   if (/too.?large|max.?safe|payload/.test(lower)) return "response_too_large";
   if (/mime|content-type|unsupported/.test(lower)) return "unsupported_mime";
