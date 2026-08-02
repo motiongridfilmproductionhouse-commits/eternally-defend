@@ -23,6 +23,7 @@ export interface SourceActivityEntry {
 const PROVIDER_LABELS: Record<string, string> = {
   firecrawl: "Firecrawl",
   brightdata: "Bright Data",
+  bright_data: "Bright Data",
   known_url: "Known URL",
   serpapi: "SerpApi",
   direct_retrieval: "Direct retrieval",
