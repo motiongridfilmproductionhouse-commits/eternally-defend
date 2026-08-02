@@ -131,6 +131,8 @@ function mergeProviderFailureCounts(
     out[key] = (out[key] ?? 0) + value;
   }
   return out;
+}
+
 
 function plainStats(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
