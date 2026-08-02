@@ -20,6 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ScanProgress } from "@/components/copyright/ScanProgress";
 import { AllSourcesPanel } from "@/components/copyright/AllSourcesPanel";
+import { SuspiciousSourcesPanel } from "@/components/copyright/SuspiciousSourcesPanel";
+import type { PublicSuspiciousSource } from "@/lib/copyright/suspicious-sources";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
 import { ProtectedWorkRegistrationModal } from "@/components/copyright/ProtectedWorkRegistrationModal";
@@ -46,14 +48,12 @@ import {
 } from "@/lib/copyright/scan-diagnostics";
 import { PROVIDER_FAILURE_CATEGORIES } from "@/lib/copyright/provider-failures";
 import {
-  scopedScanMatches,
   shouldShowAnalysisBanner,
 } from "@/lib/copyright/scan-scope";
 import { CRAWL_FAILURE_CATEGORIES } from "@/lib/copyright/crawl-failure";
 
 import {
-  Copyright, Loader2, ExternalLink, ShieldCheck, AlertTriangle,
-  Eye, XCircle, FileSearch, Mail,
+  Copyright, Loader2, ShieldCheck, FileSearch,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/copyright-intel")({
@@ -69,45 +69,6 @@ export const Route = createFileRoute("/_app/copyright-intel")({
   }),
   component: CopyrightIntelPage,
 });
-
-const BAND: Record<string, { label: string; cls: string }> = {
-  confirmed: { label: "90-100% EXACT", cls: "bg-red-600/15 text-red-400 border-red-600/40" },
-  probable: { label: "70-89% PROBABLE", cls: "bg-orange-500/15 text-orange-400 border-orange-500/40" },
-  review: { label: "50-69% REVIEW", cls: "bg-amber-400/15 text-amber-300 border-amber-400/40" },
-};
-
-const TYPE_LABEL: Record<string, string> = {
-  VERIFIED_UNAUTHORIZED_STREAM: "Verified unauthorized stream",
-  PROBABLE_UNAUTHORIZED_STREAM: "Probable unauthorized stream",
-  DOWNLOAD_PAGE: "Download page",
-  FILE_HOST_DISTRIBUTION: "File-host distribution",
-  TORRENT_OR_MAGNET: "Torrent or magnet",
-  VIDEO_HOST_REUPLOAD: "Video-host reupload",
-  THEATRE_PRINT_DISTRIBUTION: "Theatre-print distribution",
-  MIRROR_OR_REDIRECT: "Mirror or redirect",
-  DUPLICATE_ARTWORK_ONLY: "Duplicate artwork only",
-  OFFICIAL_OR_AUTHORIZED: "Official or authorized",
-  TRAILER_OR_PROMO: "Trailer or promo",
-  CINEMA_OR_SHOWTIME: "Cinema or showtime",
-  REVIEW_OR_NEWS: "Review or news",
-  CAST_OR_INFORMATION: "Cast or information",
-  SOCIAL_DISCUSSION: "Social discussion",
-  CATALOG_OR_LISTING: "Catalog or listing",
-  OFFICIAL_OR_AUTHORIZED_PAGE: "Official or authorized page",
-  TRAILER_OR_PROMOTIONAL: "Trailer or promotional",
-  INVESTIGATION_LEAD: "Investigation lead",
-  UNVERIFIED_LEAD: "Unverified lead",
-  UNRELATED: "Unrelated",
-  // Legacy rows (should not appear as client-visible piracy)
-  reuploaded_artwork: "Re-uploaded artwork",
-  poster_copy: "Poster copy",
-  movie_screenshot: "Movie screenshot",
-  trailer_copy: "Trailer or promo",
-  video_clip: "Video clip",
-  cam_recording: "Theatre-print distribution",
-  ripped_copy: "Unverified lead",
-  edited_derivative: "Edited derivative",
-};
 
 /** Sample frames from a video file entirely in the browser. */
 async function extractFrames(file: File, count = 4): Promise<Blob[]> {
@@ -452,9 +413,10 @@ function CopyrightIntelPage() {
     !!detail.data?.scan?.id &&
     detail.data.scan.id === selectedScanId &&
     !detail.isLoading;
-  const matches = scopedScanMatches(selectedScanId, detail.data, {
-    isLoading: detail.isLoading,
-  });
+  const suspiciousSources: PublicSuspiciousSource[] =
+    detailAligned && Array.isArray(detail.data?.suspiciousSources)
+      ? (detail.data.suspiciousSources as PublicSuspiciousSource[])
+      : [];
   const selectedScanTitle =
     detailAligned && detail.data?.scan?.title
       ? detail.data.scan.title
@@ -733,14 +695,14 @@ function CopyrightIntelPage() {
               Waiting for selected-scan findings…
             </p>
           )}
-          {detailAligned && !matches.length && (
+          {detailAligned && !suspiciousSources.length && (
             <div className="space-y-3 rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
               <p>
-                No client-visible unauthorized-distribution findings for{" "}
+                No suspicious sources to display for{" "}
                 <span className="font-medium text-foreground">{selectedScanTitle ?? "this scan"}</span>.
-                Pages need exact-title identity plus exact-page access evidence (player,
-                download, file-host, torrent/magnet, or theatre-print). Cinema,
-                trailers, reviews, cast, news, social and artwork-only matches stay rejected.
+                New findings need exact-title identity plus distribution-access evidence. Preserved
+                historical suspicious sources appear here even when the current crawl could not
+                reconfirm them.
               </p>
               {(() => {
                 const scanStats = (detail.data?.scan?.stats ?? {}) as Record<string, unknown>;
@@ -794,6 +756,8 @@ function CopyrightIntelPage() {
                         { label: "Suspected (requires review)", value: Number(scanStats.suspected_review_pages ?? d.suspected_review_pages ?? 0) },
                         { label: "Historical reconfirmed", value: Number(scanStats.historical_findings_reconfirmed ?? d.historical_findings_reconfirmed ?? 0) },
                         { label: "Historical unreachable", value: Number(scanStats.historical_sources_temporarily_unreachable ?? d.historical_sources_temporarily_unreachable ?? 0) },
+                        { label: "Historical requires review", value: Number(scanStats.historical_requires_review ?? d.historical_requires_review ?? 0) },
+                        { label: "Suspicious sources shown", value: Number(scanStats.suspicious_sources_displayed ?? d.suspicious_sources_displayed ?? suspiciousSources.length) },
                         { label: "Telegram candidates", value: Number(scanStats.telegram_candidates ?? 0) },
                         { label: "Crawl succeeded", value: Math.max(0, d.pages_crawled - d.pages_failed) },
                         { label: "Crawl failed", value: d.pages_failed },
@@ -854,6 +818,12 @@ function CopyrightIntelPage() {
                       </div>
                     )}
                     <ul className="space-y-1.5 text-xs">
+                      {typeof scanStats.suspicious_sources_summary === "string" &&
+                        scanStats.suspicious_sources_summary && (
+                          <li className="leading-relaxed font-medium text-foreground">
+                            • {scanStats.suspicious_sources_summary}
+                          </li>
+                        )}
                       {funnel.map((line) => (
                         <li key={line} className="leading-relaxed">• {line}</li>
                       ))}
@@ -865,192 +835,41 @@ function CopyrightIntelPage() {
           )}
 
 
-          {detailAligned && matches.map((m) => {
-            const band = BAND[m.confidence_band] ?? BAND.review;
-            const ev = (m.evidence ?? {}) as Record<string, unknown>;
-            const contact = (m.contact ?? {}) as Record<string, string | null>;
-            const dist = (ev.distribution ?? null) as null | {
-              domain_risk?: string;
-              content_type?: string;
-              classification?: string;
-              release_timing?: string;
-              release_offset_days?: number | null;
-              piracy_indicators?: Array<{ key: string; detail: string; strong?: boolean }>;
-              distribution_links?: string[];
-              quality_tags?: string[];
-              identity_evidence?: string[];
-              access_evidence?: string[];
-              confidence_breakdown?: {
-                identity?: number;
-                access?: number;
-                releaseWindow?: number;
-                penalties?: number;
-              };
-              evidence_screenshot?: string | null;
-              embed_sources?: string[];
-            };
-            const classification = dist?.classification ?? m.detection_type;
-            const riskCls =
-              dist?.domain_risk === "high" ? "border-destructive/50 text-destructive"
-              : dist?.domain_risk === "medium" ? "border-amber-500/50 text-amber-500"
-              : "text-muted-foreground";
-            const host = typeof ev.host === "string" ? ev.host : null;
-            const canonical = m.source_url;
-            const breakdown = dist?.confidence_breakdown;
-
-            return (
-              <article key={m.id} className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur">
-                <div className="flex gap-4">
-                  {(dist?.evidence_screenshot || m.thumbnail_url) && (
-                    <img
-                      src={dist?.evidence_screenshot || m.thumbnail_url || ""}
-                      alt={`Matched evidence frame from ${m.platform ?? "source"}`}
-                      loading="lazy"
-                      className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className={band.cls}>{m.confidence}% · {band.label}</Badge>
-                      <Badge variant="outline" className="text-[10px]">{TYPE_LABEL[classification] ?? classification}</Badge>
-                      <Badge variant="outline" className="text-[10px]">{m.platform ?? "Unknown platform"}</Badge>
-                      {host && <Badge variant="outline" className="text-[10px]">{host}</Badge>}
-                      {dist && (
-                        <>
-                          <Badge variant="outline" className={`text-[10px] uppercase ${riskCls}`}>
-                            {dist.domain_risk} risk
-                          </Badge>
-                          {dist.release_timing && dist.release_timing !== "unknown" && (
-                            <Badge variant="outline" className="text-[10px]">
-                              {dist.release_timing.replace(/_/g, " ")}
-                              {typeof dist.release_offset_days === "number" ? ` · +${dist.release_offset_days}d` : ""}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                      {m.review_status !== "pending" && (
-                        <Badge variant="outline" className="text-[10px]">{m.review_status.replace("_", " ")}</Badge>
-                      )}
-                    </div>
-                    <a href={canonical} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 truncate text-sm text-primary hover:underline">
-                      Open verified evidence page <ExternalLink className="h-3 w-3 shrink-0" />
-                    </a>
-                    <p className="truncate text-[11px] text-muted-foreground">{m.page_title || canonical}</p>
-                    {m.reason && (
-                      <p className="text-xs text-muted-foreground">
-                        {m.reason} Evidence for rights-holder review — not a final legal determination.
-                      </p>
-                    )}
-                    {(dist?.identity_evidence?.length || dist?.access_evidence?.length) ? (
-                      <div className="space-y-1 text-[11px] text-muted-foreground">
-                        {dist?.identity_evidence?.length ? (
-                          <p><span className="font-medium">Title identity:</span> {dist.identity_evidence.join(", ")}</p>
-                        ) : null}
-                        {dist?.access_evidence?.length ? (
-                          <p><span className="font-medium">Distribution access:</span> {dist.access_evidence.slice(0, 3).join(" ")}</p>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {breakdown && (
-                      <p className="text-[11px] text-muted-foreground">
-                        <span className="font-medium">Confidence:</span>{" "}
-                        identity {breakdown.identity ?? 0} · access {breakdown.access ?? 0}
-                        · release {breakdown.releaseWindow ?? 0}
-                        {(breakdown.penalties ?? 0) > 0 ? ` · penalties -${breakdown.penalties}` : ""}
-                      </p>
-                    )}
-                    {dist?.piracy_indicators?.length ? (
-                      <ul className="space-y-1 rounded-lg border border-border/60 bg-background/40 p-2">
-                        {dist.piracy_indicators.slice(0, 6).map((i) => (
-                          <li key={i.key} className="flex gap-1.5 text-[11px] text-muted-foreground">
-                            <span className={i.strong ? "text-destructive" : "text-primary"}>●</span>
-                            <span><span className="font-medium">{i.key.replace(/_/g, " ")}:</span> {i.detail}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    {dist?.distribution_links?.length ? (
-                      <p className="text-[11px] text-muted-foreground">
-                        <span className="font-medium">Player / download / file-host / torrent:</span>{" "}
-                        {dist.distribution_links.slice(0, 3).map((link, idx) => (
-                          <span key={link}>
-                            {idx > 0 ? " · " : ""}
-                            {link.startsWith("magnet:") ? (
-                              <span className="break-all">{link.slice(0, 64)}…</span>
-                            ) : /^https?:\/\//i.test(link) ? (
-                              <a href={link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
-                                {link.slice(0, 80)}
-                              </a>
-                            ) : (
-                              link.slice(0, 80)
-                            )}
-                          </span>
-                        ))}
-                      </p>
-                    ) : null}
-
-                    {Array.isArray(m.transformations) && m.transformations.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {(m.transformations as string[]).map((t) => (
-                          <span key={t} className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
-                        ))}
-                      </div>
-                    )}
-                    {m.ocr_text && (
-                      <p className="line-clamp-2 text-[11px] text-muted-foreground">
-                        <span className="font-medium">OCR:</span> {m.ocr_text}
-                      </p>
-                    )}
-                    {typeof ev.watermark === "string" && ev.watermark && (
-                      <p className="text-[11px] text-muted-foreground"><span className="font-medium">Watermark:</span> {ev.watermark}</p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                      {contact.abuseEmail && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{contact.abuseEmail}</span>}
-                      {contact.reportUrl && (
-                        <a href={contact.reportUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline">
-                          <ShieldCheck className="h-3 w-3" />Abuse / DMCA page
-                        </a>
-                      )}
-                      {contact.note && <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{contact.note}</span>}
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="outline"
-                        onClick={() => review.mutate({ matchId: m.id, reviewStatus: "evidence_ready" })}>
-                        <Eye className="mr-1.5 h-3.5 w-3.5" />Mark evidence ready
-                      </Button>
-                     
-
-<Button
-  size="sm"
-  variant="secondary"
-  onClick={() => {
-    setSelectedMatch(m);
-    setInvestigationOpen(true);
-  }}
->
-  Website Details
-</Button>
-
-<Button
-  size="sm"
-  variant="ghost"
-  onClick={() =>
-    review.mutate({
-      matchId: m.id,
-      reviewStatus: "dismissed",
-    })
-  }
->
-  <XCircle className="mr-1.5 h-3.5 w-3.5" />
-  Dismiss
-</Button>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+          {detailAligned && suspiciousSources.length > 0 && (
+            <SuspiciousSourcesPanel
+              sources={suspiciousSources}
+              summaryLine={
+                typeof detail.data?.scan?.stats === "object" &&
+                detail.data?.scan?.stats &&
+                typeof (detail.data.scan.stats as Record<string, unknown>).suspicious_sources_summary ===
+                  "string"
+                  ? ((detail.data.scan.stats as Record<string, unknown>)
+                      .suspicious_sources_summary as string)
+                  : null
+              }
+              onReview={(matchId) =>
+                review.mutate({ matchId, reviewStatus: "evidence_ready" })
+              }
+              onInvestigate={(source) => {
+                setSelectedMatch({
+                  id: source.id,
+                  source_url: source.url,
+                  page_title: source.title,
+                  confidence: source.confidence,
+                  confidence_band: source.confidence_band,
+                  detection_type: source.detection_type ?? source.classification,
+                  reason: source.reason,
+                  evidence: source.evidence,
+                  contact: source.contact,
+                  review_status: source.review_status,
+                });
+                setInvestigationOpen(true);
+              }}
+              onDismiss={(matchId) =>
+                review.mutate({ matchId, reviewStatus: "dismissed" })
+              }
+            />
+          )}
               </TabsContent>
             </Tabs>
           )}

@@ -75,6 +75,10 @@ export interface CopyrightScanDiagnostics {
   suspected_review_pages: number;
   historical_findings_reconfirmed: number;
   historical_sources_temporarily_unreachable: number;
+  historical_requires_review: number;
+  redirected_historical_sources: number;
+  suspicious_sources_displayed: number;
+  suspicious_sources_summary: string | null;
 }
 
 export function crawlMetricsFromStats(
@@ -189,6 +193,13 @@ export function diagnosticsFromStats(
     suspected_review_pages: n("suspected_review_pages"),
     historical_findings_reconfirmed: n("historical_findings_reconfirmed"),
     historical_sources_temporarily_unreachable: n("historical_sources_temporarily_unreachable"),
+    historical_requires_review: n("historical_requires_review"),
+    redirected_historical_sources: n("redirected_historical_sources"),
+    suspicious_sources_displayed: n("suspicious_sources_displayed"),
+    suspicious_sources_summary:
+      typeof stats?.suspicious_sources_summary === "string"
+        ? stats.suspicious_sources_summary
+        : null,
   };
 }
 
@@ -280,8 +291,11 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
     `Access signals seen: ${d.access_evidence_pages} pages with access evidence, ${d.embedded_players} embedded players, ${d.download_pages} download pages, ${d.file_host_destinations} file-host, ${d.torrents_magnets} torrent/magnet, ${d.theatre_print_findings} theatre-print.`,
   );
   lines.push(
-    `Outcome: ${d.internal_leads_persisted} internal leads retained, ${d.client_visible_findings} client-visible piracy findings, ${d.historical_findings_reconfirmed} historical findings reconfirmed, ${d.historical_sources_temporarily_unreachable} historical sources temporarily unreachable, ${d.registered_monitored_sources} monitored sources created (require exact title + exact-page access evidence).`,
+    `Outcome: ${d.internal_leads_persisted} internal leads retained, ${d.client_visible_findings} client-visible piracy findings, ${d.historical_findings_reconfirmed} historical findings reconfirmed, ${d.historical_sources_temporarily_unreachable} historical sources temporarily unreachable, ${d.historical_requires_review} historical requiring review, ${d.suspicious_sources_displayed} suspicious sources displayed, ${d.registered_monitored_sources} monitored sources created (require exact title + exact-page access evidence).`,
   );
+  if (d.suspicious_sources_summary) {
+    lines.push(d.suspicious_sources_summary);
+  }
 
   const provider = providerMetricsFromStats(stats);
   if (provider.requested > 0 || provider.failed > 0) {

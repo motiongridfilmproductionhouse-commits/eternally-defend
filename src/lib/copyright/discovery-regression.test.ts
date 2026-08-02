@@ -113,7 +113,15 @@ test("detail follow recorder queues title-matched links and logs skips", () => {
   const stats = recorder.stats();
   assert.equal(stats.detail_pages_queued, 1);
   assert.ok(
-    recorder.getLogs().some((l) => l.event === "candidate_skipped" && l.reason === "duplicate_url" || l.reason === "already_crawled" || l.reason === "cross_domain_not_allowed"),
+    recorder.getLogs().some(
+      (l) =>
+        l.event === "candidate_skipped" &&
+        (l.reason === "duplicate" ||
+          l.reason === "duplicate_url" ||
+          l.reason === "already_crawled" ||
+          l.reason === "cross_domain" ||
+          l.reason === "cross_domain_not_allowed"),
+    ),
   );
 });
 

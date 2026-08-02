@@ -6,15 +6,27 @@ import { canonicalUrl, hostOf } from "./url.server";
 import { isRecognizedExternalDetailHost } from "./page-extract.server";
 
 export type DetailFollowSkipReason =
-  | "duplicate_url"
-  | "cross_domain_not_allowed"
-  | "score_below_threshold"
-  | "budget_exhausted"
-  | "scan_deadline_reached"
-  | "invalid_url"
-  | "title_mismatch"
+  | "no_links_extracted"
+  | "listing_not_detected"
+  | "title_score_below_threshold"
+  | "duplicate"
+  | "deadline"
+  | "cross_domain"
   | "already_crawled"
-  | "queue_limit_reached";
+  | "invalid_url"
+  | "queue_limit_reached"
+  /** @deprecated use `duplicate` */
+  | "duplicate_url"
+  /** @deprecated use `cross_domain` */
+  | "cross_domain_not_allowed"
+  /** @deprecated use `title_score_below_threshold` */
+  | "score_below_threshold"
+  /** @deprecated use `deadline` */
+  | "budget_exhausted"
+  /** @deprecated use `deadline` */
+  | "scan_deadline_reached"
+  /** @deprecated use `title_score_below_threshold` */
+  | "title_mismatch";
 
 export interface DetailFollowLogEntry {
   at: string;
@@ -100,7 +112,11 @@ export class DetailFollowRecorder {
         this.log("candidate_skipped", { url: raw, reason: "invalid_url" });
         continue;
       }
-      if (this.seen.has(url) || input.inspectedUrls.has(url)) {
+      if (this.seen.has(url)) {
+        this.log("candidate_skipped", { url, reason: "duplicate" });
+        continue;
+      }
+      if (input.inspectedUrls.has(url)) {
         this.log("candidate_skipped", { url, reason: "already_crawled" });
         continue;
       }
@@ -113,7 +129,7 @@ export class DetailFollowRecorder {
       ) {
         this.log("candidate_skipped", {
           url,
-          reason: "cross_domain_not_allowed",
+          reason: "cross_domain",
           detail: `${pageHost} -> ${host}`,
         });
         continue;
