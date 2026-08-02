@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import InvestigationTerminal from "./InvestigationTerminal";
-import { lookupInfrastructure } from "@/services/infrastructure";
+import { investigateUrl } from "@/lib/investigation.functions";
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
