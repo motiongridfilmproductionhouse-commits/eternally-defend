@@ -25,6 +25,8 @@ import {
   type SeenActivityThreatState,
 } from "@/lib/copyright/scan-activity";
 import { LiveWebsiteInvestigation } from "@/components/copyright/LiveWebsiteInvestigation";
+import { BrightDataProviderPanel } from "@/components/copyright/BrightDataProviderPanel";
+import { brightDataTelemetryFromStats } from "@/lib/copyright/scan-activity";
 
 export interface ScanProgressProps {
   previews: string[];
@@ -116,6 +118,7 @@ export function ScanProgress({
   const counters = activityCountersFromStats(stats);
   const badge = resolveCopyrightThreatBadge({ scanStatus, stats });
   const stageNote = currentStageLabel(stats, stageIndex);
+  const brightData = brightDataTelemetryFromStats(stats, scanStatus ?? "running");
 
   const seenRef = useRef<SeenActivityThreatState | null>(null);
   const [badgePulse, setBadgePulse] = useState(false);
@@ -148,8 +151,13 @@ export function ScanProgress({
       { label: "Potential threats", value: counters.potential_threats },
       { label: "Verified findings", value: counters.verified_findings },
       { label: "Provider failures", value: counters.provider_failures },
+      { label: "Bright Data requests", value: brightData.requests },
+      { label: "Bright Data successes", value: brightData.successes },
+      { label: "Bright Data failures", value: brightData.failures },
+      { label: "Bright Data candidates", value: brightData.candidates },
+      { label: "Unique candidate URLs", value: brightData.uniqueUrls },
     ],
-    [counters],
+    [counters, brightData],
   );
 
   const animate = !reducedMotion && tabVisible;
@@ -275,6 +283,8 @@ export function ScanProgress({
               );
             })}
           </ol>
+
+          <BrightDataProviderPanel stats={stats} scanStatus={scanStatus ?? "running"} />
 
           <LiveWebsiteInvestigation
             stats={stats}
