@@ -6,6 +6,15 @@ import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
 import { analyzeReference, firecrawlDiscover } from "@/lib/copyright/discover.server";
 import { runCopyrightSerpApiDiscovery } from "@/lib/copyright/serpapi-discovery.server";
+import {
+  brightDataDiagnostic,
+  runBrightDataDiscovery,
+  type BrightDataDiscoveryResult,
+} from "@/lib/copyright/brightdata-provider.server";
+import {
+  emptyProviderFailureCounts,
+  type ProviderFailureCategory,
+} from "@/lib/copyright/provider-failures";
 import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.server";
 import { readStoredObject } from "@/lib/copyright/storage.server";
 
@@ -819,11 +828,38 @@ export async function executeCopyrightScanById(opts: {
       );
 
       const byUrl = new Map<string, DiscoveryCandidate>();
-      let discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
-        signal: discoverySignal,
-        deadlineAt: discoveryDeadlineAt,
-        analysis,
-      });
+
+      // Firecrawl and Bright Data run independently: one provider failing (or
+      // being unconfigured) must never cancel the other.
+      const [firecrawlSettled, brightDataSettled] = await Promise.allSettled([
+        firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
+          signal: discoverySignal,
+          deadlineAt: discoveryDeadlineAt,
+          analysis,
+        }),
+        runBrightDataDiscovery({
+          analysis,
+          workTitle,
+          signal: discoverySignal,
+          deadlineAt: discoveryDeadlineAt,
+          onActivity: async (event) => {
+            if (event.status === "searching") {
+              activity.setWorkflowStage("discovering");
+            }
+            await pushActivity({
+              brightdata_last_query: event.query.slice(0, 160),
+              brightdata_last_status: event.status,
+            });
+          },
+        }),
+      ]);
+
+      if (firecrawlSettled.status === "rejected") throw firecrawlSettled.reason;
+      let discovery = firecrawlSettled.value;
+      const brightDataDiscovery =
+        brightDataSettled.status === "fulfilled"
+          ? brightDataSettled.value
+          : emptyBrightDataDiscovery();
 
       let serpapiDiscovery = await runCopyrightSerpApiDiscovery({
         analysis,
@@ -831,23 +867,35 @@ export async function executeCopyrightScanById(opts: {
         signal: discoverySignal,
         deadlineAt: discoveryDeadlineAt,
         onlyWhenFirecrawlFailed: true,
-        firecrawlHadSuccess: discovery.providerSuccesses > 0,
+        firecrawlHadSuccess:
+          discovery.providerSuccesses > 0 || brightDataDiscovery.candidates > 0,
       });
 
-      if (serpapiDiscovery.pageLeads.length) {
+      // Normalize + dedupe candidate URLs across providers.
+      const extraLeads = [...brightDataDiscovery.pageLeads, ...serpapiDiscovery.pageLeads];
+      if (extraLeads.length) {
         const mergedLeads = [...discovery.pageLeads];
         const seenLeadUrls = new Set(mergedLeads.map((l) => canonicalUrl(l.url)));
-        for (const lead of serpapiDiscovery.pageLeads) {
+        for (const lead of extraLeads) {
           const key = canonicalUrl(lead.url);
           if (seenLeadUrls.has(key)) continue;
           seenLeadUrls.add(key);
-          mergedLeads.push(lead);
+          mergedLeads.push({ ...lead, url: key });
         }
         discovery = {
           ...discovery,
           pageLeads: mergedLeads,
+          providerFailuresByCategory: mergeProviderFailureCounts(
+            discovery.providerFailuresByCategory,
+            brightDataDiscovery.failuresByCategory,
+          ),
+          providerFailureSamples: [
+            ...discovery.providerFailureSamples,
+            ...brightDataDiscovery.failureSamples,
+          ].slice(0, 12),
           candidates_by_provider: {
             ...discovery.candidates_by_provider,
+            brightdata: brightDataDiscovery.candidates,
             serpapi: serpapiDiscovery.candidates,
           },
         };
@@ -864,6 +912,13 @@ export async function executeCopyrightScanById(opts: {
           url: lead.url,
           pageTitle: lead.title,
           leadQuery: lead.query,
+        });
+      }
+      for (const lead of brightDataDiscovery.pageLeads.slice(0, 20)) {
+        activity.recordDiscovered({
+          url: lead.url,
+          pageTitle: lead.title,
+          leadQuery: lead.query ?? "brightdata:discovery",
         });
       }
       for (const lead of serpapiDiscovery.pageLeads.slice(0, 20)) {
