@@ -352,7 +352,18 @@ export async function runBrightDataDiscovery(input: {
     status: "searching" | "results" | "failed";
     candidates?: number;
     category?: ProviderFailureCategory;
+    /** Running telemetry so the UI can update counters live. */
+    telemetry?: {
+      queriesGenerated: number;
+      queryIndex: number;
+      requests: number;
+      successes: number;
+      failures: number;
+      candidatesTotal: number;
+      uniqueUrls: number;
+    };
   }) => void | Promise<void>;
+
 }): Promise<BrightDataDiscoveryResult> {
   const failuresByCategory = emptyProviderFailureCounts();
   const failureSamples: BrightDataDiscoveryResult["failureSamples"] = [];
