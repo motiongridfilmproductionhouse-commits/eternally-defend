@@ -24,6 +24,17 @@ export interface PageEvidenceResult {
   embeddedPlayerDetected: boolean;
   suspectedReview: boolean;
   clientVisibleFinding: boolean;
+  accessDiagnostics: {
+    embeddedPlayersFound: number;
+    watchButtonsFound: number;
+    downloadLinksFound: number;
+    fileHostLinksFound: number;
+    torrentIndicatorsFound: number;
+    releaseTagsFound: number;
+    negativeSignalsFound: number;
+    accessStrength: AccessEvidenceStrength;
+    rejectionReason: string | null;
+  };
 }
 
 export function buildPageEvidenceResult(
@@ -90,5 +101,16 @@ export function buildPageEvidenceResult(
       dist.clientVisible &&
       dist.strongEvidence &&
       isActionablePiracy(dist.classification),
+    accessDiagnostics: {
+      embeddedPlayersFound: embeddedPlayerDetected ? 1 : 0,
+      watchButtonsFound: dist.indicatorKeys.includes("watch_now_cta") ? 1 : 0,
+      downloadLinksFound: dist.indicatorKeys.includes("download_links") ? 1 : 0,
+      fileHostLinksFound: dist.indicatorKeys.includes("file_host_links") ? 1 : 0,
+      torrentIndicatorsFound: dist.indicatorKeys.includes("torrent_or_magnet") ? 1 : 0,
+      releaseTagsFound: dist.qualityTags.length,
+      negativeSignalsFound: hardNegative ? 1 : 0,
+      accessStrength: strength,
+      rejectionReason,
+    },
   };
 }

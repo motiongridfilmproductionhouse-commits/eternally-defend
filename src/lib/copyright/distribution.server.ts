@@ -197,6 +197,8 @@ export async function analyzeDistributionPage(opts: {
   allowBrowserFallback?: boolean;
   /** Optional detail-follow diagnostics recorder. */
   detailFollow?: DetailFollowRecorder;
+  /** Force title-detail link extraction on listing/home/historical recheck pages. */
+  forceDetailFollow?: boolean;
 }): Promise<DistributionAnalysis> {
   if (!isSafePublicHttpUrl(opts.url)) {
     return fromClassify(
@@ -292,31 +294,54 @@ export async function analyzeDistributionPage(opts: {
     classified.classification === "CATALOG_OR_LISTING";
   const looksLikeListing =
     !opts.skipDetailFollow &&
-    (isLikelyListingPage({
-      url: retrieved.finalUrl,
-      primaryPurpose: classified.primaryPurpose,
-      linkCount: links.length,
-      html,
-      markdown,
-    }) ||
+    (opts.forceDetailFollow ||
+      isLikelyListingPage({
+        url: retrieved.finalUrl,
+        primaryPurpose: classified.primaryPurpose,
+        linkCount: links.length,
+        html,
+        markdown,
+      }) ||
       listingByPurpose ||
-      (links.length >= 10 && !classified.clientVisible));
+      (links.length >= 10 && !classified.clientVisible) ||
+      (links.length >= 3 && /\/$|\/(search|movies|latest|category)(\/|$)/i.test(retrieved.finalUrl)));
 
   if (looksLikeListing) {
     opts.detailFollow?.recordListingDetected(retrieved.finalUrl, links.length);
-    opts.detailFollow?.recordLinksExtracted(retrieved.finalUrl, links.length);
-    detailFollowUrls = extractTitleMatchedDetailLinks({
-      pageUrl: retrieved.finalUrl,
-      html,
-      markdown,
-      links,
-      titles: opts.titles,
-      limit: 5,
-      metadata: meta,
-    });
-    opts.detailFollow?.recordTitleCandidatesScored(
+    if (!links.length) {
+      opts.detailFollow?.recordSkipped(
+        retrieved.finalUrl,
+        "no_links_extracted",
+        "listing page had no extractable links",
+      );
+    } else {
+      opts.detailFollow?.recordLinksExtracted(retrieved.finalUrl, links.length);
+      detailFollowUrls = extractTitleMatchedDetailLinks({
+        pageUrl: retrieved.finalUrl,
+        html,
+        markdown,
+        links,
+        titles: opts.titles,
+        limit: 5,
+        metadata: meta,
+      });
+      opts.detailFollow?.recordTitleCandidatesScored(
+        retrieved.finalUrl,
+        detailFollowUrls.length,
+      );
+      if (!detailFollowUrls.length) {
+        opts.detailFollow?.recordSkipped(
+          retrieved.finalUrl,
+          "title_score_below_threshold",
+          "no title-matched detail links scored above threshold",
+        );
+      }
+    }
+  } else if (opts.forceDetailFollow && opts.detailFollow) {
+    opts.detailFollow.recordSkipped(
       retrieved.finalUrl,
-      detailFollowUrls.length,
+      "listing_not_detected",
+      "historical or known-risk page did not qualify as listing for detail follow",
     );
   }
 

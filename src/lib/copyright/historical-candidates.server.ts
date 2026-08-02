@@ -28,7 +28,10 @@ export interface HistoricalCandidateLoadResult {
     classification: string;
     prior_scan_id: string;
     recheck_status: "pending" | "active";
+    prior_evidence?: Record<string, unknown>;
   }>;
+  confirmedUrls: string[];
+  confirmedDomains: string[];
 }
 
 function normalizeTitleNeedle(title: string): string {
@@ -72,11 +75,88 @@ export async function loadHistoricalScanCandidates(
   const mirrorAndRedirectCandidates: CandidateUnionEntry[] = [];
   const preservedFindings: HistoricalCandidateLoadResult["preservedFindings"] = [];
   const domainSet = new Set<string>();
+  const confirmedUrls = new Set<string>();
+  const confirmedDomains = new Set<string>();
+
+  const { data: priorScans } = await supabase
+    .from("copyright_scans")
+    .select("id,title")
+    .eq("user_id", opts.userId)
+    .neq("id", opts.scanId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const priorScanIds = (priorScans ?? [])
+    .filter((s) => titleMatchesWork(s.title ?? "", opts.workTitle, opts.titles))
+    .map((s) => s.id);
+
+  if (priorScanIds.length) {
+    const { data: priorMatches } = await supabase
+      .from("copyright_matches")
+      .select("scan_id,source_url,page_title,detection_type,evidence,confidence,created_at")
+      .eq("user_id", opts.userId)
+      .in("scan_id", priorScanIds)
+      .order("confidence", { ascending: false })
+      .limit(120);
+
+    for (const match of priorMatches ?? []) {
+      const ev = (match.evidence ?? {}) as Record<string, unknown>;
+      const dist = (ev.distribution ?? {}) as Record<string, unknown>;
+      const clientVisible = ev.client_visible !== false && dist.client_visible !== false;
+      const classification =
+        (dist.classification as string) ?? match.detection_type ?? "UNVERIFIED_LEAD";
+      const actionable =
+        clientVisible && isActionablePiracy(classification);
+      const identityEvidence = Array.isArray(dist.identity_evidence)
+        ? (dist.identity_evidence as string[])
+        : Array.isArray(ev.identity_evidence)
+          ? (ev.identity_evidence as string[])
+          : [];
+
+      if (!identityEvidence.length && !actionable) continue;
+
+      const url = canonicalUrl(match.source_url);
+      const host = hostOf(url);
+      if (host) {
+        domainSet.add(host);
+        if (actionable) confirmedDomains.add(host);
+      }
+      if (actionable) confirmedUrls.add(url);
+
+      historicalFindingCandidates.push({
+        url,
+        title: match.page_title,
+        query: "historical_finding_recheck",
+        text: match.page_title ?? url,
+        strong: actionable,
+        origin: "historical_finding",
+      });
+
+      if (actionable) {
+        preservedFindings.push({
+          source_url: url,
+          page_title: match.page_title,
+          classification,
+          prior_scan_id: match.scan_id,
+          recheck_status: "pending",
+          prior_evidence: {
+            identity_evidence: identityEvidence,
+            access_evidence: dist.access_evidence ?? ev.access_evidence ?? [],
+            classification,
+            verified_at: match.created_at,
+          },
+        });
+        if (typeof process !== "undefined" && process.env?.NODE_ENV !== "test") {
+          console.info("[copyright-suspicious] historical candidate restored", url, classification);
+        }
+      }
+    }
+  }
 
   const { data: sources } = await supabase
     .from("distribution_sources")
     .select(
-      "id,url,domain,page_title,tracked_titles,status,monitor_enabled,evidence,parent_source_id",
+      "id,url,domain,page_title,tracked_titles,status,monitor_enabled,evidence,parent_source_id,discovered_scan_id",
     )
     .eq("user_id", opts.userId)
     .eq("status", "active")
@@ -85,7 +165,16 @@ export async function loadHistoricalScanCandidates(
     .limit(80);
 
   for (const row of sources ?? []) {
-    if (!monitoredSourceMatchesWork(row, opts.workTitle, opts.titles)) continue;
+    const rowUrl = canonicalUrl(row.url);
+    const linkedToPriorScan =
+      row.discovered_scan_id != null && priorScanIds.includes(row.discovered_scan_id);
+    const linkedToConfirmed =
+      confirmedUrls.has(rowUrl) ||
+      confirmedDomains.has(row.domain.toLowerCase()) ||
+      (hostOf(rowUrl) ? confirmedDomains.has(hostOf(rowUrl)!) : false);
+    const titleRelevant = monitoredSourceMatchesWork(row, opts.workTitle, opts.titles);
+
+    if (!titleRelevant && !linkedToPriorScan && !linkedToConfirmed) continue;
 
     const evidence = (row.evidence ?? {}) as Record<string, unknown>;
     const evidenceUrl =
@@ -141,68 +230,6 @@ export async function loadHistoricalScanCandidates(
     }
   }
 
-  const { data: priorScans } = await supabase
-    .from("copyright_scans")
-    .select("id,title")
-    .eq("user_id", opts.userId)
-    .neq("id", opts.scanId)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  const priorScanIds = (priorScans ?? [])
-    .filter((s) => titleMatchesWork(s.title ?? "", opts.workTitle, opts.titles))
-    .map((s) => s.id);
-
-  if (priorScanIds.length) {
-    const { data: priorMatches } = await supabase
-      .from("copyright_matches")
-      .select("scan_id,source_url,page_title,detection_type,evidence,confidence")
-      .eq("user_id", opts.userId)
-      .in("scan_id", priorScanIds)
-      .order("confidence", { ascending: false })
-      .limit(120);
-
-    for (const match of priorMatches ?? []) {
-      const ev = (match.evidence ?? {}) as Record<string, unknown>;
-      const dist = (ev.distribution ?? {}) as Record<string, unknown>;
-      const clientVisible = ev.client_visible !== false && dist.client_visible !== false;
-      const classification =
-        (dist.classification as string) ?? match.detection_type ?? "UNVERIFIED_LEAD";
-      const actionable =
-        clientVisible && isActionablePiracy(classification);
-      const identityEvidence = Array.isArray(dist.identity_evidence)
-        ? (dist.identity_evidence as string[])
-        : Array.isArray(ev.identity_evidence)
-          ? (ev.identity_evidence as string[])
-          : [];
-
-      if (!identityEvidence.length && !actionable) continue;
-
-      const url = canonicalUrl(match.source_url);
-      const host = hostOf(url);
-      if (host) domainSet.add(host);
-
-      historicalFindingCandidates.push({
-        url,
-        title: match.page_title,
-        query: "historical_finding_recheck",
-        text: match.page_title ?? url,
-        strong: actionable,
-        origin: "historical_finding",
-      });
-
-      if (actionable) {
-        preservedFindings.push({
-          source_url: url,
-          page_title: match.page_title,
-          classification,
-          prior_scan_id: match.scan_id,
-          recheck_status: "pending",
-        });
-      }
-    }
-  }
-
   for (const domain of domainSet) {
     knownRiskDomainCandidates.push({
       url: `https://${domain}/`,
@@ -232,5 +259,7 @@ export async function loadHistoricalScanCandidates(
     siteScopedQueries,
     domainsSearched: [...domainSet],
     preservedFindings,
+    confirmedUrls: [...confirmedUrls],
+    confirmedDomains: [...confirmedDomains],
   };
 }

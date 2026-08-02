@@ -83,6 +83,12 @@ import {
 } from "@/lib/copyright/candidate-union";
 import { buildPageEvidenceResult } from "@/lib/copyright/page-evidence";
 import {
+  buildSuspiciousSourcesFromMatches,
+  countSuspiciousSourceStates,
+  resolveHistoricalRecheckStatus,
+  suspiciousSourcesDiagnosticLine,
+} from "@/lib/copyright/suspicious-sources";
+import {
   bumpCrawlFailure,
   emptyCrawlFailureCounts,
   type CrawlFailureCategory,
@@ -145,6 +151,15 @@ const TERMINAL_STATUS_RETRY_DELAYS_MS = [250, 750, 1_500] as const;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function leadForceDetailFollow(query: string | null | undefined): boolean {
+  return (
+    query === "monitored_source_recheck" ||
+    query === "historical_finding_recheck" ||
+    query === "mirror_redirect" ||
+    Boolean(query?.startsWith("known_risk_domain:"))
+  );
 }
 
 function errorMessage(error: unknown): string {
@@ -1601,7 +1616,14 @@ export async function executeCopyrightScanById(opts: {
       let suspectedReviewPages = 0;
       let historicalFindingsReconfirmed = 0;
       let historicalSourcesUnreachable = 0;
+      let historicalRequiresReview = 0;
       const unreachableHistoricalUrls = new Set<string>();
+      const preservedByUrl = new Map(
+        historicalCandidates.preservedFindings.map((pf) => [
+          canonicalUrl(pf.source_url),
+          pf,
+        ]),
+      );
       type KnownUrlInvestigation = {
         url: string;
         host?: string | null;
@@ -1861,9 +1883,6 @@ export async function executeCopyrightScanById(opts: {
           suspectedReviewPages += 1;
           crawlMetrics.recordMissingAccessEvidence();
         }
-        if (pageEvidence.clientVisibleFinding) {
-          if (leadQuery === "historical_finding_recheck") historicalFindingsReconfirmed += 1;
-        }
         if (
           dist.crawlFailed &&
           (leadQuery === "historical_finding_recheck" ||
@@ -1901,16 +1920,51 @@ export async function executeCopyrightScanById(opts: {
         });
 
         const contact = resolveAbuseContact(dist.url);
+        const priorPreserved = preservedByUrl.get(key);
         const isHistoricalRecheck =
           leadQuery === "historical_finding_recheck" ||
-          leadQuery === "monitored_source_recheck";
+          leadQuery === "monitored_source_recheck" ||
+          leadQuery === "mirror_redirect" ||
+          Boolean(leadQuery?.startsWith("known_risk_domain:")) ||
+          Boolean(priorPreserved);
         const recheckStatus = isHistoricalRecheck
-          ? dist.crawlFailed
-            ? "temporarily_unreachable"
-            : dist.clientVisible && dist.strongEvidence
-              ? "active"
-              : "requires_review"
+          ? resolveHistoricalRecheckStatus({
+              crawlFailed: dist.crawlFailed,
+              clientVisible: dist.clientVisible,
+              strongEvidence: dist.strongEvidence,
+              suspectedReview: pageEvidence.suspectedReview,
+              identityMatched: pageEvidence.titleIdentity.matched,
+              accessStrength: pageEvidence.accessEvidence.strength,
+              redirected: leadQuery === "mirror_redirect",
+            })
           : null;
+
+        if (isHistoricalRecheck && recheckStatus) {
+          if (typeof process !== "undefined" && process.env?.NODE_ENV !== "test") {
+            console.info(
+              "[copyright-suspicious] evidence result",
+              key,
+              recheckStatus,
+              pageEvidence.accessDiagnostics.accessStrength,
+              pageEvidence.rejectionReason ?? "",
+            );
+          }
+          if (recheckStatus === "reconfirmed_active") {
+            historicalFindingsReconfirmed += 1;
+          } else if (recheckStatus === "temporarily_unreachable") {
+            historicalSourcesUnreachable += 1;
+            unreachableHistoricalUrls.add(key);
+          } else if (
+            recheckStatus === "requires_review" ||
+            recheckStatus === "insufficient_current_evidence"
+          ) {
+            historicalRequiresReview += 1;
+          }
+        }
+
+        const historicalPreservation =
+          Boolean(priorPreserved) ||
+          (isHistoricalRecheck && recheckStatus !== "reconfirmed_active");
         const matchRow: MatchInsert = {
           scan_id: scan.id,
           user_id: userId,
@@ -1941,6 +1995,18 @@ export async function executeCopyrightScanById(opts: {
             crawl_failure_category: dist.crawlFailureCategory,
             crawl_failure_reason: dist.crawlFailureReason,
             ...(recheckStatus ? { recheck_status: recheckStatus } : {}),
+            ...(historicalPreservation
+              ? {
+                  historical_preservation: true,
+                  prior_classification: priorPreserved?.classification ?? dist.classification,
+                  prior_scan_id: priorPreserved?.prior_scan_id ?? null,
+                  prior_evidence: priorPreserved?.prior_evidence ?? null,
+                  prior_verified_at:
+                    (priorPreserved?.prior_evidence?.verified_at as string | undefined) ??
+                    null,
+                  show_as_historical: recheckStatus !== "reconfirmed_active",
+                }
+              : {}),
             distribution: {
               domain: dist.domain,
               domain_risk: dist.domainRisk,
@@ -2049,6 +2115,19 @@ export async function executeCopyrightScanById(opts: {
           internalRows.push(matchRow);
         }
 
+        if (typeof process !== "undefined" && process.env?.NODE_ENV !== "test") {
+          const ev = (matchRow.evidence ?? {}) as Record<string, unknown>;
+          console.info(
+            "[copyright-suspicious] persistence decision",
+            key,
+            distributionRows.some((r) => r.source_url === key)
+              ? "distribution_row"
+              : "internal_row",
+            ev.recheck_status ?? "",
+            ev.historical_preservation === true ? "historical" : "current",
+          );
+        }
+
         activity.recordDistributionOutcome({
           url: dist.url,
           pageTitle: dist.pageTitle ?? leadTitle,
@@ -2118,6 +2197,7 @@ export async function executeCopyrightScanById(opts: {
               preferRender: true,
               allowBrowserFallback: browserFallbackBudgetRemaining > 0,
               detailFollow: detailFollowRecorder,
+              forceDetailFollow: leadForceDetailFollow(lead.query),
             });
             crawledDistributionByUrl.set(canonicalUrl(analysis.url), analysis);
             crawledUrls.add(canonicalUrl(analysis.url));
@@ -2179,6 +2259,7 @@ export async function executeCopyrightScanById(opts: {
               preferRender: Boolean((lead as { strong?: boolean }).strong),
               allowBrowserFallback: browserFallbackBudgetRemaining > 0,
               detailFollow: detailFollowRecorder,
+              forceDetailFollow: leadForceDetailFollow(lead.query),
             });
             crawledDistributionByUrl.set(canonicalUrl(analysis.url), analysis);
             crawledUrls.add(canonicalUrl(analysis.url));
@@ -2208,7 +2289,7 @@ export async function executeCopyrightScanById(opts: {
         if (isPastDeadline(detailFollowDeadlineAt)) {
           abortedByDeadline = true;
           for (const url of details.slice(offset)) {
-            detailFollowRecorder.recordSkipped(url, "scan_deadline_reached");
+            detailFollowRecorder.recordSkipped(url, "deadline");
           }
           break;
         }
@@ -2270,16 +2351,47 @@ export async function executeCopyrightScanById(opts: {
       for (const pf of historicalCandidates.preservedFindings) {
         const key = canonicalUrl(pf.source_url);
         const rechecked = crawledUrls.has(key) || inspectedUrls.has(key);
-        const rowInScan =
-          distributionRows.some((r) => r.source_url === key) ||
-          internalRows.some((r) => r.source_url === key);
-        if (rowInScan) continue;
+        const existingRow =
+          distributionRows.find((r) => r.source_url === key) ??
+          internalRows.find((r) => r.source_url === key);
+        const rowInScan = Boolean(existingRow);
 
-        const recheckStatus = rechecked
-          ? unreachableHistoricalUrls.has(key)
-            ? "temporarily_unreachable"
-            : "requires_review"
-          : "pending";
+        const recheckStatus =
+          existingRow &&
+          typeof (existingRow.evidence as Record<string, unknown>)?.recheck_status === "string"
+            ? ((existingRow.evidence as Record<string, unknown>).recheck_status as string)
+            : rechecked
+              ? unreachableHistoricalUrls.has(key)
+                ? "temporarily_unreachable"
+                : "requires_review"
+              : "pending";
+
+        if (rowInScan && existingRow) {
+          const ev = (existingRow.evidence ?? {}) as Record<string, unknown>;
+          if (!ev.historical_preservation) {
+            existingRow.evidence = {
+              ...ev,
+              historical_preservation: true,
+              prior_classification: pf.classification,
+              prior_scan_id: pf.prior_scan_id,
+              prior_evidence: pf.prior_evidence ?? null,
+              prior_verified_at:
+                (pf.prior_evidence?.verified_at as string | undefined) ?? null,
+              recheck_status: recheckStatus,
+              show_as_historical: recheckStatus !== "reconfirmed_active",
+            };
+          } else if (!ev.recheck_status) {
+            existingRow.evidence = { ...ev, recheck_status: recheckStatus };
+          }
+          preservedHistoricalFindings.push({
+            source_url: key,
+            page_title: pf.page_title,
+            classification: pf.classification,
+            prior_scan_id: pf.prior_scan_id,
+            recheck_status: recheckStatus,
+          });
+          continue;
+        }
 
         preservedHistoricalFindings.push({
           source_url: key,
@@ -2288,6 +2400,19 @@ export async function executeCopyrightScanById(opts: {
           prior_scan_id: pf.prior_scan_id,
           recheck_status: recheckStatus,
         });
+        historicalRequiresReview += recheckStatus === "pending" || recheckStatus === "requires_review" ? 1 : 0;
+        if (recheckStatus === "temporarily_unreachable") {
+          historicalSourcesUnreachable += 1;
+        }
+
+        if (typeof process !== "undefined" && process.env?.NODE_ENV !== "test") {
+          console.info(
+            "[copyright-suspicious] persistence decision",
+            key,
+            "preserved_historical",
+            recheckStatus,
+          );
+        }
 
         const contact = resolveAbuseContact(key);
         internalRows.push({
@@ -2308,8 +2433,12 @@ export async function executeCopyrightScanById(opts: {
             historical_preservation: true,
             prior_scan_id: pf.prior_scan_id,
             prior_classification: pf.classification,
+            prior_evidence: pf.prior_evidence ?? null,
+            prior_verified_at:
+              (pf.prior_evidence?.verified_at as string | undefined) ?? null,
             recheck_status: recheckStatus,
             show_as_historical: true,
+            classification: pf.classification,
           },
           ocr_text: null,
           reason:
@@ -2327,18 +2456,43 @@ export async function executeCopyrightScanById(opts: {
       const seenUrls = new Set(distributionRows.map((r) => r.source_url));
       const isInternalLeadRow = (r: MatchInsert) => {
         const ev = (r.evidence ?? {}) as Record<string, unknown>;
+        if (ev.historical_preservation === true) return true;
         if (ev.client_visible === false) return true;
         return !isActionablePiracy(r.detection_type);
       };
-      const internalPersist = dedupeCopyrightMatchRows(
-        [...internalRows, ...fallbackRows].filter(
-          (r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r),
-        ),
-      ).slice(0, 80) as MatchInsert[];
+      const internalCandidates = [...internalRows, ...fallbackRows].filter(
+        (r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r),
+      );
+      internalCandidates.sort((a, b) => {
+        const aHist = (a.evidence as Record<string, unknown>)?.historical_preservation === true ? 1 : 0;
+        const bHist = (b.evidence as Record<string, unknown>)?.historical_preservation === true ? 1 : 0;
+        return bHist - aHist;
+      });
+      const internalPersist = dedupeCopyrightMatchRows(internalCandidates).slice(0, 80) as MatchInsert[];
       const allRows = dedupeCopyrightMatchRows([
         ...distributionRows,
         ...internalPersist,
       ]) as MatchInsert[];
+
+      const suspiciousSourcesPreview = buildSuspiciousSourcesFromMatches(
+        allRows.map((row) => ({
+          id: row.source_url,
+          source_url: row.source_url,
+          page_title: row.page_title,
+          confidence: row.confidence,
+          confidence_band: row.confidence_band,
+          detection_type: row.detection_type,
+          reason: row.reason,
+          review_status: null,
+          contact: row.contact,
+          evidence: row.evidence,
+          created_at: null,
+        })),
+      );
+      const suspiciousSourceCounts = countSuspiciousSourceStates(suspiciousSourcesPreview);
+      const redirectedHistoricalSources = suspiciousSourcesPreview.filter(
+        (s) => s.source_state === "redirected" || s.source_state === "removed",
+      ).length;
 
       if (allRows.length) {
         const { error: mErr } = await supabase.from("copyright_matches").upsert(allRows, { onConflict: "scan_id,source_url" });
@@ -2389,7 +2543,12 @@ export async function executeCopyrightScanById(opts: {
         suspected_review_pages: suspectedReviewPages,
         historical_findings_reconfirmed: historicalFindingsReconfirmed,
         historical_sources_temporarily_unreachable: historicalSourcesUnreachable,
+        historical_requires_review: historicalRequiresReview,
+        redirected_historical_sources: redirectedHistoricalSources,
         preserved_historical_findings: preservedHistoricalFindings,
+        suspicious_sources_displayed: suspiciousSourceCounts.suspicious_sources_displayed,
+        suspicious_sources_summary: suspiciousSourcesDiagnosticLine(suspiciousSourceCounts),
+        suspicious_source_counts: suspiciousSourceCounts,
         browser_fallback_budget_remaining_ms: browserFallbackBudgetRemaining,
         candidates: byUrl.size,
         graded: ordered.length,
@@ -2922,12 +3081,14 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
         ),
       };
     });
+    const suspiciousSources = buildSuspiciousSourcesFromMatches(matches ?? []);
     const sanitizedScan = sanitizeCopyrightScanRowForClient(
       watchedScan as unknown as Record<string, unknown>,
     );
     return {
       scan: sanitizedScan,
       matches: filterClientVisibleCopyrightMatches(matches ?? []),
+      suspiciousSources,
       allSources,
     };
   });
