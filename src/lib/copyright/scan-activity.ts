@@ -24,7 +24,12 @@ export const COPYRIGHT_WORKFLOW_STAGES = [
 export type CopyrightWorkflowStageKey =
   (typeof COPYRIGHT_WORKFLOW_STAGES)[number]["key"];
 
-export type ScanActivityProvider = "known_url" | "firecrawl" | "serpapi" | "telegram";
+export type ScanActivityProvider =
+  | "known_url"
+  | "firecrawl"
+  | "brightdata"
+  | "serpapi"
+  | "telegram";
 
 export type ScanActivityStage =
   | "discovered"
@@ -170,6 +175,7 @@ export function resolveActivityProvider(
 ): ScanActivityProvider {
   const q = (leadQuery ?? "").toLowerCase();
   if (q === "known_url_seed" || q.startsWith("known_url")) return "known_url";
+  if (q.startsWith("brightdata:") || q.includes("brightdata")) return "brightdata";
   if (q.startsWith("serpapi:") || q.includes("serpapi")) return "serpapi";
   if (/\btelegram\b/i.test(q)) return "telegram";
   return "firecrawl";
@@ -181,6 +187,8 @@ export function providerDisplayLabel(provider: ScanActivityProvider): string {
       return "Known URL";
     case "firecrawl":
       return "Firecrawl";
+    case "brightdata":
+      return "Bright Data";
     case "serpapi":
       return "SerpApi";
     case "telegram":
@@ -356,6 +364,123 @@ export function activityCountersFromStats(
       n("verified_findings") ||
       verifiedFromEvents,
     provider_failures: n("provider_failures"),
+  };
+}
+
+export type BrightDataProviderStatus =
+  | "not_configured"
+  | "idle"
+  | "running"
+  | "completed"
+  | "error";
+
+export type BrightDataTelemetry = {
+  configured: boolean;
+  running: boolean;
+  status: BrightDataProviderStatus;
+  statusLabel: string;
+  requests: number;
+  successes: number;
+  failures: number;
+  candidates: number;
+  uniqueUrls: number;
+  queriesGenerated: number;
+  queriesCompleted: number;
+  durationMs: number;
+  lastQuery: string | null;
+  errors: string[];
+  endpoint: string | null;
+  zone: string | null;
+  apiKeyPresent: boolean;
+};
+
+const BRIGHTDATA_ERROR_LABELS: Record<string, string> = {
+  missing_api_key: "Missing API key",
+  invalid_credentials: "Invalid credentials",
+  insufficient_credits: "Insufficient credits",
+  rate_limited: "Rate limited",
+  timeout: "Timeout",
+  provider_unavailable: "Provider unavailable",
+  invalid_response: "Invalid response",
+  no_results: "No results",
+  http_error: "Provider HTTP error",
+  network_error: "Network error",
+};
+
+export function brightDataErrorLabel(category: string): string {
+  return BRIGHTDATA_ERROR_LABELS[category] ?? category.replace(/_/g, " ");
+}
+
+/** Bright Data provider telemetry derived from live scan stats (no secrets). */
+export function brightDataTelemetryFromStats(
+  stats: Record<string, unknown> | null | undefined,
+  scanStatus?: string | null,
+): BrightDataTelemetry {
+  const num = (key: string) => {
+    const v = stats?.[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
+  const diag = (stats?.["brightdata_diagnostic"] ?? null) as Record<string, unknown> | null;
+  const configured =
+    stats?.["brightdata_configured"] === true ||
+    (typeof diag?.["configured"] === "boolean" && diag["configured"] === true);
+  const scanRunning = scanStatus === "running" || scanStatus === "queued" || scanStatus === "pending";
+  const running = stats?.["brightdata_running"] === true && scanRunning;
+
+  const byCategory = (stats?.["brightdata_failures_by_category"] ?? null) as
+    | Record<string, unknown>
+    | null;
+  const errors: string[] = [];
+  if (byCategory) {
+    for (const [category, count] of Object.entries(byCategory)) {
+      if (typeof count === "number" && count > 0) {
+        errors.push(`${brightDataErrorLabel(category)} (${count})`);
+      }
+    }
+  }
+  if (!configured && !errors.length) errors.push(brightDataErrorLabel("missing_api_key"));
+
+  const requests = num("brightdata_requests");
+  const failures = num("brightdata_failures");
+  const durationMs = num("brightdata_duration_ms") || num("brightdata_elapsed_ms");
+
+  let status: BrightDataProviderStatus;
+  if (!configured) status = "not_configured";
+  else if (running) status = "running";
+  else if (failures > 0 && num("brightdata_successes") === 0 && requests > 0) status = "error";
+  else if (requests > 0 || durationMs > 0) status = "completed";
+  else status = "idle";
+
+  const statusLabel =
+    status === "not_configured"
+      ? "Not configured"
+      : status === "running"
+        ? "Running"
+        : status === "error"
+          ? "Error"
+          : status === "completed"
+            ? "Completed"
+            : "Idle";
+
+  const lastQueryRaw = stats?.["brightdata_last_query"];
+  return {
+    configured,
+    running,
+    status,
+    statusLabel,
+    requests,
+    successes: num("brightdata_successes"),
+    failures,
+    candidates: num("brightdata_candidates"),
+    uniqueUrls: num("brightdata_unique_urls") || num("brightdata_candidates"),
+    queriesGenerated: num("brightdata_queries_generated"),
+    queriesCompleted: num("brightdata_queries_completed"),
+    durationMs,
+    lastQuery: typeof lastQueryRaw === "string" && lastQueryRaw ? lastQueryRaw.slice(0, 160) : null,
+    errors,
+    endpoint: typeof diag?.["endpoint"] === "string" ? (diag["endpoint"] as string) : null,
+    zone: typeof diag?.["zone"] === "string" ? (diag["zone"] as string) : null,
+    apiKeyPresent: diag?.["api_key_present"] === true,
   };
 }
 
