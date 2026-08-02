@@ -369,10 +369,12 @@ export function activityCountersFromStats(
 
 export type BrightDataProviderStatus =
   | "not_configured"
+  | "pending"
   | "idle"
   | "running"
   | "completed"
   | "error";
+
 
 export type BrightDataTelemetry = {
   configured: boolean;
