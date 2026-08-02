@@ -1,0 +1,498 @@
+/**
+ * Bright Data SERP API discovery provider — Copyright Intelligence only.
+ *
+ * Server-side only. Discovery-only: every hit is a *candidate* lead that must
+ * still pass the existing exact-page crawl, exact-title identity, access
+ * evidence, official-domain filtering and client-visible gates before it can
+ * ever be reported as infringement.
+ *
+ * Product: Bright Data SERP API (POST https://api.brightdata.com/request with
+ * `Authorization: Bearer <BRIGHT_DATA_API_KEY>` and a SERP `zone`).
+ * Docs: https://docs.brightdata.com/api-reference/rest-api/serp/serp-api
+ *
+ * Secrets are never logged, persisted or returned — diagnostics expose only
+ * presence and length.
+ */
+
+import { queryTitleVariants } from "./title-identity";
+import type { ReferenceAnalysis, PageLead } from "./discover.server";
+import { canonicalUrl, isExcludedHost } from "./url.server";
+import {
+  isAbortError,
+  isPastDiscoveryDeadline,
+  sleepWithAbort,
+} from "./discovery-runtime";
+import {
+  bumpProviderFailure,
+  emptyProviderFailureCounts,
+  sanitizeProviderFailureDetail,
+  type ProviderFailureCategory,
+} from "./provider-failures";
+
+export const BRIGHTDATA_ENDPOINT = "https://api.brightdata.com/request";
+export const BRIGHTDATA_DEFAULT_ZONE = "serp_api1";
+export const BRIGHTDATA_MAX_QUERIES_PER_SCAN = 6;
+export const BRIGHTDATA_MAX_UNIQUE_PAGES = 100;
+export const BRIGHTDATA_MAX_RETRIES = 1;
+export const BRIGHTDATA_REQUEST_TIMEOUT_MS = 15_000;
+
+export interface BrightDataDiagnostic {
+  configured: boolean;
+  api_key_present: boolean;
+  api_key_length: number;
+  zone_present: boolean;
+  zone: string;
+  endpoint: string;
+}
+
+export interface BrightDataDiscoveryHit {
+  url: string;
+  title: string | null;
+  text: string;
+  query: string;
+}
+
+export interface BrightDataDiscoveryResult {
+  provider: "brightdata";
+  configured: boolean;
+  hits: BrightDataDiscoveryHit[];
+  pageLeads: PageLead[];
+  queriesGenerated: number;
+  requests: number;
+  successes: number;
+  failures: number;
+  candidates: number;
+  duplicatesDropped: number;
+  failuresByCategory: Record<ProviderFailureCategory, number>;
+  failureSamples: Array<{ query: string; category: ProviderFailureCategory; detail: string }>;
+  diagnostic: BrightDataDiagnostic;
+}
+
+function apiKey(): string {
+  return (process.env.BRIGHT_DATA_API_KEY ?? "").trim();
+}
+
+function zone(): string {
+  return (
+    (process.env.BRIGHT_DATA_SERP_ZONE ?? process.env.BRIGHT_DATA_ZONE ?? "").trim() ||
+    BRIGHTDATA_DEFAULT_ZONE
+  );
+}
+
+export function isBrightDataConfigured(): boolean {
+  return apiKey().length > 0;
+}
+
+/** Safe diagnostics: presence + length only, never the secret value. */
+export function brightDataDiagnostic(): BrightDataDiagnostic {
+  const key = apiKey();
+  const z = zone();
+  return {
+    configured: key.length > 0,
+    api_key_present: key.length > 0,
+    api_key_length: key.length,
+    zone_present: Boolean(
+      (process.env.BRIGHT_DATA_SERP_ZONE ?? process.env.BRIGHT_DATA_ZONE ?? "").trim(),
+    ),
+    zone: z,
+    endpoint: BRIGHTDATA_ENDPOINT,
+  };
+}
+
+/** Exact quoted-title distribution queries only — never bare tokens. */
+export function buildBrightDataQueries(
+  analysis: ReferenceAnalysis,
+  workTitle: string,
+  maxQueries = BRIGHTDATA_MAX_QUERIES_PER_SCAN,
+): string[] {
+  const primary = (analysis.title || workTitle).trim();
+  if (!primary) return [];
+  const names = queryTitleVariants(primary, [
+    workTitle,
+    analysis.title ?? "",
+    ...analysis.altTitles,
+  ]).slice(0, 4);
+  const phrases = [
+    "watch full movie online free",
+    "download full movie",
+    "torrent magnet download",
+    "HDCAM CAM print theatre leak",
+    "full movie telegram link",
+  ] as const;
+  const out: string[] = [];
+  for (const name of names) {
+    const quoted = `"${name.replaceAll('"', "").trim()}"`;
+    for (const phrase of phrases) {
+      out.push(`${quoted} ${phrase}`);
+      if (out.length >= maxQueries) return out;
+    }
+  }
+  return out.slice(0, maxQueries);
+}
+
+function searchUrlFor(query: string): string {
+  const params = new URLSearchParams({ q: query, num: "20", brd_json: "1" });
+  return `https://www.google.com/search?${params.toString()}`;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+/** Tolerant extraction of organic results across Bright Data response shapes. */
+function organicRows(payload: unknown): Record<string, unknown>[] {
+  const row = asRecord(payload);
+  if (!row) return [];
+
+  for (const key of ["organic", "organic_results", "results"]) {
+    const value = row[key];
+    if (Array.isArray(value)) {
+      return value.map(asRecord).filter((r): r is Record<string, unknown> => Boolean(r));
+    }
+  }
+
+  // Some zones wrap the SERP payload in `body` (string or object).
+  const body = row.body;
+  if (typeof body === "string") {
+    try {
+      return organicRows(JSON.parse(body));
+    } catch {
+      return [];
+    }
+  }
+  if (body && typeof body === "object") return organicRows(body);
+  return [];
+}
+
+export function brightDataHitsFromPayload(
+  payload: unknown,
+  query: string,
+): BrightDataDiscoveryHit[] {
+  const hits: BrightDataDiscoveryHit[] = [];
+  for (const item of organicRows(payload)) {
+    const raw = item.link ?? item.url ?? item.href;
+    const link = typeof raw === "string" ? raw.trim() : "";
+    if (!link.startsWith("http")) continue;
+    const key = canonicalUrl(link);
+    // Official studios, licensed streamers, databases and news stay excluded.
+    if (isExcludedHost(key)) continue;
+    const title = typeof item.title === "string" ? item.title : null;
+    const snippetRaw = item.description ?? item.snippet ?? item.text;
+    const snippet = typeof snippetRaw === "string" ? snippetRaw : "";
+    hits.push({ url: key, title, text: `${title ?? ""} ${snippet} ${key}`, query });
+  }
+  return hits;
+}
+
+export function classifyBrightDataFailure(opts: {
+  status?: number | null;
+  bodyText?: string | null;
+  error?: unknown;
+  configured?: boolean;
+}): ProviderFailureCategory {
+  if (opts.configured === false) return "missing_api_key";
+  const status = opts.status ?? 0;
+  const body = (opts.bodyText ?? "").toLowerCase();
+
+  if (/insufficient|not enough (?:funds|credits)|balance|payment required|quota exceeded/.test(body)) {
+    return "insufficient_credits";
+  }
+  if (status === 402) return "insufficient_credits";
+  if (status === 401 || status === 403) return "invalid_credentials";
+  if (status === 429) return "rate_limited";
+  if (status === 408 || status === 504) return "timeout";
+  if (status >= 500) return "provider_unavailable";
+  if (status > 0 && status !== 200) return "provider_unavailable";
+
+  const msg =
+    opts.error instanceof Error
+      ? `${opts.error.name} ${opts.error.message}`
+      : typeof opts.error === "string"
+        ? opts.error
+        : "";
+  const lower = msg.toLowerCase();
+  if (/missing|not configured/.test(lower)) return "missing_api_key";
+  if (/unauthor|forbidden|invalid.*(token|key)/.test(lower)) return "invalid_credentials";
+  if (/rate.?limit|429/.test(lower)) return "rate_limited";
+  if (/timeout|timed out|abort/.test(lower)) return "timeout";
+  if (/json|parse|malformed|unexpected token|invalid response/.test(lower)) {
+    return "invalid_response";
+  }
+  return "provider_unavailable";
+}
+
+function isTransient(category: ProviderFailureCategory): boolean {
+  return category === "rate_limited" || category === "provider_unavailable" || category === "timeout";
+}
+
+interface SingleSearch {
+  ok: boolean;
+  payload: unknown;
+  status: number;
+  bodyText: string | null;
+  error: string | null;
+}
+
+async function searchOnce(
+  query: string,
+  signal?: AbortSignal,
+  deadlineAt?: number,
+): Promise<SingleSearch> {
+  const key = apiKey();
+  if (!key) {
+    return {
+      ok: false,
+      payload: null,
+      status: 0,
+      bodyText: null,
+      error: "BRIGHT_DATA_API_KEY is not configured",
+    };
+  }
+
+  const timeoutMs = Math.min(
+    BRIGHTDATA_REQUEST_TIMEOUT_MS,
+    typeof deadlineAt === "number"
+      ? Math.max(1_000, deadlineAt - Date.now())
+      : BRIGHTDATA_REQUEST_TIMEOUT_MS,
+  );
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new DOMException("Timeout", "TimeoutError")),
+    timeoutMs,
+  );
+  const onParentAbort = () => controller.abort(signal?.reason);
+  signal?.addEventListener("abort", onParentAbort, { once: true });
+
+  try {
+    const res = await fetch(BRIGHTDATA_ENDPOINT, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        zone: zone(),
+        url: searchUrlFor(query),
+        format: "json",
+        method: "GET",
+      }),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      return {
+        ok: false,
+        payload: null,
+        status: res.status,
+        bodyText: text,
+        error: `Bright Data HTTP ${res.status}`,
+      };
+    }
+    try {
+      return { ok: true, payload: JSON.parse(text), status: res.status, bodyText: null, error: null };
+    } catch {
+      return {
+        ok: false,
+        payload: null,
+        status: res.status,
+        bodyText: text,
+        error: "Bright Data returned an invalid response",
+      };
+    }
+  } catch (error) {
+    if (isAbortError(error) && signal?.aborted) throw error;
+    return {
+      ok: false,
+      payload: null,
+      status: 0,
+      bodyText: null,
+      error: error instanceof Error ? error.message : "Bright Data request failed",
+    };
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onParentAbort);
+  }
+}
+
+function emptyResult(
+  overrides: Partial<BrightDataDiscoveryResult> = {},
+): BrightDataDiscoveryResult {
+  return {
+    provider: "brightdata",
+    configured: isBrightDataConfigured(),
+    hits: [],
+    pageLeads: [],
+    queriesGenerated: 0,
+    requests: 0,
+    successes: 0,
+    failures: 0,
+    candidates: 0,
+    duplicatesDropped: 0,
+    failuresByCategory: emptyProviderFailureCounts(),
+    failureSamples: [],
+    diagnostic: brightDataDiagnostic(),
+    ...overrides,
+  };
+}
+
+/**
+ * Bounded Bright Data SERP discovery. Never throws on provider errors so a
+ * Bright Data failure can never cancel Firecrawl (or vice versa).
+ */
+export async function runBrightDataDiscovery(input: {
+  analysis: ReferenceAnalysis;
+  workTitle: string;
+  signal?: AbortSignal;
+  deadlineAt?: number;
+  maxQueries?: number;
+  onActivity?: (event: {
+    query: string;
+    status: "searching" | "results" | "failed";
+    candidates?: number;
+    category?: ProviderFailureCategory;
+  }) => void | Promise<void>;
+}): Promise<BrightDataDiscoveryResult> {
+  const failuresByCategory = emptyProviderFailureCounts();
+  const failureSamples: BrightDataDiscoveryResult["failureSamples"] = [];
+
+  if (!isBrightDataConfigured()) {
+    bumpProviderFailure(failuresByCategory, "missing_api_key");
+    return emptyResult({
+      configured: false,
+      failures: 1,
+      failuresByCategory,
+      failureSamples: [
+        {
+          query: "",
+          category: "missing_api_key",
+          detail: "BRIGHT_DATA_API_KEY is not configured",
+        },
+      ],
+    });
+  }
+
+  const queries = buildBrightDataQueries(
+    input.analysis,
+    input.workTitle,
+    input.maxQueries ?? BRIGHTDATA_MAX_QUERIES_PER_SCAN,
+  );
+
+  const hits: BrightDataDiscoveryHit[] = [];
+  const seen = new Set<string>();
+  let requests = 0;
+  let successes = 0;
+  let failures = 0;
+  let duplicatesDropped = 0;
+
+  for (const query of queries) {
+    if (input.signal?.aborted) break;
+    if (isPastDiscoveryDeadline(input.deadlineAt)) break;
+    if (seen.size >= BRIGHTDATA_MAX_UNIQUE_PAGES) break;
+
+    await input.onActivity?.({ query, status: "searching" });
+
+    let ok = false;
+    let payload: unknown = null;
+    let lastCategory: ProviderFailureCategory = "provider_unavailable";
+    let lastDetail = "Bright Data request failed";
+
+    for (let attempt = 0; attempt <= BRIGHTDATA_MAX_RETRIES; attempt++) {
+      if (input.signal?.aborted) break;
+      if (isPastDiscoveryDeadline(input.deadlineAt)) break;
+      requests += 1;
+      let result: SingleSearch;
+      try {
+        result = await searchOnce(query, input.signal, input.deadlineAt);
+      } catch {
+        lastCategory = "timeout";
+        lastDetail = "Bright Data request aborted";
+        break;
+      }
+      if (result.ok) {
+        ok = true;
+        payload = result.payload;
+        break;
+      }
+      lastCategory = classifyBrightDataFailure({
+        status: result.status,
+        bodyText: result.bodyText,
+        error: result.error,
+        configured: true,
+      });
+      lastDetail = sanitizeProviderFailureDetail(result.error ?? lastCategory);
+      if (attempt < BRIGHTDATA_MAX_RETRIES && isTransient(lastCategory)) {
+        await sleepWithAbort(1_500 * (attempt + 1), input.signal);
+        continue;
+      }
+      break;
+    }
+
+    if (!ok) {
+      failures += 1;
+      bumpProviderFailure(failuresByCategory, lastCategory);
+      if (failureSamples.length < 8) {
+        failureSamples.push({
+          query: query.slice(0, 120),
+          category: lastCategory,
+          detail: lastDetail,
+        });
+      }
+      await input.onActivity?.({ query, status: "failed", category: lastCategory });
+      // Hard credential/credit failures will not recover within this scan.
+      if (lastCategory === "invalid_credentials" || lastCategory === "insufficient_credits") break;
+      continue;
+    }
+
+    successes += 1;
+    let added = 0;
+    for (const hit of brightDataHitsFromPayload(payload, query)) {
+      if (seen.size >= BRIGHTDATA_MAX_UNIQUE_PAGES) break;
+      if (seen.has(hit.url)) {
+        duplicatesDropped += 1;
+        continue;
+      }
+      seen.add(hit.url);
+      hits.push(hit);
+      added += 1;
+    }
+    await input.onActivity?.({ query, status: "results", candidates: added });
+  }
+
+  if (successes > 0 && hits.length === 0) {
+    bumpProviderFailure(failuresByCategory, "no_results");
+    if (failureSamples.length < 8) {
+      failureSamples.push({
+        query: "",
+        category: "no_results",
+        detail: "Bright Data returned no usable organic results",
+      });
+    }
+  }
+
+  const pageLeads: PageLead[] = hits.map((hit) => ({
+    url: hit.url,
+    title: hit.title,
+    query: `brightdata:${hit.query}`,
+    text: hit.text,
+    strong:
+      /\b(download|watch|stream|torrent|magnet|cam|hdcam|hdrip|webrip|web-dl|telegram)\b/i.test(
+        hit.text,
+      ),
+  }));
+
+  return emptyResult({
+    configured: true,
+    hits,
+    pageLeads,
+    queriesGenerated: queries.length,
+    requests,
+    successes,
+    failures,
+    candidates: hits.length,
+    duplicatesDropped,
+    failuresByCategory,
+    failureSamples,
+  });
+}
