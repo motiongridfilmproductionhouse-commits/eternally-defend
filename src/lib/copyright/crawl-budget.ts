@@ -11,6 +11,8 @@ export const DEFAULT_PAGE_CAP = 32;
 export const KNOWN_URL_BUDGET_MS = 90_000;
 /** Remaining wall-clock budget for provider candidate crawls. */
 export const PROVIDER_CRAWL_BUDGET_MS = 120_000;
+/** Reserved wall-clock budget for title-detail follow phase. */
+export const DETAIL_FOLLOW_BUDGET_MS = 45_000;
 
 export interface CrawlSlotAllocation {
   knownSlots: number;

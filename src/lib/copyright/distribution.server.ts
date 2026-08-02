@@ -22,6 +22,7 @@ import {
 import { retrieveCopyrightPage } from "./page-retrieve.server";
 import type { CrawlFailureCategory } from "./crawl-failure";
 import { releaseTimingFor, type ReleaseTiming } from "./release-timing";
+import { isLikelyListingPage } from "./page-extract.server";
 import type { CopyrightClassification } from "./taxonomy";
 import {
   extractReferenceImagesFromPage,
@@ -80,7 +81,7 @@ export interface DistributionAnalysis {
   /** Sanitized diagnostic reason for retrieval failure. */
   crawlFailureReason: string | null;
   /** How the page body was retrieved. */
-  retrievalMethod: "static_html" | "firecrawl_render" | "none";
+  retrievalMethod: "static_html" | "firecrawl_render" | "crawl4ai_render" | "none";
   /** True when Firecrawl rendered fallback was used. */
   rendered: boolean;
   /** Thumbnails discovered on this page for the live reference carousel only. */
@@ -281,18 +282,24 @@ export async function analyzeDistributionPage(opts: {
 
   let detailFollowUrls: string[] = [];
   const looksLikeListing =
-    classified.primaryPurpose === "listing_or_search" ||
-    /\/(search|category|tag|genre|latest|movies|browse)(\/|$|\?)/i.test(retrieved.finalUrl) ||
-    links.length >= 15;
-  if (!opts.skipDetailFollow && !classified.clientVisible && looksLikeListing) {
-    // Bounded same-host title-detail follow. Listing pages themselves are never evidence.
+    !classified.clientVisible &&
+    isLikelyListingPage({
+      url: retrieved.finalUrl,
+      primaryPurpose: classified.primaryPurpose,
+      linkCount: links.length,
+      html,
+      markdown,
+    });
+  if (!opts.skipDetailFollow && looksLikeListing) {
+    // Bounded title-detail follow. Listing pages themselves are never evidence.
     detailFollowUrls = extractTitleMatchedDetailLinks({
       pageUrl: retrieved.finalUrl,
       html,
       markdown,
       links,
       titles: opts.titles,
-      limit: 6,
+      limit: 5,
+      metadata: meta,
     });
   }
 

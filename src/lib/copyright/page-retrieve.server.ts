@@ -26,13 +26,22 @@ import {
 } from "./crawl-failure";
 import { canonicalUrl, hostOf } from "./url.server";
 
+import {
+  detectChallengeOrShellPage,
+  enrichLinksFromHtml,
+  extractJsonLdBlocks,
+  jsonLdTitleHints,
+  mergeUniqueLinks,
+} from "./page-extract.server";
+import { crawl4aiRenderPage, isCrawl4AiConfigured } from "./crawl4ai-render.server";
+
 const USER_AGENT = "EternaSentinelCopyrightIntel/1.0";
 const MAX_REDIRECTS = 6;
 const STATIC_TIMEOUT_MS = 12_000;
-const RENDER_TIMEOUT_MS = 25_000;
+const RENDER_TIMEOUT_MS = 30_000;
 const MIN_USABLE_TEXT = 180;
 
-export type RetrievalMethod = "static_html" | "firecrawl_render" | "none";
+export type RetrievalMethod = "static_html" | "firecrawl_render" | "crawl4ai_render" | "none";
 
 export interface PageRetrievalResult {
   ok: boolean;
@@ -161,9 +170,11 @@ function htmlToRoughMarkdown(html: string): string {
     .slice(0, 80_000);
 }
 
-/** Static HTML that is empty or clearly a JS shell needing render. */
+/** Static HTML that is empty, a JS shell, or an anti-bot challenge page. */
 export function needsRenderedFallback(html: string, markdown: string): boolean {
   const text = (markdown || htmlToRoughMarkdown(html)).trim();
+  if (!text.length) return true;
+  if (detectChallengeOrShellPage(html, text)) return true;
   if (text.length < MIN_USABLE_TEXT) return true;
   const shell =
     /id=["']root["']|id=["']__next["']|id=["']app["']|data-reactroot|ng-app|window\.__INITIAL_STATE__/i.test(
@@ -599,13 +610,15 @@ export async function retrieveCopyrightPage(
     staticPage.ok && !needsRenderedFallback(html, markdown) && !options?.preferRender;
 
   if (staticUsable) {
-    method = "static_html";
+    const enriched = enrichLinksFromHtml(html, finalUrl);
+    links = mergeUniqueLinks(links, enriched);
+    metadata = { json_ld: extractJsonLdBlocks(html) };
     return {
       ok: true,
       url: start,
       finalUrl,
       host: hostOf(finalUrl),
-      method,
+      method: "static_html",
       markdown,
       html,
       links,
@@ -624,26 +637,40 @@ export async function retrieveCopyrightPage(
   if (
     !renderedPage.ok &&
     (renderedPage.failureCategory === "blocked_403" ||
+      renderedPage.failureCategory === "access_denied" ||
       renderedPage.failureCategory === "render_failure" ||
-      renderedPage.failureCategory === "provider_failure")
+      renderedPage.failureCategory === "provider_failure" ||
+      renderedPage.failureCategory === "cloudflare_challenge")
   ) {
     renderedPage = await firecrawlRender(finalUrl, signal, "stealth");
   }
-  if (renderedPage.ok && renderedPage.data) {
-    const data = renderedPage.data;
+
+  const applyRenderedPayload = (
+    data: ScrapeInner,
+    method: RetrievalMethod,
+  ): PageRetrievalResult => {
     html = data.html ?? html;
     markdown = data.markdown ?? markdown;
-    links = (Array.isArray(data.links) ? data.links : links).filter(
-      (l): l is string => typeof l === "string",
+    const enriched = enrichLinksFromHtml(html, finalUrl);
+    links = mergeUniqueLinks(
+      Array.isArray(data.links) ? data.links.filter((l): l is string => typeof l === "string") : [],
+      enriched,
+      links,
     );
-    metadata = (data.metadata ?? {}) as Record<string, unknown>;
+    metadata = { ...(data.metadata ?? {}), json_ld: extractJsonLdBlocks(html) } as Record<
+      string,
+      unknown
+    >;
+    const jsonLdTitles = jsonLdTitleHints(metadata.json_ld as Array<Record<string, unknown>>);
+    if (jsonLdTitles.length) {
+      metadata.json_ld_titles = jsonLdTitles;
+    }
     pageTitle =
       (typeof metadata.title === "string" && metadata.title) ||
+      jsonLdTitles[0] ||
       extractTitle(html) ||
       pageTitle;
     screenshot = normalizeShot(data.screenshot);
-    method = "firecrawl_render";
-    rendered = true;
     return {
       ok: true,
       url: start,
@@ -656,11 +683,31 @@ export async function retrieveCopyrightPage(
       screenshot,
       pageTitle,
       metadata,
-      rendered,
+      rendered: true,
       failureCategory: null,
       failureReason: null,
       httpStatus: staticPage.status || redirected.status,
     };
+  };
+
+  if (renderedPage.ok && renderedPage.data) {
+    return applyRenderedPayload(renderedPage.data, "firecrawl_render");
+  }
+
+  // 5. Crawl4AI browser fallback when configured
+  if (isCrawl4AiConfigured()) {
+    const crawl4ai = await crawl4aiRenderPage(finalUrl, signal);
+    if (crawl4ai.ok) {
+      return applyRenderedPayload(
+        {
+          html: crawl4ai.html,
+          markdown: crawl4ai.markdown,
+          links: crawl4ai.links,
+          metadata: crawl4ai.metadata,
+        },
+        "crawl4ai_render",
+      );
+    }
   }
 
   // Prefer-render requested but render failed — keep usable static HTML if present.

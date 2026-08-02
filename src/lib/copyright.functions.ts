@@ -57,11 +57,13 @@ import {
 import { isNeverMonitoredDomain } from "@/lib/copyright/official-platforms";
 import {
   allocateCrawlSlots,
+  DETAIL_FOLLOW_BUDGET_MS,
   isPastDeadline,
   KNOWN_URL_BUDGET_MS,
   PROVIDER_CRAWL_BUDGET_MS,
   splitKnownAndProviderLeads,
 } from "@/lib/copyright/crawl-budget";
+import { CrawlMetricsRecorder } from "@/lib/copyright/crawl-metrics";
 import {
   bumpCrawlFailure,
   emptyCrawlFailureCounts,
@@ -1552,6 +1554,7 @@ export async function executeCopyrightScanById(opts: {
       };
       const knownUrlInvestigations: KnownUrlInvestigation[] = [];
       const crawlFailedByCategory = emptyCrawlFailureCounts();
+      const crawlMetrics = new CrawlMetricsRecorder();
       let knownUrlsAttempted = 0;
       let knownUrlsRetrieved = 0;
       let knownUrlsRendered = 0;
@@ -1653,19 +1656,39 @@ export async function executeCopyrightScanById(opts: {
         if (dist.pageReferenceImages?.length) {
           appendDiscoveredImages(dist.pageReferenceImages);
         }
-        sourceActivity.upsert({
-          provider: dist.rendered ? "firecrawl" : "direct_retrieval",
-          status: dist.crawlFailed ? "failed" : "searching",
-          requests: pagesCrawled,
-          candidates: referenceMaterials.count(),
-          failures: pagesFailed + (dist.crawlFailed ? 1 : 0),
-        });
 
         if (dist.crawlFailed) {
           pagesFailed += 1;
           bumpCrawlFailure(crawlFailedByCategory, dist.crawlFailureCategory);
+          if (dist.crawlFailureCategory === "empty_static_html") {
+            crawlMetrics.recordStaticEmpty();
+          }
+          if (
+            dist.crawlFailureCategory &&
+            [
+              "render_failure",
+              "browser_render_empty",
+              "provider_failure",
+              "cloudflare_challenge",
+              "javascript_required",
+              "navigation_timeout",
+              "empty_static_html",
+            ].includes(dist.crawlFailureCategory)
+          ) {
+            crawlMetrics.recordBrowserAttempt();
+            crawlMetrics.recordBrowserFailure();
+          }
           // Network/render failures are never counted as content rejection below.
         } else {
+          if (dist.retrievalMethod === "static_html") crawlMetrics.recordStaticSuccess();
+          if (dist.rendered) {
+            crawlMetrics.recordBrowserAttempt();
+            crawlMetrics.recordBrowserSuccess();
+          }
+          if (dist.retrievalMethod === "crawl4ai_render") {
+            crawlMetrics.recordCrawl4AiAttempt();
+            crawlMetrics.recordCrawl4AiSuccess();
+          }
           switch (dist.classification) {
             case "CINEMA_OR_SHOWTIME":
               cinemaRejected += 1;
@@ -1712,6 +1735,7 @@ export async function executeCopyrightScanById(opts: {
         // Content-rejection counters only apply to successfully retrieved pages.
         if (!dist.crawlFailed && !dist.identityEvidence.length && !dist.clientVisible) {
           titleIdentityRejected += 1;
+          crawlMetrics.recordTitleRejected();
         }
         if (
           !dist.crawlFailed &&
@@ -1727,6 +1751,23 @@ export async function executeCopyrightScanById(opts: {
           dist.classification !== "DUPLICATE_ARTWORK_ONLY"
         ) {
           accessEvidenceRejected += 1;
+          crawlMetrics.recordMissingAccessEvidence();
+        }
+        if (!dist.crawlFailed && dist.identityEvidence.length) {
+          crawlMetrics.recordExactTitle();
+        }
+        if (!dist.crawlFailed && dist.accessEvidence.length) {
+          crawlMetrics.recordAccessEvidence();
+        }
+        if (
+          !dist.crawlFailed &&
+          (dist.classification === "OFFICIAL_OR_AUTHORIZED" ||
+            dist.classification === "OFFICIAL_OR_AUTHORIZED_PAGE" ||
+            dist.classification === "TRAILER_OR_PROMO" ||
+            dist.classification === "CINEMA_OR_SHOWTIME" ||
+            dist.classification === "REVIEW_OR_NEWS")
+        ) {
+          crawlMetrics.recordOfficialOrPromoRejected();
         }
 
         if (dist.indicatorKeys.includes("embedded_player")) embeddedPlayers += 1;
@@ -1862,6 +1903,7 @@ export async function executeCopyrightScanById(opts: {
             }
           }
           distributionRows.push(matchRow);
+          crawlMetrics.recordFinding();
         } else if (
           dist.clientVisible &&
           dist.strongEvidence &&
@@ -1870,6 +1912,7 @@ export async function executeCopyrightScanById(opts: {
           // Actionable finding for UI but not eligible for domain monitoring
           // (e.g. never-monitor hosts) — still show as client-visible match.
           distributionRows.push(matchRow);
+          crawlMetrics.recordFinding();
         } else {
           // Retain every inspected source as an internal diagnostics lead so the
           // operator-facing "all sources" list is complete (including UNRELATED).
@@ -1955,8 +1998,10 @@ export async function executeCopyrightScanById(opts: {
         await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed }, true);
       }
 
-      // Phase B — provider candidates with remaining budget / reserved leftover slots.
-      const providerDeadlineAt = Date.now() + PROVIDER_CRAWL_BUDGET_MS;
+      // Phase B — provider candidates with remaining budget (detail follow reserved).
+      const providerPhaseStart = Date.now();
+      const providerDeadlineAt = providerPhaseStart + PROVIDER_CRAWL_BUDGET_MS - DETAIL_FOLLOW_BUDGET_MS;
+      const detailFollowDeadlineAt = providerPhaseStart + PROVIDER_CRAWL_BUDGET_MS;
       for (let offset = 0; offset < providerPhaseLeads.length; offset += 4) {
         if (isPastDeadline(providerDeadlineAt)) {
           abortedByDeadline = true;
@@ -1992,6 +2037,7 @@ export async function executeCopyrightScanById(opts: {
                 titles,
                 releaseDate,
                 signal,
+                preferRender: Boolean((lead as { strong?: boolean }).strong),
               }),
             };
           }),
@@ -2007,16 +2053,16 @@ export async function executeCopyrightScanById(opts: {
       activity.setWorkflowStage("classifying_evidence");
       await pushActivity({}, true);
 
-      // Bounded same-domain detail follow from listing pages.
-      const details = detailFollowQueue.slice(0, 12);
+      // Bounded same-domain detail follow from listing pages (reserved budget).
+      const details = detailFollowQueue.slice(0, 15);
       for (let offset = 0; offset < details.length; offset += 4) {
-        if (isPastDeadline(providerDeadlineAt)) {
+        if (isPastDeadline(detailFollowDeadlineAt)) {
           abortedByDeadline = true;
           break;
         }
         const batch = details.slice(offset, offset + 4);
         const signal = AbortSignal.timeout(
-          Math.max(1_000, providerDeadlineAt - Date.now()),
+          Math.max(1_000, detailFollowDeadlineAt - Date.now()),
         );
         const analyses = await Promise.all(
           batch.map(async (url) => {
@@ -2030,12 +2076,14 @@ export async function executeCopyrightScanById(opts: {
               titles,
               releaseDate,
               skipDetailFollow: true,
+              preferRender: true,
               signal,
             });
           }),
         );
         for (const dist of analyses) {
           detailPagesFollowed += 1;
+          crawlMetrics.recordDetailFollow();
           await ingestDistribution(dist, "detail_follow", dist.pageTitle);
         }
         await pushActivity({
@@ -2105,7 +2153,10 @@ export async function executeCopyrightScanById(opts: {
         artworkRejected +
         fallbackRows.filter((r) => r.detection_type === "DUPLICATE_ARTWORK_ONLY").length;
 
+      const crawlMetricValues = crawlMetrics.get();
       const stats = {
+        ...crawlMetricValues,
+        crawl_metrics: crawlMetricValues,
         candidates: byUrl.size,
         graded: ordered.length,
         rekognition: fingerprint.available,
@@ -2225,8 +2276,13 @@ export async function executeCopyrightScanById(opts: {
         distribution_high_risk: distributionSummary.filter((d) => d.domain_risk === "high").length,
         distribution_summary: distributionSummary.slice(0, 25),
         rejection_funnel: explainZeroMatchFunnel({
+          ...crawlMetricValues,
+          crawl_metrics: crawlMetricValues,
           queries_generated: discovery.queriesGenerated,
           queries_executed: discovery.queriesExecuted,
+          provider_requests: discovery.providerRequests,
+          provider_successes: discovery.providerSuccesses + serpapiDiscovery.successes,
+          provider_failures: discovery.providerFailures,
           provider_results: byUrl.size + discovery.pageLeads.length,
           unique_candidate_pages: uniqueCandidatePages,
           listing_pages_found: listingPagesFound,
