@@ -274,7 +274,23 @@ function CopyrightIntelPage() {
       qc.invalidateQueries({ queryKey: ["copyright-scan", res.scanId] });
       toast.message("Scan queued — discovery will update here automatically.");
     },
-    onError: (e: Error) => { setStage(""); setScanMeta(null); setSummary(null); toast.error(e.message); },
+    onError: async (e: Error) => {
+      setStage("");
+      toast.error(e.message);
+      await qc.invalidateQueries({ queryKey: ["copyright-scans"] });
+      const rows = qc.getQueryData<Array<{ id: string; title: string; status: string }>>([
+        "copyright-scans",
+      ]);
+      const failedMatch = rows?.find(
+        (row) => row.title === scanMeta?.title && row.status === "failed",
+      );
+      if (failedMatch) {
+        setSelectedScanId(failedMatch.id);
+      } else {
+        setScanMeta(null);
+        setSummary(null);
+      }
+    },
   });
 
   const scanBusy =
