@@ -10,7 +10,22 @@ import {
   type PageLead,
 } from "@/lib/copyright/discover.server";
 import {
+  ReferenceImageRecorder,
+  referenceImageFromDiscoveryCandidate,
+  type ReferenceImage,
+} from "@/lib/copyright/reference-images";
+import {
+  ReferenceMaterialRecorder,
+  isYoutubeConfigured,
+  materialFromYoutubeVideo,
+} from "@/lib/copyright/reference-materials";
+import {
+  buildYoutubeQueries,
+  discoverYoutubeVideos,
+} from "@/lib/copyright/youtube-monitor.server";
+import {
   brightDataDiagnostic,
+  isBrightDataConfigured,
   type BrightDataDiscoveryResult,
 } from "@/lib/copyright/brightdata-provider.server";
 import { emptyProviderFailureCounts } from "@/lib/copyright/provider-failures";
@@ -61,10 +76,6 @@ import {
   ScanActivityRecorder,
   flushScanActivity,
 } from "@/lib/copyright/scan-activity";
-import {
-  ReferenceImageRecorder,
-  referenceImageFromDiscoveryCandidate,
-} from "@/lib/copyright/reference-images";
 import {
   SourceActivityRecorder,
   type SourceActivityStatus,
@@ -727,8 +738,28 @@ export async function executeCopyrightScanById(opts: {
     activity.restoreFromStats(priorStats);
     const referenceImages = new ReferenceImageRecorder();
     referenceImages.restoreFromStats(priorStats);
+    const referenceMaterials = new ReferenceMaterialRecorder();
+    referenceMaterials.restoreFromStats(priorStats);
     const sourceActivity = new SourceActivityRecorder();
     sourceActivity.restoreFromStats(priorStats);
+
+    const mergeReferenceStats = (stats: Record<string, unknown>) =>
+      referenceMaterials.mergeToStats(referenceImages.mergeToStats(stats));
+
+    const appendDiscoveredImages = (images: ReferenceImage[]) => {
+      if (!images.length) return;
+      referenceImages.append(images);
+      referenceMaterials.appendImages(images);
+    };
+
+    sourceActivity.upsert({ provider: "firecrawl", status: "queued" });
+    if (isYoutubeConfigured()) {
+      sourceActivity.upsert({ provider: "youtube", status: "queued" });
+    }
+    if (isBrightDataConfigured()) {
+      sourceActivity.upsert({ provider: "bright_data", label: "Bright Data", status: "queued" });
+    }
+
     activity.setWorkflowStage("preparing_reference");
     let abortedByDeadline = false;
     let liveStats: Record<string, unknown> = {
@@ -748,7 +779,7 @@ export async function executeCopyrightScanById(opts: {
         ...stages,
         ...(extra ?? {}),
       });
-      liveStats = sourceActivity.mergeToStats(referenceImages.mergeToStats(merged));
+      liveStats = sourceActivity.mergeToStats(mergeReferenceStats(merged));
       const now = Date.now();
       if (!force && (activityFlushInFlight || now - lastActivityFlush < 900)) {
         return Promise.resolve();
@@ -757,9 +788,7 @@ export async function executeCopyrightScanById(opts: {
       activityFlushInFlight = true;
       return flushScanActivity(
         async (stats) => {
-          const payload = sourceActivity.mergeToStats(
-            referenceImages.mergeToStats(stats),
-          );
+          const payload = sourceActivity.mergeToStats(mergeReferenceStats(stats));
           await supabase
             .from("copyright_scans")
             .update({ stats: payload as never })
@@ -778,7 +807,7 @@ export async function executeCopyrightScanById(opts: {
       .from("copyright_scans")
       .update({
         stats: sourceActivity.mergeToStats(
-          referenceImages.mergeToStats(activity.mergeToStats(liveStats)),
+          mergeReferenceStats(activity.mergeToStats(liveStats)),
         ) as never,
       })
       .eq("id", scan.id)
@@ -810,10 +839,40 @@ export async function executeCopyrightScanById(opts: {
       const knownSeeds = await validateKnownUrlSeeds(knownInputs);
       const knownAccepted = acceptedKnownUrls(knownSeeds);
 
-      sourceActivity.upsert({ provider: "firecrawl", status: "queued" });
       if (knownAccepted.length) {
         sourceActivity.upsert({ provider: "known_url", status: "queued" });
       }
+
+      const runYoutubeDiscovery = async () => {
+        if (!isYoutubeConfigured()) return;
+        sourceActivity.upsert({ provider: "youtube", status: "searching" });
+        await pushActivity();
+        try {
+          const queries = buildYoutubeQueries({
+            title: workTitle,
+            altTitles: analysis.altTitles,
+            actors: analysis.actors,
+            language: analysis.language ?? undefined,
+          });
+          const videos = await discoverYoutubeVideos(queries.slice(0, 8), { perQuery: 6 });
+          const additions = videos
+            .map(materialFromYoutubeVideo)
+            .filter((m): m is NonNullable<ReturnType<typeof materialFromYoutubeVideo>> =>
+              Boolean(m),
+            );
+          if (additions.length) referenceMaterials.append(additions);
+          sourceActivity.upsert({
+            provider: "youtube",
+            status: videos.length ? "completed" : "no_results",
+            requests: Math.min(queries.length, 8),
+            candidates: videos.length,
+          });
+        } catch {
+          sourceActivity.upsert({ provider: "youtube", status: "failed", failures: 1 });
+        }
+        await pushActivity();
+      };
+      void runYoutubeDiscovery();
 
       // 2b. Firecrawl reverse discovery, seeded by that analysis.
       stages = markStage(stages, "queries_generated");
@@ -879,7 +938,7 @@ export async function executeCopyrightScanById(opts: {
           reason: dist.crawlFailureReason ?? dist.reason ?? null,
         });
         if (dist.pageReferenceImages?.length) {
-          referenceImages.append(dist.pageReferenceImages);
+          appendDiscoveredImages(dist.pageReferenceImages);
         }
         await pushActivity({
           known_urls_attempted: earlyKnownUrlsAttempted,
@@ -939,7 +998,7 @@ export async function executeCopyrightScanById(opts: {
               }),
             )
             .filter((img): img is NonNullable<typeof img> => Boolean(img));
-          if (additions.length) referenceImages.append(additions);
+          if (additions.length) appendDiscoveredImages(additions);
           sourceActivity.upsert({
             provider: "firecrawl",
             status: "searching",
@@ -966,7 +1025,7 @@ export async function executeCopyrightScanById(opts: {
           title: candidate.title,
           provider: "firecrawl",
         });
-        if (entry) referenceImages.append([entry]);
+        if (entry) appendDiscoveredImages([entry]);
       }
       const firecrawlStatus: SourceActivityStatus =
         discovery.providerFailures > 0 && discovery.providerSuccesses === 0
@@ -1443,13 +1502,13 @@ export async function executeCopyrightScanById(opts: {
         pagesCrawled += 1;
 
         if (dist.pageReferenceImages?.length) {
-          referenceImages.append(dist.pageReferenceImages);
+          appendDiscoveredImages(dist.pageReferenceImages);
         }
         sourceActivity.upsert({
           provider: dist.rendered ? "firecrawl" : "direct_retrieval",
           status: dist.crawlFailed ? "failed" : "searching",
           requests: pagesCrawled,
-          candidates: referenceImages.count(),
+          candidates: referenceMaterials.count(),
           failures: pagesFailed + (dist.crawlFailed ? 1 : 0),
         });
 
@@ -2176,6 +2235,22 @@ type SerializedCopyrightStats = {
   provider_failures?: number;
   executor_started_at?: string | null;
   last_progress_at?: string | null;
+  reference_materials?: Array<{
+    id: string;
+    material_type: string;
+    title: string | null;
+    image_url: string | null;
+    video_url: string | null;
+    page_url: string | null;
+    source_domain: string | null;
+    source_name: string | null;
+    provider: string;
+    channel_name: string | null;
+    duration_seconds: number | null;
+    status: string;
+    classification: string;
+    discovered_at: string;
+  }>;
   reference_images?: Array<{
     image_url: string;
     page_url: string;

@@ -25,8 +25,7 @@ import {
 } from "@/lib/copyright/scan-activity";
 import { LiveWebsiteInvestigation } from "@/components/copyright/LiveWebsiteInvestigation";
 import { brightDataTelemetryFromStats } from "@/lib/copyright/scan-activity";
-import { ReferenceMaterialCarousel } from "@/components/copyright/ReferenceMaterialCarousel";
-import { SourceActivityStrip } from "@/components/copyright/SourceActivityStrip";
+import { ReferenceMaterialReel } from "@/components/copyright/ReferenceMaterialReel";
 
 export interface ScanProgressProps {
   previews: string[];
@@ -215,13 +214,14 @@ export function ScanProgress({
 
       <div className="relative mt-5 grid gap-5 lg:grid-cols-[minmax(0,240px)_1fr]">
         <div className="space-y-3">
-          <ReferenceMaterialCarousel
+          <ReferenceMaterialReel
             originalPreview={previews[0] ?? null}
+            title={title}
             stats={stats}
             scanStatus={scanStatus}
             reducedMotion={reducedMotion}
+            forceLive
           />
-          <SourceActivityStrip stats={stats} />
           {kind === "video" && previews.length > 1 && (
             <div className="space-y-2">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
