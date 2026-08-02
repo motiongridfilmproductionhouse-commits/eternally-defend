@@ -50,7 +50,14 @@ export interface BrightDataDiscoveryHit {
   title: string | null;
   text: string;
   query: string;
+  /** SERP metadata (discovery only — never used as evidence). */
+  snippet: string | null;
+  rank: number | null;
+  domain: string | null;
+  provider: "bright_data";
+  discoveredAt: string;
 }
+
 
 export interface BrightDataDiscoveryResult {
   provider: "brightdata";
