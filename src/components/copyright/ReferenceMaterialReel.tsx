@@ -10,7 +10,7 @@ import {
   Youtube,
 } from "lucide-react";
 import {
-  parseRecentActivity,
+  parseWebsiteActivity,
   providerDisplayLabel,
   scanActivityStageLabel,
   type ScanActivityEvent,
@@ -53,51 +53,6 @@ interface ReelCard {
 }
 
 const REEL_DURATION_S = 30;
-
-const DEFAULT_SEARCHING_CARDS: ReelCard[] = [
-  {
-    key: "status-firecrawl",
-    kind: "status",
-    title: "Firecrawl",
-    subtitle: "Searching public web sources",
-    badge: "Searching",
-    provider: "firecrawl",
-    pulse: true,
-  },
-  {
-    key: "status-youtube",
-    kind: "status",
-    title: "YouTube",
-    subtitle: "Discovering trailers & reviews",
-    badge: "Searching",
-    provider: "youtube",
-    pulse: true,
-  },
-  {
-    key: "status-trailers",
-    kind: "status",
-    title: "Trailer discovery",
-    subtitle: "Scanning video platforms",
-    badge: "Live",
-    pulse: true,
-  },
-  {
-    key: "status-reviews",
-    kind: "status",
-    title: "Review discovery",
-    subtitle: "Collecting review thumbnails",
-    badge: "Live",
-    pulse: true,
-  },
-  {
-    key: "status-websites",
-    kind: "status",
-    title: "Website investigation",
-    subtitle: "Checking candidate pages",
-    badge: "Live",
-    pulse: true,
-  },
-];
 
 function isActiveScan(status: string | null | undefined): boolean {
   return status === "queued" || status === "running" || status === "pending";
@@ -189,19 +144,8 @@ function buildReelCards(input: {
   materials: ReferenceMaterial[];
   providers: SourceActivityEntry[];
   websites: ScanActivityEvent[];
-  active: boolean;
 }): ReelCard[] {
   const cards: ReelCard[] = [];
-  const providerKeys = new Set(input.providers.map((p) => p.provider));
-
-  if (input.active && input.providers.length === 0) {
-    cards.push(...DEFAULT_SEARCHING_CARDS);
-  } else if (input.active) {
-    for (const placeholder of DEFAULT_SEARCHING_CARDS) {
-      if (placeholder.provider && providerKeys.has(placeholder.provider)) continue;
-      cards.push(placeholder);
-    }
-  }
 
   for (const p of input.providers) {
     cards.push(providerToCard(p));
@@ -360,7 +304,7 @@ export function ReferenceMaterialReel({
   const materials = useMemo(() => parseReferenceMaterials(stats), [stats]);
   const providers = useMemo(() => parseSourceActivity(stats), [stats]);
   const websites = useMemo(
-    () => parseRecentActivity(stats).slice(0, 8),
+    () => parseWebsiteActivity(stats).slice(0, 8),
     [stats],
   );
 
@@ -370,15 +314,15 @@ export function ReferenceMaterialReel({
         materials,
         providers,
         websites,
-        active: active || completed || failed,
       }),
-    [materials, providers, websites, active, completed, failed],
+    [materials, providers, websites],
   );
 
   const loopCards = useMemo(() => {
-    let cards = baseCards.length ? baseCards : DEFAULT_SEARCHING_CARDS;
-    while (cards.length < 6) {
-      cards = [...cards, ...DEFAULT_SEARCHING_CARDS];
+    if (!baseCards.length) return [];
+    let cards = baseCards;
+    while (cards.length < 4) {
+      cards = [...cards, ...baseCards];
     }
     return [...cards, ...cards];
   }, [baseCards]);
@@ -439,6 +383,7 @@ export function ReferenceMaterialReel({
       </div>
 
       {/* Mixed media intelligence reel */}
+      {loopCards.length > 0 && (
       <div
         className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/20 shadow-inner"
         onMouseEnter={() => setPaused(true)}
@@ -456,6 +401,13 @@ export function ReferenceMaterialReel({
           ))}
         </div>
       </div>
+      )}
+
+      {loopCards.length === 0 && active && (
+        <p className="rounded-lg border border-dashed border-border/50 bg-background/20 px-3 py-3 text-center text-[11px] text-muted-foreground">
+          Awaiting first provider telemetry…
+        </p>
+      )}
 
       {/* Provider activity strip */}
       {providers.length > 0 && (

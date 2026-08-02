@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import {
   formatRelativeActivityTime,
-  parseRecentActivity,
+  parseWebsiteActivity,
   providerDisplayLabel,
   resolveNewVerifiedActivityPulse,
   sortActivityNewestFirst,
@@ -165,7 +165,7 @@ export function LiveWebsiteInvestigation({
   const reducedMotion = usePrefersReducedMotion();
   const tabVisible = useTabVisible();
   const events = useMemo(
-    () => sortActivityNewestFirst(parseRecentActivity(stats)),
+    () => sortActivityNewestFirst(parseWebsiteActivity(stats)),
     [stats],
   );
 

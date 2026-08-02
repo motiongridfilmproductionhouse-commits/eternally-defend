@@ -148,6 +148,18 @@ export interface RunBatchedDiscoveryOptions<TPlan, TAttempt extends ProviderSear
   earlyStopUniquePages?: number;
   uniquePageCount: (attempts: TAttempt[]) => number;
   /**
+   * Called after every completed search attempt so telemetry streams per query.
+   */
+  onAttempt?: (
+    attempt: TAttempt,
+    totals: {
+      requests: number;
+      successes: number;
+      failures: number;
+      uniquePages: number;
+    },
+  ) => void | Promise<void>;
+  /**
    * Called after every completed concurrency wave so callers can stream live
    * discovery telemetry (queries done, leads found) while the scan is running.
    */
@@ -226,6 +238,14 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
         } else {
           failures += 1;
           circuit = recordCircuitFailure(circuit, attempt.failureCategory);
+        }
+        if (options.onAttempt) {
+          await options.onAttempt(attempt, {
+            requests: attempts.length,
+            successes,
+            failures,
+            uniquePages: options.uniquePageCount(attempts),
+          });
         }
       }
 
