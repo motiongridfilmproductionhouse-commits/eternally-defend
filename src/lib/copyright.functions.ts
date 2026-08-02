@@ -1589,8 +1589,9 @@ export async function executeCopyrightScanById(opts: {
           // Actionable finding for UI but not eligible for domain monitoring
           // (e.g. never-monitor hosts) — still show as client-visible match.
           distributionRows.push(matchRow);
-        } else if (dist.classification !== "UNRELATED") {
-          // Retain internal diagnostics / non-actionable classifications.
+        } else {
+          // Retain every inspected source as an internal diagnostics lead so the
+          // operator-facing "all sources" list is complete (including UNRELATED).
           matchRow.evidence = {
             ...(matchRow.evidence as Record<string, unknown>),
             client_visible: false,
@@ -1789,7 +1790,7 @@ export async function executeCopyrightScanById(opts: {
         [...internalRows, ...fallbackRows].filter(
           (r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r),
         ),
-      ).slice(0, 20) as MatchInsert[];
+      ).slice(0, 80) as MatchInsert[];
       const allRows = dedupeCopyrightMatchRows([
         ...distributionRows,
         ...internalPersist,
