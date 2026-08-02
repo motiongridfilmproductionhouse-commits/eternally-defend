@@ -4,13 +4,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
-import { analyzeReference, firecrawlDiscover } from "@/lib/copyright/discover.server";
-import { runCopyrightSerpApiDiscovery } from "@/lib/copyright/serpapi-discovery.server";
+import {
+  analyzeReference,
+  firecrawlDiscover,
+  type PageLead,
+} from "@/lib/copyright/discover.server";
 import {
   brightDataDiagnostic,
-  isBrightDataConfigured,
-
-  runBrightDataDiscovery,
   type BrightDataDiscoveryResult,
 } from "@/lib/copyright/brightdata-provider.server";
 import { emptyProviderFailureCounts } from "@/lib/copyright/provider-failures";
@@ -100,7 +100,7 @@ function errorMessage(error: unknown): string {
   return String(error);
 }
 
-/** Bright Data result placeholder used when the provider run itself rejects. */
+/** Neutral legacy-provider placeholder. Copyright discovery is Firecrawl-only. */
 function emptyBrightDataDiscovery(): BrightDataDiscoveryResult {
   return {
     provider: "brightdata",
@@ -110,16 +110,11 @@ function emptyBrightDataDiscovery(): BrightDataDiscoveryResult {
     queriesGenerated: 0,
     requests: 0,
     successes: 0,
-    failures: 1,
+    failures: 0,
     candidates: 0,
     duplicatesDropped: 0,
-    failuresByCategory: {
-      ...emptyProviderFailureCounts(),
-      provider_unavailable: 1,
-    },
-    failureSamples: [
-      { query: "", category: "provider_unavailable", detail: "Bright Data discovery failed" },
-    ],
+    failuresByCategory: emptyProviderFailureCounts(),
+    failureSamples: [],
     diagnostic: brightDataDiagnostic(),
   };
 }
@@ -864,67 +859,27 @@ export async function executeCopyrightScanById(opts: {
 
       const byUrl = new Map<string, DiscoveryCandidate>();
 
-      // Firecrawl and Bright Data run independently: one provider failing (or
-      // being unconfigured) must never cancel the other.
-      const brightDataStartedAt = Date.now();
+      // Firecrawl v2 is the sole copyright discovery and rendered-page provider.
+      // Keeping neutral legacy telemetry preserves older report compatibility.
       await pushActivity({
-        brightdata_configured: isBrightDataConfigured(),
+        brightdata_configured: false,
         brightdata_diagnostic: brightDataDiagnostic(),
-        brightdata_running: isBrightDataConfigured(),
-        brightdata_started_at: brightDataStartedAt,
-        brightdata_last_status: isBrightDataConfigured() ? "initializing" : "missing_api_key",
+        brightdata_running: false,
+        brightdata_last_status: "disabled",
       });
 
-      const [firecrawlSettled, brightDataSettled] = await Promise.allSettled([
-        firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
-          signal: discoverySignal,
-          deadlineAt: discoveryDeadlineAt,
-          analysis,
-        }),
-        runBrightDataDiscovery({
-          analysis,
-          workTitle,
-          signal: discoverySignal,
-          deadlineAt: discoveryDeadlineAt,
-          onActivity: async (event) => {
-            if (event.status === "searching") {
-              activity.setWorkflowStage("discovering_candidates");
-            }
-            const t = event.telemetry;
-            await pushActivity({
-              brightdata_running: true,
-              brightdata_last_query: event.query.slice(0, 160),
-              brightdata_last_status: event.status,
-              brightdata_last_failure_category: event.category ?? null,
-              brightdata_elapsed_ms: Date.now() - brightDataStartedAt,
-              ...(t
-                ? {
-                    brightdata_queries_generated: t.queriesGenerated,
-                    brightdata_queries_completed: t.queryIndex,
-                    brightdata_requests: t.requests,
-                    brightdata_successes: t.successes,
-                    brightdata_failures: t.failures,
-                    brightdata_candidates: t.candidatesTotal,
-                    brightdata_unique_urls: t.uniqueUrls,
-                  }
-                : {}),
-            });
-          },
-        }),
-      ]);
-
-      if (firecrawlSettled.status === "rejected") throw firecrawlSettled.reason;
-      let discovery = firecrawlSettled.value;
-      const brightDataDiscovery =
-        brightDataSettled.status === "fulfilled"
-          ? brightDataSettled.value
-          : emptyBrightDataDiscovery();
+      let discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
+        signal: discoverySignal,
+        deadlineAt: discoveryDeadlineAt,
+        analysis,
+      });
+      const brightDataDiscovery = emptyBrightDataDiscovery();
 
       await pushActivity({
         brightdata_running: false,
         brightdata_configured: brightDataDiscovery.configured,
         brightdata_diagnostic: brightDataDiscovery.diagnostic,
-        brightdata_duration_ms: Date.now() - brightDataStartedAt,
+        brightdata_duration_ms: 0,
 
         brightdata_queries_generated: brightDataDiscovery.queriesGenerated,
         brightdata_requests: brightDataDiscovery.requests,
@@ -935,19 +890,18 @@ export async function executeCopyrightScanById(opts: {
         brightdata_failures_by_category: brightDataDiscovery.failuresByCategory,
         brightdata_failure_samples: brightDataDiscovery.failureSamples.slice(0, 6),
 
-        brightdata_last_status:
-          brightDataSettled.status === "rejected" ? "provider_unavailable" : "completed",
+        brightdata_last_status: "disabled",
       });
 
-      let serpapiDiscovery = await runCopyrightSerpApiDiscovery({
-        analysis,
-        workTitle,
-        signal: discoverySignal,
-        deadlineAt: discoveryDeadlineAt,
-        onlyWhenFirecrawlFailed: true,
-        firecrawlHadSuccess:
-          discovery.providerSuccesses > 0 || brightDataDiscovery.candidates > 0,
-      });
+      const serpapiDiscovery = {
+        pageLeads: [] as PageLead[],
+        requests: 0,
+        successes: 0,
+        failures: 0,
+        candidates: 0,
+        failureMessages: [],
+        configured: false,
+      };
 
       // Normalize + dedupe candidate URLs across providers.
       const extraLeads = [...brightDataDiscovery.pageLeads, ...serpapiDiscovery.pageLeads];
