@@ -455,6 +455,7 @@ async function fetchStaticHtml(
 async function firecrawlRender(
   url: string,
   signal?: AbortSignal,
+  proxy: "basic" | "stealth" = "basic",
 ): Promise<{
   ok: boolean;
   data: ScrapeInner | null;
@@ -471,6 +472,9 @@ async function firecrawlRender(
         formats: ["markdown", "html", "links", "screenshot"],
         onlyMainContent: false,
         waitFor: 2500,
+        // Piracy hosts frequently block plain crawlers; the caller retries with
+        // the stealth proxy so those pages still yield evidence.
+        proxy,
       },
       { signal: hopSignal },
     );
