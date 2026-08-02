@@ -79,11 +79,21 @@ function apiKey(): string {
   return (process.env.BRIGHT_DATA_API_KEY ?? "").trim();
 }
 
+/**
+ * Bright Data zone names are lowercase alphanumeric/underscore identifiers
+ * (e.g. `serp_api1`). Some accounts store a UUID (customer/zone id) in the env
+ * var, which the API rejects with `zone "<uuid>" not found`, so anything that
+ * is not a valid zone name is ignored in favour of the default SERP zone.
+ */
+const ZONE_NAME_RE = /^[a-z0-9_]{2,64}$/;
+
+function rawZoneEnv(): string {
+  return (process.env.BRIGHT_DATA_SERP_ZONE ?? process.env.BRIGHT_DATA_ZONE ?? "").trim();
+}
+
 function zone(): string {
-  return (
-    (process.env.BRIGHT_DATA_SERP_ZONE ?? process.env.BRIGHT_DATA_ZONE ?? "").trim() ||
-    BRIGHTDATA_DEFAULT_ZONE
-  );
+  const raw = rawZoneEnv();
+  return ZONE_NAME_RE.test(raw) ? raw : BRIGHTDATA_DEFAULT_ZONE;
 }
 
 export function isBrightDataConfigured(): boolean {
@@ -94,17 +104,18 @@ export function isBrightDataConfigured(): boolean {
 export function brightDataDiagnostic(): BrightDataDiagnostic {
   const key = apiKey();
   const z = zone();
+  const raw = rawZoneEnv();
   return {
     configured: key.length > 0,
     api_key_present: key.length > 0,
     api_key_length: key.length,
-    zone_present: Boolean(
-      (process.env.BRIGHT_DATA_SERP_ZONE ?? process.env.BRIGHT_DATA_ZONE ?? "").trim(),
-    ),
+    zone_present: Boolean(raw),
+    zone_env_invalid: Boolean(raw) && !ZONE_NAME_RE.test(raw),
     zone: z,
     endpoint: BRIGHTDATA_ENDPOINT,
   };
 }
+
 
 /**
  * Exact quoted-title distribution queries only — never bare tokens.
