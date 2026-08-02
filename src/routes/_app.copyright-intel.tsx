@@ -7,6 +7,7 @@ import {
   getCopyrightScan, updateCopyrightMatch,
 } from "@/lib/copyright.functions";
 import { parseSourceActivity } from "@/lib/copyright/source-activity";
+import { mergeCopyrightPollStats } from "@/lib/copyright/scan-poll-stats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -339,17 +340,14 @@ function CopyrightIntelPage() {
       selectedScanTitle,
     });
 
-  const activeScanStats = (() => {
-    const listStats =
-      selectedScanId && selectedScanRow?.id === selectedScanId
-        ? (selectedScanRow.stats as Record<string, unknown> | null | undefined)
-        : null;
-    const detailStats =
-      detail.data?.scan?.id === selectedScanId
-        ? (detail.data.scan.stats as Record<string, unknown> | null | undefined)
-        : null;
-    return (detailStats ?? listStats ?? {}) as Record<string, unknown>;
-  })();
+  const activeScanStats = mergeCopyrightPollStats(
+    selectedScanId && selectedScanRow?.id === selectedScanId
+      ? (selectedScanRow.stats as Record<string, unknown> | null | undefined)
+      : null,
+    detail.data?.scan?.id === selectedScanId
+      ? (detail.data.scan.stats as Record<string, unknown> | null | undefined)
+      : null,
+  );
 
   useEffect(() => {
     if (!import.meta.env.DEV || !scanBusy || !selectedScanId) return;
