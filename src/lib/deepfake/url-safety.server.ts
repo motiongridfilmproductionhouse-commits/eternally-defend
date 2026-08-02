@@ -12,7 +12,15 @@
 import dns from "node:dns";
 import dnsPromises from "node:dns/promises";
 import net from "node:net";
-import { Agent, fetch as undiciFetch } from "undici";
+// undici is Node-only and throws on evaluation in a browser context, so it is
+// loaded lazily inside the pinned-fetch path instead of at module scope.
+type UndiciModule = typeof import("undici");
+let undiciModulePromise: Promise<UndiciModule> | undefined;
+function loadUndici(): Promise<UndiciModule> {
+  undiciModulePromise ??= import("undici");
+  return undiciModulePromise;
+}
+
 
 export const MAX_SAFE_RESPONSE_BYTES = 1_500_000;
 export const MAX_SAFE_TEXT_LEN = 500;
