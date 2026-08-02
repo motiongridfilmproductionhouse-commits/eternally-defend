@@ -191,10 +191,21 @@ export interface ProviderSearchAttempt {
 /** Focused query cap — early-stop may finish sooner when enough pages are found. */
 const DISCOVERY_MAX_QUERIES_PER_SCAN = 35;
 
+export interface DiscoveryProgress {
+  queriesGenerated: number;
+  queriesExecuted: number;
+  providerSuccesses: number;
+  providerFailures: number;
+  uniquePages: number;
+  /** New page leads seen in this wave (streamed to the live investigation UI). */
+  leads: Array<{ url: string; title: string | null; query: string }>;
+}
+
 export interface FirecrawlDiscoverOptions {
   signal?: AbortSignal;
   deadlineAt?: number;
   analysis?: ReferenceAnalysis;
+  onProgress?: (progress: DiscoveryProgress) => void | Promise<void>;
 }
 
 async function search(
