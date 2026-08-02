@@ -1589,8 +1589,9 @@ export async function executeCopyrightScanById(opts: {
           // Actionable finding for UI but not eligible for domain monitoring
           // (e.g. never-monitor hosts) — still show as client-visible match.
           distributionRows.push(matchRow);
-        } else if (dist.classification !== "UNRELATED") {
-          // Retain internal diagnostics / non-actionable classifications.
+        } else {
+          // Retain every inspected source as an internal diagnostics lead so the
+          // operator-facing "all sources" list is complete (including UNRELATED).
           matchRow.evidence = {
             ...(matchRow.evidence as Record<string, unknown>),
             client_visible: false,
@@ -1789,7 +1790,7 @@ export async function executeCopyrightScanById(opts: {
         [...internalRows, ...fallbackRows].filter(
           (r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r),
         ),
-      ).slice(0, 20) as MatchInsert[];
+      ).slice(0, 80) as MatchInsert[];
       const allRows = dedupeCopyrightMatchRows([
         ...distributionRows,
         ...internalPersist,
@@ -2189,9 +2190,54 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
       .order("confidence", { ascending: false });
     if (mErr) throw new Error(mErr.message);
     // Raw / non-actionable / identity-only rows stay internal — never as piracy UI.
+    // `allSources` is the full inspected-source list (evidence status included)
+    // so operators can see every site that was discovered and checked.
+    const allSources = (matches ?? []).map((m) => {
+      const ev = (m.evidence ?? {}) as Record<string, unknown>;
+      const dist = (ev.distribution ?? {}) as Record<string, unknown>;
+      const identity = Array.isArray(dist.identity_evidence)
+        ? (dist.identity_evidence as string[])
+        : Array.isArray(ev.identity_evidence)
+          ? (ev.identity_evidence as string[])
+          : [];
+      const access = Array.isArray(dist.access_evidence)
+        ? (dist.access_evidence as string[])
+        : Array.isArray(ev.access_evidence)
+          ? (ev.access_evidence as string[])
+          : [];
+      const crawlFailed = ev.crawl_failed === true || dist.crawl_failed === true;
+      const clientVisible = ev.client_visible !== false && dist.client_visible !== false;
+      const strong = dist.strong_evidence === true;
+      return {
+        id: m.id,
+        url: m.source_url,
+        host: typeof ev.host === "string" ? ev.host : null,
+        page_title: m.page_title,
+        classification: (dist.classification as string) ?? m.detection_type,
+        content_type: (dist.content_type as string) ?? (ev.website_type as string) ?? null,
+        domain_risk: (dist.domain_risk as string) ?? null,
+        confidence: m.confidence,
+        checked: !crawlFailed,
+        crawl_failure_reason:
+          (ev.crawl_failure_reason as string) ?? (dist.crawl_failure_reason as string) ?? null,
+        identity_evidence: identity.slice(0, 4),
+        access_evidence: access.slice(0, 4),
+        quality_tags: Array.isArray(dist.quality_tags) ? (dist.quality_tags as string[]).slice(0, 6) : [],
+        status: crawlFailed
+          ? ("unreachable" as const)
+          : clientVisible && strong
+            ? ("verified_piracy" as const)
+            : identity.length || access.length
+              ? ("insufficient_evidence" as const)
+              : ("no_match" as const),
+        reason: m.reason,
+        discovery_query: (ev.discovery_query as string) ?? null,
+      };
+    });
     return {
       scan: watchedScan,
       matches: filterClientVisibleCopyrightMatches(matches ?? []),
+      allSources,
     };
   });
 
