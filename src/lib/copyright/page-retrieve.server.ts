@@ -619,8 +619,16 @@ export async function retrieveCopyrightPage(
     };
   }
 
-  // 4. Firecrawl rendered exact-page fallback
-  const renderedPage = await firecrawlRender(finalUrl, signal);
+  // 4. Firecrawl rendered exact-page fallback (stealth retry when blocked)
+  let renderedPage = await firecrawlRender(finalUrl, signal);
+  if (
+    !renderedPage.ok &&
+    (renderedPage.failureCategory === "blocked_403" ||
+      renderedPage.failureCategory === "render_failure" ||
+      renderedPage.failureCategory === "provider_failure")
+  ) {
+    renderedPage = await firecrawlRender(finalUrl, signal, "stealth");
+  }
   if (renderedPage.ok && renderedPage.data) {
     const data = renderedPage.data;
     html = data.html ?? html;
