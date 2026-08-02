@@ -677,26 +677,26 @@ export function ReleaseProtectionCenterForm({
                 <FieldLabel>Coverage mode</FieldLabel>
                 <div className="grid gap-2 sm:grid-cols-3">
                   <PolicyCard
-                    title="Web + YouTube"
-                    description="Public web pages and YouTube discovery providers."
+                    title="Web + Public Video"
+                    description="Public web pages and public video sources."
                     selected={coverageMode === "standard"}
                     onClick={() => onCoverageModeChange("standard")}
                   />
                   <PolicyCard
-                    title="Web + YouTube + known sources"
+                    title="Web + Public Video + submitted URLs"
                     description="Includes user-supplied known URL seeds in the scan."
                     selected={coverageMode === "known"}
                     onClick={() => onCoverageModeChange("known")}
                   />
                   <PolicyCard
                     title="Full configured coverage"
-                    description="All configured public discovery providers for this workspace."
+                    description="All configured public discovery channels for this workspace."
                     selected={coverageMode === "full"}
                     onClick={() => onCoverageModeChange("full")}
                   />
                 </div>
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  Display preference only — scan uses configured public providers. {MONITORING_DISCLAIMER}
+                  Display preference only — scans use configured public discovery channels. {MONITORING_DISCLAIMER}
                 </p>
               </div>
             </div>

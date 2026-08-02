@@ -7,9 +7,9 @@ import {
   providerDisplayLabel,
 } from "@/lib/copyright/scan-activity";
 
-test("brightdata lead queries resolve to the Bright Data provider", () => {
+test("brightdata lead queries resolve to expanded discovery capability", () => {
   assert.equal(resolveActivityProvider("brightdata:\"Superman\" full movie"), "brightdata");
-  assert.equal(providerDisplayLabel("brightdata"), "Bright Data");
+  assert.equal(providerDisplayLabel("brightdata"), "Expanded Discovery");
   assert.equal(resolveActivityProvider("serpapi:fallback"), "serpapi");
 });
 

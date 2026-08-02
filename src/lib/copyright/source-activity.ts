@@ -22,13 +22,23 @@ export interface SourceActivityEntry {
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
-  firecrawl: "Firecrawl",
-  brightdata: "Bright Data",
-  bright_data: "Bright Data",
-  known_url: "Known URL",
-  serpapi: "SerpApi",
-  direct_retrieval: "Direct retrieval",
-  youtube: "YouTube",
+  public_web: "Public Web",
+  public_video: "Public Video",
+  expanded_discovery: "Expanded Discovery",
+  public_search: "Public Search",
+  public_messaging: "Public Messaging",
+  submitted_url: "Submitted URL",
+  dynamic_webpage: "Dynamic Webpage",
+  direct_web: "Direct Web Retrieval",
+  investigation: "Eterna Investigation",
+  // Internal ids mapped at read time for persisted telemetry rows
+  firecrawl: "Public Web",
+  brightdata: "Expanded Discovery",
+  bright_data: "Expanded Discovery",
+  known_url: "Submitted URL",
+  serpapi: "Public Search",
+  direct_retrieval: "Direct Web Retrieval",
+  youtube: "Public Video",
 };
 
 export function sourceActivityLabel(provider: string): string {
