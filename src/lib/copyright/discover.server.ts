@@ -539,14 +539,38 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
     for (const n of names.slice(1, 3)) push(`"${n}" site:${seed}`, isFresh);
   }
 
-  push(`"${base}" full movie ${PIRACY_SITE_FILTER}`, isFresh);
-  push(`"${base}" ${FILE_HOST_FILTER}`, isFresh);
-  push(`"${base}" ${STREAM_SITE_FILTER}`, isFresh);
-  push(`"${base}" torrent magnet ${NEG}`, isFresh);
-  push(`"${base}" telegram full movie ${NEG}`, isFresh);
+  // High-yield piracy families and natural-language piracy phrasing. These are
+  // prioritised ahead of the generic phrase sweep so the bounded query budget
+  // always spends part of itself on the sites that actually host copies.
+  const priority: QueryPlan[] = [];
+  const pushPriority = (query: string) => {
+    if (query.trim()) priority.push({ query, recent: isFresh });
+  };
+
+  for (const cluster of PIRACY_SITE_CLUSTERS) {
+    pushPriority(`"${base}" ${cluster}`);
+  }
+  pushPriority(`"${base}" full movie ${PIRACY_SITE_FILTER}`);
+  pushPriority(`"${base}" ${FILE_HOST_FILTER}`);
+  pushPriority(`"${base}" ${STREAM_SITE_FILTER}`);
+  pushPriority(`"${base}" torrent magnet ${NEG}`);
+  pushPriority(`"${base}" (site:t.me OR site:telegram.me) full movie`);
+
+  // Unquoted natural phrasing — piracy pages rarely carry the exact quoted
+  // title string, and quoted-only sweeps collapse to news/review coverage.
+  const langWord = a.language ? a.language.toLowerCase() : "";
+  for (const phrase of [
+    "movie download",
+    "full movie watch online free",
+    "movie download hdrip 720p",
+    "movie telegram link",
+    "movie download link",
+  ]) {
+    pushPriority(`${base} ${langWord} ${phrase} ${NEG}`.replace(/\s+/g, " "));
+  }
 
   const seen = new Set<string>();
-  return plans
+  return [...priority, ...plans]
     .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
     .slice(0, 40);
 }
