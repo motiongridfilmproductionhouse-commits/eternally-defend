@@ -6,6 +6,7 @@ import {
   uploadCopyrightReference, runCopyrightScan, listCopyrightScans,
   getCopyrightScan, updateCopyrightMatch,
 } from "@/lib/copyright.functions";
+import { parseSourceActivity } from "@/lib/copyright/source-activity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -338,11 +339,30 @@ function CopyrightIntelPage() {
       selectedScanTitle,
     });
 
-  const activeScanStats = (
-    detailAligned && detail.data?.scan?.stats
-      ? detail.data.scan.stats
-      : selectedScanRow?.stats ?? {}
-  ) as Record<string, unknown>;
+  const activeScanStats = (() => {
+    const listStats =
+      selectedScanId && selectedScanRow?.id === selectedScanId
+        ? (selectedScanRow.stats as Record<string, unknown> | null | undefined)
+        : null;
+    const detailStats =
+      detail.data?.scan?.id === selectedScanId
+        ? (detail.data.scan.stats as Record<string, unknown> | null | undefined)
+        : null;
+    return (detailStats ?? listStats ?? {}) as Record<string, unknown>;
+  })();
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !scanBusy || !selectedScanId) return;
+    const polledScanId =
+      detail.data?.scan?.id === selectedScanId ? detail.data.scan.id : null;
+    console.debug("copyright_scan_poll_diagnostics", {
+      active_scan_id: selectedScanId,
+      selected_scan_id: selectedScanId,
+      polled_scan_id: polledScanId,
+      source_activity_count: parseSourceActivity(activeScanStats).length,
+      scan_status: selectedScanStatus,
+    });
+  }, [scanBusy, selectedScanId, selectedScanStatus, detail.data, activeScanStats]);
 
   return (
     <div className="space-y-6">

@@ -403,7 +403,7 @@ export function ReferenceMaterialReel({
       </div>
       )}
 
-      {loopCards.length === 0 && active && (
+      {providers.length === 0 && active && (
         <p className="rounded-lg border border-dashed border-border/50 bg-background/20 px-3 py-3 text-center text-[11px] text-muted-foreground">
           Awaiting first provider telemetry…
         </p>
