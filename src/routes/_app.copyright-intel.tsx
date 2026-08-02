@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ScanProgress } from "@/components/copyright/ScanProgress";
-import { BrightDataProviderPanel } from "@/components/copyright/BrightDataProviderPanel";
+import { AllSourcesPanel } from "@/components/copyright/AllSourcesPanel";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
 
@@ -197,7 +197,8 @@ function CopyrightIntelPage() {
     }
     const st = (selected.stats ?? {}) as Record<string, number>;
     setSummary({
-      candidates: st.candidates ?? st.provider_candidates ?? 0,
+      candidates:
+        st.pages_crawled ?? st.unique_candidate_pages ?? st.candidates ?? st.provider_candidates ?? 0,
       matches: st.matches ?? st.client_visible_findings ?? 0,
       graded: st.graded ?? 0,
     });
@@ -380,14 +381,6 @@ function CopyrightIntelPage() {
             <p className="mt-2 text-center text-xs text-muted-foreground">{stage}</p>
           )}
         </div>
-      )}
-
-      {!scanBusy && selectedScanId && detailAligned && (
-        <BrightDataProviderPanel
-          stats={activeScanStats}
-          scanStatus={selectedScanStatus}
-          className="animate-fade-in"
-        />
       )}
 
       {selectedScanStatus === "failed" && selectedScanId && detailAligned && (() => {
@@ -598,8 +591,12 @@ function CopyrightIntelPage() {
             <Tabs defaultValue="sources">
               <TabsList>
                 <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
+                <TabsTrigger value="all">All sources</TabsTrigger>
                 <TabsTrigger value="youtube">YouTube monitoring</TabsTrigger>
               </TabsList>
+              <TabsContent value="all" className="mt-3">
+                <AllSourcesPanel sources={(detail.data?.allSources ?? []) as never} />
+              </TabsContent>
               <TabsContent value="youtube" className="mt-3">
                 <YoutubeMonitorPanel scanId={selectedScanId} />
               </TabsContent>
