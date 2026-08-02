@@ -257,18 +257,29 @@ export async function writeCopyrightTerminalStatus(
   throw lastError instanceof Error ? lastError : new Error(errorMessage(lastError));
 }
 
-async function dispatchCopyrightScanExecutionInline(scanId: string): Promise<void> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  void executeCopyrightScanById({
-    supabase: supabaseAdmin,
+async function dispatchCopyrightScanExecutionInline(
+  scanId: string,
+  requestSupabase?: ContextSupabase,
+): Promise<void> {
+  const executorSupabase = requestSupabase ?? (
+    await import("@/integrations/supabase/client.server")
+  ).supabaseAdmin;
+
+  // A detached promise is cancelled when a serverless request finishes. Await
+  // the fallback so the executor actually claims the queued scan before this
+  // request can be torn down. Prefer the authenticated request client so this
+  // recovery path does not depend on an admin runtime credential.
+  const result = await executeCopyrightScanById({
+    supabase: executorSupabase,
     scanId,
     source: "worker",
-  }).catch((error) => {
+  });
+  if (result.status === "failed") {
     console.error("copyright_scan_inline_executor_failed", {
       scan_id: scanId,
-      error: errorMessage(error),
+      error: result.stats.failure_reason ?? "Inline executor failed",
     });
-  });
+  }
 }
 
 async function dispatchCopyrightScanExecution(
@@ -308,7 +319,7 @@ async function dispatchCopyrightScanExecution(
         worker_dispatch_fallback: "inline",
       });
     }
-    await dispatchCopyrightScanExecutionInline(scanId);
+    await dispatchCopyrightScanExecutionInline(scanId, supabase);
     return;
   }
 
@@ -326,7 +337,7 @@ async function dispatchCopyrightScanExecution(
         worker_dispatch_fallback: "inline",
       });
     }
-    await dispatchCopyrightScanExecutionInline(scanId);
+    await dispatchCopyrightScanExecutionInline(scanId, supabase);
     return;
   }
 
@@ -412,7 +423,7 @@ async function dispatchCopyrightScanExecution(
       worker_dispatch_fallback_at: new Date().toISOString(),
     });
   }
-  await dispatchCopyrightScanExecutionInline(scanId);
+  await dispatchCopyrightScanExecutionInline(scanId, supabase);
 }
 
 
