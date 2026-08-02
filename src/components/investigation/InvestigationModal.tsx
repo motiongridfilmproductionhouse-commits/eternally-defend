@@ -17,6 +17,7 @@ export default function InvestigationModal({
 const [finished, setFinished] = useState(false);
 const [report, setReport] = useState<any>(null);
 const [loading, setLoading] = useState(false);
+const runInvestigation = useServerFn(investigateUrl);
 
   useEffect(() => {
   if (!open || !match?.url) return;
@@ -24,16 +25,17 @@ const [loading, setLoading] = useState(false);
   setFinished(false);
   setLoading(true);
 
-  lookupInfrastructure(match.url)
-    .then((result) => {
+  runInvestigation({ data: { url: match.url } })
+    .then((result: unknown) => {
       setReport(result);
     })
-    .catch((err) => {
+    .catch((err: unknown) => {
       console.error(err);
     })
     .finally(() => {
       setLoading(false);
     });
+
 
   const timer = setTimeout(() => {
     setFinished(true);
