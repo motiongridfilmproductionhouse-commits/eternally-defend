@@ -41,6 +41,8 @@ export interface BrightDataDiagnostic {
   api_key_present: boolean;
   api_key_length: number;
   zone_present: boolean;
+  /** True when the configured zone env value is not a valid zone name. */
+  zone_env_invalid?: boolean;
   zone: string;
   endpoint: string;
 }
