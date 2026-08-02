@@ -53,6 +53,7 @@ import {
   isExecutorWatchdogExpired,
   markStage,
   watchdogFailureStats,
+  type CopyrightTerminalStatus,
 } from "@/lib/copyright/scan-lifecycle";
 import type { ProviderFailureCategory } from "@/lib/copyright/provider-failures";
 
@@ -69,6 +70,165 @@ import type { Database } from "@/integrations/supabase/types";
 
 type MatchInsert = Database["public"]["Tables"]["copyright_matches"]["Insert"];
 type ContextSupabase = SupabaseClient<Database>;
+
+const ACTIVE_COPYRIGHT_SCAN_STATUSES = ["queued", "running", "pending"] as const;
+const TERMINAL_STATUS_RETRY_DELAYS_MS = [250, 750, 1_500] as const;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message);
+  }
+  return String(error);
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function inspectCopyrightScanTerminalState(
+  supabase: ContextSupabase,
+  scanId: string,
+  intendedStatus: CopyrightTerminalStatus,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("copyright_scans")
+    .select("id,status")
+    .eq("id", scanId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    throw new Error(`terminal_state_conflict: copyright scan ${scanId} is missing.`);
+  }
+  if (data.status === intendedStatus) return;
+  throw new Error(
+    `terminal_state_conflict: copyright scan ${scanId} is ${data.status}, not ${intendedStatus}.`,
+  );
+}
+
+async function updateTerminalScanRow(
+  supabase: ContextSupabase,
+  scanId: string,
+  update: {
+    status: CopyrightTerminalStatus;
+    sha256?: string | null;
+    error?: string | null;
+    stats?: unknown;
+  },
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("copyright_scans")
+    .update({
+      status: update.status,
+      sha256: update.sha256 ?? null,
+      error: update.error ?? null,
+      stats: update.stats as never,
+    })
+    .eq("id", scanId)
+    .in("status", [...ACTIVE_COPYRIGHT_SCAN_STATUSES])
+    .select("id,status")
+    .maybeSingle();
+  if (error) throw error;
+  if (data?.id === scanId) return;
+  await inspectCopyrightScanTerminalState(supabase, scanId, update.status);
+}
+
+export async function writeCopyrightTerminalStatus(
+  supabase: ContextSupabase,
+  scanId: string,
+  update: {
+    status: CopyrightTerminalStatus;
+    sha256?: string | null;
+    error?: string | null;
+    stats?: unknown;
+  },
+): Promise<void> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= TERMINAL_STATUS_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      await updateTerminalScanRow(supabase, scanId, update);
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = errorMessage(error);
+      console.error("copyright_scan_terminal_update_failed", {
+        scan_id: scanId,
+        intended_status: update.status,
+        attempt: attempt + 1,
+        error: message,
+      });
+      if (message.startsWith("terminal_state_conflict:")) throw error;
+      const delay = TERMINAL_STATUS_RETRY_DELAYS_MS[attempt];
+      if (delay == null) break;
+      await sleep(delay);
+    }
+  }
+
+  if (update.status !== "failed") {
+    try {
+      await updateTerminalScanRow(supabase, scanId, {
+        status: "failed",
+        error: `Terminal update failed while writing ${update.status}: ${errorMessage(lastError)}`.slice(0, 500),
+        stats: update.stats,
+      });
+      return;
+    } catch (fallbackError) {
+      console.error("copyright_scan_terminal_fallback_failed", {
+        scan_id: scanId,
+        intended_status: update.status,
+        error: errorMessage(fallbackError),
+      });
+      throw fallbackError;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(errorMessage(lastError));
+}
+
+async function dispatchCopyrightScanExecution(scanId: string): Promise<void> {
+  const workerUrl = process.env.COPYRIGHT_SCAN_WORKER_URL?.trim();
+  if (!workerUrl) throw new Error("COPYRIGHT_SCAN_WORKER_URL is not configured.");
+  const body = JSON.stringify({ scan_id: scanId });
+  const { signCopyrightScanWorkerRequest } = await import("@/lib/copyright/worker-auth.server");
+  const { signature, timestamp } = signCopyrightScanWorkerRequest(body);
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetchWithTimeout(
+        workerUrl,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-eterna-timestamp": timestamp,
+            "x-eterna-signature": signature,
+          },
+          body,
+        },
+        10_000,
+      );
+      if (response.ok) return;
+      const text = await response.text().catch(() => "");
+      lastError = new Error(`Worker dispatch failed (${response.status}): ${text.slice(0, 200)}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(300 * (attempt + 1));
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(errorMessage(lastError));
+}
 
 /** Presigned upload slot for a reference image or an extracted video frame. */
 export const prepareCopyrightUpload = createServerFn({ method: "POST" })
@@ -122,7 +282,8 @@ const copyrightScanInputSchema = z.object({
 
 /**
  * Start a copyright scan: create the row and return the scan ID immediately.
- * Does NOT run discovery inline — the client must call executeCopyrightScan.
+ * Does NOT run discovery inline. The backend dispatches the worker after the
+ * queued scan row is created, so the browser is only responsible for polling.
  */
 export const runCopyrightScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -139,7 +300,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       reference_kind: data.referenceKind,
       storage_path: data.keys[0],
       frame_paths: data.keys,
-      status: "running",
+      status: "queued",
       stats: {
         scan_created: nowIso,
         scan_created_at: nowIso,
@@ -155,11 +316,36 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
     }).select("id").single();
     if (sErr || !scan) throw new Error(sErr?.message ?? "Could not start scan.");
 
+    try {
+      await dispatchCopyrightScanExecution(scan.id as string);
+    } catch (error) {
+      const message = `Copyright scan worker dispatch failed: ${errorMessage(error)}`;
+      const failedStats = {
+        scan_created: nowIso,
+        scan_created_at: nowIso,
+        last_progress_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+        discovery_never_started: true,
+        failure_reason: message.slice(0, 500),
+        pending_input: {
+          contentType: data.contentType,
+          knownUrls: data.knownUrls ?? [],
+          keys: data.keys,
+        },
+      };
+      await writeCopyrightTerminalStatus(supabase, scan.id as string, {
+        status: "failed",
+        error: message.slice(0, 500),
+        stats: failedStats,
+      });
+      throw new Error(message);
+    }
+
     // Immediate start — must not imply completion or zero-result success.
     return {
       scanId: scan.id as string,
       started: true as const,
-      status: "running" as const,
+      status: "queued" as const,
     };
   });
 
@@ -171,24 +357,55 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    return executeCopyrightScanById({
+      supabase: context.supabase,
+      scanId: data.scanId,
+      userId: context.userId,
+      source: "user",
+    });
+  });
 
-    const { data: scan, error: sErr } = await supabase
+export async function executeCopyrightScanById(opts: {
+  supabase: ContextSupabase;
+  scanId: string;
+  userId?: string;
+  source?: "worker" | "user";
+}): Promise<{
+  scanId: string;
+  status: string;
+  stats: ReturnType<typeof serializeCopyrightStats>;
+}> {
+    const { supabase } = opts;
+
+    let claim = supabase
       .from("copyright_scans")
-      .select("*")
-      .eq("id", data.scanId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (sErr) throw new Error(sErr.message);
-    if (!scan) throw new Error("Scan not found.");
+      .update({ status: "running" })
+      .eq("id", opts.scanId)
+      .eq("status", "queued")
+      .select("*");
+    if (opts.userId) claim = claim.eq("user_id", opts.userId);
 
-    if (scan.status !== "running") {
+    const { data: claimedScan, error: claimErr } = await claim.maybeSingle();
+    if (claimErr) throw new Error(claimErr.message);
+
+    if (!claimedScan) {
+      let existingQuery = supabase
+        .from("copyright_scans")
+        .select("*")
+        .eq("id", opts.scanId);
+      if (opts.userId) existingQuery = existingQuery.eq("user_id", opts.userId);
+      const { data: existing, error: existingErr } = await existingQuery.maybeSingle();
+      if (existingErr) throw new Error(existingErr.message);
+      if (!existing) throw new Error("Scan not found.");
       return {
-        scanId: scan.id as string,
-        status: scan.status,
-        stats: serializeCopyrightStats(scan.stats),
+        scanId: existing.id as string,
+        status: existing.status,
+        stats: serializeCopyrightStats(existing.stats),
       };
     }
+
+    const scan = claimedScan;
+    const userId = scan.user_id as string;
 
     const priorStats = (scan.stats ?? {}) as Record<string, unknown>;
     const pending = (priorStats.pending_input ?? {}) as {
@@ -216,14 +433,11 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         finished_at: new Date().toISOString(),
         failure_reason: "Scan has no reference storage keys — executor cannot run discovery.",
       };
-      await supabase
-        .from("copyright_scans")
-        .update({
-          status: "failed",
-          error: "Scan has no reference storage keys.",
-          stats: failedStats as never,
-        })
-        .eq("id", scan.id);
+      await writeCopyrightTerminalStatus(supabase, scan.id, {
+        status: "failed",
+        error: "Scan has no reference storage keys.",
+        stats: failedStats,
+      });
       return {
         scanId: scan.id as string,
         status: "failed" as const,
@@ -271,7 +485,8 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
           await supabase
             .from("copyright_scans")
             .update({ stats: stats as never })
-            .eq("id", scan.id);
+            .eq("id", scan.id)
+            .eq("status", "running");
         },
         liveStats,
         activity,
@@ -284,7 +499,8 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
     await supabase
       .from("copyright_scans")
       .update({ stats: activity.mergeToStats(liveStats) as never })
-      .eq("id", scan.id);
+      .eq("id", scan.id)
+      .eq("status", "running");
 
     try {
       const firstBytes = await readStoredObject(keys[0]!);
@@ -1467,15 +1683,12 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
 
       await pushActivity({}, true);
 
-      await supabase
-        .from("copyright_scans")
-        .update({
-          status: terminal.status,
-          sha256,
-          error: terminal.status === "failed" ? (failureReason ?? "Scan failed").slice(0, 500) : null,
-          stats: finalStats as never,
-        })
-        .eq("id", scan.id);
+      await writeCopyrightTerminalStatus(supabase, scan.id, {
+        status: terminal.status,
+        sha256,
+        error: terminal.status === "failed" ? (failureReason ?? "Scan failed").slice(0, 500) : null,
+        stats: finalStats,
+      });
 
       return {
         scanId: scan.id as string,
@@ -1495,14 +1708,11 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         matches: 0,
         graded: 0,
       });
-      await supabase
-        .from("copyright_scans")
-        .update({
-          status: "failed",
-          error: message.slice(0, 500),
-          stats: failedStats as never,
-        })
-        .eq("id", scan.id);
+      await writeCopyrightTerminalStatus(supabase, scan.id, {
+        status: "failed",
+        error: message.slice(0, 500),
+        stats: failedStats,
+      });
       // Persist real failure — never convert to completed.
       return {
         scanId: scan.id as string,
@@ -1510,7 +1720,7 @@ export const executeCopyrightScan = createServerFn({ method: "POST" })
         stats: serializeCopyrightStats(failedStats),
       };
     }
-  });
+}
 
 /** Ensure server-fn return stats are JSON-serializable for TanStack Start. */
 function serializeCopyrightStats(stats: unknown): {
@@ -1570,15 +1780,12 @@ async function applyExecutorWatchdog(
       failure_reason:
         "Copyright scan executor never started within the watchdog window (executor_not_started).",
     };
-    await supabase
-      .from("copyright_scans")
-      .update({
-        status: "failed",
-        error:
-          "Copyright scan executor never started within the watchdog window (executor_not_started).",
-        stats: failedStats,
-      })
-      .eq("id", row.id as string);
+    await writeCopyrightTerminalStatus(supabase, row.id as string, {
+      status: "failed",
+      error:
+        "Copyright scan executor never started within the watchdog window (executor_not_started).",
+      stats: failedStats,
+    });
     out.push({ ...row, status: "failed", error: failedStats.failure_reason, stats: failedStats });
   }
   return out;

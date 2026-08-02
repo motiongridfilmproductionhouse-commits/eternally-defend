@@ -165,7 +165,7 @@ export function isExecutorWatchdogExpired(opts: {
   now?: number;
   watchdogMs?: number;
 }): boolean {
-  if (opts.status !== "running" && opts.status !== "pending") return false;
+  if (opts.status !== "queued" && opts.status !== "running" && opts.status !== "pending") return false;
   if (opts.executorStartedAt) return false;
   if (!opts.createdAt) return false;
   const created = Date.parse(opts.createdAt);
@@ -204,7 +204,7 @@ export function isImmediateStartResponse(res: {
   return Boolean(
     res.started === true &&
       res.scanId &&
-      (res.status === "running" || res.status === "pending") &&
+      (res.status === "queued" || res.status === "running" || res.status === "pending") &&
       res.stats == null,
   );
 }
