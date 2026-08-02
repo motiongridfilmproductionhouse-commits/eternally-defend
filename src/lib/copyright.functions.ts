@@ -934,7 +934,7 @@ export async function executeCopyrightScanById(opts: {
         brightdata_duplicates_dropped: brightDataDiscovery.duplicatesDropped,
         brightdata_failures_by_category: brightDataDiscovery.failuresByCategory,
         brightdata_failure_samples: brightDataDiscovery.failureSamples.slice(0, 6),
-        brightdata_duration_ms: Date.now() - brightDataStartedAt,
+
         brightdata_last_status:
           brightDataSettled.status === "rejected" ? "provider_unavailable" : "completed",
       });
