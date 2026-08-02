@@ -21,7 +21,7 @@ export const COPYRIGHT_SCAN_STAGES = [
 export type CopyrightScanStage = (typeof COPYRIGHT_SCAN_STAGES)[number];
 
 /** How long a scan may remain running without executor_started_at. */
-export const EXECUTOR_START_WATCHDOG_MS = 45_000;
+export const EXECUTOR_START_WATCHDOG_MS = 120_000;
 
 export type CopyrightTerminalStatus = "completed" | "failed" | "partial";
 

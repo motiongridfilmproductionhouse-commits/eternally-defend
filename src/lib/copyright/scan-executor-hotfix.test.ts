@@ -7,6 +7,10 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  signCopyrightScanWorkerRequest,
+  verifyCopyrightScanWorkerRequestDetailed,
+} from "./worker-auth.server";
+import {
   decideCopyrightTerminalStatus,
   isExecutorWatchdogExpired,
   isImmediateStartResponse,
@@ -31,6 +35,10 @@ const FUNCTIONS_PATH = resolve(process.cwd(), "src/lib/copyright.functions.ts");
 const UI_PATH = resolve(process.cwd(), "src/routes/_app.copyright-intel.tsx");
 const WORKER_AUTH_PATH = resolve(process.cwd(), "src/lib/copyright/worker-auth.server.ts");
 const DISPATCH_PATH = resolve(process.cwd(), "src/lib/copyright/scan-worker-dispatch.server.ts");
+const WORKER_HOOK_PATH = resolve(
+  process.cwd(),
+  "src/routes/api/public/hooks/copyright-scan-execute.ts",
+);
 const MONITOR_PATH = resolve(
   process.cwd(),
   "src/components/copyright/DistributionMonitorPanel.tsx",
@@ -48,7 +56,7 @@ test("backend dispatches executor after scan row creation", () => {
   const ui = uiSource();
   assert.match(src, /export const runCopyrightScan/);
   assert.match(src, /export const executeCopyrightScan/);
-  assert.match(src, /dispatchCopyrightScanExecution\(scan\.id as string\)/);
+  assert.match(src, /dispatchCopyrightScanExecution\(scan\.id as string,\s*supabase\)/);
   assert.match(src, /resolveCopyrightScanWorkerUrl/);
   assert.match(readFileSync(DISPATCH_PATH, "utf8"), /COPYRIGHT_SCAN_WORKER_URL/);
   assert.match(readFileSync(WORKER_AUTH_PATH, "utf8"), /COPYRIGHT_SCAN_WORKER_SECRET/);
@@ -64,6 +72,26 @@ test("backend dispatches executor after scan row creation", () => {
   assert.match(runBlock, /status: "queued"/);
   assert.doesNotMatch(runBlock, /firecrawlDiscover/);
   assert.doesNotMatch(runBlock, /status: "completed"/);
+});
+
+test("worker dispatch and hook emit production diagnostics", () => {
+  const src = functionsSource();
+  const hook = readFileSync(WORKER_HOOK_PATH, "utf8");
+  assert.match(src, /copyright_scan_worker_dispatch_request/);
+  assert.match(src, /copyright_scan_worker_dispatch_attempt/);
+  assert.match(src, /copyright_scan_worker_dispatch_response/);
+  assert.match(src, /worker_dispatch_secret_length/);
+  assert.match(src, /worker_dispatch_url_path/);
+  assert.match(src, /copyright_scan_executor_start/);
+  assert.match(src, /copyright_scan_executor_claimed/);
+  assert.match(src, /copyright_scan_executor_claim_not_queued/);
+
+  assert.match(hook, /copyright_scan_worker_hook_entry/);
+  assert.match(hook, /copyright_scan_worker_hook_hmac_verification/);
+  assert.match(hook, /copyright_scan_worker_execute_start/);
+  assert.match(hook, /copyright_scan_worker_execute_complete/);
+  assert.match(hook, /copyright_scan_worker_execute_failed/);
+  assert.match(hook, /stack/);
 });
 
 test("immediate scan ID does not mean immediate completion", () => {
@@ -172,6 +200,40 @@ test("provider error isolation categories", () => {
     sanitizeProviderFailureDetail("Bearer fc-SECRET123 and lovc_ABC"),
     "Bearer [redacted] and [redacted-key]",
   );
+});
+
+test("worker HMAC verifier reports safe failure reasons without secret values", () => {
+  const original = process.env.COPYRIGHT_SCAN_WORKER_SECRET;
+  try {
+    delete process.env.COPYRIGHT_SCAN_WORKER_SECRET;
+    const missing = verifyCopyrightScanWorkerRequestDetailed("{}", String(Date.now()), "abc");
+    assert.equal(missing.ok, false);
+    assert.equal(missing.reason, "secret_missing");
+    assert.equal(missing.worker_secret_present, false);
+
+    process.env.COPYRIGHT_SCAN_WORKER_SECRET = "same-secret";
+    const body = JSON.stringify({ scan_id: "00000000-0000-0000-0000-000000000000" });
+    const signed = signCopyrightScanWorkerRequest(body);
+    const ok = verifyCopyrightScanWorkerRequestDetailed(
+      body,
+      signed.timestamp,
+      signed.signature,
+    );
+    assert.equal(ok.ok, true);
+    assert.equal(ok.reason, "ok");
+    assert.equal(ok.worker_secret_length, "same-secret".length);
+
+    const bad = verifyCopyrightScanWorkerRequestDetailed(body, signed.timestamp, "bad");
+    assert.equal(bad.ok, false);
+    assert.equal(bad.reason, "signature_mismatch");
+    assert.equal(JSON.stringify(bad).includes("same-secret"), false);
+  } finally {
+    if (original == null) {
+      delete process.env.COPYRIGHT_SCAN_WORKER_SECRET;
+    } else {
+      process.env.COPYRIGHT_SCAN_WORKER_SECRET = original;
+    }
+  }
 });
 
 test("summarizeProviderFailures formats category breakdown", () => {
@@ -305,6 +367,19 @@ test("executor watchdog fails scans stuck without executor_started_at", () => {
   const stages = markStage({}, "scan_created");
   assert.ok(stages.scan_created);
   assert.ok(stages.last_progress_at);
+});
+
+test("executor watchdog leaves room for dispatch retries and cold start", () => {
+  assert.ok(EXECUTOR_START_WATCHDOG_MS >= 120_000);
+  const created = new Date(Date.now() - 60_000).toISOString();
+  assert.equal(
+    isExecutorWatchdogExpired({
+      status: "queued",
+      createdAt: created,
+      executorStartedAt: null,
+    }),
+    false,
+  );
 });
 
 test("executor claims queued scans atomically and duplicate invocation does not rerun", () => {

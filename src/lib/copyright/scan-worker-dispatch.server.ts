@@ -4,6 +4,25 @@
  */
 
 const HOOK_PATH = "/api/public/hooks/copyright-scan-execute";
+type WorkerUrlSource =
+  | "COPYRIGHT_SCAN_WORKER_URL"
+  | "COPYRIGHT_SCAN_WORKER_BASE_URL"
+  | "SITE_URL"
+  | "APP_URL"
+  | "PUBLIC_APP_URL"
+  | "VITE_SITE_URL"
+  | "VERCEL_PROJECT_PRODUCTION_URL"
+  | "VERCEL_URL"
+  | "missing";
+
+export interface CopyrightScanWorkerDispatchDiagnostic {
+  worker_url_configured: boolean;
+  worker_url_source: WorkerUrlSource;
+  worker_url_origin: string | null;
+  worker_url_path: string | null;
+  worker_secret_present: boolean;
+  worker_secret_length: number;
+}
 
 function normalizeOrigin(raw: string): string | null {
   const value = raw.trim();
@@ -21,27 +40,74 @@ function normalizeOrigin(raw: string): string | null {
 export function resolveCopyrightScanWorkerUrl(
   env: NodeJS.ProcessEnv = process.env,
 ): string | null {
+  const diagnostic = copyrightScanWorkerDispatchDiagnostic(env);
+  if (diagnostic.worker_url_configured && diagnostic.worker_url_origin && diagnostic.worker_url_path) {
+    return `${diagnostic.worker_url_origin}${diagnostic.worker_url_path}`;
+  }
+  return null;
+}
+
+export function copyrightScanWorkerDispatchDiagnostic(
+  env: NodeJS.ProcessEnv = process.env,
+): CopyrightScanWorkerDispatchDiagnostic {
   const explicit = env.COPYRIGHT_SCAN_WORKER_URL?.trim();
-  if (explicit) return explicit;
-
-  const candidates = [
-    env.COPYRIGHT_SCAN_WORKER_BASE_URL,
-    env.SITE_URL,
-    env.APP_URL,
-    env.PUBLIC_APP_URL,
-    env.VITE_SITE_URL,
-    env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : undefined,
-    env.VERCEL_URL ? `https://${env.VERCEL_URL}` : undefined,
-  ];
-
-  for (const candidate of candidates) {
-    const origin = candidate ? normalizeOrigin(candidate) : null;
-    if (origin) return `${origin}${HOOK_PATH}`;
+  if (explicit) {
+    try {
+      const url = new URL(explicit);
+      return {
+        worker_url_configured: true,
+        worker_url_source: "COPYRIGHT_SCAN_WORKER_URL",
+        worker_url_origin: url.origin,
+        worker_url_path: `${url.pathname}${url.search}`,
+        worker_secret_present: Boolean(env.COPYRIGHT_SCAN_WORKER_SECRET?.trim()),
+        worker_secret_length: env.COPYRIGHT_SCAN_WORKER_SECRET?.trim().length ?? 0,
+      };
+    } catch {
+      return {
+        worker_url_configured: false,
+        worker_url_source: "COPYRIGHT_SCAN_WORKER_URL",
+        worker_url_origin: null,
+        worker_url_path: null,
+        worker_secret_present: Boolean(env.COPYRIGHT_SCAN_WORKER_SECRET?.trim()),
+        worker_secret_length: env.COPYRIGHT_SCAN_WORKER_SECRET?.trim().length ?? 0,
+      };
+    }
   }
 
-  return null;
+  const candidates: Array<[WorkerUrlSource, string | undefined]> = [
+    ["COPYRIGHT_SCAN_WORKER_BASE_URL", env.COPYRIGHT_SCAN_WORKER_BASE_URL],
+    ["SITE_URL", env.SITE_URL],
+    ["APP_URL", env.APP_URL],
+    ["PUBLIC_APP_URL", env.PUBLIC_APP_URL],
+    ["VITE_SITE_URL", env.VITE_SITE_URL],
+    env.VERCEL_PROJECT_PRODUCTION_URL
+      ? ["VERCEL_PROJECT_PRODUCTION_URL", `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`]
+      : ["VERCEL_PROJECT_PRODUCTION_URL", undefined],
+    env.VERCEL_URL ? ["VERCEL_URL", `https://${env.VERCEL_URL}`] : ["VERCEL_URL", undefined],
+  ];
+
+  for (const [source, candidate] of candidates) {
+    const origin = candidate ? normalizeOrigin(candidate) : null;
+    if (origin) {
+      return {
+        worker_url_configured: true,
+        worker_url_source: source,
+        worker_url_origin: origin,
+        worker_url_path: HOOK_PATH,
+        worker_secret_present: Boolean(env.COPYRIGHT_SCAN_WORKER_SECRET?.trim()),
+        worker_secret_length: env.COPYRIGHT_SCAN_WORKER_SECRET?.trim().length ?? 0,
+      };
+    }
+  }
+
+  return {
+    worker_url_configured: false,
+    worker_url_source: "missing",
+    worker_url_origin: null,
+    worker_url_path: null,
+    worker_secret_present: Boolean(env.COPYRIGHT_SCAN_WORKER_SECRET?.trim()),
+    worker_secret_length: env.COPYRIGHT_SCAN_WORKER_SECRET?.trim().length ?? 0,
+  };
 }
 
 export function isCopyrightScanWorkerSecretConfigured(

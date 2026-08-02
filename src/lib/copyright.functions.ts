@@ -45,6 +45,7 @@ import {
   type CrawlFailureCategory,
 } from "@/lib/copyright/crawl-failure";
 import {
+  copyrightScanWorkerDispatchDiagnostic,
   isCopyrightScanWorkerSecretConfigured,
   resolveCopyrightScanWorkerUrl,
 } from "@/lib/copyright/scan-worker-dispatch.server";
@@ -54,6 +55,7 @@ import {
 } from "@/lib/copyright/scan-activity";
 import {
   decideCopyrightTerminalStatus,
+  EXECUTOR_START_WATCHDOG_MS,
   isExecutorWatchdogExpired,
   markStage,
   watchdogFailureStats,
@@ -88,6 +90,62 @@ function errorMessage(error: unknown): string {
     return String((error as { message?: unknown }).message);
   }
   return String(error);
+}
+
+function plainStats(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+export async function recordCopyrightScanDiagnostic(
+  supabase: ContextSupabase,
+  scanId: string,
+  patch: Record<string, unknown>,
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("copyright_scans")
+      .select("id,status,stats")
+      .eq("id", scanId)
+      .maybeSingle();
+    if (error || !data) {
+      console.error("copyright_scan_diagnostic_read_failed", {
+        scan_id: scanId,
+        error: error?.message ?? "scan_not_found",
+      });
+      return false;
+    }
+    if (!ACTIVE_COPYRIGHT_SCAN_STATUSES.includes(data.status as typeof ACTIVE_COPYRIGHT_SCAN_STATUSES[number])) {
+      return false;
+    }
+    const nextStats = {
+      ...plainStats(data.stats),
+      ...patch,
+      last_progress_at: new Date().toISOString(),
+    };
+    const { data: updated, error: updateError } = await supabase
+      .from("copyright_scans")
+      .update({ stats: nextStats as never })
+      .eq("id", scanId)
+      .in("status", [...ACTIVE_COPYRIGHT_SCAN_STATUSES])
+      .select("id")
+      .maybeSingle();
+    if (updateError || !updated) {
+      console.error("copyright_scan_diagnostic_write_failed", {
+        scan_id: scanId,
+        error: updateError?.message ?? "scan_not_active",
+      });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("copyright_scan_diagnostic_write_exception", {
+      scan_id: scanId,
+      error: errorMessage(error),
+    });
+    return false;
+  }
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -213,15 +271,61 @@ async function dispatchCopyrightScanExecutionInline(scanId: string): Promise<voi
   });
 }
 
-async function dispatchCopyrightScanExecution(scanId: string): Promise<void> {
+async function dispatchCopyrightScanExecution(
+  scanId: string,
+  supabase?: ContextSupabase,
+): Promise<void> {
+  const diagnostic = copyrightScanWorkerDispatchDiagnostic();
   const workerUrl = resolveCopyrightScanWorkerUrl();
+  const dispatchStartedAt = new Date().toISOString();
+  const baseDiagnosticStats = {
+    worker_dispatch_started_at: dispatchStartedAt,
+    worker_dispatch_url_configured: diagnostic.worker_url_configured,
+    worker_dispatch_url_source: diagnostic.worker_url_source,
+    worker_dispatch_url_origin: diagnostic.worker_url_origin,
+    worker_dispatch_url_path: diagnostic.worker_url_path,
+    worker_dispatch_secret_present: diagnostic.worker_secret_present,
+    worker_dispatch_secret_length: diagnostic.worker_secret_length,
+    worker_dispatch_watchdog_ms: EXECUTOR_START_WATCHDOG_MS,
+  };
+  console.info("copyright_scan_worker_dispatch_request", {
+    scan_id: scanId,
+    ...baseDiagnosticStats,
+  });
+  if (supabase) {
+    await recordCopyrightScanDiagnostic(supabase, scanId, baseDiagnosticStats);
+  }
+
   if (!workerUrl) {
+    console.error("copyright_scan_worker_dispatch_missing_url", {
+      scan_id: scanId,
+      worker_dispatch_url_source: diagnostic.worker_url_source,
+    });
+    if (supabase) {
+      await recordCopyrightScanDiagnostic(supabase, scanId, {
+        ...baseDiagnosticStats,
+        worker_dispatch_last_error: "worker_url_missing",
+        worker_dispatch_fallback: "inline",
+      });
+    }
     await dispatchCopyrightScanExecutionInline(scanId);
     return;
   }
 
   if (!isCopyrightScanWorkerSecretConfigured()) {
     // Development / single-node fallback when the signed hook secret is not set.
+    console.error("copyright_scan_worker_dispatch_missing_secret", {
+      scan_id: scanId,
+      worker_dispatch_url_origin: diagnostic.worker_url_origin,
+      worker_dispatch_url_path: diagnostic.worker_url_path,
+    });
+    if (supabase) {
+      await recordCopyrightScanDiagnostic(supabase, scanId, {
+        ...baseDiagnosticStats,
+        worker_dispatch_last_error: "worker_secret_missing",
+        worker_dispatch_fallback: "inline",
+      });
+    }
     await dispatchCopyrightScanExecutionInline(scanId);
     return;
   }
@@ -232,6 +336,20 @@ async function dispatchCopyrightScanExecution(scanId: string): Promise<void> {
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < 3; attempt++) {
+    const attemptNumber = attempt + 1;
+    console.info("copyright_scan_worker_dispatch_attempt", {
+      scan_id: scanId,
+      attempt: attemptNumber,
+      worker_dispatch_url_origin: diagnostic.worker_url_origin,
+      worker_dispatch_url_path: diagnostic.worker_url_path,
+    });
+    if (supabase) {
+      await recordCopyrightScanDiagnostic(supabase, scanId, {
+        ...baseDiagnosticStats,
+        worker_dispatch_attempts: attemptNumber,
+        worker_dispatch_last_attempt_at: new Date().toISOString(),
+      });
+    }
     try {
       const response = await fetchWithTimeout(
         workerUrl,
@@ -246,11 +364,36 @@ async function dispatchCopyrightScanExecution(scanId: string): Promise<void> {
         },
         10_000,
       );
+      console.info("copyright_scan_worker_dispatch_response", {
+        scan_id: scanId,
+        attempt: attemptNumber,
+        status: response.status,
+      });
       if (response.ok) return;
       const text = await response.text().catch(() => "");
       lastError = new Error(`Worker dispatch failed (${response.status}): ${text.slice(0, 200)}`);
+      if (supabase) {
+        await recordCopyrightScanDiagnostic(supabase, scanId, {
+          ...baseDiagnosticStats,
+          worker_dispatch_attempts: attemptNumber,
+          worker_dispatch_last_status: response.status,
+          worker_dispatch_last_error: `http_${response.status}`,
+        });
+      }
     } catch (error) {
       lastError = error;
+      console.error("copyright_scan_worker_dispatch_attempt_failed", {
+        scan_id: scanId,
+        attempt: attemptNumber,
+        error: errorMessage(error),
+      });
+      if (supabase) {
+        await recordCopyrightScanDiagnostic(supabase, scanId, {
+          ...baseDiagnosticStats,
+          worker_dispatch_attempts: attemptNumber,
+          worker_dispatch_last_error: errorMessage(error).slice(0, 500),
+        });
+      }
     }
     await sleep(300 * (attempt + 1));
   }
@@ -261,6 +404,14 @@ async function dispatchCopyrightScanExecution(scanId: string): Promise<void> {
     scan_id: scanId,
     error: errorMessage(lastError),
   });
+  if (supabase) {
+    await recordCopyrightScanDiagnostic(supabase, scanId, {
+      ...baseDiagnosticStats,
+      worker_dispatch_last_error: errorMessage(lastError).slice(0, 500),
+      worker_dispatch_fallback: "inline",
+      worker_dispatch_fallback_at: new Date().toISOString(),
+    });
+  }
   await dispatchCopyrightScanExecutionInline(scanId);
 }
 
@@ -352,7 +503,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
     if (sErr || !scan) throw new Error(sErr?.message ?? "Could not start scan.");
 
     try {
-      await dispatchCopyrightScanExecution(scan.id as string);
+      await dispatchCopyrightScanExecution(scan.id as string, supabase);
     } catch (error) {
       const message = `Copyright scan worker dispatch failed: ${errorMessage(error)}`;
       const failedStats = {
@@ -412,6 +563,12 @@ export async function executeCopyrightScanById(opts: {
 }> {
     const { supabase } = opts;
 
+    console.info("copyright_scan_executor_start", {
+      scan_id: opts.scanId,
+      source: opts.source ?? "user",
+      user_scoped: Boolean(opts.userId),
+    });
+
     let claim = supabase
       .from("copyright_scans")
       .update({ status: "running" })
@@ -421,7 +578,14 @@ export async function executeCopyrightScanById(opts: {
     if (opts.userId) claim = claim.eq("user_id", opts.userId);
 
     const { data: claimedScan, error: claimErr } = await claim.maybeSingle();
-    if (claimErr) throw new Error(claimErr.message);
+    if (claimErr) {
+      console.error("copyright_scan_executor_claim_failed", {
+        scan_id: opts.scanId,
+        source: opts.source ?? "user",
+        error: claimErr.message,
+      });
+      throw new Error(claimErr.message);
+    }
 
     if (!claimedScan) {
       let existingQuery = supabase
@@ -432,6 +596,11 @@ export async function executeCopyrightScanById(opts: {
       const { data: existing, error: existingErr } = await existingQuery.maybeSingle();
       if (existingErr) throw new Error(existingErr.message);
       if (!existing) throw new Error("Scan not found.");
+      console.info("copyright_scan_executor_claim_not_queued", {
+        scan_id: opts.scanId,
+        source: opts.source ?? "user",
+        current_status: existing.status,
+      });
       return {
         scanId: existing.id as string,
         status: existing.status,
@@ -440,6 +609,10 @@ export async function executeCopyrightScanById(opts: {
     }
 
     const scan = claimedScan;
+    console.info("copyright_scan_executor_claimed", {
+      scan_id: scan.id,
+      source: opts.source ?? "user",
+    });
     const userId = scan.user_id as string;
 
     const priorStats = (scan.stats ?? {}) as Record<string, unknown>;
