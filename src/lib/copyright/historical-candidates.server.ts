@@ -31,14 +31,30 @@ export interface HistoricalCandidateLoadResult {
   }>;
 }
 
+function normalizeTitleNeedle(title: string): string {
+  return title.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function titleMatchesWork(
   blob: string,
   workTitle: string,
   titles: string[],
 ): boolean {
   const lower = blob.toLowerCase();
-  const needles = [workTitle, ...titles].filter((t) => t.trim().length >= 3);
-  return needles.some((t) => lower.includes(t.toLowerCase()));
+  const needles = [workTitle, ...titles]
+    .map(normalizeTitleNeedle)
+    .filter((t) => t.length >= 3);
+  return needles.some((t) => lower.includes(t));
+}
+
+function monitoredSourceMatchesWork(
+  row: { page_title: string | null; tracked_titles: string[] },
+  workTitle: string,
+  titles: string[],
+): boolean {
+  const tracked = Array.isArray(row.tracked_titles) ? row.tracked_titles : [];
+  if (titleMatchesWork(row.page_title ?? "", workTitle, titles)) return true;
+  return tracked.some((t) => titleMatchesWork(t, workTitle, titles));
 }
 
 export async function loadHistoricalScanCandidates(
@@ -59,21 +75,17 @@ export async function loadHistoricalScanCandidates(
 
   const { data: sources } = await supabase
     .from("distribution_sources")
-    .select("id,url,domain,page_title,tracked_titles,status,evidence,parent_source_id")
+    .select(
+      "id,url,domain,page_title,tracked_titles,status,monitor_enabled,evidence,parent_source_id",
+    )
     .eq("user_id", opts.userId)
+    .eq("status", "active")
+    .eq("monitor_enabled", true)
     .order("last_seen_at", { ascending: false })
     .limit(80);
 
   for (const row of sources ?? []) {
-    const tracked = Array.isArray(row.tracked_titles) ? row.tracked_titles : [];
-    const relevant =
-      titleMatchesWork(
-        `${row.page_title ?? ""} ${tracked.join(" ")} ${row.domain}`,
-        opts.workTitle,
-        opts.titles,
-      ) || tracked.some((t) => titleMatchesWork(t, opts.workTitle, opts.titles));
-
-    if (!relevant) continue;
+    if (!monitoredSourceMatchesWork(row, opts.workTitle, opts.titles)) continue;
 
     const evidence = (row.evidence ?? {}) as Record<string, unknown>;
     const evidenceUrl =

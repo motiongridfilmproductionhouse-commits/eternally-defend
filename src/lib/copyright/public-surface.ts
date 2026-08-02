@@ -134,6 +134,10 @@ export function sanitizeDiscoveryQueryForClient(
   const q = query.trim();
   if (q === "known_url_seed") return "Submitted URL";
   if (q === "detail_follow") return "Title detail follow-up";
+  if (q === "monitored_source_recheck") return "Known-source recheck";
+  if (q === "historical_finding_recheck") return "Historical finding recheck";
+  if (q === "mirror_redirect") return "Mirror or redirect recheck";
+  if (/^known_risk_domain:/i.test(q)) return "Known-risk domain search";
   if (/^brightdata:/i.test(q)) return "Expanded discovery";
   if (/^serpapi:/i.test(q)) return "Public search";
   if (/\btelegram\b/i.test(q)) return "Public messaging";

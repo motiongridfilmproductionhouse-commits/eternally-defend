@@ -19,6 +19,18 @@ test("sanitizeDiscoveryQueryForClient removes internal provider prefixes", () =>
   assert.equal(sanitizeDiscoveryQueryForClient("known_url_seed"), "Submitted URL");
   assert.equal(sanitizeDiscoveryQueryForClient("brightdata:watch movie"), "Expanded discovery");
   assert.equal(sanitizeDiscoveryQueryForClient("serpapi:query"), "Public search");
+  assert.equal(
+    sanitizeDiscoveryQueryForClient("monitored_source_recheck"),
+    "Known-source recheck",
+  );
+  assert.equal(
+    sanitizeDiscoveryQueryForClient("historical_finding_recheck"),
+    "Historical finding recheck",
+  );
+  assert.equal(
+    sanitizeDiscoveryQueryForClient("known_risk_domain:movies.example"),
+    "Known-risk domain search",
+  );
 });
 
 test("sanitizeCopyrightStatsForClient strips internal diagnostics", () => {
