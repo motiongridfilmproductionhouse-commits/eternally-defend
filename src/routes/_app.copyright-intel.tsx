@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ScanProgress } from "@/components/copyright/ScanProgress";
+import { BrightDataProviderPanel } from "@/components/copyright/BrightDataProviderPanel";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
 
@@ -379,6 +380,14 @@ function CopyrightIntelPage() {
             <p className="mt-2 text-center text-xs text-muted-foreground">{stage}</p>
           )}
         </div>
+      )}
+
+      {!scanBusy && selectedScanId && detailAligned && (
+        <BrightDataProviderPanel
+          stats={activeScanStats}
+          scanStatus={selectedScanStatus}
+          className="animate-fade-in"
+        />
       )}
 
       {selectedScanStatus === "failed" && selectedScanId && detailAligned && (() => {
