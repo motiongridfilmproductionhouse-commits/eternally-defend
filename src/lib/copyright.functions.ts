@@ -98,6 +98,40 @@ function errorMessage(error: unknown): string {
   return String(error);
 }
 
+/** Bright Data result placeholder used when the provider run itself rejects. */
+function emptyBrightDataDiscovery(): BrightDataDiscoveryResult {
+  return {
+    provider: "brightdata",
+    configured: false,
+    hits: [],
+    pageLeads: [],
+    queriesGenerated: 0,
+    requests: 0,
+    successes: 0,
+    failures: 1,
+    candidates: 0,
+    duplicatesDropped: 0,
+    failuresByCategory: {
+      ...emptyProviderFailureCounts(),
+      provider_unavailable: 1,
+    },
+    failureSamples: [
+      { query: "", category: "provider_unavailable", detail: "Bright Data discovery failed" },
+    ],
+    diagnostic: brightDataDiagnostic(),
+  };
+}
+
+function mergeProviderFailureCounts(
+  a: Record<string, number>,
+  b: Record<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = { ...emptyProviderFailureCounts(), ...a };
+  for (const [key, value] of Object.entries(b)) {
+    out[key] = (out[key] ?? 0) + value;
+  }
+  return out;
+
 function plainStats(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
