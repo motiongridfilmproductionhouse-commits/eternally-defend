@@ -170,8 +170,38 @@ export function buildBrightDataQueries(
       if (out.length >= maxQueries) return out.slice(0, maxQueries);
     }
   }
+
+  // Pirate-site and Telegram targeted sweeps for the primary title. These are
+  // still discovery-only: every hit must pass the exact-page crawl, exact-title
+  // identity and access-evidence gates before it can surface as a finding.
+  const primaryQuoted = `"${primary.replaceAll('"', "").trim()}"`;
+  for (const targeted of [
+    `${primaryQuoted} ${qualifiers} site:t.me full movie`,
+    `${primaryQuoted} ${qualifiers} telegram channel movie download link`,
+    ...PIRACY_SITE_CLUSTERS.map(
+      (cluster) => `${primaryQuoted} ${qualifiers} (${cluster.join(" OR ")})`,
+    ),
+    `${primaryQuoted} ${qualifiers} "watch online" 720p 1080p free hd movie`,
+    `${primaryQuoted} ${qualifiers} filmyzilla movierulz ibomma tamilrockers download`,
+  ]) {
+    push(targeted);
+    if (out.length >= maxQueries) return out.slice(0, maxQueries);
+  }
+
   return out.slice(0, maxQueries);
 }
+
+/**
+ * Known unauthorized-distribution site families used only to steer SERP
+ * discovery towards piracy hosts. Presence in this list is never evidence.
+ */
+export const PIRACY_SITE_CLUSTERS: readonly string[][] = [
+  ["ogomovies", "einthusan", "movierulz", "ibomma", "tamilrockers", "filmyzilla"],
+  ["123movies", "fmovies", "soap2day", "putlocker", "gomovies", "himovies"],
+  ["yts", "1337x", "torrentz", "limetorrents", "magnet", "torrent download"],
+  ["doodstream", "streamtape", "filemoon", "mixdrop", "vidmoly", "mega.nz"],
+];
+
 
 
 function searchUrlFor(query: string): string {
