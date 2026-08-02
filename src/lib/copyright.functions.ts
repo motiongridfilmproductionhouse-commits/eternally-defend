@@ -925,7 +925,7 @@ export async function executeCopyrightScanById(opts: {
         brightdata_configured: brightDataDiscovery.configured,
         brightdata_diagnostic: brightDataDiscovery.diagnostic,
         brightdata_duration_ms: Date.now() - brightDataStartedAt,
-        brightdata_running: false,
+
         brightdata_queries_generated: brightDataDiscovery.queriesGenerated,
         brightdata_requests: brightDataDiscovery.requests,
         brightdata_successes: brightDataDiscovery.successes,
