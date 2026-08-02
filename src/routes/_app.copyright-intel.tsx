@@ -26,6 +26,17 @@ import { ScanProgress } from "@/components/copyright/ScanProgress";
 import { AllSourcesPanel } from "@/components/copyright/AllSourcesPanel";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
+import {
+  ReleaseProtectionRegistration,
+  defaultReleaseProtectionForm,
+  formToReleaseProtectionSettings,
+  type ReleaseProtectionFormState,
+} from "@/components/copyright/ReleaseProtectionRegistration";
+import { ReleaseProtectionPanel } from "@/components/copyright/ReleaseProtectionPanel";
+import {
+  meetsAutomaticMonitoringReferenceMinimum,
+  validateReleaseProtectionSettings,
+} from "@/lib/copyright/release-protection";
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -150,6 +161,13 @@ function CopyrightIntelPage() {
   const [scanMeta, setScanMeta] = useState<{ title: string; kind: "image" | "video" } | null>(null);
   const [summary, setSummary] = useState<{ candidates: number; matches: number; graded: number } | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [releaseProtectionForm, setReleaseProtectionForm] = useState<ReleaseProtectionFormState>(
+    defaultReleaseProtectionForm,
+  );
+  const [additionalVisualFiles, setAdditionalVisualFiles] = useState<File[]>([]);
+  const [trailerFile, setTrailerFile] = useState<File | null>(null);
+  const additionalVisualRef = useRef<HTMLInputElement>(null);
+  const trailerRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [investigationOpen, setInvestigationOpen] = useState(false);
@@ -257,6 +275,60 @@ function CopyrightIntelPage() {
         keys.push(key);
       }
 
+      const additionalVisualKeys: string[] = [];
+      for (let i = 0; i < additionalVisualFiles.length; i++) {
+        const visual = additionalVisualFiles[i]!;
+        setStage(`Uploading additional visual ${i + 1}/${additionalVisualFiles.length}…`);
+        const visualType = visual.type as "image/jpeg" | "image/png" | "image/webp";
+        const base64 = await blobToBase64(visual);
+        const { key } = await uploadFn({
+          data: {
+            fileName: visual.name,
+            contentType: visualType,
+            base64,
+          },
+        });
+        additionalVisualKeys.push(key);
+      }
+
+      const videoReferenceKeys: string[] = [];
+      if (trailerFile) {
+        setStage("Uploading trailer / video reference…");
+        const trailerBlobs = trailerFile.type.startsWith("video/")
+          ? await extractFrames(trailerFile, 2)
+          : [trailerFile];
+        for (let i = 0; i < trailerBlobs.length; i++) {
+          const contentType = trailerFile.type.startsWith("video/")
+            ? "image/jpeg"
+            : (trailerFile.type as "image/jpeg" | "image/png" | "image/webp");
+          const base64 = await blobToBase64(trailerBlobs[i]);
+          const { key } = await uploadFn({
+            data: {
+              fileName: trailerFile.type.startsWith("video/") ? `trailer-frame-${i}.jpg` : trailerFile.name,
+              contentType,
+              base64,
+            },
+          });
+          videoReferenceKeys.push(key);
+        }
+      }
+
+      const releaseSettings = formToReleaseProtectionSettings(releaseProtectionForm);
+      if (releaseSettings.enabled) {
+        const validationErrors = validateReleaseProtectionSettings(releaseSettings);
+        if (validationErrors.length) throw new Error(validationErrors.join(" "));
+        const referencePackage = {
+          primary_poster_key: keys[0],
+          additional_visual_keys: additionalVisualKeys,
+          video_reference_keys: videoReferenceKeys,
+        };
+        if (!meetsAutomaticMonitoringReferenceMinimum(referencePackage)) {
+          throw new Error(
+            "Automatic monitoring requires 1 primary poster, 2 additional visual references, and 1 trailer or approved video reference.",
+          );
+        }
+      }
+
       setStage("Starting copyright scan…");
 
       const knownUrls = knownUrlsText
@@ -273,6 +345,18 @@ function CopyrightIntelPage() {
           contentType: isVideo ? "image/jpeg" : (file.type as "image/jpeg"),
           keys,
           ...(knownUrls.length ? { knownUrls } : {}),
+          ...(releaseSettings.enabled
+            ? {
+                releaseProtection: {
+                  settings: releaseSettings,
+                  referencePackage: {
+                    primary_poster_key: keys[0],
+                    additional_visual_keys: additionalVisualKeys,
+                    video_reference_keys: videoReferenceKeys,
+                  },
+                },
+              }
+            : {}),
         },
       });
     },
@@ -644,6 +728,68 @@ function CopyrightIntelPage() {
                 </Button>
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Poster • Artwork • Image • Video</p>
               </div>
+
+              <ReleaseProtectionRegistration
+                form={releaseProtectionForm}
+                onChange={setReleaseProtectionForm}
+                primaryPosterReady={Boolean(file)}
+                additionalVisualCount={additionalVisualFiles.length}
+                videoReferenceCount={trailerFile ? 1 : 0}
+              />
+
+              {releaseProtectionForm.enabled && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Additional visual references (need 2)
+                    </label>
+                    <input
+                      ref={additionalVisualRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      className="hidden"
+                      onChange={(e) =>
+                        setAdditionalVisualFiles(Array.from(e.target.files ?? []).slice(0, 4))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => additionalVisualRef.current?.click()}
+                    >
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      {additionalVisualFiles.length
+                        ? `${additionalVisualFiles.length} visual(s) selected`
+                        : "Upload additional visuals"}
+                    </Button>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Trailer / approved video reference
+                    </label>
+                    <input
+                      ref={trailerRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,video/*"
+                      className="hidden"
+                      onChange={(e) => setTrailerFile(e.target.files?.[0] ?? null)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => trailerRef.current?.click()}
+                    >
+                      <Film className="mr-2 h-4 w-4" />
+                      {trailerFile ? trailerFile.name : "Upload trailer or video"}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <p className="text-xs text-muted-foreground">
                 You must upload the original copyrighted content as the reference source for detection. Videos are sampled into 4 keyframes in your browser before upload. Matches below 50% confidence, plus reviews, news and commentary, are discarded automatically.
@@ -1028,6 +1174,7 @@ function CopyrightIntelPage() {
       </div>
 
       {/* Global monitor — clearly separate from selected-scan findings */}
+      <ReleaseProtectionPanel />
       <DistributionMonitorPanel />
 
 <InvestigationModal

@@ -49,6 +49,7 @@ import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.adm
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
+import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
 import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
 import { Route as ApiPublicHooksCopyrightScanExecuteRouteImport } from './routes/api/public/hooks/copyright-scan-execute'
 import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
@@ -263,6 +264,12 @@ const AppSensitiveProtectionResultsIndexRoute =
     path: '/sensitive-protection/results/',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiPublicHooksReleaseProtectionMonitorRoute =
+  ApiPublicHooksReleaseProtectionMonitorRouteImport.update({
+    id: '/api/public/hooks/release-protection-monitor',
+    path: '/api/public/hooks/release-protection-monitor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDistributionMonitorRoute =
   ApiPublicHooksDistributionMonitorRouteImport.update({
     id: '/api/public/hooks/distribution-monitor',
@@ -344,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -390,6 +398,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
@@ -439,6 +448,7 @@ export interface FileRoutesById {
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -487,6 +497,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/release-protection-monitor'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -533,6 +544,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/release-protection-monitor'
     | '/sensitive-protection/results'
   id:
     | '__root__'
@@ -581,6 +593,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/release-protection-monitor'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
@@ -602,6 +615,7 @@ export interface RootRouteChildren {
   ApiPublicHooksChannelWatchPollRoute: typeof ApiPublicHooksChannelWatchPollRoute
   ApiPublicHooksCopyrightScanExecuteRoute: typeof ApiPublicHooksCopyrightScanExecuteRoute
   ApiPublicHooksDistributionMonitorRoute: typeof ApiPublicHooksDistributionMonitorRoute
+  ApiPublicHooksReleaseProtectionMonitorRoute: typeof ApiPublicHooksReleaseProtectionMonitorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -886,6 +900,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/hooks/release-protection-monitor': {
+      id: '/api/public/hooks/release-protection-monitor'
+      path: '/api/public/hooks/release-protection-monitor'
+      fullPath: '/api/public/hooks/release-protection-monitor'
+      preLoaderRoute: typeof ApiPublicHooksReleaseProtectionMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/distribution-monitor': {
       id: '/api/public/hooks/distribution-monitor'
       path: '/api/public/hooks/distribution-monitor'
@@ -1028,8 +1049,19 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicHooksCopyrightScanExecuteRoute,
   ApiPublicHooksDistributionMonitorRoute:
     ApiPublicHooksDistributionMonitorRoute,
+  ApiPublicHooksReleaseProtectionMonitorRoute:
+    ApiPublicHooksReleaseProtectionMonitorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
