@@ -1487,6 +1487,7 @@ export async function executeCopyrightScanById(opts: {
         provider_failures: discovery.providerFailures,
         provider_failures_by_category: discovery.providerFailuresByCategory,
         provider_failure_samples: discovery.providerFailureSamples,
+        firecrawl_env_diagnostic: discovery.firecrawl_env_diagnostic,
         firecrawl_requests: discovery.firecrawl_requests,
         firecrawl_successes: discovery.firecrawl_successes,
         firecrawl_failures: discovery.firecrawl_failures,

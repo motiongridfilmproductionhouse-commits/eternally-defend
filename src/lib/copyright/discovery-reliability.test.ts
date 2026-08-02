@@ -21,6 +21,10 @@ import {
   claimSerpApiHttpAttempt,
   isCopyrightSerpApiConfigured,
 } from "./serpapi-discovery.server";
+import {
+  firecrawlEnvironmentDiagnostic,
+  isFirecrawlConfigured,
+} from "../firecrawl-client.server";
 import { decideCopyrightTerminalStatus } from "./scan-lifecycle";
 import { classifyCopyrightPage } from "./page-classify.server";
 import { evaluateTelegramPublicEvidence } from "./telegram-evidence";
@@ -107,6 +111,46 @@ test("SerpApi HTTP budget caps attempts at five", () => {
   assert.equal(claimSerpApiHttpAttempt(budget), true);
   budget.remaining = 0;
   assert.equal(claimSerpApiHttpAttempt(budget), false);
+});
+
+test("Firecrawl configuration reads FIRECRAWL_API_KEY server-side and reports only presence and length", () => {
+  const oldFirecrawl = process.env.FIRECRAWL_API_KEY;
+  const oldLovable = process.env.LOVABLE_API_KEY;
+  try {
+    process.env.FIRECRAWL_API_KEY = "fc-test-secret-value";
+    delete process.env.LOVABLE_API_KEY;
+    const direct = firecrawlEnvironmentDiagnostic();
+    assert.equal(direct.firecrawl_api_key_present, true);
+    assert.equal(direct.firecrawl_api_key_length, "fc-test-secret-value".length);
+    assert.equal(direct.firecrawl_api_key_mode, "direct");
+    assert.equal(direct.lovable_api_key_required, false);
+    assert.equal(direct.configured, true);
+    assert.equal(isFirecrawlConfigured(), true);
+    assert.deepEqual(JSON.stringify(direct).includes("fc-test-secret-value"), false);
+
+    process.env.FIRECRAWL_API_KEY = "lovc_connection_key";
+    delete process.env.LOVABLE_API_KEY;
+    const gatewayMissing = firecrawlEnvironmentDiagnostic();
+    assert.equal(gatewayMissing.firecrawl_api_key_present, true);
+    assert.equal(gatewayMissing.firecrawl_api_key_length, "lovc_connection_key".length);
+    assert.equal(gatewayMissing.firecrawl_api_key_mode, "lovable_gateway");
+    assert.equal(gatewayMissing.lovable_api_key_required, true);
+    assert.equal(gatewayMissing.lovable_api_key_present, false);
+    assert.equal(gatewayMissing.configured, false);
+    assert.equal(isFirecrawlConfigured(), false);
+
+    process.env.LOVABLE_API_KEY = "lovable-runtime-key";
+    const gatewayConfigured = firecrawlEnvironmentDiagnostic();
+    assert.equal(gatewayConfigured.lovable_api_key_present, true);
+    assert.equal(gatewayConfigured.lovable_api_key_length, "lovable-runtime-key".length);
+    assert.equal(gatewayConfigured.configured, true);
+    assert.deepEqual(JSON.stringify(gatewayConfigured).includes("lovable-runtime-key"), false);
+  } finally {
+    if (oldFirecrawl == null) delete process.env.FIRECRAWL_API_KEY;
+    else process.env.FIRECRAWL_API_KEY = oldFirecrawl;
+    if (oldLovable == null) delete process.env.LOVABLE_API_KEY;
+    else process.env.LOVABLE_API_KEY = oldLovable;
+  }
 });
 
 test("known URL path can complete when all discovery providers fail", () => {
