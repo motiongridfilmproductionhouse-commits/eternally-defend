@@ -69,6 +69,9 @@ const INTERNAL_STAT_KEYS = new Set([
   "firecrawl_operator_action",
   "firecrawl_circuit_reason",
   "firecrawl_stopped_early_reason",
+  "detail_follow_logs",
+  "candidate_dedup_records",
+  "browser_fallback_budget_remaining_ms",
 ]);
 
 export function publicCapabilityLabel(providerOrCapability: string | null | undefined): string {

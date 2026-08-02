@@ -567,6 +567,8 @@ export async function retrieveCopyrightPage(
     signal?: AbortSignal;
     /** Prefer render even when static HTML looks usable (known evidence URLs). */
     preferRender?: boolean;
+    /** When false, skip Firecrawl/Crawl4AI browser fallbacks (budget exhausted). */
+    allowBrowserFallback?: boolean;
   },
 ): Promise<PageRetrievalResult> {
   const signal = options?.signal;
@@ -632,7 +634,38 @@ export async function retrieveCopyrightPage(
     };
   }
 
-  // 4. Firecrawl rendered exact-page fallback (stealth retry when blocked)
+  // 4–5. Browser-render fallbacks (optional when scan budget allows)
+  if (options?.allowBrowserFallback === false) {
+    if (staticPage.ok && html.trim()) {
+      const enriched = enrichLinksFromHtml(html, finalUrl);
+      links = mergeUniqueLinks(links, enriched);
+      metadata = { json_ld: extractJsonLdBlocks(html) };
+      return {
+        ok: true,
+        url: start,
+        finalUrl,
+        host: hostOf(finalUrl),
+        method: "static_html",
+        markdown,
+        html,
+        links,
+        screenshot: null,
+        pageTitle,
+        metadata,
+        rendered: false,
+        failureCategory: null,
+        failureReason: null,
+        httpStatus: staticPage.status,
+      };
+    }
+    return emptyResult(
+      start,
+      staticPage.failureCategory ?? "empty_static_html",
+      staticPage.failureReason ?? "Browser render budget exhausted for this scan",
+      { finalUrl, httpStatus: staticPage.status },
+    );
+  }
+
   let renderedPage = await firecrawlRender(finalUrl, signal);
   if (
     !renderedPage.ok &&
