@@ -630,11 +630,12 @@ async function pinnedPublicHttpFetch(
     });
   }
 
+  const { Agent, fetch: undiciFetch } = await loadUndici();
   const agent = new Agent({
     connect: {
       servername,
-      lookup(hostname, options, callback) {
-        lookup(hostname, options, callback as any);
+      lookup(hostname: string, options: unknown, callback: unknown) {
+        lookup(hostname, options as any, callback as any);
       },
     },
   });
@@ -642,6 +643,7 @@ async function pinnedPublicHttpFetch(
   try {
     // Never fall back to unpinned global fetch if this throws.
     return (await undiciFetch(requestUrl, {
+
       method: requestInit.method,
       headers: requestInit.headers as any,
       body: requestInit.body as any,
