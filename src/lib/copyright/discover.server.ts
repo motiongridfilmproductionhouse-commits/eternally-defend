@@ -570,8 +570,7 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
   pushPriority(`"${base}" torrent magnet ${NEG}`);
   pushPriority(`"${base}" (site:t.me OR site:telegram.me) full movie`);
 
-  // Unquoted natural phrasing — piracy pages rarely carry the exact quoted
-  // title string, and quoted-only sweeps collapse to news/review coverage.
+  // Native-language piracy phrasing (title always stays exact-quoted).
   const langWord = a.language ? a.language.toLowerCase() : "";
   for (const phrase of [
     "movie download",
@@ -580,13 +579,13 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
     "movie telegram link",
     "movie download link",
   ]) {
-    pushPriority(`${base} ${langWord} ${phrase} ${NEG}`.replace(/\s+/g, " "));
+    pushPriority(`"${base}" ${langWord} ${phrase} ${NEG}`.replace(/\s+/g, " "));
   }
 
   const seen = new Set<string>();
-  return [...priority, ...plans]
+  return [...priority.slice(0, 12), ...plans, ...priority.slice(12)]
     .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
-    .slice(0, 40);
+    .slice(0, 44);
 }
 
 /**
