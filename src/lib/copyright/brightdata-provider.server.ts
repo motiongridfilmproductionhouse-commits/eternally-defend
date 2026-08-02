@@ -396,13 +396,24 @@ export async function runBrightDataDiscovery(input: {
   let successes = 0;
   let failures = 0;
   let duplicatesDropped = 0;
+  let queryIndex = 0;
+  const telemetry = () => ({
+    queriesGenerated: queries.length,
+    queryIndex,
+    requests,
+    successes,
+    failures,
+    candidatesTotal: hits.length,
+    uniqueUrls: seen.size,
+  });
 
   for (const query of queries) {
+    queryIndex += 1;
     if (input.signal?.aborted) break;
     if (isPastDiscoveryDeadline(input.deadlineAt)) break;
     if (seen.size >= BRIGHTDATA_MAX_UNIQUE_PAGES) break;
 
-    await input.onActivity?.({ query, status: "searching" });
+    await input.onActivity?.({ query, status: "searching", telemetry: telemetry() });
 
     let ok = false;
     let payload: unknown = null;
@@ -450,7 +461,12 @@ export async function runBrightDataDiscovery(input: {
           detail: lastDetail,
         });
       }
-      await input.onActivity?.({ query, status: "failed", category: lastCategory });
+      await input.onActivity?.({
+        query,
+        status: "failed",
+        category: lastCategory,
+        telemetry: telemetry(),
+      });
       // Hard credential/credit failures will not recover within this scan.
       if (lastCategory === "invalid_credentials" || lastCategory === "insufficient_credits") break;
       continue;
@@ -468,7 +484,12 @@ export async function runBrightDataDiscovery(input: {
       hits.push(hit);
       added += 1;
     }
-    await input.onActivity?.({ query, status: "results", candidates: added });
+    await input.onActivity?.({
+      query,
+      status: "results",
+      candidates: added,
+      telemetry: telemetry(),
+    });
   }
 
   if (successes > 0 && hits.length === 0) {
