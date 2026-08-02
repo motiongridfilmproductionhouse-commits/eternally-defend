@@ -877,7 +877,7 @@ export async function executeCopyrightScanById(opts: {
           deadlineAt: discoveryDeadlineAt,
           onActivity: async (event) => {
             if (event.status === "searching") {
-              activity.setWorkflowStage("discovering");
+              activity.setWorkflowStage("discovering_candidates");
             }
             await pushActivity({
               brightdata_last_query: event.query.slice(0, 160),
