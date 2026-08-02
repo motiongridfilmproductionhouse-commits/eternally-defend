@@ -101,12 +101,17 @@ export function BrightDataProviderPanel({
       <dl className="mt-3 grid gap-1.5 text-[11px] sm:grid-cols-2">
         <div className="flex items-center gap-2">
           <dt className="text-muted-foreground">Configured</dt>
-          <dd className="font-medium">{t.configured ? "Yes" : "No"}</dd>
+          <dd className="font-medium">
+            {t.status === "pending" ? "—" : t.configured ? "Yes" : "No"}
+          </dd>
         </div>
         <div className="flex items-center gap-2">
           <dt className="text-muted-foreground">API key present</dt>
-          <dd className="font-medium">{t.apiKeyPresent ? "Yes" : "No"}</dd>
+          <dd className="font-medium">
+            {t.status === "pending" ? "—" : t.apiKeyPresent ? "Yes" : "No"}
+          </dd>
         </div>
+
         <div className="flex min-w-0 items-center gap-2">
           <dt className="text-muted-foreground">Endpoint</dt>
           <dd className="truncate font-mono text-[10px]">{t.endpoint ?? "—"}</dd>

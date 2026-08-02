@@ -369,10 +369,12 @@ export function activityCountersFromStats(
 
 export type BrightDataProviderStatus =
   | "not_configured"
+  | "pending"
   | "idle"
   | "running"
   | "completed"
   | "error";
+
 
 export type BrightDataTelemetry = {
   configured: boolean;
@@ -421,9 +423,14 @@ export function brightDataTelemetryFromStats(
     return typeof v === "number" && Number.isFinite(v) ? v : 0;
   };
   const diag = (stats?.["brightdata_diagnostic"] ?? null) as Record<string, unknown> | null;
+  const configuredRaw = stats?.["brightdata_configured"];
+  const diagConfigured = diag?.["configured"];
   const configured =
-    stats?.["brightdata_configured"] === true ||
-    (typeof diag?.["configured"] === "boolean" && diag["configured"] === true);
+    configuredRaw === true || (typeof diagConfigured === "boolean" && diagConfigured === true);
+  // Before the first Bright Data activity push there is no provider state yet —
+  // that is "pending", not "missing API key".
+  const unknownConfig =
+    typeof configuredRaw !== "boolean" && typeof diagConfigured !== "boolean";
   const scanRunning = scanStatus === "running" || scanStatus === "queued" || scanStatus === "pending";
   const running = stats?.["brightdata_running"] === true && scanRunning;
 
@@ -438,14 +445,17 @@ export function brightDataTelemetryFromStats(
       }
     }
   }
-  if (!configured && !errors.length) errors.push(brightDataErrorLabel("missing_api_key"));
+  if (!configured && !unknownConfig && !errors.length) {
+    errors.push(brightDataErrorLabel("missing_api_key"));
+  }
 
   const requests = num("brightdata_requests");
   const failures = num("brightdata_failures");
   const durationMs = num("brightdata_duration_ms") || num("brightdata_elapsed_ms");
 
   let status: BrightDataProviderStatus;
-  if (!configured) status = "not_configured";
+  if (unknownConfig) status = "pending";
+  else if (!configured) status = "not_configured";
   else if (running) status = "running";
   else if (failures > 0 && num("brightdata_successes") === 0 && requests > 0) status = "error";
   else if (requests > 0 || durationMs > 0) status = "completed";
@@ -454,15 +464,18 @@ export function brightDataTelemetryFromStats(
   const statusLabel =
     status === "not_configured"
       ? "Not configured"
-      : status === "running"
-        ? "Running"
-        : status === "error"
-          ? "Error"
-          : status === "completed"
-            ? "Completed"
-            : "Idle";
+      : status === "pending"
+        ? "Pending"
+        : status === "running"
+          ? "Running"
+          : status === "error"
+            ? "Error"
+            : status === "completed"
+              ? "Completed"
+              : "Idle";
 
   const lastQueryRaw = stats?.["brightdata_last_query"];
+
   return {
     configured,
     running,
