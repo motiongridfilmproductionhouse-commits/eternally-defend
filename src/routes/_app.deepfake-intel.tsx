@@ -47,6 +47,7 @@ import {
   shouldRenderLegacyFindingCards,
 } from "@/lib/deepfake/results-console-mount";
 import { InvestigationStatsPanel } from "@/components/deepfake/InvestigationStatsPanel";
+import { googleImagesBackgroundProgress } from "@/lib/deepfake/google-images-diagnostics";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { ThreatAlertBanner } from "@/components/deepfake/ThreatAlertBanner";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
@@ -238,10 +239,14 @@ function DeepfakeIntelPage() {
     queryFn: () => selectedScanId ? getFn({ data: { scan_id: selectedScanId } }) : null,
     enabled: !!selectedScanId,
     refetchInterval: (q) => {
-      const d = q.state.data as { scan?: { status?: string } } | null | undefined;
+      const d = q.state.data as {
+        scan?: { status?: string; discovery_metrics?: Record<string, unknown> };
+      } | null | undefined;
+      const googleProgress = googleImagesBackgroundProgress(d?.scan?.discovery_metrics);
       return scanPollInterval({
         status: d?.scan?.status ?? null,
         requestPending: runPendingRef.current,
+        googleImagesBackgroundRunning: googleProgress.running,
       });
     },
   });
@@ -1381,10 +1386,24 @@ function DeepfakeIntelPage() {
                     <AlertTriangle className="size-3.5 mt-0.5" /> {scan.error_message}
                   </div>
                 )}
-                {(diagnostics || scan.status === "running") && (
-                  <details className="mt-3 rounded-md border border-border/70 bg-secondary/20 p-3" open={scan.status === "running"}>
+                {(diagnostics ||
+                  scan.status === "running" ||
+                  googleImagesBackgroundProgress(discoveryMetricObject ?? undefined)
+                    .running) && (
+                  <details
+                    className="mt-3 rounded-md border border-border/70 bg-secondary/20 p-3"
+                    open={
+                      scan.status === "running" ||
+                      googleImagesBackgroundProgress(discoveryMetricObject ?? undefined)
+                        .running
+                    }
+                  >
                     <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      {scan.status === "running" ? "Live Investigation Progress" : "Investigation Diagnostics"}
+                      {scan.status === "running" ||
+                      googleImagesBackgroundProgress(discoveryMetricObject ?? undefined)
+                        .running
+                        ? "Live Investigation Progress"
+                        : "Investigation Diagnostics"}
                     </summary>
                     <div className="mt-3">
                       <InvestigationStatsPanel

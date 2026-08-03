@@ -15,6 +15,8 @@ import {
 } from "@/lib/deepfake/scan-diagnostics";
 import {
   formatGoogleImagesDiagnosticLines,
+  googleImagesBackgroundProgress,
+  googleImagesBackgroundStatus,
   parseGoogleImagesDiagnostics,
 } from "@/lib/deepfake/google-images-diagnostics";
 
@@ -38,6 +40,8 @@ export function InvestigationStatsPanel({
 }) {
   const d = buildInvestigationDiagnostics(metrics);
   const google = parseGoogleImagesDiagnostics(metrics);
+  const googleBackground = googleImagesBackgroundStatus(metrics);
+  const googleProgress = googleImagesBackgroundProgress(metrics);
   const stageLabel =
     INVESTIGATION_TIMELINE_STAGES.find((s) => s.key === d.investigation_stage)
       ?.label ??
@@ -68,6 +72,23 @@ export function InvestigationStatsPanel({
           value={d.coverage_score_percent != null ? `${d.coverage_score_percent}%` : "—"}
         />
       </div>
+
+      {googleBackground === "queued" || googleBackground === "running" ? (
+        <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-3 text-sm">
+          <div className="font-medium text-primary">Google Images Investigation Running</div>
+          <div className="mt-2 text-xs text-muted-foreground space-y-1">
+            <div>
+              {googleProgress.completed} / {googleProgress.total} Google queries completed
+            </div>
+            <div>{google.images_discovered} images collected</div>
+            <div>{google.face_comparisons} face comparisons completed</div>
+            <div>{google.evidence_packages_created} evidence packages generated</div>
+            <div className="pt-1 text-primary/80">
+              Background investigation continues… ({googleProgress.percent}%)
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {google.provider_status !== "not_started" && (
         <div className="rounded-md border border-border/70 bg-secondary/20 p-3">

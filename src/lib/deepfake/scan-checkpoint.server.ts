@@ -182,6 +182,10 @@ function asMetrics(value: unknown): DiscoveryFunnelMetrics {
     "reference_bing_images_found",
     "reference_yandex_images_found",
     "google_images_investigation_complete",
+    "google_images_jobs_queued",
+    "google_images_jobs_total",
+    "google_images_jobs_completed",
+    "google_images_progress_percent",
   ];
   for (const key of numericKeys) {
     const fallback = base[key] as number;
