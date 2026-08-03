@@ -2473,7 +2473,9 @@ export async function executeCopyrightScanById(opts: {
         const bHist = (b.evidence as Record<string, unknown>)?.historical_preservation === true ? 1 : 0;
         return bHist - aHist;
       });
-      const internalPersist = dedupeCopyrightMatchRows(internalCandidates).slice(0, 80) as MatchInsert[];
+      // Persist the full inspected-lead set (not just the top slice) so the UI can
+      // show 100% of detected sources; the results list pages/groups them client-side.
+      const internalPersist = dedupeCopyrightMatchRows(internalCandidates).slice(0, 600) as MatchInsert[];
       const allRows = dedupeCopyrightMatchRows([
         ...distributionRows,
         ...internalPersist,

@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ScanProgress } from "@/components/copyright/ScanProgress";
 import { AllSourcesPanel } from "@/components/copyright/AllSourcesPanel";
-import { SuspiciousSourcesPanel } from "@/components/copyright/SuspiciousSourcesPanel";
+import { ThreatResultsList } from "@/components/copyright/ThreatResultsList";
 import type { PublicSuspiciousSource } from "@/lib/copyright/suspicious-sources";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
@@ -670,7 +670,7 @@ function CopyrightIntelPage() {
             <Tabs defaultValue="center">
               <TabsList>
                 <TabsTrigger value="center">Investigation center</TabsTrigger>
-                <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
+                <TabsTrigger value="sources">Threat results</TabsTrigger>
                 <TabsTrigger value="all">All sources</TabsTrigger>
                 <TabsTrigger value="youtube">Video monitoring</TabsTrigger>
               </TabsList>
@@ -852,8 +852,10 @@ function CopyrightIntelPage() {
 
 
           {detailAligned && suspiciousSources.length > 0 && (
-            <SuspiciousSourcesPanel
-              sources={suspiciousSources}
+            <ThreatResultsList
+              suspicious={suspiciousSources}
+              inspected={(detail.data?.allSources ?? []) as never}
+              workTitle={selectedScanTitle ?? scanMeta?.title ?? ""}
               summaryLine={
                 typeof detail.data?.scan?.stats === "object" &&
                 detail.data?.scan?.stats &&
@@ -872,12 +874,11 @@ function CopyrightIntelPage() {
                   source_url: source.url,
                   page_title: source.title,
                   confidence: source.confidence,
-                  confidence_band: source.confidence_band,
-                  detection_type: source.detection_type ?? source.classification,
+                  detection_type: source.detectionType ?? source.classification,
                   reason: source.reason,
                   evidence: source.evidence,
                   contact: source.contact,
-                  review_status: source.review_status,
+                  review_status: source.reviewStatus,
                 });
                 setInvestigationOpen(true);
               }}
