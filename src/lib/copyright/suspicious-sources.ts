@@ -10,6 +10,15 @@ import {
   resolveClassification,
 } from "./taxonomy";
 
+/** JSON-serializable value, safe to send from a server function to the client. */
+export type SerializableJson =
+  | string
+  | number
+  | boolean
+  | null
+  | SerializableJson[]
+  | { [key: string]: SerializableJson };
+
 export type SuspiciousSourceState =
   | "new_confirmed"
   | "historical_reconfirmed"
