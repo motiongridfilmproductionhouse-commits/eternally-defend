@@ -86,6 +86,7 @@ function SourceCard({
   const band = BAND[source.confidence_band ?? "review"] ?? BAND.review;
   const ev = (source.evidence ?? {}) as Record<string, unknown>;
   const dist = (ev.distribution ?? null) as null | {
+    classification?: string;
     domain_risk?: string;
     release_timing?: string;
     release_offset_days?: number | null;
