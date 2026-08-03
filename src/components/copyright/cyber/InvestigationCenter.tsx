@@ -70,8 +70,9 @@ export function InvestigationCenter({
     }
     const fresh = confirmed.find((s) => !seenRef.current!.has(s.id));
     for (const s of confirmed) seenRef.current.add(s.id);
+    console.log("[dbg-alert]", { fresh: fresh?.id, scanning, scanStatus, n: confirmed.length });
     if (fresh && scanning) setAlertSource(fresh);
-  }, [sources, scanning]);
+  }, [sources, scanning, scanStatus]);
 
   const collectIntel = useCallback((intel: DomainIntel) => {
     setIntelByUrl((prev) => (prev[intel.url] ? prev : { ...prev, [intel.url]: intel }));
