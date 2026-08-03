@@ -324,7 +324,7 @@ export async function analyzeDistributionPage(opts: {
         markdown,
         links,
         titles: opts.titles,
-        limit: 5,
+        limit: 20,
         metadata: meta,
       });
       opts.detailFollow?.recordTitleCandidatesScored(
@@ -338,6 +338,18 @@ export async function analyzeDistributionPage(opts: {
           "no title-matched detail links scored above threshold",
         );
       }
+    }
+  } else if (!opts.skipDetailFollow && classified.distributionLinks.length) {
+    // Non-listing movie pages still expand into cloud/file/mirror destinations.
+    detailFollowUrls = classified.distributionLinks
+      .filter((l) => l.startsWith("http"))
+      .slice(0, 12);
+    if (detailFollowUrls.length) {
+      opts.detailFollow?.recordLinksExtracted(retrieved.finalUrl, detailFollowUrls.length);
+      opts.detailFollow?.recordTitleCandidatesScored(
+        retrieved.finalUrl,
+        detailFollowUrls.length,
+      );
     }
   } else if (opts.forceDetailFollow && opts.detailFollow) {
     opts.detailFollow.recordSkipped(

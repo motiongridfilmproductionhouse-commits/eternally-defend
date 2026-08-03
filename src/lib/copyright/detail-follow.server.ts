@@ -44,8 +44,11 @@ export interface DetailFollowLogEntry {
   detail?: string;
 }
 
-const MAX_QUEUE = 20;
-const MAX_PER_PAGE = 5;
+/** Recursive listing / mirror follow — do not stall after a handful of URLs. */
+const MAX_QUEUE = 120;
+const MAX_PER_PAGE = 20;
+/** Max outbound hop depth from a seed listing (movie → category → mirror). */
+export const DETAIL_FOLLOW_MAX_DEPTH = 3;
 
 export class DetailFollowRecorder {
   private queue: string[] = [];

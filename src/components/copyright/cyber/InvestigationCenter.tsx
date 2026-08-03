@@ -145,10 +145,14 @@ export function InvestigationCenter({
           events={events}
           scanning={scanning}
           counters={[
-            { label: "Sites checked", value: counters.websites_checked },
             { label: "Candidate pages", value: counters.candidate_pages },
-            { label: "Potential threats", value: counters.potential_threats },
-            { label: "Verified findings", value: counters.verified_findings },
+            { label: "Domains", value: threatRows.length },
+            { label: "Verified threats", value: counters.verified_findings },
+            {
+              label: "Pending verification",
+              value: Math.max(0, counters.potential_threats - counters.verified_findings),
+            },
+            { label: "Sites checked", value: counters.websites_checked },
           ]}
         />
         <div className="cyber-panel grid place-items-center rounded-2xl p-5">

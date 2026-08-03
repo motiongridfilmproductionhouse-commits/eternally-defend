@@ -26,8 +26,13 @@ import {
 import {
   brightDataDiagnostic,
   isBrightDataConfigured,
+  runBrightDataDiscovery,
   type BrightDataDiscoveryResult,
 } from "@/lib/copyright/brightdata-provider.server";
+import {
+  isCopyrightSerpApiConfigured,
+  runCopyrightSerpApiDiscovery,
+} from "@/lib/copyright/serpapi-discovery.server";
 import { emptyProviderFailureCounts } from "@/lib/copyright/provider-failures";
 import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.server";
 import { readStoredObject } from "@/lib/copyright/storage.server";
@@ -62,6 +67,7 @@ import {
 import { isNeverMonitoredDomain } from "@/lib/copyright/official-platforms";
 import {
   allocateCrawlSlots,
+  DEFAULT_PAGE_CAP,
   DETAIL_FOLLOW_BUDGET_MS,
   BROWSER_FALLBACK_BUDGET_MS,
   PER_PAGE_BROWSER_BUDGET_MS,
@@ -1252,14 +1258,35 @@ export async function executeCopyrightScanById(opts: {
         candidates: discovery.candidates.length + discovery.pageLeads.length,
         failures: discovery.providerFailures,
       });
-      const brightDataDiscovery = emptyBrightDataDiscovery();
+      activity.setWorkflowStage("expanding_queries");
+      await pushActivity({
+        brightdata_running: isBrightDataConfigured(),
+        brightdata_configured: isBrightDataConfigured(),
+        brightdata_last_status: isBrightDataConfigured() ? "searching" : "disabled",
+        investigation_stage: "Expanding Queries… Searching Brave / Google SERP…",
+      }, true);
+
+      const brightDataStartedAt = Date.now();
+      const brightDataDiscovery = isBrightDataConfigured()
+        ? await runBrightDataDiscovery({
+            analysis,
+            workTitle,
+            signal: discoverySignal,
+            deadlineAt: discoveryDeadlineAt,
+          }).catch((error) => {
+            console.warn(
+              "[copyright] Bright Data discovery failed:",
+              error instanceof Error ? error.message : String(error),
+            );
+            return emptyBrightDataDiscovery();
+          })
+        : emptyBrightDataDiscovery();
 
       await pushActivity({
         brightdata_running: false,
         brightdata_configured: brightDataDiscovery.configured,
         brightdata_diagnostic: brightDataDiscovery.diagnostic,
-        brightdata_duration_ms: 0,
-
+        brightdata_duration_ms: Date.now() - brightDataStartedAt,
         brightdata_queries_generated: brightDataDiscovery.queriesGenerated,
         brightdata_requests: brightDataDiscovery.requests,
         brightdata_successes: brightDataDiscovery.successes,
@@ -1268,19 +1295,75 @@ export async function executeCopyrightScanById(opts: {
         brightdata_duplicates_dropped: brightDataDiscovery.duplicatesDropped,
         brightdata_failures_by_category: brightDataDiscovery.failuresByCategory,
         brightdata_failure_samples: brightDataDiscovery.failureSamples.slice(0, 6),
-
-        brightdata_last_status: "disabled",
+        brightdata_last_status: brightDataDiscovery.configured
+          ? brightDataDiscovery.failures > 0 && brightDataDiscovery.successes === 0
+            ? "failed"
+            : "completed"
+          : "disabled",
       });
 
-      const serpapiDiscovery = {
-        pageLeads: [] as PageLead[],
-        requests: 0,
-        successes: 0,
-        failures: 0,
-        candidates: 0,
-        failureMessages: [],
-        configured: false,
-      };
+      if (brightDataDiscovery.configured) {
+        sourceActivity.upsert({
+          provider: "brightdata",
+          status: brightDataDiscovery.pageLeads.length
+            ? "completed"
+            : brightDataDiscovery.failures > 0
+              ? "failed"
+              : "no_results",
+          requests: brightDataDiscovery.requests,
+          candidates: brightDataDiscovery.candidates,
+          failures: brightDataDiscovery.failures,
+        });
+      }
+
+      const serpapiDiscovery = isCopyrightSerpApiConfigured()
+        ? await runCopyrightSerpApiDiscovery({
+            analysis,
+            workTitle,
+            signal: discoverySignal,
+            deadlineAt: discoveryDeadlineAt,
+            // Run as a parallel Google SERP stage — do not wait for Firecrawl failure.
+            onlyWhenFirecrawlFailed: false,
+            firecrawlHadSuccess: discovery.providerSuccesses > 0,
+          }).catch((error) => ({
+            pageLeads: [] as PageLead[],
+            requests: 0,
+            successes: 0,
+            failures: 1,
+            candidates: 0,
+            failureMessages: [
+              error instanceof Error ? error.message : String(error),
+            ],
+            configured: true,
+          }))
+        : {
+            pageLeads: [] as PageLead[],
+            requests: 0,
+            successes: 0,
+            failures: 0,
+            candidates: 0,
+            failureMessages: [] as string[],
+            configured: false,
+          };
+
+      if (serpapiDiscovery.configured) {
+        sourceActivity.upsert({
+          provider: "serpapi",
+          status: serpapiDiscovery.pageLeads.length
+            ? "completed"
+            : serpapiDiscovery.failures > 0
+              ? "failed"
+              : "no_results",
+          requests: serpapiDiscovery.requests,
+          candidates: serpapiDiscovery.candidates,
+          failures: serpapiDiscovery.failures,
+        });
+      }
+
+      activity.setWorkflowStage("discovering_mirrors");
+      await pushActivity({
+        investigation_stage: "Discovering Mirrors… Following redirects…",
+      }, true);
 
       // Normalize + dedupe candidate URLs across providers.
       const extraLeads = [...brightDataDiscovery.pageLeads, ...serpapiDiscovery.pageLeads];
@@ -1318,25 +1401,25 @@ export async function executeCopyrightScanById(opts: {
         if (!byUrl.has(c.url)) byUrl.set(c.url, c);
       }
 
-      for (const lead of discovery.pageLeads.slice(0, 20)) {
+      for (const lead of discovery.pageLeads) {
         activity.recordDiscovered({
           url: lead.url,
           pageTitle: lead.title,
           leadQuery: lead.query,
         });
       }
-      for (const lead of brightDataDiscovery.pageLeads.slice(0, 20)) {
+      for (const lead of brightDataDiscovery.pageLeads) {
         activity.recordDiscovered({
           url: lead.url,
           pageTitle: lead.title,
           leadQuery: `brightdata:${lead.query ?? "discovery"}`,
         });
       }
-      for (const lead of serpapiDiscovery.pageLeads.slice(0, 20)) {
+      for (const lead of serpapiDiscovery.pageLeads) {
         activity.recordDiscovered({
           url: lead.url,
           pageTitle: lead.title,
-          leadQuery: lead.query ?? "serpapi:fallback",
+          leadQuery: lead.query ?? "serpapi:google",
         });
       }
       activity.setWorkflowStage("retrieving_pages");
@@ -1355,11 +1438,12 @@ export async function executeCopyrightScanById(opts: {
         true,
       );
 
-      // Prioritise high-signal piracy leads, keep the grading budget bounded.
+      // Image grading is supplemental identity evidence only — never a discovery
+      // gate. Grade every image-bearing candidate within the scan page budget.
       const ordered = [...byUrl.values()]
         .filter((c) => c.thumbnail || c.imageUrl)
         .sort((a, b) => Number(b.exact) - Number(a.exact))
-        .slice(0, 40);
+        .slice(0, DEFAULT_PAGE_CAP);
 
       // 3. Evidence grading with a multimodal comparison.
       // Image/OCR path produces identity-only internal leads — never actionable piracy.
@@ -1593,12 +1677,12 @@ export async function executeCopyrightScanById(opts: {
       const leadUrls = prioritizeKnownUrlLeads(
         knownLeadUrls,
         mergedDiscovery.leads,
-        40,
+        DEFAULT_PAGE_CAP,
       );
       const slotAllocation = allocateCrawlSlots(
         knownLeadUrls.length,
         mergedDiscovery.leads.length,
-        40,
+        DEFAULT_PAGE_CAP,
       );
       const { known: knownPhaseLeads, provider: providerPhaseLeads } =
         splitKnownAndProviderLeads(leadUrls);
@@ -2285,8 +2369,8 @@ export async function executeCopyrightScanById(opts: {
       activity.setWorkflowStage("classifying_evidence");
       await pushActivity({}, true);
 
-      // Bounded same-domain detail follow from listing pages (reserved budget).
-      const details = detailFollowRecorder.drain(15);
+      // Recursive listing / mirror / download follow until queue or timeout.
+      const details = detailFollowRecorder.drain(80);
       for (let offset = 0; offset < details.length; offset += 4) {
         if (isPastDeadline(detailFollowDeadlineAt)) {
           abortedByDeadline = true;

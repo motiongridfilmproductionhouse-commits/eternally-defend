@@ -656,6 +656,36 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
   pushPriority(`"${base}" site:archive.org (pdf OR movie OR boly4u)`);
   pushPriority(`"${base}" site:dailymotion.com full movie`);
 
+  // Explicit search-expansion stage — platform + rip-quality phrases.
+  for (const phrase of [
+    "watch online",
+    "full movie",
+    "download",
+    "HDRip",
+    "WEBRip",
+    "CAM",
+    "HDTS",
+    "mp4",
+    "mkv",
+    "bilibili",
+    "archive",
+    "terabox",
+    "drive",
+    "telegram",
+    "torrent",
+  ]) {
+    pushPriority(`"${base}" ${phrase}`);
+  }
+  for (const site of [
+    "ogomovies1.com.pk",
+    "bilibili.tv",
+    "archive.org",
+    "terabox.app",
+    "dailymotion.com",
+  ]) {
+    pushPriority(`site:${site} "${base}"`);
+  }
+
   // Native-language piracy phrasing (title always stays exact-quoted).
   const langWord = a.language ? a.language.toLowerCase() : "";
   for (const phrase of [
