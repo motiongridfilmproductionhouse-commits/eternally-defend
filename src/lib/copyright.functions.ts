@@ -1977,7 +1977,7 @@ export async function executeCopyrightScanById(opts: {
           confidence_band: bandFor(dist.confidence),
           detection_type: dist.classification,
           transformations: dist.qualityTags.slice(0, 8),
-          evidence: {
+          evidence: ({
             discovery: "distribution_site",
             discovery_query: leadQuery,
             keyword_match: leadQuery,
