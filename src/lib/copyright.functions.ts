@@ -2443,7 +2443,7 @@ export async function executeCopyrightScanById(opts: {
             recheck_status: recheckStatus,
             show_as_historical: true,
             classification: pf.classification,
-          },
+          } as unknown as MatchInsert["evidence"],
           ocr_text: null,
           reason:
             recheckStatus === "temporarily_unreachable"
