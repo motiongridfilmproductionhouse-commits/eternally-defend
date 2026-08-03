@@ -134,6 +134,10 @@ import {
 import { mergeProviderPageLeads } from "@/lib/copyright/discovery-provider-merge";
 import { buildSecondStageDiscoveryQueries } from "@/lib/copyright/discovery-fallback";
 import { sortDiscoveryLeadsByPriority } from "@/lib/copyright/discovery-candidate-priority";
+import {
+  buildSaturationMetrics,
+  emptyDiscoveryCoverageState,
+} from "@/lib/copyright/discovery-saturation";
 import type { ProviderFailureCategory } from "@/lib/copyright/provider-failures";
 import {
   decideCopyrightTerminalStatus,
@@ -1335,6 +1339,11 @@ export async function executeCopyrightScanById(opts: {
         firecrawl_operator_action: null,
         firecrawl_stopped_early: false,
         firecrawl_stopped_early_reason: null,
+        discovery_saturation: buildSaturationMetrics({
+          state: emptyDiscoveryCoverageState(),
+          stoppedLowPriorityQueries: 0,
+          providersExhausted: false,
+        }),
         candidates_by_provider: {},
         telegram_queries: 0,
         telegram_posts: 0,
@@ -2941,6 +2950,15 @@ export async function executeCopyrightScanById(opts: {
         firecrawl_operator_action: discovery.firecrawl_operator_action,
         firecrawl_stopped_early: discovery.firecrawl_stopped_early,
         firecrawl_stopped_early_reason: discovery.firecrawl_stopped_early_reason,
+        discovery_mode: discovery.discovery_saturation.discovery_mode,
+        platform_categories_covered: discovery.discovery_saturation.platform_categories_covered,
+        high_priority_queries_completed:
+          discovery.discovery_saturation.high_priority_queries_completed,
+        providers_exhausted: discovery.discovery_saturation.providers_exhausted,
+        stopped_low_priority_queries:
+          discovery.discovery_saturation.stopped_low_priority_queries,
+        active_requests_completed_after_target:
+          discovery.discovery_saturation.active_requests_completed_after_target,
         serpapi_requests: serpapiDiscovery.requests,
         serpapi_successes: serpapiDiscovery.successes,
         serpapi_failures: serpapiDiscovery.failures,

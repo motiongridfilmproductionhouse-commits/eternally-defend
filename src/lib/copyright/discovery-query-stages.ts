@@ -411,7 +411,7 @@ export function buildAllDiscoveryQueries(
   return flattenStagedQueries(buildStagedDiscoveryQueries(analysis, workTitle));
 }
 
-/** Whether unique candidate count satisfies the discovery target for this stage. */
+/** @deprecated Use hasBroadDiscoveryCoverage from discovery-saturation for stage gating. */
 export function hasAdequateDiscoveryCoverage(uniqueCandidateUrls: number): boolean {
   return uniqueCandidateUrls >= STAGE_ADEQUATE_COVERAGE_CANDIDATES;
 }

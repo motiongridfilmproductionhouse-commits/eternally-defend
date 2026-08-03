@@ -3,8 +3,8 @@ import test from "node:test";
 import {
   buildStagedDiscoveryQueries,
   flattenStagedQueries,
-  hasAdequateDiscoveryCoverage,
 } from "./discovery-query-stages";
+import { hasBroadDiscoveryCoverage, buildCoverageStateFromPageKeys } from "./discovery-saturation";
 import { TARGET_DISCOVERY_CANDIDATES } from "./discovery-config";
 import type { ReferenceAnalysis } from "./discover.server";
 
@@ -33,11 +33,12 @@ test("stage 1 alone is smaller than full staged query union", () => {
   assert.ok(full >= 40);
 });
 
-test("adequate coverage uses TARGET not a hard minimum", () => {
+test("target count alone does not imply broad coverage", () => {
   assert.equal(TARGET_DISCOVERY_CANDIDATES, 30);
-  assert.equal(hasAdequateDiscoveryCoverage(29), false);
-  assert.equal(hasAdequateDiscoveryCoverage(30), true);
-  assert.equal(hasAdequateDiscoveryCoverage(200), true);
+  const narrow = buildCoverageStateFromPageKeys(
+    Array.from({ length: 30 }, (_, i) => `https://www.dailymotion.com/video/${i}`),
+  );
+  assert.equal(hasBroadDiscoveryCoverage(narrow), false);
 });
 
 test("staged queries include platform registry site: seeds in stage 3", () => {

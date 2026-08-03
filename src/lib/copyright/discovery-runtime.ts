@@ -175,8 +175,19 @@ export interface RunBatchedDiscoveryOptions<TPlan, TAttempt extends ProviderSear
     },
   ) => void | Promise<void>;
   /**
-   * Stop issuing further plans when unique candidate pages reach this count.
-   * Used for adaptive stage coverage — not for verified-threat early stop.
+   * Per-plan gate for adaptive saturation. Returning false skips the plan without
+   * cancelling in-flight requests in the current wave.
+   */
+  shouldIssuePlan?: (
+    plan: TPlan,
+    context: {
+      uniquePages: number;
+      requestsCompleted: number;
+    },
+  ) => boolean;
+  onPlanSkipped?: (plan: TPlan, reason: string) => void;
+  /**
+   * Hard safety cap — stop issuing new plans when unique pages reach MAX.
    */
   stopWhenUniquePagesAtLeast?: number;
   /**
@@ -202,6 +213,7 @@ export interface RunBatchedDiscoveryResult<TAttempt extends ProviderSearchAttemp
   requests: number;
   successes: number;
   failures: number;
+  skippedPlans: number;
 }
 
 /**
@@ -217,6 +229,7 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
   let stoppedEarlyReason: string | null = null;
   let successes = 0;
   let failures = 0;
+  let skippedPlans = 0;
 
   const earlyStopAt = options.earlyStopUniquePages ?? DISCOVERY_EARLY_STOP_UNIQUE_PAGES;
 
@@ -246,8 +259,34 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
       }
 
       const wave = batchPlans.slice(i, i + FIRECRAWL_MAX_CONCURRENCY);
+      const toRun: TPlan[] = [];
+      for (const plan of wave) {
+        const uniqueSoFar = options.uniquePageCount(attempts);
+        if (
+          typeof options.stopWhenUniquePagesAtLeast === "number" &&
+          uniqueSoFar >= options.stopWhenUniquePagesAtLeast
+        ) {
+          stoppedEarly = true;
+          stoppedEarlyReason = `Safety cap: ${uniqueSoFar} unique pages (max ${options.stopWhenUniquePagesAtLeast}).`;
+          if (options.onPlanSkipped) options.onPlanSkipped(plan, "max_discovery_candidates");
+          skippedPlans += 1;
+          continue;
+        }
+        const shouldIssue =
+          !options.shouldIssuePlan ||
+          options.shouldIssuePlan(plan, {
+            uniquePages: uniqueSoFar,
+            requestsCompleted: attempts.length,
+          });
+        if (!shouldIssue) {
+          if (options.onPlanSkipped) options.onPlanSkipped(plan, "stopped_low_priority_query");
+          skippedPlans += 1;
+          continue;
+        }
+        toRun.push(plan);
+      }
       const waveResults = await Promise.all(
-        wave.map((plan) => options.execute(plan, options.signal)),
+        toRun.map((plan) => options.execute(plan, options.signal)),
       );
       attempts.push(...waveResults);
 
@@ -279,14 +318,14 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
         });
       }
 
-      // Never stop solely because N verified threats were found. Adaptive coverage
-      // may stop when enough unique candidate URLs are collected.
+      // Never stop because N verified threats were found. Only deadline, circuit,
+      // safety cap (MAX), or exhausted plans end discovery.
       if (
         typeof options.stopWhenUniquePagesAtLeast === "number" &&
         uniqueSoFar >= options.stopWhenUniquePagesAtLeast
       ) {
         stoppedEarly = true;
-        stoppedEarlyReason = `Adequate candidate coverage: ${uniqueSoFar} unique pages (target ${options.stopWhenUniquePagesAtLeast}).`;
+        stoppedEarlyReason = `Safety cap: ${uniqueSoFar} unique pages (max ${options.stopWhenUniquePagesAtLeast}).`;
         break;
       }
       if (
@@ -320,5 +359,6 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
     requests: attempts.length,
     successes,
     failures,
+    skippedPlans,
   };
 }

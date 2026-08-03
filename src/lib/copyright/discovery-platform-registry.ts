@@ -100,3 +100,42 @@ export function buildPlatformClusterQuery(
   const siteClause = domains.map((d) => `site:${d}`).join(" OR ");
   return `"${quotedTitle}" (${siteClause})${suffix ? ` ${suffix}` : ""}`;
 }
+
+const HOST_CATEGORY_LOOKUP = new Map<string, PlatformCategory>(
+  DISCOVERY_PLATFORM_REGISTRY.flatMap((entry) => {
+    const base = entry.domain.replace(/^www\./, "").toLowerCase();
+    return [
+      [base, entry.category],
+      ...(base.includes(".") ? [[`*.${base.split(".").slice(-2).join(".")}`, entry.category]] : []),
+    ] as Array<[string, PlatformCategory]>;
+  }),
+);
+
+export function platformCategoryForHost(host: string): PlatformCategory | null {
+  const normalized = host.replace(/^www\./, "").toLowerCase();
+  const direct = HOST_CATEGORY_LOOKUP.get(normalized);
+  if (direct) return direct;
+  for (const entry of DISCOVERY_PLATFORM_REGISTRY) {
+    const domain = entry.domain.toLowerCase();
+    if (normalized === domain || normalized.endsWith(`.${domain}`)) {
+      return entry.category;
+    }
+  }
+  return null;
+}
+
+export function platformCategoryForQuery(query: string): PlatformCategory | null {
+  const siteMatches = query.matchAll(/site:([^\s)]+)/gi);
+  for (const match of siteMatches) {
+    const token = match[1]?.replace(/\*/g, "").replace(/^www\./, "").toLowerCase();
+    if (!token) continue;
+    const cat = platformCategoryForHost(token);
+    if (cat) return cat;
+  }
+  if (/\btelegram\b/i.test(query) || /site:t\.me|site:telegram\.me/i.test(query)) {
+    return "telegram";
+  }
+  if (/\btorrent\b|\bmagnet\b/i.test(query)) return "torrent";
+  if (/\barchive\b|site:archive\.org/i.test(query)) return "archive";
+  return null;
+}

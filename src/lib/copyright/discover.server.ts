@@ -44,17 +44,28 @@ import {
   FIRECRAWL_PRIORITY_QUERY_PAGES,
   FIRECRAWL_SEARCH_LIMIT,
   FIRECRAWL_PROVIDER_BUDGET_MS,
+  MAX_DISCOVERY_CANDIDATES,
   MAX_DISCOVERY_QUERIES_PER_SCAN,
   MIN_DISCOVERY_QUERIES,
-  TARGET_DISCOVERY_CANDIDATES,
 } from "./discovery-config";
 import { PROVIDER_CRAWL_BUDGET_MS } from "./crawl-budget";
 import {
   buildAllDiscoveryQueries,
   buildStagedDiscoveryQueries,
-  hasAdequateDiscoveryCoverage,
   type DiscoveryQueryPlan,
 } from "./discovery-query-stages";
+import {
+  buildSaturationMetrics,
+  buildCoverageStateFromPageKeys,
+  emptyDiscoveryCoverageState,
+  expandPlansForDiscoveryMode,
+  recordCompletedDiscoveryQuery,
+  recordQueryCategoryFromPlan,
+  resolveDiscoveryMode,
+  shouldIssueDiscoveryPlan,
+  shouldSkipStageExpansion,
+  type DiscoverySaturationMetrics,
+} from "./discovery-saturation";
 
 export interface ReferenceAnalysis {
   title: string | null;
@@ -472,19 +483,6 @@ const LOCAL_TERMS: Record<string, string[]> = {
 
 interface QueryPlan extends DiscoveryQueryPlan {}
 
-function expandPlansWithPagination(basePlans: QueryPlan[]): QueryPlan[] {
-  const plans: QueryPlan[] = [];
-  for (const plan of basePlans) {
-    plans.push({ ...plan, page: plan.page ?? 1 });
-    if (plan.priority) {
-      for (let page = 2; page <= FIRECRAWL_PRIORITY_QUERY_PAGES; page++) {
-        plans.push({ ...plan, page });
-      }
-    }
-  }
-  return plans;
-}
-
 /**
  * Focused exact-title piracy queries across all adaptive stages.
  * Exported for regression tests.
@@ -572,6 +570,7 @@ export interface DiscoveryResult {
   firecrawl_operator_action: string | null;
   firecrawl_stopped_early: boolean;
   firecrawl_stopped_early_reason: string | null;
+  discovery_saturation: DiscoverySaturationMetrics;
   candidates_by_provider: Record<string, number>;
   telegram_queries: number;
   telegram_posts: number;
@@ -624,6 +623,11 @@ export async function firecrawlDiscover(
     firecrawl_operator_action: null,
     firecrawl_stopped_early: false,
     firecrawl_stopped_early_reason: null,
+    discovery_saturation: buildSaturationMetrics({
+      state: emptyDiscoveryCoverageState(),
+      stoppedLowPriorityQueries: 0,
+      providersExhausted: false,
+    }),
     candidates_by_provider: {},
     telegram_queries: 0,
     telegram_posts: 0,
@@ -715,21 +719,33 @@ export async function firecrawlDiscover(
   let batchedCircuit = emptyDiscoveryCircuit();
   let batchedStoppedEarly = false;
   let batchedStoppedEarlyReason: string | null = null;
-  const stagesExecuted: number[] = [];
+  let stoppedLowPriorityQueries = 0;
+  let coverageState = emptyDiscoveryCoverageState();
   let queriesGenerated = staged.totalUniqueQueries + extraPlans.length;
 
-  const runStageBatch = async (stagePlans: QueryPlan[]) => {
+  const runStageBatch = async (stagePlans: QueryPlan[], stage: 1 | 2 | 3) => {
+    if (shouldSkipStageExpansion(stage, coverageState)) return;
+    const mode = resolveDiscoveryMode(coverageState.uniqueCandidateUrls);
     const telegramPlans = stagePlans.filter((p) => /\btelegram\b/i.test(p.query));
     const webPlans = stagePlans.filter((p) => !/\btelegram\b/i.test(p.query));
     const basePlans = [...webPlans, ...telegramPlans].slice(0, MAX_DISCOVERY_QUERIES_PER_SCAN);
-    const plans = expandPlansWithPagination(basePlans);
+    const plans = expandPlansForDiscoveryMode(
+      basePlans,
+      mode,
+      FIRECRAWL_PRIORITY_QUERY_PAGES,
+    );
     const batched = await runBatchedDiscovery({
       plans,
       signal: options.signal,
       deadlineAt: firecrawlDeadlineAt,
       earlyStopUniquePages: DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
-      stopWhenUniquePagesAtLeast: TARGET_DISCOVERY_CANDIDATES,
+      stopWhenUniquePagesAtLeast: MAX_DISCOVERY_CANDIDATES,
       uniquePageCount: countUniquePages,
+      shouldIssuePlan: (plan) =>
+        shouldIssueDiscoveryPlan(plan as QueryPlan, coverageState).issue,
+      onPlanSkipped: () => {
+        stoppedLowPriorityQueries += 1;
+      },
       execute: (plan, signal) =>
         search(plan.query, plan.recent, signal, firecrawlDeadlineAt, plan.page ?? 1),
       onAttempt: options.onProgress
@@ -738,7 +754,25 @@ export async function firecrawlDiscover(
           }
         : undefined,
     });
+    for (const attempt of batched.attempts) {
+      const matchedPlan = plans.find((p) => p.query === attempt.query);
+      if (matchedPlan) {
+        coverageState = recordQueryCategoryFromPlan(coverageState, matchedPlan);
+      }
+    }
+    coverageState = buildCoverageStateFromPageKeys(uniquePageKeys, coverageState);
+    for (const attempt of batched.attempts) {
+      const matchedPlan = plans.find((p) => p.query === attempt.query);
+      if (matchedPlan) {
+        coverageState = recordCompletedDiscoveryQuery(
+          coverageState,
+          matchedPlan,
+          attempt.ok,
+        );
+      }
+    }
     batchedAttempts.push(...batched.attempts);
+    stoppedLowPriorityQueries += batched.skippedPlans;
     batchedCircuit = batched.circuit;
     if (batched.stoppedEarly) {
       batchedStoppedEarly = true;
@@ -748,16 +782,24 @@ export async function firecrawlDiscover(
   };
 
   if (extraPlans.length) {
-    await runStageBatch(extraPlans);
+    await runStageBatch(extraPlans, 2);
   }
 
   for (const block of staged.stages) {
-    if (hasAdequateDiscoveryCoverage(uniquePageKeys.size)) break;
     if (isPastDiscoveryDeadline(firecrawlDeadlineAt)) break;
-    stagesExecuted.push(block.stage);
-    await runStageBatch(block.plans);
-    if (hasAdequateDiscoveryCoverage(uniquePageKeys.size)) break;
+    if (coverageState.uniqueCandidateUrls >= MAX_DISCOVERY_CANDIDATES) break;
+    await runStageBatch(block.plans, block.stage);
   }
+
+  coverageState = buildCoverageStateFromPageKeys(uniquePageKeys, coverageState);
+  const stopReason = batchedStoppedEarlyReason ?? "";
+  const discoverySaturation = buildSaturationMetrics({
+    state: coverageState,
+    stoppedLowPriorityQueries,
+    providersExhausted: batchedStoppedEarly
+      ? /deadline|Safety cap|circuit/i.test(stopReason)
+      : true,
+  });
 
   const results = batchedAttempts;
   let providerSuccesses = 0;
@@ -945,6 +987,7 @@ export async function firecrawlDiscover(
     firecrawl_operator_action: batchedCircuit.operatorAction,
     firecrawl_stopped_early: batchedStoppedEarly,
     firecrawl_stopped_early_reason: batchedStoppedEarlyReason,
+    discovery_saturation: discoverySaturation,
     candidates_by_provider: {
       firecrawl: pageLeads.length,
       telegram: telegramCandidates,

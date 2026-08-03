@@ -44,7 +44,15 @@ export const BRIGHTDATA_MAX_QUERIES_PER_SCAN = 20;
 /** At 60% of scan deadline, trigger second-stage query expansion if below TARGET. */
 export const DISCOVERY_FALLBACK_DEADLINE_FRACTION = 0.6;
 
-/** Unique candidates at which an adaptive stage is considered adequately covered. */
+/** Unique candidates at which discovery shifts from coverage to saturation mode. */
+export const SATURATION_DISCOVERY_CANDIDATES = 60;
+
+/** Minimum distinct hostnames before 30 candidates count as broad coverage. */
+export const MIN_UNIQUE_DOMAINS_FOR_BROAD_COVERAGE = 4;
+/** Minimum platform categories before stage 2/3 expansion can be skipped at target. */
+export const MIN_PLATFORM_CATEGORIES_FOR_BROAD_COVERAGE = 3;
+
+/** Legacy alias — prefer hasBroadDiscoveryCoverage() for stage gating. */
 export const STAGE_ADEQUATE_COVERAGE_CANDIDATES = TARGET_DISCOVERY_CANDIDATES;
 
 /** Re-export crawl phase budgets derived from MAX_SCAN_TIME_MS. */
