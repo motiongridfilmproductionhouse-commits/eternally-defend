@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import "@/lib/copyright/youtube-monitor.functions";
+
 
 const BodySchema = z.object({ scan_id: z.string().uuid() });
 
