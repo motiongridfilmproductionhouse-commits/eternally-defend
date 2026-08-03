@@ -109,7 +109,17 @@ function CopyrightIntelPage() {
   const listFn = useServerFn(listCopyrightScans);
   const getFn = useServerFn(getCopyrightScan);
   const updFn = useServerFn(updateCopyrightMatch);
+  const reportFn = useServerFn(getCopyrightReportUrl);
+  const reportMutation = useMutation({
+    mutationFn: (vars: { data: { scanId: string } }) => reportFn(vars),
+    onSuccess: (res: { url: string }) => {
+      window.open(res.url, "_blank", "noopener,noreferrer");
+      toast.success("Threat intelligence report ready.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const qc = useQueryClient();
+
 
   const [title, setTitle] = useState("");
   const [knownUrlsText, setKnownUrlsText] = useState("");
