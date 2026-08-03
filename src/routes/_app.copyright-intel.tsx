@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ScanProgress } from "@/components/copyright/ScanProgress";
-import { AllSourcesPanel } from "@/components/copyright/AllSourcesPanel";
 import { ThreatResultsList } from "@/components/copyright/ThreatResultsList";
 import type { PublicSuspiciousSource } from "@/lib/copyright/suspicious-sources";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
@@ -671,7 +670,6 @@ function CopyrightIntelPage() {
               <TabsList>
                 <TabsTrigger value="center">Investigation center</TabsTrigger>
                 <TabsTrigger value="sources">Threat results</TabsTrigger>
-                <TabsTrigger value="all">All sources</TabsTrigger>
                 <TabsTrigger value="youtube">Video monitoring</TabsTrigger>
               </TabsList>
               <TabsContent value="center" className="mt-3">
@@ -687,9 +685,6 @@ function CopyrightIntelPage() {
                   }
                   onDismiss={(matchId) => review.mutate({ matchId, reviewStatus: "dismissed" })}
                 />
-              </TabsContent>
-              <TabsContent value="all" className="mt-3">
-                <AllSourcesPanel sources={(detail.data?.allSources ?? []) as never} />
               </TabsContent>
               <TabsContent value="youtube" className="mt-3">
                 <YoutubeMonitorPanel scanId={selectedScanId} />

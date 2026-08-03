@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { PublicSuspiciousSource } from "@/lib/copyright/suspicious-sources";
 import {
   activityCountersFromStats,
+  filterDisplayableActivity,
   parseWebsiteActivity,
   sortActivityNewestFirst,
 } from "@/lib/copyright/scan-activity";
@@ -42,8 +43,9 @@ export function InvestigationCenter({
 }: InvestigationCenterProps) {
   const scanning =
     scanStatus === "queued" || scanStatus === "running" || scanStatus === "pending";
+  // Radar, timeline and map only ever receive verified distribution findings.
   const events = useMemo(
-    () => sortActivityNewestFirst(parseWebsiteActivity(stats)),
+    () => filterDisplayableActivity(sortActivityNewestFirst(parseWebsiteActivity(stats))),
     [stats],
   );
   const counters = activityCountersFromStats(stats);

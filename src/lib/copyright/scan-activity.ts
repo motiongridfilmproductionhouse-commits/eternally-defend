@@ -7,6 +7,7 @@ import { sanitizeEvidenceUrl } from "@/lib/deepfake/evidence-url";
 import { isActionablePiracy } from "./taxonomy";
 import { hostOf } from "./url.server";
 import { publicCapabilityLabel } from "./public-surface";
+import { isNeverDisplayHost } from "./verified-distribution";
 
 /** Maximum persisted investigation events (newest retained). */
 export const SCAN_ACTIVITY_MAX_EVENTS = 25;
@@ -928,4 +929,41 @@ export async function flushScanActivity(
   } catch {
     /* never block the scan */
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * User-facing activity presentation
+ *
+ * Only verified illegal distribution findings may reach the dashboard,
+ * timeline, radar or map. Searched-only platforms, retrieval failures and
+ * official/catalog pages stay in the internal log.
+ * ------------------------------------------------------------------ */
+
+/** Clean, operator-facing phrase for a verified activity event. */
+export function cleanActivityLabel(event: ScanActivityEvent): string {
+  const cls = (event.classification ?? "").toUpperCase();
+  if (cls.includes("DOWNLOAD")) return "Unauthorized download page detected";
+  if (cls.includes("STREAM")) return "Embedded streaming player verified";
+  if (cls.includes("TORRENT")) return "Torrent distribution confirmed";
+  if (cls.includes("REUPLOAD")) return "Unauthorized re-upload verified";
+  if (cls.includes("MIRROR")) return "Mirror domain discovered";
+  if (cls.includes("TELEGRAM")) return "Public Telegram distribution verified";
+  if (cls.includes("FILE") || cls.includes("HOST")) return "Direct file copy verified";
+  if (cls.includes("ARCHIVE")) return "Archived full copy verified";
+  return "Unauthorized distribution verified";
+}
+
+/**
+ * Keep only verified distribution events on hosts that may be displayed.
+ * Everything else remains internal telemetry.
+ */
+export function filterDisplayableActivity(
+  events: ScanActivityEvent[],
+): ScanActivityEvent[] {
+  return events.filter((event) => {
+    if (event.threat !== "verified_finding" || event.stage !== "saved_finding") return false;
+    if (isNeverDisplayHost(event.hostname)) return false;
+    if (event.classification && EXCLUDED_CLASSIFICATIONS.has(event.classification)) return false;
+    return true;
+  });
 }
