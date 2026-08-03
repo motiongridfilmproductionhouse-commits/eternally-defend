@@ -311,7 +311,11 @@ function buildThreat(
     classification,
     contentType: str(dist.content_type) ?? str(ev.website_type),
   });
-  const severity = severityFor(confidence, true);
+  const severity = severityFor(confidence, true, {
+    categoryKey,
+    classification,
+    domainRisk: str(dist.domain_risk) ?? str(ev.domain_risk),
+  });
   const crawlFailed = ev.crawl_failed === true || dist.crawl_failed === true;
   const removed = match.review_status === "removed";
   const status: ReportThreat["status"] = removed ? "removed" : crawlFailed ? "offline" : "active";
