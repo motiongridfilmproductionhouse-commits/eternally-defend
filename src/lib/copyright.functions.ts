@@ -1567,12 +1567,13 @@ export async function executeCopyrightScanById(opts: {
       ])].slice(0, 12);
       const releaseDate = releaseProtectionReleaseDate ?? analysis.releaseDate;
       // Known URLs first so they receive crawl budget before provider candidates.
-      const knownLeadUrls = knownAccepted.map((url) => ({
+      const knownLeadUrls: CandidateUnionEntry[] = knownAccepted.map((url) => ({
         url,
         title: workTitle,
         query: "known_url_seed",
         text: workTitle,
-        strong: true as const,
+        strong: true,
+        origin: "known_url",
       }));
       const providerLeads = discovery.pageLeads
         .sort((a2, b2) => Number(b2.strong) - Number(a2.strong))
