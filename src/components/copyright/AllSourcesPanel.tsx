@@ -24,6 +24,13 @@ export type DiscoveredSource = {
     | "historical_preserved";
   reason: string | null;
   discovery_query: string | null;
+  page_excerpt?: string | null;
+  confidence_breakdown?: {
+    identity?: number;
+    access?: number;
+    releaseWindow?: number;
+    penalties?: number;
+  } | null;
 };
 
 const STATUS: Record<
