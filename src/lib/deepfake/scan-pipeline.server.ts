@@ -70,6 +70,7 @@ import {
   parseReferenceImagesFromMetrics,
   type CollectedReferenceImage,
 } from "./reference-images";
+import { runMandatoryGoogleImagesInvestigation } from "./google-images-investigation.server";
 
 type ProviderHit = {
   url: string;
@@ -1213,6 +1214,106 @@ export async function executeInterleavedDeepfakePipeline(input: {
   };
 
   await heartbeat("discovering");
+
+  if (!metrics.google_images_investigation_complete) {
+    await touchScanProgress({
+      supabase: input.supabase,
+      ownership: input.ownership,
+      patch: {
+        discovery_metrics: {
+          ...stageMetrics(metrics, checkpoint),
+          investigation_stage: "searching_google",
+        },
+      },
+    });
+
+    try {
+      const googleInvestigation = await runMandatoryGoogleImagesInvestigation({
+        name: mergedTarget.name,
+        aliases: mergedTarget.aliases,
+        handles: mergedTarget.handles,
+        referenceImages: collectedReferenceImages,
+        signal: input.runtime.signal,
+        softDeadlineMs: input.runtime.softDeadlineMs,
+        onProgress: async (stage) => {
+          await touchScanProgress({
+            supabase: input.supabase,
+            ownership: input.ownership,
+            patch: {
+              discovery_metrics: {
+                ...stageMetrics(metrics, checkpoint),
+                investigation_stage: stage,
+              },
+            },
+          });
+        },
+      });
+
+      metrics.google_images_investigation_complete = 1;
+      metrics.face_comparisons += googleInvestigation.diagnostics.face_comparisons;
+      metrics.images_compared += googleInvestigation.diagnostics.face_comparisons;
+      metrics.reference_google_images_found = Math.max(
+        metrics.reference_google_images_found,
+        googleInvestigation.diagnostics.images_discovered,
+      );
+
+      await touchScanProgress({
+        supabase: input.supabase,
+        ownership: input.ownership,
+        patch: {
+          discovery_metrics: {
+            ...stageMetrics(metrics, checkpoint),
+            google_images_diagnostic: googleInvestigation.diagnostics,
+            google_images_evidence_packages:
+              googleInvestigation.evidence_packages.slice(0, 40),
+          },
+        },
+      });
+
+      if (googleInvestigation.candidates.length) {
+        await enqueueProviderHits(
+          googleInvestigation.candidates.map((hit) => ({
+            url: hit.url,
+            title: hit.title,
+            description: hit.description,
+            query: hit.query,
+            source: hit.source,
+            image_url: hit.image_url,
+            thumbnail_url: hit.thumbnail_url,
+            media_url: hit.media_url,
+            evidence_page_url: hit.evidence_page_url,
+            content_match_score: hit.content_match_score,
+            threat_signals: hit.threat_signals,
+            target_face_match: hit.target_face_match,
+            face_similarity: hit.face_similarity,
+          })),
+        );
+      } else if (googleInvestigation.diagnostics.provider_status === "unavailable") {
+        console.warn("[DEEPFAKE] Google Images investigation unavailable:", {
+          reason: googleInvestigation.diagnostics.failure_reason,
+        });
+      }
+    } catch (error) {
+      console.warn("[DEEPFAKE] Google Images investigation isolated failure:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      metrics.google_images_investigation_complete = 1;
+      await touchScanProgress({
+        supabase: input.supabase,
+        ownership: input.ownership,
+        patch: {
+          discovery_metrics: {
+            ...stageMetrics(metrics, checkpoint),
+            google_images_diagnostic: {
+              provider_status: "unavailable",
+              failure_reason:
+                error instanceof Error ? error.message : String(error),
+            },
+          },
+        },
+      });
+    }
+  }
 
   /**
    * Optional SerpApi Google Images wave. Isolated: failures never abort the
