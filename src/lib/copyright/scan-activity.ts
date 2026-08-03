@@ -945,6 +945,7 @@ export function cleanActivityLabel(event: ScanActivityEvent): string {
   if (cls.includes("DOWNLOAD")) return "Unauthorized download page detected";
   if (cls.includes("STREAM")) return "Embedded streaming player verified";
   if (cls.includes("TORRENT")) return "Torrent distribution confirmed";
+  if (cls.includes("REUPLOAD")) return "Unauthorized re-upload verified";
   if (cls.includes("MIRROR")) return "Mirror domain discovered";
   if (cls.includes("TELEGRAM")) return "Public Telegram distribution verified";
   if (cls.includes("FILE") || cls.includes("HOST")) return "Direct file copy verified";

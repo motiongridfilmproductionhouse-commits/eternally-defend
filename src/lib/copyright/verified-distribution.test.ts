@@ -8,7 +8,7 @@ import {
 const verifiedEvidence = {
   client_visible: true,
   distribution: {
-    classification: "VERIFIED_UNAUTHORIZED_DOWNLOAD",
+    classification: "DOWNLOAD_PAGE",
     strong_evidence: true,
     client_visible: true,
     identity_evidence: ["exact title"],
@@ -43,7 +43,7 @@ test("mainstream platforms are never displayable", () => {
 test("verified piracy download page passes the gate", () => {
   const verdict = verifyIllegalDistribution({
     source_url: "https://ogomovies1.com.pk/movie/pluto",
-    detection_type: "VERIFIED_UNAUTHORIZED_DOWNLOAD",
+    detection_type: "DOWNLOAD_PAGE",
     confidence: 92,
     evidence: verifiedEvidence,
   });
@@ -65,7 +65,7 @@ test("unreachable, low-confidence, official and evidence-free pages are excluded
   assert.equal(
     verifyIllegalDistribution({
       source_url: "https://movierulz.example/x",
-      detection_type: "VERIFIED_UNAUTHORIZED_DOWNLOAD",
+      detection_type: "DOWNLOAD_PAGE",
       confidence: 95,
       evidence: { ...verifiedEvidence, crawl_failed: true },
     }).reason,
@@ -74,7 +74,7 @@ test("unreachable, low-confidence, official and evidence-free pages are excluded
   assert.equal(
     verifyIllegalDistribution({
       source_url: "https://movierulz.example/x",
-      detection_type: "VERIFIED_UNAUTHORIZED_DOWNLOAD",
+      detection_type: "DOWNLOAD_PAGE",
       confidence: 41,
       evidence: verifiedEvidence,
     }).reason,
@@ -103,11 +103,11 @@ test("unreachable, low-confidence, official and evidence-free pages are excluded
 test("cloud storage link needs the protected file, not a mention", () => {
   const weak = verifyIllegalDistribution({
     source_url: "https://mega.nz/folder/abc",
-    detection_type: "VERIFIED_UNAUTHORIZED_DOWNLOAD",
+    detection_type: "DOWNLOAD_PAGE",
     confidence: 88,
     evidence: {
       distribution: {
-        classification: "VERIFIED_UNAUTHORIZED_DOWNLOAD",
+        classification: "DOWNLOAD_PAGE",
         identity_evidence: ["title mention"],
         access_evidence: ["link"],
       },
