@@ -4,6 +4,11 @@
 
 import { checkpointHasPendingWork, type ScanCheckpoint } from "./scan-checkpoint.server";
 import {
+  CONTINUATION_HANDOFF_LEASE_TTL_MS,
+  WORKER_LEASE_TTL_MS,
+  renewScanLease,
+} from "./scan-lease.server";
+import {
   touchScanProgress,
   type DiscoveryFunnelMetrics,
   type ScanOwnership,
@@ -47,6 +52,7 @@ export async function persistBatchProgress(
   await touchScanProgress({
     supabase: state.supabase,
     ownership: state.ownership,
+    leaseTtlMs: WORKER_LEASE_TTL_MS,
     patch: {
       scan_checkpoint: state.checkpoint,
       discovery_metrics: {
@@ -112,9 +118,10 @@ export async function markContinuationScheduled(
   nextWorkerExecutionId: string,
 ): Promise<void> {
   const scheduledAt = new Date().toISOString();
-  await touchScanProgress({
+  const renewed = await renewScanLease({
     supabase: state.supabase,
     ownership: state.ownership,
+    leaseTtlMs: CONTINUATION_HANDOFF_LEASE_TTL_MS,
     patch: {
       discovery_metrics: {
         ...state.metrics,
@@ -125,6 +132,7 @@ export async function markContinuationScheduled(
       },
     },
   });
+  state.leaseExpiry = renewed.lease_expires_at;
 
   logDeepfakeScanWorkerEvent({
     event: "deepfake_scan_worker_continuation_scheduled",

@@ -79,6 +79,10 @@ test("continueDeepfakeScan acquires ownership, dispatches worker, and returns wi
 
 test("main scan worker orchestration runs continuation sequence after each batch", () => {
   const orchestration = readFileSync(ORCHESTRATION_PATH, "utf8");
+  const lease = readFileSync(
+    resolve(process.cwd(), "src/lib/deepfake/scan-lease.server.ts"),
+    "utf8",
+  );
   assert.match(orchestration, /export async function persistBatchProgress/);
   assert.match(orchestration, /export async function releaseCompletedQueryLeases/);
   assert.match(orchestration, /export async function markContinuationScheduled/);
@@ -87,10 +91,15 @@ test("main scan worker orchestration runs continuation sequence after each batch
   assert.match(orchestration, /await releaseCompletedQueryLeases/);
   assert.match(orchestration, /await markContinuationScheduled/);
   assert.match(orchestration, /await dispatchNextWorker/);
+  assert.match(orchestration, /CONTINUATION_HANDOFF_LEASE_TTL_MS/);
+  assert.match(lease, /startWorkerHeartbeatLoop/);
+  assert.match(lease, /isScanEligibleForStaleRecovery/);
 
   const worker = readFileSync(WORKER_PATH, "utf8");
   assert.match(worker, /finalizeWorkerBatchContinuation/);
   assert.match(worker, /workerLimits/);
+  assert.match(worker, /startWorkerHeartbeatLoop/);
+  assert.match(worker, /renewScanLease/);
   assert.match(worker, /DEEPFAKE_SCAN_WORKER_MAX_QUERY_BATCHES/);
 });
 
