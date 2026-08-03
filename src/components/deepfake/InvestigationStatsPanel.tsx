@@ -13,6 +13,10 @@ import {
   INVESTIGATION_TIMELINE_STAGES,
   type InvestigationDiagnostics,
 } from "@/lib/deepfake/scan-diagnostics";
+import {
+  formatGoogleImagesDiagnosticLines,
+  parseGoogleImagesDiagnostics,
+} from "@/lib/deepfake/google-images-diagnostics";
 
 export function buildInvestigationDiagnostics(
   metrics: Record<string, unknown> | null | undefined,
@@ -33,6 +37,7 @@ export function InvestigationStatsPanel({
   status?: string | null;
 }) {
   const d = buildInvestigationDiagnostics(metrics);
+  const google = parseGoogleImagesDiagnostics(metrics);
   const stageLabel =
     INVESTIGATION_TIMELINE_STAGES.find((s) => s.key === d.investigation_stage)
       ?.label ??
@@ -63,6 +68,19 @@ export function InvestigationStatsPanel({
           value={d.coverage_score_percent != null ? `${d.coverage_score_percent}%` : "—"}
         />
       </div>
+
+      {google.provider_status !== "not_started" && (
+        <div className="rounded-md border border-border/70 bg-secondary/20 p-3">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-2">
+            Google Images
+          </div>
+          <div className="text-xs text-muted-foreground space-y-1">
+            {formatGoogleImagesDiagnosticLines(google).map((line) => (
+              <div key={line}>{line}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {d.provider_stats.length > 0 && (
         <div className="rounded-md border border-border/70 bg-secondary/20 p-3">

@@ -51,6 +51,7 @@ export type DiscoveryFunnelMetrics = {
   reference_google_images_found: number;
   reference_bing_images_found: number;
   reference_yandex_images_found: number;
+  google_images_investigation_complete: number;
 };
 
 export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
@@ -94,6 +95,7 @@ export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
     reference_google_images_found: 0,
     reference_bing_images_found: 0,
     reference_yandex_images_found: 0,
+    google_images_investigation_complete: 0,
   };
 }
 

@@ -159,6 +159,19 @@ export function explainNoDeepfakeResults(
     reasons.push("Reference images exist but no candidate images were compared via face embeddings.");
   }
 
+  const googleDiag = metrics?.google_images_diagnostic as
+    | { provider_status?: string; failure_reason?: string }
+    | undefined;
+  if (googleDiag?.provider_status === "unavailable") {
+    reasons.push(
+      `Google Images was unavailable${googleDiag.failure_reason ? `: ${googleDiag.failure_reason}` : ""}. Other providers continued independently.`,
+    );
+  } else if (googleDiag?.provider_status === "degraded") {
+    reasons.push(
+      "Google Images completed in degraded mode — fewer results than expected; Bing, Yandex, and Brave continued independently.",
+    );
+  }
+
   if (d.potential_matches === 0 && d.pages_crawled > 0) {
     reasons.push("No similarity scores exceeded the verification threshold.");
   }

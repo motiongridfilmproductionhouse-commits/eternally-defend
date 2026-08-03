@@ -4,11 +4,13 @@ from app.services.crawl4ai_service import crawl_service
 from app.services.search_service import search_service
 from app.api.upload import router as upload_router
 from app.api.scan import router as scan_router
+from app.api.google_images import router as google_images_router
 
 app = FastAPI(title="Eterna Crawler API")
 
 app.include_router(upload_router)
 app.include_router(scan_router)
+app.include_router(google_images_router)
 
 
 @app.get("/health")
