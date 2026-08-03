@@ -10,6 +10,15 @@ import {
   resolveClassification,
 } from "./taxonomy";
 
+/** JSON-serializable value, safe to send from a server function to the client. */
+export type SerializableJson =
+  | string
+  | number
+  | boolean
+  | null
+  | SerializableJson[]
+  | { [key: string]: SerializableJson };
+
 export type SuspiciousSourceState =
   | "new_confirmed"
   | "historical_reconfirmed"
@@ -46,8 +55,8 @@ export interface PublicSuspiciousSource {
   evidence_summary: string | null;
   reason: string | null;
   discovery_query: string | null;
-  contact?: unknown;
-  evidence?: unknown;
+  contact?: SerializableJson;
+  evidence?: SerializableJson;
   review_status?: string | null;
   detection_type?: string | null;
 }
@@ -256,8 +265,8 @@ export function mapMatchToSuspiciousSource(match: {
     evidence_summary: buildEvidenceSummary(ev),
     reason: match.reason ?? null,
     discovery_query: null,
-    contact: match.contact,
-    evidence: match.evidence,
+    contact: (match.contact ?? null) as SerializableJson,
+    evidence: (match.evidence ?? null) as SerializableJson,
     review_status: match.review_status ?? null,
     detection_type: match.detection_type ?? null,
   };

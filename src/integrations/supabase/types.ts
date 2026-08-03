@@ -1290,51 +1290,6 @@ export type Database = {
           },
         ]
       }
-      copyright_scans: {
-        Row: {
-          created_at: string
-          error: string | null
-          frame_paths: Json
-          id: string
-          reference_kind: string
-          sha256: string | null
-          stats: Json
-          status: string
-          storage_path: string | null
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          error?: string | null
-          frame_paths?: Json
-          id?: string
-          reference_kind?: string
-          sha256?: string | null
-          stats?: Json
-          status?: string
-          storage_path?: string | null
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          error?: string | null
-          frame_paths?: Json
-          id?: string
-          reference_kind?: string
-          sha256?: string | null
-          stats?: Json
-          status?: string
-          storage_path?: string | null
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       copyright_release_protection: {
         Row: {
           created_at: string
@@ -1410,142 +1365,50 @@ export type Database = {
           },
         ]
       }
-      release_monitor_runs: {
+      copyright_scans: {
         Row: {
-          candidates_found: number
-          completed_at: string | null
           created_at: string
-          error_summary: string | null
+          error: string | null
+          frame_paths: Json
           id: string
-          incidents_created: number
-          pre_release_findings: number
-          providers_attempted: number
-          providers_failed: number
-          providers_succeeded: number
-          release_protection_id: string
-          scan_id: string | null
-          scheduled_for: string
-          started_at: string | null
+          reference_kind: string
+          sha256: string | null
           stats: Json
           status: string
-          user_id: string
-        }
-        Insert: {
-          candidates_found?: number
-          completed_at?: string | null
-          created_at?: string
-          error_summary?: string | null
-          id?: string
-          incidents_created?: number
-          pre_release_findings?: number
-          providers_attempted?: number
-          providers_failed?: number
-          providers_succeeded?: number
-          release_protection_id: string
-          scan_id?: string | null
-          scheduled_for: string
-          started_at?: string | null
-          stats?: Json
-          status?: string
-          user_id: string
-        }
-        Update: {
-          candidates_found?: number
-          completed_at?: string | null
-          created_at?: string
-          error_summary?: string | null
-          id?: string
-          incidents_created?: number
-          pre_release_findings?: number
-          providers_attempted?: number
-          providers_failed?: number
-          providers_succeeded?: number
-          release_protection_id?: string
-          scan_id?: string | null
-          scheduled_for?: string
-          started_at?: string | null
-          stats?: Json
-          status?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "release_monitor_runs_release_protection_id_fkey"
-            columns: ["release_protection_id"]
-            isOneToOne: false
-            referencedRelation: "copyright_release_protection"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "release_monitor_runs_scan_id_fkey"
-            columns: ["scan_id"]
-            isOneToOne: false
-            referencedRelation: "copyright_scans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      release_protection_incidents: {
-        Row: {
-          created_at: string
-          evidence: Json
-          first_seen_at: string
-          id: string
-          incident_type: string
-          last_seen_at: string
-          recurrence_count: number
-          release_protection_id: string
-          release_timing: string | null
-          risk_level: string
-          source_kind: string
-          source_url: string
-          status: string
+          storage_path: string | null
+          title: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
-          evidence?: Json
-          first_seen_at?: string
+          error?: string | null
+          frame_paths?: Json
           id?: string
-          incident_type: string
-          last_seen_at?: string
-          recurrence_count?: number
-          release_protection_id: string
-          release_timing?: string | null
-          risk_level?: string
-          source_kind?: string
-          source_url: string
+          reference_kind?: string
+          sha256?: string | null
+          stats?: Json
           status?: string
+          storage_path?: string | null
+          title: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
-          evidence?: Json
-          first_seen_at?: string
+          error?: string | null
+          frame_paths?: Json
           id?: string
-          incident_type?: string
-          last_seen_at?: string
-          recurrence_count?: number
-          release_protection_id?: string
-          release_timing?: string | null
-          risk_level?: string
-          source_kind?: string
-          source_url?: string
+          reference_kind?: string
+          sha256?: string | null
+          stats?: Json
           status?: string
+          storage_path?: string | null
+          title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "release_protection_incidents_release_protection_id_fkey"
-            columns: ["release_protection_id"]
-            isOneToOne: false
-            referencedRelation: "copyright_release_protection"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       copyright_youtube_videos: {
         Row: {
@@ -5002,6 +4865,143 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      release_monitor_runs: {
+        Row: {
+          candidates_found: number
+          completed_at: string | null
+          created_at: string
+          error_summary: string | null
+          id: string
+          incidents_created: number
+          pre_release_findings: number
+          providers_attempted: number
+          providers_failed: number
+          providers_succeeded: number
+          release_protection_id: string
+          scan_id: string | null
+          scheduled_for: string
+          started_at: string | null
+          stats: Json
+          status: string
+          user_id: string
+        }
+        Insert: {
+          candidates_found?: number
+          completed_at?: string | null
+          created_at?: string
+          error_summary?: string | null
+          id?: string
+          incidents_created?: number
+          pre_release_findings?: number
+          providers_attempted?: number
+          providers_failed?: number
+          providers_succeeded?: number
+          release_protection_id: string
+          scan_id?: string | null
+          scheduled_for: string
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          user_id: string
+        }
+        Update: {
+          candidates_found?: number
+          completed_at?: string | null
+          created_at?: string
+          error_summary?: string | null
+          id?: string
+          incidents_created?: number
+          pre_release_findings?: number
+          providers_attempted?: number
+          providers_failed?: number
+          providers_succeeded?: number
+          release_protection_id?: string
+          scan_id?: string | null
+          scheduled_for?: string
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_monitor_runs_release_protection_id_fkey"
+            columns: ["release_protection_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_release_protection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_monitor_runs_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      release_protection_incidents: {
+        Row: {
+          created_at: string
+          evidence: Json
+          first_seen_at: string
+          id: string
+          incident_type: string
+          last_seen_at: string
+          recurrence_count: number
+          release_protection_id: string
+          release_timing: string | null
+          risk_level: string
+          source_kind: string
+          source_url: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          evidence?: Json
+          first_seen_at?: string
+          id?: string
+          incident_type: string
+          last_seen_at?: string
+          recurrence_count?: number
+          release_protection_id: string
+          release_timing?: string | null
+          risk_level?: string
+          source_kind?: string
+          source_url: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          evidence?: Json
+          first_seen_at?: string
+          id?: string
+          incident_type?: string
+          last_seen_at?: string
+          recurrence_count?: number
+          release_protection_id?: string
+          release_timing?: string | null
+          risk_level?: string
+          source_kind?: string
+          source_url?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_protection_incidents_release_protection_id_fkey"
+            columns: ["release_protection_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_release_protection"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scan_hits: {
         Row: {

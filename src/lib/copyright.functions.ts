@@ -1567,12 +1567,13 @@ export async function executeCopyrightScanById(opts: {
       ])].slice(0, 12);
       const releaseDate = releaseProtectionReleaseDate ?? analysis.releaseDate;
       // Known URLs first so they receive crawl budget before provider candidates.
-      const knownLeadUrls = knownAccepted.map((url) => ({
+      const knownLeadUrls: CandidateUnionEntry[] = knownAccepted.map((url) => ({
         url,
         title: workTitle,
         query: "known_url_seed",
         text: workTitle,
-        strong: true as const,
+        strong: true,
+        origin: "known_url",
       }));
       const providerLeads = discovery.pageLeads
         .sort((a2, b2) => Number(b2.strong) - Number(a2.strong))
@@ -1976,7 +1977,7 @@ export async function executeCopyrightScanById(opts: {
           confidence_band: bandFor(dist.confidence),
           detection_type: dist.classification,
           transformations: dist.qualityTags.slice(0, 8),
-          evidence: {
+          evidence: ({
             discovery: "distribution_site",
             discovery_query: leadQuery,
             keyword_match: leadQuery,
@@ -1989,6 +1990,7 @@ export async function executeCopyrightScanById(opts: {
             identity_evidence: dist.identityEvidence,
             access_evidence: dist.accessEvidence,
             confidence_breakdown: dist.confidenceBreakdown,
+            page_excerpt: dist.pageExcerpt ?? null,
             embed_sources: dist.embedSources,
             page_evidence: pageEvidence,
             crawl_failed: dist.crawlFailed,
@@ -2032,7 +2034,7 @@ export async function executeCopyrightScanById(opts: {
               crawl_failure_reason: dist.crawlFailureReason,
               ...(recheckStatus ? { recheck_status: recheckStatus } : {}),
             },
-          },
+          } as unknown as MatchInsert["evidence"]),
           ocr_text: null,
           reason: dist.reason,
           contact: contact as unknown as MatchInsert["contact"],
@@ -2379,9 +2381,12 @@ export async function executeCopyrightScanById(opts: {
                 (pf.prior_evidence?.verified_at as string | undefined) ?? null,
               recheck_status: recheckStatus,
               show_as_historical: recheckStatus !== "reconfirmed_active",
-            };
+            } as unknown as MatchInsert["evidence"];
           } else if (!ev.recheck_status) {
-            existingRow.evidence = { ...ev, recheck_status: recheckStatus };
+            existingRow.evidence = {
+              ...ev,
+              recheck_status: recheckStatus,
+            } as unknown as MatchInsert["evidence"];
           }
           preservedHistoricalFindings.push({
             source_url: key,
@@ -2439,7 +2444,7 @@ export async function executeCopyrightScanById(opts: {
             recheck_status: recheckStatus,
             show_as_historical: true,
             classification: pf.classification,
-          },
+          } as unknown as MatchInsert["evidence"],
           ocr_text: null,
           reason:
             recheckStatus === "temporarily_unreachable"
@@ -3076,6 +3081,17 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
         quality_tags: Array.isArray(dist.quality_tags) ? (dist.quality_tags as string[]).slice(0, 6) : [],
         status,
         reason: m.reason,
+        page_excerpt:
+          typeof ev.page_excerpt === "string" ? ev.page_excerpt.slice(0, 320) : null,
+        confidence_breakdown:
+          ev.confidence_breakdown && typeof ev.confidence_breakdown === "object"
+            ? (ev.confidence_breakdown as {
+                identity?: number;
+                access?: number;
+                releaseWindow?: number;
+                penalties?: number;
+              })
+            : null,
         discovery_query: sanitizeDiscoveryQueryForClient(
           (ev.discovery_query as string) ?? null,
         ),
@@ -3084,7 +3100,7 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
     const suspiciousSources = buildSuspiciousSourcesFromMatches(matches ?? []);
     const sanitizedScan = sanitizeCopyrightScanRowForClient(
       watchedScan as unknown as Record<string, unknown>,
-    );
+    ) as unknown as typeof watchedScan;
     return {
       scan: sanitizedScan,
       matches: filterClientVisibleCopyrightMatches(matches ?? []),
