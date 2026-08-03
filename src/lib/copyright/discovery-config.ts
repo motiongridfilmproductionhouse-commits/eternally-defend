@@ -1,14 +1,12 @@
 /**
  * Copyright Intelligence discovery targets and safety caps.
  *
- * MIN/TARGET apply to unique discovery candidate URLs — never to verified
- * infringement findings. Scans must not stop early when N threats are found.
+ * TARGET applies to unique discovery candidate URLs — a goal, not a success
+ * condition. Scans must not stop early when N verified threats are found.
  */
 
-/** Minimum unique candidate URLs to aim for when public results exist. */
-export const MIN_DISCOVERY_CANDIDATES = 30;
-/** Comfortable discovery target before the safety cap. */
-export const TARGET_DISCOVERY_CANDIDATES = 60;
+/** Comfortable discovery target before the safety cap (not a minimum requirement). */
+export const TARGET_DISCOVERY_CANDIDATES = 30;
 /** Hard ceiling on unique discovery candidate URLs per scan. */
 export const MAX_DISCOVERY_CANDIDATES = 200;
 /** Maximum distinct hostnames in the candidate union. */
@@ -28,7 +26,7 @@ export const MAX_DEPTH = 2;
 /** Max candidate pages retained per hostname (distinct URLs still allowed). */
 export const MAX_PAGES_PER_DOMAIN = 8;
 
-/** Minimum search queries generated per scan. */
+/** Minimum search queries generated when all adaptive stages are expanded. */
 export const MIN_DISCOVERY_QUERIES = 40;
 /** Upper bound on queries sent to Firecrawl per scan. */
 export const MAX_DISCOVERY_QUERIES_PER_SCAN = 72;
@@ -43,14 +41,22 @@ export const SERPAPI_MAX_HTTP_ATTEMPTS = 12;
 /** Bright Data SERP queries per scan when configured. */
 export const BRIGHTDATA_MAX_QUERIES_PER_SCAN = 20;
 
-/** At 60% of scan deadline, trigger second-stage query expansion if below MIN. */
+/** At 60% of scan deadline, trigger second-stage query expansion if below TARGET. */
 export const DISCOVERY_FALLBACK_DEADLINE_FRACTION = 0.6;
+
+/** Unique candidates at which an adaptive stage is considered adequately covered. */
+export const STAGE_ADEQUATE_COVERAGE_CANDIDATES = TARGET_DISCOVERY_CANDIDATES;
 
 /** Re-export crawl phase budgets derived from MAX_SCAN_TIME_MS. */
 export const KNOWN_URL_BUDGET_MS = Math.floor(MAX_SCAN_TIME_MS * 0.2);
 export const PROVIDER_CRAWL_BUDGET_MS = Math.floor(MAX_SCAN_TIME_MS * 0.55);
 export const DETAIL_FOLLOW_BUDGET_MS =
   MAX_SCAN_TIME_MS - KNOWN_URL_BUDGET_MS - PROVIDER_CRAWL_BUDGET_MS;
+
+/** Explicit per-provider time budgets within the provider crawl phase. */
+export const FIRECRAWL_PROVIDER_BUDGET_MS = Math.floor(PROVIDER_CRAWL_BUDGET_MS * 0.55);
+export const SERPAPI_PROVIDER_BUDGET_MS = Math.floor(PROVIDER_CRAWL_BUDGET_MS * 0.25);
+export const BRIGHTDATA_PROVIDER_BUDGET_MS = Math.floor(PROVIDER_CRAWL_BUDGET_MS * 0.2);
 
 export const SCAN_TOTAL_BUDGET_MS = MAX_SCAN_TIME_MS;
 export const DEFAULT_PAGE_CAP = MAX_CRAWL_PAGES;

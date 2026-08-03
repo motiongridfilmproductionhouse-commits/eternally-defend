@@ -129,10 +129,11 @@ import {
 import {
   DISCOVERY_FALLBACK_DEADLINE_FRACTION,
   MAX_SCAN_TIME_MS,
-  MIN_DISCOVERY_CANDIDATES,
+  TARGET_DISCOVERY_CANDIDATES,
 } from "@/lib/copyright/discovery-config";
 import { mergeProviderPageLeads } from "@/lib/copyright/discovery-provider-merge";
 import { buildSecondStageDiscoveryQueries } from "@/lib/copyright/discovery-fallback";
+import { sortDiscoveryLeadsByPriority } from "@/lib/copyright/discovery-candidate-priority";
 import type { ProviderFailureCategory } from "@/lib/copyright/provider-failures";
 import {
   decideCopyrightTerminalStatus,
@@ -1500,7 +1501,7 @@ export async function executeCopyrightScanById(opts: {
       const fallbackDeadlineAt =
         scanStartedAt + MAX_SCAN_TIME_MS * DISCOVERY_FALLBACK_DEADLINE_FRACTION;
       if (
-        mergedUniqueCandidateUrls < MIN_DISCOVERY_CANDIDATES &&
+        mergedUniqueCandidateUrls < TARGET_DISCOVERY_CANDIDATES &&
         Date.now() >= fallbackDeadlineAt &&
         !isPastDeadline(discoveryDeadlineAt)
       ) {
@@ -1547,8 +1548,8 @@ export async function executeCopyrightScanById(opts: {
       }
 
       const discoveryShortfallExplanation =
-        mergedUniqueCandidateUrls < MIN_DISCOVERY_CANDIDATES
-          ? `Only ${mergedUniqueCandidateUrls} relevant public candidates were discoverable. All configured providers were exhausted.`
+        mergedUniqueCandidateUrls < TARGET_DISCOVERY_CANDIDATES
+          ? `Only ${mergedUniqueCandidateUrls} relevant public candidates were discoverable (target ${TARGET_DISCOVERY_CANDIDATES}). All configured providers were exhausted or the scan deadline was reached.`
           : null;
 
       stages = markStage(stages, "first_provider_response");
@@ -1819,14 +1820,14 @@ export async function executeCopyrightScanById(opts: {
         strong: true,
         origin: "known_url",
       }));
-      const providerLeads = discovery.pageLeads
-        .sort((a2, b2) => Number(b2.strong) - Number(a2.strong))
-        .map(
+      const providerLeads = sortDiscoveryLeadsByPriority(
+        discovery.pageLeads.map(
           (lead): CandidateUnionEntry => ({
             ...lead,
             origin: "fresh_discovery",
           }),
-        );
+        ),
+      );
       const historicalLeads: CandidateUnionEntry[] = [
         ...historicalCandidates.monitoredSourceCandidates,
         ...historicalCandidates.historicalFindingCandidates,

@@ -11,7 +11,7 @@ import {
   runBatchedDiscovery,
 } from "./discovery-runtime";
 import { DEFAULT_PAGE_CAP, SCAN_TOTAL_BUDGET_MS } from "./crawl-budget";
-import { MIN_DISCOVERY_CANDIDATES } from "./discovery-config";
+import { TARGET_DISCOVERY_CANDIDATES } from "./discovery-config";
 import { prioritizeKnownUrlLeads } from "./known-urls.server";
 import { buildQueries, type ReferenceAnalysis } from "./discover.server";
 
@@ -38,7 +38,7 @@ test("discovery early-stop is effectively disabled", () => {
 test("page crawl cap allows broad multi-host investigations", () => {
   assert.ok(DEFAULT_PAGE_CAP >= 100);
   assert.equal(SCAN_TOTAL_BUDGET_MS, 240_000);
-  assert.ok(MIN_DISCOVERY_CANDIDATES >= 30);
+  assert.equal(TARGET_DISCOVERY_CANDIDATES, 30);
 });
 
 test("buildQueries generates at least 40 discovery queries", () => {

@@ -1,5 +1,5 @@
 /**
- * Second-stage discovery query expansion when unique candidates fall below MIN
+ * Second-stage discovery query expansion when unique candidates fall below TARGET
  * at 60% of the scan deadline. Never weakens evidence thresholds.
  */
 
@@ -11,7 +11,7 @@ import {
   siteQueryForDomain,
 } from "./discovery-target-domains";
 import type { ReferenceAnalysis } from "./discover.server";
-import { MIN_DISCOVERY_CANDIDATES } from "./discovery-config";
+import { TARGET_DISCOVERY_CANDIDATES } from "./discovery-config";
 
 export interface FallbackQueryInput {
   analysis: ReferenceAnalysis;
@@ -36,11 +36,11 @@ const RIP_TERMS = [
 ];
 
 /**
- * Build extra queries when discovery is below MIN_DISCOVERY_CANDIDATES.
- * Returns empty when the minimum is already met.
+ * Build extra queries when discovery is below TARGET_DISCOVERY_CANDIDATES.
+ * Returns empty when the target is already met.
  */
 export function buildSecondStageDiscoveryQueries(input: FallbackQueryInput): string[] {
-  if (input.uniqueCandidateUrls >= MIN_DISCOVERY_CANDIDATES) return [];
+  if (input.uniqueCandidateUrls >= TARGET_DISCOVERY_CANDIDATES) return [];
 
   const primary = (input.analysis.title || input.workTitle).trim();
   if (!primary) return [];

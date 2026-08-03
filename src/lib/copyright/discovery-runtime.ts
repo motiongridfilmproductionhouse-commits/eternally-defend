@@ -175,6 +175,11 @@ export interface RunBatchedDiscoveryOptions<TPlan, TAttempt extends ProviderSear
     },
   ) => void | Promise<void>;
   /**
+   * Stop issuing further plans when unique candidate pages reach this count.
+   * Used for adaptive stage coverage — not for verified-threat early stop.
+   */
+  stopWhenUniquePagesAtLeast?: number;
+  /**
    * Called after every completed concurrency wave so callers can stream live
    * discovery telemetry (queries done, leads found) while the scan is running.
    */
@@ -274,8 +279,16 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
         });
       }
 
-      // Never stop solely because N pages were found. Only deadline / circuit /
-      // exhausted plans should end discovery (see earlyStopAt = MAX_SAFE_INTEGER).
+      // Never stop solely because N verified threats were found. Adaptive coverage
+      // may stop when enough unique candidate URLs are collected.
+      if (
+        typeof options.stopWhenUniquePagesAtLeast === "number" &&
+        uniqueSoFar >= options.stopWhenUniquePagesAtLeast
+      ) {
+        stoppedEarly = true;
+        stoppedEarlyReason = `Adequate candidate coverage: ${uniqueSoFar} unique pages (target ${options.stopWhenUniquePagesAtLeast}).`;
+        break;
+      }
       if (
         Number.isFinite(earlyStopAt) &&
         earlyStopAt < Number.MAX_SAFE_INTEGER &&
@@ -288,6 +301,12 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
     }
 
     if (stoppedEarly || circuit.opened) break;
+    if (
+      typeof options.stopWhenUniquePagesAtLeast === "number" &&
+      options.uniquePageCount(attempts) >= options.stopWhenUniquePagesAtLeast
+    ) {
+      break;
+    }
     if (offset < options.plans.length) {
       await sleepWithAbort(batchDelayWithJitter(), options.signal);
     }
