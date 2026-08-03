@@ -46,8 +46,8 @@ export interface PublicSuspiciousSource {
   evidence_summary: string | null;
   reason: string | null;
   discovery_query: string | null;
-  contact?: unknown;
-  evidence?: unknown;
+  contact?: Record<string, unknown> | null;
+  evidence?: Record<string, unknown> | null;
   review_status?: string | null;
   detection_type?: string | null;
 }
