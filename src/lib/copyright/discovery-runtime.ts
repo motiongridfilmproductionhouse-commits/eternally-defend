@@ -40,7 +40,11 @@ export function emptyDiscoveryCircuit(): DiscoveryCircuitState {
 export function isCircuitTripCategory(
   category: ProviderFailureCategory | null | undefined,
 ): category is CircuitTripCategory {
-  return category === "rate_limited" || category === "provider_unavailable";
+  return (
+    category === "rate_limited" ||
+    category === "provider_unavailable" ||
+    category === "insufficient_credits"
+  );
 }
 
 export function circuitOperatorAction(
@@ -48,6 +52,9 @@ export function circuitOperatorAction(
 ): string {
   if (category === "rate_limited") {
     return "Firecrawl rate limit tripped — wait and retry the scan, or rely on SerpApi fallback / known URLs.";
+  }
+  if (category === "insufficient_credits") {
+    return "Web search quota for this project is exhausted — top up or upgrade the discovery plan, then retry the scan.";
   }
   if (category === "provider_unavailable") {
     return "Firecrawl gateway unavailable — verify FIRECRAWL_API_KEY and LOVABLE_API_KEY (lovc_ gateway), then retry.";
