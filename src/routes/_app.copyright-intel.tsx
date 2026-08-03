@@ -47,6 +47,8 @@ import {
   summarizeProviderFailures,
 } from "@/lib/copyright/scan-diagnostics";
 import { PROVIDER_FAILURE_CATEGORIES } from "@/lib/copyright/provider-failures";
+import { getCopyrightReportUrl } from "@/lib/copyright/report.functions";
+import { FileDown } from "lucide-react";
 import {
   shouldShowAnalysisBanner,
 } from "@/lib/copyright/scan-scope";
