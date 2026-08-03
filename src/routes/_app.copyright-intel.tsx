@@ -501,7 +501,20 @@ function CopyrightIntelPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Copyright Intelligence Detection</h1>
         </div>
+        {selectedScanId && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto shrink-0"
+            disabled={reportMutation.isPending}
+            onClick={() => reportMutation.mutate({ data: { scanId: selectedScanId } })}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            {reportMutation.isPending ? "Preparing dossier…" : "Threat intelligence report"}
+          </Button>
+        )}
       </header>
+
 
       <section className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card/60 p-5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
