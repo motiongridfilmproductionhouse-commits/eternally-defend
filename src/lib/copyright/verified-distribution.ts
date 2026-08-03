@@ -266,7 +266,15 @@ export function verifyIllegalDistribution(
     titleIdentity.matched === true ||
     stringArray(dist.identity_evidence).length > 0 ||
     stringArray(ev.identity_evidence).length > 0;
-  if (!identityMatched && !priorConfirmed) {
+  const strongDistributionEvidence =
+    dist.strong_evidence === true || ev.strong_evidence === true;
+  // A VERIFIED_* classification with strong page evidence already encodes a
+  // positive title identification made by the analysis pipeline.
+  const identityProven =
+    identityMatched ||
+    priorConfirmed ||
+    (strongDistributionEvidence && classification.startsWith("VERIFIED_"));
+  if (!identityProven) {
     return { verified: false, reason: "title_not_identified" };
   }
 
