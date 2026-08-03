@@ -52,6 +52,10 @@ export type DiscoveryFunnelMetrics = {
   reference_bing_images_found: number;
   reference_yandex_images_found: number;
   google_images_investigation_complete: number;
+  google_images_jobs_queued: number;
+  google_images_jobs_total: number;
+  google_images_jobs_completed: number;
+  google_images_progress_percent: number;
 };
 
 export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
@@ -96,6 +100,10 @@ export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
     reference_bing_images_found: 0,
     reference_yandex_images_found: 0,
     google_images_investigation_complete: 0,
+    google_images_jobs_queued: 0,
+    google_images_jobs_total: 0,
+    google_images_jobs_completed: 0,
+    google_images_progress_percent: 0,
   };
 }
 

@@ -21,6 +21,14 @@ test("polling keeps refreshing while running and while a request is in flight", 
   assert.equal(scanPollInterval({ status: "running", requestPending: false }), 3_000);
   assert.equal(scanPollInterval({ status: null, requestPending: true }), 3_000);
   assert.equal(scanPollInterval({ status: "completed", requestPending: true }), false);
+  assert.equal(
+    scanPollInterval({
+      status: "completed",
+      requestPending: false,
+      googleImagesBackgroundRunning: true,
+    }),
+    3_000,
+  );
 });
 
 test("partial results stay visible and polling stops on terminal status", () => {

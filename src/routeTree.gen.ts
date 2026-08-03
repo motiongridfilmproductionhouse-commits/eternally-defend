@@ -51,6 +51,7 @@ import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.dia
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
 import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
 import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
+import { Route as ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport } from './routes/api/public/hooks/deepfake-google-images-worker'
 import { Route as ApiPublicHooksCopyrightScanExecuteRouteImport } from './routes/api/public/hooks/copyright-scan-execute'
 import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
 import { Route as ApiPublicHooksAutomationStatusRouteImport } from './routes/api/public/hooks/automation-status'
@@ -276,6 +277,12 @@ const ApiPublicHooksDistributionMonitorRoute =
     path: '/api/public/hooks/distribution-monitor',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksDeepfakeGoogleImagesWorkerRoute =
+  ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport.update({
+    id: '/api/public/hooks/deepfake-google-images-worker',
+    path: '/api/public/hooks/deepfake-google-images-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksCopyrightScanExecuteRoute =
   ApiPublicHooksCopyrightScanExecuteRouteImport.update({
     id: '/api/public/hooks/copyright-scan-execute',
@@ -350,6 +357,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
+  '/api/public/hooks/deepfake-google-images-worker': typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
@@ -397,6 +405,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
+  '/api/public/hooks/deepfake-google-images-worker': typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
@@ -447,6 +456,7 @@ export interface FileRoutesById {
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
+  '/api/public/hooks/deepfake-google-images-worker': typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
@@ -496,6 +506,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
+    | '/api/public/hooks/deepfake-google-images-worker'
     | '/api/public/hooks/distribution-monitor'
     | '/api/public/hooks/release-protection-monitor'
     | '/sensitive-protection/results/'
@@ -543,6 +554,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
+    | '/api/public/hooks/deepfake-google-images-worker'
     | '/api/public/hooks/distribution-monitor'
     | '/api/public/hooks/release-protection-monitor'
     | '/sensitive-protection/results'
@@ -592,6 +604,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
+    | '/api/public/hooks/deepfake-google-images-worker'
     | '/api/public/hooks/distribution-monitor'
     | '/api/public/hooks/release-protection-monitor'
     | '/_app/sensitive-protection/results/'
@@ -614,6 +627,7 @@ export interface RootRouteChildren {
   ApiPublicHooksAutomationStatusRoute: typeof ApiPublicHooksAutomationStatusRoute
   ApiPublicHooksChannelWatchPollRoute: typeof ApiPublicHooksChannelWatchPollRoute
   ApiPublicHooksCopyrightScanExecuteRoute: typeof ApiPublicHooksCopyrightScanExecuteRoute
+  ApiPublicHooksDeepfakeGoogleImagesWorkerRoute: typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
   ApiPublicHooksDistributionMonitorRoute: typeof ApiPublicHooksDistributionMonitorRoute
   ApiPublicHooksReleaseProtectionMonitorRoute: typeof ApiPublicHooksReleaseProtectionMonitorRoute
 }
@@ -914,6 +928,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksDistributionMonitorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/deepfake-google-images-worker': {
+      id: '/api/public/hooks/deepfake-google-images-worker'
+      path: '/api/public/hooks/deepfake-google-images-worker'
+      fullPath: '/api/public/hooks/deepfake-google-images-worker'
+      preLoaderRoute: typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/copyright-scan-execute': {
       id: '/api/public/hooks/copyright-scan-execute'
       path: '/api/public/hooks/copyright-scan-execute'
@@ -1047,6 +1068,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksChannelWatchPollRoute: ApiPublicHooksChannelWatchPollRoute,
   ApiPublicHooksCopyrightScanExecuteRoute:
     ApiPublicHooksCopyrightScanExecuteRoute,
+  ApiPublicHooksDeepfakeGoogleImagesWorkerRoute:
+    ApiPublicHooksDeepfakeGoogleImagesWorkerRoute,
   ApiPublicHooksDistributionMonitorRoute:
     ApiPublicHooksDistributionMonitorRoute,
   ApiPublicHooksReleaseProtectionMonitorRoute:

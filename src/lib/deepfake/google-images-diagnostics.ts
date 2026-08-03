@@ -61,7 +61,7 @@ export function parseGoogleImagesDiagnostics(
     return typeof v === "number" && Number.isFinite(v) ? v : 0;
   };
   const status = d.provider_status;
-  const providerStatus: GoogleImagesProviderStatus =
+  const providerStatus: GoogleImagesInvestigationDiagnostics["provider_status"] =
     status === "success" ||
     status === "degraded" ||
     status === "unavailable" ||
@@ -69,9 +69,13 @@ export function parseGoogleImagesDiagnostics(
       ? status
       : "not_started";
 
-  return {
+  const diagnostics: GoogleImagesInvestigationDiagnostics = {
     queries_executed: n("queries_executed"),
-    queries_planned: n("queries_planned"),
+    queries_planned:
+      n("queries_planned") ||
+      (typeof metrics?.google_images_jobs_total === "number"
+        ? metrics.google_images_jobs_total
+        : 0),
     pages_loaded: n("pages_loaded"),
     images_discovered: n("images_discovered"),
     images_downloaded: n("images_downloaded"),
@@ -88,6 +92,52 @@ export function parseGoogleImagesDiagnostics(
       typeof d.failure_reason === "string" ? d.failure_reason : null,
     used_browser: d.used_browser === true,
     browser_available: d.browser_available === true,
+  };
+
+  return diagnostics;
+}
+
+export function googleImagesBackgroundStatus(
+  metrics: Record<string, unknown> | null | undefined,
+): "queued" | "running" | "completed" | "failed" | null {
+  const raw = metrics?.google_images_background_status;
+  if (
+    raw === "queued" ||
+    raw === "running" ||
+    raw === "completed" ||
+    raw === "failed"
+  ) {
+    return raw;
+  }
+  return null;
+}
+
+export function googleImagesBackgroundProgress(metrics: Record<string, unknown> | null | undefined): {
+  completed: number;
+  total: number;
+  percent: number;
+  running: boolean;
+} {
+  const total =
+    typeof metrics?.google_images_jobs_total === "number"
+      ? metrics.google_images_jobs_total
+      : 0;
+  const completed =
+    typeof metrics?.google_images_jobs_completed === "number"
+      ? metrics.google_images_jobs_completed
+      : 0;
+  const percent =
+    typeof metrics?.google_images_progress_percent === "number"
+      ? metrics.google_images_progress_percent
+      : total > 0
+        ? Math.round((completed / total) * 100)
+        : 0;
+  const status = googleImagesBackgroundStatus(metrics);
+  return {
+    completed,
+    total,
+    percent,
+    running: status === "queued" || status === "running",
   };
 }
 

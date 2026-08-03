@@ -117,7 +117,181 @@ function toCandidate(
 }
 
 /**
+ * Process a single Google Images query — used by background workers.
+ */
+export async function processGoogleImagesQuery(input: {
+  query: string;
+  referenceImages: CollectedReferenceImage[];
+  signal?: AbortSignal;
+  softDeadlineMs?: number;
+  seenImageUrls?: Set<string>;
+  seenSha?: Set<string>;
+  seenPhash?: Set<string>;
+}): Promise<{
+  metrics: Record<string, number>;
+  candidates: GoogleImagesInvestigationCandidate[];
+  evidence_packages: ReturnType<typeof buildGoogleImagesEvidencePackage>[];
+  failure: string | null;
+}> {
+  const seenImageUrls = input.seenImageUrls ?? new Set<string>();
+  const seenSha = input.seenSha ?? new Set<string>();
+  const seenPhash = input.seenPhash ?? new Set<string>();
+  const metrics = {
+    pages_loaded: 0,
+    images_discovered: 0,
+    images_downloaded: 0,
+    duplicate_images: 0,
+    valid_faces: 0,
+    high_confidence_matches: 0,
+    candidate_pages_crawled: 0,
+    evidence_packages_created: 0,
+    failed_downloads: 0,
+    face_comparisons: 0,
+    rejected_identities: 0,
+  };
+  const candidates: GoogleImagesInvestigationCandidate[] = [];
+  const evidence_packages: ReturnType<typeof buildGoogleImagesEvidencePackage>[] = [];
+
+  let collection;
+  try {
+    collection = await collectGoogleImagesMandatory({
+      queries: [input.query],
+      signal: input.signal,
+      softDeadlineMs: input.softDeadlineMs,
+      maxImages: 120,
+    });
+  } catch (error) {
+    return {
+      metrics,
+      candidates,
+      evidence_packages,
+      failure: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  metrics.pages_loaded = collection.pages_loaded;
+  metrics.images_discovered = collection.images_discovered;
+
+  if (!collection.hits.length) {
+    return {
+      metrics,
+      candidates,
+      evidence_packages,
+      failure: collection.failure ?? "No images discovered for query",
+    };
+  }
+
+  const references = await loadReferenceBytes(input.referenceImages, input.signal);
+
+  for (const hit of collection.hits) {
+    assertNotAborted(input.signal);
+    if (seenImageUrls.has(hit.image_url)) {
+      metrics.duplicate_images += 1;
+      continue;
+    }
+    seenImageUrls.add(hit.image_url);
+
+    const urlSha = sha256OfUrl(hit.image_url);
+    const urlPhash = perceptualHashOfUrl(hit.image_url);
+    if (seenSha.has(urlSha) || seenPhash.has(urlPhash)) {
+      metrics.duplicate_images += 1;
+      continue;
+    }
+
+    try {
+      metrics.images_downloaded += 1;
+      const imageBytes = await downloadFaceImage(hit.image_url, {
+        signal: input.signal,
+        softDeadlineMs: input.softDeadlineMs,
+      });
+
+      const contentSha = sha256OfContent(imageBytes);
+      if (seenSha.has(contentSha)) {
+        metrics.duplicate_images += 1;
+        continue;
+      }
+      seenSha.add(contentSha);
+      seenSha.add(urlSha);
+      seenPhash.add(urlPhash);
+
+      const face = await detectReferenceFace({
+        imageUrl: hit.image_url,
+        imageBytes,
+        signal: input.signal,
+        softDeadlineMs: input.softDeadlineMs,
+      });
+
+      if (!face.usable) {
+        metrics.rejected_identities += 1;
+        continue;
+      }
+
+      metrics.valid_faces += 1;
+      metrics.face_comparisons += 1;
+
+      let match = {
+        matched: false,
+        similarity: 0,
+        faceConfidence: face.faceConfidence,
+      };
+
+      if (references.bytes.length > 0) {
+        const comparison = await compareAgainstReferences({
+          referenceImages: references.bytes,
+          discoveredImageUrl: hit.image_url,
+          similarityThreshold: GOOGLE_IMAGES_MATCH_THRESHOLD,
+          signal: input.signal,
+          softDeadlineMs: input.softDeadlineMs,
+        });
+        match = {
+          matched: comparison.matched,
+          similarity: comparison.similarity,
+          faceConfidence: comparison.faceConfidence,
+        };
+      } else if (face.faceConfidence >= GOOGLE_IMAGES_HIGH_CONFIDENCE_THRESHOLD) {
+        match = {
+          matched: true,
+          similarity: face.faceConfidence,
+          faceConfidence: face.faceConfidence,
+        };
+      }
+
+      if (!match.matched) {
+        metrics.rejected_identities += 1;
+        continue;
+      }
+
+      metrics.high_confidence_matches += 1;
+      evidence_packages.push(
+        buildGoogleImagesEvidencePackage({
+          query: hit.query,
+          googleResultUrl: hit.google_result_url,
+          sourceWebsiteUrl: hit.source_website_url,
+          imageUrl: hit.image_url,
+          faceSimilarity: match.similarity,
+          identityConfidence: match.faceConfidence,
+          sha256: contentSha,
+          perceptualHash: urlPhash,
+          crawlMetadata: {
+            provider: "google_images",
+            used_browser: collection.used_browser,
+          },
+        }),
+      );
+      metrics.evidence_packages_created += 1;
+      if (hit.source_website_url) metrics.candidate_pages_crawled += 1;
+      candidates.push(toCandidate(hit, match));
+    } catch {
+      metrics.failed_downloads += 1;
+    }
+  }
+
+  return { metrics, candidates, evidence_packages, failure: null };
+}
+
+/**
  * Run mandatory Google Images investigation for a protected identity.
+ * @deprecated Use background job queue via queueAndDispatchGoogleImagesInvestigation.
  */
 export async function runMandatoryGoogleImagesInvestigation(input: {
   name: string;
