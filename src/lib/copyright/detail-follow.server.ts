@@ -15,6 +15,7 @@ export type DetailFollowSkipReason =
   | "already_crawled"
   | "invalid_url"
   | "queue_limit_reached"
+  | "depth_limit_reached"
   /** @deprecated use `duplicate` */
   | "duplicate_url"
   /** @deprecated use `cross_domain` */
@@ -44,13 +45,30 @@ export interface DetailFollowLogEntry {
   detail?: string;
 }
 
-const MAX_QUEUE = 20;
-const MAX_PER_PAGE = 5;
+import {
+  MAX_DEPTH,
+  MAX_DETAIL_DRAIN,
+  MAX_DETAIL_QUEUE,
+} from "./discovery-config";
+
+/** Recursive listing / mirror follow — do not stall after a handful of URLs. */
+export const DETAIL_FOLLOW_MAX_QUEUE = MAX_DETAIL_QUEUE;
+export const DETAIL_FOLLOW_MAX_PER_PAGE = 20;
+/** Max outbound hop depth from a seed listing (movie → category → mirror). */
+export const DETAIL_FOLLOW_MAX_DEPTH = MAX_DEPTH;
+/** Per-drain batch size during the detail-follow phase (loop until empty). */
+export const DETAIL_FOLLOW_DRAIN_CAP = MAX_DETAIL_DRAIN;
+
+export interface DetailFollowQueuedItem {
+  url: string;
+  depth: number;
+}
 
 export class DetailFollowRecorder {
-  private queue: string[] = [];
+  private queue: DetailFollowQueuedItem[] = [];
   private seen = new Set<string>();
   private logs: DetailFollowLogEntry[] = [];
+  private processed = 0;
 
   private log(
     event: DetailFollowLogEntry["event"],
@@ -92,13 +110,27 @@ export class DetailFollowRecorder {
     candidates: string[];
     inspectedUrls: Set<string>;
     titles: string[];
+    /** Depth of the page that discovered these candidates (children = fromDepth + 1). */
+    fromDepth?: number;
   }): string[] {
     const pageHost = hostOf(input.pageUrl);
     const accepted: string[] = [];
+    const childDepth = Math.max(0, (input.fromDepth ?? 0) + 1);
     this.recordTitleCandidatesScored(input.pageUrl, input.candidates.length);
 
-    for (const raw of input.candidates.slice(0, MAX_PER_PAGE)) {
-      if (this.queue.length >= MAX_QUEUE) {
+    if (childDepth > DETAIL_FOLLOW_MAX_DEPTH) {
+      for (const raw of input.candidates.slice(0, DETAIL_FOLLOW_MAX_PER_PAGE)) {
+        this.log("candidate_skipped", {
+          url: raw,
+          reason: "depth_limit_reached",
+          detail: `depth=${childDepth}`,
+        });
+      }
+      return accepted;
+    }
+
+    for (const raw of input.candidates.slice(0, DETAIL_FOLLOW_MAX_PER_PAGE)) {
+      if (this.queue.length >= DETAIL_FOLLOW_MAX_QUEUE) {
         this.log("candidate_skipped", {
           url: raw,
           reason: "queue_limit_reached",
@@ -135,22 +167,30 @@ export class DetailFollowRecorder {
         continue;
       }
       this.seen.add(url);
-      this.queue.push(url);
+      this.queue.push({ url, depth: childDepth });
       accepted.push(url);
-      this.log("candidate_queued", { url });
+      this.log("candidate_queued", {
+        url,
+        detail: `depth=${childDepth}`,
+      });
     }
     return accepted;
   }
 
-  drain(limit = MAX_QUEUE): string[] {
+  drain(limit = DETAIL_FOLLOW_MAX_QUEUE): DetailFollowQueuedItem[] {
     return this.queue.splice(0, limit);
   }
 
+  remaining(): number {
+    return this.queue.length;
+  }
+
   peek(): string[] {
-    return [...this.queue];
+    return this.queue.map((item) => item.url);
   }
 
   recordCrawled(url: string): void {
+    this.processed += 1;
     this.log("candidate_crawled", { url });
   }
 
@@ -173,6 +213,8 @@ export class DetailFollowRecorder {
   stats(): {
     detail_links_discovered: number;
     detail_pages_queued: number;
+    detail_links_processed: number;
+    detail_links_remaining: number;
   } {
     const discovered = this.logs
       .filter((l) => l.event === "title_candidates_scored")
@@ -181,6 +223,8 @@ export class DetailFollowRecorder {
     return {
       detail_links_discovered: discovered,
       detail_pages_queued: queued,
+      detail_links_processed: this.processed,
+      detail_links_remaining: this.queue.length,
     };
   }
 }

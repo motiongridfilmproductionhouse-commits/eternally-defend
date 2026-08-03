@@ -5,22 +5,30 @@
 
 import { MAX_KNOWN_URLS } from "./known-urls.server";
 import { canonicalUrl } from "./url.server";
+import {
+  DEFAULT_PAGE_CAP,
+  DETAIL_FOLLOW_BUDGET_MS,
+  KNOWN_URL_BUDGET_MS,
+  MAX_CRAWL_PAGES,
+  PROVIDER_CRAWL_BUDGET_MS,
+  SCAN_TOTAL_BUDGET_MS,
+} from "./discovery-config";
 
-export const DEFAULT_PAGE_CAP = 32;
-/** Wall-clock budget reserved exclusively for accepted known URLs. */
-export const KNOWN_URL_BUDGET_MS = 90_000;
-/** Remaining wall-clock budget for provider candidate crawls. */
-export const PROVIDER_CRAWL_BUDGET_MS = 120_000;
-/** Reserved wall-clock budget for title-detail follow phase. */
-export const DETAIL_FOLLOW_BUDGET_MS = 45_000;
+export {
+  DEFAULT_PAGE_CAP,
+  DETAIL_FOLLOW_BUDGET_MS,
+  KNOWN_URL_BUDGET_MS,
+  MAX_CRAWL_PAGES,
+  PROVIDER_CRAWL_BUDGET_MS,
+  SCAN_TOTAL_BUDGET_MS,
+} from "./discovery-config";
+
 /** Reserved wall-clock budget for browser-render fallbacks across the scan. */
 export const BROWSER_FALLBACK_BUDGET_MS = 60_000;
 /** Reserved wall-clock budget for known/historical source rechecks. */
-export const KNOWN_SOURCE_RECHECK_BUDGET_MS = 45_000;
+export const KNOWN_SOURCE_RECHECK_BUDGET_MS = 30_000;
 /** Maximum wall-clock time spent rendering a single page. */
 export const PER_PAGE_BROWSER_BUDGET_MS = 28_000;
-/** Absolute wall-clock ceiling for one copyright scan executor run. */
-export const SCAN_TOTAL_BUDGET_MS = KNOWN_URL_BUDGET_MS + PROVIDER_CRAWL_BUDGET_MS;
 
 export function absoluteScanDeadlineAt(scanStartedAt: number): number {
   return scanStartedAt + SCAN_TOTAL_BUDGET_MS;
@@ -57,7 +65,6 @@ export function allocateCrawlSlots(
   pageCap = DEFAULT_PAGE_CAP,
 ): CrawlSlotAllocation {
   const knownSlots = Math.min(Math.max(0, knownCount), MAX_KNOWN_URLS);
-  // Known URLs always fit even if they push slightly over a tiny pageCap.
   const effectiveCap = Math.max(pageCap, knownSlots);
   const providerSlots = Math.min(
     Math.max(0, providerCount),
@@ -72,8 +79,6 @@ export function allocateCrawlSlots(
 
 /**
  * Merge known-URL seeds ahead of provider candidates with reserved capacity.
- * All accepted known URLs are included before any provider URL, even when
- * provider candidates exceed the page cap.
  */
 export function prioritizeKnownUrlLeadsWithReservation<T extends { url: string }>(
   known: T[],

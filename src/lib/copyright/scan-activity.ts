@@ -16,11 +16,13 @@ export const COPYRIGHT_WORKFLOW_STAGES = [
   { key: "preparing_reference", label: "Preparing reference material" },
   { key: "analyzing_visual", label: "Analyzing visual content" },
   { key: "extracting_identifiers", label: "Extracting title identifiers" },
-  { key: "discovering_candidates", label: "Discovering online candidates" },
+  { key: "discovering_candidates", label: "Searching Google / Firecrawl…" },
+  { key: "expanding_queries", label: "Expanding search queries…" },
+  { key: "discovering_mirrors", label: "Discovering mirrors & cloud hosts…" },
   { key: "retrieving_pages", label: "Retrieving exact pages" },
-  { key: "checking_access", label: "Checking distribution access" },
-  { key: "classifying_evidence", label: "Classifying evidence" },
-  { key: "saving_report", label: "Saving report" },
+  { key: "checking_access", label: "Analysing streaming & download pages…" },
+  { key: "classifying_evidence", label: "Verifying evidence…" },
+  { key: "saving_report", label: "Generating report…" },
 ] as const;
 
 export type CopyrightWorkflowStageKey =
@@ -206,8 +208,9 @@ export function resolveWorkflowStageFromStats(
   if (stats?.finished_at) return "saving_report";
   if (stats?.classification_started) return "classifying_evidence";
   if (stats?.first_page_crawled) return "checking_access";
+  if (stats?.brightdata_requests || stats?.serpapi_requests) return "discovering_mirrors";
   if (stats?.discovery_started) return "discovering_candidates";
-  if (stats?.queries_generated) return "extracting_identifiers";
+  if (stats?.queries_generated) return "expanding_queries";
   if (stats?.executor_started || stats?.executor_started_at) return "analyzing_visual";
   return "preparing_reference";
 }

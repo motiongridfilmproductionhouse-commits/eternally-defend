@@ -17,7 +17,7 @@ test("scan deadlines derive from one absolute scan start", () => {
   assert.equal(deadline, started + SCAN_TOTAL_BUDGET_MS);
   assert.equal(
     SCAN_TOTAL_BUDGET_MS,
-    KNOWN_URL_BUDGET_MS + PROVIDER_CRAWL_BUDGET_MS,
+    KNOWN_URL_BUDGET_MS + PROVIDER_CRAWL_BUDGET_MS + DETAIL_FOLLOW_BUDGET_MS,
   );
   assert.equal(knownUrlDeadlineAt(started, deadline), started + KNOWN_URL_BUDGET_MS);
   assert.equal(

@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
+import { firecrawlEnvironmentDiagnostic } from "@/lib/firecrawl-client.server";
 import {
   analyzeReference,
   firecrawlDiscover,
@@ -26,8 +27,13 @@ import {
 import {
   brightDataDiagnostic,
   isBrightDataConfigured,
+  runBrightDataDiscovery,
   type BrightDataDiscoveryResult,
 } from "@/lib/copyright/brightdata-provider.server";
+import {
+  isCopyrightSerpApiConfigured,
+  runCopyrightSerpApiDiscovery,
+} from "@/lib/copyright/serpapi-discovery.server";
 import { emptyProviderFailureCounts } from "@/lib/copyright/provider-failures";
 import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.server";
 import { readStoredObject } from "@/lib/copyright/storage.server";
@@ -52,7 +58,12 @@ import {
   sanitizeCopyrightStatsForClient,
   sanitizeDiscoveryQueryForClient,
 } from "@/lib/copyright/public-surface";
-import { explainZeroMatchFunnel, summarizeProviderFailures } from "@/lib/copyright/scan-diagnostics";
+import {
+  explainZeroMatchFunnel,
+  resolveScanTerminationReason,
+  summarizeProviderFailures,
+  type DiscoveryCoverageDiagnostics,
+} from "@/lib/copyright/scan-diagnostics";
 import {
   acceptedKnownUrls,
   parseKnownUrlInputs,
@@ -62,6 +73,7 @@ import {
 import { isNeverMonitoredDomain } from "@/lib/copyright/official-platforms";
 import {
   allocateCrawlSlots,
+  DEFAULT_PAGE_CAP,
   DETAIL_FOLLOW_BUDGET_MS,
   BROWSER_FALLBACK_BUDGET_MS,
   PER_PAGE_BROWSER_BUDGET_MS,
@@ -75,7 +87,11 @@ import {
   providerCrawlDeadlineAt,
 } from "@/lib/copyright/crawl-budget";
 import { CrawlMetricsRecorder } from "@/lib/copyright/crawl-metrics";
-import { DetailFollowRecorder } from "@/lib/copyright/detail-follow.server";
+import {
+  DETAIL_FOLLOW_DRAIN_CAP,
+  DETAIL_FOLLOW_MAX_DEPTH,
+  DetailFollowRecorder,
+} from "@/lib/copyright/detail-follow.server";
 import { loadHistoricalScanCandidates } from "@/lib/copyright/historical-candidates.server";
 import {
   mergeScanCandidateLeads,
@@ -111,6 +127,19 @@ import {
   forcePersistCopyrightScanProviderSeed,
 } from "@/lib/copyright/scan-provider-seed.server";
 import {
+  DISCOVERY_FALLBACK_DEADLINE_FRACTION,
+  MAX_SCAN_TIME_MS,
+  TARGET_DISCOVERY_CANDIDATES,
+} from "@/lib/copyright/discovery-config";
+import { mergeProviderPageLeads } from "@/lib/copyright/discovery-provider-merge";
+import { buildSecondStageDiscoveryQueries } from "@/lib/copyright/discovery-fallback";
+import { sortDiscoveryLeadsByPriority } from "@/lib/copyright/discovery-candidate-priority";
+import {
+  buildSaturationMetrics,
+  emptyDiscoveryCoverageState,
+} from "@/lib/copyright/discovery-saturation";
+import type { ProviderFailureCategory } from "@/lib/copyright/provider-failures";
+import {
   decideCopyrightTerminalStatus,
   EXECUTOR_START_WATCHDOG_MS,
   isExecutorWatchdogExpired,
@@ -118,7 +147,6 @@ import {
   watchdogFailureStats,
   type CopyrightTerminalStatus,
 } from "@/lib/copyright/scan-lifecycle";
-import type { ProviderFailureCategory } from "@/lib/copyright/provider-failures";
 
 import {
   buildMovieFingerprint,
@@ -899,6 +927,7 @@ export async function executeCopyrightScanById(opts: {
 
     activity.setWorkflowStage("preparing_reference");
     let abortedByDeadline = false;
+    let cancelledByOperator = false;
     let liveStats: Record<string, unknown> = {
       ...priorStats,
       ...stages,
@@ -927,9 +956,25 @@ export async function executeCopyrightScanById(opts: {
     });
 
     const pushActivity = (extra?: Record<string, unknown>, force = false) => {
-      if (abortedByDeadline) return Promise.resolve();
+      if (abortedByDeadline || cancelledByOperator) return Promise.resolve();
       liveStats = buildTelemetryStats(extra);
       return telemetryWriter.flush(() => buildTelemetryStats(), force);
+    };
+
+    /** Soft-cancel: operator marked the scan cancelled/failed while we were running. */
+    const refreshCancellation = async (): Promise<boolean> => {
+      if (cancelledByOperator) return true;
+      const { data } = await supabase
+        .from("copyright_scans")
+        .select("status")
+        .eq("id", scan.id)
+        .maybeSingle();
+      const status = typeof data?.status === "string" ? data.status : null;
+      if (status === "cancelled") {
+        cancelledByOperator = true;
+        return true;
+      }
+      return false;
     };
 
     const executorBootstrapStats = sourceActivity.mergeToStats(
@@ -1226,8 +1271,115 @@ export async function executeCopyrightScanById(opts: {
         },
       });
 
+      const brightDataPromise = isBrightDataConfigured()
+        ? runBrightDataDiscovery({
+            analysis,
+            workTitle,
+            signal: discoverySignal,
+            deadlineAt: discoveryDeadlineAt,
+          }).catch((error) => {
+            console.warn(
+              "[copyright] Bright Data discovery failed:",
+              error instanceof Error ? error.message : String(error),
+            );
+            return emptyBrightDataDiscovery();
+          })
+        : Promise.resolve(emptyBrightDataDiscovery());
+
+      const serpapiPromise = isCopyrightSerpApiConfigured()
+        ? runCopyrightSerpApiDiscovery({
+            analysis,
+            workTitle,
+            signal: discoverySignal,
+            deadlineAt: discoveryDeadlineAt,
+            onlyWhenFirecrawlFailed: false,
+            firecrawlHadSuccess: false,
+          }).catch((error) => ({
+            hits: [],
+            pageLeads: [] as PageLead[],
+            requests: 0,
+            successes: 0,
+            failures: 1,
+            candidates: 0,
+            failureMessages: [
+              error instanceof Error ? error.message : String(error),
+            ],
+            configured: true,
+          }))
+        : Promise.resolve({
+            hits: [],
+            pageLeads: [] as PageLead[],
+            requests: 0,
+            successes: 0,
+            failures: 0,
+            candidates: 0,
+            failureMessages: [] as string[],
+            configured: false,
+          });
+
       let discovery: Awaited<ReturnType<typeof firecrawlDiscover>>;
-      [, discovery] = await Promise.all([runKnownUrlEarlyPhase(), discoveryPromise]);
+      let brightDataDiscovery: Awaited<ReturnType<typeof runBrightDataDiscovery>>;
+      let serpapiDiscovery: Awaited<ReturnType<typeof runCopyrightSerpApiDiscovery>>;
+
+      const emptyFirecrawlDiscovery = (): Awaited<ReturnType<typeof firecrawlDiscover>> => ({
+        candidates: [],
+        pageLeads: [],
+        queriesGenerated: 0,
+        queriesExecuted: 0,
+        providerSuccesses: 0,
+        providerRequests: 0,
+        providerFailures: 1,
+        providerFailuresByCategory: emptyProviderFailureCounts(),
+        providerFailureSamples: [{ query: "", category: "provider_unavailable", detail: "Firecrawl discovery rejected" }],
+        firecrawl_requests: 0,
+        firecrawl_successes: 0,
+        firecrawl_failures: 1,
+        firecrawl_circuit_opened: false,
+        firecrawl_circuit_reason: null,
+        firecrawl_operator_action: null,
+        firecrawl_stopped_early: false,
+        firecrawl_stopped_early_reason: null,
+        discovery_saturation: buildSaturationMetrics({
+          state: emptyDiscoveryCoverageState(),
+          stoppedLowPriorityQueries: 0,
+          providersExhausted: false,
+        }),
+        candidates_by_provider: {},
+        telegram_queries: 0,
+        telegram_posts: 0,
+        telegram_candidates: 0,
+        telegram_failures: 0,
+        telegram_requests: 0,
+        firecrawl_env_diagnostic: firecrawlEnvironmentDiagnostic(),
+      });
+
+      const [, providerSettled] = await Promise.all([
+        runKnownUrlEarlyPhase(),
+        Promise.allSettled([discoveryPromise, brightDataPromise, serpapiPromise]),
+      ]);
+
+      discovery =
+        providerSettled[0]?.status === "fulfilled"
+          ? providerSettled[0].value
+          : emptyFirecrawlDiscovery();
+      brightDataDiscovery =
+        providerSettled[1]?.status === "fulfilled"
+          ? providerSettled[1].value
+          : emptyBrightDataDiscovery();
+      serpapiDiscovery =
+        providerSettled[2]?.status === "fulfilled"
+          ? providerSettled[2].value
+          : {
+              hits: [],
+              pageLeads: [] as PageLead[],
+              requests: 0,
+              successes: 0,
+              failures: 1,
+              candidates: 0,
+              failureMessages: ["SerpApi discovery rejected"],
+              configured: isCopyrightSerpApiConfigured(),
+            };
+
       for (const candidate of discovery.candidates) {
         const img = candidate.thumbnail ?? candidate.imageUrl;
         if (!img) continue;
@@ -1252,14 +1404,13 @@ export async function executeCopyrightScanById(opts: {
         candidates: discovery.candidates.length + discovery.pageLeads.length,
         failures: discovery.providerFailures,
       });
-      const brightDataDiscovery = emptyBrightDataDiscovery();
-
+      activity.setWorkflowStage("expanding_queries");
+      const brightDataStartedAt = Date.now();
       await pushActivity({
         brightdata_running: false,
         brightdata_configured: brightDataDiscovery.configured,
         brightdata_diagnostic: brightDataDiscovery.diagnostic,
-        brightdata_duration_ms: 0,
-
+        brightdata_duration_ms: Date.now() - brightDataStartedAt,
         brightdata_queries_generated: brightDataDiscovery.queriesGenerated,
         brightdata_requests: brightDataDiscovery.requests,
         brightdata_successes: brightDataDiscovery.successes,
@@ -1268,49 +1419,147 @@ export async function executeCopyrightScanById(opts: {
         brightdata_duplicates_dropped: brightDataDiscovery.duplicatesDropped,
         brightdata_failures_by_category: brightDataDiscovery.failuresByCategory,
         brightdata_failure_samples: brightDataDiscovery.failureSamples.slice(0, 6),
+        brightdata_last_status: brightDataDiscovery.configured
+          ? brightDataDiscovery.failures > 0 && brightDataDiscovery.successes === 0
+            ? "failed"
+            : "completed"
+          : "disabled",
+        investigation_stage: "Merging multi-provider discovery results…",
+      }, true);
 
-        brightdata_last_status: "disabled",
-      });
+      if (brightDataDiscovery.configured) {
+        sourceActivity.upsert({
+          provider: "brightdata",
+          status: brightDataDiscovery.pageLeads.length
+            ? "completed"
+            : brightDataDiscovery.failures > 0
+              ? "failed"
+              : "no_results",
+          requests: brightDataDiscovery.requests,
+          candidates: brightDataDiscovery.candidates,
+          failures: brightDataDiscovery.failures,
+        });
+      }
 
-      const serpapiDiscovery = {
-        pageLeads: [] as PageLead[],
-        requests: 0,
-        successes: 0,
-        failures: 0,
-        candidates: 0,
-        failureMessages: [],
-        configured: false,
-      };
+      if (serpapiDiscovery.configured) {
+        sourceActivity.upsert({
+          provider: "serpapi",
+          status: serpapiDiscovery.pageLeads.length
+            ? "completed"
+            : serpapiDiscovery.failures > 0
+              ? "failed"
+              : "no_results",
+          requests: serpapiDiscovery.requests,
+          candidates: serpapiDiscovery.candidates,
+          failures: serpapiDiscovery.failures,
+        });
+      }
 
-      // Normalize + dedupe candidate URLs across providers.
-      const extraLeads = [...brightDataDiscovery.pageLeads, ...serpapiDiscovery.pageLeads];
-      if (extraLeads.length) {
-        const mergedLeads = [...discovery.pageLeads];
-        const seenLeadUrls = new Set(mergedLeads.map((l) => canonicalUrl(l.url)));
-        for (const lead of extraLeads) {
-          const key = canonicalUrl(lead.url);
-          if (seenLeadUrls.has(key)) continue;
-          seenLeadUrls.add(key);
-          mergedLeads.push({ ...lead, url: key });
-        }
-        discovery = {
-          ...discovery,
-          pageLeads: mergedLeads,
-          providerFailuresByCategory: mergeProviderFailureCounts(
+      activity.setWorkflowStage("discovering_mirrors");
+      await pushActivity({
+        investigation_stage: "Discovering Mirrors… Following redirects…",
+      }, true);
+
+      // Merge all fulfilled provider page leads by canonical URL (not by domain).
+      const providerMerge = mergeProviderPageLeads([
+        {
+          provider: "firecrawl",
+          leads: discovery.pageLeads.map((l) => ({ ...l, query: l.query ?? "firecrawl" })),
+        },
+        {
+          provider: "brightdata",
+          leads: brightDataDiscovery.pageLeads.map((l) => ({
+            ...l,
+            query: l.query ? `brightdata:${l.query}` : "brightdata:discovery",
+          })),
+        },
+        {
+          provider: "serpapi",
+          leads: serpapiDiscovery.pageLeads.map((l) => ({
+            ...l,
+            query: l.query ?? "serpapi:google",
+          })),
+        },
+      ]);
+      discovery = {
+        ...discovery,
+        pageLeads: providerMerge.leads,
+        providerFailuresByCategory: mergeProviderFailureCounts(
+          mergeProviderFailureCounts(
             discovery.providerFailuresByCategory,
             brightDataDiscovery.failuresByCategory,
           ),
-          providerFailureSamples: [
-            ...discovery.providerFailureSamples,
-            ...brightDataDiscovery.failureSamples,
-          ].slice(0, 12),
-          candidates_by_provider: {
-            ...discovery.candidates_by_provider,
-            brightdata: brightDataDiscovery.candidates,
-            serpapi: serpapiDiscovery.candidates,
-          },
-        };
+          emptyProviderFailureCounts(),
+        ),
+        providerFailureSamples: [
+          ...discovery.providerFailureSamples,
+          ...brightDataDiscovery.failureSamples,
+        ].slice(0, 12),
+        candidates_by_provider: {
+          ...discovery.candidates_by_provider,
+          ...providerMerge.by_provider,
+          brightdata: brightDataDiscovery.candidates,
+          serpapi: serpapiDiscovery.candidates,
+        },
+      };
+
+      let rawSearchResults = providerMerge.raw_results_received;
+      let mergedUniqueCandidateUrls = providerMerge.unique_candidate_urls;
+      let mergedUniqueCandidateDomains = providerMerge.unique_candidate_domains;
+
+      const fallbackDeadlineAt =
+        scanStartedAt + MAX_SCAN_TIME_MS * DISCOVERY_FALLBACK_DEADLINE_FRACTION;
+      if (
+        mergedUniqueCandidateUrls < TARGET_DISCOVERY_CANDIDATES &&
+        Date.now() >= fallbackDeadlineAt &&
+        !isPastDeadline(discoveryDeadlineAt)
+      ) {
+        const discoveredHosts = providerMerge.leads
+          .map((l) => hostOf(l.url))
+          .filter((h): h is string => Boolean(h));
+        const fallbackQueries = buildSecondStageDiscoveryQueries({
+          analysis,
+          workTitle,
+          uniqueCandidateUrls: mergedUniqueCandidateUrls,
+          discoveredHosts,
+          discoveredFilenames: [],
+          ripTermsSeen: [],
+        });
+        if (fallbackQueries.length) {
+          const extraDiscovery = await firecrawlDiscover(
+            referenceDataUrl,
+            workTitle,
+            0,
+            analysis,
+            {
+              signal: discoverySignal,
+              deadlineAt: discoveryDeadlineAt,
+              analysis,
+              extraQueryStrings: fallbackQueries,
+            },
+          );
+          const secondMerge = mergeProviderPageLeads([
+            { provider: "merged", leads: discovery.pageLeads },
+            { provider: "firecrawl_second_stage", leads: extraDiscovery.pageLeads },
+          ]);
+          discovery = {
+            ...discovery,
+            pageLeads: secondMerge.leads,
+            queriesExecuted: discovery.queriesExecuted + extraDiscovery.queriesExecuted,
+            providerRequests: discovery.providerRequests + extraDiscovery.providerRequests,
+            providerSuccesses: discovery.providerSuccesses + extraDiscovery.providerSuccesses,
+            providerFailures: discovery.providerFailures + extraDiscovery.providerFailures,
+          };
+          rawSearchResults += secondMerge.raw_results_received;
+          mergedUniqueCandidateUrls = secondMerge.unique_candidate_urls;
+          mergedUniqueCandidateDomains = secondMerge.unique_candidate_domains;
+        }
       }
+
+      const discoveryShortfallExplanation =
+        mergedUniqueCandidateUrls < TARGET_DISCOVERY_CANDIDATES
+          ? `Only ${mergedUniqueCandidateUrls} relevant public candidates were discoverable (target ${TARGET_DISCOVERY_CANDIDATES}). All configured providers were exhausted or the scan deadline was reached.`
+          : null;
 
       stages = markStage(stages, "first_provider_response");
 
@@ -1318,36 +1567,40 @@ export async function executeCopyrightScanById(opts: {
         if (!byUrl.has(c.url)) byUrl.set(c.url, c);
       }
 
-      for (const lead of discovery.pageLeads.slice(0, 20)) {
+      for (const lead of discovery.pageLeads) {
         activity.recordDiscovered({
           url: lead.url,
           pageTitle: lead.title,
           leadQuery: lead.query,
         });
       }
-      for (const lead of brightDataDiscovery.pageLeads.slice(0, 20)) {
+      for (const lead of brightDataDiscovery.pageLeads) {
         activity.recordDiscovered({
           url: lead.url,
           pageTitle: lead.title,
           leadQuery: `brightdata:${lead.query ?? "discovery"}`,
         });
       }
-      for (const lead of serpapiDiscovery.pageLeads.slice(0, 20)) {
+      for (const lead of serpapiDiscovery.pageLeads) {
         activity.recordDiscovered({
           url: lead.url,
           pageTitle: lead.title,
-          leadQuery: lead.query ?? "serpapi:fallback",
+          leadQuery: lead.query ?? "serpapi:google",
         });
       }
       activity.setWorkflowStage("retrieving_pages");
       await pushActivity(
         {
           queries_executed: discovery.queriesExecuted,
+          queries_generated: discovery.queriesGenerated,
           provider_results: byUrl.size + discovery.pageLeads.length,
-          unique_candidate_pages: new Set([
-            ...byUrl.keys(),
-            ...discovery.pageLeads.map((l) => canonicalUrl(l.url)),
-          ]).size,
+          raw_search_results: rawSearchResults,
+          unique_candidate_urls: mergedUniqueCandidateUrls,
+          unique_candidate_domains: mergedUniqueCandidateDomains,
+          unique_candidate_pages: mergedUniqueCandidateUrls,
+          discovery_shortfall_explanation: discoveryShortfallExplanation,
+          provider_results_by_provider: providerMerge.by_provider,
+          candidates_by_provider: discovery.candidates_by_provider,
           provider_failures: discovery.providerFailures,
           firecrawl_circuit_opened: discovery.firecrawl_circuit_opened,
           provider_failures_by_category: discovery.providerFailuresByCategory,
@@ -1355,11 +1608,12 @@ export async function executeCopyrightScanById(opts: {
         true,
       );
 
-      // Prioritise high-signal piracy leads, keep the grading budget bounded.
+      // Image grading is supplemental identity evidence only — never a discovery
+      // gate. Grade every image-bearing candidate within the scan page budget.
       const ordered = [...byUrl.values()]
         .filter((c) => c.thumbnail || c.imageUrl)
         .sort((a, b) => Number(b.exact) - Number(a.exact))
-        .slice(0, 40);
+        .slice(0, DEFAULT_PAGE_CAP);
 
       // 3. Evidence grading with a multimodal comparison.
       // Image/OCR path produces identity-only internal leads — never actionable piracy.
@@ -1575,14 +1829,14 @@ export async function executeCopyrightScanById(opts: {
         strong: true,
         origin: "known_url",
       }));
-      const providerLeads = discovery.pageLeads
-        .sort((a2, b2) => Number(b2.strong) - Number(a2.strong))
-        .map(
+      const providerLeads = sortDiscoveryLeadsByPriority(
+        discovery.pageLeads.map(
           (lead): CandidateUnionEntry => ({
             ...lead,
             origin: "fresh_discovery",
           }),
-        );
+        ),
+      );
       const historicalLeads: CandidateUnionEntry[] = [
         ...historicalCandidates.monitoredSourceCandidates,
         ...historicalCandidates.historicalFindingCandidates,
@@ -1593,12 +1847,12 @@ export async function executeCopyrightScanById(opts: {
       const leadUrls = prioritizeKnownUrlLeads(
         knownLeadUrls,
         mergedDiscovery.leads,
-        40,
+        DEFAULT_PAGE_CAP,
       );
       const slotAllocation = allocateCrawlSlots(
         knownLeadUrls.length,
         mergedDiscovery.leads.length,
-        40,
+        DEFAULT_PAGE_CAP,
       );
       const { known: knownPhaseLeads, provider: providerPhaseLeads } =
         splitKnownAndProviderLeads(leadUrls);
@@ -1725,6 +1979,8 @@ export async function executeCopyrightScanById(opts: {
       let downloadPages = 0;
       let fileHostDestinations = 0;
       let torrentsMagnets = 0;
+      let redirectsFollowed = 0;
+      const detailDepthByUrl = new Map<string, number>();
       let theatrePrintFindings = 0;
       let detailPagesFollowed = 0;
       let registeredMonitoredSources = 0;
@@ -1745,12 +2001,20 @@ export async function executeCopyrightScanById(opts: {
         dist: Awaited<ReturnType<typeof analyzeDistributionPage>>,
         leadQuery: string | null,
         leadTitle: string | null,
+        opts?: { seedUrl?: string | null; fromDepth?: number },
       ) => {
         const key = canonicalUrl(dist.url);
         if (inspectedUrls.has(key)) return;
         inspectedUrls.add(key);
         inspectedDomains.add((dist.domain ?? "").toLowerCase());
         pagesCrawled += 1;
+        const seedUrl = opts?.seedUrl ? canonicalUrl(opts.seedUrl) : null;
+        if (seedUrl && seedUrl !== key) redirectsFollowed += 1;
+        if (opts?.fromDepth != null) {
+          detailDepthByUrl.set(key, opts.fromDepth);
+        } else if (!detailDepthByUrl.has(key)) {
+          detailDepthByUrl.set(key, 0);
+        }
 
         if (dist.pageReferenceImages?.length) {
           appendDiscoveredImages(dist.pageReferenceImages);
@@ -1905,6 +2169,7 @@ export async function executeCopyrightScanById(opts: {
             candidates: dist.detailFollowUrls,
             inspectedUrls: new Set([...inspectedUrls, ...crawledUrls]),
             titles,
+            fromDepth: detailDepthByUrl.get(key) ?? opts?.fromDepth ?? 0,
           });
         }
 
@@ -2213,15 +2478,20 @@ export async function executeCopyrightScanById(opts: {
           }),
         );
         for (const { lead, analysis: dist } of analyses) {
-          await ingestDistribution(dist, lead.query, lead.title);
+          await ingestDistribution(dist, lead.query, lead.title, {
+            seedUrl: lead.url,
+            fromDepth: 0,
+          });
         }
         await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed }, true);
+        if (await refreshCancellation()) break;
       }
 
       // Phase B — provider candidates with remaining budget (detail follow reserved).
       const providerDeadlineAt = providerCrawlDeadlineAt(scanDeadlineAt);
       const detailFollowDeadlineAt = scanDeadlineAt;
       for (let offset = 0; offset < providerPhaseLeads.length; offset += 4) {
+        if (cancelledByOperator || (await refreshCancellation())) break;
         if (isPastDeadline(providerDeadlineAt)) {
           abortedByDeadline = true;
           for (const lead of providerPhaseLeads.slice(offset)) {
@@ -2275,7 +2545,10 @@ export async function executeCopyrightScanById(opts: {
           }),
         );
         for (const { lead, analysis: dist } of analyses) {
-          await ingestDistribution(dist, lead.query, lead.title);
+          await ingestDistribution(dist, lead.query, lead.title, {
+            seedUrl: lead.url,
+            fromDepth: 0,
+          });
         }
         await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed }, true);
       }
@@ -2285,54 +2558,83 @@ export async function executeCopyrightScanById(opts: {
       activity.setWorkflowStage("classifying_evidence");
       await pushActivity({}, true);
 
-      // Bounded same-domain detail follow from listing pages (reserved budget).
-      const details = detailFollowRecorder.drain(15);
-      for (let offset = 0; offset < details.length; offset += 4) {
+      // Recursive listing / mirror / download follow until queue empty, timeout, or cancel.
+      // Drain in batches of DETAIL_FOLLOW_DRAIN_CAP but keep looping so the 120-slot
+      // queue is not stranded after a single 80-item pass. Child pages may re-enqueue
+      // up to DETAIL_FOLLOW_MAX_DEPTH hops.
+      detailFollowPhase: while (!cancelledByOperator) {
+        if (await refreshCancellation()) break;
         if (isPastDeadline(detailFollowDeadlineAt)) {
           abortedByDeadline = true;
-          for (const url of details.slice(offset)) {
-            detailFollowRecorder.recordSkipped(url, "deadline");
+          for (const item of detailFollowRecorder.drain()) {
+            detailFollowRecorder.recordSkipped(item.url, "deadline");
           }
           break;
         }
-        const batch = details.slice(offset, offset + 4);
-        const signal = AbortSignal.timeout(
-          Math.max(1_000, detailFollowDeadlineAt - Date.now()),
-        );
-        const analyses = await Promise.all(
-          batch.map(async (url) => {
-            activity.recordChecking({
-              url,
-              leadQuery: "detail_follow",
-              stage: "detail_follow",
-            });
-            return analyzeDistributionPage({
-              url,
-              titles,
-              releaseDate,
-              skipDetailFollow: true,
-              preferRender: true,
-              allowBrowserFallback: browserFallbackBudgetRemaining > 0,
-              detailFollow: detailFollowRecorder,
-              signal,
-            });
-          }),
-        );
-        for (const dist of analyses) {
-          detailPagesFollowed += 1;
-          detailFollowRecorder.recordCrawled(dist.url);
-          detailFollowRecorder.recordEvidenceResult(
-            dist.url,
-            dist.classification,
-            dist.reason,
+        const details = detailFollowRecorder.drain(DETAIL_FOLLOW_DRAIN_CAP);
+        if (!details.length) break;
+
+        for (let offset = 0; offset < details.length; offset += 4) {
+          if (cancelledByOperator || (await refreshCancellation())) {
+            for (const item of details.slice(offset)) {
+              detailFollowRecorder.recordSkipped(item.url, "deadline", "cancelled");
+            }
+            break detailFollowPhase;
+          }
+          if (isPastDeadline(detailFollowDeadlineAt)) {
+            abortedByDeadline = true;
+            for (const item of details.slice(offset)) {
+              detailFollowRecorder.recordSkipped(item.url, "deadline");
+            }
+            break detailFollowPhase;
+          }
+          const batch = details.slice(offset, offset + 4);
+          const signal = AbortSignal.timeout(
+            Math.max(1_000, detailFollowDeadlineAt - Date.now()),
           );
-          crawlMetrics.recordDetailFollow();
-          await ingestDistribution(dist, "detail_follow", dist.pageTitle);
+          const analyses = await Promise.all(
+            batch.map(async (item) => {
+              activity.recordChecking({
+                url: item.url,
+                leadQuery: "detail_follow",
+                stage: "detail_follow",
+              });
+              return {
+                item,
+                dist: await analyzeDistributionPage({
+                  url: item.url,
+                  titles,
+                  releaseDate,
+                  // Allow recursive follow until depth budget is exhausted.
+                  skipDetailFollow: item.depth >= DETAIL_FOLLOW_MAX_DEPTH,
+                  preferRender: true,
+                  allowBrowserFallback: browserFallbackBudgetRemaining > 0,
+                  detailFollow: detailFollowRecorder,
+                  signal,
+                }),
+              };
+            }),
+          );
+          for (const { item, dist } of analyses) {
+            detailPagesFollowed += 1;
+            detailFollowRecorder.recordCrawled(dist.url);
+            detailFollowRecorder.recordEvidenceResult(
+              dist.url,
+              dist.classification,
+              dist.reason,
+            );
+            crawlMetrics.recordDetailFollow();
+            await ingestDistribution(dist, "detail_follow", dist.pageTitle, {
+              seedUrl: item.url,
+              fromDepth: item.depth,
+            });
+          }
+          await pushActivity({
+            detail_pages_followed: detailPagesFollowed,
+            pages_crawled: pagesCrawled,
+            detail_links_processed: detailFollowRecorder.stats().detail_links_processed,
+          });
         }
-        await pushActivity({
-          detail_pages_followed: detailPagesFollowed,
-          pages_crawled: pagesCrawled,
-        });
       }
 
       activity.setWorkflowStage("saving_report");
@@ -2521,13 +2823,72 @@ export async function executeCopyrightScanById(opts: {
         else verifiedFindingsByProvider.firecrawl += 1;
       }
 
-      const uniqueCandidatePages = new Set([
+      const uniqueCandidateUrlSet = new Set([
         ...byUrl.keys(),
         ...discovery.pageLeads.map((l) => canonicalUrl(l.url)),
-      ]).size;
+        ...leadUrls.map((l) => canonicalUrl(l.url)),
+      ]);
+      const uniqueCandidatePages = uniqueCandidateUrlSet.size;
+      const uniqueCandidateDomains = new Set(
+        [...uniqueCandidateUrlSet]
+          .map((url) => hostOf(url))
+          .filter((h): h is string => Boolean(h)),
+      ).size;
       const artworkOnlyRejected =
         artworkRejected +
         fallbackRows.filter((r) => r.detection_type === "DUPLICATE_ARTWORK_ONLY").length;
+      const candidatesRejectedTotal =
+        titleIdentityRejected +
+        hardNegativeRejected +
+        accessEvidenceRejected +
+        artworkOnlyRejected;
+      const providerRequestsStarted =
+        discovery.providerRequests +
+        serpapiDiscovery.requests +
+        brightDataDiscovery.requests;
+      const providerRequestsSucceeded =
+        discovery.providerSuccesses +
+        serpapiDiscovery.successes +
+        brightDataDiscovery.successes;
+      const providerRequestsFailed =
+        discovery.providerFailures +
+        serpapiDiscovery.failures +
+        brightDataDiscovery.failures;
+      const rawResultsReceived = Math.max(
+        rawSearchResults,
+        byUrl.size + discovery.pageLeads.length,
+      );
+      const providerNotProcessed = providerPhaseLeads.filter(
+        (lead) => !inspectedUrls.has(canonicalUrl(lead.url)),
+      ).length;
+      const notProcessedDueToBudget =
+        detailFollowStats.detail_links_remaining +
+        (abortedByDeadline || cancelledByOperator ? providerNotProcessed : 0);
+      const scanElapsedMs = Math.max(0, Date.now() - scanStartedAt);
+      const terminationReason = resolveScanTerminationReason({
+        cancelled: cancelledByOperator,
+        abortedByDeadline,
+        fatalConfigurationError: false,
+      });
+      const coverageDiagnostics: DiscoveryCoverageDiagnostics = {
+        queries_generated: discovery.queriesGenerated,
+        provider_requests_started: providerRequestsStarted,
+        provider_requests_succeeded: providerRequestsSucceeded,
+        provider_requests_failed: providerRequestsFailed,
+        raw_results_received: rawResultsReceived,
+        unique_candidate_urls: uniqueCandidatePages,
+        unique_candidate_domains: uniqueCandidateDomains,
+        pages_crawled: pagesCrawled,
+        detail_links_queued: detailFollowStats.detail_pages_queued,
+        detail_links_processed: detailFollowStats.detail_links_processed,
+        redirects_followed: redirectsFollowed,
+        candidates_rejected: candidatesRejectedTotal,
+        candidates_pending: suspectedReviewPages,
+        findings_verified: clientVisibleFindings.length,
+        scan_elapsed_ms: scanElapsedMs,
+        termination_reason: terminationReason,
+        not_processed_due_to_budget: notProcessedDueToBudget,
+      };
 
       const crawlMetricValues = crawlMetrics.get();
       const freshDiscoveryCount = providerLeads.length;
@@ -2535,6 +2896,13 @@ export async function executeCopyrightScanById(opts: {
       const stats = {
         ...crawlMetricValues,
         crawl_metrics: crawlMetricValues,
+        ...coverageDiagnostics,
+        discovery_coverage: coverageDiagnostics,
+        discovery_shortfall_explanation: discoveryShortfallExplanation,
+        raw_search_results: rawResultsReceived,
+        probable_threats: clientVisibleFindings.filter(
+          (r) => r.confidence_band === "probable",
+        ).length,
         fresh_discovery_candidates: freshDiscoveryCount,
         historical_candidates_restored: historicalRestoredCount,
         monitored_sources_rechecked: historicalCandidates.monitoredSourceCandidates.length,
@@ -2547,6 +2915,7 @@ export async function executeCopyrightScanById(opts: {
         detail_follow_logs: detailFollowRecorder.getLogs().slice(-80),
         detail_links_discovered: detailFollowStats.detail_links_discovered,
         detail_pages_queued: detailFollowStats.detail_pages_queued,
+        detail_links_remaining: detailFollowStats.detail_links_remaining,
         suspected_review_pages: suspectedReviewPages,
         historical_findings_reconfirmed: historicalFindingsReconfirmed,
         historical_sources_temporarily_unreachable: historicalSourcesUnreachable,
@@ -2581,6 +2950,15 @@ export async function executeCopyrightScanById(opts: {
         firecrawl_operator_action: discovery.firecrawl_operator_action,
         firecrawl_stopped_early: discovery.firecrawl_stopped_early,
         firecrawl_stopped_early_reason: discovery.firecrawl_stopped_early_reason,
+        discovery_mode: discovery.discovery_saturation.discovery_mode,
+        platform_categories_covered: discovery.discovery_saturation.platform_categories_covered,
+        high_priority_queries_completed:
+          discovery.discovery_saturation.high_priority_queries_completed,
+        providers_exhausted: discovery.discovery_saturation.providers_exhausted,
+        stopped_low_priority_queries:
+          discovery.discovery_saturation.stopped_low_priority_queries,
+        active_requests_completed_after_target:
+          discovery.discovery_saturation.active_requests_completed_after_target,
         serpapi_requests: serpapiDiscovery.requests,
         serpapi_successes: serpapiDiscovery.successes,
         serpapi_failures: serpapiDiscovery.failures,
@@ -2611,6 +2989,9 @@ export async function executeCopyrightScanById(opts: {
         telegram_failures: discovery.telegram_failures,
         unique_candidate_pages: uniqueCandidatePages,
         unique_pages: uniqueCandidatePages,
+        unique_candidate_domains: uniqueCandidateDomains,
+        aborted_by_deadline: abortedByDeadline,
+        cancelled: cancelledByOperator,
         known_urls_submitted: knownInputs.length,
         known_urls_accepted: knownAccepted.length,
         known_urls_rejected: knownSeeds.filter((s) => !s.accepted).length,
@@ -2744,26 +3125,31 @@ export async function executeCopyrightScanById(opts: {
         discovery_never_started: false,
       };
 
-      const terminal = decideCopyrightTerminalStatus({
-        executorStarted: true,
-        queriesGenerated: discovery.queriesGenerated,
-        queriesExecuted: discovery.queriesExecuted,
-        providerSuccesses: discovery.providerSuccesses + serpapiDiscovery.successes,
-        providerFailures: discovery.providerFailures,
-        providerCandidates: byUrl.size + discovery.pageLeads.length,
-        knownUrlsAttempted: Math.max(knownUrlsAttempted, earlyKnownUrlsAttempted),
-        knownUrlsAccepted: knownAccepted.length,
-        pagesCrawled,
-        clientVisibleFindings: clientVisibleFindings.length,
-        abortedByDeadline,
-        firecrawlCircuitOpened: discovery.firecrawl_circuit_opened,
-        serpapiSuccesses: serpapiDiscovery.successes,
-        serpapiCandidates: serpapiDiscovery.candidates,
-        brightDataQueriesGenerated: brightDataDiscovery.queriesGenerated,
-        brightDataRequests: brightDataDiscovery.requests,
-        brightDataSuccesses: brightDataDiscovery.successes,
-        brightDataCandidates: brightDataDiscovery.candidates,
-      });
+      const terminal = cancelledByOperator
+        ? {
+            status: "cancelled" as CopyrightTerminalStatus,
+            reason: "Scan cancelled by operator before discovery completed.",
+          }
+        : decideCopyrightTerminalStatus({
+            executorStarted: true,
+            queriesGenerated: discovery.queriesGenerated,
+            queriesExecuted: discovery.queriesExecuted,
+            providerSuccesses: discovery.providerSuccesses + serpapiDiscovery.successes,
+            providerFailures: discovery.providerFailures,
+            providerCandidates: byUrl.size + discovery.pageLeads.length,
+            knownUrlsAttempted: Math.max(knownUrlsAttempted, earlyKnownUrlsAttempted),
+            knownUrlsAccepted: knownAccepted.length,
+            pagesCrawled,
+            clientVisibleFindings: clientVisibleFindings.length,
+            abortedByDeadline,
+            firecrawlCircuitOpened: discovery.firecrawl_circuit_opened,
+            serpapiSuccesses: serpapiDiscovery.successes,
+            serpapiCandidates: serpapiDiscovery.candidates,
+            brightDataQueriesGenerated: brightDataDiscovery.queriesGenerated,
+            brightDataRequests: brightDataDiscovery.requests,
+            brightDataSuccesses: brightDataDiscovery.successes,
+            brightDataCandidates: brightDataDiscovery.candidates,
+          });
 
       const providerFailureHint = summarizeProviderFailures({
         provider_failures_by_category: discovery.providerFailuresByCategory,
@@ -2776,15 +3162,30 @@ export async function executeCopyrightScanById(opts: {
           ? `${terminal.reason}${providerFailureHint ? ` (${providerFailureHint})` : ""}${operatorHint}`
           : terminal.reason ?? discovery.firecrawl_circuit_reason;
 
-      const finalStats = activity.mergeToStats({
-        ...stats,
-        failure_reason: failureReason,
-        terminal_status: terminal.status,
+      const finalCoverage: DiscoveryCoverageDiagnostics = {
+        ...coverageDiagnostics,
         pages_crawled: Math.max(
           pagesCrawled,
           typeof liveStats.pages_crawled === "number" ? liveStats.pages_crawled : 0,
           earlyKnownUrlsAttempted,
         ),
+        scan_elapsed_ms: Math.max(0, Date.now() - scanStartedAt),
+        termination_reason: resolveScanTerminationReason({
+          cancelled: cancelledByOperator,
+          abortedByDeadline,
+          fatalConfigurationError: terminal.status === "failed",
+          fatalReason: terminal.status === "failed" ? failureReason : null,
+        }),
+        findings_verified: clientVisibleFindings.length,
+      };
+
+      const finalStats = activity.mergeToStats({
+        ...stats,
+        ...finalCoverage,
+        discovery_coverage: finalCoverage,
+        failure_reason: failureReason,
+        terminal_status: terminal.status,
+        pages_crawled: finalCoverage.pages_crawled,
       });
 
       await pushActivity({}, true);
@@ -2829,7 +3230,10 @@ export async function executeCopyrightScanById(opts: {
         await finalizeReleaseMonitorRun(supabase, {
           scanId: scan.id as string,
           protectionId: releaseProtectionId,
-          status: terminal.status,
+          status:
+            terminal.status === "cancelled"
+              ? "failed"
+              : terminal.status,
           providersAttempted:
             discovery.providerRequests +
             serpapiDiscovery.requests +

@@ -885,6 +885,33 @@ function CopyrightIntelPage() {
                       .suspicious_sources_summary as string)
                   : null
               }
+              coverage={(() => {
+                const stats =
+                  detail.data?.scan?.stats && typeof detail.data.scan.stats === "object"
+                    ? (detail.data.scan.stats as Record<string, unknown>)
+                    : null;
+                const n = (key: string) => {
+                  const v = stats?.[key];
+                  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+                };
+                return {
+                  candidatePages: Math.max(
+                    n("unique_candidate_urls"),
+                    n("unique_candidate_pages"),
+                    (detail.data?.allSources ?? []).length,
+                  ),
+                  uniqueDomains: Math.max(n("unique_candidate_domains"), suspiciousSources.length),
+                  pagesCrawled: n("pages_crawled"),
+                  rejectedCandidates: Math.max(
+                    n("candidates_rejected"),
+                    n("title_identity_rejected") +
+                      n("hard_negative_rejected") +
+                      n("access_evidence_rejected") +
+                      n("artwork_only_rejected"),
+                  ),
+                  notProcessedDueToBudget: n("not_processed_due_to_budget"),
+                };
+              })()}
               onReview={(matchId) =>
                 review.mutate({ matchId, reviewStatus: "evidence_ready" })
               }

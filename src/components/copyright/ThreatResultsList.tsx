@@ -19,6 +19,7 @@ import {
   faviconUrlFor,
   filterThreatRows,
   groupThreatRowsBySeverity,
+  summarizeThreatIntelligence,
   SEVERITY_META,
   THREAT_FILTERS,
   type InspectedSourceInput,
@@ -347,11 +348,20 @@ function SeverityGroup({
   );
 }
 
+export type ThreatCoverageCounters = {
+  pagesCrawled?: number;
+  rejectedCandidates?: number;
+  notProcessedDueToBudget?: number;
+  uniqueDomains?: number;
+  candidatePages?: number;
+};
+
 export type ThreatResultsListProps = {
   suspicious: PublicSuspiciousSource[];
   inspected?: InspectedSourceInput[];
   workTitle: string;
   summaryLine?: string | null;
+  coverage?: ThreatCoverageCounters | null;
   onReview?: (matchId: string) => void;
   onDismiss?: (matchId: string) => void;
   onInvestigate?: (row: ThreatResultRow) => void;
@@ -366,6 +376,7 @@ export function ThreatResultsList({
   inspected,
   workTitle,
   summaryLine,
+  coverage,
   onReview,
   onDismiss,
   onInvestigate,
@@ -383,6 +394,15 @@ export function ThreatResultsList({
   );
   const groups = useMemo(() => groupThreatRowsBySeverity(rows), [rows]);
   const totals = useMemo(() => countThreatStatuses(allRows), [allRows]);
+  const intel = useMemo(() => summarizeThreatIntelligence(allRows), [allRows]);
+  const candidatePages =
+    coverage?.candidatePages ??
+    inspected?.length ??
+    allRows.reduce((n, r) => n + r.findingCount, 0);
+  const uniqueDomains = coverage?.uniqueDomains ?? totals.total;
+  const pagesCrawled = coverage?.pagesCrawled ?? 0;
+  const rejectedCandidates = coverage?.rejectedCandidates ?? 0;
+  const notProcessedDueToBudget = coverage?.notProcessedDueToBudget ?? 0;
 
   return (
     <div className="space-y-3">
@@ -395,11 +415,34 @@ export function ThreatResultsList({
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-card/50 px-2.5 py-1.5 text-xs">
           <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="font-semibold tabular-nums">{totals.total}</span>
-          <span className="text-muted-foreground">domains detected</span>
+          <span className="font-semibold tabular-nums">{candidatePages}</span>
+          <span className="text-muted-foreground">candidate pages</span>
+        </div>
+        <div className="rounded-md border border-border/60 bg-card/50 px-2.5 py-1.5 text-xs">
+          <span className="font-semibold tabular-nums">{uniqueDomains}</span>{" "}
+          <span className="text-muted-foreground">domains</span>
+        </div>
+        <div className="rounded-md border border-border/60 bg-card/50 px-2.5 py-1.5 text-xs">
+          <span className="font-semibold tabular-nums">{pagesCrawled}</span>{" "}
+          <span className="text-muted-foreground">crawled</span>
+        </div>
+        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-300">
+          <span className="font-semibold tabular-nums">{intel.verified}</span> verified threats
+        </div>
+        <div className="rounded-md border border-amber-400/30 bg-amber-400/10 px-2.5 py-1.5 text-xs text-amber-200">
+          <span className="font-semibold tabular-nums">{intel.pendingReview}</span> pending verification
+        </div>
+        <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs text-rose-200">
+          <span className="font-semibold tabular-nums">{rejectedCandidates}</span> rejected
+        </div>
+        <div className="rounded-md border border-slate-500/30 bg-slate-500/10 px-2.5 py-1.5 text-xs text-slate-300">
+          <span className="font-semibold tabular-nums">{notProcessedDueToBudget}</span> budget skipped
         </div>
         <span className="text-xs text-muted-foreground">
-          {totals.active} active · {totals.offline} offline · {totals.removed} removed
+          {intel.distribution.cloud_storage || 0} cloud · {intel.distribution.streaming || 0} streaming ·{" "}
+          {(intel.distribution.archive || 0) + (intel.distribution.document || 0)} archive ·{" "}
+          {intel.distribution.mirror || 0} mirrors · {intel.distribution.telegram || 0} telegram ·{" "}
+          {intel.distribution.torrent || 0} torrents
         </span>
         <div className="relative ml-auto w-full sm:w-64">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />

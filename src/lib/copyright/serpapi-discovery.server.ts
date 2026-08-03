@@ -15,7 +15,9 @@ import {
   sleepWithAbort,
 } from "./discovery-runtime";
 
-export const COPYRIGHT_SERPAPI_MAX_HTTP_ATTEMPTS = 5;
+import { SERPAPI_MAX_HTTP_ATTEMPTS } from "./discovery-config";
+
+export const COPYRIGHT_SERPAPI_MAX_HTTP_ATTEMPTS = SERPAPI_MAX_HTTP_ATTEMPTS;
 export const COPYRIGHT_SERPAPI_MAX_UNIQUE_PAGES = 100;
 export const COPYRIGHT_SERPAPI_MAX_RETRIES = 1;
 export const COPYRIGHT_SERPAPI_REQUEST_TIMEOUT_MS = 12_000;
