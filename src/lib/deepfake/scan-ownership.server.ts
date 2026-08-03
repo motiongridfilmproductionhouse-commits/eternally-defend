@@ -40,6 +40,17 @@ export type DiscoveryFunnelMetrics = {
   serpapi_face_rejected: number;
   serpapi_verified: number;
   serpapi_credits_used: number;
+  /** Reference image collection */
+  reference_images_count: number;
+  final_reference_images: number;
+  embeddings_indexed: number;
+  aliases_generated: number;
+  images_downloaded: number;
+  images_compared: number;
+  face_comparisons: number;
+  reference_google_images_found: number;
+  reference_bing_images_found: number;
+  reference_yandex_images_found: number;
 };
 
 export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
@@ -73,6 +84,16 @@ export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
     serpapi_face_rejected: 0,
     serpapi_verified: 0,
     serpapi_credits_used: 0,
+    reference_images_count: 0,
+    final_reference_images: 0,
+    embeddings_indexed: 0,
+    aliases_generated: 0,
+    images_downloaded: 0,
+    images_compared: 0,
+    face_comparisons: 0,
+    reference_google_images_found: 0,
+    reference_bing_images_found: 0,
+    reference_yandex_images_found: 0,
   };
 }
 

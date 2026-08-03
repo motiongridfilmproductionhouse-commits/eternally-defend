@@ -40,11 +40,13 @@ import {
 } from "@/lib/deepfake/scan-ui-state";
 import {
   decideResultsConsoleMount,
+  emptyFindingsDetailLines,
   emptyFindingsStatusMessage,
   explainResultsConsoleMountDecision,
   extractClientVisibleFindings,
   shouldRenderLegacyFindingCards,
 } from "@/lib/deepfake/results-console-mount";
+import { InvestigationStatsPanel } from "@/components/deepfake/InvestigationStatsPanel";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { ThreatAlertBanner } from "@/components/deepfake/ThreatAlertBanner";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
@@ -1382,8 +1384,14 @@ function DeepfakeIntelPage() {
                 {(diagnostics || scan.status === "running") && (
                   <details className="mt-3 rounded-md border border-border/70 bg-secondary/20 p-3" open={scan.status === "running"}>
                     <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      {scan.status === "running" ? "Live Discovery Progress" : "Discovery Diagnostics"}
+                      {scan.status === "running" ? "Live Investigation Progress" : "Investigation Diagnostics"}
                     </summary>
+                    <div className="mt-3">
+                      <InvestigationStatsPanel
+                        metrics={discoveryMetricObject ?? undefined}
+                        status={scan.status}
+                      />
+                    </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                       {DIAGNOSTIC_KEYS.map((key) => (
                         <div
@@ -1446,6 +1454,7 @@ function DeepfakeIntelPage() {
                     emptyMessage={emptyFindingsStatusMessage({
                       status: scan.status,
                       errorMessage: scan.error_message,
+                      discoveryMetrics: discoveryMetricObject ?? undefined,
                     })}
                     threatTone={threatSummary.tone}
                     focusDomain={threatDomainFocus}
@@ -1455,10 +1464,21 @@ function DeepfakeIntelPage() {
                     className="card-surface p-10 text-center text-sm text-muted-foreground"
                     data-testid="deepfake-results-empty"
                   >
-                    {emptyFindingsStatusMessage({
-                      status: scan.status,
-                      errorMessage: scan.error_message,
-                    })}
+                    <p>
+                      {emptyFindingsStatusMessage({
+                        status: scan.status,
+                        errorMessage: scan.error_message,
+                        discoveryMetrics: discoveryMetricObject ?? undefined,
+                      })}
+                    </p>
+                    <ul className="mt-4 text-left text-xs space-y-1 max-w-lg mx-auto list-disc pl-4">
+                      {emptyFindingsDetailLines({
+                        status: scan.status,
+                        discoveryMetrics: discoveryMetricObject ?? undefined,
+                      }).map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>

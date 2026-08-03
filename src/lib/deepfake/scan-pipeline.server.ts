@@ -63,6 +63,8 @@ import {
   shouldPersistFinding,
   type FindingClassification,
 } from "./page-evidence.server";
+import { collectReferenceImages } from "./reference-collection.server";
+import { expandIdentityVariants } from "./identity-variants.server";
 import { isUrlVerified } from "./url-verification.server";
 
 type ProviderHit = {
@@ -360,11 +362,21 @@ export async function executeInterleavedDeepfakePipeline(input: {
   runtime: ScanRuntime;
   resumeCheckpoint?: ScanCheckpoint | null;
 }): Promise<PipelineResult> {
-  const maxQueries = input.resumeCheckpoint?.max_queries ?? input.maxQueries ?? 56;
+  const autoAliases = expandIdentityVariants({
+    name: input.target.name,
+    aliases: input.target.aliases,
+    handles: input.target.handles,
+  });
+  const mergedAliases = [
+    ...new Set([...input.target.aliases, ...autoAliases]),
+  ].slice(0, 48);
+  const mergedTarget = { ...input.target, aliases: mergedAliases };
+
+  const maxQueries = input.resumeCheckpoint?.max_queries ?? input.maxQueries ?? 72;
   const perQueryLimit =
     input.resumeCheckpoint?.per_query_limit ?? input.perQueryLimit ?? 20;
   const scheduledQueries = buildScheduledQueries({
-    target: input.target,
+    target: mergedTarget,
     googleImagesUrl: input.googleImagesUrl,
     maxQueries,
   });
@@ -384,15 +396,79 @@ export async function executeInterleavedDeepfakePipeline(input: {
     resumeCheckpoint ??
     createEmptyCheckpoint({
       queries: scheduledQueries,
-      targetName: input.target.name,
+      targetName: mergedTarget.name,
       profileId: input.profileId ?? null,
-      aliases: input.target.aliases,
-      handles: input.target.handles,
+      aliases: mergedTarget.aliases,
+      handles: mergedTarget.handles,
       perQueryLimit,
       maxQueries,
       initialWaveCount: INITIAL_PRIORITY_QUERY_COUNT,
       metrics,
     });
+
+  metrics.aliases_generated = autoAliases.length;
+
+  if (!resumeCheckpoint) {
+    await touchScanProgress({
+      supabase: input.supabase,
+      ownership: input.ownership,
+      patch: {
+        discovery_metrics: {
+          ...metrics,
+          investigation_stage: "collecting_reference_images",
+          aliases_generated: metrics.aliases_generated,
+        },
+      },
+    });
+
+    const refResult = await collectReferenceImages({
+      name: mergedTarget.name,
+      aliases: mergedTarget.aliases,
+      handles: mergedTarget.handles,
+      signal: input.runtime.signal,
+      softDeadlineMs: input.runtime.softDeadlineMs,
+      onProgress: async (stage) => {
+        await touchScanProgress({
+          supabase: input.supabase,
+          ownership: input.ownership,
+          patch: {
+            discovery_metrics: {
+              ...metrics,
+              investigation_stage: stage,
+            },
+          },
+        });
+      },
+    });
+
+    metrics.reference_images_count = refResult.final_reference_count;
+    metrics.final_reference_images = refResult.final_reference_count;
+    metrics.embeddings_indexed = refResult.images.filter((i) => i.embedding_indexed).length;
+    metrics.images_downloaded = refResult.provider_stats.reduce(
+      (sum, s) => sum + s.images_downloaded,
+      0,
+    );
+    for (const stat of refResult.provider_stats) {
+      if (stat.provider === "google_images") {
+        metrics.reference_google_images_found = stat.images_found;
+      } else if (stat.provider === "bing_images") {
+        metrics.reference_bing_images_found = stat.images_found;
+      } else if (stat.provider === "yandex_images") {
+        metrics.reference_yandex_images_found = stat.images_found;
+      }
+    }
+    await touchScanProgress({
+      supabase: input.supabase,
+      ownership: input.ownership,
+      patch: {
+        discovery_metrics: {
+          ...metrics,
+          reference_image_provider_stats: refResult.provider_stats,
+          reference_images: refResult.images.slice(0, 120),
+        },
+      },
+    });
+  }
 
   if (!resumeCheckpoint) {
     checkpoint.queries = scheduledQueries;
@@ -407,8 +483,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
       "./serpapi-images.server"
     );
     checkpoint.serpapi_queries = buildSerpApiExactIdentityQueries({
-      name: input.target.name,
-      aliases: input.target.aliases,
+      name: mergedTarget.name,
+      aliases: mergedTarget.aliases,
     });
     checkpoint.serpapi_next_query_index = 0;
     checkpoint.serpapi_completed_query_ids =

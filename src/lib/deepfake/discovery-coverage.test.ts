@@ -110,7 +110,7 @@ function targetBody(name: string, unique: string): string {
   return `${name} deepfake face swap clip is described on this exact content page. This primary body contains synthetic media evidence, AI nude context, and unique page marker ${unique}.`;
 }
 
-test("generated query plan stays in the 40-60 focused query range", () => {
+test("generated query plan stays in the 40-84 focused query range", () => {
   const queries = generateDeepfakeQueries({
     name: "Maya Kapoor",
     aliases: ["M Kapoor"],
@@ -118,7 +118,7 @@ test("generated query plan stays in the 40-60 focused query range", () => {
   });
 
   assert.ok(queries.length >= 40);
-  assert.ok(queries.length <= 60);
+  assert.ok(queries.length <= 84);
   assert.ok(queries.every((query) => query.includes('"Maya Kapoor"') || query.includes('"M Kapoor"')));
   assert.ok(!queries.some((query) => query.includes("not-used-as-identity")));
 });
