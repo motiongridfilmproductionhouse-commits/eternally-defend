@@ -66,6 +66,20 @@ test("continueDeepfakeScan acquires ownership then returns without awaiting pipe
   assert.doesNotMatch(continueBlock, /executeInterleavedDeepfakePipeline/);
 });
 
+test("listDeepfakeScans excludes failed scans from history", () => {
+  const src = functionsSource();
+  const listStart = src.indexOf("export const listDeepfakeScans");
+  const getStart = src.indexOf("export const getDeepfakeScan");
+  const listBlock = src.slice(listStart, getStart === -1 ? undefined : getStart);
+  assert.match(listBlock, /\.neq\(\s*"status"\s*,\s*"failed"\s*\)/);
+});
+
+test("SCAN HISTORY UI filters failed scans client-side", () => {
+  const src = uiSource();
+  assert.match(src, /filterScanHistory/);
+  assert.match(src, /historyScans/);
+});
+
 test("UI wires click → run.mutate → executePipeline.mutate with scan_id", () => {
   const src = uiSource();
   assert.match(src, /onClick=\{onRun\}/);
