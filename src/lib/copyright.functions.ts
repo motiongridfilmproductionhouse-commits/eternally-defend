@@ -1990,6 +1990,7 @@ export async function executeCopyrightScanById(opts: {
             identity_evidence: dist.identityEvidence,
             access_evidence: dist.accessEvidence,
             confidence_breakdown: dist.confidenceBreakdown,
+            page_excerpt: dist.pageExcerpt ?? null,
             embed_sources: dist.embedSources,
             page_evidence: pageEvidence,
             crawl_failed: dist.crawlFailed,
