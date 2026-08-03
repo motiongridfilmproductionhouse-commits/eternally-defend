@@ -47,12 +47,13 @@ test("threat results: produces one row per unique domain and keeps every domain"
         src({ id: "c", url: "https://ok.ru/video", confidence: 91 }),
       ],
       inspected: [
-        { id: "d", url: "https://dailymotion.com/v", host: "dailymotion.com", confidence: 74 },
+        { id: "d", url: "https://ogomovies.xxx/c", host: "ogomovies.xxx", confidence: 74 },
+        { id: "e", url: "https://youtube.com/watch?v=1", host: "youtube.com", confidence: 95 },
       ],
     });
-    assert.deepEqual(rows.map((r) => r.domain), ["ogomovies.xxx", "ok.ru", "dailymotion.com"]);
+    assert.deepEqual(rows.map((r) => r.domain), ["ogomovies.xxx", "ok.ru"]);
     const first = rows[0]!;
-    assert.equal(first.findingCount, 2);
+    assert.equal(first.findingCount, 3);
     assert.ok(first.additionalUrls.includes("https://www.ogomovies.xxx/b"));
   });
 

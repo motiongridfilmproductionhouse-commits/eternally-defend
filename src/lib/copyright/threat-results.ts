@@ -8,6 +8,7 @@
  */
 
 import type { PublicSuspiciousSource } from "./suspicious-sources";
+import { isNeverDisplayHost } from "./verified-distribution";
 
 export type ThreatSeverity = "critical" | "high" | "medium" | "low";
 
@@ -391,11 +392,15 @@ export function buildThreatResultRows(input: {
   /** Include inspected leads that produced no evidence at all. Defaults to true. */
   includeUnverified?: boolean;
 }): ThreatResultRow[] {
-  const includeUnverified = input.includeUnverified ?? true;
+  // Default: never introduce a domain that was only searched or checked.
+  const includeUnverified = input.includeUnverified ?? false;
   const byDomain = new Map<string, ThreatResultRow>();
 
   const push = (row: ThreatResultRow) => {
     if (!row.domain) return;
+    // Mainstream platforms, catalogs, official distributors, news and search
+    // engines are never presented as infringement targets.
+    if (isNeverDisplayHost(row.domain)) return;
     const existing = byDomain.get(row.domain);
     if (!existing) {
       byDomain.set(row.domain, row);

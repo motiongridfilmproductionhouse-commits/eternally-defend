@@ -1,6 +1,10 @@
 import { useMemo } from "react";
 import { Clock } from "lucide-react";
-import type { ScanActivityEvent } from "@/lib/copyright/scan-activity";
+import {
+  cleanActivityLabel,
+  filterDisplayableActivity,
+  type ScanActivityEvent,
+} from "@/lib/copyright/scan-activity";
 
 export type TimelineEntry = { time: string; label: string; tone?: "info" | "warn" | "hot" };
 
@@ -28,16 +32,17 @@ export function InvestigationTimeline({
   const entries = useMemo<TimelineEntry[]>(() => {
     const rows: TimelineEntry[] = [];
     if (scanStartedAt) rows.push({ time: clock(scanStartedAt), label: "Scan started" });
-    for (const e of [...events].reverse().slice(-14)) {
+    // Only verified illegal distribution events are surfaced; retrieval noise and
+    // searched-only platforms stay in the internal log.
+    const verified = filterDisplayableActivity(events);
+    if (verified.length === 0) {
+      rows.push({ time: clock(scanStartedAt), label: "Searching verified piracy websites…" });
+    }
+    for (const e of [...verified].reverse().slice(-14)) {
       rows.push({
         time: clock(e.occurred_at),
-        label: `${e.stage_label} — ${e.hostname} (${e.threat_label})`,
-        tone:
-          e.threat === "verified_finding"
-            ? "hot"
-            : e.threat === "high_risk" || e.threat === "potential"
-              ? "warn"
-              : "info",
+        label: `${cleanActivityLabel(e)} — ${e.hostname}`,
+        tone: "hot",
       });
     }
     return [...rows, ...extra];
