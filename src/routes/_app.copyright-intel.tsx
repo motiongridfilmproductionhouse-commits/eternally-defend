@@ -37,6 +37,7 @@ import {
 import { ReleaseProtectionPanel } from "@/components/copyright/ReleaseProtectionPanel";
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
+import { InvestigationCenter } from "@/components/copyright/cyber/InvestigationCenter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   crawlMetricsFromStats,
@@ -666,12 +667,27 @@ function CopyrightIntelPage() {
         <section className="space-y-3">
           {!selectedScanId && <p className="text-sm text-muted-foreground">Select a scan to review graded evidence.</p>}
           {selectedScanId && (
-            <Tabs defaultValue="sources">
+            <Tabs defaultValue="center">
               <TabsList>
+                <TabsTrigger value="center">Investigation center</TabsTrigger>
                 <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
                 <TabsTrigger value="all">All sources</TabsTrigger>
                 <TabsTrigger value="youtube">Video monitoring</TabsTrigger>
               </TabsList>
+              <TabsContent value="center" className="mt-3">
+                <InvestigationCenter
+                  scanId={selectedScanId}
+                  scanStatus={selectedScanStatus}
+                  scanStartedAt={detail.data?.scan?.created_at ?? null}
+                  workTitle={selectedScanTitle ?? scanMeta?.title ?? ""}
+                  stats={activeScanStats}
+                  sources={suspiciousSources}
+                  onReview={(matchId) =>
+                    review.mutate({ matchId, reviewStatus: "evidence_ready" })
+                  }
+                  onDismiss={(matchId) => review.mutate({ matchId, reviewStatus: "dismissed" })}
+                />
+              </TabsContent>
               <TabsContent value="all" className="mt-3">
                 <AllSourcesPanel sources={(detail.data?.allSources ?? []) as never} />
               </TabsContent>
