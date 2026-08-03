@@ -11,6 +11,7 @@ import {
   normalizeClientFindings,
   type ClientFinding,
 } from "./results-dashboard";
+import { explainNoDeepfakeResults } from "./scan-diagnostics";
 
 export type GetDeepfakeScanPayload = {
   scan?: {
@@ -105,6 +106,7 @@ export function shouldRenderLegacyFindingCards(input: {
 export function emptyFindingsStatusMessage(input: {
   status?: string | null;
   errorMessage?: string | null;
+  discoveryMetrics?: Record<string, unknown> | null;
 }): string {
   if (input.status === "running") {
     return "Sweep in progress — verified results appear as batches are saved.";
@@ -115,5 +117,20 @@ export function emptyFindingsStatusMessage(input: {
   if (input.status === "failed") {
     return input.errorMessage || "Scan failed before verified progress was saved.";
   }
+
+  const explained = explainNoDeepfakeResults(
+    input.discoveryMetrics ?? null,
+    input.status,
+  );
+  if (explained.reasons.length) {
+    return `${explained.headline}: ${explained.reasons[0]}`;
+  }
   return "No findings at this risk level.";
+}
+
+export function emptyFindingsDetailLines(input: {
+  status?: string | null;
+  discoveryMetrics?: Record<string, unknown> | null;
+}): string[] {
+  return explainNoDeepfakeResults(input.discoveryMetrics ?? null, input.status).reasons;
 }
