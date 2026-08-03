@@ -3088,7 +3088,7 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
     const suspiciousSources = buildSuspiciousSourcesFromMatches(matches ?? []);
     const sanitizedScan = sanitizeCopyrightScanRowForClient(
       watchedScan as unknown as Record<string, unknown>,
-    );
+    ) as unknown as typeof watchedScan;
     return {
       scan: sanitizedScan,
       matches: filterClientVisibleCopyrightMatches(matches ?? []),
