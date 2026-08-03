@@ -99,3 +99,16 @@ export function shouldShowHistoryEmpty(input: {
   }
   return input.count === 0;
 }
+
+/** Failed scans stay out of SCAN HISTORY (partial/completed/running remain). */
+export function isVisibleScanHistoryStatus(
+  status: ScanStatus | null | undefined,
+): boolean {
+  return status !== "failed";
+}
+
+export function filterScanHistory<T extends { status: ScanStatus }>(
+  scans: T[],
+): T[] {
+  return scans.filter((scan) => isVisibleScanHistoryStatus(scan.status));
+}

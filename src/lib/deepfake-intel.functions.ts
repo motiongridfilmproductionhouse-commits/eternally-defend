@@ -520,6 +520,7 @@ export const listDeepfakeScans = createServerFn({ method: "GET" })
       .from("deepfake_scans")
       .select("*")
       .eq("user_id", userId)
+      .neq("status", "failed")
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);

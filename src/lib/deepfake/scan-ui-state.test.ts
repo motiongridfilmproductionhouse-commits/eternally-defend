@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  filterScanHistory,
   isScanStalled,
   isTerminalScanStatus,
+  isVisibleScanHistoryStatus,
   pickLiveScanId,
   scanPollInterval,
   scanProgressSignature,
@@ -71,4 +73,24 @@ test("progress signature changes when metrics or findings change", () => {
   assert.notEqual(a, b);
   assert.notEqual(b, c);
   assert.equal(a, scanProgressSignature({ status: "running", metrics: { verified: 1 }, findingCount: 0, discoveryCount: 3 }));
+});
+
+test("scan history hides failed scans and keeps partial/completed/running", () => {
+  assert.equal(isVisibleScanHistoryStatus("failed"), false);
+  assert.equal(isVisibleScanHistoryStatus("partial"), true);
+  assert.equal(isVisibleScanHistoryStatus("completed"), true);
+  assert.equal(isVisibleScanHistoryStatus("running"), true);
+
+  const visible = filterScanHistory([
+    { id: "1", status: "partial" },
+    { id: "2", status: "failed" },
+    { id: "3", status: "failed" },
+    { id: "4", status: "completed" },
+    { id: "5", status: "running" },
+  ]);
+
+  assert.deepEqual(
+    visible.map((scan) => scan.id),
+    ["1", "4", "5"],
+  );
 });

@@ -33,6 +33,7 @@ import {
   scanPollInterval,
   scanProgressSignature,
   SCAN_STALL_WARNING_MS,
+  filterScanHistory,
   shouldShowHistoryEmpty,
   shouldShowHistoryLoading,
   shouldShowResultsLoader,
@@ -227,6 +228,8 @@ function DeepfakeIntelPage() {
       });
     },
   });
+
+  const historyScans = filterScanHistory(scans.data ?? []);
 
   const selected = useQuery({
     queryKey: ["deepfake-scan", selectedScanId],
@@ -1161,12 +1164,12 @@ function DeepfakeIntelPage() {
                 isLoading: scans.isLoading,
                 isFetching: scans.isFetching,
                 isError: scans.isError,
-                count: (scans.data ?? []).length,
+                count: historyScans.length,
               }) ? (
               <div className="text-xs text-muted-foreground py-4 text-center">No scans yet.</div>
             ) : (
               <ul className="space-y-1.5 max-h-[420px] overflow-auto">
-                {(scans.data ?? []).map((s) => (
+                {historyScans.map((s) => (
                   <li key={s.id}>
                     <button
                       onClick={() => setSelectedScanId(s.id)}
