@@ -31,18 +31,39 @@ export function InvestigationTimeline({
 }: InvestigationTimelineProps) {
   const entries = useMemo<TimelineEntry[]>(() => {
     const rows: TimelineEntry[] = [];
-    if (scanStartedAt) rows.push({ time: clock(scanStartedAt), label: "Scan started" });
+    if (scanStartedAt) {
+      rows.push({ time: clock(scanStartedAt), label: "Scan Started" });
+      rows.push({ time: clock(scanStartedAt), label: "Google Discovery" });
+      rows.push({ time: clock(scanStartedAt), label: "Firecrawl Discovery" });
+      rows.push({ time: clock(scanStartedAt), label: "Search Expansion" });
+      rows.push({ time: clock(scanStartedAt), label: "Candidate Verification" });
+    }
     // Only verified illegal distribution events are surfaced; retrieval noise and
     // searched-only platforms stay in the internal log.
     const verified = filterDisplayableActivity(events);
     if (verified.length === 0) {
-      rows.push({ time: clock(scanStartedAt), label: "Searching verified piracy websites…" });
+      rows.push({
+        time: clock(scanStartedAt),
+        label: "Searching verified piracy websites…",
+      });
     }
     for (const e of [...verified].reverse().slice(-14)) {
       rows.push({
         time: clock(e.occurred_at),
-        label: `${cleanActivityLabel(e)} — ${e.hostname}`,
+        label: `Threat Classification — ${e.hostname}`,
         tone: "hot",
+      });
+      rows.push({
+        time: clock(e.occurred_at),
+        label: `Evidence Generated — ${cleanActivityLabel(e)}`,
+        tone: "warn",
+      });
+    }
+    if (verified.length) {
+      rows.push({
+        time: clock(verified[0]?.occurred_at ?? scanStartedAt),
+        label: "Risk Scoring",
+        tone: "info",
       });
     }
     return [...rows, ...extra];

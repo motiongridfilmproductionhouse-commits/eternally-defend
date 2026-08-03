@@ -67,12 +67,15 @@ const OFFICIAL_HOSTS = [
 
 const FILE_HOST_HINTS = [
   "mega.nz", "mediafire.com", "drive.google.com", "dropbox.com", "1fichier.com", "pixeldrain.com",
-  "gofile.io", "krakenfiles.com", "anonfiles.com", "workupload.com", "send.cm", "doodstream.com",
-  "streamtape.com", "mixdrop.co", "vidmoly.to", "filemoon.sx", "streamsb.net", "upstream.to",
+  "gofile.io", "krakenfiles.com", "anonfiles.com", "workupload.com", "send.cm",
+  "terabox.com", "terabox.app", "1024terabox.com",
+  "doodstream.com", "streamtape.com", "mixdrop.co", "vidmoly.to", "filemoon.sx",
+  "streamsb.net", "upstream.to",
 ];
 
 const VIDEO_HOST_HINTS = [
   "dailymotion.com", "ok.ru", "vk.com", "rumble.com", "bitchute.com", "archive.org",
+  "bilibili.tv", "bilibili.com",
   "vimeo.com", "streamable.com", "odysee.com",
   // youtube.com / youtu.be intentionally omitted — official-platform gate handles them
 ];

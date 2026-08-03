@@ -189,7 +189,7 @@ export interface ProviderSearchAttempt {
 }
 
 /** Focused query cap — early-stop may finish sooner when enough pages are found. */
-const DISCOVERY_MAX_QUERIES_PER_SCAN = 35;
+const DISCOVERY_MAX_QUERIES_PER_SCAN = 40;
 
 export interface DiscoveryProgress {
   queriesGenerated: number;
@@ -453,15 +453,15 @@ const LOCAL_TERMS: Record<string, string[]> = {
 };
 
 const PIRACY_SITE_FILTER =
-  "(site:telegram.me OR site:t.me OR site:archive.org OR site:ok.ru OR site:dailymotion.com OR site:rumble.com OR site:vk.com OR site:pastebin.com OR site:reddit.com OR site:x.com OR site:facebook.com)";
+  "(site:telegram.me OR site:t.me OR site:archive.org OR site:ok.ru OR site:dailymotion.com OR site:bilibili.tv OR site:bilibili.com OR site:rumble.com OR site:vk.com OR site:pastebin.com OR site:reddit.com OR site:x.com OR site:facebook.com)";
 
 /** File lockers and embed hosts that typically carry unauthorized copies. */
 const FILE_HOST_FILTER =
-  "(site:mega.nz OR site:mediafire.com OR site:gofile.io OR site:pixeldrain.com OR site:doodstream.com OR site:streamtape.com OR site:mixdrop.co OR site:filemoon.sx OR site:1fichier.com)";
+  "(site:mega.nz OR site:mediafire.com OR site:gofile.io OR site:pixeldrain.com OR site:terabox.com OR site:terabox.app OR site:drive.google.com OR site:doodstream.com OR site:streamtape.com OR site:mixdrop.co OR site:filemoon.sx OR site:1fichier.com)";
 
 /** Known unauthorized streaming / index domains. */
 const STREAM_SITE_FILTER =
-  "(site:movierulz.vc OR site:ibomma.bet OR site:tamilrockers.ws OR site:123movies.ai OR site:fmovies.to OR site:soap2day.day OR site:vegamovies.nl OR site:mp4moviez.ink OR site:9xmovies.gold) full movie";
+  "(site:movierulz.vc OR site:ibomma.bet OR site:tamilrockers.ws OR site:123movies.ai OR site:fmovies.to OR site:soap2day.day OR site:vegamovies.nl OR site:mp4moviez.ink OR site:9xmovies.gold OR site:ogomovies1.com.pk) full movie";
 
 /**
  * Piracy site families grouped into search-engine friendly clusters. These are
@@ -469,12 +469,14 @@ const STREAM_SITE_FILTER =
  */
 const PIRACY_SITE_CLUSTERS: string[] = [
   "(site:ogomovies1.com.pk OR site:ogomovies.com OR site:einthusan.tv OR site:mallumv.co OR site:malluvilla.in)",
+  "(site:bilibili.tv OR site:bilibili.com OR site:dailymotion.com OR site:ok.ru OR site:archive.org) full movie",
+  "(site:terabox.app OR site:terabox.com OR site:mega.nz OR site:pixeldrain.com OR site:drive.google.com) (download OR sharing OR movie)",
   "(site:movierulz.vc OR site:movierulz2.com OR site:5movierulz.re OR site:todaypk.mx OR site:movieswood.com)",
   "(site:tamilmv.vip OR site:1tamilmv.com OR site:tamilblasters.hair OR site:moviesda.mobi OR site:isaimini.com)",
   "(site:hdhub4u.tv OR site:filmy4wap.co.in OR site:vegamovies.nl OR site:bolly4u.org OR site:sdmoviespoint.cc)",
   "(site:katmoviehd.tw OR site:cinevood.pics OR site:dvdplay.com.tz OR site:mp4moviez.ink OR site:9xmovies.gold)",
   "(site:t.me OR site:telegram.me) movie download",
-  "(site:dailymotion.com OR site:ok.ru OR site:vk.com OR site:archive.org OR site:rumble.com) full movie",
+  "(site:dailymotion.com OR site:ok.ru OR site:vk.com OR site:archive.org OR site:rumble.com OR site:bilibili.tv) full movie",
 ];
 
 function localTermsFor(langs: string[]): string[] {
@@ -500,7 +502,13 @@ interface QueryPlan {
 }
 
 /** Optional discovery seed domains for regression / focused hunting — never auto-guilty. */
-const OPTIONAL_SEED_DOMAINS = ["ogomovies1.com.pk"];
+const OPTIONAL_SEED_DOMAINS = [
+  "ogomovies1.com.pk",
+  "bilibili.tv",
+  "archive.org",
+  "terabox.app",
+  "dailymotion.com",
+];
 
 /**
  * Focused exact-title piracy queries. Never search using generic title tokens alone.
@@ -525,16 +533,23 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
   const general = [
     "watch online",
     "watch full movie",
+    "watch free",
     "full movie",
     "download",
+    "direct download",
     "stream",
+    "player",
     "server",
     "CAM",
     "HDCAM",
     "HDTS",
+    "Print",
     "theatre print",
     "WEB-DL",
     "WEBRip",
+    "HDRip",
+    "1080p",
+    "720p",
     "torrent",
     "magnet",
     "telegram",
@@ -543,6 +558,17 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
     "streaming server",
     "mega.nz",
     "mediafire",
+    "terabox",
+    "google drive",
+    "pixeldrain",
+    "bilibili",
+    "dailymotion",
+    "archive.org",
+    "mkv",
+    "mp4",
+    "zip",
+    "rar",
+    "pdf",
     "free streaming",
     "hdcam download",
     "dubbed",
@@ -625,6 +651,10 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
   pushPriority(`"${base}" ${STREAM_SITE_FILTER}`);
   pushPriority(`"${base}" torrent magnet ${NEG}`);
   pushPriority(`"${base}" (site:t.me OR site:telegram.me) full movie`);
+  pushPriority(`"${base}" (site:bilibili.tv OR site:bilibili.com) movie`);
+  pushPriority(`"${base}" (site:terabox.app OR site:terabox.com) sharing`);
+  pushPriority(`"${base}" site:archive.org (pdf OR movie OR boly4u)`);
+  pushPriority(`"${base}" site:dailymotion.com full movie`);
 
   // Native-language piracy phrasing (title always stays exact-quoted).
   const langWord = a.language ? a.language.toLowerCase() : "";
@@ -634,14 +664,18 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
     "movie download hdrip 720p",
     "movie telegram link",
     "movie download link",
+    "1080p mkv download",
+    "watch free online player",
   ]) {
     pushPriority(`"${base}" ${langWord} ${phrase} ${NEG}`.replace(/\s+/g, " "));
   }
 
   const seen = new Set<string>();
-  return [...priority.slice(0, 12), ...plans, ...priority.slice(12)]
+  // Keep high-yield host clusters first so the bounded Firecrawl budget
+  // always spends cycles on ogomovies / bilibili / archive / terabox / dailymotion.
+  return [...priority.slice(0, 16), ...plans, ...priority.slice(16)]
     .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
-    .slice(0, 44);
+    .slice(0, 52);
 }
 
 /**

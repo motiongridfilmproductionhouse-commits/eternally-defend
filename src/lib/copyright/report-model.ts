@@ -10,6 +10,7 @@ import type { DomainIntel } from "./domain-intel";
 import { isNeverDisplayHost, verifyIllegalDistribution } from "./verified-distribution";
 import { TYPE_LABEL, type CopyrightClassification } from "./taxonomy";
 import {
+  CATEGORY_LABELS,
   classifyThreatCategory,
   severityFor,
   type ThreatSeverity,
@@ -429,7 +430,7 @@ function buildThreat(
     pageTitle: str(match.page_title),
     classification,
     classificationLabel: classificationLabel(classification),
-    categoryLabel: categoryKey.replace(/_/g, " "),
+    categoryLabel: CATEGORY_LABELS[categoryKey] ?? categoryKey.replace(/_/g, " "),
     severity,
     status,
     confidence,

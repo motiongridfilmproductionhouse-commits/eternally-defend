@@ -17,12 +17,16 @@ export type ThreatLiveStatus = "active" | "offline" | "removed";
 export type ThreatCategoryKey =
   | "download"
   | "streaming"
+  | "cloud_storage"
   | "file_host"
   | "archive"
+  | "document"
+  | "video_reupload"
   | "mirror"
   | "telegram"
   | "social"
   | "torrent"
+  | "unknown"
   | "other";
 
 /** One row of the results list — always exactly one unique domain. */
@@ -110,21 +114,24 @@ export const SEVERITY_META: Record<
 };
 
 export const CATEGORY_LABELS: Record<ThreatCategoryKey, string> = {
-  download: "Movie download",
-  streaming: "Streaming site",
-  file_host: "File host",
-  archive: "File archive",
-  mirror: "Mirror domain",
-  telegram: "Telegram",
-  social: "Social media",
-  torrent: "Torrent",
-  other: "Re-upload",
+  download: "Unauthorized Download",
+  streaming: "Unauthorized Streaming",
+  cloud_storage: "Cloud Storage Leak",
+  file_host: "Suspicious File Hosting",
+  archive: "Archive Mirror",
+  document: "Document Leak",
+  video_reupload: "Video Re-upload",
+  mirror: "Mirror Website",
+  telegram: "Telegram Distribution",
+  social: "Social Discussion",
+  torrent: "Torrent Index",
+  unknown: "Unknown (Needs Review)",
+  other: "Potential Copyright Infringement",
 };
 
 const STREAMING_HOSTS = [
   "ok.ru",
   "vk.com",
-  "dailymotion.com",
   "rumble.com",
   "bitchute.com",
   "youtube.com",
@@ -139,7 +146,17 @@ const STREAMING_HOSTS = [
   "voe.sx",
 ];
 
-const FILE_HOST_HOSTS = [
+const VIDEO_REUPLOAD_HOSTS = [
+  "dailymotion.com",
+  "bilibili.tv",
+  "bilibili.com",
+  "ok.ru",
+  "vk.com",
+  "rumble.com",
+  "bitchute.com",
+];
+
+const CLOUD_STORAGE_HOSTS = [
   "mega.nz",
   "mediafire",
   "anonfiles",
@@ -150,6 +167,18 @@ const FILE_HOST_HOSTS = [
   "zippyshare",
   "dropbox.com",
   "drive.google.com",
+  "terabox.com",
+  "terabox.app",
+  "1024terabox.com",
+];
+
+const FILE_HOST_HOSTS = [
+  "doodstream",
+  "streamtape",
+  "mixdrop",
+  "filemoon",
+  "vidmoly",
+  "upstream.to",
 ];
 
 const ARCHIVE_HOSTS = ["archive.org", "web.archive.org", "archive.ph", "archive.today"];
@@ -224,28 +253,94 @@ export function classifyThreatCategory(input: {
   classification?: string | null;
   contentType?: string | null;
 }): ThreatCategoryKey {
-  const domain = input.domain.toLowerCase();
-  const url = input.url.toLowerCase();
+  const domain = (input.domain ?? "").toLowerCase();
+  const url = (input.url ?? "").toLowerCase();
   const cls = (input.classification ?? "").toUpperCase();
   const contentType = (input.contentType ?? "").toLowerCase();
 
   if (domain === "t.me" || domain.endsWith(".t.me") || domain.includes("telegram")) {
     return "telegram";
   }
-  if (matchesAny(domain, ARCHIVE_HOSTS)) return "archive";
+  if (matchesAny(domain, ARCHIVE_HOSTS)) {
+    if (/\.pdf(\?|$)/i.test(url) || cls.includes("DOCUMENT")) return "document";
+    return "archive";
+  }
   if (matchesAny(domain, SOCIAL_HOSTS)) return "social";
+  if (matchesAny(domain, CLOUD_STORAGE_HOSTS)) return "cloud_storage";
   if (matchesAny(domain, FILE_HOST_HOSTS)) return "file_host";
-  if (matchesAny(domain, TORRENT_HINTS) || url.includes("magnet:")) return "torrent";
-  if (matchesAny(domain, MIRROR_HINTS)) return "mirror";
+  if (cls.includes("FILE_HOST")) return "cloud_storage";
+  if (matchesAny(domain, TORRENT_HINTS) || url.includes("magnet:") || cls.includes("TORRENT")) {
+    return "torrent";
+  }
+  if (matchesAny(domain, MIRROR_HINTS) || cls.includes("MIRROR")) return "mirror";
+  if (
+    matchesAny(domain, VIDEO_REUPLOAD_HOSTS) ||
+    cls.includes("VIDEO_HOST_REUPLOAD")
+  ) {
+    return "video_reupload";
+  }
   if (matchesAny(domain, STREAMING_HOSTS)) return "streaming";
   if (cls.includes("DOWNLOAD") || contentType.includes("download")) return "download";
   if (matchesAny(domain, DOWNLOAD_HINTS)) return "download";
   if (cls.includes("STREAM") || contentType.includes("stream")) return "streaming";
+  if (cls.includes("UNVERIFIED") || cls.includes("UNKNOWN")) return "unknown";
   return "other";
 }
 
-/** Severity from graded confidence plus evidence strength. */
-export function severityFor(confidence: number, verified: boolean): ThreatSeverity {
+export interface SeverityContext {
+  categoryKey?: ThreatCategoryKey;
+  classification?: string | null;
+  domainRisk?: string | null;
+}
+
+/** Severity from graded confidence, category, and evidence strength. */
+export function severityFor(
+  confidence: number,
+  verified: boolean,
+  context: SeverityContext = {},
+): ThreatSeverity {
+  const category = context.categoryKey;
+  const cls = (context.classification ?? "").toUpperCase();
+  const domainRisk = (context.domainRisk ?? "").toLowerCase();
+
+  const criticalCategories = new Set<ThreatCategoryKey>([
+    "download",
+    "cloud_storage",
+    "archive",
+    "document",
+    "torrent",
+  ]);
+
+  if (domainRisk === "critical" && (verified || confidence >= 70)) return "critical";
+
+  if (
+    verified &&
+    category &&
+    criticalCategories.has(category) &&
+    confidence >= 70
+  ) {
+    return "critical";
+  }
+
+  if (
+    verified &&
+    (cls.includes("DOWNLOAD") ||
+      cls.includes("FILE_HOST") ||
+      cls.includes("TORRENT") ||
+      cls.includes("THEATRE") ||
+      cls.includes("VERIFIED_UNAUTHORIZED_STREAM")) &&
+    confidence >= 70
+  ) {
+    return "critical";
+  }
+
+  if (
+    verified &&
+    (category === "video_reupload" || category === "streaming" || category === "mirror")
+  ) {
+    return confidence >= 85 ? "high" : confidence >= 55 ? "medium" : "low";
+  }
+
   if (confidence >= 90 && verified) return "critical";
   if (confidence >= 90) return "high";
   if (confidence >= 70) return "high";
@@ -301,7 +396,10 @@ function rowFromSuspicious(source: PublicSuspiciousSource): ThreatResultRow {
     classification: source.classification,
     categoryKey,
     categoryLabel: CATEGORY_LABELS[categoryKey],
-    severity: severityFor(confidence, verified),
+    severity: severityFor(confidence, verified, {
+      categoryKey,
+      classification: source.classification,
+    }),
     status: statusFromSuspicious(source),
     confidence,
     lastVerifiedAt: source.last_verified_at,
@@ -348,7 +446,11 @@ function rowFromInspected(row: InspectedSourceInput): ThreatResultRow {
     classification: row.classification ?? "UNVERIFIED_LEAD",
     categoryKey,
     categoryLabel: CATEGORY_LABELS[categoryKey],
-    severity: severityFor(confidence, verified),
+    severity: severityFor(confidence, verified, {
+      categoryKey,
+      classification: row.classification,
+      domainRisk: row.domain_risk,
+    }),
     status: statusFromInspected(row),
     confidence,
     lastVerifiedAt: null,
@@ -453,15 +555,69 @@ export const THREAT_FILTERS: Array<{ key: ThreatFilterKey; label: string }> = [
   { key: "all", label: "All sources" },
   { key: "active", label: "Active" },
   { key: "removed", label: "Removed" },
-  { key: "download", label: "Download sites" },
-  { key: "streaming", label: "Streaming sites" },
-  { key: "file_host", label: "File hosts" },
-  { key: "archive", label: "Archive sites" },
+  { key: "download", label: "Downloads" },
+  { key: "streaming", label: "Streaming" },
+  { key: "cloud_storage", label: "Cloud storage" },
+  { key: "archive", label: "Archive" },
+  { key: "video_reupload", label: "Video re-upload" },
+  { key: "document", label: "Documents" },
   { key: "mirror", label: "Mirrors" },
   { key: "telegram", label: "Telegram" },
-  { key: "social", label: "Social media" },
   { key: "torrent", label: "Torrents" },
+  { key: "file_host", label: "File hosts" },
+  { key: "social", label: "Social media" },
 ];
+
+/** Dashboard Threat Intelligence counters. */
+export function summarizeThreatIntelligence(rows: ThreatResultRow[]): {
+  detected: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  verified: number;
+  pendingReview: number;
+  falsePositive: number;
+  distribution: Record<ThreatCategoryKey, number>;
+  latest: ThreatResultRow[];
+} {
+  const distribution = Object.fromEntries(
+    (Object.keys(CATEGORY_LABELS) as ThreatCategoryKey[]).map((key) => [key, 0]),
+  ) as Record<ThreatCategoryKey, number>;
+
+  let verified = 0;
+  let pendingReview = 0;
+  let falsePositive = 0;
+
+  for (const row of rows) {
+    distribution[row.categoryKey] = (distribution[row.categoryKey] ?? 0) + 1;
+    if (row.verified) verified += 1;
+    else pendingReview += 1;
+    if (row.reviewStatus === "dismissed" || row.sourceState === "removed") {
+      falsePositive += 1;
+    }
+  }
+
+  const latest = [...rows].sort((a, b) => {
+    const aTime = a.lastVerifiedAt ? Date.parse(a.lastVerifiedAt) : 0;
+    const bTime = b.lastVerifiedAt ? Date.parse(b.lastVerifiedAt) : 0;
+    if (bTime !== aTime) return bTime - aTime;
+    return SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
+  });
+
+  return {
+    detected: rows.length,
+    critical: rows.filter((r) => r.severity === "critical").length,
+    high: rows.filter((r) => r.severity === "high").length,
+    medium: rows.filter((r) => r.severity === "medium").length,
+    low: rows.filter((r) => r.severity === "low").length,
+    verified,
+    pendingReview,
+    falsePositive,
+    distribution,
+    latest,
+  };
+}
 
 /** Apply the active quick filter plus a free-text search. */
 export function filterThreatRows(

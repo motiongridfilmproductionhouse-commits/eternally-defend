@@ -133,6 +133,8 @@ const CONDITIONAL_HOSTS = [
   "gofile.io",
   "pixeldrain.com",
   "terabox.com",
+  "terabox.app",
+  "1024terabox.com",
 ];
 
 function normalizeHost(value: string | null | undefined): string | null {
