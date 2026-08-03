@@ -204,7 +204,7 @@ export async function searchReferenceImagesForQuery(input: {
     };
   }
 
-  const pages = Math.max(1, Math.min(3, input.pages ?? 2));
+  const pages = Math.max(1, Math.min(5, input.pages ?? 3));
   const allHits: ReferenceImageHit[] = [];
   const seen = new Set<string>();
   let lastFailure: string | null = null;

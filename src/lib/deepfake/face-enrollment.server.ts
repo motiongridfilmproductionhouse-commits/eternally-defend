@@ -164,3 +164,10 @@ export async function indexDeepfakeReferenceFace(input: {
 export function getDeepfakeFaceCollectionId(): string {
   return collectionId;
 }
+
+export function isDeepfakeFaceEnrollmentConfigured(): boolean {
+  return Boolean(
+    process.env.AWS_ACCESS_KEY_ID?.trim() &&
+      process.env.AWS_SECRET_ACCESS_KEY?.trim(),
+  );
+}

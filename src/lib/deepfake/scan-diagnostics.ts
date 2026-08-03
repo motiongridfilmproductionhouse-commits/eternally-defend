@@ -67,6 +67,17 @@ export function diagnosticsFromMetrics(
     n("reference_google_images_found") > 0,
     n("reference_bing_images_found") > 0,
     n("reference_yandex_images_found") > 0,
+    Array.isArray(metrics?.reference_image_provider_stats) &&
+      (metrics.reference_image_provider_stats as Array<{ provider?: string; images_found?: number }>).some(
+        (s) => s.provider === "brave_images" && (s.images_found ?? 0) > 0,
+      ),
+    Array.isArray(metrics?.reference_image_provider_stats) &&
+      (metrics.reference_image_provider_stats as Array<{ provider?: string; images_found?: number }>).some(
+        (s) =>
+          ["public_website", "news_website", "official_website", "social_public"].includes(
+            s.provider ?? "",
+          ) && (s.images_found ?? 0) > 0,
+      ),
   ].filter(Boolean).length;
 
   const coverage =

@@ -66,6 +66,10 @@ import {
 import { collectReferenceImages } from "./reference-collection.server";
 import { expandIdentityVariants } from "./identity-variants.server";
 import { isUrlVerified } from "./url-verification.server";
+import {
+  parseReferenceImagesFromMetrics,
+  type CollectedReferenceImage,
+} from "./reference-images";
 
 type ProviderHit = {
   url: string;
@@ -408,6 +412,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
   metrics.aliases_generated = autoAliases.length;
 
+  let collectedReferenceImages: CollectedReferenceImage[] = resumeCheckpoint
+    ? parseReferenceImagesFromMetrics(resumeCheckpoint.metrics as Record<string, unknown>)
+    : [];
+
   if (!resumeCheckpoint) {
     await touchScanProgress({
       supabase: input.supabase,
@@ -440,6 +448,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
         });
       },
     });
+
+    collectedReferenceImages = refResult.images;
 
     metrics.reference_images_count = refResult.final_reference_count;
     metrics.final_reference_images = refResult.final_reference_count;
@@ -732,6 +742,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
           softDeadlineMs: input.runtime.softDeadlineMs,
         });
 
+        metrics.face_comparisons += analyzableCandidates.length;
+        metrics.images_compared += analyzableCandidates.length;
+
         metrics.serpapi_face_rejected += faceResults.rejected.filter(
           (item) => item.source === "serpapi_google_images",
         ).length;
@@ -750,6 +763,65 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
         hiveCandidates = [
           ...(faceResults.matched as any[]),
+          ...syntheticUnavailable.map((item) => ({
+            ...item,
+            target_face_match: false,
+            face_similarity: 0,
+            matched_face_id: null,
+          })),
+        ];
+      } else if (collectedReferenceImages.length > 0 && analyzableCandidates.length) {
+        await touchScanProgress({
+          supabase: input.supabase,
+          ownership: input.ownership,
+          patch: {
+            discovery_metrics: {
+              ...stageMetrics(metrics, checkpoint),
+              investigation_stage: "comparing_faces",
+            },
+          },
+        });
+        const { filterCandidatesByAutoReferences } = await import(
+          "./auto-reference-face-filter.server"
+        );
+        const faceResults = await filterCandidatesByAutoReferences({
+          referenceImages: collectedReferenceImages,
+          candidates: analyzableCandidates,
+          similarityThreshold: 88,
+          signal: input.runtime.signal,
+          softDeadlineMs: input.runtime.softDeadlineMs,
+        });
+
+        metrics.face_comparisons += faceResults.comparisons;
+        metrics.images_compared += faceResults.comparisons;
+
+        const syntheticUnavailable = faceResults.errors.filter((item) => {
+          const text = [
+            item.title ?? "",
+            item.description ?? "",
+            item.page_text ?? "",
+            item.url ?? "",
+          ].join(" ");
+          return /\b(?:deepfake|face\s*swap|ai\s*nude|fake\s*nude|morphed|synthetic\s*media)\b/i.test(
+            text,
+          );
+        });
+
+        hiveCandidates = [
+          ...(faceResults.matched as any[]),
+          ...analyzableCandidates
+            .filter(
+              (c) =>
+                !faceResults.matched.some((m) => m.url === c.url) &&
+                !faceResults.rejected.some((r) => r.url === c.url) &&
+                !faceResults.errors.some((e) => e.url === c.url),
+            )
+            .map((item) => ({
+              ...item,
+              target_face_match: false,
+              face_similarity: 0,
+              matched_face_id: null,
+            })),
           ...syntheticUnavailable.map((item) => ({
             ...item,
             target_face_match: false,
