@@ -265,8 +265,8 @@ export function mapMatchToSuspiciousSource(match: {
     evidence_summary: buildEvidenceSummary(ev),
     reason: match.reason ?? null,
     discovery_query: null,
-    contact: match.contact,
-    evidence: match.evidence,
+    contact: (match.contact ?? null) as SerializableJson,
+    evidence: (match.evidence ?? null) as SerializableJson,
     review_status: match.review_status ?? null,
     detection_type: match.detection_type ?? null,
   };
