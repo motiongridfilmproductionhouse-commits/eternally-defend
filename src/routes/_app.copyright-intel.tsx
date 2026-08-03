@@ -47,6 +47,8 @@ import {
   summarizeProviderFailures,
 } from "@/lib/copyright/scan-diagnostics";
 import { PROVIDER_FAILURE_CATEGORIES } from "@/lib/copyright/provider-failures";
+import { getCopyrightReportUrl } from "@/lib/copyright/report.functions";
+import { FileDown } from "lucide-react";
 import {
   shouldShowAnalysisBanner,
 } from "@/lib/copyright/scan-scope";
@@ -109,7 +111,17 @@ function CopyrightIntelPage() {
   const listFn = useServerFn(listCopyrightScans);
   const getFn = useServerFn(getCopyrightScan);
   const updFn = useServerFn(updateCopyrightMatch);
+  const reportFn = useServerFn(getCopyrightReportUrl);
+  const reportMutation = useMutation({
+    mutationFn: (vars: { data: { scanId: string } }) => reportFn(vars),
+    onSuccess: (res: { url: string }) => {
+      window.open(res.url, "_blank", "noopener,noreferrer");
+      toast.success("Threat intelligence report ready.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const qc = useQueryClient();
+
 
   const [title, setTitle] = useState("");
   const [knownUrlsText, setKnownUrlsText] = useState("");
@@ -501,7 +513,20 @@ function CopyrightIntelPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Copyright Intelligence Detection</h1>
         </div>
+        {selectedScanId && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto shrink-0"
+            disabled={reportMutation.isPending}
+            onClick={() => reportMutation.mutate({ data: { scanId: selectedScanId } })}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            {reportMutation.isPending ? "Preparing dossier…" : "Threat intelligence report"}
+          </Button>
+        )}
       </header>
+
 
       <section className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card/60 p-5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">

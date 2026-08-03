@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
+
 const BodySchema = z.object({ scan_id: z.string().uuid() });
 
 export const Route = createFileRoute("/api/public/hooks/copyright-scan-execute")({

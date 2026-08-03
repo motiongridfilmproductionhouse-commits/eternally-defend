@@ -2796,6 +2796,11 @@ export async function executeCopyrightScanById(opts: {
         stats: finalStats,
       });
 
+      if (terminal.status === "completed") {
+        const { autoGenerateCopyrightReport } = await import("@/lib/copyright/report.server");
+        await autoGenerateCopyrightReport(supabase, scan.id, userId);
+      }
+
       if (releaseProtectionId && releaseProtectionRun && releaseProtectionReleaseDate) {
         const incidentFindings = findingsFromDistributionMatches(
           [
