@@ -7,7 +7,6 @@ import {
   filterClientFindings,
 } from "./deepfake/client-results.server";
 import {
-  assertNotAborted,
   createScanRuntime,
   isAbortError,
   isDeadlineOrTimeoutError,
@@ -36,10 +35,12 @@ import {
   findActiveScanForIdentity,
   isUniqueViolation,
 } from "./deepfake/scan-concurrency.server";
+import type { PipelineResult } from "./deepfake/scan-pipeline.server";
 import {
-  executeInterleavedDeepfakePipeline,
-  type PipelineResult,
-} from "./deepfake/scan-pipeline.server";
+  dispatchNextWorker,
+  resolveDeepfakeScanWorkerUrl,
+} from "./deepfake/scan-worker-dispatch.server";
+import { executeDeepfakeScanWorkerBatch } from "./deepfake/scan-worker.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
@@ -182,10 +183,125 @@ async function finalizePipelineRun(input: {
   };
 }
 
+async function dispatchDeepfakeScanExecutionInline(
+  scanId: string,
+  supabase: any,
+  userId?: string,
+) {
+  await executeDeepfakeScanById({
+    supabase,
+    scanId,
+    userId,
+    source: "worker",
+  });
+}
+
+export async function dispatchDeepfakeScanExecution(
+  scanId: string,
+  supabase: any,
+): Promise<void> {
+  const workerUrl = resolveDeepfakeScanWorkerUrl();
+  console.info("deepfake_scan_worker_dispatch_request", {
+    scan_id: scanId,
+    worker_url_configured: Boolean(workerUrl),
+  });
+
+  if (!workerUrl) {
+    console.warn("deepfake_scan_worker_dispatch_fallback_inline", {
+      scan_id: scanId,
+      reason: "worker_url_not_configured",
+    });
+    await dispatchDeepfakeScanExecutionInline(scanId, supabase);
+    return;
+  }
+
+  try {
+    const { signCopyrightScanWorkerRequest } = await import(
+      "@/lib/copyright/worker-auth.server"
+    );
+    void signCopyrightScanWorkerRequest;
+  } catch {
+    console.warn("deepfake_scan_worker_dispatch_fallback_inline", {
+      scan_id: scanId,
+      reason: "worker_secret_not_configured",
+    });
+    await dispatchDeepfakeScanExecutionInline(scanId, supabase);
+    return;
+  }
+
+  const dispatch = await dispatchNextWorker({ scanId });
+  console.info("deepfake_scan_worker_dispatch_response", {
+    scan_id: scanId,
+    dispatched: dispatch.dispatched,
+    http_status: dispatch.http_status ?? null,
+    reason: dispatch.reason ?? null,
+  });
+
+  if (!dispatch.dispatched) {
+    console.warn("deepfake_scan_worker_dispatch_fallback_inline", {
+      scan_id: scanId,
+      reason: dispatch.reason ?? "dispatch_failed",
+    });
+    await dispatchDeepfakeScanExecutionInline(scanId, supabase);
+  }
+}
+
+export async function executeDeepfakeScanById(opts: {
+  supabase: any;
+  scanId: string;
+  userId?: string;
+  source?: "worker" | "user";
+}): Promise<{
+  scan_id: string;
+  status: string;
+  total_results: number;
+  discovered_results: number;
+  dispatched_next: boolean;
+  pending_work: boolean;
+}> {
+  console.info("deepfake_scan_executor_start", {
+    scan_id: opts.scanId,
+    source: opts.source ?? "user",
+    user_scoped: Boolean(opts.userId),
+  });
+
+  const workerResult = await executeDeepfakeScanWorkerBatch({
+    supabase: opts.supabase,
+    scanId: opts.scanId,
+    userId: opts.userId,
+    finalize: finalizePipelineRun,
+  });
+
+  let query = opts.supabase
+    .from("deepfake_scans")
+    .select("total_results, status")
+    .eq("id", opts.scanId);
+  if (opts.userId) {
+    query = query.eq("user_id", opts.userId);
+  }
+  const { data: scan } = await query.maybeSingle();
+
+  console.info("deepfake_scan_executor_complete", {
+    scan_id: opts.scanId,
+    source: opts.source ?? "user",
+    status: workerResult.status,
+    dispatched_next: workerResult.dispatched_next,
+    pending_work: workerResult.pending_work,
+  });
+
+  return {
+    scan_id: opts.scanId,
+    status: workerResult.status,
+    total_results: scan?.total_results ?? 0,
+    discovered_results: scan?.total_results ?? 0,
+    dispatched_next: workerResult.dispatched_next,
+    pending_work: workerResult.pending_work,
+  };
+}
+
 /**
  * Create/acquire a RUNNING scan row and return immediately.
- * Never waits for the discovery/verification pipeline — the client must call
- * executeDeepfakeScanPipeline with the returned scan_id.
+ * Dispatches the background worker — the client polls for progress.
  */
 export const runDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -287,6 +403,18 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       throw new Error(sErr?.message ?? "failed to create scan");
     }
 
+    try {
+      await dispatchDeepfakeScanExecution(scan.id, supabase);
+    } catch (dispatchError) {
+      console.error("[DEEPFAKE] Scan worker dispatch failed:", {
+        scan_id: scan.id,
+        error:
+          dispatchError instanceof Error
+            ? dispatchError.message
+            : String(dispatchError),
+      });
+    }
+
     return {
       scan_id: scan.id,
       total_results: 0,
@@ -297,8 +425,9 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
   });
 
 /**
- * Run the interleaved pipeline for an already-created RUNNING scan.
- * Called separately so scan-start can return the scan_id immediately.
+ * Run one worker batch for an already-created RUNNING scan.
+ * Prefer dispatchDeepfakeScanExecution from scan-start; this remains for
+ * manual retries and authenticated continuation kicks.
  */
 export const executeDeepfakeScanPipeline = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -313,110 +442,23 @@ export const executeDeepfakeScanPipeline = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
-    const { data: scan, error } = await supabase
-      .from("deepfake_scans")
-      .select("*")
-      .eq("id", data.scan_id)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (error) throw new Error(error.message);
-    if (!scan) throw new Error("Scan not found.");
-    if (scan.status !== "running") {
-      return {
-        scan_id: scan.id,
-        total_results: scan.total_results ?? 0,
-        discovered_results: scan.total_results ?? 0,
-        status: scan.status,
-      };
-    }
-
-    const scanRunToken = (scan as { scan_run_token?: string | null }).scan_run_token;
-    if (!scanRunToken) {
-      throw new Error(
-        "Scan ownership token is missing — restart the scan to acquire a new lease.",
-      );
-    }
-
-    const metrics = objectish(scan.discovery_metrics);
-    const startOptions = objectish(metrics?.start_options);
-    const googleImagesUrl =
-      data.google_images_url ??
-      (typeof startOptions?.google_images_url === "string"
-        ? startOptions.google_images_url
-        : undefined);
-    const maxQueries =
-      data.max_queries ??
-      (typeof startOptions?.max_queries === "number"
-        ? startOptions.max_queries
-        : 56);
-    const perQueryLimit =
-      data.per_query_limit ??
-      (typeof startOptions?.per_query_limit === "number"
-        ? startOptions.per_query_limit
-        : 20);
-
-    const runtime = createScanRuntime();
-    const ownership: ScanOwnership = {
-      scanId: scan.id,
-      scanRunToken,
-      runtime,
-    };
-    const resumeCheckpoint = parseScanCheckpoint(scan.scan_checkpoint);
-    const target = {
-      name: scan.target_name,
-      aliases: scan.aliases ?? [],
-      handles: scan.handles ?? [],
-    };
-
-    let pipelineResult: PipelineResult | null = null;
-    let pipelineError: unknown = null;
-
-    try {
-      assertNotAborted(runtime.signal);
-      pipelineResult = await executeInterleavedDeepfakePipeline({
-        supabase,
-        userId,
-        ownership,
-        scanId: scan.id,
-        target,
-        profileId: scan.profile_id ?? null,
-        googleImagesUrl,
-        maxQueries,
-        perQueryLimit,
-        runtime,
-        resumeCheckpoint: resumeCheckpoint ?? undefined,
-      });
-    } catch (err) {
-      pipelineError = err;
-      console.warn("[DEEPFAKE] Scan pipeline stopped:", {
-        scan_id: scan.id,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-
-    const finalized = await finalizePipelineRun({
-      supabase,
-      ownership,
-      runtime,
-      pipelineResult,
-      pipelineError,
-      fallbackCheckpoint: resumeCheckpoint,
+    const result = await executeDeepfakeScanById({
+      supabase: context.supabase,
+      scanId: data.scan_id,
+      userId: context.userId,
+      source: "user",
     });
 
     return {
-      scan_id: scan.id,
-      total_results: finalized.counts.clientVisibleCount,
-      discovered_results: finalized.counts.findingCount,
-      status: finalized.terminalStatus,
+      scan_id: result.scan_id,
+      total_results: result.total_results,
+      discovered_results: result.discovered_results,
+      status: result.status,
     };
   });
 
 /**
- * Acquire PARTIAL → RUNNING and return immediately. Pipeline execution is a
- * separate executeDeepfakeScanPipeline call from the client.
+ * Acquire PARTIAL → RUNNING and dispatch the background worker.
  */
 export const continueDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -489,6 +531,18 @@ export const continueDeepfakeScan = createServerFn({ method: "POST" })
 
     if (!scanRunToken) {
       throw new Error("Unable to acquire the scan continuation lease.");
+    }
+
+    try {
+      await dispatchDeepfakeScanExecution(scan.id, supabase);
+    } catch (dispatchError) {
+      console.error("[DEEPFAKE] Continue worker dispatch failed:", {
+        scan_id: scan.id,
+        error:
+          dispatchError instanceof Error
+            ? dispatchError.message
+            : String(dispatchError),
+      });
     }
 
     return {

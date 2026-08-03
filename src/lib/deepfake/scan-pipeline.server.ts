@@ -163,6 +163,14 @@ type RiskCounts = {
   low: number;
 };
 
+export type PipelineWorkerLimits = {
+  maxQueryBatches: number;
+  onBatchProcessed?: (info: {
+    batchNumber: number;
+    queryIds: string[];
+  }) => void;
+};
+
 export type PipelineResult = {
   completed: boolean;
   checkpointPaused: boolean;
@@ -173,6 +181,7 @@ export type PipelineResult = {
   metrics: DiscoveryFunnelMetrics;
   checkpoint: ScanCheckpoint;
   planQueryCount: number;
+  queryBatchesProcessed: number;
 };
 
 const THREAT_TRIAGE_SIGNALS = new Set([
@@ -366,6 +375,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
   perQueryLimit?: number;
   runtime: ScanRuntime;
   resumeCheckpoint?: ScanCheckpoint | null;
+  workerLimits?: PipelineWorkerLimits;
 }): Promise<PipelineResult> {
   const autoAliases = expandIdentityVariants({
     name: input.target.name,
@@ -1430,10 +1440,22 @@ export async function executeInterleavedDeepfakePipeline(input: {
     }
   };
 
+  let queryBatchesProcessed = 0;
+  const workerMaxQueryBatches = input.workerLimits?.maxQueryBatches ?? Number.POSITIVE_INFINITY;
+
+  const shouldPauseForWorkerContinuation = () =>
+    Number.isFinite(workerMaxQueryBatches) &&
+    queryBatchesProcessed >= workerMaxQueryBatches &&
+    checkpointHasPendingWork(checkpoint);
+
   try {
     // First SerpApi wave (≤2 requests) so verification can begin early.
     await runSerpApiDiscoveryWave(2);
     await processPendingCandidates();
+
+    if (shouldPauseForWorkerContinuation()) {
+      await pauseIfPending();
+    }
 
     if (!isFirecrawlConfigured()) {
       console.warn(
@@ -1450,14 +1472,25 @@ export async function executeInterleavedDeepfakePipeline(input: {
       assertNotAborted(input.runtime.signal);
       await processPendingCandidates();
 
+      if (shouldPauseForWorkerContinuation()) {
+        await pauseIfPending();
+      }
+
       // Interleave remaining SerpApi requests inside Firecrawl waves.
       await runSerpApiDiscoveryWave(2);
       await processPendingCandidates();
+
+      if (shouldPauseForWorkerContinuation()) {
+        await pauseIfPending();
+      }
 
       if (
         checkpoint.next_query_index >= checkpoint.initial_wave_count &&
         discoveryBudgetRemaining(budget) < MIN_PROVIDER_TIME_MS
       ) {
+        if (checkpointHasPendingWork(checkpoint)) {
+          await pauseIfPending();
+        }
         break;
       }
 
@@ -1466,6 +1499,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
         MIN_PROVIDER_TIME_MS,
       );
       if (!canStartProviderCall(budget, estimatedProviderMs)) {
+        if (checkpointHasPendingWork(checkpoint)) {
+          await pauseIfPending();
+        }
         break;
       }
 
@@ -1475,6 +1511,12 @@ export async function executeInterleavedDeepfakePipeline(input: {
         QUERY_BATCH_SIZE,
       );
       if (!batch.length) break;
+
+      const batchQueryIds = batch.map((query) => query.trim().toLowerCase());
+      input.workerLimits?.onBatchProcessed?.({
+        batchNumber: queryBatchesProcessed + 1,
+        queryIds: batchQueryIds,
+      });
 
       const providerStartedAt = Date.now();
       const perQuery = adaptivePerQueryLimit({
@@ -1519,11 +1561,31 @@ export async function executeInterleavedDeepfakePipeline(input: {
       await heartbeat("discovering");
       await enqueueProviderHits(results.hits as ProviderHit[]);
       await heartbeat("discovering");
+
+      queryBatchesProcessed += 1;
+      if (shouldPauseForWorkerContinuation()) {
+        await pauseIfPending();
+      }
+    }
+
+    if (shouldPauseForWorkerContinuation()) {
+      await pauseIfPending();
     }
 
     // Drain any remaining SerpApi budget after Firecrawl waves.
     await runSerpApiDiscoveryWave(5);
     await processPendingCandidates();
+
+    if (shouldPauseForWorkerContinuation()) {
+      await pauseIfPending();
+    }
+
+    if (
+      input.workerLimits &&
+      checkpoint.next_query_index < checkpoint.queries.length
+    ) {
+      await pauseIfPending();
+    }
 
     if (
       !checkpoint.youtube_done &&
@@ -1630,6 +1692,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       metrics,
       checkpoint,
       planQueryCount: checkpoint.queries.length,
+      queryBatchesProcessed,
     };
   } catch (error) {
     if (error instanceof ScanCheckpointPauseError) {

@@ -6,12 +6,22 @@ import {
   shouldShowHistoryEmpty,
   shouldShowHistoryLoading,
 } from "./scan-ui-state";
+import { resolveDeepfakeScanWorkerUrl } from "./scan-worker-dispatch.server";
 
 const FUNCTIONS_PATH = resolve(
   process.cwd(),
   "src/lib/deepfake-intel.functions.ts",
 );
 const UI_PATH = resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx");
+const WORKER_PATH = resolve(process.cwd(), "src/lib/deepfake/scan-worker.server.ts");
+const ORCHESTRATION_PATH = resolve(
+  process.cwd(),
+  "src/lib/deepfake/scan-worker-orchestration.server.ts",
+);
+const HOOK_PATH = resolve(
+  process.cwd(),
+  "src/routes/api/public/hooks/deepfake-scan-execute.ts",
+);
 const OWNER_PROGRESS_MIGRATION = resolve(
   process.cwd(),
   "supabase/migrations/20260801094500_deepfake_scan_runtime_write_allow_owner_progress.sql",
@@ -25,7 +35,7 @@ function uiSource(): string {
   return readFileSync(UI_PATH, "utf8");
 }
 
-test("runDeepfakeScan returns immediately after insert and does not await the pipeline", () => {
+test("runDeepfakeScan returns immediately after insert and dispatches worker", () => {
   const src = functionsSource();
   const runStart = src.indexOf("export const runDeepfakeScan");
   const executeStart = src.indexOf("export const executeDeepfakeScanPipeline");
@@ -38,6 +48,7 @@ test("runDeepfakeScan returns immediately after insert and does not await the pi
   assert.match(runBlock, /\.insert\(/);
   assert.match(runBlock, /status: "running"/);
   assert.match(runBlock, /started: true/);
+  assert.match(runBlock, /dispatchDeepfakeScanExecution/);
   assert.doesNotMatch(
     runBlock,
     /executeInterleavedDeepfakePipeline/,
@@ -46,24 +57,63 @@ test("runDeepfakeScan returns immediately after insert and does not await the pi
   assert.doesNotMatch(runBlock, /finalizePipelineRun/);
 });
 
-test("executeDeepfakeScanPipeline owns the long-running pipeline work", () => {
+test("executeDeepfakeScanPipeline delegates to executeDeepfakeScanById worker batch", () => {
   const src = functionsSource();
   const executeStart = src.indexOf("export const executeDeepfakeScanPipeline");
   const continueStart = src.indexOf("export const continueDeepfakeScan");
   const executeBlock = src.slice(executeStart, continueStart);
-  assert.match(executeBlock, /executeInterleavedDeepfakePipeline/);
-  assert.match(executeBlock, /finalizePipelineRun/);
-  assert.match(executeBlock, /scan_run_token/);
+  assert.match(executeBlock, /executeDeepfakeScanById/);
+  assert.doesNotMatch(executeBlock, /executeInterleavedDeepfakePipeline/);
 });
 
-test("continueDeepfakeScan acquires ownership then returns without awaiting pipeline", () => {
+test("continueDeepfakeScan acquires ownership, dispatches worker, and returns without awaiting pipeline", () => {
   const src = functionsSource();
   const continueStart = src.indexOf("export const continueDeepfakeScan");
   const listStart = src.indexOf("export const listDeepfakeScans");
   const continueBlock = src.slice(continueStart, listStart);
   assert.match(continueBlock, /acquire_deepfake_scan_continuation/);
+  assert.match(continueBlock, /dispatchDeepfakeScanExecution/);
   assert.match(continueBlock, /started: true/);
   assert.doesNotMatch(continueBlock, /executeInterleavedDeepfakePipeline/);
+});
+
+test("main scan worker orchestration runs continuation sequence after each batch", () => {
+  const orchestration = readFileSync(ORCHESTRATION_PATH, "utf8");
+  assert.match(orchestration, /export async function persistBatchProgress/);
+  assert.match(orchestration, /export async function releaseCompletedQueryLeases/);
+  assert.match(orchestration, /export async function markContinuationScheduled/);
+  assert.match(orchestration, /finalizeWorkerBatchContinuation/);
+  assert.match(orchestration, /await persistBatchProgress/);
+  assert.match(orchestration, /await releaseCompletedQueryLeases/);
+  assert.match(orchestration, /await markContinuationScheduled/);
+  assert.match(orchestration, /await dispatchNextWorker/);
+
+  const worker = readFileSync(WORKER_PATH, "utf8");
+  assert.match(worker, /finalizeWorkerBatchContinuation/);
+  assert.match(worker, /workerLimits/);
+  assert.match(worker, /DEEPFAKE_SCAN_WORKER_MAX_QUERY_BATCHES/);
+});
+
+test("worker hook and dispatch emit structured telemetry", () => {
+  const hook = readFileSync(HOOK_PATH, "utf8");
+  assert.match(hook, /deepfake_scan_worker_hook_entry/);
+  assert.match(hook, /deepfake_scan_worker_execute_start/);
+  assert.match(hook, /executeDeepfakeScanById/);
+
+  const src = functionsSource();
+  assert.match(src, /deepfake_scan_worker_dispatch_request/);
+  assert.match(src, /deepfake_scan_worker_dispatch_response/);
+  assert.match(src, /deepfake_scan_executor_start/);
+});
+
+test("worker dispatch resolves same-origin hook URL", () => {
+  const url = resolveDeepfakeScanWorkerUrl({
+    SITE_URL: "https://eternally-defend.vercel.app",
+  });
+  assert.equal(
+    url,
+    "https://eternally-defend.vercel.app/api/public/hooks/deepfake-scan-execute",
+  );
 });
 
 test("listDeepfakeScans excludes failed scans from history", () => {
@@ -80,15 +130,14 @@ test("SCAN HISTORY UI filters failed scans client-side", () => {
   assert.match(src, /historyScans/);
 });
 
-test("UI wires click → run.mutate → executePipeline.mutate with scan_id", () => {
+test("UI wires click → run.mutate and relies on backend worker dispatch", () => {
   const src = uiSource();
   assert.match(src, /onClick=\{onRun\}/);
   assert.match(src, /run\.mutate\(/);
-  assert.match(src, /executePipeline\.mutate\(\{\s*scan_id: res\.scan_id/);
   assert.match(src, /setSelectedScanId\(res\.scan_id\)/);
   assert.match(src, /Scanning…/);
-  assert.match(src, /scans\.isError/);
-  assert.match(src, /Unable to load scan history/);
+  assert.doesNotMatch(src, /executeDeepfakeScanPipeline/);
+  assert.doesNotMatch(src, /executePipeline\.mutate/);
 });
 
 test("history empty state is suppressed while loading or errored", () => {
