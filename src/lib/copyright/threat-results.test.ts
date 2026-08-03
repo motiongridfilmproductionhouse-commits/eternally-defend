@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import test from "node:test";
 import {
   buildThreatResultRows,
   classifyThreatCategory,
@@ -22,24 +23,23 @@ function src(overrides: Partial<PublicSuspiciousSource>): PublicSuspiciousSource
   } as PublicSuspiciousSource;
 }
 
-describe("threat results", () => {
-  it("categorises hosts", () => {
-    expect(classifyThreatCategory({ domain: "t.me", url: "https://t.me/x" })).toBe("telegram");
-    expect(classifyThreatCategory({ domain: "archive.org", url: "u" })).toBe("archive");
-    expect(classifyThreatCategory({ domain: "ok.ru", url: "u" })).toBe("streaming");
-    expect(classifyThreatCategory({ domain: "mega.nz", url: "u" })).toBe("file_host");
-    expect(classifyThreatCategory({ domain: "1337x.to", url: "u" })).toBe("torrent");
-    expect(classifyThreatCategory({ domain: "vegamovies.dad", url: "u" })).toBe("download");
+test("threat results: categorises hosts", () => {
+    assert.equal(classifyThreatCategory({ domain: "t.me", url: "https://t.me/x" }), "telegram");
+    assert.equal(classifyThreatCategory({ domain: "archive.org", url: "u" }), "archive");
+    assert.equal(classifyThreatCategory({ domain: "ok.ru", url: "u" }), "streaming");
+    assert.equal(classifyThreatCategory({ domain: "mega.nz", url: "u" }), "file_host");
+    assert.equal(classifyThreatCategory({ domain: "1337x.to", url: "u" }), "torrent");
+    assert.equal(classifyThreatCategory({ domain: "vegamovies.dad", url: "u" }), "download");
   });
 
-  it("maps confidence to severity", () => {
-    expect(severityFor(98, true)).toBe("critical");
-    expect(severityFor(75, false)).toBe("high");
-    expect(severityFor(55, false)).toBe("medium");
-    expect(severityFor(20, false)).toBe("low");
+test("threat results: maps confidence to severity", () => {
+    assert.equal(severityFor(98, true), "critical");
+    assert.equal(severityFor(75, false), "high");
+    assert.equal(severityFor(55, false), "medium");
+    assert.equal(severityFor(20, false), "low");
   });
 
-  it("produces one row per unique domain and keeps every domain", () => {
+test("threat results: produces one row per unique domain and keeps every domain", () => {
     const rows = buildThreatResultRows({
       suspicious: [
         src({ id: "a", url: "https://ogomovies.xxx/a" }),
@@ -50,20 +50,19 @@ describe("threat results", () => {
         { id: "d", url: "https://dailymotion.com/v", host: "dailymotion.com", confidence: 74 },
       ],
     });
-    expect(rows.map((r) => r.domain)).toEqual(["ogomovies.xxx", "ok.ru", "dailymotion.com"]);
+    assert.deepEqual(rows.map((r) => r.domain), ["ogomovies.xxx", "ok.ru", "dailymotion.com"]);
     const first = rows[0]!;
-    expect(first.findingCount).toBe(2);
-    expect(first.additionalUrls).toContain("https://www.ogomovies.xxx/b");
+    assert.equal(first.findingCount, 2);
+    assert.ok(first.additionalUrls.includes("https://www.ogomovies.xxx/b"));
   });
 
-  it("filters and groups", () => {
+test("threat results: filters and groups", () => {
     const rows = buildThreatResultRows({
       suspicious: [src({ id: "a" }), src({ id: "c", url: "https://ok.ru/v", confidence: 55 })],
     });
-    expect(filterThreatRows(rows, { filter: "streaming" }).map((r) => r.domain)).toEqual(["ok.ru"]);
-    expect(filterThreatRows(rows, { search: "ogo" })).toHaveLength(1);
+    assert.deepEqual(filterThreatRows(rows, { filter: "streaming" }).map((r) => r.domain), ["ok.ru"]);
+    assert.equal(filterThreatRows(rows, { search: "ogo" }).length, 1);
     const groups = groupThreatRowsBySeverity(rows);
-    expect(groups.find((g) => g.severity === "critical")?.count).toBe(1);
-    expect(groups.find((g) => g.severity === "medium")?.count).toBe(1);
+    assert.equal(groups.find((g) => g.severity === "critical")?.count, 1);
+    assert.equal(groups.find((g) => g.severity === "medium")?.count, 1);
   });
-});
