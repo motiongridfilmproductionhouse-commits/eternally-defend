@@ -37,6 +37,7 @@ import {
 import { ReleaseProtectionPanel } from "@/components/copyright/ReleaseProtectionPanel";
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
+import { InvestigationCenter } from "@/components/copyright/cyber/InvestigationCenter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   crawlMetricsFromStats,
