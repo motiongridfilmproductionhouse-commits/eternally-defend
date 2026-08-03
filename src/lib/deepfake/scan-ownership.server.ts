@@ -9,6 +9,11 @@ import {
   leaseExpiresAtIso,
   type ScanRuntime,
 } from "./scan-runtime.server";
+import {
+  type ScanLeaseRow,
+  isScanEligibleForStaleRecovery,
+  staleRecoveryLeaseCutoffIso,
+} from "./scan-lease.server";
 
 export type DiscoveryFunnelMetrics = {
   queries_generated: number;
@@ -226,14 +231,14 @@ export async function touchScanProgress(input: {
   ownership: ScanOwnership;
   patch?: Record<string, unknown>;
   nowMs?: number;
+  leaseTtlMs?: number;
 }): Promise<void> {
   const nowMs = input.nowMs ?? Date.now();
+  const leaseTtlMs =
+    input.leaseTtlMs ?? input.ownership.runtime.leaseTtlMs;
   const heartbeatPatch: Record<string, unknown> = {
     heartbeat_at: new Date(nowMs).toISOString(),
-    lease_expires_at: leaseExpiresAtIso(
-      input.ownership.runtime.leaseTtlMs,
-      nowMs,
-    ),
+    lease_expires_at: leaseExpiresAtIso(leaseTtlMs, nowMs),
     ...(input.patch ?? {}),
   };
 
@@ -395,17 +400,40 @@ export function hasValidScanProgress(input: {
 }
 
 /**
- * Recover only when lease_expires_at has passed. Never fail a scan that
- * still holds a valid heartbeat lease. Atomically updates only running rows
- * with expired leases.
+ * Recover only when lease_expires_at has passed beyond the stale-recovery grace
+ * period and there is no recent worker heartbeat or continuation handoff.
+ * Never fail a scan that still holds a valid or recently renewed lease.
  */
 export async function recoverExpiredScanLease(input: {
   supabase: any;
   scanId: string;
   nowMs?: number;
 }): Promise<{ recovered: boolean; status?: string }> {
-  const nowIso = new Date(input.nowMs ?? Date.now()).toISOString();
+  const nowMs = input.nowMs ?? Date.now();
+  const nowIso = new Date(nowMs).toISOString();
   const supabase = await resolveScanWriter(input.supabase);
+
+  const { data: row, error: readError } = await supabase
+    .from("deepfake_scans")
+    .select("id, status, lease_expires_at, heartbeat_at, discovery_metrics")
+    .eq("id", input.scanId)
+    .eq("status", "running")
+    .maybeSingle();
+
+  if (readError) {
+    if (
+      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(
+        readError.message,
+      )
+    ) {
+      return { recovered: false };
+    }
+    throw new Error(readError.message);
+  }
+
+  if (!row || !isScanEligibleForStaleRecovery(row as ScanLeaseRow, nowMs)) {
+    return { recovered: false };
+  }
 
   const { data, error } = await supabase
     .from("deepfake_scans")
@@ -419,13 +447,10 @@ export async function recoverExpiredScanLease(input: {
     } as any)
     .eq("id", input.scanId)
     .eq("status", "running")
-    .lt("lease_expires_at", nowIso)
+    .lt("lease_expires_at", staleRecoveryLeaseCutoffIso(nowMs))
     .select("id, status");
 
   if (error) {
-    /*
-     * Column may not exist yet — do not use started_at alone.
-     */
     if (
       /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(
         error.message,
@@ -436,10 +461,10 @@ export async function recoverExpiredScanLease(input: {
     throw new Error(error.message);
   }
 
-  const row = Array.isArray(data) ? data[0] : null;
+  const updated = Array.isArray(data) ? data[0] : null;
   return {
-    recovered: Boolean(row),
-    status: row?.status,
+    recovered: Boolean(updated),
+    status: updated?.status,
   };
 }
 
@@ -448,8 +473,35 @@ export async function recoverExpiredScansForUser(input: {
   userId: string;
   nowMs?: number;
 }): Promise<number> {
-  const nowIso = new Date(input.nowMs ?? Date.now()).toISOString();
+  const nowMs = input.nowMs ?? Date.now();
+  const nowIso = new Date(nowMs).toISOString();
   const supabase = await resolveScanWriter(input.supabase);
+
+  const { data: candidates, error: readError } = await supabase
+    .from("deepfake_scans")
+    .select("id, status, lease_expires_at, heartbeat_at, discovery_metrics")
+    .eq("user_id", input.userId)
+    .eq("status", "running")
+    .lt("lease_expires_at", staleRecoveryLeaseCutoffIso(nowMs));
+
+  if (readError) {
+    if (
+      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(
+        readError.message,
+      )
+    ) {
+      return 0;
+    }
+    throw new Error(readError.message);
+  }
+
+  const eligibleIds = (candidates ?? [])
+    .filter((row: ScanLeaseRow) =>
+      isScanEligibleForStaleRecovery(row, nowMs),
+    )
+    .map((row: { id: string }) => row.id);
+
+  if (!eligibleIds.length) return 0;
 
   const { data, error } = await supabase
     .from("deepfake_scans")
@@ -461,9 +513,9 @@ export async function recoverExpiredScansForUser(input: {
       error_message:
         "Scan lease expired without a fresh heartbeat. Marked failed by stale-run recovery.",
     } as any)
-    .eq("user_id", input.userId)
+    .in("id", eligibleIds)
     .eq("status", "running")
-    .lt("lease_expires_at", nowIso)
+    .lt("lease_expires_at", staleRecoveryLeaseCutoffIso(nowMs))
     .select("id");
 
   if (error) {

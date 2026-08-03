@@ -7,6 +7,9 @@ import {
   filterClientFindings,
 } from "./deepfake/client-results.server";
 import {
+  WORKER_LEASE_TTL_MS,
+} from "./deepfake/scan-lease.server";
+import {
   createScanRuntime,
   isAbortError,
   isDeadlineOrTimeoutError,
@@ -328,7 +331,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const runtime = createScanRuntime();
+    const runtime = createScanRuntime({ leaseTtlMs: WORKER_LEASE_TTL_MS });
     const scanRunToken = createScanRunToken();
     const aliases = data.aliases ?? [];
     const handles = data.handles ?? [];

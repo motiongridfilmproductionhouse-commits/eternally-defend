@@ -27,6 +27,12 @@ import {
 } from "./scan-pipeline.server";
 import { finalizeWorkerBatchContinuation } from "./scan-worker-orchestration.server";
 import { logDeepfakeScanWorkerEvent } from "./scan-worker-telemetry.server";
+import {
+  CONTINUATION_HANDOFF_LEASE_TTL_MS,
+  WORKER_LEASE_TTL_MS,
+  renewScanLease,
+  startWorkerHeartbeatLoop,
+} from "./scan-lease.server";
 import { dispatchNextWorker } from "./scan-worker-dispatch.server";
 
 export const DEEPFAKE_SCAN_WORKER_BUDGET_MS = 35_000;
@@ -107,6 +113,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
 
   const runtime = createScanRuntime({
     hardTimeoutMs: budgetMs + SCAN_DEADLINE_BUFFER_MS + 5_000,
+    leaseTtlMs: WORKER_LEASE_TTL_MS,
   });
   const ownership: ScanOwnership = {
     scanId: scan.id,
@@ -117,6 +124,39 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   const metrics = objectish(scan.discovery_metrics);
   const startOptions = objectish(metrics?.start_options);
   const resumeCheckpoint = parseScanCheckpoint(scan.scan_checkpoint);
+
+  let stopHeartbeat = () => {};
+  let activeLeaseExpiry =
+    typeof scan.lease_expires_at === "string" ? scan.lease_expires_at : null;
+
+  try {
+    const renewed = await renewScanLease({
+      supabase: input.supabase,
+      ownership,
+      leaseTtlMs: WORKER_LEASE_TTL_MS,
+      patch: {
+        discovery_metrics: {
+          ...(metrics ?? {}),
+          worker_execution_id: workerExecutionId,
+          worker_batch_started_at: batchStartedAt,
+        },
+      },
+    });
+    activeLeaseExpiry = renewed.lease_expires_at;
+    stopHeartbeat = startWorkerHeartbeatLoop({
+      supabase: input.supabase,
+      ownership,
+      leaseTtlMs: WORKER_LEASE_TTL_MS,
+    });
+  } catch (renewError) {
+    console.warn("[DEEPFAKE] Worker lease renewal at start failed:", {
+      scan_id: scan.id,
+      worker_execution_id: workerExecutionId,
+      error:
+        renewError instanceof Error ? renewError.message : String(renewError),
+    });
+  }
+
   const existingBatchNumber =
     typeof metrics?.worker_batch_number === "number"
       ? metrics.worker_batch_number
@@ -131,8 +171,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
     query_ids_claimed: [],
     lease_owner: workerExecutionId,
     lease_acquired_at: batchStartedAt,
-    lease_expiry:
-      typeof scan.lease_expires_at === "string" ? scan.lease_expires_at : null,
+    lease_expiry: activeLeaseExpiry,
     batch_start_time: batchStartedAt,
     pending_query_count: resumeCheckpoint
       ? Math.max(
@@ -190,6 +229,8 @@ export async function executeDeepfakeScanWorkerBatch(input: {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  } finally {
+    stopHeartbeat();
   }
 
   const checkpoint =
@@ -251,10 +292,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
         claimedQueryIds,
         leaseOwner: workerExecutionId,
         leaseAcquiredAt: batchStartedAt,
-        leaseExpiry:
-          typeof scan.lease_expires_at === "string"
-            ? scan.lease_expires_at
-            : null,
+        leaseExpiry: activeLeaseExpiry,
         batchStartedAt,
         supabase: input.supabase,
         ownership,

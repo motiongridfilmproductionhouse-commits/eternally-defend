@@ -16,6 +16,9 @@ import {
   SCAN_DEADLINE_BUFFER_MS,
 } from "./scan-runtime.server";
 import {
+  STALE_RECOVERY_GRACE_MS,
+} from "./scan-lease.server";
+import {
   createDiscoveryFunnelMetrics,
   decideTerminalStatus,
   finalizeScanStatus,
@@ -266,8 +269,14 @@ test("expired lease recovery marks only expired running scans failed", async () 
     {
       id: expiredId,
       status: "running",
-      lease_expires_at: new Date(now - 1_000).toISOString(),
+      lease_expires_at: new Date(
+        now - STALE_RECOVERY_GRACE_MS - 5_000,
+      ).toISOString(),
+      heartbeat_at: new Date(
+        now - STALE_RECOVERY_GRACE_MS - 5_000,
+      ).toISOString(),
       scan_run_token: createScanRunToken(),
+      discovery_metrics: {},
     },
     {
       id: freshId,
@@ -292,6 +301,30 @@ test("expired lease recovery marks only expired running scans failed", async () 
   assert.equal(skipped.recovered, false);
   assert.equal(supabase.rows.find((r) => r.id === expiredId)?.status, "failed");
   assert.equal(supabase.rows.find((r) => r.id === freshId)?.status, "running");
+});
+
+test("recently expired lease stays running during stale-recovery grace", async () => {
+  const scanId = crypto.randomUUID();
+  const now = Date.now();
+  const supabase = createFakeSupabase([
+    {
+      id: scanId,
+      status: "running",
+      lease_expires_at: new Date(now - 30_000).toISOString(),
+      heartbeat_at: new Date(now - 30_000).toISOString(),
+      scan_run_token: createScanRunToken(),
+      discovery_metrics: {},
+    },
+  ]);
+
+  const result = await recoverExpiredScanLease({
+    supabase,
+    scanId,
+    nowMs: now,
+  });
+
+  assert.equal(result.recovered, false);
+  assert.equal(supabase.rows[0]?.status, "running");
 });
 
 test("valid heartbeat cannot be recovered", async () => {
