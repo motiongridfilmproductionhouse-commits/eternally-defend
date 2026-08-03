@@ -6,6 +6,142 @@
 import { CRAWL_FAILURE_CATEGORIES } from "./crawl-failure";
 import { emptyCrawlMetrics, type CrawlMetrics } from "./crawl-metrics";
 
+/** Allowed scan stop reasons — never stop because "enough matches" were found. */
+export type ScanTerminationReason =
+  | "providers_exhausted"
+  | "timeout_reached"
+  | "cancelled"
+  | "fatal_configuration_error";
+
+export const FORBIDDEN_TERMINATION_REASONS = [
+  "enough_matches_found",
+  "maximum_verified_findings_reached",
+] as const;
+
+/** Operator-facing coverage counters written into scan.stats. */
+export interface DiscoveryCoverageDiagnostics {
+  queries_generated: number;
+  provider_requests_started: number;
+  provider_requests_succeeded: number;
+  provider_requests_failed: number;
+  raw_results_received: number;
+  unique_candidate_urls: number;
+  unique_candidate_domains: number;
+  pages_crawled: number;
+  detail_links_queued: number;
+  detail_links_processed: number;
+  redirects_followed: number;
+  candidates_rejected: number;
+  candidates_pending: number;
+  findings_verified: number;
+  scan_elapsed_ms: number;
+  termination_reason: ScanTerminationReason;
+  not_processed_due_to_budget: number;
+}
+
+export function emptyDiscoveryCoverageDiagnostics(
+  overrides: Partial<DiscoveryCoverageDiagnostics> = {},
+): DiscoveryCoverageDiagnostics {
+  return {
+    queries_generated: 0,
+    provider_requests_started: 0,
+    provider_requests_succeeded: 0,
+    provider_requests_failed: 0,
+    raw_results_received: 0,
+    unique_candidate_urls: 0,
+    unique_candidate_domains: 0,
+    pages_crawled: 0,
+    detail_links_queued: 0,
+    detail_links_processed: 0,
+    redirects_followed: 0,
+    candidates_rejected: 0,
+    candidates_pending: 0,
+    findings_verified: 0,
+    scan_elapsed_ms: 0,
+    termination_reason: "providers_exhausted",
+    not_processed_due_to_budget: 0,
+    ...overrides,
+  };
+}
+
+export function resolveScanTerminationReason(input: {
+  cancelled?: boolean;
+  abortedByDeadline?: boolean;
+  fatalConfigurationError?: boolean;
+  fatalReason?: string | null;
+}): ScanTerminationReason {
+  if (input.fatalConfigurationError || input.fatalReason) {
+    return "fatal_configuration_error";
+  }
+  if (input.cancelled) return "cancelled";
+  if (input.abortedByDeadline) return "timeout_reached";
+  return "providers_exhausted";
+}
+
+export function coverageDiagnosticsFromStats(
+  stats: Record<string, unknown> | null | undefined,
+): DiscoveryCoverageDiagnostics {
+  const n = (key: string) => {
+    const v = stats?.[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
+  const reasonRaw = stats?.termination_reason;
+  const reason: ScanTerminationReason =
+    reasonRaw === "timeout_reached" ||
+    reasonRaw === "cancelled" ||
+    reasonRaw === "fatal_configuration_error" ||
+    reasonRaw === "providers_exhausted"
+      ? reasonRaw
+      : resolveScanTerminationReason({
+          abortedByDeadline:
+            stats?.aborted_by_deadline === true ||
+            /deadline|timeout/i.test(String(stats?.failure_reason ?? "")),
+          cancelled: stats?.cancelled === true || String(stats?.terminal_status) === "cancelled",
+          fatalConfigurationError:
+            String(stats?.terminal_status) === "failed" &&
+            /config|never started|no discovery queries/i.test(
+              String(stats?.failure_reason ?? ""),
+            ),
+        });
+
+  return emptyDiscoveryCoverageDiagnostics({
+    queries_generated: n("queries_generated"),
+    provider_requests_started:
+      n("provider_requests_started") || n("provider_requests") || n("queries_executed"),
+    provider_requests_succeeded:
+      n("provider_requests_succeeded") || n("provider_successes"),
+    provider_requests_failed:
+      n("provider_requests_failed") || n("provider_failures"),
+    raw_results_received:
+      n("raw_results_received") || n("provider_results") || n("provider_candidates"),
+    unique_candidate_urls:
+      n("unique_candidate_urls") || n("unique_candidate_pages") || n("unique_pages"),
+    unique_candidate_domains: n("unique_candidate_domains"),
+    pages_crawled: n("pages_crawled"),
+    detail_links_queued:
+      n("detail_links_queued") || n("detail_pages_queued"),
+    detail_links_processed:
+      n("detail_links_processed") || n("detail_pages_followed"),
+    redirects_followed: n("redirects_followed"),
+    candidates_rejected:
+      n("candidates_rejected") ||
+      n("title_identity_rejected") +
+        n("hard_negative_rejected") +
+        n("access_evidence_rejected") +
+        n("artwork_only_rejected"),
+    candidates_pending:
+      n("candidates_pending") || n("suspected_review_pages"),
+    findings_verified:
+      n("findings_verified") ||
+      n("client_visible_findings") ||
+      n("verified_client_visible_findings"),
+    scan_elapsed_ms: n("scan_elapsed_ms"),
+    termination_reason: reason,
+    not_processed_due_to_budget:
+      n("not_processed_due_to_budget") || n("detail_links_remaining"),
+  });
+}
+
 export interface ProviderRunMetrics {
   requested: number;
   succeeded: number;

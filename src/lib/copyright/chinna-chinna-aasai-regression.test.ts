@@ -44,7 +44,7 @@ test("Chinna Chinna Aasai queries cover download/stream/cloud/archive hosts", ()
   assert.ok(plans.some((p) => /archive\.org/i.test(p.query)));
   assert.ok(plans.some((p) => /dailymotion/i.test(p.query)));
   assert.ok(/1080p|720p|HDRip|WEBRip|mkv|pdf|watch free|google drive/i.test(joined));
-  assert.ok(plans.every((p) => /chinna chinna aasai/i.test(p.query)));
+  assert.ok(plans.every((p) => /chinna[\s-]*chinna[\s-]*aasai/i.test(p.query)));
 });
 
 test("Ogomovies download page → Unauthorized Download / Critical", () => {

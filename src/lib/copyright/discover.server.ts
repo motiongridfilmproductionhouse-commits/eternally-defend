@@ -38,7 +38,21 @@ import {
   sanitizeProviderFailureDetail,
   type ProviderFailureCategory,
 } from "./provider-failures";
+import {
+  DEFAULT_PAGE_CAP,
+  FIRECRAWL_PRIORITY_QUERY_PAGES,
+  FIRECRAWL_SEARCH_LIMIT,
+  MAX_DISCOVERY_QUERIES_PER_SCAN,
+  MIN_DISCOVERY_QUERIES,
+} from "./discovery-config";
 import { PROVIDER_CRAWL_BUDGET_MS } from "./crawl-budget";
+import {
+  DISCOVERY_MIRROR_DOMAINS,
+  DISCOVERY_TARGET_DOMAINS,
+  DISCOVERY_TORRENT_INDEX_DOMAINS,
+  siteQueryForDomain,
+} from "./discovery-target-domains";
+import { expandTitleVariants } from "./title-identity";
 
 export interface ReferenceAnalysis {
   title: string | null;
@@ -188,8 +202,8 @@ export interface ProviderSearchAttempt {
   httpStatus?: number | null;
 }
 
-/** Focused query cap — early-stop may finish sooner when enough pages are found. */
-const DISCOVERY_MAX_QUERIES_PER_SCAN = 40;
+/** Focused query cap — discovery continues until plans exhausted or deadline. */
+export { MIN_DISCOVERY_QUERIES, MAX_DISCOVERY_QUERIES_PER_SCAN } from "./discovery-config";
 
 export interface DiscoveryProgress {
   queriesGenerated: number;
@@ -269,6 +283,7 @@ async function search(
   recent: boolean,
   signal?: AbortSignal,
   deadlineAt?: number,
+  page = 1,
 ): Promise<ProviderSearchAttempt> {
   if (!isFirecrawlConfigured()) {
     return {
@@ -305,7 +320,8 @@ async function search(
         "/search",
         {
           query,
-          limit: 10,
+          limit: FIRECRAWL_SEARCH_LIMIT,
+          page,
           sources: ["web", "images"],
           ...(recent ? { tbs: "qdr:m" } : {}),
         },
@@ -499,16 +515,14 @@ interface QueryPlan {
   query: string;
   /** restrict to recent results */
   recent: boolean;
+  /** High-yield queries eligible for multi-page Firecrawl pagination */
+  priority?: boolean;
+  /** 1-based Firecrawl search page */
+  page?: number;
 }
 
 /** Optional discovery seed domains for regression / focused hunting — never auto-guilty. */
-const OPTIONAL_SEED_DOMAINS = [
-  "ogomovies1.com.pk",
-  "bilibili.tv",
-  "archive.org",
-  "terabox.app",
-  "dailymotion.com",
-];
+const OPTIONAL_SEED_DOMAINS = [...DISCOVERY_TARGET_DOMAINS.slice(0, 5)];
 
 /**
  * Focused exact-title piracy queries. Never search using generic title tokens alone.
@@ -635,13 +649,70 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
     for (const n of names.slice(1, 3)) push(`"${n}" site:${seed}`, isFresh);
   }
 
-  // High-yield piracy families and natural-language piracy phrasing. These are
-  // prioritised ahead of the generic phrase sweep so the bounded query budget
-  // always spends part of itself on the sites that actually host copies.
+  const titleNoYear = base.replace(/\s*\(?\d{4}\)?\s*$/g, "").trim();
+  const titleNoPunct = base.replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+
+  // High-yield piracy families and natural-language piracy phrasing.
   const priority: QueryPlan[] = [];
-  const pushPriority = (query: string) => {
-    if (query.trim()) priority.push({ query, recent: isFresh });
+  const pushPriority = (query: string, recent = isFresh) => {
+    if (query.trim()) priority.push({ query, recent, priority: true });
   };
+
+  // User-specified high-yield exact-title distribution queries (always first).
+  const explicitPhrases = [
+    year ? `"${base}" "${year}" "full movie"` : `"${base}" "full movie"`,
+    `"${base}" watch online`,
+    `"${base}" watch full movie`,
+    `"${base}" free watch`,
+    `"${base}" download`,
+    `"${base}" direct download`,
+    `"${base}" streaming`,
+    `"${base}" stream`,
+    `"${base}" CAM`,
+    `"${base}" HDCAM`,
+    `"${base}" online print`,
+    `"${base}" movie print`,
+    `"${base}" HD`,
+    `"${base}" 1080p`,
+    `"${base}" 720p`,
+    `"${base}" WEB-DL`,
+    `"${base}" WEBRip`,
+    `"${base}" HDRip`,
+    `"${base}" DVDRip`,
+    `"${base}" CAMRip`,
+    `"${base}" HDTS`,
+    `"${base}" mp4`,
+    `"${base}" mkv`,
+    `"${base}" torrent`,
+    `"${base}" magnet`,
+    `"${base}" Telegram`,
+    `"${base}" Terabox`,
+    `"${base}" archive`,
+    `"${base}" Bilibili`,
+    `"${base}" Dailymotion`,
+    `"${base}" Google Drive`,
+    `"${base}" Mega`,
+    `"${base}" MediaFire`,
+    `"${base}" Pixeldrain`,
+  ];
+  for (const q of explicitPhrases) pushPriority(q);
+
+  if (titleNoYear && titleNoYear !== base) {
+    pushPriority(`"${titleNoYear}" full movie`);
+    pushPriority(`"${titleNoYear}" watch online`);
+    pushPriority(`"${titleNoYear}" download`);
+  }
+  if (titleNoPunct && titleNoPunct !== base) {
+    pushPriority(`"${titleNoPunct}" 1080p`);
+  }
+  for (const v of expandTitleVariants(base).slice(0, 4)) {
+    if (!/[\s-]/.test(v)) continue;
+    pushPriority(`"${v}" watch online`);
+    if (v.includes(" ")) pushPriority(`"${v}" download`);
+  }
+  for (const alt of a.altTitles.slice(0, 3)) {
+    if (alt.trim()) pushPriority(`"${alt.trim()}" full movie`);
+  }
 
   for (const cluster of PIRACY_SITE_CLUSTERS) {
     pushPriority(`"${base}" ${cluster}`);
@@ -650,50 +721,40 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
   pushPriority(`"${base}" ${FILE_HOST_FILTER}`);
   pushPriority(`"${base}" ${STREAM_SITE_FILTER}`);
   pushPriority(`"${base}" torrent magnet ${NEG}`);
+
+  // Platform-specific site: queries (configurable registry).
+  for (const domain of DISCOVERY_TARGET_DOMAINS) {
+    pushPriority(siteQueryForDomain(domain, base));
+    if (year) pushPriority(`site:${domain} "${base}" ${year}`);
+  }
+  pushPriority(`site:ia*.us.archive.org "${base}"`);
+
+  for (const domain of DISCOVERY_MIRROR_DOMAINS.slice(0, 8)) {
+    pushPriority(`site:${domain} "${base}" full movie`);
+  }
+  for (const domain of DISCOVERY_TORRENT_INDEX_DOMAINS.slice(0, 4)) {
+    pushPriority(`site:${domain} "${base}" torrent`);
+  }
+
   pushPriority(`"${base}" (site:t.me OR site:telegram.me) full movie`);
   pushPriority(`"${base}" (site:bilibili.tv OR site:bilibili.com) movie`);
   pushPriority(`"${base}" (site:terabox.app OR site:terabox.com) sharing`);
   pushPriority(`"${base}" site:archive.org (pdf OR movie OR boly4u)`);
   pushPriority(`"${base}" site:dailymotion.com full movie`);
 
-  // Explicit search-expansion stage — platform + rip-quality phrases.
-  for (const phrase of [
-    "watch online",
-    "full movie",
-    "download",
-    "HDRip",
-    "WEBRip",
-    "CAM",
-    "HDTS",
-    "mp4",
-    "mkv",
-    "bilibili",
-    "archive",
-    "terabox",
-    "drive",
-    "telegram",
-    "torrent",
-  ]) {
-    pushPriority(`"${base}" ${phrase}`);
+  if (a.productionCompany) {
+    pushPriority(`"${base}" ${a.productionCompany} leaked movie`);
   }
-  for (const site of [
-    "ogomovies1.com.pk",
-    "bilibili.tv",
-    "archive.org",
-    "terabox.app",
-    "dailymotion.com",
-  ]) {
-    pushPriority(`site:${site} "${base}"`);
+  if (a.releaseDate) {
+    pushPriority(`"${base}" ${a.releaseDate} download`);
   }
 
-  // Native-language piracy phrasing (title always stays exact-quoted).
   const langWord = a.language ? a.language.toLowerCase() : "";
   for (const phrase of [
     "movie download",
     "full movie watch online free",
     "movie download hdrip 720p",
     "movie telegram link",
-    "movie download link",
     "1080p mkv download",
     "watch free online player",
   ]) {
@@ -701,11 +762,22 @@ export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan
   }
 
   const seen = new Set<string>();
-  // Keep high-yield host clusters first so the bounded Firecrawl budget
-  // always spends cycles on ogomovies / bilibili / archive / terabox / dailymotion.
-  return [...priority.slice(0, 16), ...plans, ...priority.slice(16)]
-    .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
-    .slice(0, 52);
+  const merged = [...priority, ...plans]
+    .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query));
+
+  // Guarantee at least MIN_DISCOVERY_QUERIES when title is present.
+  if (merged.length < MIN_DISCOVERY_QUERIES) {
+    for (const term of general) {
+      if (merged.length >= MIN_DISCOVERY_QUERIES) break;
+      const q = `"${base}" ${term} ${NEG}`;
+      if (!seen.has(q)) {
+        seen.add(q);
+        merged.push({ query: q, recent: isFresh });
+      }
+    }
+  }
+
+  return merged.slice(0, MAX_DISCOVERY_QUERIES_PER_SCAN);
 }
 
 /**
@@ -867,8 +939,18 @@ export async function firecrawlDiscover(
   const mergedPlans = [...extraPlans, ...allPlans];
   const telegramPlans = mergedPlans.filter((p) => /\btelegram\b/i.test(p.query));
   const webPlans = mergedPlans.filter((p) => !/\btelegram\b/i.test(p.query));
-  const plans = [...webPlans, ...telegramPlans].slice(0, DISCOVERY_MAX_QUERIES_PER_SCAN);
-  const queriesGenerated = plans.length;
+  const basePlans = [...webPlans, ...telegramPlans].slice(0, MAX_DISCOVERY_QUERIES_PER_SCAN);
+  // Paginate high-priority exact-title / site queries for deeper SERP coverage.
+  const plans: QueryPlan[] = [];
+  for (const plan of basePlans) {
+    plans.push({ ...plan, page: plan.page ?? 1 });
+    if (plan.priority) {
+      for (let page = 2; page <= FIRECRAWL_PRIORITY_QUERY_PAGES; page++) {
+        plans.push({ ...plan, page });
+      }
+    }
+  }
+  const queriesGenerated = basePlans.length;
   const deadlineAt =
     options.deadlineAt ?? Date.now() + PROVIDER_CRAWL_BUDGET_MS;
 
@@ -935,7 +1017,8 @@ export async function firecrawlDiscover(
     deadlineAt,
     earlyStopUniquePages: DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
     uniquePageCount: countUniquePages,
-    execute: (plan, signal) => search(plan.query, plan.recent, signal, deadlineAt),
+    execute: (plan, signal) =>
+      search(plan.query, plan.recent, signal, deadlineAt, plan.page ?? 1),
     onAttempt: options.onProgress
       ? async (attempt, totals) => {
           await emitDiscoveryProgress([attempt], totals);
@@ -1100,13 +1183,14 @@ export async function firecrawlDiscover(
   for (const lead of [
     ...strongLeads.map((l) => ({ ...l, title: l.title ?? null, strong: true as const })),
     ...imagePageLeads,
-    ...weakLeads.slice(0, 12).map((l) => ({ ...l, title: l.title ?? null, strong: false as const })),
+    ...weakLeads.slice(0, 40).map((l) => ({ ...l, title: l.title ?? null, strong: false as const })),
   ]) {
     const key = canonicalUrl(lead.url);
     if (leadSeen.has(key)) continue;
     leadSeen.add(key);
     pageLeads.push({ ...lead, url: key });
-    if (pageLeads.length >= 48) break;
+    // Keep Firecrawl page leads aligned with the scan crawl cap — never stall at ~3/48.
+    if (pageLeads.length >= DEFAULT_PAGE_CAP) break;
   }
 
   // Suspicious distribution sources first, official-looking noise never here.

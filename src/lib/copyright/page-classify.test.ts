@@ -430,7 +430,9 @@ test("18. Queries require exact title + distribution phrase (never bare tokens)"
   assert.ok(plans.length > 0);
   for (const p of plans) {
     assert.ok(
-      /"neon horizon"/i.test(p.query) || /neon horizon malayalam/i.test(p.query),
+      /"neon horizon"/i.test(p.query) ||
+        /"neon-horizon"/i.test(p.query) ||
+        /neon horizon malayalam/i.test(p.query),
       `query missing exact title: ${p.query}`,
     );
     assert.notEqual(p.query.trim().toLowerCase(), "neon horizon");

@@ -146,13 +146,41 @@ export function InvestigationCenter({
           scanning={scanning}
           counters={[
             { label: "Candidate pages", value: counters.candidate_pages },
-            { label: "Domains", value: threatRows.length },
+            {
+              label: "Domains",
+              value: Math.max(
+                threatRows.length,
+                typeof stats?.unique_candidate_domains === "number"
+                  ? stats.unique_candidate_domains
+                  : 0,
+              ),
+            },
+            {
+              label: "Crawled pages",
+              value:
+                typeof stats?.pages_crawled === "number"
+                  ? stats.pages_crawled
+                  : counters.websites_checked,
+            },
             { label: "Verified threats", value: counters.verified_findings },
             {
               label: "Pending verification",
               value: Math.max(0, counters.potential_threats - counters.verified_findings),
             },
-            { label: "Sites checked", value: counters.websites_checked },
+            {
+              label: "Rejected",
+              value:
+                typeof stats?.candidates_rejected === "number"
+                  ? stats.candidates_rejected
+                  : 0,
+            },
+            {
+              label: "Budget skipped",
+              value:
+                typeof stats?.not_processed_due_to_budget === "number"
+                  ? stats.not_processed_due_to_budget
+                  : 0,
+            },
           ]}
         />
         <div className="cyber-panel grid place-items-center rounded-2xl p-5">

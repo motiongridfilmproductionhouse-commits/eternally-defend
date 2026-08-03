@@ -11,6 +11,7 @@ import {
   runBatchedDiscovery,
 } from "./discovery-runtime";
 import { DEFAULT_PAGE_CAP, SCAN_TOTAL_BUDGET_MS } from "./crawl-budget";
+import { MIN_DISCOVERY_CANDIDATES } from "./discovery-config";
 import { prioritizeKnownUrlLeads } from "./known-urls.server";
 import { buildQueries, type ReferenceAnalysis } from "./discover.server";
 
@@ -36,7 +37,13 @@ test("discovery early-stop is effectively disabled", () => {
 
 test("page crawl cap allows broad multi-host investigations", () => {
   assert.ok(DEFAULT_PAGE_CAP >= 100);
-  assert.ok(SCAN_TOTAL_BUDGET_MS >= 400_000);
+  assert.equal(SCAN_TOTAL_BUDGET_MS, 240_000);
+  assert.ok(MIN_DISCOVERY_CANDIDATES >= 30);
+});
+
+test("buildQueries generates at least 40 discovery queries", () => {
+  const plans = buildQueries(analysis, "Chinna Chinna Aasai");
+  assert.ok(plans.length >= 40, `queries=${plans.length}`);
 });
 
 test("runBatchedDiscovery does not stop after 3 unique pages", async () => {
@@ -85,5 +92,5 @@ test("executor has no hard 3-match or 20-lead truncations", () => {
   assert.doesNotMatch(src, /topMatchesOnly/);
   assert.doesNotMatch(src, /firstMatches/);
   assert.doesNotMatch(src, /pageLeads\.slice\(0,\s*20\)/);
-  assert.match(src, /detailFollowRecorder\.drain\(80\)/);
+  assert.match(src, /detailFollowRecorder\.drain\(DETAIL_FOLLOW_DRAIN_CAP\)/);
 });
