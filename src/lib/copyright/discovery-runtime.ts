@@ -14,7 +14,10 @@ export const FIRECRAWL_BATCH_DELAY_BASE_MS = 1_200;
 export const FIRECRAWL_BATCH_DELAY_JITTER_MS = 800;
 export const DISCOVERY_EARLY_STOP_UNIQUE_PAGES = 24;
 
-export type CircuitTripCategory = "rate_limited" | "provider_unavailable";
+export type CircuitTripCategory =
+  | "rate_limited"
+  | "provider_unavailable"
+  | "insufficient_credits";
 
 export interface DiscoveryCircuitState {
   consecutiveTripFailures: number;
