@@ -87,6 +87,8 @@ export interface DistributionAnalysis {
   rendered: boolean;
   /** Thumbnails discovered on this page for the live reference carousel only. */
   pageReferenceImages?: ReferenceImage[];
+  /** Short readable excerpt of the inspected page body, for evidence display. */
+  pageExcerpt?: string | null;
 }
 
 function toLegacyContentType(
