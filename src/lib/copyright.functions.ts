@@ -3081,6 +3081,17 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
         quality_tags: Array.isArray(dist.quality_tags) ? (dist.quality_tags as string[]).slice(0, 6) : [],
         status,
         reason: m.reason,
+        page_excerpt:
+          typeof ev.page_excerpt === "string" ? ev.page_excerpt.slice(0, 320) : null,
+        confidence_breakdown:
+          ev.confidence_breakdown && typeof ev.confidence_breakdown === "object"
+            ? (ev.confidence_breakdown as {
+                identity?: number;
+                access?: number;
+                releaseWindow?: number;
+                penalties?: number;
+              })
+            : null,
         discovery_query: sanitizeDiscoveryQueryForClient(
           (ev.discovery_query as string) ?? null,
         ),
