@@ -158,6 +158,48 @@ export function AllSourcesPanel({ sources }: { sources: DiscoveredSource[] }) {
               {s.reason && (
                 <p className="mt-1 text-[11px] text-muted-foreground">{s.reason}</p>
               )}
+
+              <div className="mt-2 space-y-1 rounded-md border border-border/50 bg-background/40 p-2">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Why this matched
+                </p>
+                {s.confidence_breakdown && (
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      ["Title identity", s.confidence_breakdown.identity],
+                      ["Access evidence", s.confidence_breakdown.access],
+                      ["Release window", s.confidence_breakdown.releaseWindow],
+                      ["Penalties", s.confidence_breakdown.penalties],
+                    ]
+                      .filter(([, v]) => typeof v === "number" && v !== 0)
+                      .map(([label, v]) => (
+                        <Badge
+                          key={String(label)}
+                          variant="outline"
+                          className="text-[10px]"
+                        >
+                          {label}: {(v as number) > 0 ? "+" : ""}
+                          {v as number}
+                        </Badge>
+                      ))}
+                  </div>
+                )}
+                {s.discovery_query && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Search used: <span className="text-foreground">{s.discovery_query}</span>
+                  </p>
+                )}
+                {s.page_excerpt && (
+                  <p className="line-clamp-3 text-[11px] italic text-muted-foreground">
+                    “{s.page_excerpt}”
+                  </p>
+                )}
+                {!s.confidence_breakdown && !s.discovery_query && !s.page_excerpt && (
+                  <p className="text-[11px] text-muted-foreground">
+                    No accuracy detail was recorded for this source.
+                  </p>
+                )}
+              </div>
             </li>
           );
         })}
