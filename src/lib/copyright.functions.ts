@@ -2380,9 +2380,12 @@ export async function executeCopyrightScanById(opts: {
                 (pf.prior_evidence?.verified_at as string | undefined) ?? null,
               recheck_status: recheckStatus,
               show_as_historical: recheckStatus !== "reconfirmed_active",
-            };
+            } as unknown as MatchInsert["evidence"];
           } else if (!ev.recheck_status) {
-            existingRow.evidence = { ...ev, recheck_status: recheckStatus };
+            existingRow.evidence = {
+              ...ev,
+              recheck_status: recheckStatus,
+            } as unknown as MatchInsert["evidence"];
           }
           preservedHistoricalFindings.push({
             source_url: key,
