@@ -172,20 +172,21 @@ export function InvestigationCenter({
           </p>
         ) : (
           sources.map((source) => (
-            <DomainIntelCard
-              key={source.id}
-              url={source.url}
-              domain={source.domain}
-              workTitle={workTitle}
-              classification={source.detection_type ?? source.classification}
-              confidence={source.confidence}
-              matchId={source.id}
-              firstSeen={source.last_verified_at}
-              lastVerified={source.last_verified_at}
-              onIntel={collectIntel}
-              onMarkResolved={onDismiss}
-              onEscalate={onReview}
-            />
+            <div key={source.id} data-source-anchor={source.id}>
+              <DomainIntelCard
+                url={source.url}
+                domain={source.domain}
+                workTitle={workTitle}
+                classification={source.detection_type ?? source.classification}
+                confidence={source.confidence}
+                matchId={source.id}
+                firstSeen={source.last_verified_at}
+                lastVerified={source.last_verified_at}
+                onIntel={collectIntel}
+                onMarkResolved={onDismiss}
+                onEscalate={onReview}
+              />
+            </div>
           ))
         )}
       </section>
