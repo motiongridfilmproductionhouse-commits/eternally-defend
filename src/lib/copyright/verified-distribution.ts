@@ -253,12 +253,20 @@ export function verifyIllegalDistribution(
     return { verified: false, reason: "no_distribution_evidence" };
   }
 
+  // Historical rows that were confirmed as piracy in an earlier verified scan
+  // carry their evidence in prior_* fields; treat that as identity/access proof.
+  const priorConfirmed =
+    ev.historical_preservation === true &&
+    typeof ev.prior_classification === "string" &&
+    isActionablePiracy(ev.prior_classification) &&
+    !OFFICIAL_CLASSIFICATIONS.has(ev.prior_classification);
+
   const titleIdentity = record(pageEvidence.titleIdentity);
   const identityMatched =
     titleIdentity.matched === true ||
     stringArray(dist.identity_evidence).length > 0 ||
     stringArray(ev.identity_evidence).length > 0;
-  if (!identityMatched) {
+  if (!identityMatched && !priorConfirmed) {
     return { verified: false, reason: "title_not_identified" };
   }
 
@@ -272,7 +280,7 @@ export function verifyIllegalDistribution(
   ];
   const strongEvidence =
     dist.strong_evidence === true || ev.strong_evidence === true || accessStrength === "strong";
-  if (!strongEvidence && accessSignals.length === 0) {
+  if (!strongEvidence && accessSignals.length === 0 && !priorConfirmed) {
     return { verified: false, reason: "no_distribution_evidence" };
   }
   // Cloud storage and generic hosts require the file itself, not just a mention.

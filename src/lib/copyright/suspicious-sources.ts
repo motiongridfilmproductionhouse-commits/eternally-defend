@@ -9,6 +9,10 @@ import {
   isActionablePiracy,
   resolveClassification,
 } from "./taxonomy";
+import {
+  verifyIllegalDistribution,
+  VERIFIED_DISTRIBUTION_THRESHOLD,
+} from "./verified-distribution";
 
 /** JSON-serializable value, safe to send from a server function to the client. */
 export type SerializableJson =
@@ -289,6 +293,28 @@ export function buildSuspiciousSourcesFromMatches<T extends {
   for (const match of matches) {
     const mapped = mapMatchToSuspiciousSource(match);
     if (!mapped) continue;
+    // Only verified illegal distribution sources reach any user-facing surface.
+    // Everything else (searched-only platforms, official sources, unverified
+    // leads) stays in internal logs.
+    const verdict = verifyIllegalDistribution(
+      {
+        source_url: match.source_url,
+        detection_type: match.detection_type,
+        confidence: match.confidence,
+        evidence: match.evidence,
+      },
+      VERIFIED_DISTRIBUTION_THRESHOLD,
+    );
+    if (!verdict.verified) {
+      if (typeof process !== "undefined" && process.env?.NODE_ENV !== "test") {
+        console.info(
+          "[copyright-suspicious] not verified distribution",
+          match.source_url,
+          verdict.reason,
+        );
+      }
+      continue;
+    }
     byUrl.set(mapped.url, mapped);
   }
   return [...byUrl.values()];
