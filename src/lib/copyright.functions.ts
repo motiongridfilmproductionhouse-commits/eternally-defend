@@ -2033,7 +2033,7 @@ export async function executeCopyrightScanById(opts: {
               crawl_failure_reason: dist.crawlFailureReason,
               ...(recheckStatus ? { recheck_status: recheckStatus } : {}),
             },
-          },
+          } as unknown as MatchInsert["evidence"]),
           ocr_text: null,
           reason: dist.reason,
           contact: contact as unknown as MatchInsert["contact"],
