@@ -6,21 +6,26 @@
 import { MAX_KNOWN_URLS } from "./known-urls.server";
 import { canonicalUrl } from "./url.server";
 
-export const DEFAULT_PAGE_CAP = 32;
+/** Max pages inspected per scan (known URLs + provider candidates). */
+export const DEFAULT_PAGE_CAP = 160;
 /** Wall-clock budget reserved exclusively for accepted known URLs. */
-export const KNOWN_URL_BUDGET_MS = 90_000;
+export const KNOWN_URL_BUDGET_MS = 120_000;
 /** Remaining wall-clock budget for provider candidate crawls. */
-export const PROVIDER_CRAWL_BUDGET_MS = 120_000;
+export const PROVIDER_CRAWL_BUDGET_MS = 300_000;
 /** Reserved wall-clock budget for title-detail follow phase. */
-export const DETAIL_FOLLOW_BUDGET_MS = 45_000;
+export const DETAIL_FOLLOW_BUDGET_MS = 90_000;
 /** Reserved wall-clock budget for browser-render fallbacks across the scan. */
-export const BROWSER_FALLBACK_BUDGET_MS = 60_000;
+export const BROWSER_FALLBACK_BUDGET_MS = 90_000;
 /** Reserved wall-clock budget for known/historical source rechecks. */
-export const KNOWN_SOURCE_RECHECK_BUDGET_MS = 45_000;
+export const KNOWN_SOURCE_RECHECK_BUDGET_MS = 60_000;
 /** Maximum wall-clock time spent rendering a single page. */
 export const PER_PAGE_BROWSER_BUDGET_MS = 28_000;
-/** Absolute wall-clock ceiling for one copyright scan executor run. */
-export const SCAN_TOTAL_BUDGET_MS = KNOWN_URL_BUDGET_MS + PROVIDER_CRAWL_BUDGET_MS;
+/**
+ * Absolute wall-clock ceiling for one copyright scan executor run.
+ * Includes reserved detail-follow window so recursive crawl is not starved.
+ */
+export const SCAN_TOTAL_BUDGET_MS =
+  KNOWN_URL_BUDGET_MS + PROVIDER_CRAWL_BUDGET_MS + DETAIL_FOLLOW_BUDGET_MS;
 
 export function absoluteScanDeadlineAt(scanStartedAt: number): number {
   return scanStartedAt + SCAN_TOTAL_BUDGET_MS;

@@ -12,7 +12,12 @@ export const FIRECRAWL_MAX_RETRIES = 1;
 export const FIRECRAWL_CIRCUIT_BREAKER_THRESHOLD = 3;
 export const FIRECRAWL_BATCH_DELAY_BASE_MS = 1_200;
 export const FIRECRAWL_BATCH_DELAY_JITTER_MS = 800;
-export const DISCOVERY_EARLY_STOP_UNIQUE_PAGES = 24;
+/**
+ * Soft ceiling only — discovery should not stop because a few matches were
+ * found. Prefer exhausting the query plan or hitting the scan deadline.
+ * Set extremely high so unique-page count never ends a healthy provider run.
+ */
+export const DISCOVERY_EARLY_STOP_UNIQUE_PAGES = Number.MAX_SAFE_INTEGER;
 
 export type CircuitTripCategory =
   | "rate_limited"
@@ -269,7 +274,13 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
         });
       }
 
-      if (uniqueSoFar >= earlyStopAt) {
+      // Never stop solely because N pages were found. Only deadline / circuit /
+      // exhausted plans should end discovery (see earlyStopAt = MAX_SAFE_INTEGER).
+      if (
+        Number.isFinite(earlyStopAt) &&
+        earlyStopAt < Number.MAX_SAFE_INTEGER &&
+        uniqueSoFar >= earlyStopAt
+      ) {
         stoppedEarly = true;
         stoppedEarlyReason = `Early stop: ${earlyStopAt} unique candidate pages collected.`;
         break;

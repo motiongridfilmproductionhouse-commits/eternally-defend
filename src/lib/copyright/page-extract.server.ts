@@ -130,11 +130,19 @@ const FILE_HOST_HINTS = [
   "mega.nz",
   "mediafire.com",
   "gofile.io",
+  "pixeldrain.com",
   "drive.google.com",
+  "terabox.com",
+  "terabox.app",
+  "1024terabox.com",
   "youtube.com",
   "youtu.be",
   "ok.ru",
   "dailymotion.com",
+  "bilibili.tv",
+  "bilibili.com",
+  "archive.org",
+  "ogomovies1.com.pk",
 ];
 
 export function isRecognizedExternalDetailHost(url: string, pageHost: string | null): boolean {
