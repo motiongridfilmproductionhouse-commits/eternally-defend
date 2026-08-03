@@ -16,6 +16,8 @@ import { ThreatGauge } from "@/components/copyright/cyber/ThreatGauge";
 import { ThreatAlertOverlay } from "@/components/copyright/cyber/ThreatAlertOverlay";
 import { DomainIntelCard } from "@/components/copyright/cyber/DomainIntelCard";
 import { EvidenceCollectionTicker } from "@/components/copyright/cyber/EvidenceCollectionTicker";
+import { ThreatIntelligencePanel } from "@/components/copyright/cyber/ThreatIntelligencePanel";
+import { buildThreatResultRows } from "@/lib/copyright/threat-results";
 
 export type InvestigationCenterProps = {
   scanId: string | null;
@@ -107,6 +109,11 @@ export function InvestigationCenter({
     return Math.round(Math.max(...scores));
   }, [intelByUrl, sources]);
 
+  const threatRows = useMemo(
+    () => buildThreatResultRows({ suspicious: sources }),
+    [sources],
+  );
+
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -130,6 +137,8 @@ export function InvestigationCenter({
           Alert sound {soundEnabled ? "on" : "off"}
         </Button>
       </header>
+
+      <ThreatIntelligencePanel rows={threatRows} />
 
       <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
         <CyberRadar

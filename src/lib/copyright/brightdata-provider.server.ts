@@ -199,6 +199,8 @@ export function buildBrightDataQueries(
  */
 export const PIRACY_SITE_CLUSTERS: readonly string[][] = [
   ["ogomovies", "einthusan", "movierulz", "ibomma", "tamilrockers", "filmyzilla"],
+  ["bilibili", "dailymotion", "archive.org", "ok.ru", "rumble"],
+  ["terabox", "mega.nz", "pixeldrain", "google drive", "mediafire"],
   ["123movies", "fmovies", "soap2day", "putlocker", "gomovies", "himovies"],
   ["yts", "1337x", "torrentz", "limetorrents", "magnet", "torrent download"],
   ["doodstream", "streamtape", "filemoon", "mixdrop", "vidmoly", "mega.nz"],

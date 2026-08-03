@@ -10,6 +10,7 @@ import type { DomainIntel } from "./domain-intel";
 import { isNeverDisplayHost, verifyIllegalDistribution } from "./verified-distribution";
 import { TYPE_LABEL, type CopyrightClassification } from "./taxonomy";
 import {
+  CATEGORY_LABELS,
   classifyThreatCategory,
   severityFor,
   type ThreatSeverity,
@@ -310,7 +311,11 @@ function buildThreat(
     classification,
     contentType: str(dist.content_type) ?? str(ev.website_type),
   });
-  const severity = severityFor(confidence, true);
+  const severity = severityFor(confidence, true, {
+    categoryKey,
+    classification,
+    domainRisk: str(dist.domain_risk) ?? str(ev.domain_risk),
+  });
   const crawlFailed = ev.crawl_failed === true || dist.crawl_failed === true;
   const removed = match.review_status === "removed";
   const status: ReportThreat["status"] = removed ? "removed" : crawlFailed ? "offline" : "active";
@@ -429,7 +434,7 @@ function buildThreat(
     pageTitle: str(match.page_title),
     classification,
     classificationLabel: classificationLabel(classification),
-    categoryLabel: categoryKey.replace(/_/g, " "),
+    categoryLabel: CATEGORY_LABELS[categoryKey] ?? categoryKey.replace(/_/g, " "),
     severity,
     status,
     confidence,

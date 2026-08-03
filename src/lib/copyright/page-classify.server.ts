@@ -92,9 +92,19 @@ export interface PageClassifyResult {
 const FILE_HOSTS = [
   "mega.nz", "mega.co.nz", "mediafire.com", "gofile.io", "pixeldrain.com", "krakenfiles.com",
   "1fichier.com", "anonfiles.com", "workupload.com", "send.cm", "dropbox.com", "drive.google.com",
+  "terabox.com", "terabox.app", "1024terabox.com",
   "doodstream.com", "dood.to", "streamtape.com", "mixdrop.co", "mixdrop.to", "filemoon.sx",
   "streamsb.net", "upstream.to", "vidmoly.to", "vidhide.com", "streamwish.to", "abyss.to",
 ];
+
+const CLOUD_STORAGE_HOSTS = [
+  "mega.nz", "mega.co.nz", "mediafire.com", "gofile.io", "pixeldrain.com",
+  "dropbox.com", "drive.google.com", "docs.google.com",
+  "terabox.com", "terabox.app", "1024terabox.com", "1fichier.com",
+];
+
+const VIDEO_REUPLOAD_HOSTS =
+  /(ok\.ru|vk\.com|dailymotion\.com|bilibili\.tv|bilibili\.com|rumble\.com|bitchute\.com|odysee\.com|archive\.org)/i;
 
 const TORRENT_HOSTS = [
   "1337x", "yts", "rarbg", "thepiratebay", "piratebay", "nyaa", "limetorrents", "torlock",
@@ -546,6 +556,48 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     );
   }
 
+  const pageIsCloudStorage = Boolean(
+    domain &&
+      CLOUD_STORAGE_HOSTS.some((f) => domain === f || domain.endsWith(`.${f}`)),
+  );
+  if (pageIsCloudStorage) {
+    add(
+      "cloud_storage_page",
+      `Public cloud/file-sharing page on ${domain} offering the protected work.`,
+      30,
+      true,
+    );
+  }
+
+  const pageIsArchiveDocument =
+    Boolean(domain && /(^|\.)archive\.org$/i.test(domain)) &&
+    (/\.pdf(\?|$)/i.test(input.url) ||
+      /\b(\.pdf|pdf\s*download|document\s*archive)\b/i.test(blobLower));
+  if (pageIsArchiveDocument) {
+    add(
+      "archive_document",
+      "Internet Archive item exposes a PDF/document of the protected work.",
+      30,
+      true,
+    );
+  }
+
+  const pageIsVideoReuploadHost = VIDEO_REUPLOAD_HOSTS.test(domain ?? "");
+  if (
+    pageIsVideoReuploadHost &&
+    (hasIframePlayer ||
+      /<video[\s>]/i.test(html) ||
+      FULL_MOVIE_RE.test(blobLower) ||
+      /\b(watch|play|video|clip|full\s*movie)\b/i.test(`${pageTitle ?? ""} ${markdown}`))
+  ) {
+    add(
+      "video_host_reupload",
+      `Video host ${domain} appears to host a re-upload of the protected work.`,
+      28,
+      true,
+    );
+  }
+
   const magnets = allDest.filter((l) => l.startsWith("magnet:"));
   const torrentLinks = allDest.filter((l) => /\.torrent(\?|$)/i.test(l));
   const torrentHost = TORRENT_HOSTS.some((t) => (domain ?? "").includes(t));
@@ -686,13 +738,17 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     classification = "THEATRE_PRINT_DISTRIBUTION";
   } else if (magnets.length || torrentLinks.length || torrentHost) {
     classification = "TORRENT_OR_MAGNET";
-  } else if (fileLinks.length && !hasIframePlayer) {
+  } else if (pageIsCloudStorage || (fileLinks.length && !hasIframePlayer)) {
+    classification = "FILE_HOST_DISTRIBUTION";
+  } else if (pageIsArchiveDocument) {
     classification = "FILE_HOST_DISTRIBUTION";
   } else if (downloadLinks.length || downloadCta) {
     classification = "DOWNLOAD_PAGE";
   } else if (
-    /(ok\.ru|vk\.com|dailymotion|rumble|bitchute|odysee|archive\.org)/i.test(domain ?? "") &&
-    (hasIframePlayer || FULL_MOVIE_RE.test(blobLower))
+    pageIsVideoReuploadHost &&
+    (hasIframePlayer ||
+      FULL_MOVIE_RE.test(blobLower) ||
+      indicators.some((i) => i.key === "video_host_reupload"))
   ) {
     classification = "VIDEO_HOST_REUPLOAD";
   } else if (mirrorMentions.length >= 2 && !hasIframePlayer) {

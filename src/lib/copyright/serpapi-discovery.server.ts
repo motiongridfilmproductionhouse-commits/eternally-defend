@@ -78,6 +78,9 @@ export function buildCopyrightSerpApiQueries(
     "torrent magnet",
     "streaming server",
     "CAM HDCAM theatre print",
+    "terabox OR mega OR pixeldrain",
+    "bilibili OR dailymotion OR archive.org",
+    "1080p 720p HDRip WEBRip mkv",
   ] as const;
   const out: string[] = [];
   for (const name of names) {

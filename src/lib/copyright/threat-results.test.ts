@@ -26,10 +26,21 @@ function src(overrides: Partial<PublicSuspiciousSource>): PublicSuspiciousSource
 test("threat results: categorises hosts", () => {
     assert.equal(classifyThreatCategory({ domain: "t.me", url: "https://t.me/x" }), "telegram");
     assert.equal(classifyThreatCategory({ domain: "archive.org", url: "u" }), "archive");
-    assert.equal(classifyThreatCategory({ domain: "ok.ru", url: "u" }), "streaming");
-    assert.equal(classifyThreatCategory({ domain: "mega.nz", url: "u" }), "file_host");
+    assert.equal(
+      classifyThreatCategory({
+        domain: "archive.org",
+        url: "https://archive.org/x.pdf",
+      }),
+      "document",
+    );
+    assert.equal(classifyThreatCategory({ domain: "ok.ru", url: "u" }), "video_reupload");
+    assert.equal(classifyThreatCategory({ domain: "dailymotion.com", url: "u" }), "video_reupload");
+    assert.equal(classifyThreatCategory({ domain: "bilibili.tv", url: "u" }), "video_reupload");
+    assert.equal(classifyThreatCategory({ domain: "mega.nz", url: "u" }), "cloud_storage");
+    assert.equal(classifyThreatCategory({ domain: "terabox.app", url: "u" }), "cloud_storage");
     assert.equal(classifyThreatCategory({ domain: "1337x.to", url: "u" }), "torrent");
     assert.equal(classifyThreatCategory({ domain: "vegamovies.dad", url: "u" }), "download");
+    assert.equal(classifyThreatCategory({ domain: "ogomovies1.com.pk", url: "u" }), "download");
   });
 
 test("threat results: maps confidence to severity", () => {
@@ -37,6 +48,20 @@ test("threat results: maps confidence to severity", () => {
     assert.equal(severityFor(75, false), "high");
     assert.equal(severityFor(55, false), "medium");
     assert.equal(severityFor(20, false), "low");
+    assert.equal(
+      severityFor(80, true, {
+        categoryKey: "download",
+        classification: "DOWNLOAD_PAGE",
+      }),
+      "critical",
+    );
+    assert.equal(
+      severityFor(80, true, {
+        categoryKey: "cloud_storage",
+        classification: "FILE_HOST_DISTRIBUTION",
+      }),
+      "critical",
+    );
   });
 
 test("threat results: produces one row per unique domain and keeps every domain", () => {
@@ -61,7 +86,10 @@ test("threat results: filters and groups", () => {
     const rows = buildThreatResultRows({
       suspicious: [src({ id: "a" }), src({ id: "c", url: "https://ok.ru/v", confidence: 55 })],
     });
-    assert.deepEqual(filterThreatRows(rows, { filter: "streaming" }).map((r) => r.domain), ["ok.ru"]);
+    assert.deepEqual(
+      filterThreatRows(rows, { filter: "video_reupload" }).map((r) => r.domain),
+      ["ok.ru"],
+    );
     assert.equal(filterThreatRows(rows, { search: "ogo" }).length, 1);
     const groups = groupThreatRowsBySeverity(rows);
     assert.equal(groups.find((g) => g.severity === "critical")?.count, 1);

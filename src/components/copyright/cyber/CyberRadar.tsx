@@ -9,15 +9,18 @@ export type CyberRadarProps = {
 };
 
 const SEED_TARGETS = [
+  "google.com",
+  "ogomovies1.com.pk",
+  "bilibili.tv",
   "archive.org",
+  "terabox.app",
   "dailymotion.com",
+  "mega.nz",
+  "pixeldrain.com",
   "ok.ru",
-  "vk.com",
-  "123movies mirrors",
   "Telegram channels",
+  "torrent indexes",
   "mirror domains",
-  "CDN nodes",
-  "file hosts",
 ];
 
 function hashAngle(seed: string): number {
