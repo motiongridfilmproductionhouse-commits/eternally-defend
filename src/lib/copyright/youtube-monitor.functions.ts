@@ -173,10 +173,15 @@ export const runReleaseDayReviewAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
+    const [{ readStoredObject, bytesToDataUrl }, { analyzeReference }, ytm] = await Promise.all([
+      import("@/lib/copyright/storage.server"),
+      import("@/lib/copyright/discover.server"),
+      import("@/lib/copyright/youtube-monitor.server"),
+    ]);
     const {
       buildReleaseReviewQueries, discoverYoutubeVideos, fetchVideoComments,
       analyzeReleaseReview, scoreReputationImpact,
-    } = await import("@/lib/copyright/youtube-monitor.server");
+    } = ytm;
     const { supabase, userId } = context;
 
     const { data: scan, error } = await supabase
