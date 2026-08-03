@@ -61,14 +61,17 @@ export function InvestigationCenter({
 
   useEffect(() => {
     const confirmed = sources.filter((s) => CONFIRMED_STATES.has(s.source_state));
+    // Seed the baseline from the first non-empty payload so already-known
+    // findings from a finished scan never trigger a retroactive siren.
     if (seenRef.current === null) {
+      if (!confirmed.length && !scanning) return;
       seenRef.current = new Set(confirmed.map((s) => s.id));
       return;
     }
     const fresh = confirmed.find((s) => !seenRef.current!.has(s.id));
     for (const s of confirmed) seenRef.current.add(s.id);
-    if (fresh) setAlertSource(fresh);
-  }, [sources]);
+    if (fresh && scanning) setAlertSource(fresh);
+  }, [sources, scanning]);
 
   const collectIntel = useCallback((intel: DomainIntel) => {
     setIntelByUrl((prev) => (prev[intel.url] ? prev : { ...prev, [intel.url]: intel }));
