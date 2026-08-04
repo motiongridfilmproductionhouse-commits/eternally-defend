@@ -34,6 +34,8 @@ import {
   startWorkerHeartbeatLoop,
 } from "./scan-lease.server";
 import { dispatchNextWorker } from "./scan-worker-dispatch.server";
+import { persistDeepfakeWorkerEvent } from "./worker-events.server";
+import { runDeepfakeWorkerSchemaPreflight } from "./worker-schema-preflight.server";
 
 export const DEEPFAKE_SCAN_WORKER_BUDGET_MS = 35_000;
 export const DEEPFAKE_SCAN_WORKER_MAX_QUERY_BATCHES = 2;
@@ -58,6 +60,8 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   scanId: string;
   userId?: string;
   workerExecutionId?: string;
+  requestId?: string | null;
+  startupCorrelationId?: string | null;
   budgetMs?: number;
   maxQueryBatches?: number;
   finalize?: (args: {
@@ -73,12 +77,70 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   }>;
 }): Promise<DeepfakeScanWorkerResult> {
   const workerExecutionId = input.workerExecutionId ?? randomUUID();
+  const requestId = input.requestId ?? null;
   const budgetMs = input.budgetMs ?? DEEPFAKE_SCAN_WORKER_BUDGET_MS;
   const maxQueryBatches =
     input.maxQueryBatches ?? DEEPFAKE_SCAN_WORKER_MAX_QUERY_BATCHES;
   const batchStartedAt = new Date().toISOString();
   let batchNumber = 0;
   const claimedQueryIds: string[] = [];
+
+  // First line of deferred work — proves waitUntil actually ran.
+  await persistDeepfakeWorkerEvent({
+    supabase: input.supabase,
+    scanId: input.scanId,
+    workerExecutionId,
+    requestId,
+    eventName: "worker_execution_started",
+    metadata: {
+      startup_correlation_id: input.startupCorrelationId ?? null,
+      database_client_type: "service_role",
+      source_scan_id: input.scanId,
+    },
+  });
+  await persistDeepfakeWorkerEvent({
+    supabase: input.supabase,
+    scanId: input.scanId,
+    workerExecutionId,
+    requestId,
+    eventName: "database_client_type",
+    metadata: { database_client_type: "service_role" },
+  });
+
+  const schema = await runDeepfakeWorkerSchemaPreflight({
+    supabase: input.supabase,
+  });
+  if (!schema.ok) {
+    await persistDeepfakeWorkerEvent({
+      supabase: input.supabase,
+      scanId: input.scanId,
+      workerExecutionId,
+      requestId,
+      eventName: "database_schema_incomplete",
+      errorCategory: "database_schema_incomplete",
+      errorMessage: schema.missing.join("; "),
+      metadata: { details: schema.details },
+    });
+    try {
+      await input.supabase
+        .from("deepfake_scans")
+        .update({
+          status: "failed",
+          error_message:
+            "Worker cannot start — required database schema is incomplete. Open diagnostics.",
+          discovery_metrics: {
+            worker_execution_status: "database_schema_incomplete",
+            schema_preflight: schema,
+          },
+        })
+        .eq("id", input.scanId);
+    } catch {
+      /* best effort */
+    }
+    throw new Error(
+      `database_schema_incomplete: ${schema.missing.join("; ")}`,
+    );
+  }
 
   let query = input.supabase
     .from("deepfake_scans")
@@ -90,8 +152,46 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   const { data: scan, error: scanError } = await query.maybeSingle();
 
   if (scanError || !scan) {
+    await persistDeepfakeWorkerEvent({
+      supabase: input.supabase,
+      scanId: input.scanId,
+      workerExecutionId,
+      requestId,
+      eventName: "worker_execution_failed",
+      errorCategory: "scan_id_mismatch",
+      errorMessage: scanError?.message ?? "Scan not found for worker",
+    });
     throw new Error(scanError?.message ?? "Scan not found for worker");
   }
+
+  if (scan.id !== input.scanId) {
+    await persistDeepfakeWorkerEvent({
+      supabase: input.supabase,
+      scanId: input.scanId,
+      workerExecutionId,
+      requestId,
+      eventName: "scan_id_mismatch",
+      errorCategory: "scan_id_mismatch",
+      errorMessage: `startup scan_id ${input.scanId} != loaded ${scan.id}`,
+      metadata: {
+        startup_scan_id: input.scanId,
+        loaded_scan_id: scan.id,
+      },
+    });
+    throw new Error("Scan ID mismatch between dispatch and worker load");
+  }
+
+  await persistDeepfakeWorkerEvent({
+    supabase: input.supabase,
+    scanId: scan.id,
+    workerExecutionId,
+    requestId,
+    eventName: "scan_loaded",
+    metadata: {
+      status: scan.status,
+      startup_correlation_id: input.startupCorrelationId ?? null,
+    },
+  });
 
   if (scan.status !== "running") {
     return {
@@ -106,6 +206,16 @@ export async function executeDeepfakeScanWorkerBatch(input: {
 
   const scanRunToken = (scan as { scan_run_token?: string | null }).scan_run_token;
   if (!scanRunToken) {
+    await persistDeepfakeWorkerEvent({
+      supabase: input.supabase,
+      scanId: scan.id,
+      workerExecutionId,
+      requestId,
+      eventName: "worker_execution_failed",
+      errorCategory: "lease_not_available",
+      errorMessage:
+        "Scan ownership token is missing — cannot run worker without lease.",
+    });
     throw new Error(
       "Scan ownership token is missing — cannot run worker without lease.",
     );
@@ -124,6 +234,26 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   const metrics = objectish(scan.discovery_metrics);
   const startOptions = objectish(metrics?.start_options);
   const resumeCheckpoint = parseScanCheckpoint(scan.scan_checkpoint);
+  const queryRowsCounted = resumeCheckpoint?.queries.length ?? 0;
+  const pendingBefore = resumeCheckpoint
+    ? Math.max(
+        0,
+        resumeCheckpoint.queries.length - resumeCheckpoint.next_query_index,
+      )
+    : 0;
+
+  await persistDeepfakeWorkerEvent({
+    supabase: input.supabase,
+    scanId: scan.id,
+    workerExecutionId,
+    requestId,
+    eventName: "query_rows_counted",
+    metadata: {
+      query_rows_counted: queryRowsCounted,
+      pending_before: pendingBefore,
+      next_query_index: resumeCheckpoint?.next_query_index ?? null,
+    },
+  });
 
   let stopHeartbeat = () => {};
   let activeLeaseExpiry =
@@ -139,6 +269,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
           ...(metrics ?? {}),
           worker_execution_id: workerExecutionId,
           worker_batch_started_at: batchStartedAt,
+          worker_execution_status: "started",
         },
       },
     });
@@ -148,7 +279,25 @@ export async function executeDeepfakeScanWorkerBatch(input: {
       ownership,
       leaseTtlMs: WORKER_LEASE_TTL_MS,
     });
+    await persistDeepfakeWorkerEvent({
+      supabase: input.supabase,
+      scanId: scan.id,
+      workerExecutionId,
+      requestId,
+      eventName: "scan_lease_claimed",
+      metadata: { lease_expires_at: activeLeaseExpiry },
+    });
   } catch (renewError) {
+    await persistDeepfakeWorkerEvent({
+      supabase: input.supabase,
+      scanId: scan.id,
+      workerExecutionId,
+      requestId,
+      eventName: "worker_execution_failed",
+      errorCategory: "lease_not_available",
+      errorMessage:
+        renewError instanceof Error ? renewError.message : String(renewError),
+    });
     console.warn("[DEEPFAKE] Worker lease renewal at start failed:", {
       scan_id: scan.id,
       worker_execution_id: workerExecutionId,
@@ -156,6 +305,18 @@ export async function executeDeepfakeScanWorkerBatch(input: {
         renewError instanceof Error ? renewError.message : String(renewError),
     });
   }
+
+  await persistDeepfakeWorkerEvent({
+    supabase: input.supabase,
+    scanId: scan.id,
+    workerExecutionId,
+    requestId,
+    eventName: "query_claim_started",
+    metadata: {
+      pending_before: pendingBefore,
+      requested_batch_size: 5,
+    },
+  });
 
   const existingBatchNumber =
     typeof metrics?.worker_batch_number === "number"
@@ -185,8 +346,26 @@ export async function executeDeepfakeScanWorkerBatch(input: {
 
   let pipelineResult: PipelineResult | null = null;
   let pipelineError: unknown = null;
+  let firstQueryStarted = false;
 
   try {
+    if (pendingBefore > 0) {
+      await persistDeepfakeWorkerEvent({
+        supabase: input.supabase,
+        scanId: scan.id,
+        workerExecutionId,
+        requestId,
+        eventName: "first_query_started",
+        metadata: {
+          query:
+            resumeCheckpoint?.queries[resumeCheckpoint.next_query_index] ??
+            null,
+          next_query_index: resumeCheckpoint?.next_query_index ?? 0,
+        },
+      });
+      firstQueryStarted = true;
+    }
+
     pipelineResult = await executeInterleavedDeepfakePipeline({
       supabase: input.supabase,
       userId: input.userId ?? scan.user_id,
@@ -237,6 +416,134 @@ export async function executeDeepfakeScanWorkerBatch(input: {
     pipelineResult?.checkpoint ??
     ((pipelineError as { checkpoint?: ScanCheckpoint } | null)?.checkpoint ??
       resumeCheckpoint);
+
+  // Checkpoint model: "claim" = advancing next_query_index / batch callbacks.
+  const indexBefore = resumeCheckpoint?.next_query_index ?? 0;
+  const indexAfter = checkpoint?.next_query_index ?? indexBefore;
+  const checkpointClaimed = Math.max(0, indexAfter - indexBefore);
+  const claimedCount = Math.max(claimedQueryIds.length, checkpointClaimed);
+  const claimDiagnostics = {
+    scan_id: scan.id,
+    pending_before: pendingBefore,
+    requested_batch_size: 5,
+    claimed_count: claimedCount,
+    claimed_query_ids: claimedQueryIds.slice(0, 20),
+    next_query_index_before: indexBefore,
+    next_query_index_after: indexAfter,
+    rpc_error_code: null as string | null,
+    rpc_error_message: null as string | null,
+    claim_model: "checkpoint_next_query_index",
+    database_client_type: "service_role",
+  };
+
+  let claimFailureCategory: string | null = null;
+  if (pendingBefore > 0 && claimedCount === 0) {
+    if (!resumeCheckpoint) claimFailureCategory = "query_status_mismatch";
+    else if (!scanRunToken) claimFailureCategory = "lease_not_available";
+    else if (pipelineError) {
+      const msg =
+        pipelineError instanceof Error
+          ? pipelineError.message
+          : String(pipelineError);
+      if (/row.level.security|permission|rls|42501/i.test(msg)) {
+        claimFailureCategory = "RLS_denied";
+      } else if (/could not find the function|does not exist|pgrst202/i.test(msg)) {
+        claimFailureCategory = "claim_rpc_missing";
+      } else {
+        claimFailureCategory = "worker_started_but_query_claim_failed";
+      }
+      claimDiagnostics.rpc_error_message = msg.slice(0, 500);
+    } else {
+      claimFailureCategory = "worker_started_but_query_claim_failed";
+    }
+  }
+
+  await persistDeepfakeWorkerEvent({
+    supabase: input.supabase,
+    scanId: scan.id,
+    workerExecutionId,
+    requestId,
+    eventName: "query_claim_completed",
+    errorCategory: claimFailureCategory,
+    errorMessage: claimFailureCategory
+      ? `claimed_count=0 with pending_before=${pendingBefore}`
+      : null,
+    metadata: claimDiagnostics,
+  });
+
+  if (claimFailureCategory) {
+    await persistDeepfakeWorkerEvent({
+      supabase: input.supabase,
+      scanId: scan.id,
+      workerExecutionId,
+      requestId,
+      eventName: "worker_started_but_query_claim_failed",
+      errorCategory: claimFailureCategory,
+      errorMessage: `claimed_count=0 pending_before=${pendingBefore}`,
+      metadata: claimDiagnostics,
+    });
+    try {
+      const { data: latest } = await input.supabase
+        .from("deepfake_scans")
+        .select("discovery_metrics")
+        .eq("id", scan.id)
+        .maybeSingle();
+      const latestMetrics =
+        latest?.discovery_metrics && typeof latest.discovery_metrics === "object"
+          ? (latest.discovery_metrics as Record<string, unknown>)
+          : (metrics ?? {});
+      await input.supabase
+        .from("deepfake_scans")
+        .update({
+          discovery_metrics: {
+            ...latestMetrics,
+            worker_execution_status: "worker_started_but_query_claim_failed",
+            claim_diagnostics: claimDiagnostics,
+          },
+        })
+        .eq("id", scan.id);
+    } catch {
+      /* best effort */
+    }
+  } else if (claimedCount > 0) {
+    try {
+      const { data: latest } = await input.supabase
+        .from("deepfake_scans")
+        .select("discovery_metrics")
+        .eq("id", scan.id)
+        .maybeSingle();
+      const latestMetrics =
+        latest?.discovery_metrics && typeof latest.discovery_metrics === "object"
+          ? (latest.discovery_metrics as Record<string, unknown>)
+          : (metrics ?? {});
+      await input.supabase
+        .from("deepfake_scans")
+        .update({
+          discovery_metrics: {
+            ...latestMetrics,
+            worker_execution_status: "progressing",
+            worker_execution_id: workerExecutionId,
+          },
+        })
+        .eq("id", scan.id);
+    } catch {
+      /* best effort */
+    }
+  }
+
+  if (firstQueryStarted && claimedCount > 0) {
+    await persistDeepfakeWorkerEvent({
+      supabase: input.supabase,
+      scanId: scan.id,
+      workerExecutionId,
+      requestId,
+      eventName: "first_query_completed",
+      metadata: {
+        claimed_count: claimedCount,
+        claimed_query_ids: claimedQueryIds.slice(0, 5),
+      },
+    });
+  }
   const pendingWork = checkpoint ? checkpointHasPendingWork(checkpoint) : false;
   const queryBatchesProcessed = pipelineResult?.queryBatchesProcessed ?? 0;
 

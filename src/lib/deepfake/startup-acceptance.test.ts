@@ -84,29 +84,22 @@ test("UI selects scan id immediately and surfaces dispatch_error with Retry", ()
   assert.match(src, /scanPollInterval/);
 });
 
-test("worker hook returns 202 before background batch factory runs", () => {
+test("worker hook returns 202 after direct waitUntil(executionPromise)", () => {
   const src = readFileSync(SCAN_HOOK, "utf8");
   const network = readFileSync(
     resolve(process.cwd(), "src/lib/deepfake/startup-network.server.ts"),
     "utf8",
   );
-  const acceptedIdx = src.indexOf("deepfake_scan_worker_accepted");
-  const scheduleIdx = src.indexOf(
-    "runAcceptedBackgroundWork(async",
-    acceptedIdx,
-  );
-  const executeIdx = src.indexOf(
-    "deepfake_scan_worker_execute_start",
-    scheduleIdx,
-  );
-  const returnIdx = src.lastIndexOf("status: 202");
-  assert.ok(acceptedIdx >= 0);
-  assert.ok(scheduleIdx > acceptedIdx);
-  assert.ok(executeIdx > scheduleIdx);
-  assert.ok(returnIdx > scheduleIdx);
+  assert.match(src, /const executionPromise = executeDeepfakeScanById/);
+  assert.match(src, /registerWaitUntilExecution\(executionPromise\)/);
   assert.match(src, /wait_until_used: scheduled\.wait_until_used/);
-  assert.match(network, /setImmediate/);
+  assert.match(src, /status: 202/);
+  assert.doesNotMatch(src, /setImmediate\s*\(/);
+  assert.doesNotMatch(network, /setImmediate\s*\(/);
   assert.match(network, /waitUntil\(work\)/);
+  const registerIdx = src.indexOf("registerWaitUntilExecution(executionPromise)");
+  const returnIdx = src.lastIndexOf("status: 202");
+  assert.ok(registerIdx >= 0 && returnIdx > registerIdx);
 });
 
 test("invalid worker URL failure is categorized for the user", () => {

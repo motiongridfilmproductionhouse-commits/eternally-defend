@@ -106,8 +106,9 @@ test("main scan worker orchestration runs continuation sequence after each batch
 test("worker hook and dispatch emit structured telemetry", () => {
   const hook = readFileSync(HOOK_PATH, "utf8");
   assert.match(hook, /deepfake_scan_worker_hook_entry/);
-  assert.match(hook, /deepfake_scan_worker_execute_start/);
+  assert.match(hook, /wait_until_registered/);
   assert.match(hook, /executeDeepfakeScanById/);
+  assert.match(hook, /registerWaitUntilExecution/);
 
   const src = functionsSource();
   assert.match(src, /deepfake_scan_worker_dispatch_request/);

@@ -48,6 +48,10 @@ import {
   shouldRenderLegacyFindingCards,
 } from "@/lib/deepfake/results-console-mount";
 import { InvestigationStatsPanel } from "@/components/deepfake/InvestigationStatsPanel";
+import {
+  resolveWorkerProgressUiState,
+  workerProgressUiCopy,
+} from "@/lib/deepfake/worker-progress-ui";
 import { googleImagesBackgroundProgress } from "@/lib/deepfake/google-images-diagnostics";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { ThreatAlertBanner } from "@/components/deepfake/ThreatAlertBanner";
@@ -1607,16 +1611,43 @@ function DeepfakeIntelPage() {
                         {diagnostics?.client_visible ?? scan.total_results ?? 0} threats saved
                       </div>
                     )}
-                    {scan.status === "running" && stalled && (
-                      <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-500">
-                        <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
-                        <span>
-                          No new progress for 15s — the sweep may have stalled on
-                          the server. Saved results below stay visible; the status
-                          updates automatically once the run recovers or times out.
-                        </span>
-                      </div>
-                    )}
+                    {scan.status === "running" && (() => {
+                      const metrics =
+                        scan.discovery_metrics &&
+                        typeof scan.discovery_metrics === "object"
+                          ? (scan.discovery_metrics as Record<string, unknown>)
+                          : null;
+                      const workerState = resolveWorkerProgressUiState({
+                        status: scan.status,
+                        queriesGenerated: plannedQueries,
+                        queriesExecuted: executedQueries,
+                        discoveryMetrics: metrics,
+                      });
+                      if (
+                        workerState === "running_unknown" &&
+                        !(stalled && executedQueries === 0)
+                      ) {
+                        return null;
+                      }
+                      const copy = workerProgressUiCopy(
+                        stalled && executedQueries === 0 && workerState === "running_unknown"
+                          ? "accepted_but_not_started"
+                          : workerState,
+                      );
+                      return (
+                        <div
+                          className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-600"
+                          data-testid="deepfake-worker-progress-banner"
+                        >
+                          <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
+                          <span>
+                            <span className="font-semibold">{copy.title}</span>
+                            <br />
+                            {copy.body}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={scan.status} />

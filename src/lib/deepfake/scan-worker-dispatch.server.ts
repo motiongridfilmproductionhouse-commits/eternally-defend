@@ -2,6 +2,7 @@
  * Dispatch background Deepfake Intelligence main-scan workers.
  */
 
+import { randomUUID } from "node:crypto";
 import {
   classifyStartupNetworkError,
   instrumentedWorkerFetch,
@@ -10,6 +11,10 @@ import {
 } from "./startup-network.server";
 
 const HOOK_PATH = "/api/public/hooks/deepfake-scan-execute";
+
+function cryptoRandomId(): string {
+  return randomUUID();
+}
 
 type WorkerUrlSource =
   | "DEEPFAKE_SCAN_WORKER_URL"
@@ -209,12 +214,14 @@ export async function dispatchNextWorker(input: {
   scanId: string;
   env?: NodeJS.ProcessEnv;
   nextWorkerExecutionId?: string;
+  startupCorrelationId?: string;
   /** Keep dispatch short so scan-start never blocks on a full worker batch. */
   timeoutMs?: number;
 }): Promise<DeepfakeScanWorkerDispatchResult> {
   const env = input.env ?? process.env;
   const diagnostic = deepfakeScanWorkerDispatchDiagnostic(env);
   const workerUrl = diagnostic.worker_url;
+  const workerExecutionId = input.nextWorkerExecutionId ?? cryptoRandomId();
 
   console.info("deepfake_scan_worker_dispatch_config", {
     scan_id: input.scanId,
@@ -224,6 +231,8 @@ export async function dispatchNextWorker(input: {
     authentication: diagnostic.worker_secret_present
       ? "hmac_configured"
       : "missing_secret",
+    worker_execution_id: workerExecutionId,
+    startup_correlation_id: input.startupCorrelationId ?? null,
   });
 
   if (!workerUrl || !diagnostic.worker_url_valid) {
@@ -232,6 +241,7 @@ export async function dispatchNextWorker(input: {
       reason: diagnostic.failure_category ?? "worker_url_not_configured",
       category: diagnostic.failure_category ?? "worker_url_not_configured",
       worker_url: null,
+      next_worker_execution_id: workerExecutionId,
     };
   }
 
@@ -241,10 +251,15 @@ export async function dispatchNextWorker(input: {
       reason: "worker_secret_not_configured",
       category: "worker_secret_not_configured",
       worker_url: workerUrl,
+      next_worker_execution_id: workerExecutionId,
     };
   }
 
-  const body = JSON.stringify({ scan_id: input.scanId });
+  const body = JSON.stringify({
+    scan_id: input.scanId,
+    worker_execution_id: workerExecutionId,
+    startup_correlation_id: input.startupCorrelationId ?? null,
+  });
   const headers: Record<string, string> = {
     "content-type": "application/json",
     accept: "application/json",
@@ -288,7 +303,7 @@ export async function dispatchNextWorker(input: {
       category: fetchResult.category ?? "worker_endpoint_unavailable",
       http_status: fetchResult.status,
       response_body: fetchResult.response_preview,
-      next_worker_execution_id: input.nextWorkerExecutionId ?? null,
+      next_worker_execution_id: workerExecutionId,
       worker_url: workerUrl,
       request_id: fetchResult.request_id,
       duration_ms: fetchResult.duration_ms,
@@ -299,7 +314,7 @@ export async function dispatchNextWorker(input: {
     dispatched: true,
     http_status: fetchResult.status,
     response_body: fetchResult.response_preview,
-    next_worker_execution_id: input.nextWorkerExecutionId ?? null,
+    next_worker_execution_id: workerExecutionId,
     worker_url: workerUrl,
     request_id: fetchResult.request_id,
     duration_ms: fetchResult.duration_ms,

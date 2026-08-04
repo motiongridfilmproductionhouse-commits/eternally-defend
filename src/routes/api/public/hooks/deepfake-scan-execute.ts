@@ -3,10 +3,15 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   isVercelWaitUntilRuntime,
-  runAcceptedBackgroundWork,
+  registerWaitUntilExecution,
 } from "@/lib/deepfake/startup-network.server";
+import { persistDeepfakeWorkerEvent } from "@/lib/deepfake/worker-events.server";
 
-const BodySchema = z.object({ scan_id: z.string().uuid() });
+const BodySchema = z.object({
+  scan_id: z.string().uuid(),
+  worker_execution_id: z.string().min(8).max(80).optional(),
+  startup_correlation_id: z.string().min(8).max(80).optional(),
+});
 
 export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")({
   server: {
@@ -62,51 +67,93 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
           );
         }
 
-        console.info("deepfake_scan_worker_accepted", {
-          request_id: requestId,
-          scan_id: parsed.scan_id,
-          status: 202,
+        const workerExecutionId =
+          parsed.worker_execution_id?.trim() || randomUUID();
+        const startupCorrelationId =
+          parsed.startup_correlation_id?.trim() || null;
+
+        const { supabaseAdmin } = await import(
+          "@/integrations/supabase/client.server"
+        );
+
+        await persistDeepfakeWorkerEvent({
+          supabase: supabaseAdmin,
+          scanId: parsed.scan_id,
+          workerExecutionId,
+          requestId,
+          eventName: "worker_hook_received",
+          metadata: {
+            startup_correlation_id: startupCorrelationId,
+            received_at: receivedAt,
+          },
+        });
+        await persistDeepfakeWorkerEvent({
+          supabase: supabaseAdmin,
+          scanId: parsed.scan_id,
+          workerExecutionId,
+          requestId,
+          eventName: "worker_signature_validated",
+          metadata: { reason: verification.reason },
+        });
+        await persistDeepfakeWorkerEvent({
+          supabase: supabaseAdmin,
+          scanId: parsed.scan_id,
+          workerExecutionId,
+          requestId,
+          eventName: "worker_payload_validated",
+          metadata: {
+            scan_id: parsed.scan_id,
+            worker_execution_id: workerExecutionId,
+            startup_correlation_id: startupCorrelationId,
+          },
         });
 
-        // Schedule AFTER auth/parse. Factory runs only after setImmediate so the
-        // 202 response is returned before the background batch begins.
-        const scheduled = runAcceptedBackgroundWork(async () => {
-          console.info("deepfake_scan_worker_execute_start", {
-            request_id: requestId,
-            scan_id: parsed.scan_id,
-          });
-          const { supabaseAdmin } = await import(
-            "@/integrations/supabase/client.server"
-          );
-          const { executeDeepfakeScanById } = await import(
-            "@/lib/deepfake-intel.functions"
-          );
-          try {
-            const result = await executeDeepfakeScanById({
-              supabase: supabaseAdmin,
-              scanId: parsed.scan_id,
-              source: "worker",
-            });
-            console.info("deepfake_scan_worker_execute_complete", {
-              request_id: requestId,
-              scan_id: parsed.scan_id,
-              status: result.status,
-              dispatched_next: result.dispatched_next,
-            });
-          } catch (error) {
-            console.error("deepfake_scan_worker_execute_failed", {
-              request_id: requestId,
-              scan_id: parsed.scan_id,
-              error: error instanceof Error ? error.message : String(error),
+        // Direct waitUntil pattern — create the promise, register it, then 202.
+        // Do NOT wrap in setImmediate/setTimeout.
+        const { executeDeepfakeScanById } = await import(
+          "@/lib/deepfake-intel.functions"
+        );
+        const executionPromise = executeDeepfakeScanById({
+          supabase: supabaseAdmin,
+          scanId: parsed.scan_id,
+          source: "worker",
+          workerExecutionId,
+          requestId,
+          startupCorrelationId,
+        }).catch(async (error) => {
+          await persistDeepfakeWorkerEvent({
+            supabase: supabaseAdmin,
+            scanId: parsed.scan_id,
+            workerExecutionId,
+            requestId,
+            eventName: "worker_execution_failed",
+            errorCategory: "worker_execution_failed",
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+            metadata: {
               stack: error instanceof Error ? error.stack : null,
-            });
-          }
+            },
+          });
+        });
+
+        const scheduled = registerWaitUntilExecution(executionPromise);
+        await persistDeepfakeWorkerEvent({
+          supabase: supabaseAdmin,
+          scanId: parsed.scan_id,
+          workerExecutionId,
+          requestId,
+          eventName: "wait_until_registered",
+          metadata: {
+            wait_until_used: scheduled.wait_until_used,
+            vercel_runtime: isVercelWaitUntilRuntime(),
+          },
         });
 
         return Response.json(
           {
             accepted: true,
             scan_id: parsed.scan_id,
+            worker_execution_id: workerExecutionId,
             request_id: requestId,
             wait_until_used: scheduled.wait_until_used,
           },
