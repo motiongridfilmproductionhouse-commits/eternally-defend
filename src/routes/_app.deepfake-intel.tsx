@@ -15,7 +15,8 @@ import {
   uploadDeepfakeReferenceFace,
   deleteDeepfakeReferenceFace,
 } from "@/lib/deepfake/face-profile.functions";
-import { getDeepfakeReportUrl } from "@/lib/deepfake/report.functions";
+import { getDeepfakeReportUrl, listDeepfakeReports, downloadDeepfakeReport } from "@/lib/deepfake/report.functions";
+import { DeepfakeReportActionBar } from "@/components/deepfake/DeepfakeReportActionBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -163,21 +164,66 @@ function DeepfakeIntelPage() {
   const uploadReferenceFn = useServerFn(uploadDeepfakeReferenceFace);
   const deleteReferenceFn = useServerFn(deleteDeepfakeReferenceFace);
   const reportFn = useServerFn(getDeepfakeReportUrl);
+  const listReportsFn = useServerFn(listDeepfakeReports);
+  const downloadReportFn = useServerFn(downloadDeepfakeReport);
   const qc = useQueryClient();
+
+  const [reportHistoryOpen, setReportHistoryOpen] = useState(false);
+  const [reportGenerateMode, setReportGenerateMode] = useState<
+    "final" | "interim" | null
+  >(null);
+  const [downloadingHistoryId, setDownloadingHistoryId] = useState<string | null>(
+    null,
+  );
+
+  const openReportUrl = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   const reportMutation = useMutation({
     mutationFn: (vars: {
-      data: { scanId?: string; profileId?: string; force?: boolean };
+      data: {
+        scanId?: string;
+        profileId?: string;
+        force?: boolean;
+        reportMode?: "final" | "interim";
+      };
     }) => reportFn(vars),
-    onSuccess: (res: { url: string; findings: number }) => {
-      window.open(res.url, "_blank", "noopener,noreferrer");
+    onMutate: (vars) => {
+      setReportGenerateMode(vars.data.reportMode === "interim" ? "interim" : "final");
+    },
+    onSuccess: (res: {
+      url: string;
+      findings: number;
+      reportMode?: "final" | "interim";
+    }) => {
+      openReportUrl(res.url);
+      const label =
+        res.reportMode === "interim" ? "Interim report" : "Deepfake threat report";
       toast.success(
         res.findings > 0
-          ? `Deepfake threat report ready (${res.findings} finding${res.findings === 1 ? "" : "s"}).`
-          : "Deepfake threat report ready (no client-visible findings).",
+          ? `${label} ready (${res.findings} finding${res.findings === 1 ? "" : "s"}).`
+          : `${label} ready (no client-visible findings).`,
       );
+      void qc.invalidateQueries({ queryKey: ["deepfake-report-history"] });
+      setReportHistoryOpen(true);
     },
     onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setReportGenerateMode(null),
+  });
+
+  const downloadMutation = useMutation({
+    mutationFn: (vars: { data: { historyId: string } }) =>
+      downloadReportFn(vars),
+    onMutate: (vars) => {
+      setDownloadingHistoryId(vars.data.historyId);
+    },
+    onSuccess: (res: { url: string }) => {
+      openReportUrl(res.url);
+      toast.success("Opening report PDF.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setDownloadingHistoryId(null),
   });
 
   const [targetName, setTargetName] = useState("");
@@ -617,6 +663,52 @@ function DeepfakeIntelPage() {
   // Threat alert always uses the complete client-visible findings array
   // (never console filters / pagination).
   const threatSummary = buildThreatAlertSummary(findings);
+
+  const reportScope = {
+    scanId: selectedScanId || undefined,
+    profileId: selectedProfileId || undefined,
+  };
+  const canRequestReport = Boolean(reportScope.scanId || reportScope.profileId);
+
+  const reportHistory = useQuery({
+    queryKey: [
+      "deepfake-report-history",
+      reportScope.scanId ?? null,
+      reportScope.profileId ?? null,
+    ],
+    enabled: canRequestReport,
+    queryFn: () =>
+      listReportsFn({
+        data: {
+          scanId: reportScope.scanId,
+          profileId: reportScope.profileId,
+        },
+      }),
+  });
+
+  const runDeepfakeReport = (reportMode: "final" | "interim") => {
+    if (!canRequestReport) {
+      toast.error("Select a protected identity or scan first.");
+      return;
+    }
+    reportMutation.mutate({
+      data: {
+        ...reportScope,
+        reportMode,
+        // Explicit Generate actions always rebuild from current persisted findings.
+        force: true,
+      },
+    });
+  };
+
+  const downloadLatestReport = () => {
+    const latest = reportHistory.data?.[0];
+    if (!latest?.id) {
+      toast.error("Generate a report first.");
+      return;
+    }
+    downloadMutation.mutate({ data: { historyId: latest.id } });
+  };
   const threatAnnouncementRef = useRef<ThreatAlertAnnouncementState | null>(
     null,
   );
@@ -837,23 +929,20 @@ function DeepfakeIntelPage() {
             variant="outline"
             size="sm"
             className="ml-auto shrink-0"
-            disabled={
-              reportMutation.isPending ||
-              (!selectedProfileId && !selectedScanId)
-            }
-            onClick={() =>
-              reportMutation.mutate({
-                data: {
-                  profileId: selectedProfileId || undefined,
-                  scanId: selectedScanId || undefined,
-                },
-              })
-            }
+            onClick={() => {
+              if (selectedScanId) {
+                scrollToThreatSection([
+                  "deepfake-report-action-bar",
+                  "deepfake-results-panel",
+                ]);
+                setReportHistoryOpen(true);
+                return;
+              }
+              runDeepfakeReport("final");
+            }}
           >
             <FileDown className="mr-2 h-4 w-4" />
-            {reportMutation.isPending
-              ? "Preparing report…"
-              : "Generate Deepfake Report"}
+            Generate Deepfake Report
           </Button>
         )}
       </header>
@@ -1088,14 +1177,17 @@ function DeepfakeIntelPage() {
                       variant="secondary"
                       className="w-full"
                       disabled={reportMutation.isPending}
-                      onClick={() =>
-                        reportMutation.mutate({
-                          data: {
-                            profileId: selectedProfileId,
-                            scanId: selectedScanId || undefined,
-                          },
-                        })
-                      }
+                      onClick={() => {
+                        if (selectedScanId) {
+                          scrollToThreatSection([
+                            "deepfake-report-action-bar",
+                            "deepfake-results-panel",
+                          ]);
+                          setReportHistoryOpen(true);
+                          return;
+                        }
+                        runDeepfakeReport("final");
+                      }}
                     >
                       {reportMutation.isPending ? (
                         <>
@@ -1110,10 +1202,8 @@ function DeepfakeIntelPage() {
                       )}
                     </Button>
                     <p className="text-[10px] text-muted-foreground">
-                      Builds a professional threat report from this identity's
-                      existing scan findings, evidence, diagnostics, and
-                      verification data. Does not invent results or legal
-                      conclusions.
+                      Opens the report action bar above verified findings when a
+                      scan is selected. Builds from existing scan evidence only.
                     </p>
                   </div>
                 </div>
@@ -1475,6 +1565,32 @@ function DeepfakeIntelPage() {
                   </details>
                 )}
               </div>
+
+              <DeepfakeReportActionBar
+                scanStatus={scan.status}
+                findingCount={findings.length}
+                history={reportHistory.data ?? []}
+                historyLoading={reportHistory.isLoading}
+                historyOpen={reportHistoryOpen}
+                onToggleHistory={() => {
+                  setReportHistoryOpen((open) => !open);
+                  if (!reportHistoryOpen) {
+                    void qc.invalidateQueries({
+                      queryKey: ["deepfake-report-history"],
+                    });
+                  }
+                }}
+                generatingFinal={reportGenerateMode === "final"}
+                generatingInterim={reportGenerateMode === "interim"}
+                downloading={downloadMutation.isPending}
+                downloadingHistoryId={downloadingHistoryId}
+                onGenerateFinal={() => runDeepfakeReport("final")}
+                onGenerateInterim={() => runDeepfakeReport("interim")}
+                onDownloadLatest={downloadLatestReport}
+                onDownloadHistory={(historyId) =>
+                  downloadMutation.mutate({ data: { historyId } })
+                }
+              />
 
               <div
                 data-testid="deepfake-results-panel"

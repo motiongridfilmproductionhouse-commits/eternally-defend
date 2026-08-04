@@ -171,6 +171,26 @@ describe("buildDeepfakeReportModel", () => {
       /No client-visible/i,
     );
   });
+  it("marks interim reports distinctly without inventing findings", () => {
+    const model = buildDeepfakeReportModel({
+      scan: {
+        id: "44444444-4444-4444-4444-444444444444",
+        target_name: "Ada Example",
+        status: "partial",
+        discovery_metrics: { queries_executed: 4, client_visible: 0 },
+      },
+      findings: [],
+      profile: null,
+      clientName: "Client",
+      generatedAt: "2026-08-04T07:00:00.000Z",
+      reportMode: "interim",
+      hash,
+    });
+
+    assert.equal(model.reportMode, "interim");
+    assert.match(model.disclaimer[0] ?? "", /INTERIM REPORT/i);
+    assert.equal(model.findings.length, 0);
+  });
 });
 
 describe("priority helpers", () => {
