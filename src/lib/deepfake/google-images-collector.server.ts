@@ -15,6 +15,10 @@ import {
   REFERENCE_IMAGES_PER_QUERY,
   searchReferenceImagesForQuery,
 } from "./image-discovery-providers.server";
+import {
+  extractGoogleImagesMetaFromHtml,
+  isUsableSourceWebsiteUrl,
+} from "./google-images-source.server";
 
 export const GOOGLE_BROWSER_MAX_IMAGES = 400;
 const IMAGE_URL_PATTERN =
@@ -79,15 +83,33 @@ export async function collectGoogleImagesViaBrowser(input: {
 
         usedBrowser = true;
         const blob = `${rendered.markdown}\n${rendered.html}`;
+        // Prefer ou/ru pairs so page_url is the original webpage, never the Google viewer.
+        const meta = extractGoogleImagesMetaFromHtml(blob);
+        for (const row of meta) {
+          if (allHits.length >= maxImages) break;
+          if (seen.has(row.image_url)) continue;
+          seen.add(row.image_url);
+          allHits.push({
+            image_url: row.image_url,
+            page_url: isUsableSourceWebsiteUrl(row.source_website_url)
+              ? row.source_website_url
+              : "",
+            title: row.title ?? query,
+            provider: "google_images",
+            query,
+            width: null,
+            height: null,
+          });
+        }
         const urls = extractImageUrlsFromContent(blob);
-
         for (const imageUrl of urls) {
           if (allHits.length >= maxImages) break;
           if (seen.has(imageUrl)) continue;
           seen.add(imageUrl);
           allHits.push({
             image_url: imageUrl,
-            page_url: searchUrl,
+            // Never store the Google Images viewer/SERP URL as the page.
+            page_url: "",
             title: query,
             provider: "google_images",
             query,

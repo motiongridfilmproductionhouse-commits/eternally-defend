@@ -17,6 +17,7 @@ import {
   MAX_SAFE_RESPONSE_BYTES,
   sanitizeProviderText,
 } from "./url-safety.server";
+import { isUsableSourceWebsiteUrl } from "./google-images-source.server";
 import type { ReferenceImageProviderId } from "./reference-images";
 
 export const REFERENCE_PROVIDER_TIMEOUT_MS = 15_000;
@@ -85,13 +86,14 @@ function extractReferenceHits(
     if (!imageUrl || seen.has(imageUrl)) continue;
     seen.add(imageUrl);
 
-    const pageUrl =
-      (typeof item.link === "string" && isSafePublicHttpUrl(item.link)
+    // Prefer the hosting webpage. Never use Google viewer URLs as page_url.
+    const rawLink =
+      typeof item.link === "string" && isSafePublicHttpUrl(item.link)
         ? item.link.trim()
-        : null) ??
-      (typeof item.source === "string" && isSafePublicHttpUrl(item.source)
-        ? item.source.trim()
-        : imageUrl);
+        : typeof item.source === "string" && isSafePublicHttpUrl(item.source)
+          ? item.source.trim()
+          : null;
+    const pageUrl = isUsableSourceWebsiteUrl(rawLink) ? rawLink : "";
 
     const dims = parseDimensions(item);
     hits.push({

@@ -244,10 +244,19 @@ export function aggregateGoogleImagesDiagnostics(
     base.failed_downloads += n("failed_downloads");
     base.face_comparisons += n("face_comparisons");
     base.rejected_identities += n("rejected_identities");
+    base.viewer_urls_discovered += n("viewer_urls_discovered");
+    base.original_source_pages_extracted += n("original_source_pages_extracted");
+    base.source_pages_crawled +=
+      n("source_pages_crawled") || n("candidate_pages_crawled");
+    base.images_extracted_from_sources += n("images_extracted_from_sources");
+    base.gallery_pages_followed += n("gallery_pages_followed");
 
     const diag = job.diagnostics ?? {};
     if (diag.used_browser === true) base.used_browser = true;
     if (diag.browser_available === true) base.browser_available = true;
+    if (diag.playwright_fallback_used === true) {
+      base.playwright_fallback_used = true;
+    }
     if (
       !base.failure_reason &&
       typeof diag.failure === "string" &&

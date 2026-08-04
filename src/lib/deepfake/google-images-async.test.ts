@@ -18,6 +18,10 @@ test("aggregateGoogleImagesDiagnostics sums per-query metrics", () => {
           images_discovered: 40,
           face_comparisons: 12,
           evidence_packages_created: 2,
+          viewer_urls_discovered: 10,
+          original_source_pages_extracted: 6,
+          gallery_pages_followed: 2,
+          images_extracted_from_sources: 18,
         },
       },
       {
@@ -26,6 +30,10 @@ test("aggregateGoogleImagesDiagnostics sums per-query metrics", () => {
           images_discovered: 35,
           face_comparisons: 8,
           evidence_packages_created: 1,
+          viewer_urls_discovered: 4,
+          original_source_pages_extracted: 3,
+          gallery_pages_followed: 1,
+          images_extracted_from_sources: 9,
         },
       },
       { status: "queued", metrics: {} },
@@ -35,6 +43,10 @@ test("aggregateGoogleImagesDiagnostics sums per-query metrics", () => {
   assert.equal(diagnostics.images_discovered, 75);
   assert.equal(diagnostics.face_comparisons, 20);
   assert.equal(diagnostics.evidence_packages_created, 3);
+  assert.equal(diagnostics.viewer_urls_discovered, 14);
+  assert.equal(diagnostics.original_source_pages_extracted, 9);
+  assert.equal(diagnostics.gallery_pages_followed, 3);
+  assert.equal(diagnostics.images_extracted_from_sources, 27);
   assert.equal(diagnostics.queries_executed, 2);
   assert.equal(diagnostics.queries_planned, 3);
 });

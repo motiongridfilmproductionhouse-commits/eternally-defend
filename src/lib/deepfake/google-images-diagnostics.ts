@@ -1,5 +1,9 @@
 /**
  * Google Images investigation diagnostics for Deepfake Intelligence.
+ *
+ * Required funnel:
+ * Viewer URLs discovered → Original source pages extracted → Source pages crawled
+ * → Images extracted → Gallery pages followed → Faces compared → Evidence packages
  */
 
 export type GoogleImagesProviderStatus =
@@ -23,10 +27,21 @@ export interface GoogleImagesInvestigationDiagnostics {
   failed_downloads: number;
   face_comparisons: number;
   rejected_identities: number;
+  /** Google Images viewer/SERP URLs seen (never used as evidence). */
+  viewer_urls_discovered: number;
+  /** Original webpage URLs recovered via imgrefurl/ru. */
+  original_source_pages_extracted: number;
+  /** Source pages successfully crawled. */
+  source_pages_crawled: number;
+  /** Images extracted from crawled source/gallery pages. */
+  images_extracted_from_sources: number;
+  /** Same-domain gallery/media pages followed. */
+  gallery_pages_followed: number;
   provider_status: GoogleImagesProviderStatus;
   failure_reason: string | null;
   used_browser: boolean;
   browser_available: boolean;
+  playwright_fallback_used: boolean;
 }
 
 export function emptyGoogleImagesDiagnostics(): GoogleImagesInvestigationDiagnostics {
@@ -45,10 +60,16 @@ export function emptyGoogleImagesDiagnostics(): GoogleImagesInvestigationDiagnos
     failed_downloads: 0,
     face_comparisons: 0,
     rejected_identities: 0,
+    viewer_urls_discovered: 0,
+    original_source_pages_extracted: 0,
+    source_pages_crawled: 0,
+    images_extracted_from_sources: 0,
+    gallery_pages_followed: 0,
     provider_status: "not_started",
     failure_reason: null,
     used_browser: false,
     browser_available: false,
+    playwright_fallback_used: false,
   };
 }
 
@@ -71,7 +92,7 @@ export function parseGoogleImagesDiagnostics(
       ? status
       : "not_started";
 
-  const diagnostics: GoogleImagesInvestigationDiagnostics = {
+  return {
     queries_executed: n("queries_executed"),
     queries_planned:
       n("queries_planned") ||
@@ -90,14 +111,20 @@ export function parseGoogleImagesDiagnostics(
     failed_downloads: n("failed_downloads"),
     face_comparisons: n("face_comparisons"),
     rejected_identities: n("rejected_identities"),
+    viewer_urls_discovered: n("viewer_urls_discovered"),
+    original_source_pages_extracted:
+      n("original_source_pages_extracted") || n("source_pages_discovered"),
+    source_pages_crawled:
+      n("source_pages_crawled") || n("candidate_pages_crawled"),
+    images_extracted_from_sources: n("images_extracted_from_sources"),
+    gallery_pages_followed: n("gallery_pages_followed"),
     provider_status: providerStatus,
     failure_reason:
       typeof d.failure_reason === "string" ? d.failure_reason : null,
     used_browser: d.used_browser === true,
     browser_available: d.browser_available === true,
+    playwright_fallback_used: d.playwright_fallback_used === true,
   };
-
-  return diagnostics;
 }
 
 export function googleImagesBackgroundStatus(
@@ -149,18 +176,22 @@ export function formatGoogleImagesDiagnosticLines(
 ): string[] {
   return [
     `Queries Executed: ${d.queries_executed}`,
+    `Viewer URLs Discovered: ${d.viewer_urls_discovered}`,
+    `Original Source Pages Extracted: ${d.original_source_pages_extracted}`,
+    `Source Pages Crawled: ${d.source_pages_crawled}`,
     `Images Discovered: ${d.images_discovered}`,
-    `Source Pages Discovered: ${d.source_pages_discovered}`,
-    `Pages Crawled: ${d.candidate_pages_crawled}`,
+    `Images Extracted From Sources: ${d.images_extracted_from_sources}`,
+    `Gallery Pages Followed: ${d.gallery_pages_followed}`,
     `Images Downloaded: ${d.images_downloaded}`,
     `Faces Compared: ${d.face_comparisons}`,
     `Candidate Matches: ${d.high_confidence_matches}`,
-    `Evidence Generated: ${d.evidence_packages_created}`,
+    `Evidence Packages Created: ${d.evidence_packages_created}`,
     `Duplicate Images: ${d.duplicate_images}`,
     `Valid Faces: ${d.valid_faces}`,
     `Failed Downloads: ${d.failed_downloads}`,
     `Provider Status: ${d.provider_status}`,
     ...(d.used_browser ? ["Collection Mode: Browser"] : []),
+    ...(d.playwright_fallback_used ? ["Playwright/CDP Fallback: used"] : []),
     ...(d.failure_reason ? [`Failure: ${d.failure_reason}`] : []),
   ];
 }

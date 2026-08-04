@@ -18,6 +18,8 @@ import {
 import { GOOGLE_IMAGES_TARGET_MAX } from "./google-images-queries.server";
 import {
   extractGoogleImagesMetaFromHtml,
+  hostnameOfSourceUrl,
+  isGoogleImagesViewerUrl,
   isUsableSourceWebsiteUrl,
   resolveGoogleImagesSourceWebsite,
 } from "./google-images-source.server";
@@ -32,6 +34,8 @@ export interface GoogleImagesBrowserHit {
   google_result_url: string;
   query: string;
   title: string | null;
+  hostname: string | null;
+  surrounding_text: string | null;
   width: number | null;
   height: number | null;
 }
@@ -80,21 +84,25 @@ function extractImageUrlsFromContent(
 
   for (const row of meta) {
     if (!isSafePublicHttpUrl(row.image_url)) continue;
+    if (isGoogleImagesViewerUrl(row.image_url)) continue;
     if (/googleusercontent\.com\/(?:imgres|gen_204|logos)/i.test(row.image_url)) {
       continue;
     }
     if (/\.gif(?:$|[?#])/i.test(row.image_url)) continue;
     if (seen.has(row.image_url)) continue;
     seen.add(row.image_url);
+    const source = isUsableSourceWebsiteUrl(row.source_website_url)
+      ? row.source_website_url
+      : null;
     out.push({
       image_url: row.image_url,
-      thumbnail_url: row.image_url,
-      source_website_url: isUsableSourceWebsiteUrl(row.source_website_url)
-        ? row.source_website_url
-        : null,
+      thumbnail_url: row.thumbnail_url ?? row.image_url,
+      source_website_url: source,
       google_result_url: searchUrl,
       query,
-      title: query,
+      title: row.title ?? query,
+      hostname: hostnameOfSourceUrl(source),
+      surrounding_text: row.surrounding_text,
       width: null,
       height: null,
     });
@@ -104,6 +112,7 @@ function extractImageUrlsFromContent(
   for (const raw of matches) {
     const imageUrl = raw.replace(/\\u003d/g, "=").replace(/\\u0026/g, "&");
     if (!isSafePublicHttpUrl(imageUrl)) continue;
+    if (isGoogleImagesViewerUrl(imageUrl)) continue;
     if (/googleusercontent\.com\/(?:imgres|gen_204|logos)/i.test(imageUrl)) continue;
     if (/\.gif(?:$|[?#])/i.test(imageUrl)) continue;
     if (seen.has(imageUrl)) continue;
@@ -115,6 +124,8 @@ function extractImageUrlsFromContent(
       google_result_url: searchUrl,
       query,
       title: query,
+      hostname: null,
+      surrounding_text: null,
       width: null,
       height: null,
     });
@@ -177,17 +188,23 @@ async function collectViaCrawlerService(input: {
         typeof row.image_url === "string" && isSafePublicHttpUrl(row.image_url)
           ? row.image_url
           : null;
-      if (!imageUrl) continue;
+      if (!imageUrl || isGoogleImagesViewerUrl(imageUrl)) continue;
+      const source = resolveGoogleImagesSourceWebsite({
+        href: typeof row.href === "string" ? row.href : null,
+        imgurl: imageUrl,
+        imgrefurl:
+          typeof row.imgrefurl === "string" ? row.imgrefurl : null,
+        ru: typeof row.ru === "string" ? row.ru : null,
+        explicitSource:
+          typeof row.source_website_url === "string"
+            ? row.source_website_url
+            : null,
+      });
       hits.push({
         image_url: imageUrl,
         thumbnail_url:
           typeof row.thumbnail_url === "string" ? row.thumbnail_url : null,
-        source_website_url: resolveGoogleImagesSourceWebsite({
-          explicitSource:
-            typeof row.source_website_url === "string"
-              ? row.source_website_url
-              : null,
-        }),
+        source_website_url: source,
         google_result_url:
           typeof row.google_result_url === "string"
             ? row.google_result_url
@@ -196,6 +213,14 @@ async function collectViaCrawlerService(input: {
               ),
         query: typeof row.query === "string" ? row.query : "",
         title: typeof row.title === "string" ? row.title : null,
+        hostname:
+          typeof row.hostname === "string"
+            ? row.hostname
+            : hostnameOfSourceUrl(source),
+        surrounding_text:
+          typeof row.surrounding_text === "string"
+            ? row.surrounding_text
+            : null,
         width: typeof row.width === "number" ? row.width : null,
         height: typeof row.height === "number" ? row.height : null,
       });
@@ -304,15 +329,18 @@ async function collectViaSerpApiEngine(input: {
     for (const hit of settled.value.hits) {
       if (seen.has(hit.image_url)) continue;
       seen.add(hit.image_url);
+      const source = isUsableSourceWebsiteUrl(hit.page_url)
+        ? hit.page_url
+        : null;
       allHits.push({
         image_url: hit.image_url,
         thumbnail_url: hit.image_url,
-        source_website_url: isUsableSourceWebsiteUrl(hit.page_url)
-          ? hit.page_url
-          : null,
+        source_website_url: source,
         google_result_url: buildGoogleImagesSearchUrl(hit.query),
         query: hit.query,
         title: hit.title,
+        hostname: hostnameOfSourceUrl(source),
+        surrounding_text: null,
         width: hit.width,
         height: hit.height,
       });
@@ -371,15 +399,18 @@ async function collectViaAlternateImageProviders(input: {
         for (const hit of brave.hits) {
           if (seen.has(hit.image_url)) continue;
           seen.add(hit.image_url);
+          const source = isUsableSourceWebsiteUrl(hit.page_url)
+            ? hit.page_url
+            : null;
           allHits.push({
             image_url: hit.image_url,
             thumbnail_url: hit.image_url,
-            source_website_url: isUsableSourceWebsiteUrl(hit.page_url)
-              ? hit.page_url
-              : null,
+            source_website_url: source,
             google_result_url: buildGoogleImagesSearchUrl(hit.query),
             query: hit.query,
             title: hit.title,
+            hostname: hostnameOfSourceUrl(source),
+            surrounding_text: null,
             width: hit.width,
             height: hit.height,
           });
