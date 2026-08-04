@@ -40,7 +40,6 @@ export function buildSarayuDemoFindingRows(input: {
     canonical_url: url,
     discovered_url: url,
     source_host: hostOf(url),
-    verified_domain: hostOf(url),
     page_title: `Verified Demo Evidence - ${SARAYU_DEMO_IDENTITY}`,
     snippet: `${SARAYU_DEMO_IDENTITY} verified demo evidence URL`,
     query: SARAYU_DEMO_QUERY,
