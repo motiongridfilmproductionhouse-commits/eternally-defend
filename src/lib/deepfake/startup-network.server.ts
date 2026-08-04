@@ -298,6 +298,9 @@ export function isProductionDeepfakeRuntime(
 /**
  * Keep background work alive after returning an HTTP 202.
  * Uses Vercel waitUntil when the runtime supports it.
+ *
+ * IMPORTANT: pass the execution Promise directly — never wrap in
+ * setImmediate / setTimeout / Promise.resolve before waitUntil.
  */
 export function keepBackgroundWorkAlive(work: Promise<unknown>): {
   wait_until_used: boolean;
@@ -313,20 +316,29 @@ export function keepBackgroundWorkAlive(work: Promise<unknown>): {
 }
 
 /**
- * Schedule worker-hook work so the HTTP 202 can return before the batch begins.
- * The factory is invoked only after a setImmediate yield.
+ * Register an already-created execution promise with waitUntil during the
+ * request lifecycle. The promise must already be running (not deferred via
+ * setImmediate) so Vercel can retain it.
+ */
+export function registerWaitUntilExecution(
+  executionPromise: Promise<unknown>,
+): { wait_until_used: boolean } {
+  const kept = keepBackgroundWorkAlive(executionPromise);
+  console.info("deepfake_worker_wait_until_registered", {
+    wait_until_used: kept.wait_until_used,
+    vercel_runtime: isVercelWaitUntilRuntime(),
+  });
+  return kept;
+}
+
+/**
+ * @deprecated Prefer registerWaitUntilExecution(executionPromise) with a
+ * promise created in the same tick as waitUntil — no setImmediate.
  */
 export function runAcceptedBackgroundWork(
   factory: () => Promise<unknown>,
 ): { wait_until_used: boolean; deferred: true } {
-  const work = (async () => {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-    await factory();
-  })();
-  const kept = keepBackgroundWorkAlive(work);
-  console.info("deepfake_worker_background_scheduled", {
-    wait_until_used: kept.wait_until_used,
-    vercel_runtime: isVercelWaitUntilRuntime(),
-  });
+  const executionPromise = factory();
+  const kept = registerWaitUntilExecution(executionPromise);
   return { wait_until_used: kept.wait_until_used, deferred: true };
 }

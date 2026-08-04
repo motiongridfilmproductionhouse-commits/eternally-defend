@@ -137,20 +137,17 @@ test("worker hooks acknowledge with 202 and do not await full batch inline", () 
     "utf8",
   );
   assert.match(scanHook, /status: 202/);
-  assert.match(scanHook, /runAcceptedBackgroundWork\(async/);
-  assert.match(scanHook, /deepfake_scan_worker_accepted/);
-  // Batch may be awaited inside the deferred factory, but the 202 response
-  // must not wait on executeDeepfakeScanById at the handler level.
-  assert.match(
-    scanHook,
-    /runAcceptedBackgroundWork\(async \(\) => \{[\s\S]*await executeDeepfakeScanById/,
-  );
+  assert.match(scanHook, /registerWaitUntilExecution\(executionPromise\)/);
+  assert.match(scanHook, /const executionPromise = executeDeepfakeScanById/);
+  // 202 must not await the worker batch before responding.
   assert.doesNotMatch(
     scanHook,
-    /await executeDeepfakeScanById[\s\S]*runAcceptedBackgroundWork/,
+    /await executeDeepfakeScanById[\s\S]*status: 202/,
   );
+  assert.doesNotMatch(scanHook, /setImmediate\s*\(/);
   assert.match(giHook, /status: 202/);
-  assert.match(giHook, /runAcceptedBackgroundWork\(async/);
+  assert.match(giHook, /registerWaitUntilExecution\(executionPromise\)/);
+  assert.doesNotMatch(giHook, /setImmediate\s*\(/);
 });
 
 test("dispatchDeepfakeScanExecution never awaits inline pipeline batch", () => {

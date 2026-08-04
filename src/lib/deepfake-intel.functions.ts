@@ -272,10 +272,16 @@ export async function dispatchDeepfakeScanExecution(
   scanId: string,
   supabase: any,
   userId?: string,
+  options?: {
+    startupCorrelationId?: string;
+    workerExecutionId?: string;
+  },
 ): Promise<DispatchDeepfakeScanExecutionResult> {
   logStartupStage("dispatch_worker", { scan_id: scanId });
   const diagnostic = deepfakeScanWorkerDispatchDiagnostic();
   const workerUrl = resolveDeepfakeScanWorkerUrl();
+  const startupCorrelationId = options?.startupCorrelationId ?? null;
+  const workerExecutionId = options?.workerExecutionId;
 
   console.info("deepfake_scan_worker_dispatch_request", {
     scan_id: scanId,
@@ -285,6 +291,8 @@ export async function dispatchDeepfakeScanExecution(
     authentication: diagnostic.worker_secret_present
       ? "hmac_configured"
       : "missing_secret",
+    startup_correlation_id: startupCorrelationId,
+    worker_execution_id: workerExecutionId ?? null,
   });
 
   await persistStartupDispatchDiagnostic(supabase, scanId, {
@@ -292,6 +300,8 @@ export async function dispatchDeepfakeScanExecution(
     worker_url: workerUrl,
     worker_url_source: diagnostic.worker_url_source,
     worker_secret_present: diagnostic.worker_secret_present,
+    startup_correlation_id: startupCorrelationId,
+    worker_execution_id: workerExecutionId ?? null,
   });
 
   if (!workerUrl || !diagnostic.worker_url_valid) {
@@ -343,7 +353,12 @@ export async function dispatchDeepfakeScanExecution(
     };
   }
 
-  const dispatch = await dispatchNextWorker({ scanId, timeoutMs: 8_000 });
+  const dispatch = await dispatchNextWorker({
+    scanId,
+    timeoutMs: 8_000,
+    nextWorkerExecutionId: workerExecutionId,
+    startupCorrelationId: startupCorrelationId ?? undefined,
+  });
   console.info("deepfake_scan_worker_dispatch_response", {
     scan_id: scanId,
     dispatched: dispatch.dispatched,
@@ -352,24 +367,62 @@ export async function dispatchDeepfakeScanExecution(
     category: dispatch.category ?? null,
     request_id: dispatch.request_id ?? null,
     duration_ms: dispatch.duration_ms ?? null,
+    worker_execution_id: dispatch.next_worker_execution_id ?? null,
   });
 
   if (dispatch.dispatched) {
+    const acceptedStatus = dispatch.http_status ?? 202;
+    const expectedBy = new Date(Date.now() + 20_000).toISOString();
     await persistStartupDispatchDiagnostic(supabase, scanId, {
       stage: "dispatch_worker",
       dispatched: true,
       mode: "http",
       worker_url: workerUrl,
-      http_status: dispatch.http_status ?? null,
+      http_status: acceptedStatus,
       request_id: dispatch.request_id ?? null,
+      worker_execution_id: dispatch.next_worker_execution_id ?? null,
+      startup_correlation_id: startupCorrelationId,
+      worker_dispatch_accepted: acceptedStatus,
+      first_worker_expected_by: expectedBy,
     });
+    try {
+      const { data: scanRow } = await supabase
+        .from("deepfake_scans")
+        .select("discovery_metrics")
+        .eq("id", scanId)
+        .maybeSingle();
+      const existing =
+        scanRow?.discovery_metrics &&
+        typeof scanRow.discovery_metrics === "object"
+          ? (scanRow.discovery_metrics as Record<string, unknown>)
+          : {};
+      await supabase
+        .from("deepfake_scans")
+        .update({
+          discovery_metrics: {
+            ...existing,
+            worker_dispatch_status: "accepted",
+            worker_dispatch_accepted: acceptedStatus,
+            worker_execution_id:
+              dispatch.next_worker_execution_id ??
+              existing.worker_execution_id ??
+              null,
+            startup_correlation_id:
+              startupCorrelationId ?? existing.startup_correlation_id ?? null,
+            first_worker_expected_by: expectedBy,
+          },
+        })
+        .eq("id", scanId);
+    } catch {
+      /* best effort */
+    }
     return {
       dispatched: true,
       mode: "http",
       category: null,
       reason: null,
       worker_url: workerUrl,
-      http_status: dispatch.http_status ?? null,
+      http_status: acceptedStatus,
       request_id: dispatch.request_id ?? null,
     };
   }
@@ -446,6 +499,9 @@ export async function executeDeepfakeScanById(opts: {
   scanId: string;
   userId?: string;
   source?: "worker" | "user";
+  workerExecutionId?: string;
+  requestId?: string | null;
+  startupCorrelationId?: string | null;
 }): Promise<{
   scan_id: string;
   status: string;
@@ -458,12 +514,18 @@ export async function executeDeepfakeScanById(opts: {
     scan_id: opts.scanId,
     source: opts.source ?? "user",
     user_scoped: Boolean(opts.userId),
+    worker_execution_id: opts.workerExecutionId ?? null,
+    request_id: opts.requestId ?? null,
+    startup_correlation_id: opts.startupCorrelationId ?? null,
   });
 
   const workerResult = await executeDeepfakeScanWorkerBatch({
     supabase: opts.supabase,
     scanId: opts.scanId,
     userId: opts.userId,
+    workerExecutionId: opts.workerExecutionId,
+    requestId: opts.requestId,
+    startupCorrelationId: opts.startupCorrelationId,
     finalize: finalizePipelineRun,
   });
 
@@ -686,10 +748,40 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
     });
     logStartupStage("dispatch_worker", { scan_id: scan.id });
 
+    const { randomUUID } = await import("node:crypto");
+    const startupCorrelationId = randomUUID();
+    const workerExecutionId = randomUUID();
+    const firstWorkerExpectedBy = new Date(Date.now() + 20_000).toISOString();
+
+    await supabase
+      .from("deepfake_scans")
+      .update({
+        discovery_metrics: {
+          ...startupPlan.metrics,
+          stage: "discovering",
+          investigation_stage: "discovering",
+          queries_generated: startupPlan.queries.length,
+          aliases_generated: startupPlan.aliases.length,
+          start_options: {
+            google_images_url: data.google_images_url ?? null,
+            max_queries: data.max_queries ?? 56,
+            per_query_limit: data.per_query_limit ?? 20,
+          },
+          startup_correlation_id: startupCorrelationId,
+          worker_execution_id: workerExecutionId,
+          first_worker_expected_by: firstWorkerExpectedBy,
+          startup_queries_inserted: startupPlan.queries.length,
+          worker_dispatch_status: "dispatching",
+        },
+      })
+      .eq("id", scan.id)
+      .eq("user_id", userId);
+
     const dispatchResult = await dispatchDeepfakeScanExecution(
       scan.id,
       supabase,
       userId,
+      { startupCorrelationId, workerExecutionId },
     );
 
     const dispatchError =
@@ -1006,6 +1098,39 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
         findings: [],
         discoveries: [],
       };
+    }
+
+    // First-worker watchdog: if HTTP 202 accepted but deferred work never ran,
+    // redispatch once and surface a precise status on discovery_metrics.
+    if (scan.status === "running") {
+      try {
+        const { supabaseAdmin } = await import(
+          "@/integrations/supabase/client.server"
+        );
+        const { runFirstWorkerWatchdog } = await import(
+          "./deepfake/worker-watchdog.server"
+        );
+        await runFirstWorkerWatchdog({
+          supabase: supabaseAdmin,
+          scanId: scan.id,
+        });
+        const { data: refreshed } = await context.supabase
+          .from("deepfake_scans")
+          .select("*")
+          .eq("id", scan.id)
+          .maybeSingle();
+        if (refreshed) {
+          Object.assign(scan, refreshed);
+        }
+      } catch (watchdogError) {
+        console.warn("[DEEPFAKE] First-worker watchdog skipped:", {
+          scan_id: scan.id,
+          error:
+            watchdogError instanceof Error
+              ? watchdogError.message
+              : String(watchdogError),
+        });
+      }
     }
 
     const target = {

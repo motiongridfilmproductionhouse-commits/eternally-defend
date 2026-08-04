@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   isVercelWaitUntilRuntime,
-  runAcceptedBackgroundWork,
+  registerWaitUntilExecution,
 } from "@/lib/deepfake/startup-network.server";
 
 const BodySchema = z.object({ scan_id: z.string().uuid() });
@@ -52,7 +52,8 @@ export const Route = createFileRoute(
           wait_until_runtime: isVercelWaitUntilRuntime(),
         });
 
-        const scheduled = runAcceptedBackgroundWork(async () => {
+        // Direct waitUntil — promise created in-request, not via setImmediate.
+        const executionPromise = (async () => {
           const { supabaseAdmin } = await import(
             "@/integrations/supabase/client.server"
           );
@@ -77,7 +78,9 @@ export const Route = createFileRoute(
               error: error instanceof Error ? error.message : String(error),
             });
           }
-        });
+        })();
+
+        const scheduled = registerWaitUntilExecution(executionPromise);
 
         return Response.json(
           {
