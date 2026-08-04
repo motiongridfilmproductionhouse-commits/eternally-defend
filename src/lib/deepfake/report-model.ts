@@ -83,6 +83,7 @@ export interface DeepfakeReportModel {
   scanId: string;
   profileId: string | null;
   version: string;
+  reportMode: "final" | "interim";
   generatedAt: string;
   clientName: string;
   protectedIdentity: string;
@@ -164,6 +165,7 @@ export interface BuildDeepfakeReportInput {
   profile: ReportProfileInput | null;
   clientName: string;
   generatedAt: string;
+  reportMode?: "final" | "interim";
   hash: (value: unknown) => string;
 }
 
@@ -559,17 +561,35 @@ export function buildDeepfakeReportModel(
 
   timeline.push({
     time: iso(input.generatedAt),
-    label: "Deepfake threat report generated",
+    label:
+      input.reportMode === "interim"
+        ? "Interim deepfake threat report generated"
+        : "Deepfake threat report generated",
   });
+
+  const reportMode = input.reportMode === "interim" ? "interim" : "final";
+  const disclaimer = [
+    "This report is an evidence compilation from Deepfake Intelligence scan results only.",
+    "Findings, URLs, confidence scores, and diagnostics are copied from persisted scan data and are not fabricated for this document.",
+    "Classifications (verified / probable) are automated triage labels, not legal determinations of deepfake status, consent, or liability.",
+    "No takedown, abuse complaint, or legal notice was submitted automatically by generating this report.",
+    "Enforcement and legal conclusions remain with the authorized rights holder and their counsel.",
+  ];
+  if (reportMode === "interim") {
+    disclaimer.unshift(
+      "INTERIM REPORT — generated while a scan was still running or only partially complete. Findings may grow as the investigation continues.",
+    );
+  }
 
   return {
     reportId: `ETR-DF-${input
-      .hash([input.scan.id, input.generatedAt])
+      .hash([input.scan.id, input.generatedAt, reportMode])
       .slice(0, 10)
       .toUpperCase()}`,
     scanId: input.scan.id,
     profileId: input.profile?.id ?? input.scan.profile_id ?? null,
     version: DEEPFAKE_REPORT_VERSION,
+    reportMode,
     generatedAt: input.generatedAt,
     clientName: input.clientName,
     protectedIdentity,
@@ -618,12 +638,6 @@ export function buildDeepfakeReportModel(
     findings,
     domains,
     timeline,
-    disclaimer: [
-      "This report is an evidence compilation from Deepfake Intelligence scan results only.",
-      "Findings, URLs, confidence scores, and diagnostics are copied from persisted scan data and are not fabricated for this document.",
-      "Classifications (verified / probable) are automated triage labels, not legal determinations of deepfake status, consent, or liability.",
-      "No takedown, abuse complaint, or legal notice was submitted automatically by generating this report.",
-      "Enforcement and legal conclusions remain with the authorized rights holder and their counsel.",
-    ],
+    disclaimer,
   };
 }

@@ -391,13 +391,17 @@ function drawCover(ctx: Ctx): void {
     stack: ctx.stack.bold,
     color: TEXT,
   });
-  drawUnicodeText(ctx.page, sanitize("REPORT"), {
-    x: MARGIN,
-    y: A4[1] - 252,
-    size: 26,
-    stack: ctx.stack.bold,
-    color: ACCENT,
-  });
+  drawUnicodeText(
+    ctx.page,
+    sanitize(model.reportMode === "interim" ? "INTERIM REPORT" : "REPORT"),
+    {
+      x: MARGIN,
+      y: A4[1] - 252,
+      size: 26,
+      stack: ctx.stack.bold,
+      color: ACCENT,
+    },
+  );
 
   const sev = severityColor(model.threatLevel);
   ctx.page.drawRectangle({
@@ -422,6 +426,7 @@ function drawCover(ctx: Ctx): void {
     ["Client", model.clientName],
     ["Protected identity", model.protectedIdentity],
     ["Authorization", model.authorizationStatus ?? "Not recorded"],
+    ["Report type", model.reportMode === "interim" ? "Interim" : "Final"],
     ["Report ID", model.reportId],
     ["Scan ID", model.scanId],
     ["Generated (UTC)", model.generatedAt.replace("T", " ").slice(0, 19)],
@@ -851,7 +856,7 @@ export async function renderDeepfakeReportPdf(
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(
-    `Eterna Deepfake Threat Report — ${sanitize(model.protectedIdentity)}`,
+    `Eterna Deepfake Threat ${model.reportMode === "interim" ? "Interim " : ""}Report — ${sanitize(model.protectedIdentity)}`,
   );
   pdf.setSubject("Deepfake and synthetic media threat intelligence dossier");
   pdf.setProducer("Eterna Cyber Intelligence");

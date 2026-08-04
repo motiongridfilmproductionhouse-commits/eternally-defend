@@ -33,6 +33,22 @@ export interface GeneratedDeepfakeReport {
   scanId: string;
   profileId: string | null;
   historyId: string | null;
+  reportMode: "final" | "interim";
+}
+
+export interface DeepfakeReportHistoryItem {
+  id: string;
+  name: string;
+  status: string;
+  findingsCount: number;
+  createdAt: string;
+  reportId: string | null;
+  scanId: string | null;
+  profileId: string | null;
+  reportMode: "final" | "interim" | null;
+  fileName: string | null;
+  storageKey: string | null;
+  generatedAt: string | null;
 }
 
 function hashOf(value: unknown): string {
@@ -160,6 +176,7 @@ export async function buildReportForDeepfakeScan(
   userId: string,
   scanId: string,
   profileId?: string | null,
+  reportMode: "final" | "interim" = "final",
 ): Promise<DeepfakeReportModel | null> {
   const { data: scan, error } = await supabase
     .from("deepfake_scans")
@@ -230,6 +247,7 @@ export async function buildReportForDeepfakeScan(
     profile,
     clientName: await resolveClientName(supabase, userId),
     generatedAt: new Date().toISOString(),
+    reportMode,
     hash: hashOf,
   });
 }
@@ -238,6 +256,7 @@ async function findExistingReport(
   supabase: AnySupabase,
   userId: string,
   scanId: string,
+  reportMode: "final" | "interim" = "final",
 ): Promise<GeneratedDeepfakeReport | null> {
   const { data, error } = await supabase
     .from("generated_reports")
@@ -246,13 +265,18 @@ async function findExistingReport(
     .eq("kind", "Deepfake Threat Report")
     .eq("status", "Ready")
     .order("created_at", { ascending: false })
-    .limit(25);
+    .limit(40);
 
   if (error || !data?.length) return null;
 
   for (const row of data) {
     const filters = rec(row.filters);
     if (filters.scan_id !== scanId) continue;
+    const mode =
+      filters.report_mode === "interim" || filters.report_mode === "final"
+        ? filters.report_mode
+        : "final";
+    if (mode !== reportMode) continue;
     const storageKey =
       typeof filters.storage_key === "string" ? filters.storage_key : null;
     if (!storageKey) continue;
@@ -278,10 +302,67 @@ async function findExistingReport(
       profileId:
         typeof filters.profile_id === "string" ? filters.profile_id : null,
       historyId: row.id,
+      reportMode: mode,
     };
   }
 
   return null;
+}
+
+function historyItemFromRow(row: Record<string, unknown>): DeepfakeReportHistoryItem {
+  const filters = rec(row.filters);
+  const mode =
+    filters.report_mode === "interim" || filters.report_mode === "final"
+      ? filters.report_mode
+      : null;
+  return {
+    id: String(row.id),
+    name: typeof row.name === "string" ? row.name : "Deepfake Threat Report",
+    status: typeof row.status === "string" ? row.status : "Ready",
+    findingsCount:
+      typeof row.findings_count === "number" ? row.findings_count : 0,
+    createdAt:
+      typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+    reportId: typeof filters.report_id === "string" ? filters.report_id : null,
+    scanId: typeof filters.scan_id === "string" ? filters.scan_id : null,
+    profileId:
+      typeof filters.profile_id === "string" ? filters.profile_id : null,
+    reportMode: mode,
+    fileName: typeof filters.file_name === "string" ? filters.file_name : null,
+    storageKey:
+      typeof filters.storage_key === "string" ? filters.storage_key : null,
+    generatedAt:
+      typeof filters.generated_at === "string"
+        ? filters.generated_at
+        : typeof row.created_at === "string"
+          ? row.created_at
+          : null,
+  };
+}
+
+/** List Ready deepfake reports for a scan or profile. */
+export async function listDeepfakeReportHistory(
+  supabase: AnySupabase,
+  userId: string,
+  input: { scanId?: string; profileId?: string },
+): Promise<DeepfakeReportHistoryItem[]> {
+  const { data, error } = await supabase
+    .from("generated_reports")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("kind", "Deepfake Threat Report")
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? [])
+    .map((row) => historyItemFromRow(row as Record<string, unknown>))
+    .filter((item) => {
+      if (input.scanId && item.scanId === input.scanId) return true;
+      if (input.profileId && item.profileId === input.profileId) return true;
+      return false;
+    });
 }
 
 async function persistReportHistory(
@@ -290,11 +371,12 @@ async function persistReportHistory(
   report: GeneratedDeepfakeReport,
   protectedIdentity: string,
 ): Promise<string | null> {
+  const modeLabel = report.reportMode === "interim" ? "Interim " : "";
   const { data, error } = await supabase
     .from("generated_reports")
     .insert({
       user_id: userId,
-      name: `Deepfake Threat Report — ${protectedIdentity}`,
+      name: `${modeLabel}Deepfake Threat Report — ${protectedIdentity}`,
       kind: "Deepfake Threat Report",
       status: "Ready",
       findings_count: report.findings,
@@ -306,6 +388,7 @@ async function persistReportHistory(
         sha256: report.sha256,
         bytes: report.bytes,
         report_id: report.reportId,
+        report_mode: report.reportMode,
         generated_at: report.generatedAt,
       },
     })
@@ -327,15 +410,28 @@ async function persistReportHistory(
 export async function generateAndStoreDeepfakeReport(
   supabase: AnySupabase,
   userId: string,
-  input: { scanId?: string; profileId?: string; force?: boolean },
+  input: {
+    scanId?: string;
+    profileId?: string;
+    force?: boolean;
+    reportMode?: "final" | "interim";
+  },
 ): Promise<GeneratedDeepfakeReport> {
+  const reportMode = input.reportMode === "interim" ? "interim" : "final";
   const scan = await resolveDeepfakeReportScan(supabase, userId, {
     scanId: input.scanId,
     profileId: input.profileId,
   });
 
-  if (!input.force) {
-    const existing = await findExistingReport(supabase, userId, scan.id);
+  // Interim snapshots always regenerate; final can reuse unless forced.
+  const shouldReuse = !input.force && reportMode === "final";
+  if (shouldReuse) {
+    const existing = await findExistingReport(
+      supabase,
+      userId,
+      scan.id,
+      reportMode,
+    );
     if (existing) return existing;
   }
 
@@ -344,6 +440,7 @@ export async function generateAndStoreDeepfakeReport(
     userId,
     scan.id,
     input.profileId ?? scan.profile_id,
+    reportMode,
   );
   if (!model) throw new Error("Scan not found.");
 
@@ -354,8 +451,9 @@ export async function generateAndStoreDeepfakeReport(
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 48) || "protected-identity";
-  const fileName = `eterna-deepfake-threat-report-${slug}.pdf`;
-  const storageKey = `clients/${userId}/evidence/deepfake-reports/${scan.id}/${fileName}`;
+  const modeSlug = reportMode === "interim" ? "interim-" : "";
+  const fileName = `eterna-deepfake-${modeSlug}threat-report-${slug}.pdf`;
+  const storageKey = `clients/${userId}/evidence/deepfake-reports/${scan.id}/${Date.now()}-${fileName}`;
 
   await putObject({
     key: storageKey,
@@ -374,6 +472,7 @@ export async function generateAndStoreDeepfakeReport(
     scanId: scan.id,
     profileId: model.profileId,
     historyId: null,
+    reportMode,
   };
 
   report.historyId = await persistReportHistory(
@@ -384,6 +483,43 @@ export async function generateAndStoreDeepfakeReport(
   );
 
   return report;
+}
+
+/** Signed download for an existing history row owned by the user. */
+export async function downloadDeepfakeReportByHistoryId(
+  supabase: AnySupabase,
+  userId: string,
+  historyId: string,
+): Promise<GeneratedDeepfakeReport> {
+  const { data, error } = await supabase
+    .from("generated_reports")
+    .select("*")
+    .eq("id", historyId)
+    .eq("user_id", userId)
+    .eq("kind", "Deepfake Threat Report")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Report not found.");
+
+  const item = historyItemFromRow(data as Record<string, unknown>);
+  if (!item.storageKey) {
+    throw new Error("This report has no downloadable PDF yet.");
+  }
+
+  return {
+    reportId: item.reportId ?? item.id,
+    storageKey: item.storageKey,
+    sha256: "",
+    bytes: 0,
+    findings: item.findingsCount,
+    generatedAt: item.generatedAt ?? item.createdAt,
+    fileName: item.fileName ?? "eterna-deepfake-report.pdf",
+    scanId: item.scanId ?? "",
+    profileId: item.profileId,
+    historyId: item.id,
+    reportMode: item.reportMode ?? "final",
+  };
 }
 
 export async function signDeepfakeReportUrl(
