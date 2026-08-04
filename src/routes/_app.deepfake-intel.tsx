@@ -68,6 +68,10 @@ import {
 } from "@/lib/deepfake/worker-progress-ui";
 import { googleImagesBackgroundProgress } from "@/lib/deepfake/google-images-diagnostics";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
+import {
+  SarayuDemoScanSequence,
+  useSarayuDemoSequence,
+} from "@/components/deepfake/SarayuDemoScanSequence";
 import { ThreatAlertBanner } from "@/components/deepfake/ThreatAlertBanner";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
 import { scanBelongsToSelectedProfile } from "@/lib/deepfake/identity-scan-viz";
@@ -83,6 +87,7 @@ import {
   normalizeIdentityName,
   resolveActiveIdentityName,
 } from "@/lib/deepfake/identity-state";
+import { sarayuDemoSessionKey } from "@/lib/deepfake/sarayu-demo-animation";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
@@ -834,6 +839,15 @@ function DeepfakeIntelPage() {
     targetName,
   });
   const isSarayuMohan = isSarayuMohanIdentity(activeIdentityName);
+  const sarayuDemoKey = sarayuDemoSessionKey(
+    isSarayuMohan ? selectedScanId : null,
+    isSarayuMohan ? selectedProfileId : null,
+  );
+  const sarayuDemo = useSarayuDemoSequence(
+    sarayuDemoKey,
+    isSarayuMohan && Boolean(sarayuDemoKey),
+  );
+  const showSarayuDemo = isSarayuMohan && sarayuDemo.active;
   const scanRequestPending =
     run.isPending || continueScan.isPending;
   const scanningUi =
@@ -1839,7 +1853,14 @@ function DeepfakeIntelPage() {
 
         {/* Right: identity visualization + findings */}
         <div className="space-y-4">
-          {selectedProfileId ? (
+          {showSarayuDemo ? (
+            <SarayuDemoScanSequence
+              sequence={sarayuDemo}
+              thumbnailUrl={thumbnailUrl}
+              enrolledCount={enrolledFaces.length}
+              scanId={selectedScanId}
+            />
+          ) : selectedProfileId ? (
             <IdentityScanVisualization
               artistName={
                 selectedProfile?.target_name ||
@@ -1875,7 +1896,20 @@ function DeepfakeIntelPage() {
             />
           ) : null}
 
-          {selectedScanId && isElevatedThreatTone(threatSummary.tone) ? (
+          {!showSarayuDemo && isSarayuMohan && sarayuDemo.complete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={sarayuDemo.replay}
+              data-testid="sarayu-demo-replay"
+            >
+              Replay scan animation
+            </Button>
+          )}
+
+          {!showSarayuDemo && selectedScanId && isElevatedThreatTone(threatSummary.tone) ? (
             <ThreatAlertBanner
               summary={threatSummary}
               ariaRole={threatBannerRole}
@@ -1911,7 +1945,7 @@ function DeepfakeIntelPage() {
             />
           ) : null}
 
-          {!scan && !selectedProfileId ? (
+          {!showSarayuDemo && (!scan && !selectedProfileId ? (
             <>
               <ManualEvidenceLeadsSection
                 leads={manualLeadRows}
@@ -2306,7 +2340,7 @@ function DeepfakeIntelPage() {
                 </div>
               )}
             </>
-          ) : null}
+          ) : null)}
         </div>
       </section>
     </div>
