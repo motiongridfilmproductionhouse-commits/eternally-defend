@@ -431,6 +431,9 @@ function DeepfakeIntelPage() {
   const selectedProfile = (profiles.data ?? []).find(
     (profile) => profile.id === selectedProfileId,
   );
+  const isSarayuMohan =
+    (selectedProfile?.target_name ?? targetName).trim().toLowerCase() ===
+    "sarayumohan";
 
   const enrolledFaces =
     selectedProfile?.deepfake_reference_faces ?? [];
@@ -1584,27 +1587,6 @@ function DeepfakeIntelPage() {
                     </Button>
                   )}
 
-                  {normalizeTarget(selectedProfile?.target_name ?? "") === "sarayumohan" && (
-                    <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant="outline">Supplied Evidence Report — 6 Links</Badge>
-                        <span className="text-[10px] text-muted-foreground">Pending Verification</span>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        disabled={downloadSarayuReport.isPending}
-                        onClick={() => downloadSarayuReport.mutate()}
-                      >
-                        {downloadSarayuReport.isPending ? (
-                          <><Loader2 className="size-4 mr-2 animate-spin" /> Generating report…</>
-                        ) : (
-                          <><Download className="size-4 mr-2" /> Download Supplied Evidence Report</>
-                        )}
-                      </Button>
-                    </div>
-                  )}
                   <div className="space-y-1.5 pt-1 border-t border-border/60">
                     <Button
                       type="button"
@@ -1640,6 +1622,28 @@ function DeepfakeIntelPage() {
                       scan is selected. Builds from existing scan evidence only.
                     </p>
                   </div>
+                </div>
+              )}
+
+              {isSarayuMohan && (
+                <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="outline">Supplied Evidence Report — 6 Links</Badge>
+                    <span className="text-[10px] text-muted-foreground">Pending Verification</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={downloadSarayuReport.isPending}
+                    onClick={() => downloadSarayuReport.mutate()}
+                  >
+                    {downloadSarayuReport.isPending ? (
+                      <><Loader2 className="size-4 mr-2 animate-spin" /> Generating report…</>
+                    ) : (
+                      <><Download className="size-4 mr-2" /> Download Supplied Evidence Report</>
+                    )}
+                  </Button>
                 </div>
               )}
             </div>
