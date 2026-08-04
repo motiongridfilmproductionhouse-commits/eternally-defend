@@ -3,13 +3,13 @@
  * Required provider — failures degrade gracefully and never abort the scan.
  *
  * Flow per query:
- * 1) Browser/SerpAPI Google Images collection
- * 2) Download + face compare against enrolled references
- * 3) For identity matches: treat source website as discovery candidate,
- *    crawl the page for additional images, and build evidence packages
+ * 1) Browser/SerpAPI Google Images collection (viewer URLs are NEVER evidence)
+ * 2) Extract imgrefurl / imgurl from each result
+ * 3) Download + face compare against enrolled references
+ * 4) Visit original source webpage; crawl images + same-domain galleries
+ * 5) Face-compare extracted images; save evidence packages
  */
 
-import { createHash } from "node:crypto";
 import type { CollectedReferenceImage } from "./reference-images";
 import { buildGoogleImagesInvestigationQueries } from "./google-images-queries.server";
 import {
@@ -22,7 +22,9 @@ import {
 } from "./google-images-diagnostics";
 import {
   buildGoogleImagesEvidencePackage,
+  perceptualHashOfBytes,
   perceptualHashOfUrl,
+  sha256OfBytes,
   sha256OfUrl,
 } from "./google-images-evidence.server";
 import { detectReferenceFace } from "./reference-face-detect.server";
@@ -31,12 +33,17 @@ import { downloadFaceImage } from "./face-match.server";
 import { assertNotAborted } from "./scan-runtime.server";
 import { crawl4aiRenderPage } from "@/lib/copyright/crawl4ai-render.server";
 import { isSafePublicHttpUrl } from "./url-safety.server";
-import { isUsableSourceWebsiteUrl } from "./google-images-source.server";
+import {
+  isGoogleImagesViewerUrl,
+  isSameDomainGalleryLink,
+  isUsableSourceWebsiteUrl,
+} from "./google-images-source.server";
 
 export const GOOGLE_IMAGES_MATCH_THRESHOLD = 88;
 export const GOOGLE_IMAGES_HIGH_CONFIDENCE_THRESHOLD = 90;
-export const GOOGLE_IMAGES_SOURCE_PAGE_LIMIT = 4;
-export const GOOGLE_IMAGES_SOURCE_PAGE_IMAGE_LIMIT = 8;
+export const GOOGLE_IMAGES_SOURCE_PAGE_LIMIT = 8;
+export const GOOGLE_IMAGES_GALLERY_PAGE_LIMIT = 6;
+export const GOOGLE_IMAGES_SOURCE_PAGE_IMAGE_LIMIT = 24;
 
 export type GoogleImagesInvestigationCandidate = {
   url: string;
@@ -95,10 +102,6 @@ async function loadReferenceBytes(
   }
 
   return { bytes, images: used };
-}
-
-function sha256OfContent(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
 }
 
 function threatKeywordHit(query: string): boolean {
@@ -164,41 +167,61 @@ function toCandidate(
   };
 }
 
+function pushUniqueImageUrl(
+  out: string[],
+  seen: Set<string>,
+  raw: string,
+  pageUrl: string,
+): void {
+  if (out.length >= GOOGLE_IMAGES_SOURCE_PAGE_IMAGE_LIMIT) return;
+  let absolute = raw.replace(/\\u003d/g, "=").replace(/\\u0026/g, "&").trim();
+  if (!absolute) return;
+  try {
+    absolute = new URL(absolute, pageUrl).toString();
+  } catch {
+    return;
+  }
+  if (!isSafePublicHttpUrl(absolute)) return;
+  if (isGoogleImagesViewerUrl(absolute)) return;
+  if (
+    /googleusercontent\.com|gstatic\.com|sprite|logo|icon|pixel|tracking/i.test(
+      absolute,
+    )
+  ) {
+    return;
+  }
+  if (/\.gif(?:$|[?#])/i.test(absolute)) return;
+  if (seen.has(absolute)) return;
+  seen.add(absolute);
+  out.push(absolute);
+}
+
+/** Extract images including lazy-loaded / srcset / gallery media URLs. */
 function extractPageImageUrls(html: string, pageUrl: string): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   const pattern =
     /https?:\/\/[^\s"'<>]+?\.(?:jpe?g|png|webp|avif)(?:\?[^\s"'<>]*)?/gi;
-  const matches = html.match(pattern) ?? [];
-  for (const raw of matches) {
-    const cleaned = raw.replace(/\\u003d/g, "=").replace(/\\u0026/g, "&");
-    if (!isSafePublicHttpUrl(cleaned)) continue;
-    if (/googleusercontent\.com|gstatic\.com|sprite|logo|icon/i.test(cleaned)) {
-      continue;
-    }
-    if (seen.has(cleaned)) continue;
-    seen.add(cleaned);
-    out.push(cleaned);
-    if (out.length >= GOOGLE_IMAGES_SOURCE_PAGE_IMAGE_LIMIT) break;
+  for (const raw of html.match(pattern) ?? []) {
+    pushUniqueImageUrl(out, seen, raw, pageUrl);
   }
 
-  // Relative img src via simple attribute scrape
-  if (out.length < GOOGLE_IMAGES_SOURCE_PAGE_IMAGE_LIMIT) {
-    const srcRe = /<img[^>]+src=["']([^"']+)["']/gi;
+  const attrPatterns = [
+    /<img[^>]+(?:src|data-src|data-lazy-src|data-original|data-url)=["']([^"']+)["']/gi,
+    /<(?:a|div|span|li|figure)[^>]+(?:data-src|data-image|data-full|data-large|data-zoom)=["']([^"']+)["']/gi,
+    /srcset=["']([^"']+)["']/gi,
+  ];
+  for (const re of attrPatterns) {
     let match: RegExpExecArray | null;
     while (
-      (match = srcRe.exec(html)) &&
+      (match = re.exec(html)) &&
       out.length < GOOGLE_IMAGES_SOURCE_PAGE_IMAGE_LIMIT
     ) {
-      try {
-        const absolute = new URL(match[1]!, pageUrl).toString();
-        if (!isSafePublicHttpUrl(absolute)) continue;
-        if (seen.has(absolute)) continue;
-        if (/\.gif(?:$|[?#])/i.test(absolute)) continue;
-        seen.add(absolute);
-        out.push(absolute);
-      } catch {
-        /* ignore bad urls */
+      const value = match[1] ?? "";
+      // srcset may contain "url 1x, url 2x"
+      for (const part of value.split(",")) {
+        const urlPart = part.trim().split(/\s+/)[0];
+        if (urlPart) pushUniqueImageUrl(out, seen, urlPart, pageUrl);
       }
     }
   }
@@ -206,15 +229,43 @@ function extractPageImageUrls(html: string, pageUrl: string): string[] {
   return out;
 }
 
+function extractGalleryLinks(html: string, pageUrl: string, links: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (link: string) => {
+    if (!isSameDomainGalleryLink(link, pageUrl)) return;
+    const key = link.split("#")[0]!;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(key);
+  };
+  for (const link of links) push(link);
+
+  const hrefRe = /href=["']([^"']+)["']/gi;
+  let match: RegExpExecArray | null;
+  while ((match = hrefRe.exec(html)) && out.length < 20) {
+    try {
+      push(new URL(match[1]!, pageUrl).toString());
+    } catch {
+      /* ignore */
+    }
+  }
+  return out;
+}
+
 async function investigateSourcePage(input: {
   pageUrl: string;
   query: string;
+  /** Provenance Google Images URL — never used as evidence page. */
+  googleResultUrl: string;
   references: ReferenceBytes;
   signal?: AbortSignal;
   softDeadlineMs?: number;
   seenImageUrls: Set<string>;
   seenSha: Set<string>;
   seenPhash: Set<string>;
+  crawledPages: Set<string>;
+  maxPages?: number;
 }): Promise<{
   crawled: boolean;
   relatedCandidates: GoogleImagesInvestigationCandidate[];
@@ -223,16 +274,23 @@ async function investigateSourcePage(input: {
     pages_crawled: number;
     images_discovered: number;
     images_downloaded: number;
+    images_extracted_from_sources: number;
+    gallery_pages_followed: number;
     face_comparisons: number;
     high_confidence_matches: number;
     evidence_packages_created: number;
     failed_downloads: number;
   };
 }> {
+  const maxPages =
+    input.maxPages ??
+    GOOGLE_IMAGES_SOURCE_PAGE_LIMIT + GOOGLE_IMAGES_GALLERY_PAGE_LIMIT;
   const metrics = {
     pages_crawled: 0,
     images_discovered: 0,
     images_downloaded: 0,
+    images_extracted_from_sources: 0,
+    gallery_pages_followed: 0,
     face_comparisons: 0,
     high_confidence_matches: 0,
     evidence_packages_created: 0,
@@ -245,135 +303,166 @@ async function investigateSourcePage(input: {
     return { crawled: false, relatedCandidates, evidence, metrics };
   }
 
-  let rendered;
-  try {
-    rendered = await crawl4aiRenderPage(input.pageUrl, input.signal);
-  } catch {
-    return { crawled: false, relatedCandidates, evidence, metrics };
-  }
+  const queue: Array<{ url: string; isGallery: boolean }> = [
+    { url: input.pageUrl, isGallery: false },
+  ];
+  let anyCrawled = false;
 
-  if (!rendered.ok || !rendered.html) {
-    return { crawled: false, relatedCandidates, evidence, metrics };
-  }
-
-  metrics.pages_crawled = 1;
-  const pageImages = extractPageImageUrls(rendered.html, input.pageUrl);
-  metrics.images_discovered = pageImages.length;
-
-  for (const imageUrl of pageImages) {
+  while (queue.length && metrics.pages_crawled < maxPages) {
     assertNotAborted(input.signal);
-    if (input.seenImageUrls.has(imageUrl)) continue;
-    input.seenImageUrls.add(imageUrl);
+    const next = queue.shift()!;
+    if (!isUsableSourceWebsiteUrl(next.url)) continue;
+    if (input.crawledPages.has(next.url)) continue;
+    input.crawledPages.add(next.url);
 
+    let rendered;
     try {
-      metrics.images_downloaded += 1;
-      const imageBytes = await downloadFaceImage(imageUrl, {
-        signal: input.signal,
-        softDeadlineMs: input.softDeadlineMs,
-      });
-      const contentSha = sha256OfContent(imageBytes);
-      if (input.seenSha.has(contentSha)) continue;
-      input.seenSha.add(contentSha);
+      rendered = await crawl4aiRenderPage(next.url, input.signal);
+    } catch {
+      continue;
+    }
+    if (!rendered.ok || !rendered.html) continue;
 
-      const face = await detectReferenceFace({
-        imageUrl,
-        imageBytes,
-        signal: input.signal,
-        softDeadlineMs: input.softDeadlineMs,
-      });
-      if (!face.usable) continue;
+    anyCrawled = true;
+    metrics.pages_crawled += 1;
+    if (next.isGallery) metrics.gallery_pages_followed += 1;
 
-      metrics.face_comparisons += 1;
-      let match = {
-        matched: false,
-        similarity: 0,
-        faceConfidence: face.faceConfidence,
-      };
-      if (input.references.bytes.length > 0) {
-        const comparison = await compareAgainstReferences({
-          referenceImages: input.references.bytes,
-          discoveredImageUrl: imageUrl,
-          similarityThreshold: GOOGLE_IMAGES_MATCH_THRESHOLD,
+    const pageImages = extractPageImageUrls(rendered.html, next.url);
+    metrics.images_discovered += pageImages.length;
+    metrics.images_extracted_from_sources += pageImages.length;
+
+    for (const imageUrl of pageImages) {
+      assertNotAborted(input.signal);
+      if (input.seenImageUrls.has(imageUrl)) continue;
+      input.seenImageUrls.add(imageUrl);
+
+      try {
+        metrics.images_downloaded += 1;
+        const imageBytes = await downloadFaceImage(imageUrl, {
           signal: input.signal,
           softDeadlineMs: input.softDeadlineMs,
         });
-        match = {
-          matched: comparison.matched,
-          similarity: comparison.similarity,
-          faceConfidence: comparison.faceConfidence,
-        };
-      }
+        const contentSha = sha256OfBytes(imageBytes);
+        const contentPhash = perceptualHashOfBytes(imageBytes);
+        if (input.seenSha.has(contentSha) || input.seenPhash.has(contentPhash)) {
+          continue;
+        }
+        input.seenSha.add(contentSha);
+        input.seenPhash.add(contentPhash);
 
-      if (!match.matched) continue;
-      metrics.high_confidence_matches += 1;
-
-      const hit: GoogleImagesBrowserHit = {
-        image_url: imageUrl,
-        thumbnail_url: imageUrl,
-        source_website_url: input.pageUrl,
-        google_result_url: input.pageUrl,
-        query: input.query,
-        title: rendered.pageTitle,
-        width: null,
-        height: null,
-      };
-      const candidate = toCandidate(hit, match, { pageCrawled: true });
-      if (candidate) relatedCandidates.push(candidate);
-
-      evidence.push(
-        buildGoogleImagesEvidencePackage({
-          query: input.query,
-          googleResultUrl: input.pageUrl,
-          sourceWebsiteUrl: input.pageUrl,
+        const face = await detectReferenceFace({
           imageUrl,
-          faceSimilarity: match.similarity,
-          identityConfidence: match.faceConfidence,
-          sha256: contentSha,
-          perceptualHash: perceptualHashOfUrl(imageUrl),
-          crawlMetadata: {
-            provider: "google_images_source_page",
-            used_browser: true,
-          },
-        }),
+          imageBytes,
+          signal: input.signal,
+          softDeadlineMs: input.softDeadlineMs,
+        });
+        if (!face.usable) continue;
+
+        metrics.face_comparisons += 1;
+        let match = {
+          matched: false,
+          similarity: 0,
+          faceConfidence: face.faceConfidence,
+        };
+        if (input.references.bytes.length > 0) {
+          const comparison = await compareAgainstReferences({
+            referenceImages: input.references.bytes,
+            discoveredImageUrl: imageUrl,
+            similarityThreshold: GOOGLE_IMAGES_MATCH_THRESHOLD,
+            signal: input.signal,
+            softDeadlineMs: input.softDeadlineMs,
+          });
+          match = {
+            matched: comparison.matched,
+            similarity: comparison.similarity,
+            faceConfidence: comparison.faceConfidence,
+          };
+        }
+
+        if (!match.matched) continue;
+        metrics.high_confidence_matches += 1;
+
+        const hit: GoogleImagesBrowserHit = {
+          image_url: imageUrl,
+          thumbnail_url: imageUrl,
+          source_website_url: next.url,
+          google_result_url: input.googleResultUrl,
+          query: input.query,
+          title: rendered.pageTitle,
+          width: null,
+          height: null,
+          hostname: null,
+          surrounding_text: null,
+        };
+        const candidate = toCandidate(hit, match, { pageCrawled: true });
+        if (candidate) relatedCandidates.push(candidate);
+
+        evidence.push(
+          buildGoogleImagesEvidencePackage({
+            query: input.query,
+            googleResultUrl: input.googleResultUrl,
+            sourceWebsiteUrl: next.url,
+            imageUrl,
+            faceSimilarity: match.similarity,
+            identityConfidence: match.faceConfidence,
+            sha256: contentSha,
+            perceptualHash: contentPhash,
+            screenshotUrl: null,
+            evidenceStatus: "captured",
+            crawlMetadata: {
+              provider: next.isGallery
+                ? "google_images_gallery_page"
+                : "google_images_source_page",
+              crawled_page_url: next.url,
+              used_browser: true,
+              gallery_follow: next.isGallery,
+            },
+          }),
+        );
+        metrics.evidence_packages_created += 1;
+      } catch {
+        metrics.failed_downloads += 1;
+      }
+    }
+
+    // Continue crawling same-domain gallery / media / album pages until limits.
+    if (metrics.pages_crawled < maxPages) {
+      const galleryLinks = extractGalleryLinks(
+        rendered.html,
+        next.url,
+        rendered.links ?? [],
       );
-      metrics.evidence_packages_created += 1;
-    } catch {
-      metrics.failed_downloads += 1;
+      for (const link of galleryLinks) {
+        if (input.crawledPages.has(link)) continue;
+        if (queue.some((q) => q.url === link)) continue;
+        if (
+          metrics.gallery_pages_followed +
+            queue.filter((q) => q.isGallery).length >=
+          GOOGLE_IMAGES_GALLERY_PAGE_LIMIT
+        ) {
+          break;
+        }
+        queue.push({ url: link, isGallery: true });
+        relatedCandidates.push({
+          url: link,
+          title: `Related media page for ${input.query}`,
+          description:
+            "Related gallery/media page discovered from Google Images source",
+          query: input.query,
+          source: "google_images_investigation",
+          evidence_page_url: link,
+          google_result_url: input.googleResultUrl,
+          google_search_query: input.query,
+          threat_signals: ["google-images-related-page"],
+          page_crawled: false,
+          finding_classification: "PROBABLE_DEEPFAKE",
+          url_verification_status: "UNVERIFIED",
+        });
+      }
     }
   }
 
-  // Related / gallery-ish same-host links (discovery only, capped)
-  const relatedLinks = (rendered.links ?? [])
-    .filter((link) => isUsableSourceWebsiteUrl(link))
-    .filter((link) => {
-      try {
-        return new URL(link).hostname === new URL(input.pageUrl).hostname;
-      } catch {
-        return false;
-      }
-    })
-    .filter((link) =>
-      /gallery|photo|image|album|pics|media|mirror/i.test(link),
-    )
-    .slice(0, 3);
-
-  for (const link of relatedLinks) {
-    relatedCandidates.push({
-      url: link,
-      title: `Related media page for ${input.query}`,
-      description: "Related gallery/media page discovered from Google Images source",
-      query: input.query,
-      source: "google_images_investigation",
-      evidence_page_url: link,
-      google_search_query: input.query,
-      threat_signals: ["google-images-related-page"],
-      page_crawled: false,
-      finding_classification: "PROBABLE_DEEPFAKE",
-      url_verification_status: "UNVERIFIED",
-    });
-  }
-
-  return { crawled: true, relatedCandidates, evidence, metrics };
+  return { crawled: anyCrawled, relatedCandidates, evidence, metrics };
 }
 
 /**
@@ -411,6 +500,11 @@ export async function processGoogleImagesQuery(input: {
     failed_downloads: 0,
     face_comparisons: 0,
     rejected_identities: 0,
+    viewer_urls_discovered: 0,
+    original_source_pages_extracted: 0,
+    source_pages_crawled: 0,
+    images_extracted_from_sources: 0,
+    gallery_pages_followed: 0,
   };
   const candidates: GoogleImagesInvestigationCandidate[] = [];
   const evidence_packages: ReturnType<typeof buildGoogleImagesEvidencePackage>[] =
@@ -457,6 +551,19 @@ export async function processGoogleImagesQuery(input: {
 
   for (const hit of collection.hits) {
     assertNotAborted(input.signal);
+
+    // Google viewer/SERP URLs are provenance only — never evidence targets.
+    if (isGoogleImagesViewerUrl(hit.google_result_url)) {
+      metrics.viewer_urls_discovered += 1;
+    }
+    if (
+      hit.source_website_url &&
+      isGoogleImagesViewerUrl(hit.source_website_url)
+    ) {
+      metrics.viewer_urls_discovered += 1;
+      hit.source_website_url = null;
+    }
+
     if (seenImageUrls.has(hit.image_url)) {
       metrics.duplicate_images += 1;
       continue;
@@ -465,6 +572,7 @@ export async function processGoogleImagesQuery(input: {
 
     if (isUsableSourceWebsiteUrl(hit.source_website_url)) {
       metrics.source_pages_discovered += 1;
+      metrics.original_source_pages_extracted += 1;
     }
 
     const urlSha = sha256OfUrl(hit.image_url);
@@ -481,13 +589,15 @@ export async function processGoogleImagesQuery(input: {
         softDeadlineMs: input.softDeadlineMs,
       });
 
-      const contentSha = sha256OfContent(imageBytes);
-      if (seenSha.has(contentSha)) {
+      const contentSha = sha256OfBytes(imageBytes);
+      const contentPhash = perceptualHashOfBytes(imageBytes);
+      if (seenSha.has(contentSha) || seenPhash.has(contentPhash)) {
         metrics.duplicate_images += 1;
         continue;
       }
       seenSha.add(contentSha);
       seenSha.add(urlSha);
+      seenPhash.add(contentPhash);
       seenPhash.add(urlPhash);
 
       const face = await detectReferenceFace({
@@ -544,25 +654,33 @@ export async function processGoogleImagesQuery(input: {
         ? hit.source_website_url
         : null;
 
+      // Without an original webpage (imgrefurl), we cannot complete the
+      // Google Images → source page → evidence funnel for this hit.
       if (
         sourcePage &&
         crawledPages.size < GOOGLE_IMAGES_SOURCE_PAGE_LIMIT &&
         !crawledPages.has(sourcePage)
       ) {
-        crawledPages.add(sourcePage);
         const pageResult = await investigateSourcePage({
           pageUrl: sourcePage,
           query: hit.query,
+          googleResultUrl: hit.google_result_url,
           references,
           signal: input.signal,
           softDeadlineMs: input.softDeadlineMs,
           seenImageUrls,
           seenSha,
           seenPhash,
+          crawledPages,
         });
         pageCrawled = pageResult.crawled;
         metrics.candidate_pages_crawled += pageResult.metrics.pages_crawled;
+        metrics.source_pages_crawled += pageResult.metrics.pages_crawled;
         metrics.images_discovered += pageResult.metrics.images_discovered;
+        metrics.images_extracted_from_sources +=
+          pageResult.metrics.images_extracted_from_sources;
+        metrics.gallery_pages_followed +=
+          pageResult.metrics.gallery_pages_followed;
         metrics.images_downloaded += pageResult.metrics.images_downloaded;
         metrics.face_comparisons += pageResult.metrics.face_comparisons;
         metrics.high_confidence_matches +=
@@ -570,31 +688,44 @@ export async function processGoogleImagesQuery(input: {
         metrics.evidence_packages_created +=
           pageResult.metrics.evidence_packages_created;
         metrics.failed_downloads += pageResult.metrics.failed_downloads;
-        candidates.push(...pageResult.relatedCandidates);
+        candidates.push(
+          ...pageResult.relatedCandidates.filter(
+            (c) => !isGoogleImagesViewerUrl(c.url),
+          ),
+        );
         evidence_packages.push(...pageResult.evidence);
       }
 
-      evidence_packages.push(
-        buildGoogleImagesEvidencePackage({
-          query: hit.query,
-          googleResultUrl: hit.google_result_url,
-          sourceWebsiteUrl: hit.source_website_url,
-          imageUrl: hit.image_url,
-          faceSimilarity: match.similarity,
-          identityConfidence: match.faceConfidence,
-          sha256: contentSha,
-          perceptualHash: urlPhash,
-          crawlMetadata: {
-            provider: "google_images",
-            used_browser: collection.used_browser,
-            source_page_crawled: pageCrawled,
-          },
-        }),
-      );
-      metrics.evidence_packages_created += 1;
+      // Evidence only when we have a non-Google original source webpage.
+      if (sourcePage) {
+        evidence_packages.push(
+          buildGoogleImagesEvidencePackage({
+            query: hit.query,
+            googleResultUrl: hit.google_result_url,
+            sourceWebsiteUrl: sourcePage,
+            imageUrl: hit.image_url,
+            faceSimilarity: match.similarity,
+            identityConfidence: match.faceConfidence,
+            sha256: contentSha,
+            perceptualHash: contentPhash,
+            evidenceStatus: pageCrawled ? "captured" : "queued",
+            crawlMetadata: {
+              provider: "google_images",
+              used_browser: collection.used_browser,
+              source_page_crawled: pageCrawled,
+              hostname: hit.hostname,
+              surrounding_text: hit.surrounding_text,
+              title: hit.title,
+            },
+          }),
+        );
+        metrics.evidence_packages_created += 1;
 
-      const candidate = toCandidate(hit, match, { pageCrawled });
-      if (candidate) candidates.push(candidate);
+        const candidate = toCandidate(hit, match, { pageCrawled });
+        if (candidate && !isGoogleImagesViewerUrl(candidate.url)) {
+          candidates.push(candidate);
+        }
+      }
     } catch {
       metrics.failed_downloads += 1;
     }
@@ -668,6 +799,16 @@ export async function runMandatoryGoogleImagesInvestigation(input: {
     diagnostics.failed_downloads += result.metrics.failed_downloads;
     diagnostics.face_comparisons += result.metrics.face_comparisons;
     diagnostics.rejected_identities += result.metrics.rejected_identities;
+    diagnostics.viewer_urls_discovered +=
+      result.metrics.viewer_urls_discovered ?? 0;
+    diagnostics.original_source_pages_extracted +=
+      result.metrics.original_source_pages_extracted ?? 0;
+    diagnostics.source_pages_crawled +=
+      result.metrics.source_pages_crawled ?? 0;
+    diagnostics.images_extracted_from_sources +=
+      result.metrics.images_extracted_from_sources ?? 0;
+    diagnostics.gallery_pages_followed +=
+      result.metrics.gallery_pages_followed ?? 0;
     diagnostics.used_browser =
       diagnostics.used_browser || result.used_browser;
     diagnostics.browser_available =
@@ -694,6 +835,8 @@ export function findingRowFromGoogleImagesCandidate(input: {
   userId: string;
   candidate: GoogleImagesInvestigationCandidate;
 }): Record<string, unknown> | null {
+  if (isGoogleImagesViewerUrl(input.candidate.url)) return null;
+  if (isGoogleImagesViewerUrl(input.candidate.evidence_page_url)) return null;
   const pageUrl = isUsableSourceWebsiteUrl(input.candidate.url)
     ? input.candidate.url
     : null;

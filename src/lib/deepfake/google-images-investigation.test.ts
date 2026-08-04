@@ -50,5 +50,8 @@ test("google images diagnostics parse and format", () => {
   assert.equal(parsed.images_discovered, 742);
   const lines = formatGoogleImagesDiagnosticLines(parsed);
   assert.ok(lines.some((line) => /Queries Executed: 58/.test(line)));
+  assert.ok(lines.some((line) => /Viewer URLs Discovered:/.test(line)));
+  assert.ok(lines.some((line) => /Original Source Pages Extracted:/.test(line)));
+  assert.ok(lines.some((line) => /Gallery Pages Followed:/.test(line)));
   assert.ok(lines.some((line) => /Provider Status: success/.test(line)));
 });

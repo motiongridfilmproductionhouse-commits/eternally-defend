@@ -18,6 +18,10 @@ import { processGoogleImagesQuery, findingRowFromGoogleImagesCandidate } from ".
 import { parseReferenceImagesFromMetrics } from "./reference-images";
 import { parseGoogleImagesEvidencePackages } from "./google-images-evidence.server";
 import { upsertDiscoveriesBatch, upsertFindingsBatch } from "./scan-persist.server";
+import {
+  isGoogleImagesViewerUrl,
+  isUsableSourceWebsiteUrl,
+} from "./google-images-source.server";
 
 export const GOOGLE_IMAGES_WORKER_BUDGET_MS = 35_000;
 export const GOOGLE_IMAGES_WORKER_BATCH_SIZE = 4;
@@ -156,14 +160,22 @@ export async function executeGoogleImagesWorkerBatch(input: {
         },
       });
 
-      if (result.candidates.length) {
+      // Never persist Google Images viewer/SERP URLs as discoveries or findings.
+      const safeCandidates = result.candidates.filter(
+        (hit) =>
+          isUsableSourceWebsiteUrl(hit.url) &&
+          !isGoogleImagesViewerUrl(hit.url) &&
+          !isGoogleImagesViewerUrl(hit.evidence_page_url),
+      );
+
+      if (safeCandidates.length) {
         await upsertDiscoveriesBatch({
           supabase: input.supabase,
           userId,
           scanId: input.scanId,
           targetName: scan.target_name,
           hostOf,
-          rows: result.candidates.map((hit) => ({
+          rows: safeCandidates.map((hit) => ({
             source: hit.source,
             query: hit.query,
             page_url: hit.url,
@@ -178,7 +190,7 @@ export async function executeGoogleImagesWorkerBatch(input: {
           alreadyPersisted: persistedDiscoveryKeys,
         });
 
-        const findingRows = result.candidates
+        const findingRows = safeCandidates
           .map((candidate) =>
             findingRowFromGoogleImagesCandidate({
               scanId: input.scanId,
@@ -197,7 +209,13 @@ export async function executeGoogleImagesWorkerBatch(input: {
         }
       }
 
-      mergedEvidence.push(...result.evidence_packages);
+      mergedEvidence.push(
+        ...result.evidence_packages.filter(
+          (pkg) =>
+            isUsableSourceWebsiteUrl(pkg.source_website_url) &&
+            !isGoogleImagesViewerUrl(pkg.source_website_url),
+        ),
+      );
       processed += 1;
 
       await syncGoogleImagesScanMetrics({
