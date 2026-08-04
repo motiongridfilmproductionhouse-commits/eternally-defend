@@ -2,7 +2,39 @@
  * Dispatch background Deepfake Intelligence main-scan workers.
  */
 
+import {
+  classifyStartupNetworkError,
+  instrumentedWorkerFetch,
+  startupErrorLabel,
+  type StartupNetworkErrorCategory,
+} from "./startup-network.server";
+
 const HOOK_PATH = "/api/public/hooks/deepfake-scan-execute";
+
+type WorkerUrlSource =
+  | "DEEPFAKE_SCAN_WORKER_URL"
+  | "DEEPFAKE_SCAN_WORKER_BASE_URL"
+  | "COPYRIGHT_SCAN_WORKER_BASE_URL"
+  | "SITE_URL"
+  | "APP_URL"
+  | "PUBLIC_APP_URL"
+  | "VITE_SITE_URL"
+  | "VERCEL_PROJECT_PRODUCTION_URL"
+  | "VERCEL_URL"
+  | "missing"
+  | "invalid";
+
+export interface DeepfakeScanWorkerDispatchDiagnostic {
+  worker_url_configured: boolean;
+  worker_url_valid: boolean;
+  worker_url_source: WorkerUrlSource;
+  worker_url: string | null;
+  worker_url_origin: string | null;
+  worker_url_path: string | null;
+  worker_secret_present: boolean;
+  failure_category: StartupNetworkErrorCategory | null;
+  failure_label: string | null;
+}
 
 function normalizeOrigin(raw: string): string | null {
   const value = raw.trim();
@@ -16,56 +48,200 @@ function normalizeOrigin(raw: string): string | null {
   }
 }
 
+function normalizeExplicitWorkerUrl(raw: string): string | null {
+  try {
+    const url = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    // Bare origin / missing hook path → append canonical hook.
+    if (url.pathname === "/" || url.pathname === "") {
+      return `${url.origin}${HOOK_PATH}`;
+    }
+    return `${url.origin}${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
+export function deepfakeScanWorkerDispatchDiagnostic(
+  env: NodeJS.ProcessEnv = process.env,
+): DeepfakeScanWorkerDispatchDiagnostic {
+  const secretPresent = Boolean(env.COPYRIGHT_SCAN_WORKER_SECRET?.trim());
+  const explicit = env.DEEPFAKE_SCAN_WORKER_URL?.trim();
+
+  if (explicit) {
+    const normalized = normalizeExplicitWorkerUrl(explicit);
+    if (!normalized) {
+      return {
+        worker_url_configured: true,
+        worker_url_valid: false,
+        worker_url_source: "invalid",
+        worker_url: null,
+        worker_url_origin: null,
+        worker_url_path: null,
+        worker_secret_present: secretPresent,
+        failure_category: "worker_url_invalid",
+        failure_label: startupErrorLabel("worker_url_invalid"),
+      };
+    }
+    const parsed = new URL(normalized);
+    return {
+      worker_url_configured: true,
+      worker_url_valid: true,
+      worker_url_source: "DEEPFAKE_SCAN_WORKER_URL",
+      worker_url: normalized,
+      worker_url_origin: parsed.origin,
+      worker_url_path: `${parsed.pathname}${parsed.search}`,
+      worker_secret_present: secretPresent,
+      failure_category: secretPresent ? null : "worker_secret_not_configured",
+      failure_label: secretPresent
+        ? null
+        : startupErrorLabel("worker_secret_not_configured"),
+    };
+  }
+
+  const candidates: Array<[WorkerUrlSource, string | undefined]> = [
+    ["DEEPFAKE_SCAN_WORKER_BASE_URL", env.DEEPFAKE_SCAN_WORKER_BASE_URL],
+    ["COPYRIGHT_SCAN_WORKER_BASE_URL", env.COPYRIGHT_SCAN_WORKER_BASE_URL],
+    ["SITE_URL", env.SITE_URL],
+    ["APP_URL", env.APP_URL],
+    ["PUBLIC_APP_URL", env.PUBLIC_APP_URL],
+    ["VITE_SITE_URL", env.VITE_SITE_URL],
+    env.VERCEL_PROJECT_PRODUCTION_URL
+      ? [
+          "VERCEL_PROJECT_PRODUCTION_URL",
+          `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`,
+        ]
+      : ["VERCEL_PROJECT_PRODUCTION_URL", undefined],
+    env.VERCEL_URL
+      ? ["VERCEL_URL", `https://${env.VERCEL_URL}`]
+      : ["VERCEL_URL", undefined],
+  ];
+
+  for (const [source, candidate] of candidates) {
+    const origin = candidate ? normalizeOrigin(candidate) : null;
+    if (!origin) continue;
+    const workerUrl = `${origin}${HOOK_PATH}`;
+    return {
+      worker_url_configured: true,
+      worker_url_valid: true,
+      worker_url_source: source,
+      worker_url: workerUrl,
+      worker_url_origin: origin,
+      worker_url_path: HOOK_PATH,
+      worker_secret_present: secretPresent,
+      failure_category: secretPresent ? null : "worker_secret_not_configured",
+      failure_label: secretPresent
+        ? null
+        : startupErrorLabel("worker_secret_not_configured"),
+    };
+  }
+
+  return {
+    worker_url_configured: false,
+    worker_url_valid: false,
+    worker_url_source: "missing",
+    worker_url: null,
+    worker_url_origin: null,
+    worker_url_path: null,
+    worker_secret_present: secretPresent,
+    failure_category: "worker_url_not_configured",
+    failure_label: startupErrorLabel("worker_url_not_configured"),
+  };
+}
+
 export type DeepfakeScanWorkerDispatchResult = {
   dispatched: boolean;
   reason?: string;
+  category?: StartupNetworkErrorCategory | null;
   http_status?: number | null;
   response_body?: string | null;
   next_worker_execution_id?: string | null;
+  worker_url?: string | null;
+  request_id?: string | null;
+  duration_ms?: number | null;
 };
 
 export function resolveDeepfakeScanWorkerUrl(
   env: NodeJS.ProcessEnv = process.env,
 ): string | null {
-  const explicit = env.DEEPFAKE_SCAN_WORKER_URL?.trim();
-  if (explicit) return explicit;
-
-  const candidates = [
-    env.DEEPFAKE_SCAN_WORKER_BASE_URL,
-    env.COPYRIGHT_SCAN_WORKER_BASE_URL,
-    env.SITE_URL,
-    env.APP_URL,
-    env.PUBLIC_APP_URL,
-    env.VITE_SITE_URL,
-    env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : undefined,
-    env.VERCEL_URL ? `https://${env.VERCEL_URL}` : undefined,
-  ];
-
-  for (const candidate of candidates) {
-    const origin = candidate ? normalizeOrigin(candidate) : null;
-    if (origin) return `${origin}${HOOK_PATH}`;
+  const diagnostic = deepfakeScanWorkerDispatchDiagnostic(env);
+  if (diagnostic.worker_url_valid && diagnostic.worker_url) {
+    return diagnostic.worker_url;
   }
-
   return null;
 }
 
 export function isDeepfakeScanWorkerDispatchConfigured(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return Boolean(resolveDeepfakeScanWorkerUrl(env));
+  const diagnostic = deepfakeScanWorkerDispatchDiagnostic(env);
+  return diagnostic.worker_url_valid && diagnostic.worker_secret_present;
+}
+
+/**
+ * Validate required startup configuration. Throws a categorized Error when
+ * the worker cannot be dispatched (invalid/missing URL or secret).
+ */
+export function assertDeepfakeStartupWorkerConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): DeepfakeScanWorkerDispatchDiagnostic {
+  const diagnostic = deepfakeScanWorkerDispatchDiagnostic(env);
+  if (!diagnostic.worker_url_valid || !diagnostic.worker_url) {
+    const category =
+      diagnostic.failure_category ?? "worker_url_not_configured";
+    const error = new Error(startupErrorLabel(category));
+    (error as Error & { startupCategory?: StartupNetworkErrorCategory }).startupCategory =
+      category;
+    throw error;
+  }
+  if (!diagnostic.worker_secret_present) {
+    const error = new Error(
+      startupErrorLabel("worker_secret_not_configured"),
+    );
+    (error as Error & { startupCategory?: StartupNetworkErrorCategory }).startupCategory =
+      "worker_secret_not_configured";
+    throw error;
+  }
+  return diagnostic;
 }
 
 export async function dispatchNextWorker(input: {
   scanId: string;
   env?: NodeJS.ProcessEnv;
   nextWorkerExecutionId?: string;
+  /** Keep dispatch short so scan-start never blocks on a full worker batch. */
+  timeoutMs?: number;
 }): Promise<DeepfakeScanWorkerDispatchResult> {
   const env = input.env ?? process.env;
-  const workerUrl = resolveDeepfakeScanWorkerUrl(env);
-  if (!workerUrl) {
-    return { dispatched: false, reason: "worker_url_not_configured" };
+  const diagnostic = deepfakeScanWorkerDispatchDiagnostic(env);
+  const workerUrl = diagnostic.worker_url;
+
+  console.info("deepfake_scan_worker_dispatch_config", {
+    scan_id: input.scanId,
+    worker_url: workerUrl,
+    worker_url_source: diagnostic.worker_url_source,
+    worker_secret_present: diagnostic.worker_secret_present,
+    authentication: diagnostic.worker_secret_present
+      ? "hmac_configured"
+      : "missing_secret",
+  });
+
+  if (!workerUrl || !diagnostic.worker_url_valid) {
+    return {
+      dispatched: false,
+      reason: diagnostic.failure_category ?? "worker_url_not_configured",
+      category: diagnostic.failure_category ?? "worker_url_not_configured",
+      worker_url: null,
+    };
+  }
+
+  if (!diagnostic.worker_secret_present) {
+    return {
+      dispatched: false,
+      reason: "worker_secret_not_configured",
+      category: "worker_secret_not_configured",
+      worker_url: workerUrl,
+    };
   }
 
   const body = JSON.stringify({ scan_id: input.scanId });
@@ -81,39 +257,52 @@ export async function dispatchNextWorker(input: {
     const signed = signCopyrightScanWorkerRequest(body);
     headers["x-eterna-timestamp"] = signed.timestamp;
     headers["x-eterna-signature"] = signed.signature;
-  } catch {
-    return { dispatched: false, reason: "worker_secret_not_configured" };
-  }
-
-  try {
-    const response = await fetch(workerUrl, {
-      method: "POST",
-      headers,
-      body,
-    });
-    const responseBody = await response.text();
-    if (!response.ok) {
-      return {
-        dispatched: false,
-        reason: `worker_http_${response.status}`,
-        http_status: response.status,
-        response_body: responseBody.slice(0, 2_000),
-        next_worker_execution_id: input.nextWorkerExecutionId ?? null,
-      };
-    }
-    return {
-      dispatched: true,
-      http_status: response.status,
-      response_body: responseBody.slice(0, 2_000),
-      next_worker_execution_id: input.nextWorkerExecutionId ?? null,
-    };
   } catch (error) {
+    const category = classifyStartupNetworkError(error);
     return {
       dispatched: false,
-      reason: error instanceof Error ? error.message : String(error),
-      http_status: null,
-      response_body: null,
-      next_worker_execution_id: input.nextWorkerExecutionId ?? null,
+      reason: "worker_secret_not_configured",
+      category:
+        category === "network_failed"
+          ? "worker_secret_not_configured"
+          : category,
+      worker_url: workerUrl,
     };
   }
+
+  // Short timeout: hooks acknowledge with 202 immediately. Never wait for a
+  // full 35s worker batch from the start/dispatch path.
+  const fetchResult = await instrumentedWorkerFetch({
+    url: workerUrl,
+    headers,
+    body,
+    timeoutMs: input.timeoutMs ?? 8_000,
+    purpose: "deepfake_scan_worker_dispatch",
+    scanId: input.scanId,
+  });
+
+  if (!fetchResult.ok) {
+    return {
+      dispatched: false,
+      reason: fetchResult.network_error ?? "worker_endpoint_unavailable",
+      category: fetchResult.category ?? "worker_endpoint_unavailable",
+      http_status: fetchResult.status,
+      response_body: fetchResult.response_preview,
+      next_worker_execution_id: input.nextWorkerExecutionId ?? null,
+      worker_url: workerUrl,
+      request_id: fetchResult.request_id,
+      duration_ms: fetchResult.duration_ms,
+    };
+  }
+
+  return {
+    dispatched: true,
+    http_status: fetchResult.status,
+    response_body: fetchResult.response_preview,
+    next_worker_execution_id: input.nextWorkerExecutionId ?? null,
+    worker_url: workerUrl,
+    request_id: fetchResult.request_id,
+    duration_ms: fetchResult.duration_ms,
+    category: null,
+  };
 }

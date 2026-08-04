@@ -571,21 +571,40 @@ export async function executeInterleavedDeepfakePipeline(input: {
     googleImagesBg !== "failed"
   ) {
     try {
-      const dispatch = await dispatchGoogleImagesWorker({ scanId: input.scanId });
+      console.info("deepfake_startup_stage", {
+        stage: "google_images_queue",
+        scan_id: input.scanId,
+        background_status: googleImagesBg,
+      });
+      const dispatch = await dispatchGoogleImagesWorker({
+        scanId: input.scanId,
+        timeoutMs: 8_000,
+      });
       if (!dispatch.dispatched) {
+        console.warn("[DEEPFAKE] Google Images worker dispatch failed:", {
+          scanId: input.scanId,
+          reason: dispatch.reason,
+          category: dispatch.category,
+          worker_url: dispatch.worker_url,
+        });
         const { executeGoogleImagesWorkerBatch } = await import(
           "./google-images-worker.server"
         );
-        void executeGoogleImagesWorkerBatch({
-          supabase: input.supabase,
-          scanId: input.scanId,
-          userId: input.userId,
-        }).catch((error) => {
-          console.warn("[DEEPFAKE] Inline Google Images worker fallback failed:", {
+        const { keepBackgroundWorkAlive } = await import(
+          "./startup-network.server"
+        );
+        keepBackgroundWorkAlive(
+          executeGoogleImagesWorkerBatch({
+            supabase: input.supabase,
             scanId: input.scanId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
+            userId: input.userId,
+          }).catch((error) => {
+            console.warn("[DEEPFAKE] Inline Google Images worker fallback failed:", {
+              scanId: input.scanId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }),
+        );
       }
       await touchScanProgress({
         supabase: input.supabase,

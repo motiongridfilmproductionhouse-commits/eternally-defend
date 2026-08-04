@@ -2,6 +2,12 @@
  * Dispatch background Google Images investigation workers.
  */
 
+import {
+  classifyStartupNetworkError,
+  instrumentedWorkerFetch,
+  type StartupNetworkErrorCategory,
+} from "./startup-network.server";
+
 const HOOK_PATH = "/api/public/hooks/deepfake-google-images-worker";
 
 function normalizeOrigin(raw: string): string | null {
@@ -16,11 +22,26 @@ function normalizeOrigin(raw: string): string | null {
   }
 }
 
+function normalizeExplicitWorkerUrl(raw: string): string | null {
+  try {
+    const url = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (url.pathname === "/" || url.pathname === "") {
+      return `${url.origin}${HOOK_PATH}`;
+    }
+    return `${url.origin}${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
 export function resolveGoogleImagesWorkerUrl(
   env: NodeJS.ProcessEnv = process.env,
 ): string | null {
   const explicit = env.DEEPFAKE_GOOGLE_IMAGES_WORKER_URL?.trim();
-  if (explicit) return explicit;
+  if (explicit) {
+    return normalizeExplicitWorkerUrl(explicit);
+  }
 
   const candidates = [
     env.DEEPFAKE_SCAN_WORKER_BASE_URL,
@@ -45,17 +66,43 @@ export function resolveGoogleImagesWorkerUrl(
 export function isGoogleImagesWorkerDispatchConfigured(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return Boolean(resolveGoogleImagesWorkerUrl(env));
+  return Boolean(
+    resolveGoogleImagesWorkerUrl(env) &&
+      env.COPYRIGHT_SCAN_WORKER_SECRET?.trim(),
+  );
 }
 
 export async function dispatchGoogleImagesWorker(input: {
   scanId: string;
   env?: NodeJS.ProcessEnv;
-}): Promise<{ dispatched: boolean; reason?: string }> {
+  timeoutMs?: number;
+}): Promise<{
+  dispatched: boolean;
+  reason?: string;
+  category?: StartupNetworkErrorCategory | null;
+  http_status?: number | null;
+  worker_url?: string | null;
+  request_id?: string | null;
+}> {
   const env = input.env ?? process.env;
   const workerUrl = resolveGoogleImagesWorkerUrl(env);
+
+  console.info("deepfake_google_images_worker_dispatch_config", {
+    scan_id: input.scanId,
+    worker_url: workerUrl,
+    worker_secret_present: Boolean(env.COPYRIGHT_SCAN_WORKER_SECRET?.trim()),
+    authentication: env.COPYRIGHT_SCAN_WORKER_SECRET?.trim()
+      ? "hmac_configured"
+      : "missing_secret",
+  });
+
   if (!workerUrl) {
-    return { dispatched: false, reason: "worker_url_not_configured" };
+    return {
+      dispatched: false,
+      reason: "worker_url_not_configured",
+      category: "worker_url_not_configured",
+      worker_url: null,
+    };
   }
 
   const body = JSON.stringify({ scan_id: input.scanId });
@@ -71,27 +118,40 @@ export async function dispatchGoogleImagesWorker(input: {
     const signed = signCopyrightScanWorkerRequest(body);
     headers["x-eterna-timestamp"] = signed.timestamp;
     headers["x-eterna-signature"] = signed.signature;
-  } catch {
-    return { dispatched: false, reason: "worker_secret_not_configured" };
-  }
-
-  try {
-    const response = await fetch(workerUrl, {
-      method: "POST",
-      headers,
-      body,
-    });
-    if (!response.ok) {
-      return {
-        dispatched: false,
-        reason: `worker_http_${response.status}`,
-      };
-    }
-    return { dispatched: true };
   } catch (error) {
     return {
       dispatched: false,
-      reason: error instanceof Error ? error.message : String(error),
+      reason: "worker_secret_not_configured",
+      category: classifyStartupNetworkError(error),
+      worker_url: workerUrl,
     };
   }
+
+  const fetchResult = await instrumentedWorkerFetch({
+    url: workerUrl,
+    headers,
+    body,
+    timeoutMs: input.timeoutMs ?? 8_000,
+    purpose: "deepfake_google_images_worker_dispatch",
+    scanId: input.scanId,
+  });
+
+  if (!fetchResult.ok) {
+    return {
+      dispatched: false,
+      reason: fetchResult.network_error ?? "worker_endpoint_unavailable",
+      category: fetchResult.category ?? "worker_endpoint_unavailable",
+      http_status: fetchResult.status,
+      worker_url: workerUrl,
+      request_id: fetchResult.request_id,
+    };
+  }
+
+  return {
+    dispatched: true,
+    worker_url: workerUrl,
+    http_status: fetchResult.status,
+    request_id: fetchResult.request_id,
+    category: null,
+  };
 }

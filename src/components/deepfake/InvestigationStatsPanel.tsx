@@ -90,6 +90,45 @@ export function InvestigationStatsPanel({
         </div>
       ) : null}
 
+      {(() => {
+        const startup =
+          metrics?.startup_diagnostic &&
+          typeof metrics.startup_diagnostic === "object"
+            ? (metrics.startup_diagnostic as Record<string, unknown>)
+            : null;
+        if (!startup) return null;
+        return (
+          <div className="rounded-md border border-border/70 bg-secondary/20 p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-2">
+              Startup Diagnostics
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              {typeof startup.stage === "string" && (
+                <div>Stage: {startup.stage}</div>
+              )}
+              {typeof startup.mode === "string" && (
+                <div>Dispatch mode: {startup.mode}</div>
+              )}
+              {typeof startup.worker_url === "string" && (
+                <div>Worker URL: {startup.worker_url}</div>
+              )}
+              {typeof startup.category === "string" && (
+                <div>Error category: {startup.category}</div>
+              )}
+              {typeof startup.reason === "string" && (
+                <div>Reason: {startup.reason}</div>
+              )}
+              {typeof startup.http_status === "number" && (
+                <div>HTTP status: {startup.http_status}</div>
+              )}
+              {typeof startup.request_id === "string" && (
+                <div>Request ID: {startup.request_id}</div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {google.provider_status !== "not_started" && (
         <div className="rounded-md border border-border/70 bg-secondary/20 p-3">
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-2">
