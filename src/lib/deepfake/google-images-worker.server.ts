@@ -14,10 +14,10 @@ import {
   GOOGLE_IMAGES_MAX_JOB_ATTEMPTS,
 } from "./google-images-jobs.server";
 import { dispatchGoogleImagesWorker } from "./google-images-worker-dispatch.server";
-import { processGoogleImagesQuery } from "./google-images-investigation.server";
+import { processGoogleImagesQuery, findingRowFromGoogleImagesCandidate } from "./google-images-investigation.server";
 import { parseReferenceImagesFromMetrics } from "./reference-images";
 import { parseGoogleImagesEvidencePackages } from "./google-images-evidence.server";
-import { upsertDiscoveriesBatch } from "./scan-persist.server";
+import { upsertDiscoveriesBatch, upsertFindingsBatch } from "./scan-persist.server";
 
 export const GOOGLE_IMAGES_WORKER_BUDGET_MS = 35_000;
 export const GOOGLE_IMAGES_WORKER_BATCH_SIZE = 4;
@@ -151,6 +151,8 @@ export async function executeGoogleImagesWorkerBatch(input: {
         diagnostics: {
           failure: result.failure,
           query: job.query,
+          used_browser: result.used_browser,
+          browser_available: result.browser_available,
         },
       });
 
@@ -175,6 +177,24 @@ export async function executeGoogleImagesWorkerBatch(input: {
           })),
           alreadyPersisted: persistedDiscoveryKeys,
         });
+
+        const findingRows = result.candidates
+          .map((candidate) =>
+            findingRowFromGoogleImagesCandidate({
+              scanId: input.scanId,
+              userId,
+              candidate,
+            }),
+          )
+          .filter((row): row is Record<string, unknown> => Boolean(row));
+
+        if (findingRows.length) {
+          await upsertFindingsBatch({
+            supabase: input.supabase,
+            rows: findingRows,
+            alreadyPersisted: new Set<string>(),
+          });
+        }
       }
 
       mergedEvidence.push(...result.evidence_packages);

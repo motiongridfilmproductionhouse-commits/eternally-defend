@@ -239,10 +239,22 @@ export function aggregateGoogleImagesDiagnostics(
     base.valid_faces += n("valid_faces");
     base.high_confidence_matches += n("high_confidence_matches");
     base.candidate_pages_crawled += n("candidate_pages_crawled");
+    base.source_pages_discovered += n("source_pages_discovered");
     base.evidence_packages_created += n("evidence_packages_created");
     base.failed_downloads += n("failed_downloads");
     base.face_comparisons += n("face_comparisons");
     base.rejected_identities += n("rejected_identities");
+
+    const diag = job.diagnostics ?? {};
+    if (diag.used_browser === true) base.used_browser = true;
+    if (diag.browser_available === true) base.browser_available = true;
+    if (
+      !base.failure_reason &&
+      typeof diag.failure === "string" &&
+      diag.failure.trim()
+    ) {
+      base.failure_reason = diag.failure;
+    }
   }
 
   const completed = jobs.filter((j) => j.status === "completed").length;

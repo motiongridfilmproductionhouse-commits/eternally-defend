@@ -25,6 +25,8 @@ const KNOWN_NATIVE_VARIANTS: Record<string, string[]> = {
   "fahadh faasil": ["ഫഹദ് ഫാസിൽ", "fahad faasil"],
   "nayanthara": ["നയൻതാര", "nayantara"],
   "deepika padukone": ["दीपिका पादुकोण", "deepika"],
+  "sarayu mohan": ["സരയു മോഹൻ", "സരയു", "sarayu", "sarayumohan"],
+  "sarayu": ["സരയു", "sarayu mohan"],
 };
 
 function uniquePreserve(items: string[]): string[] {
@@ -62,6 +64,30 @@ function misspellings(name: string): string[] {
     out.push(name.replace(/salman/i, "salmaan"));
   }
   if (lower.includes("mohammed")) out.push(name.replace(/mohammed/i, "mohammad"));
+  if (lower.includes("mohammad")) out.push(name.replace(/mohammad/i, "mohammed"));
+  if (/\bmohan\b/i.test(name) && !/mohanlal/i.test(name)) {
+    out.push(name.replace(/mohan/i, "mohaan"));
+    out.push(name.replace(/mohan/i, "mohan."));
+  }
+  if (/\bsarayu\b/i.test(name)) {
+    out.push(name.replace(/sarayu/i, "sarayoo"));
+    out.push(name.replace(/sarayu/i, "sarayau"));
+    out.push(name.replace(/sarayu/i, "saray u"));
+  }
+  // Common vowel / double-letter slips for multi-token identities
+  const tokens = name.split(/\s+/).filter(Boolean);
+  if (tokens.length >= 2) {
+    const first = tokens[0]!;
+    const rest = tokens.slice(1).join(" ");
+    if (/ayu$/i.test(first)) out.push(`${first.replace(/ayu$/i, "ayoo")} ${rest}`);
+    if (/oo$/i.test(first)) out.push(`${first.replace(/oo$/i, "u")} ${rest}`);
+    if (/([a-z])\1/i.test(first)) {
+      out.push(`${first.replace(/([a-z])\1/i, "$1")} ${rest}`);
+    }
+    // Spaced initials (e.g. "S. M.")
+    const letters = tokens.map((t) => t[0]?.toUpperCase()).filter(Boolean);
+    if (letters.length >= 2) out.push(letters.join(". ") + ".");
+  }
   return out;
 }
 

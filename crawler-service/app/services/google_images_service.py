@@ -18,27 +18,83 @@ IMAGE_URL_RE = re.compile(
     re.IGNORECASE,
 )
 ORIGINAL_URL_RE = re.compile(r'"ou":"(https?://[^"\\]+)"')
+REFERRING_URL_RE = re.compile(r'"ru":"(https?://[^"\\]+)"')
 THUMB_URL_RE = re.compile(r'"(https?://[^"\\]*googleusercontent\.com/[^"\\]+)"')
+# Optional groups skip "ru" too eagerly — use explicit ou→ru / ru→ou pairs.
+OU_THEN_RU_RE = re.compile(
+    r'"ou"\s*:\s*"(https?://[^"\\]+)"[^{}\[\]]*?"ru"\s*:\s*"(https?://[^"\\]+)"',
+    re.IGNORECASE,
+)
+RU_THEN_OU_RE = re.compile(
+    r'"ru"\s*:\s*"(https?://[^"\\]+)"[^{}\[\]]*?"ou"\s*:\s*"(https?://[^"\\]+)"',
+    re.IGNORECASE,
+)
 
 
-def _build_search_url(query: str) -> str:
-    return f"https://www.google.com/search?q={quote_plus(query)}&tbm=isch&hl=en"
+def _decode_google_json_url(raw: str) -> str:
+    return (
+        (raw or "")
+        .replace("\\u003d", "=")
+        .replace("\\u0026", "&")
+        .replace("\\u002f", "/")
+        .replace("\\/", "/")
+    )
+
+
+def _is_google_host(url: str) -> bool:
+    try:
+        from urllib.parse import urlparse
+
+        host = (urlparse(url).hostname or "").lower().removeprefix("www.")
+        return (
+            host.endswith("google.com")
+            or host.endswith("gstatic.com")
+            or host.endswith("googleusercontent.com")
+            or host.endswith("ggpht.com")
+            or "google." in host
+        )
+    except Exception:
+        return True
+
+
+def _usable_source_website(url: str | None) -> str | None:
+    if not url:
+        return None
+    cleaned = _decode_google_json_url(url).strip()
+    if not cleaned.startswith("http"):
+        return None
+    if _is_google_host(cleaned):
+        return None
+    return cleaned
 
 
 def _extract_from_html(html: str, query: str, search_url: str) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    by_image: dict[str, str | None] = {}
+
+    def upsert(raw_image: str, raw_source: str | None) -> None:
+        image_url = _decode_google_json_url(raw_image or "")
+        if not image_url.startswith("http"):
+            return
+        source = _usable_source_website(raw_source)
+        existing = by_image.get(image_url)
+        if existing is None or (not existing and source):
+            by_image[image_url] = source
+
+    for match in OU_THEN_RU_RE.finditer(html or ""):
+        upsert(match.group(1) or "", match.group(2))
+    for match in RU_THEN_OU_RE.finditer(html or ""):
+        upsert(match.group(2) or "", match.group(1))
 
     for match in ORIGINAL_URL_RE.findall(html or ""):
-        url = match.replace("\\u003d", "=").replace("\\u0026", "&")
-        if url in seen:
-            continue
-        seen.add(url)
+        upsert(match, None)
+
+    for image_url, source in by_image.items():
         results.append(
             {
-                "image_url": url,
+                "image_url": image_url,
                 "thumbnail_url": None,
-                "source_website_url": None,
+                "source_website_url": source,
                 "google_result_url": search_url,
                 "query": query,
                 "title": query,
@@ -46,9 +102,10 @@ def _extract_from_html(html: str, query: str, search_url: str) -> list[dict[str,
                 "height": None,
             }
         )
+    seen = set(by_image.keys())
 
     for match in IMAGE_URL_RE.findall(html or ""):
-        url = match.replace("\\u003d", "=").replace("\\u0026", "&")
+        url = _decode_google_json_url(match)
         if "googleusercontent.com/gen_204" in url:
             continue
         if url in seen:
@@ -68,6 +125,10 @@ def _extract_from_html(html: str, query: str, search_url: str) -> list[dict[str,
         )
 
     return results
+
+
+def _build_search_url(query: str) -> str:
+    return f"https://www.google.com/search?q={quote_plus(query)}&tbm=isch&hl=en"
 
 
 async def _collect_with_playwright(
@@ -108,16 +169,22 @@ async def _collect_with_playwright(
                 const href = anchor.href || '';
                 const img = anchor.querySelector('img');
                 const thumb = img ? (img.currentSrc || img.src || null) : null;
-                let source = null;
+                let imageUrl = null;
+                let sourceWebsite = null;
                 try {
                   const u = new URL(href);
-                  source = u.searchParams.get('imgurl') || u.searchParams.get('url') || null;
+                  imageUrl = u.searchParams.get('imgurl') || u.searchParams.get('url') || null;
+                  sourceWebsite =
+                    u.searchParams.get('imgrefurl') ||
+                    u.searchParams.get('imgref') ||
+                    u.searchParams.get('ru') ||
+                    null;
                 } catch (_) {}
-                if (thumb || source) {
+                if (thumb || imageUrl) {
                   out.push({
-                    image_url: source || thumb,
+                    image_url: imageUrl || thumb,
                     thumbnail_url: thumb,
-                    source_website_url: source,
+                    source_website_url: sourceWebsite,
                     title: img ? (img.alt || '') : '',
                   });
                 }
@@ -148,7 +215,9 @@ async def _collect_with_playwright(
             {
                 "image_url": image_url,
                 "thumbnail_url": item.get("thumbnail_url"),
-                "source_website_url": item.get("source_website_url"),
+                "source_website_url": _usable_source_website(
+                    item.get("source_website_url")
+                ),
                 "google_result_url": search_url,
                 "query": query,
                 "title": item.get("title") or query,
