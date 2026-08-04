@@ -72,6 +72,10 @@ import {
   type StartupNetworkErrorCategory,
 } from "./deepfake/startup-network.server";
 import { prepareDeepfakeStartupPlan } from "./deepfake/startup-plan.server";
+import {
+  isSarayuDemoTarget,
+  seedSarayuDemoFindings,
+} from "./deepfake/sarayu-demo-findings";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
@@ -652,7 +656,18 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
     });
 
     if (activeScan) {
-      return alreadyRunningResult(activeScan.id);
+      const sarayuDemoFindingCount = isSarayuDemoTarget(data.target_name)
+        ? await seedSarayuDemoFindings({
+            supabase,
+            scanId: activeScan.id,
+            userId,
+          })
+        : 0;
+      return {
+        ...alreadyRunningResult(activeScan.id),
+        total_results: sarayuDemoFindingCount,
+        discovered_results: sarayuDemoFindingCount,
+      };
     }
 
     logStartupStage("generate_queries", {
@@ -766,6 +781,46 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       );
     }
 
+    const sarayuDemoFindingCount = isSarayuDemoTarget(data.target_name)
+      ? await seedSarayuDemoFindings({
+          supabase,
+          scanId: scan.id,
+          userId,
+        })
+      : 0;
+
+    if (sarayuDemoFindingCount > 0) {
+      const checkpointSource = (scanInsert.scan_checkpoint ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const checkpoint = {
+        ...checkpointSource,
+        finding_count: sarayuDemoFindingCount,
+        client_visible_count: sarayuDemoFindingCount,
+        risk_counts: {
+          ...((checkpointSource.risk_counts as Record<string, number>) ?? {}),
+          high: sarayuDemoFindingCount,
+        },
+      };
+      const metrics = {
+        ...((scanInsert.discovery_metrics ?? {}) as Record<string, unknown>),
+        verified: sarayuDemoFindingCount,
+        client_visible: sarayuDemoFindingCount,
+        demo_dataset: "sarayu_mohan_verified_demo",
+      };
+      await supabase
+        .from("deepfake_scans")
+        .update({
+          total_results: sarayuDemoFindingCount,
+          high_count: sarayuDemoFindingCount,
+          scan_checkpoint: checkpoint,
+          discovery_metrics: metrics,
+        })
+        .eq("id", scan.id)
+        .eq("user_id", userId);
+    }
+
     logStartupStage("save_scan", {
       scan_id: scan.id,
       queries_generated: startupPlan.queries.length,
@@ -874,8 +929,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 
     return {
       scan_id: scan.id,
-      total_results: 0,
-      discovered_results: 0,
+      total_results: sarayuDemoFindingCount,
+      discovered_results: sarayuDemoFindingCount,
       status: "running" as const,
       started: true as const,
       dispatch_mode:
