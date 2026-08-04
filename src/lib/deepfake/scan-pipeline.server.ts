@@ -70,7 +70,11 @@ import {
   parseReferenceImagesFromMetrics,
   type CollectedReferenceImage,
 } from "./reference-images";
-import { queueAndDispatchGoogleImagesInvestigation } from "./google-images-jobs.server";
+import {
+  queueGoogleImagesInvestigation,
+  syncGoogleImagesScanMetrics,
+} from "./google-images-jobs.server";
+import { dispatchGoogleImagesWorker } from "./google-images-worker-dispatch.server";
 
 type ProviderHit = {
   url: string;
@@ -427,6 +431,68 @@ export async function executeInterleavedDeepfakePipeline(input: {
     ? parseReferenceImagesFromMetrics(resumeCheckpoint.metrics as Record<string, unknown>)
     : [];
 
+  // Google Images is a first-class early discovery source: queue investigation
+  // queries before reference harvest so diagnostics/UI show it first. Dispatch
+  // workers after references are available for reliable face comparison.
+  // Failures never abort the scan (Bing/Brave/Yandex continue independently).
+  if (!metrics.google_images_jobs_queued) {
+    await touchScanProgress({
+      supabase: input.supabase,
+      ownership: input.ownership,
+      patch: {
+        discovery_metrics: {
+          ...stageMetrics(metrics, checkpoint),
+          investigation_stage: "searching_google",
+          google_images_background_status: "queued",
+        },
+      },
+    });
+
+    try {
+      const queued = await queueGoogleImagesInvestigation({
+        supabase: input.supabase,
+        scanId: input.scanId,
+        userId: input.userId,
+        identityId: input.profileId ?? null,
+        name: mergedTarget.name,
+        aliases: mergedTarget.aliases,
+        handles: mergedTarget.handles,
+      });
+      metrics.google_images_jobs_queued = queued.queued > 0 ? 1 : 0;
+      metrics.google_images_jobs_total = queued.queued;
+      await syncGoogleImagesScanMetrics({
+        supabase: input.supabase,
+        scanId: input.scanId,
+        userId: input.userId,
+        backgroundStatus: queued.queued > 0 ? "queued" : "completed",
+        extraMetrics: {
+          google_images_jobs_queued: queued.queued > 0 ? 1 : 0,
+          google_images_investigation_complete: 0,
+        },
+      });
+    } catch (error) {
+      console.warn("[DEEPFAKE] Google Images queue isolated failure:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      metrics.google_images_jobs_queued = 1;
+      await touchScanProgress({
+        supabase: input.supabase,
+        ownership: input.ownership,
+        patch: {
+          discovery_metrics: {
+            ...stageMetrics(metrics, checkpoint),
+            google_images_diagnostic: {
+              provider_status: "unavailable",
+              failure_reason:
+                error instanceof Error ? error.message : String(error),
+            },
+            google_images_background_status: "failed",
+          },
+        },
+      });
+    }
+  }
+
   if (!resumeCheckpoint) {
     await touchScanProgress({
       supabase: input.supabase,
@@ -489,6 +555,54 @@ export async function executeInterleavedDeepfakePipeline(input: {
         },
       },
     });
+  }
+
+  // Start Google Images workers once reference faces are available (or after
+  // a best-effort harvest). Isolation: dispatch failures never abort the scan.
+  // Only kick workers when queued/not finished — avoid re-dispatch every wave.
+  const metricsRecord = metrics as Record<string, unknown>;
+  const googleImagesBg =
+    typeof metricsRecord.google_images_background_status === "string"
+      ? metricsRecord.google_images_background_status
+      : null;
+  if (
+    metrics.google_images_jobs_queued &&
+    googleImagesBg !== "completed" &&
+    googleImagesBg !== "failed"
+  ) {
+    try {
+      const dispatch = await dispatchGoogleImagesWorker({ scanId: input.scanId });
+      if (!dispatch.dispatched) {
+        const { executeGoogleImagesWorkerBatch } = await import(
+          "./google-images-worker.server"
+        );
+        void executeGoogleImagesWorkerBatch({
+          supabase: input.supabase,
+          scanId: input.scanId,
+          userId: input.userId,
+        }).catch((error) => {
+          console.warn("[DEEPFAKE] Inline Google Images worker fallback failed:", {
+            scanId: input.scanId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      }
+      await touchScanProgress({
+        supabase: input.supabase,
+        ownership: input.ownership,
+        patch: {
+          discovery_metrics: {
+            ...stageMetrics(metrics, checkpoint),
+            google_images_background_status: "running",
+            investigation_stage: "searching_google",
+          },
+        },
+      });
+    } catch (error) {
+      console.warn("[DEEPFAKE] Google Images dispatch isolated failure:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   if (!resumeCheckpoint) {
@@ -1224,54 +1338,6 @@ export async function executeInterleavedDeepfakePipeline(input: {
   };
 
   await heartbeat("discovering");
-
-  if (!metrics.google_images_jobs_queued) {
-    await touchScanProgress({
-      supabase: input.supabase,
-      ownership: input.ownership,
-      patch: {
-        discovery_metrics: {
-          ...stageMetrics(metrics, checkpoint),
-          investigation_stage: "searching_google",
-          google_images_background_status: "queued",
-        },
-      },
-    });
-
-    try {
-      const queued = await queueAndDispatchGoogleImagesInvestigation({
-        supabase: input.supabase,
-        scanId: input.scanId,
-        userId: input.userId,
-        identityId: input.profileId ?? null,
-        name: mergedTarget.name,
-        aliases: mergedTarget.aliases,
-        handles: mergedTarget.handles,
-      });
-      metrics.google_images_jobs_queued = queued.queued > 0 ? 1 : 0;
-      metrics.google_images_jobs_total = queued.queued;
-    } catch (error) {
-      console.warn("[DEEPFAKE] Google Images queue isolated failure:", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      metrics.google_images_jobs_queued = 1;
-      await touchScanProgress({
-        supabase: input.supabase,
-        ownership: input.ownership,
-        patch: {
-          discovery_metrics: {
-            ...stageMetrics(metrics, checkpoint),
-            google_images_diagnostic: {
-              provider_status: "unavailable",
-              failure_reason:
-                error instanceof Error ? error.message : String(error),
-            },
-            google_images_background_status: "failed",
-          },
-        },
-      });
-    }
-  }
 
   /**
    * Optional SerpApi Google Images wave. Isolated: failures never abort the

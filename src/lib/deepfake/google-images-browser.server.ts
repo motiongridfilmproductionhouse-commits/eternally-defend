@@ -16,6 +16,11 @@ import {
   searchReferenceImagesForQuery,
 } from "./image-discovery-providers.server";
 import { GOOGLE_IMAGES_TARGET_MAX } from "./google-images-queries.server";
+import {
+  extractGoogleImagesMetaFromHtml,
+  isUsableSourceWebsiteUrl,
+  resolveGoogleImagesSourceWebsite,
+} from "./google-images-source.server";
 
 export const GOOGLE_BROWSER_MAX_IMAGES_PER_QUERY = 120;
 export const GOOGLE_BROWSER_MAX_QUERIES = 12;
@@ -69,10 +74,33 @@ function extractImageUrlsFromContent(
   query: string,
   searchUrl: string,
 ): GoogleImagesBrowserHit[] {
-  const matches = content.match(IMAGE_URL_PATTERN) ?? [];
+  const meta = extractGoogleImagesMetaFromHtml(content);
   const seen = new Set<string>();
   const out: GoogleImagesBrowserHit[] = [];
 
+  for (const row of meta) {
+    if (!isSafePublicHttpUrl(row.image_url)) continue;
+    if (/googleusercontent\.com\/(?:imgres|gen_204|logos)/i.test(row.image_url)) {
+      continue;
+    }
+    if (/\.gif(?:$|[?#])/i.test(row.image_url)) continue;
+    if (seen.has(row.image_url)) continue;
+    seen.add(row.image_url);
+    out.push({
+      image_url: row.image_url,
+      thumbnail_url: row.image_url,
+      source_website_url: isUsableSourceWebsiteUrl(row.source_website_url)
+        ? row.source_website_url
+        : null,
+      google_result_url: searchUrl,
+      query,
+      title: query,
+      width: null,
+      height: null,
+    });
+  }
+
+  const matches = content.match(IMAGE_URL_PATTERN) ?? [];
   for (const raw of matches) {
     const imageUrl = raw.replace(/\\u003d/g, "=").replace(/\\u0026/g, "&");
     if (!isSafePublicHttpUrl(imageUrl)) continue;
@@ -154,11 +182,12 @@ async function collectViaCrawlerService(input: {
         image_url: imageUrl,
         thumbnail_url:
           typeof row.thumbnail_url === "string" ? row.thumbnail_url : null,
-        source_website_url:
-          typeof row.source_website_url === "string" &&
-          isSafePublicHttpUrl(row.source_website_url)
-            ? row.source_website_url
-            : null,
+        source_website_url: resolveGoogleImagesSourceWebsite({
+          explicitSource:
+            typeof row.source_website_url === "string"
+              ? row.source_website_url
+              : null,
+        }),
         google_result_url:
           typeof row.google_result_url === "string"
             ? row.google_result_url
@@ -249,7 +278,8 @@ async function collectViaLocalBrowserFallback(input: {
   };
 }
 
-async function collectViaSerpApiFallback(input: {
+async function collectViaSerpApiEngine(input: {
+  engine: "google_images" | "bing_images" | "yandex_images";
   queries: string[];
   signal?: AbortSignal;
   softDeadlineMs?: number;
@@ -260,7 +290,7 @@ async function collectViaSerpApiFallback(input: {
   const results = await Promise.allSettled(
     input.queries.slice(0, 8).map((query) =>
       searchReferenceImagesForQuery({
-        engine: "google_images",
+        engine: input.engine,
         query,
         signal: input.signal,
         softDeadlineMs: input.softDeadlineMs,
@@ -277,7 +307,9 @@ async function collectViaSerpApiFallback(input: {
       allHits.push({
         image_url: hit.image_url,
         thumbnail_url: hit.image_url,
-        source_website_url: hit.page_url,
+        source_website_url: isUsableSourceWebsiteUrl(hit.page_url)
+          ? hit.page_url
+          : null,
         google_result_url: buildGoogleImagesSearchUrl(hit.query),
         query: hit.query,
         title: hit.title,
@@ -291,9 +323,83 @@ async function collectViaSerpApiFallback(input: {
   return allHits;
 }
 
+/** When Google Images is unavailable, continue discovery via Bing/Yandex (and Brave). */
+async function collectViaAlternateImageProviders(input: {
+  queries: string[];
+  signal?: AbortSignal;
+  softDeadlineMs?: number;
+}): Promise<{ hits: GoogleImagesBrowserHit[]; providers: string[]; failures: string[] }> {
+  const allHits: GoogleImagesBrowserHit[] = [];
+  const seen = new Set<string>();
+  const providers: string[] = [];
+  const failures: string[] = [];
+
+  for (const engine of ["bing_images", "yandex_images"] as const) {
+    try {
+      const hits = await collectViaSerpApiEngine({
+        engine,
+        queries: input.queries,
+        signal: input.signal,
+        softDeadlineMs: input.softDeadlineMs,
+      });
+      if (hits.length) providers.push(engine);
+      for (const hit of hits) {
+        if (seen.has(hit.image_url)) continue;
+        seen.add(hit.image_url);
+        allHits.push(hit);
+      }
+    } catch (error) {
+      if (input.signal?.aborted || isAbortError(error)) throw error;
+      failures.push(
+        `${engine}:${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  try {
+    const { searchBraveImagesBatch, isBraveImageSearchConfigured } = await import(
+      "./brave-images.server"
+    );
+    if (isBraveImageSearchConfigured()) {
+      const brave = await searchBraveImagesBatch({
+        queries: input.queries.slice(0, 6),
+        signal: input.signal,
+        softDeadlineMs: input.softDeadlineMs,
+      });
+      if (!brave.skipped && brave.hits.length) {
+        providers.push("brave_images");
+        for (const hit of brave.hits) {
+          if (seen.has(hit.image_url)) continue;
+          seen.add(hit.image_url);
+          allHits.push({
+            image_url: hit.image_url,
+            thumbnail_url: hit.image_url,
+            source_website_url: isUsableSourceWebsiteUrl(hit.page_url)
+              ? hit.page_url
+              : null,
+            google_result_url: buildGoogleImagesSearchUrl(hit.query),
+            query: hit.query,
+            title: hit.title,
+            width: hit.width,
+            height: hit.height,
+          });
+        }
+      }
+    }
+  } catch (error) {
+    if (input.signal?.aborted || isAbortError(error)) throw error;
+    failures.push(
+      `brave_images:${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  return { hits: allHits, providers, failures };
+}
+
 /**
  * Mandatory browser-based Google Images collection.
  * Never relies on simple HTML scraping alone — uses crawler-service Playwright first.
+ * If Google Images is unavailable, records the reason and continues with Bing/Yandex/Brave.
  */
 export async function collectGoogleImagesMandatory(input: {
   queries: string[];
@@ -316,7 +422,8 @@ export async function collectGoogleImagesMandatory(input: {
     }));
 
   if (result.hits.length < Math.min(80, maxImages)) {
-    const serpHits = await collectViaSerpApiFallback({
+    const serpHits = await collectViaSerpApiEngine({
+      engine: "google_images",
       queries: input.queries,
       signal: input.signal,
       softDeadlineMs: input.softDeadlineMs,
@@ -330,6 +437,31 @@ export async function collectGoogleImagesMandatory(input: {
     result.images_discovered = result.hits.length;
     if (result.hits.length && result.provider_status === "unavailable") {
       result.provider_status = "degraded";
+    }
+  }
+
+  // Requirement: never fail the investigation when Google Images is unavailable.
+  if (!result.hits.length) {
+    const googleFailure =
+      result.failure ?? "Google Images returned no discoverable image results";
+    const alternate = await collectViaAlternateImageProviders({
+      queries: input.queries,
+      signal: input.signal,
+      softDeadlineMs: input.softDeadlineMs,
+    });
+    result.hits = alternate.hits;
+    result.images_discovered = alternate.hits.length;
+    result.failures = [
+      ...result.failures,
+      googleFailure,
+      ...alternate.failures,
+    ];
+    if (alternate.hits.length) {
+      result.failure = `Google Images unavailable (${googleFailure}); continued via ${alternate.providers.join(", ") || "alternate providers"}`;
+      result.provider_status = "degraded";
+    } else {
+      result.failure = googleFailure;
+      result.provider_status = "unavailable";
     }
   }
 
