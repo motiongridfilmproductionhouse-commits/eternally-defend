@@ -22,6 +22,7 @@ import {
   loadSarayuEvidence,
   retryManualEvidenceLead,
 } from "@/lib/deepfake-intel.functions";
+import { downloadSarayuSuppliedEvidenceReport } from "@/lib/deepfake/sarayu-supplied-report.functions";
 import {
   createDeepfakeTargetProfile,
   listDeepfakeTargetProfiles,
@@ -36,7 +37,7 @@ import { toast } from "sonner";
 import {
   ScanFace, ShieldAlert, ExternalLink, Loader2, AlertTriangle,
   CheckCircle2, Filter, Radar, Upload, Trash2,
-  UserRoundCheck, Copy, Camera, FileSearch,
+  UserRoundCheck, Copy, Camera, FileSearch, Download,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import {
@@ -227,6 +228,7 @@ function DeepfakeIntelPage() {
   const overrideManualFn = useServerFn(overrideManualEvidenceSource);
   const loadSarayuFn = useServerFn(loadSarayuEvidence);
   const retryManualFn = useServerFn(retryManualEvidenceLead);
+  const downloadSarayuReportFn = useServerFn(downloadSarayuSuppliedEvidenceReport);
   const createProfileFn = useServerFn(createDeepfakeTargetProfile);
   const listProfilesFn = useServerFn(listDeepfakeTargetProfiles);
   const uploadReferenceFn = useServerFn(uploadDeepfakeReferenceFace);
@@ -523,6 +525,21 @@ function DeepfakeIntelPage() {
       toast.message(res.dispatched ? "Evidence processing dispatched" : "Processing pending");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to retry evidence"),
+  });
+
+  const downloadSarayuReport = useMutation({
+    mutationFn: () => downloadSarayuReportFn({}),
+    onSuccess: (result) => {
+      const bytes = Uint8Array.from(atob(result.base64), (character) => character.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: result.mimeType }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = result.fileName;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast.message("Supplied Evidence Report downloaded");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to generate supplied evidence report"),
   });
 
   const continueScan = useMutation({
@@ -1323,6 +1340,28 @@ function DeepfakeIntelPage() {
                       )}
                     </Button>
                   )}
+
+                  {normalizeTarget(selectedProfile?.target_name ?? "") === "sarayumohan" && (
+                    <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="outline">Supplied Evidence Report — 6 Links</Badge>
+                        <span className="text-[10px] text-muted-foreground">Pending Verification</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        disabled={downloadSarayuReport.isPending}
+                        onClick={() => downloadSarayuReport.mutate()}
+                      >
+                        {downloadSarayuReport.isPending ? (
+                          <><Loader2 className="size-4 mr-2 animate-spin" /> Generating report…</>
+                        ) : (
+                          <><Download className="size-4 mr-2" /> Download Supplied Evidence Report</>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1882,8 +1921,7 @@ function ManualEvidenceLeadsSection({
             MANUAL EVIDENCE LEADS ({leads.length})
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Supplied links stay visible while Google result resolution, crawl,
-            face comparison and evidence capture run independently.
+            Preloaded Investigation Leads · Not Automatically Discovered. Supplied links stay visible while Google result resolution, crawl, face comparison and evidence capture run independently.
           </p>
         </div>
         <div className="flex items-center gap-2">

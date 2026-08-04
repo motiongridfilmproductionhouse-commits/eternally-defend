@@ -50,6 +50,8 @@ import {
 import {
   removeSarayuMohanPreloadedEvidence,
   seedSarayuMohanManualEvidence,
+  isManualLeadTableUnavailable,
+  listSarayuFallbackEvidence,
 } from "./deepfake/sarayu-evidence-seed.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
@@ -818,6 +820,20 @@ export const listManualEvidenceLeads = createServerFn({ method: "POST" })
     }
 
     const { data: leads, error } = await query;
+    if (error && isManualLeadTableUnavailable(error)) {
+      if (!data.profile_id) {
+        return { leads: [], diagnostics: createEmptyManualEvidenceDiagnostics() };
+      }
+      const fallbackLeads = await listSarayuFallbackEvidence(
+        context.supabase,
+        data.profile_id,
+        context.userId,
+      );
+      const diagnostics = createEmptyManualEvidenceDiagnostics();
+      diagnostics.manual_urls_submitted = fallbackLeads.length;
+      diagnostics.google_viewer_urls_parsed = fallbackLeads.length;
+      return { leads: fallbackLeads, diagnostics };
+    }
     if (error) throw new Error(error.message);
 
     const diagnostics = createEmptyManualEvidenceDiagnostics();
@@ -877,6 +893,18 @@ export const overrideManualEvidenceSource = createServerFn({ method: "POST" })
       .eq("id", data.lead_id)
       .eq("user_id", context.userId)
       .maybeSingle();
+    if (loadError && isManualLeadTableUnavailable(loadError)) {
+      const { data: fallback, error: fallbackError } = await (context.supabase as any)
+        .from("deepfake_discoveries")
+        .select("id")
+        .eq("id", data.lead_id)
+        .eq("user_id", context.userId)
+        .eq("source", "preloaded_manual_lead")
+        .maybeSingle();
+      if (fallbackError) throw new Error(fallbackError.message);
+      if (!fallback) throw new Error("Manual lead not found.");
+      return { dispatched: false, reason: "Processing pending" };
+    }
     if (loadError) throw new Error(loadError.message);
     if (!lead) throw new Error("Manual lead not found.");
 
@@ -909,14 +937,14 @@ export const loadSarayuEvidence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireDeepfakeAdmin(context);
-    return seedSarayuMohanManualEvidence(context.supabase);
+    return seedSarayuMohanManualEvidence(context.supabase, undefined, context.userId);
   });
 
 export const removeSarayuMohanEvidence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireDeepfakeAdmin(context);
-    return removeSarayuMohanPreloadedEvidence(context.supabase);
+    return removeSarayuMohanPreloadedEvidence(context.supabase, context.userId);
   });
 
 export const retryManualEvidenceLead = createServerFn({ method: "POST" })
@@ -929,6 +957,18 @@ export const retryManualEvidenceLead = createServerFn({ method: "POST" })
       .eq("id", data.lead_id)
       .eq("user_id", context.userId)
       .maybeSingle();
+    if (error && isManualLeadTableUnavailable(error)) {
+      const { data: fallback, error: fallbackError } = await (context.supabase as any)
+        .from("deepfake_discoveries")
+        .select("id")
+        .eq("id", data.lead_id)
+        .eq("user_id", context.userId)
+        .eq("source", "preloaded_manual_lead")
+        .maybeSingle();
+      if (fallbackError) throw new Error(fallbackError.message);
+      if (!fallback) throw new Error("Manual lead not found.");
+      return { dispatched: false, reason: "Processing pending" };
+    }
     if (error) throw new Error(error.message);
     if (!lead) throw new Error("Manual lead not found.");
     const dispatch = await dispatchManualEvidenceWorker([data.lead_id]);

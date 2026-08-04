@@ -5,9 +5,7 @@ const BodySchema = z.object({
   lead_ids: z.array(z.string().uuid()).min(1).max(50),
 });
 
-export const Route = createFileRoute(
-  "/api/public/hooks/deepfake-manual-evidence-execute" as any,
-)({
+export const Route = createFileRoute("/api/public/hooks/deepfake-manual-evidence-execute")({
   server: {
     handlers: {
       POST: async ({ request }) => {
