@@ -695,7 +695,8 @@ function DeepfakeIntelPage() {
       data: {
         ...reportScope,
         reportMode,
-        force: reportMode === "interim" || reportMode === "final",
+        // Explicit Generate actions always rebuild from current persisted findings.
+        force: true,
       },
     });
   };
