@@ -175,9 +175,39 @@ function DeepfakeIntelPage() {
   const [downloadingHistoryId, setDownloadingHistoryId] = useState<string | null>(
     null,
   );
+  const [lastGeneratedReport, setLastGeneratedReport] = useState<{
+    historyId: string | null;
+    url: string;
+    fileName: string;
+    scanId: string | null;
+  } | null>(null);
 
   const openReportUrl = (url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
+    // Async generation often loses the user-gesture context, so window.open
+    // is blocked. Prefer a temporary anchor click, then fall back.
+    try {
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      return;
+    } catch {
+      /* fall through */
+    }
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      toast.message("Report ready — allow pop-ups, or use Download PDF.");
+    }
+  };
+
+  const reportErrorMessage = (error: unknown) => {
+    if (error instanceof Error && error.message.trim()) return error.message;
+    if (typeof error === "string" && error.trim()) return error;
+    return "Unable to generate or download the deepfake report.";
   };
 
   const reportMutation = useMutation({
@@ -196,7 +226,16 @@ function DeepfakeIntelPage() {
       url: string;
       findings: number;
       reportMode?: "final" | "interim";
+      historyId?: string | null;
+      fileName?: string;
+      scanId?: string;
     }) => {
+      setLastGeneratedReport({
+        historyId: res.historyId ?? null,
+        url: res.url,
+        fileName: res.fileName ?? "eterna-deepfake-report.pdf",
+        scanId: res.scanId ?? selectedScanId,
+      });
       openReportUrl(res.url);
       const label =
         res.reportMode === "interim" ? "Interim report" : "Deepfake threat report";
@@ -208,7 +247,7 @@ function DeepfakeIntelPage() {
       void qc.invalidateQueries({ queryKey: ["deepfake-report-history"] });
       setReportHistoryOpen(true);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: unknown) => toast.error(reportErrorMessage(e)),
     onSettled: () => setReportGenerateMode(null),
   });
 
@@ -218,11 +257,21 @@ function DeepfakeIntelPage() {
     onMutate: (vars) => {
       setDownloadingHistoryId(vars.data.historyId);
     },
-    onSuccess: (res: { url: string }) => {
+    onSuccess: (res: { url: string; fileName?: string }) => {
+      setLastGeneratedReport((prev) =>
+        prev
+          ? { ...prev, url: res.url, fileName: res.fileName ?? prev.fileName }
+          : {
+              historyId: downloadingHistoryId,
+              url: res.url,
+              fileName: res.fileName ?? "eterna-deepfake-report.pdf",
+              scanId: selectedScanId,
+            },
+      );
       openReportUrl(res.url);
       toast.success("Opening report PDF.");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: unknown) => toast.error(reportErrorMessage(e)),
     onSettled: () => setDownloadingHistoryId(null),
   });
 
@@ -666,29 +715,38 @@ function DeepfakeIntelPage() {
 
   const reportScope = {
     scanId: selectedScanId || undefined,
-    profileId: selectedProfileId || undefined,
+    // When a scan is selected, omit profileId so generation cannot fail on a
+    // mismatched leftover profile selection in the left panel.
+    profileId: selectedScanId
+      ? undefined
+      : selectedProfileId || undefined,
   };
   const canRequestReport = Boolean(reportScope.scanId || reportScope.profileId);
 
   const reportHistory = useQuery({
     queryKey: [
       "deepfake-report-history",
-      reportScope.scanId ?? null,
-      reportScope.profileId ?? null,
+      selectedScanId ?? null,
+      selectedProfileId || null,
     ],
     enabled: canRequestReport,
     queryFn: () =>
       listReportsFn({
         data: {
-          scanId: reportScope.scanId,
-          profileId: reportScope.profileId,
+          scanId: selectedScanId || undefined,
+          profileId: selectedProfileId || undefined,
         },
       }),
+    retry: 1,
   });
 
   const runDeepfakeReport = (reportMode: "final" | "interim") => {
     if (!canRequestReport) {
       toast.error("Select a protected identity or scan first.");
+      return;
+    }
+    if (reportMutation.isPending || downloadMutation.isPending) {
+      toast.message("A report request is already in progress…");
       return;
     }
     reportMutation.mutate({
@@ -702,13 +760,23 @@ function DeepfakeIntelPage() {
   };
 
   const downloadLatestReport = () => {
-    const latest = reportHistory.data?.[0];
-    if (!latest?.id) {
-      toast.error("Generate a report first.");
+    if (lastGeneratedReport?.url) {
+      openReportUrl(lastGeneratedReport.url);
+      toast.success("Opening report PDF.");
       return;
     }
-    downloadMutation.mutate({ data: { historyId: latest.id } });
+    const latest = reportHistory.data?.[0];
+    if (latest?.id) {
+      downloadMutation.mutate({ data: { historyId: latest.id } });
+      return;
+    }
+    toast.error("Generate a report first.");
   };
+
+  const canDownloadReport = Boolean(
+    lastGeneratedReport?.url ||
+      reportHistory.data?.some((row) => Boolean(row.storageKey)),
+  );
   const threatAnnouncementRef = useRef<ThreatAlertAnnouncementState | null>(
     null,
   );
@@ -720,6 +788,11 @@ function DeepfakeIntelPage() {
   // history selection / reload of an already-saved multi-threat scan stays role="status".
   useEffect(() => {
     setThreatDomainFocus(null);
+  }, [selectedScanId]);
+
+  useEffect(() => {
+    setLastGeneratedReport(null);
+    setReportHistoryOpen(false);
   }, [selectedScanId]);
 
   useLayoutEffect(() => {
@@ -1584,6 +1657,7 @@ function DeepfakeIntelPage() {
                 generatingInterim={reportGenerateMode === "interim"}
                 downloading={downloadMutation.isPending}
                 downloadingHistoryId={downloadingHistoryId}
+                canDownload={canDownloadReport}
                 onGenerateFinal={() => runDeepfakeReport("final")}
                 onGenerateInterim={() => runDeepfakeReport("interim")}
                 onDownloadLatest={downloadLatestReport}

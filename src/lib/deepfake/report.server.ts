@@ -135,9 +135,9 @@ export async function resolveDeepfakeReportScan(
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) throw new Error("Scan not found.");
-    if (input.profileId && data.profile_id && data.profile_id !== input.profileId) {
-      throw new Error("Selected scan does not belong to this identity profile.");
-    }
+    // Explicit scan selection wins. Older rows may lack profile_id or the
+    // UI may still hold a different profile selection — do not block report
+    // generation for a scan the user already owns and selected.
     return data as ReportScanInput;
   }
 
@@ -189,11 +189,17 @@ export async function buildReportForDeepfakeScan(
 
   const scanRow = scan as ReportScanInput;
   const resolvedProfileId = profileId ?? scanRow.profile_id ?? null;
-  const profile = await loadProfile(supabase, userId, resolvedProfileId);
-
-  if (resolvedProfileId && !profile) {
-    throw new Error("Protected identity profile was not found or is not accessible.");
+  let profile: ReportProfileInput | null = null;
+  try {
+    profile = await loadProfile(supabase, userId, resolvedProfileId);
+  } catch (profileError) {
+    console.warn(
+      "[deepfake-report] profile lookup failed:",
+      profileError instanceof Error ? profileError.message : profileError,
+    );
   }
+  // Prefer scan-owned profile; if the UI profile id does not resolve, still
+  // generate from the scan findings rather than aborting the whole report.
 
   const { data: findingRows, error: findingError } = await supabase
     .from("deepfake_findings")
