@@ -468,10 +468,6 @@ export async function executeInterleavedDeepfakePipeline(input: {
         extraMetrics: {
           google_images_jobs_queued: queued.queued > 0 ? 1 : 0,
           google_images_investigation_complete: 0,
-          google_images_diagnostic: {
-            queries_planned: queued.queries.length,
-            provider_status: queued.queued > 0 ? "not_started" : "unavailable",
-          },
         },
       });
     } catch (error) {
