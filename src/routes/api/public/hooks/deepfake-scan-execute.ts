@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { runAcceptedBackgroundWork } from "@/lib/deepfake/startup-network.server";
+import {
+  isVercelWaitUntilRuntime,
+  runAcceptedBackgroundWork,
+} from "@/lib/deepfake/startup-network.server";
 
 const BodySchema = z.object({ scan_id: z.string().uuid() });
 
@@ -18,6 +21,7 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
           content_length: request.headers.get("content-length"),
           timestamp_present: Boolean(request.headers.get("x-eterna-timestamp")),
           signature_present: Boolean(request.headers.get("x-eterna-signature")),
+          wait_until_runtime: isVercelWaitUntilRuntime(),
         });
 
         let raw: string;
@@ -58,14 +62,19 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
           );
         }
 
-        console.info("deepfake_scan_worker_execute_start", {
+        console.info("deepfake_scan_worker_accepted", {
           request_id: requestId,
           scan_id: parsed.scan_id,
+          status: 202,
         });
 
-        // Acknowledge immediately so scan-start / dispatch never waits on a
-        // full worker batch (that previously surfaced as TypeError: fetch failed).
-        const work = (async () => {
+        // Schedule AFTER auth/parse. Factory runs only after setImmediate so the
+        // 202 response is returned before the background batch begins.
+        const scheduled = runAcceptedBackgroundWork(async () => {
+          console.info("deepfake_scan_worker_execute_start", {
+            request_id: requestId,
+            scan_id: parsed.scan_id,
+          });
           const { supabaseAdmin } = await import(
             "@/integrations/supabase/client.server"
           );
@@ -92,17 +101,14 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
               stack: error instanceof Error ? error.stack : null,
             });
           }
-        })();
-
-        runAcceptedBackgroundWork(work);
-        // Brief yield so the worker task starts before the response flushes.
-        await new Promise((resolve) => setTimeout(resolve, 25));
+        });
 
         return Response.json(
           {
             accepted: true,
             scan_id: parsed.scan_id,
             request_id: requestId,
+            wait_until_used: scheduled.wait_until_used,
           },
           { status: 202 },
         );

@@ -332,7 +332,8 @@ function findingRowFromClassification(input: {
   };
 }
 
-function buildScheduledQueries(input: {
+/** Build the initial query schedule persisted at scan startup and reused by workers. */
+export function buildScheduledQueries(input: {
   target: { name: string; aliases: string[]; handles: string[] };
   googleImagesUrl?: string;
   maxQueries: number;
@@ -587,24 +588,29 @@ export async function executeInterleavedDeepfakePipeline(input: {
           category: dispatch.category,
           worker_url: dispatch.worker_url,
         });
-        const { executeGoogleImagesWorkerBatch } = await import(
-          "./google-images-worker.server"
-        );
-        const { keepBackgroundWorkAlive } = await import(
-          "./startup-network.server"
-        );
-        keepBackgroundWorkAlive(
-          executeGoogleImagesWorkerBatch({
-            supabase: input.supabase,
-            scanId: input.scanId,
-            userId: input.userId,
-          }).catch((error) => {
-            console.warn("[DEEPFAKE] Inline Google Images worker fallback failed:", {
+        const { isProductionDeepfakeRuntime, keepBackgroundWorkAlive } =
+          await import("./startup-network.server");
+        // Production: leave GI jobs queued/retryable — never inline sync/async fallback.
+        if (!isProductionDeepfakeRuntime()) {
+          const { executeGoogleImagesWorkerBatch } = await import(
+            "./google-images-worker.server"
+          );
+          keepBackgroundWorkAlive(
+            executeGoogleImagesWorkerBatch({
+              supabase: input.supabase,
               scanId: input.scanId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }),
-        );
+              userId: input.userId,
+            }).catch((error) => {
+              console.warn(
+                "[DEEPFAKE] Inline Google Images worker fallback failed:",
+                {
+                  scanId: input.scanId,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+              );
+            }),
+          );
+        }
       }
       await touchScanProgress({
         supabase: input.supabase,

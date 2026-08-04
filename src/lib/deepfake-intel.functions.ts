@@ -49,11 +49,13 @@ import { executeDeepfakeScanWorkerBatch } from "./deepfake/scan-worker.server";
 import {
   classifyStartupNetworkError,
   formatStartupUserError,
+  isProductionDeepfakeRuntime,
   keepBackgroundWorkAlive,
   logStartupStage,
   startupErrorLabel,
   type StartupNetworkErrorCategory,
 } from "./deepfake/startup-network.server";
+import { prepareDeepfakeStartupPlan } from "./deepfake/startup-plan.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
@@ -254,7 +256,7 @@ function scheduleInlineWorkerExecution(
 
 export type DispatchDeepfakeScanExecutionResult = {
   dispatched: boolean;
-  mode: "http" | "inline" | "failed";
+  mode: "http" | "inline" | "retryable" | "failed";
   category: StartupNetworkErrorCategory | null;
   reason: string | null;
   worker_url: string | null;
@@ -302,13 +304,14 @@ export async function dispatchDeepfakeScanExecution(
     await persistStartupDispatchDiagnostic(supabase, scanId, {
       stage: "dispatch_worker",
       dispatched: false,
-      mode: "failed",
+      mode: "retryable",
+      retryable: true,
       category,
       reason: startupErrorLabel(category),
     });
     return {
       dispatched: false,
-      mode: "failed",
+      mode: "retryable",
       category,
       reason: startupErrorLabel(category),
       worker_url: null,
@@ -324,13 +327,14 @@ export async function dispatchDeepfakeScanExecution(
     await persistStartupDispatchDiagnostic(supabase, scanId, {
       stage: "dispatch_worker",
       dispatched: false,
-      mode: "failed",
+      mode: "retryable",
+      retryable: true,
       category: "worker_secret_not_configured",
       reason: startupErrorLabel("worker_secret_not_configured"),
     });
     return {
       dispatched: false,
-      mode: "failed",
+      mode: "retryable",
       category: "worker_secret_not_configured",
       reason: startupErrorLabel("worker_secret_not_configured"),
       worker_url: workerUrl,
@@ -370,16 +374,50 @@ export async function dispatchDeepfakeScanExecution(
     };
   }
 
-  // HTTP kick failed — schedule inline without awaiting the batch so the
-  // client's start request cannot time out as TypeError: fetch failed.
+  // HTTP kick failed. Production never runs a synchronous/inline fallback —
+  // leave the scan queued/retryable with a categorized diagnostic. Local/dev
+  // may schedule a non-awaited inline kick so engineers can iterate offline.
   const category =
     dispatch.category ??
     classifyStartupNetworkError(dispatch.reason ?? "fetch failed");
+  const production = isProductionDeepfakeRuntime();
+
+  if (production) {
+    console.error("deepfake_scan_worker_dispatch_retryable", {
+      scan_id: scanId,
+      reason: dispatch.reason ?? "dispatch_failed",
+      category,
+      http_status: dispatch.http_status ?? null,
+      inline_fallback: false,
+    });
+    await persistStartupDispatchDiagnostic(supabase, scanId, {
+      stage: "dispatch_worker",
+      dispatched: false,
+      mode: "retryable",
+      category,
+      reason: dispatch.reason ?? startupErrorLabel(category),
+      http_status: dispatch.http_status ?? null,
+      request_id: dispatch.request_id ?? null,
+      retryable: true,
+      inline_fallback: false,
+    });
+    return {
+      dispatched: false,
+      mode: "retryable",
+      category,
+      reason: dispatch.reason ?? startupErrorLabel(category),
+      worker_url: workerUrl,
+      http_status: dispatch.http_status ?? null,
+      request_id: dispatch.request_id ?? null,
+    };
+  }
+
   console.warn("deepfake_scan_worker_dispatch_fallback_inline", {
     scan_id: scanId,
     reason: dispatch.reason ?? "dispatch_failed",
     category,
     http_status: dispatch.http_status ?? null,
+    inline_fallback: "async_only",
   });
   await persistStartupDispatchDiagnostic(supabase, scanId, {
     stage: "dispatch_worker",
@@ -389,6 +427,7 @@ export async function dispatchDeepfakeScanExecution(
     reason: dispatch.reason ?? startupErrorLabel(category),
     http_status: dispatch.http_status ?? null,
     request_id: dispatch.request_id ?? null,
+    inline_fallback: "async_only",
   });
   scheduleInlineWorkerExecution(scanId, supabase, userId);
   return {
@@ -530,35 +569,56 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       return alreadyRunningResult(activeScan.id);
     }
 
+    logStartupStage("generate_queries", {
+      target_name: data.target_name,
+    });
+    const startupPlan = prepareDeepfakeStartupPlan({
+      name: data.target_name,
+      aliases,
+      handles,
+      profileId: data.profile_id ?? null,
+      googleImagesUrl: data.google_images_url,
+      maxQueries: data.max_queries ?? 56,
+      perQueryLimit: data.per_query_limit ?? 20,
+    });
+
     logStartupStage("create_scan_record", {
       target_name: data.target_name,
+      queries_generated: startupPlan.queries.length,
     });
 
     const nowMs = Date.now();
     const scanInsert: Record<string, unknown> = {
       user_id: userId,
       target_name: data.target_name,
-      aliases,
+      aliases: startupPlan.aliases,
       handles,
       status: "running",
       scan_run_token: scanRunToken,
       heartbeat_at: new Date(nowMs).toISOString(),
       lease_expires_at: leaseExpiresAtIso(runtime.leaseTtlMs, nowMs),
       error_message: null,
-      // Persist start options so execute can resume without trusting the client
-      // for identity fields (google URL / limits only).
+      total_queries: startupPlan.queries.length,
+      // Persist queries + checkpoint before dispatch so UI leaves 0/0 immediately
+      // and workers resume a durable plan.
+      scan_checkpoint: startupPlan.checkpoint,
       discovery_metrics: {
+        ...startupPlan.metrics,
         stage: "discovering",
         investigation_stage: "discovering",
+        queries_generated: startupPlan.queries.length,
+        aliases_generated: startupPlan.aliases.length,
         start_options: {
           google_images_url: data.google_images_url ?? null,
           max_queries: data.max_queries ?? 56,
           per_query_limit: data.per_query_limit ?? 20,
         },
         startup_diagnostic: {
-          stage: "create_scan_record",
+          stage: "generate_queries",
           started_at: new Date(nowMs).toISOString(),
+          queries_generated: startupPlan.queries.length,
         },
+        worker_dispatch_status: "pending",
       },
     };
 
@@ -620,7 +680,10 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       );
     }
 
-    logStartupStage("save_scan", { scan_id: scan.id });
+    logStartupStage("save_scan", {
+      scan_id: scan.id,
+      queries_generated: startupPlan.queries.length,
+    });
     logStartupStage("dispatch_worker", { scan_id: scan.id });
 
     const dispatchResult = await dispatchDeepfakeScanExecution(
@@ -629,31 +692,68 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       userId,
     );
 
-    if (!dispatchResult.dispatched || dispatchResult.mode === "failed") {
-      const category =
-        dispatchResult.category ?? "worker_endpoint_unavailable";
+    const dispatchError =
+      !dispatchResult.dispatched ||
+      dispatchResult.mode === "retryable" ||
+      dispatchResult.mode === "failed"
+        ? formatStartupUserError({
+            category:
+              dispatchResult.category ?? "worker_endpoint_unavailable",
+            detail: dispatchResult.reason,
+          })
+        : null;
+
+    // Dispatch failures stay queued/retryable — never mark the scan failed here.
+    if (dispatchError) {
+      await persistStartupDispatchDiagnostic(supabase, scan.id, {
+        stage: "dispatch_worker",
+        mode: dispatchResult.mode === "failed" ? "retryable" : dispatchResult.mode,
+        retryable: true,
+        category: dispatchResult.category,
+        reason: dispatchResult.reason,
+        worker_url: dispatchResult.worker_url,
+        http_status: dispatchResult.http_status,
+        request_id: dispatchResult.request_id,
+      });
       await supabase
         .from("deepfake_scans")
         .update({
-          status: "failed",
-          error_message: formatStartupUserError({
-            category,
-            detail: dispatchResult.reason,
-          }),
+          status: "running",
+          error_message: null,
+          discovery_metrics: {
+            ...startupPlan.metrics,
+            stage: "discovering",
+            investigation_stage: "discovering",
+            queries_generated: startupPlan.queries.length,
+            aliases_generated: startupPlan.aliases.length,
+            start_options: {
+              google_images_url: data.google_images_url ?? null,
+              max_queries: data.max_queries ?? 56,
+              per_query_limit: data.per_query_limit ?? 20,
+            },
+            worker_dispatch_status: "retryable",
+            startup_diagnostic: {
+              stage: "dispatch_worker",
+              mode: "retryable",
+              retryable: true,
+              category: dispatchResult.category,
+              reason: dispatchResult.reason,
+              worker_url: dispatchResult.worker_url,
+              http_status: dispatchResult.http_status,
+              request_id: dispatchResult.request_id,
+              updated_at: new Date().toISOString(),
+            },
+          },
         })
         .eq("id", scan.id)
         .eq("user_id", userId);
-      throw new Error(
-        formatStartupUserError({
-          category,
-          detail: dispatchResult.reason,
-        }),
-      );
     }
 
     logStartupStage("return_scan_id", {
       scan_id: scan.id,
       dispatch_mode: dispatchResult.mode,
+      queries_generated: startupPlan.queries.length,
+      dispatch_error: Boolean(dispatchError),
     });
 
     return {
@@ -662,7 +762,12 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       discovered_results: 0,
       status: "running" as const,
       started: true as const,
-      dispatch_mode: dispatchResult.mode,
+      dispatch_mode:
+        dispatchError != null
+          ? ("retryable" as const)
+          : dispatchResult.mode,
+      queries_generated: startupPlan.queries.length,
+      ...(dispatchError ? { dispatch_error: dispatchError } : {}),
     };
   });
 
@@ -781,16 +886,16 @@ export const continueDeepfakeScan = createServerFn({ method: "POST" })
       userId,
     );
 
-    if (!dispatchResult.dispatched || dispatchResult.mode === "failed") {
-      const category =
-        dispatchResult.category ?? "worker_endpoint_unavailable";
-      throw new Error(
-        formatStartupUserError({
-          category,
-          detail: dispatchResult.reason,
-        }),
-      );
-    }
+    const dispatchError =
+      !dispatchResult.dispatched ||
+      dispatchResult.mode === "retryable" ||
+      dispatchResult.mode === "failed"
+        ? formatStartupUserError({
+            category:
+              dispatchResult.category ?? "worker_endpoint_unavailable",
+            detail: dispatchResult.reason,
+          })
+        : null;
 
     return {
       scan_id: scan.id,
@@ -799,7 +904,11 @@ export const continueDeepfakeScan = createServerFn({ method: "POST" })
       status: "running" as const,
       started: true as const,
       continued: true as const,
-      dispatch_mode: dispatchResult.mode,
+      dispatch_mode:
+        dispatchError != null
+          ? ("retryable" as const)
+          : dispatchResult.mode,
+      ...(dispatchError ? { dispatch_error: dispatchError } : {}),
     };
   });
 

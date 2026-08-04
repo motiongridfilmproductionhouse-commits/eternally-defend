@@ -215,6 +215,9 @@ function DeepfakeIntelPage() {
   const [downloadingHistoryId, setDownloadingHistoryId] = useState<string | null>(
     null,
   );
+  const [startupDispatchError, setStartupDispatchError] = useState<string | null>(
+    null,
+  );
   const [lastGeneratedReport, setLastGeneratedReport] = useState<{
     historyId: string | null;
     url: string;
@@ -452,16 +455,31 @@ function DeepfakeIntelPage() {
       qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
 
       if ((res as { already_running?: boolean }).already_running) {
+        setStartupDispatchError(null);
         toast.message(
           "A scan is already running for this identity — showing live progress.",
         );
         return;
       }
 
-      toast.message("Scan started — background worker dispatched. Live progress will update automatically.");
+      const dispatchError =
+        typeof (res as { dispatch_error?: unknown }).dispatch_error === "string"
+          ? (res as { dispatch_error: string }).dispatch_error
+          : null;
+      if (dispatchError) {
+        setStartupDispatchError(dispatchError);
+        toast.error(dispatchError, { duration: 12_000 });
+        return;
+      }
+
+      setStartupDispatchError(null);
+      toast.message(
+        "Scan started — background worker dispatched. Live progress will update automatically.",
+      );
     },
     onError: (e) => {
       const message = formatDeepfakeStartupError(e);
+      setStartupDispatchError(message);
       toast.error(message, { duration: 12_000 });
     },
   });
@@ -474,16 +492,29 @@ function DeepfakeIntelPage() {
       qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
 
       if ((res as { already_running?: boolean }).already_running) {
+        setStartupDispatchError(null);
         toast.message(
           "A scan is already running for this identity — showing live progress.",
         );
         return;
       }
 
+      const dispatchError =
+        typeof (res as { dispatch_error?: unknown }).dispatch_error === "string"
+          ? (res as { dispatch_error: string }).dispatch_error
+          : null;
+      if (dispatchError) {
+        setStartupDispatchError(dispatchError);
+        toast.error(dispatchError, { duration: 12_000 });
+        return;
+      }
+
+      setStartupDispatchError(null);
       toast.message("Continuing from checkpoint — background worker dispatched.");
     },
     onError: (error) => {
       const message = formatDeepfakeStartupError(error);
+      setStartupDispatchError(message);
       toast.error(message, { duration: 12_000 });
     },
   });
@@ -1373,12 +1404,19 @@ function DeepfakeIntelPage() {
                 </>
               )}
             </Button>
-            {(run.error || continueScan.error) && (
+            {(startupDispatchError ||
+              run.error ||
+              continueScan.error) && (
               <div
                 className="rounded-md border border-red-500/40 bg-red-500/5 px-3 py-2 text-[11px] text-red-600 whitespace-pre-wrap"
                 data-testid="deepfake-startup-error"
               >
-                <div>{formatDeepfakeStartupError(run.error || continueScan.error)}</div>
+                <div>
+                  {startupDispatchError ||
+                    formatDeepfakeStartupError(
+                      run.error || continueScan.error,
+                    )}
+                </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button
                     type="button"

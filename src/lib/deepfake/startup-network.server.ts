@@ -279,24 +279,54 @@ export async function instrumentedWorkerFetch(input: {
   }
 }
 
+export function isVercelWaitUntilRuntime(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return env.VERCEL === "1" || env.VERCEL_ENV != null;
+}
+
+export function isProductionDeepfakeRuntime(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return (
+    env.VERCEL === "1" ||
+    env.NODE_ENV === "production" ||
+    env.VERCEL_ENV === "production"
+  );
+}
+
 /**
  * Keep background work alive after returning an HTTP 202.
  * Uses Vercel waitUntil when the runtime supports it.
  */
-export function keepBackgroundWorkAlive(work: Promise<unknown>): void {
+export function keepBackgroundWorkAlive(work: Promise<unknown>): {
+  wait_until_used: boolean;
+} {
   try {
     waitUntil(work);
+    return { wait_until_used: true };
   } catch {
     // Outside Vercel request context waitUntil may throw — still schedule.
     void work;
+    return { wait_until_used: false };
   }
 }
 
 /**
- * Run worker-hook work via waitUntil so the HTTP response can return 202
- * without cancelling the batch. Always schedules via waitUntil/void; callers
- * that need a guaranteed local await should call the work promise directly.
+ * Schedule worker-hook work so the HTTP 202 can return before the batch begins.
+ * The factory is invoked only after a setImmediate yield.
  */
-export function runAcceptedBackgroundWork(work: Promise<unknown>): void {
-  keepBackgroundWorkAlive(work);
+export function runAcceptedBackgroundWork(
+  factory: () => Promise<unknown>,
+): { wait_until_used: boolean; deferred: true } {
+  const work = (async () => {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    await factory();
+  })();
+  const kept = keepBackgroundWorkAlive(work);
+  console.info("deepfake_worker_background_scheduled", {
+    wait_until_used: kept.wait_until_used,
+    vercel_runtime: isVercelWaitUntilRuntime(),
+  });
+  return { wait_until_used: kept.wait_until_used, deferred: true };
 }

@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { runAcceptedBackgroundWork } from "@/lib/deepfake/startup-network.server";
+import {
+  isVercelWaitUntilRuntime,
+  runAcceptedBackgroundWork,
+} from "@/lib/deepfake/startup-network.server";
 
 const BodySchema = z.object({ scan_id: z.string().uuid() });
 
@@ -45,9 +48,11 @@ export const Route = createFileRoute(
         console.info("deepfake_google_images_worker_accepted", {
           request_id: requestId,
           scan_id: parsed.scan_id,
+          status: 202,
+          wait_until_runtime: isVercelWaitUntilRuntime(),
         });
 
-        const work = (async () => {
+        const scheduled = runAcceptedBackgroundWork(async () => {
           const { supabaseAdmin } = await import(
             "@/integrations/supabase/client.server"
           );
@@ -72,16 +77,14 @@ export const Route = createFileRoute(
               error: error instanceof Error ? error.message : String(error),
             });
           }
-        })();
-
-        runAcceptedBackgroundWork(work);
-        await new Promise((resolve) => setTimeout(resolve, 25));
+        });
 
         return Response.json(
           {
             accepted: true,
             scan_id: parsed.scan_id,
             request_id: requestId,
+            wait_until_used: scheduled.wait_until_used,
           },
           { status: 202 },
         );
