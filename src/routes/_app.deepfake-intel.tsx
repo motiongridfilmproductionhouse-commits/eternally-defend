@@ -1110,7 +1110,7 @@ function DeepfakeIntelPage() {
                       )}
                     </Button>
                     <p className="text-[10px] text-muted-foreground">
-                      Builds a professional threat report from this identity’s
+                      Builds a professional threat report from this identity's
                       existing scan findings, evidence, diagnostics, and
                       verification data. Does not invent results or legal
                       conclusions.
