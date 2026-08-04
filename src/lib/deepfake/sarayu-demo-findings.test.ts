@@ -6,6 +6,12 @@ import {
   isSarayuDemoTarget,
   seedSarayuDemoFindings,
 } from "./sarayu-demo-findings";
+import {
+  buildDomainRows,
+  displayableFindings,
+  paginateFindings,
+} from "./results-dashboard";
+import { filterClientFindings } from "./client-results.server";
 
 test("Sarayu demo target matching is isolated and normalized", () => {
   assert.equal(isSarayuDemoTarget("Sarayu Mohan"), true);
@@ -60,4 +66,33 @@ test("Sarayu demo seed upserts only columns present in deepfake_findings", async
   assert.equal(count, 7);
   assert.equal(insertedRows.length, 7);
   assert.ok(insertedRows.every((row) => !("verified_domain" in row)));
+});
+
+test("all seven unique Sarayu findings stay visible across domains and pagination", () => {
+  const rows = buildSarayuDemoFindingRows({
+    scanId: "scan-id",
+    userId: "user-id",
+    now: "2026-08-04T00:00:00.000Z",
+  }).map((row, index) => ({ ...row, id: `finding-${index}` }));
+  const visible = filterClientFindings(
+    rows as any,
+    { name: "Sarayu Mohan" },
+    "scan-id",
+  );
+  const displayable = displayableFindings(visible as any);
+  const page = paginateFindings(displayable, 1, 20);
+  const domains = buildDomainRows(displayable);
+
+  assert.equal(visible.length, 7);
+  assert.equal(page.items.length, 7);
+  assert.equal(page.total, 7);
+  assert.equal(page.hasMore, false);
+  assert.equal(domains.length, 3);
+  assert.equal(domains.find((row) => row.domain === "imgfy.net")?.verified_pages, 3);
+  assert.equal(domains.find((row) => row.domain === "desifakes.com")?.verified_pages, 3);
+  assert.equal(
+    domains.find((row) => row.domain === "desifakes-com.zproxy.org")?.verified_pages,
+    1,
+  );
+  assert.equal(new Set(page.items.map((finding) => finding.url)).size, 7);
 });

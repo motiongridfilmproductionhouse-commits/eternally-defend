@@ -1179,6 +1179,29 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       };
     }
 
+    let loadedFindingRows = findingsRes.data ?? [];
+    if (isSarayuDemoTarget(scan.target_name)) {
+      // Existing Sarayu scans may predate the demo seed or have been read while
+      // the initial upsert was still in flight. Reconcile the deterministic
+      // rows onto the selected scan, then read that scan's complete set.
+      await seedSarayuDemoFindings({
+        supabase: context.supabase,
+        scanId: scan.id,
+        userId: context.userId,
+      });
+      const refreshedFindings = await context.supabase
+        .from("deepfake_findings")
+        .select("*")
+        .eq("scan_id", scan.id)
+        .eq("user_id", context.userId)
+        .order("risk_level", { ascending: true })
+        .order("confidence", { ascending: false });
+      if (refreshedFindings.error) {
+        throw new Error(refreshedFindings.error.message);
+      }
+      loadedFindingRows = refreshedFindings.data ?? [];
+    }
+
     // First-worker watchdog: if HTTP 202 accepted but deferred work never ran,
     // redispatch once and surface a precise status on discovery_metrics.
     if (scan.status === "running") {
@@ -1225,7 +1248,7 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       LOW: 1,
     };
 
-    const allFindings = (findingsRes.data ?? []) as Array<
+    const allFindings = loadedFindingRows as Array<
       FindingRow & {
         finding_classification?: string | null;
         url_verification_status?: string | null;
