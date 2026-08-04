@@ -226,7 +226,7 @@ export function ResultsIntelligenceConsole({
     return sortFindings(filtered, sortKey, sortDirection);
   }, [filtered, sortKey, sortDirection, redAlert]);
 
-  const pageSize = 12;
+  const pageSize = 20;
   const paged = useMemo(
     () => paginateFindings(sorted, page, pageSize),
     [sorted, page],
