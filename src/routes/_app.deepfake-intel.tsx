@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -9,6 +16,11 @@ import {
   listDeepfakeScans,
   getDeepfakeScan,
   updateDeepfakeFinding,
+  submitManualEvidenceUrls,
+  listManualEvidenceLeads,
+  overrideManualEvidenceSource,
+  loadSarayuEvidence,
+  retryManualEvidenceLead,
 } from "@/lib/deepfake-intel.functions";
 import {
   createDeepfakeTargetProfile,
@@ -24,8 +36,9 @@ import { toast } from "sonner";
 import {
   ScanFace, ShieldAlert, ExternalLink, Loader2, AlertTriangle,
   CheckCircle2, Filter, Radar, Upload, Trash2,
-  UserRoundCheck,
+  UserRoundCheck, Copy, Camera, FileSearch,
 } from "lucide-react";
+import { useUserRoles } from "@/hooks/use-user-roles";
 import {
   isScanStalled,
   isTerminalScanStatus,
@@ -109,6 +122,60 @@ const DIAGNOSTIC_KEYS = [
   "serpapi_credits_used",
 ] as const;
 
+const MANUAL_DIAGNOSTIC_KEYS = [
+  "manual_urls_submitted",
+  "google_viewer_urls_parsed",
+  "selected_results_resolved",
+  "source_pages_found",
+  "pages_crawled",
+  "images_extracted",
+  "faces_compared",
+  "identity_matches",
+  "evidence_packages_ready",
+  "failed_resolutions",
+  "duplicate_leads",
+] as const;
+
+const MANUAL_STATUS_LABELS: Record<string, string> = {
+  submitted: "Submitted",
+  parsing: "Resolving Google result",
+  source_resolved: "Source page found",
+  crawl_pending: "Crawling source",
+  crawled: "Source crawled",
+  identity_check_pending: "Face comparison pending",
+  review_required: "Requires review",
+  evidence_ready: "Evidence ready",
+  rejected: "Rejected",
+  failed: "Failed",
+};
+
+const MANUAL_STATUS_STEPS = [
+  ["submitted", "Submitted"],
+  ["parsing", "Resolving Google result"],
+  ["source_resolved", "Source page found"],
+  ["crawl_pending", "Crawling source"],
+  ["identity_check_pending", "Face comparison complete"],
+  ["evidence_ready", "Evidence ready"],
+  ["review_required", "Requires review"],
+  ["failed", "Failed with reason"],
+] as const;
+
+function manualStatusRank(status?: string | null): number {
+  const order = [
+    "submitted",
+    "parsing",
+    "source_resolved",
+    "crawl_pending",
+    "crawled",
+    "identity_check_pending",
+    "review_required",
+    "evidence_ready",
+    "rejected",
+    "failed",
+  ];
+  return Math.max(0, order.indexOf(status ?? ""));
+}
+
 function metricRecord(value: unknown): Record<string, number> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -155,14 +222,21 @@ function DeepfakeIntelPage() {
   const listFn = useServerFn(listDeepfakeScans);
   const getFn = useServerFn(getDeepfakeScan);
   const updFn = useServerFn(updateDeepfakeFinding);
+  const submitManualFn = useServerFn(submitManualEvidenceUrls);
+  const listManualFn = useServerFn(listManualEvidenceLeads);
+  const overrideManualFn = useServerFn(overrideManualEvidenceSource);
+  const loadSarayuFn = useServerFn(loadSarayuEvidence);
+  const retryManualFn = useServerFn(retryManualEvidenceLead);
   const createProfileFn = useServerFn(createDeepfakeTargetProfile);
   const listProfilesFn = useServerFn(listDeepfakeTargetProfiles);
   const uploadReferenceFn = useServerFn(uploadDeepfakeReferenceFace);
   const deleteReferenceFn = useServerFn(deleteDeepfakeReferenceFace);
   const qc = useQueryClient();
+  const { isAdmin } = useUserRoles();
 
   const [targetName, setTargetName] = useState("");
   const [googleImagesUrl, setGoogleImagesUrl] = useState("");
+  const [manualEvidenceUrls, setManualEvidenceUrls] = useState("");
   const [aliasesText, setAliasesText] = useState("");
   const [handlesText, setHandlesText] = useState("");
   const [selectedProfileId, setSelectedProfileId] = useState("");
@@ -172,6 +246,9 @@ function DeepfakeIntelPage() {
   const [threatDomainFocus, setThreatDomainFocus] = useState<string | null>(
     null,
   );
+  const [manualOverrideDrafts, setManualOverrideDrafts] = useState<
+    Record<string, { source_page_url: string; direct_image_url: string; notes: string }>
+  >({});
   const [stalled, setStalled] = useState(false);
   // Kept in a ref so the polling callbacks can react to an in-flight scan
   // request without re-creating the query options on every render.
@@ -238,6 +315,39 @@ function DeepfakeIntelPage() {
         status: d?.scan?.status ?? null,
         requestPending: runPendingRef.current,
       });
+    },
+  });
+
+  const manualLeads = useQuery({
+    queryKey: [
+      "deepfake-manual-leads",
+      selectedScanId,
+      selectedProfileId,
+      targetName.trim(),
+    ],
+    queryFn: () =>
+      listManualFn({
+        data: {
+          scan_id: selectedScanId ?? undefined,
+          profile_id: selectedProfileId || undefined,
+          target_name:
+            !selectedScanId && !selectedProfileId && targetName.trim()
+              ? targetName.trim()
+              : undefined,
+        },
+      }),
+    enabled: Boolean(selectedScanId || selectedProfileId || targetName.trim()),
+    refetchInterval: (q) => {
+      const data = q.state.data as
+        | { leads?: Array<{ processing_status?: string }> }
+        | undefined;
+      const active = (data?.leads ?? []).some(
+        (lead) =>
+          !["review_required", "evidence_ready", "rejected", "failed"].includes(
+            lead.processing_status ?? "",
+          ),
+      );
+      return active ? 2000 : 8000;
     },
   });
 
@@ -346,6 +456,73 @@ function DeepfakeIntelPage() {
       toast.error(
         e instanceof Error ? e.message : "Unable to start scan",
       ),
+  });
+
+  const submitManual = useMutation({
+    mutationFn: (input: {
+      target_name: string;
+      urls_text: string;
+      profile_id?: string;
+      scan_id?: string;
+    }) => submitManualFn({ data: input }),
+    onSuccess: (res) => {
+      setManualEvidenceUrls("");
+      qc.invalidateQueries({ queryKey: ["deepfake-manual-leads"] });
+      qc.invalidateQueries({ queryKey: ["deepfake-scan", selectedScanId] });
+      toast.message(
+        res.dispatched
+          ? `Manual evidence queued — ${res.submitted} link${res.submitted === 1 ? "" : "s"} visible now.`
+          : `Manual evidence saved — worker dispatch pending: ${res.dispatch_reason ?? "not configured"}`,
+      );
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Manual evidence submission failed",
+      ),
+  });
+
+  const overrideManual = useMutation({
+    mutationFn: (input: {
+      lead_id: string;
+      source_page_url?: string;
+      direct_image_url?: string;
+      notes?: string;
+    }) => overrideManualFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["deepfake-manual-leads"] });
+      toast.message("Manual source override saved");
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "Manual override failed",
+      ),
+  });
+
+  const loadSarayu = useMutation({
+    mutationFn: () => loadSarayuFn({}),
+    onSuccess: (res) => {
+      setSelectedProfileId(res.profile_id);
+      setTargetName("Sarayu Mohan");
+      qc.invalidateQueries({ queryKey: ["deepfake-target-profiles"] });
+      qc.invalidateQueries({ queryKey: ["deepfake-manual-leads"] });
+      toast.message(
+        res.processing_pending
+          ? `Sarayu Evidence loaded — ${res.inserted_count} inserted, ${res.existing_count} existing. Processing pending.`
+          : `Sarayu Evidence loaded — ${res.inserted_count} inserted, ${res.existing_count} existing. Dispatch started.`,
+      );
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to load Sarayu evidence"),
+  });
+
+  const retryManual = useMutation({
+    mutationFn: (lead_id: string) => retryManualFn({ data: { lead_id } }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["deepfake-manual-leads"] });
+      toast.message(res.dispatched ? "Evidence processing dispatched" : "Processing pending");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to retry evidence"),
   });
 
   const continueScan = useMutation({
@@ -596,6 +773,24 @@ function DeepfakeIntelPage() {
     });
   };
 
+  const onSubmitManualEvidence = () => {
+    const name = targetName.trim() || selectedProfile?.target_name?.trim() || "";
+    if (!name) {
+      toast.error("Enter or select the protected identity first");
+      return;
+    }
+    if (!manualEvidenceUrls.trim()) {
+      toast.error("Paste at least one manual evidence URL");
+      return;
+    }
+    submitManual.mutate({
+      target_name: name,
+      urls_text: manualEvidenceUrls,
+      profile_id: selectedProfileId || undefined,
+      scan_id: selectedScanId ?? undefined,
+    });
+  };
+
   const onCreateProfile = () => {
     const name = targetName.trim();
 
@@ -714,6 +909,8 @@ function DeepfakeIntelPage() {
 
   const discoveries = selected.data?.discoveries ?? [];
   const diagnostics = metricRecord(scan?.discovery_metrics);
+  const manualLeadRows = manualLeads.data?.leads ?? [];
+  const manualDiagnostics = metricRecord(manualLeads.data?.diagnostics);
   const showResultsLoader = shouldShowResultsLoader({
     isLoading: selected.isLoading,
     hasScan: Boolean(scan),
@@ -884,6 +1081,41 @@ function DeepfakeIntelPage() {
               <p className="text-[10px] text-muted-foreground">
                 Open Google Images, search the protected identity, then paste
                 the search-page URL here.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">
+                Manual Evidence URLs
+                <span className="ml-1 font-normal text-muted-foreground">
+                  Google Images, source pages, or direct images
+                </span>
+              </label>
+              <Textarea
+                value={manualEvidenceUrls}
+                onChange={(e) => setManualEvidenceUrls(e.target.value)}
+                placeholder="Paste one or more URLs. Google Images #sv variants are kept as separate leads."
+                rows={4}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={submitManual.isPending || !manualEvidenceUrls.trim()}
+                onClick={onSubmitManualEvidence}
+              >
+                {submitManual.isPending ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Saving leads…
+                  </>
+                ) : (
+                  "Process supplied links now"
+                )}
+              </Button>
+              <p className="text-[10px] text-muted-foreground">
+                Leads are persisted immediately and processed separately from
+                the 56-query sweep.
               </p>
             </div>
 
@@ -1074,6 +1306,22 @@ function DeepfakeIntelPage() {
                       <CheckCircle2 className="size-4 shrink-0" />
                       Face-verified scanning is ready.
                     </div>
+                  )}
+
+                  {isAdmin && normalizeTarget(selectedProfile?.target_name ?? "") === "sarayumohan" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={loadSarayu.isPending}
+                      onClick={() => loadSarayu.mutate()}
+                    >
+                      {loadSarayu.isPending ? (
+                        <><Loader2 className="size-4 mr-2 animate-spin" /> Loading Sarayu Evidence…</>
+                      ) : (
+                        <><FileSearch className="size-4 mr-2" /> Load Sarayu Evidence</>
+                      )}
+                    </Button>
                   )}
                 </div>
               )}
@@ -1272,17 +1520,81 @@ function DeepfakeIntelPage() {
           ) : null}
 
           {!scan && !selectedProfileId ? (
-            <div className="card-surface p-10 text-center text-sm text-muted-foreground">
-              <ShieldAlert className="size-8 mx-auto mb-2 text-muted-foreground/60" strokeWidth={1.2} />
-              Run a sweep or select a scan from history to view findings.
-            </div>
+            <>
+              <ManualEvidenceLeadsSection
+                leads={manualLeadRows}
+                diagnostics={manualDiagnostics}
+                automatedFindingsCount={findings.length}
+                loading={manualLeads.isLoading}
+                error={manualLeads.error}
+                overrideDrafts={manualOverrideDrafts}
+                setOverrideDrafts={setManualOverrideDrafts}
+                onOverride={(leadId, draft) =>
+                  overrideManual.mutate({
+                    lead_id: leadId,
+                    source_page_url: draft.source_page_url || undefined,
+                    direct_image_url: draft.direct_image_url || undefined,
+                    notes: draft.notes || undefined,
+                  })
+                }
+                overridePending={overrideManual.isPending}
+                onRetry={(leadId) => retryManual.mutate(leadId)}
+                retryPending={retryManual.isPending}
+              />
+              <div className="card-surface p-10 text-center text-sm text-muted-foreground">
+                <ShieldAlert className="size-8 mx-auto mb-2 text-muted-foreground/60" strokeWidth={1.2} />
+                Run a sweep or select a scan from history to view findings.
+              </div>
+            </>
           ) : !scan && selectedProfileId ? (
-            <div className="card-surface p-4 text-center text-sm text-muted-foreground">
-              Identity profile ready. Run a Face-Verified Sweep or select a scan
-              from history — results stay visible here as they are saved.
-            </div>
+            <>
+              <ManualEvidenceLeadsSection
+                leads={manualLeadRows}
+                diagnostics={manualDiagnostics}
+                automatedFindingsCount={findings.length}
+                loading={manualLeads.isLoading}
+                error={manualLeads.error}
+                overrideDrafts={manualOverrideDrafts}
+                setOverrideDrafts={setManualOverrideDrafts}
+                onOverride={(leadId, draft) =>
+                  overrideManual.mutate({
+                    lead_id: leadId,
+                    source_page_url: draft.source_page_url || undefined,
+                    direct_image_url: draft.direct_image_url || undefined,
+                    notes: draft.notes || undefined,
+                  })
+                }
+                overridePending={overrideManual.isPending}
+                onRetry={(leadId) => retryManual.mutate(leadId)}
+                retryPending={retryManual.isPending}
+              />
+              <div className="card-surface p-4 text-center text-sm text-muted-foreground">
+                Identity profile ready. Run a Face-Verified Sweep or select a scan
+                from history — results stay visible here as they are saved.
+              </div>
+            </>
           ) : scan ? (
             <>
+              <ManualEvidenceLeadsSection
+                leads={manualLeadRows}
+                diagnostics={manualDiagnostics}
+                automatedFindingsCount={findings.length}
+                loading={manualLeads.isLoading}
+                error={manualLeads.error}
+                overrideDrafts={manualOverrideDrafts}
+                setOverrideDrafts={setManualOverrideDrafts}
+                onOverride={(leadId, draft) =>
+                  overrideManual.mutate({
+                    lead_id: leadId,
+                    source_page_url: draft.source_page_url || undefined,
+                    direct_image_url: draft.direct_image_url || undefined,
+                    notes: draft.notes || undefined,
+                  })
+                }
+                overridePending={overrideManual.isPending}
+                onRetry={(leadId) => retryManual.mutate(leadId)}
+                retryPending={retryManual.isPending}
+              />
               <div className="card-surface p-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
@@ -1524,6 +1836,320 @@ function DeepfakeIntelPage() {
   );
 }
 
+function ManualEvidenceLeadsSection({
+  leads,
+  diagnostics,
+  automatedFindingsCount,
+  loading,
+  error,
+  overrideDrafts,
+  setOverrideDrafts,
+  onOverride,
+  overridePending,
+  onRetry,
+  retryPending,
+}: {
+  leads: Array<Record<string, any>>;
+  diagnostics: Record<string, number> | null;
+  automatedFindingsCount: number;
+  loading: boolean;
+  error: unknown;
+  overrideDrafts: Record<
+    string,
+    { source_page_url: string; direct_image_url: string; notes: string }
+  >;
+  setOverrideDrafts: Dispatch<
+    SetStateAction<
+      Record<string, { source_page_url: string; direct_image_url: string; notes: string }>
+    >
+  >;
+  onOverride: (
+    leadId: string,
+    draft: { source_page_url: string; direct_image_url: string; notes: string },
+  ) => void;
+  overridePending: boolean;
+  onRetry: (leadId: string) => void;
+  retryPending: boolean;
+}) {
+  const visible = loading || error || leads.length > 0;
+  if (!visible) return null;
+
+  return (
+    <div className="card-surface p-4" data-testid="manual-evidence-leads">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground">
+            MANUAL EVIDENCE LEADS ({leads.length})
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Supplied links stay visible while Google result resolution, crawl,
+            face comparison and evidence capture run independently.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">Automated Findings {automatedFindingsCount}</Badge>
+          <Badge variant="outline">Manual Evidence Leads {leads.length}</Badge>
+        </div>
+      </div>
+
+      {diagnostics && (
+        <details className="mb-3 rounded-md border border-border/70 bg-secondary/20 p-3">
+          <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Manual Evidence Diagnostics
+          </summary>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {MANUAL_DIAGNOSTIC_KEYS.map((key) => (
+              <div
+                key={key}
+                className="rounded border border-border/60 bg-background/40 px-2 py-1.5"
+              >
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {metricLabel(key)}
+                </div>
+                <div className="mt-0.5 text-sm font-semibold">
+                  {diagnostics[key] ?? 0}
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {loading ? (
+        <div className="py-5 text-center text-xs text-muted-foreground">
+          <Loader2 className="mx-auto mb-2 size-4 animate-spin" />
+          Loading manual leads…
+        </div>
+      ) : error ? (
+        <div className="py-4 text-center text-xs text-red-500">
+          {error instanceof Error ? error.message : "Unable to load manual leads"}
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {leads.map((lead) => {
+            const status = String(lead.processing_status ?? "submitted");
+            const rank = manualStatusRank(status);
+            const draft =
+              overrideDrafts[lead.id] ?? {
+                source_page_url: "",
+                direct_image_url: "",
+                notes: "",
+              };
+            const unresolvedGoogle =
+              String(lead.submitted_url_kind ?? "").startsWith("google_images") &&
+              status === "failed" &&
+              /Source page could not be resolved automatically|Playwright is not installed/i.test(
+                String(lead.error_reason ?? ""),
+              );
+
+            return (
+              <li
+                key={lead.id}
+                id={`manual-lead-${lead.id}`}
+                className="rounded-md border border-border/70 bg-background/35 p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[9px] uppercase">
+                        {MANUAL_STATUS_LABELS[status] ?? status}
+                      </Badge>
+                      {lead.classification && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {String(lead.classification)}
+                        </span>
+                      )}
+                    </div>
+                    <a
+                      href={lead.submitted_url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="mt-2 block truncate text-xs font-medium hover:text-primary"
+                      title={lead.submitted_url}
+                    >
+                      {lead.submitted_url}
+                    </a>
+                    {lead.selected_result_fragment && (
+                      <div className="mt-1 truncate text-[10px] text-muted-foreground">
+                        Selected result: #{lead.selected_result_fragment}
+                      </div>
+                    )}
+                    {lead.source_page_url && (
+                      <a
+                        href={lead.source_page_url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
+                      >
+                        <ExternalLink className="size-3" />
+                        Source page found
+                      </a>
+                    )}
+                    {lead.original_image_url && (
+                      <a
+                        href={lead.original_image_url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="ml-3 mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
+                      >
+                        <ExternalLink className="size-3" />
+                        Original image
+                      </a>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="text-[9px]">Google Images</Badge>
+                      <Badge variant="secondary" className="text-[9px]">
+                        {status === "submitted" ? "Submitted" : "Processing"}
+                      </Badge>
+                      <Badge variant="outline" className="text-[9px]">Requires Verification</Badge>
+                      <a href={lead.submitted_url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline">
+                        <ExternalLink className="size-3" /> Open Link
+                      </a>
+                      <button type="button" className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary" onClick={() => void navigator.clipboard?.writeText(String(lead.submitted_url))}>
+                        <Copy className="size-3" /> Copy Link
+                      </button>
+                      <button type="button" className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary" disabled={retryPending} onClick={() => onRetry(String(lead.id))}>
+                        <Camera className="size-3" /> Capture Evidence
+                      </button>
+                      <button type="button" className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary" onClick={() => document.getElementById(`manual-lead-${lead.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+                        <FileSearch className="size-3" /> Review
+                      </button>
+                    </div>
+                  </div>
+                  {status === "failed" || status === "rejected" ? (
+                    <AlertTriangle className="size-4 shrink-0 text-red-500" />
+                  ) : status === "evidence_ready" || status === "review_required" ? (
+                    <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
+                  ) : (
+                    <Loader2 className="size-4 shrink-0 animate-spin text-blue-400" />
+                  )}
+                </div>
+
+                <div className="mt-3 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
+                  {MANUAL_STATUS_STEPS.map(([step, label], index) => {
+                    const complete =
+                      status === step ||
+                      (
+                        !["failed", "rejected"].includes(status) &&
+                        index <= Math.min(rank, 5)
+                      ) ||
+                      (status === "review_required" && step === "review_required") ||
+                      (status === "evidence_ready" && step === "evidence_ready") ||
+                      (status === "failed" && step === "failed");
+                    return (
+                      <div
+                        key={step}
+                        className={`rounded border px-2 py-1 text-[10px] ${
+                          complete
+                            ? "border-primary/40 bg-primary/10 text-primary"
+                            : "border-border/60 text-muted-foreground"
+                        }`}
+                      >
+                        {label}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-2 grid gap-2 text-[10px] text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
+                  <div>Domain: {lead.source_domain ?? "pending"}</div>
+                  <div>SHA-256: {lead.media_sha256 ? "captured" : "pending"}</div>
+                  <div>pHash: {lead.perceptual_hash ? "captured" : "pending"}</div>
+                  <div>
+                    Face:{" "}
+                    {typeof lead.face_similarity_score === "number"
+                      ? `${Math.round(lead.face_similarity_score)}%`
+                      : "pending"}
+                  </div>
+                </div>
+
+                {lead.error_reason && (
+                  <div className="mt-2 rounded border border-red-500/25 bg-red-500/10 p-2 text-[11px] text-red-500">
+                    {lead.error_reason}
+                  </div>
+                )}
+
+                {unresolvedGoogle && (
+                  <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+                    <div className="text-xs font-medium text-amber-500">
+                      Source page could not be resolved automatically.
+                    </div>
+                    <div className="mt-2 grid gap-2 md:grid-cols-2">
+                      <Input
+                        type="url"
+                        value={draft.source_page_url}
+                        onChange={(event) =>
+                          setOverrideDrafts((prev) => ({
+                            ...prev,
+                            [lead.id]: {
+                              ...draft,
+                              source_page_url: event.target.value,
+                            },
+                          }))
+                        }
+                        placeholder="Source-page URL"
+                      />
+                      <Input
+                        type="url"
+                        value={draft.direct_image_url}
+                        onChange={(event) =>
+                          setOverrideDrafts((prev) => ({
+                            ...prev,
+                            [lead.id]: {
+                              ...draft,
+                              direct_image_url: event.target.value,
+                            },
+                          }))
+                        }
+                        placeholder="Direct image URL"
+                      />
+                    </div>
+                    <Textarea
+                      value={draft.notes}
+                      onChange={(event) =>
+                        setOverrideDrafts((prev) => ({
+                          ...prev,
+                          [lead.id]: {
+                            ...draft,
+                            notes: event.target.value,
+                          },
+                        }))
+                      }
+                      className="mt-2"
+                      rows={2}
+                      placeholder="Reviewer notes"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="mt-2"
+                      disabled={
+                        overridePending ||
+                        (!draft.source_page_url.trim() &&
+                          !draft.direct_image_url.trim())
+                      }
+                      onClick={() => onOverride(lead.id, draft)}
+                    >
+                      {overridePending ? (
+                        <>
+                          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                          Saving…
+                        </>
+                      ) : (
+                        "Continue evidence processing"
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1571,4 +2197,3 @@ function RiskChip({ level, count }: { level: RiskLevel; count: number }) {
     </span>
   );
 }
-
