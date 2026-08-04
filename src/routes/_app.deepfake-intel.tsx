@@ -153,6 +153,46 @@ function stageLabel(stage?: unknown): string | null {
   return labels[stage] ?? null;
 }
 
+/** Never show raw undici "TypeError: fetch failed" in the Deepfake UI. */
+function formatDeepfakeStartupError(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "Unable to start investigation.";
+
+  if (raw.includes("Unable to start investigation.")) {
+    return raw;
+  }
+
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("fetch failed") ||
+    lower.includes("typeerror") ||
+    lower.includes("networkerror") ||
+    lower.includes("failed to fetch")
+  ) {
+    return [
+      "Unable to start investigation.",
+      "",
+      "The Deepfake Intelligence worker could not be reached.",
+      "",
+      "Error:",
+      "Worker endpoint unavailable.",
+    ].join("\n");
+  }
+
+  return [
+    "Unable to start investigation.",
+    "",
+    "The Deepfake Intelligence worker could not be reached.",
+    "",
+    "Error:",
+    raw,
+  ].join("\n");
+}
+
 function DeepfakeIntelPage() {
   const runFn = useServerFn(runDeepfakeScan);
   const continueFn = useServerFn(continueDeepfakeScan);
@@ -173,6 +213,9 @@ function DeepfakeIntelPage() {
     "final" | "interim" | null
   >(null);
   const [downloadingHistoryId, setDownloadingHistoryId] = useState<string | null>(
+    null,
+  );
+  const [startupDispatchError, setStartupDispatchError] = useState<string | null>(
     null,
   );
   const [lastGeneratedReport, setLastGeneratedReport] = useState<{
@@ -412,18 +455,33 @@ function DeepfakeIntelPage() {
       qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
 
       if ((res as { already_running?: boolean }).already_running) {
+        setStartupDispatchError(null);
         toast.message(
           "A scan is already running for this identity — showing live progress.",
         );
         return;
       }
 
-      toast.message("Scan started — background worker dispatched. Live progress will update automatically.");
+      const dispatchError =
+        typeof (res as { dispatch_error?: unknown }).dispatch_error === "string"
+          ? (res as { dispatch_error: string }).dispatch_error
+          : null;
+      if (dispatchError) {
+        setStartupDispatchError(dispatchError);
+        toast.error(dispatchError, { duration: 12_000 });
+        return;
+      }
+
+      setStartupDispatchError(null);
+      toast.message(
+        "Scan started — background worker dispatched. Live progress will update automatically.",
+      );
     },
-    onError: (e) =>
-      toast.error(
-        e instanceof Error ? e.message : "Unable to start scan",
-      ),
+    onError: (e) => {
+      const message = formatDeepfakeStartupError(e);
+      setStartupDispatchError(message);
+      toast.error(message, { duration: 12_000 });
+    },
   });
 
   const continueScan = useMutation({
@@ -434,18 +492,31 @@ function DeepfakeIntelPage() {
       qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
 
       if ((res as { already_running?: boolean }).already_running) {
+        setStartupDispatchError(null);
         toast.message(
           "A scan is already running for this identity — showing live progress.",
         );
         return;
       }
 
+      const dispatchError =
+        typeof (res as { dispatch_error?: unknown }).dispatch_error === "string"
+          ? (res as { dispatch_error: string }).dispatch_error
+          : null;
+      if (dispatchError) {
+        setStartupDispatchError(dispatchError);
+        toast.error(dispatchError, { duration: 12_000 });
+        return;
+      }
+
+      setStartupDispatchError(null);
       toast.message("Continuing from checkpoint — background worker dispatched.");
     },
-    onError: (error) =>
-      toast.error(
-        error instanceof Error ? error.message : "Unable to continue scan",
-      ),
+    onError: (error) => {
+      const message = formatDeepfakeStartupError(error);
+      setStartupDispatchError(message);
+      toast.error(message, { duration: 12_000 });
+    },
   });
 
   const createProfile = useMutation({
@@ -1333,12 +1404,45 @@ function DeepfakeIntelPage() {
                 </>
               )}
             </Button>
-            {(run.error || continueScan.error) && (
-              <p className="text-[11px] text-red-500">
-                {(run.error || continueScan.error) instanceof Error
-                  ? (run.error || continueScan.error)!.message
-                  : "Scan request failed"}
-              </p>
+            {(startupDispatchError ||
+              run.error ||
+              continueScan.error) && (
+              <div
+                className="rounded-md border border-red-500/40 bg-red-500/5 px-3 py-2 text-[11px] text-red-600 whitespace-pre-wrap"
+                data-testid="deepfake-startup-error"
+              >
+                <div>
+                  {startupDispatchError ||
+                    formatDeepfakeStartupError(
+                      run.error || continueScan.error,
+                    )}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px]"
+                    onClick={() => onRun()}
+                  >
+                    Retry
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px]"
+                    onClick={() => {
+                      const el = document.querySelector(
+                        '[data-testid="deepfake-investigation-stats"]',
+                      );
+                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                  >
+                    View diagnostics
+                  </Button>
+                </div>
+              </div>
             )}
             <p className="text-[11px] text-muted-foreground">
               {identityScanLocked

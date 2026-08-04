@@ -125,6 +125,26 @@ test("worker dispatch resolves same-origin hook URL", () => {
   );
 });
 
+test("worker dispatch normalizes bare explicit worker origins", () => {
+  const url = resolveDeepfakeScanWorkerUrl({
+    DEEPFAKE_SCAN_WORKER_URL: "https://eternally-defend.vercel.app/",
+  });
+  assert.equal(
+    url,
+    "https://eternally-defend.vercel.app/api/public/hooks/deepfake-scan-execute",
+  );
+});
+
+test("runDeepfakeScan validates worker config before insert", () => {
+  const src = functionsSource();
+  const runStart = src.indexOf("export const runDeepfakeScan");
+  const executeStart = src.indexOf("export const executeDeepfakeScanPipeline");
+  const runBlock = src.slice(runStart, executeStart);
+  assert.match(runBlock, /assertDeepfakeStartupWorkerConfig/);
+  assert.match(runBlock, /formatStartupUserError/);
+  assert.match(runBlock, /logStartupStage/);
+});
+
 test("listDeepfakeScans excludes failed scans from history", () => {
   const src = functionsSource();
   const listStart = src.indexOf("export const listDeepfakeScans");
