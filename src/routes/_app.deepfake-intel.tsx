@@ -15,6 +15,7 @@ import {
   uploadDeepfakeReferenceFace,
   deleteDeepfakeReferenceFace,
 } from "@/lib/deepfake/face-profile.functions";
+import { getDeepfakeReportUrl } from "@/lib/deepfake/report.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,7 @@ import { toast } from "sonner";
 import {
   ScanFace, ShieldAlert, ExternalLink, Loader2, AlertTriangle,
   CheckCircle2, Filter, Radar, Upload, Trash2,
-  UserRoundCheck,
+  UserRoundCheck, FileDown,
 } from "lucide-react";
 import {
   isScanStalled,
@@ -161,7 +162,23 @@ function DeepfakeIntelPage() {
   const listProfilesFn = useServerFn(listDeepfakeTargetProfiles);
   const uploadReferenceFn = useServerFn(uploadDeepfakeReferenceFace);
   const deleteReferenceFn = useServerFn(deleteDeepfakeReferenceFace);
+  const reportFn = useServerFn(getDeepfakeReportUrl);
   const qc = useQueryClient();
+
+  const reportMutation = useMutation({
+    mutationFn: (vars: {
+      data: { scanId?: string; profileId?: string; force?: boolean };
+    }) => reportFn(vars),
+    onSuccess: (res: { url: string; findings: number }) => {
+      window.open(res.url, "_blank", "noopener,noreferrer");
+      toast.success(
+        res.findings > 0
+          ? `Deepfake threat report ready (${res.findings} finding${res.findings === 1 ? "" : "s"}).`
+          : "Deepfake threat report ready (no client-visible findings).",
+      );
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const [targetName, setTargetName] = useState("");
   const [googleImagesUrl, setGoogleImagesUrl] = useState("");
@@ -815,6 +832,30 @@ function DeepfakeIntelPage() {
             are triaged with a cautious classifier and never asserted as fact.
           </p>
         </div>
+        {(selectedProfileId || selectedScanId) && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto shrink-0"
+            disabled={
+              reportMutation.isPending ||
+              (!selectedProfileId && !selectedScanId)
+            }
+            onClick={() =>
+              reportMutation.mutate({
+                data: {
+                  profileId: selectedProfileId || undefined,
+                  scanId: selectedScanId || undefined,
+                },
+              })
+            }
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            {reportMutation.isPending
+              ? "Preparing report…"
+              : "Generate Deepfake Report"}
+          </Button>
+        )}
       </header>
 
       <section className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
@@ -1040,6 +1081,41 @@ function DeepfakeIntelPage() {
                       Face-verified scanning is ready.
                     </div>
                   )}
+
+                  <div className="space-y-1.5 pt-1 border-t border-border/60">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      disabled={reportMutation.isPending}
+                      onClick={() =>
+                        reportMutation.mutate({
+                          data: {
+                            profileId: selectedProfileId,
+                            scanId: selectedScanId || undefined,
+                          },
+                        })
+                      }
+                    >
+                      {reportMutation.isPending ? (
+                        <>
+                          <Loader2 className="size-4 mr-2 animate-spin" />
+                          Preparing report…
+                        </>
+                      ) : (
+                        <>
+                          <FileDown className="size-4 mr-2" />
+                          Generate Deepfake Report
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground">
+                      Builds a professional threat report from this identity’s
+                      existing scan findings, evidence, diagnostics, and
+                      verification data. Does not invent results or legal
+                      conclusions.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

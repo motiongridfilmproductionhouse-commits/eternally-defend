@@ -27,6 +27,7 @@ const KINDS = [
   "Monthly Protection Summary",
   "Legal Enforcement Log",
   "Deepfake Intelligence Digest",
+  "Deepfake Threat Report",
 ];
 
 const statusColor: Record<string, string> = {
