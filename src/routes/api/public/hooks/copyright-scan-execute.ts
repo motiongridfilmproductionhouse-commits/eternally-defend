@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 
@@ -9,7 +8,10 @@ export const Route = createFileRoute("/api/public/hooks/copyright-scan-execute")
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const requestId = randomUUID();
+        const requestId =
+          typeof globalThis.crypto?.randomUUID === "function"
+            ? globalThis.crypto.randomUUID()
+            : `worker-hook-${Date.now()}-${Math.random().toString(16).slice(2)}`;
         const receivedAt = new Date().toISOString();
         console.info("copyright_scan_worker_hook_entry", {
           request_id: requestId,
@@ -33,7 +35,7 @@ export const Route = createFileRoute("/api/public/hooks/copyright-scan-execute")
         }
 
         const { verifyCopyrightScanWorkerRequestDetailed } = await import("@/lib/copyright/worker-auth.server");
-        const verification = verifyCopyrightScanWorkerRequestDetailed(
+        const verification = await verifyCopyrightScanWorkerRequestDetailed(
           raw,
           request.headers.get("x-eterna-timestamp"),
           request.headers.get("x-eterna-signature"),

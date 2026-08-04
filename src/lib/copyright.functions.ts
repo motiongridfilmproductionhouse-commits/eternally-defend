@@ -480,7 +480,7 @@ export async function dispatchCopyrightScanExecution(
 
   const body = JSON.stringify({ scan_id: scanId });
   const { signCopyrightScanWorkerRequest } = await import("@/lib/copyright/worker-auth.server");
-  const { signature, timestamp } = signCopyrightScanWorkerRequest(body);
+  const { signature, timestamp } = await signCopyrightScanWorkerRequest(body);
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < 3; attempt++) {

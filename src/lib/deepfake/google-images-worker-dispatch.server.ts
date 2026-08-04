@@ -115,7 +115,7 @@ export async function dispatchGoogleImagesWorker(input: {
     const { signCopyrightScanWorkerRequest } = await import(
       "@/lib/copyright/worker-auth.server"
     );
-    const signed = signCopyrightScanWorkerRequest(body);
+    const signed = await signCopyrightScanWorkerRequest(body);
     headers["x-eterna-timestamp"] = signed.timestamp;
     headers["x-eterna-signature"] = signed.signature;
   } catch (error) {

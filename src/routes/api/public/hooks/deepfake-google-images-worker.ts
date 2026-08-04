@@ -26,7 +26,7 @@ export const Route = createFileRoute(
         const { verifyCopyrightScanWorkerRequestDetailed } = await import(
           "@/lib/copyright/worker-auth.server"
         );
-        const verification = verifyCopyrightScanWorkerRequestDetailed(
+        const verification = await verifyCopyrightScanWorkerRequestDetailed(
           raw,
           request.headers.get("x-eterna-timestamp"),
           request.headers.get("x-eterna-signature"),

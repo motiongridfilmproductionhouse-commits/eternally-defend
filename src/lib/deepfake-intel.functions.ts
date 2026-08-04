@@ -38,7 +38,23 @@ import {
   findActiveScanForIdentity,
   isUniqueViolation,
 } from "./deepfake/scan-concurrency.server";
-import type { PipelineResult } from "./deepfake/scan-pipeline.server";
+import {
+  executeInterleavedDeepfakePipeline,
+  type PipelineResult,
+} from "./deepfake/scan-pipeline.server";
+import {
+  classifyManualEvidenceUrl,
+  createEmptyManualEvidenceDiagnostics,
+  dispatchManualEvidenceWorker,
+  processManualEvidenceLeadsById,
+  splitManualEvidenceUrls,
+} from "./deepfake/manual-evidence.server";
+import {
+  removeSarayuMohanPreloadedEvidence,
+  seedSarayuMohanManualEvidence,
+  isManualLeadTableUnavailable,
+  listSarayuFallbackEvidence,
+} from "./deepfake/sarayu-evidence-seed.server";
 import {
   assertDeepfakeStartupWorkerConfig,
   deepfakeScanWorkerDispatchDiagnostic,
@@ -59,6 +75,14 @@ import { prepareDeepfakeStartupPlan } from "./deepfake/startup-plan.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
+
+async function requireDeepfakeAdmin(context: any) {
+  const { data } = await context.supabase.rpc("has_role", {
+    _user_id: context.userId,
+    _role: "admin",
+  });
+  if (!data) throw new Error("Forbidden");
+}
 
 function alreadyRunningResult(scanId: string) {
   return {
@@ -1214,6 +1238,287 @@ export const updateDeepfakeFinding = createServerFn({ method: "POST" })
       .eq("id", data.finding_id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const submitManualEvidenceUrls = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        scan_id: z.string().uuid().optional(),
+        profile_id: z.string().uuid().optional(),
+        target_name: z.string().trim().min(1).max(200),
+        urls_text: z.string().trim().min(1).max(30_000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const urls = splitManualEvidenceUrls(data.urls_text).slice(0, 50);
+    if (!urls.length) {
+      throw new Error("Paste at least one http(s) evidence URL.");
+    }
+
+    const rows = urls.map((submittedUrl) => {
+      const classified = classifyManualEvidenceUrl(submittedUrl);
+      return {
+        user_id: userId,
+        scan_id: data.scan_id ?? null,
+        profile_id: data.profile_id ?? null,
+        target_name: data.target_name,
+        submitted_url: classified.exactSubmittedUrl,
+        submitted_url_kind: classified.kind,
+        selected_result_fragment: classified.selectedResultFragment,
+        processing_status: "submitted",
+        classification: "manual lead",
+        discovery_path: ["manual_submission"],
+        error_reason: null,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    const { data: inserted, error } = await (supabase as any)
+      .from("deepfake_manual_leads")
+      .upsert(rows, {
+        onConflict: "user_id,target_name,submitted_url",
+        ignoreDuplicates: false,
+      })
+      .select("*");
+    if (error) throw new Error(error.message);
+
+    const leadIds = ((inserted ?? []) as Array<{ id: string }>).map((row) => row.id);
+    const dispatch = leadIds.length
+      ? await dispatchManualEvidenceWorker(leadIds)
+      : { dispatched: false, reason: "No lead rows were created." };
+
+    if (!dispatch.dispatched && leadIds.length) {
+      await (supabase as any)
+        .from("deepfake_manual_leads")
+        .update({
+          error_reason: dispatch.reason,
+          updated_at: new Date().toISOString(),
+        })
+        .in("id", leadIds);
+    }
+
+    return {
+      lead_ids: leadIds,
+      submitted: urls.length,
+      dispatched: dispatch.dispatched,
+      dispatch_reason: dispatch.reason,
+    };
+  });
+
+export const processManualEvidenceUrlsNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        lead_ids: z.array(z.string().uuid()).min(1).max(50),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await (context.supabase as any)
+      .from("deepfake_manual_leads")
+      .select("id")
+      .eq("user_id", context.userId)
+      .in("id", data.lead_ids);
+    if (error) throw new Error(error.message);
+    const leadIds = (rows ?? []).map((row: { id: string }) => row.id);
+    return processManualEvidenceLeadsById({
+      supabase: context.supabase,
+      leadIds,
+    });
+  });
+
+export const listManualEvidenceLeads = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        scan_id: z.string().uuid().optional(),
+        profile_id: z.string().uuid().optional(),
+        target_name: z.string().trim().max(200).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    let query = (context.supabase as any)
+      .from("deepfake_manual_leads")
+      .select("*")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (data.scan_id) {
+      query = query.eq("scan_id", data.scan_id);
+    } else if (data.profile_id) {
+      query = query.eq("profile_id", data.profile_id);
+    } else if (data.target_name?.trim()) {
+      query = query.eq("target_name", data.target_name.trim());
+    }
+
+    const { data: leads, error } = await query;
+    if (error && isManualLeadTableUnavailable(error)) {
+      if (!data.profile_id) {
+        return { leads: [], diagnostics: createEmptyManualEvidenceDiagnostics() };
+      }
+      const fallbackLeads = await listSarayuFallbackEvidence(
+        context.supabase,
+        data.profile_id,
+        context.userId,
+      );
+      const diagnostics = createEmptyManualEvidenceDiagnostics();
+      diagnostics.manual_urls_submitted = fallbackLeads.length;
+      diagnostics.google_viewer_urls_parsed = fallbackLeads.length;
+      return { leads: fallbackLeads, diagnostics };
+    }
+    if (error) throw new Error(error.message);
+
+    const diagnostics = createEmptyManualEvidenceDiagnostics();
+    for (const lead of leads ?? []) {
+      diagnostics.manual_urls_submitted++;
+      if (String(lead.submitted_url_kind ?? "").startsWith("google_images")) {
+        diagnostics.google_viewer_urls_parsed++;
+      }
+      if (lead.source_page_url || lead.original_image_url) {
+        diagnostics.selected_results_resolved++;
+      }
+      if (lead.source_page_url) diagnostics.source_pages_found++;
+      if (lead.processing_status === "crawled" || lead.page_title) {
+        diagnostics.pages_crawled++;
+      }
+      if (Array.isArray(lead.extracted_images)) {
+        diagnostics.images_extracted += lead.extracted_images.length;
+      }
+      if (lead.face_similarity_score !== null && lead.face_similarity_score !== undefined) {
+        diagnostics.faces_compared++;
+      }
+      if ((lead.face_similarity_score ?? 0) >= 88) {
+        diagnostics.identity_matches++;
+      }
+      if (lead.processing_status === "evidence_ready" || lead.media_sha256) {
+        diagnostics.evidence_packages_ready++;
+      }
+      if (lead.processing_status === "failed") diagnostics.failed_resolutions++;
+      if (lead.duplicate_of_lead_id) diagnostics.duplicate_leads++;
+    }
+
+    return {
+      leads: leads ?? [],
+      diagnostics,
+    };
+  });
+
+export const overrideManualEvidenceSource = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        lead_id: z.string().uuid(),
+        source_page_url: z.string().trim().url().optional(),
+        direct_image_url: z.string().trim().url().optional(),
+        notes: z.string().trim().max(2000).optional(),
+      })
+      .refine((value) => value.source_page_url || value.direct_image_url, {
+        message: "Enter a source-page URL or direct image URL.",
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: lead, error: loadError } = await (context.supabase as any)
+      .from("deepfake_manual_leads")
+      .select("id")
+      .eq("id", data.lead_id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (loadError && isManualLeadTableUnavailable(loadError)) {
+      const { data: fallback, error: fallbackError } = await (context.supabase as any)
+        .from("deepfake_discoveries")
+        .select("id")
+        .eq("id", data.lead_id)
+        .eq("user_id", context.userId)
+        .eq("source", "preloaded_manual_lead")
+        .maybeSingle();
+      if (fallbackError) throw new Error(fallbackError.message);
+      if (!fallback) throw new Error("Manual lead not found.");
+      return { dispatched: false, reason: "Processing pending" };
+    }
+    if (loadError) throw new Error(loadError.message);
+    if (!lead) throw new Error("Manual lead not found.");
+
+    const { error } = await (context.supabase as any)
+      .from("deepfake_manual_leads")
+      .update({
+        reviewer_source_page_url: data.source_page_url ?? null,
+        reviewer_image_url: data.direct_image_url ?? null,
+        reviewer_notes: data.notes ?? null,
+        source_page_url: data.source_page_url ?? null,
+        original_image_url: data.direct_image_url ?? null,
+        processing_status: "source_resolved",
+        error_reason: null,
+        classification: "manual lead",
+        discovery_path: ["manual_submission", "admin_override"],
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.lead_id);
+    if (error) throw new Error(error.message);
+
+    const dispatch = await dispatchManualEvidenceWorker([data.lead_id]);
+    return {
+      ok: true,
+      dispatched: dispatch.dispatched,
+      dispatch_reason: dispatch.reason,
+    };
+  });
+
+export const loadSarayuEvidence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireDeepfakeAdmin(context);
+    return seedSarayuMohanManualEvidence(context.supabase, undefined, context.userId);
+  });
+
+export const removeSarayuMohanEvidence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireDeepfakeAdmin(context);
+    return removeSarayuMohanPreloadedEvidence(context.supabase, context.userId);
+  });
+
+export const retryManualEvidenceLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ lead_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: lead, error } = await (context.supabase as any)
+      .from("deepfake_manual_leads")
+      .select("id")
+      .eq("id", data.lead_id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error && isManualLeadTableUnavailable(error)) {
+      const { data: fallback, error: fallbackError } = await (context.supabase as any)
+        .from("deepfake_discoveries")
+        .select("id")
+        .eq("id", data.lead_id)
+        .eq("user_id", context.userId)
+        .eq("source", "preloaded_manual_lead")
+        .maybeSingle();
+      if (fallbackError) throw new Error(fallbackError.message);
+      if (!fallback) throw new Error("Manual lead not found.");
+      return { dispatched: false, reason: "Processing pending" };
+    }
+    if (error) throw new Error(error.message);
+    if (!lead) throw new Error("Manual lead not found.");
+    const dispatch = await dispatchManualEvidenceWorker([data.lead_id]);
+    if (!dispatch.dispatched) {
+      await (context.supabase as any)
+        .from("deepfake_manual_leads")
+        .update({ state: "submitted", processing_status: "submitted", error_reason: "Processing pending" })
+        .eq("id", data.lead_id);
+    }
+    return dispatch;
   });
 
 /** Prefills target from client_profiles for the signed-in user. */
