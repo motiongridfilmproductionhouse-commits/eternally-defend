@@ -15,12 +15,14 @@ export function isTerminalScanStatus(status: ScanStatus | null | undefined): boo
   return status === "completed" || status === "partial" || status === "failed";
 }
 
-/** Poll every 3s while the scan runs, or while a scan request is still in flight. */
+/** Poll every 3s while the scan runs, Google Images background work is active, or a request is in flight. */
 export function scanPollInterval(input: {
   status?: ScanStatus | null;
   requestPending: boolean;
+  googleImagesBackgroundRunning?: boolean;
 }): number | false {
   if (input.status === "running") return SCAN_POLL_INTERVAL_MS;
+  if (input.googleImagesBackgroundRunning) return SCAN_POLL_INTERVAL_MS;
   if (isTerminalScanStatus(input.status)) return false;
   return input.requestPending ? SCAN_POLL_INTERVAL_MS : false;
 }
@@ -98,4 +100,17 @@ export function shouldShowHistoryEmpty(input: {
     return false;
   }
   return input.count === 0;
+}
+
+/** Failed scans stay out of SCAN HISTORY (partial/completed/running remain). */
+export function isVisibleScanHistoryStatus(
+  status: ScanStatus | null | undefined,
+): boolean {
+  return status !== "failed";
+}
+
+export function filterScanHistory<T extends { status: ScanStatus }>(
+  scans: T[],
+): T[] {
+  return scans.filter((scan) => isVisibleScanHistoryStatus(scan.status));
 }

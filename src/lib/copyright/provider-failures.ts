@@ -6,10 +6,14 @@
 export const PROVIDER_FAILURE_CATEGORIES = [
   "missing_api_key",
   "authentication_failed",
+  "invalid_credentials",
+  "insufficient_credits",
   "rate_limited",
   "timeout",
   "provider_unavailable",
   "malformed_response",
+  "invalid_response",
+  "no_results",
   "executor_not_started",
 ] as const;
 
@@ -38,6 +42,7 @@ export function classifyProviderFailure(opts: {
   if (opts.configured === false) return "missing_api_key";
 
   const status = opts.status ?? 0;
+  if (status === 402) return "insufficient_credits";
   if (status === 401 || status === 403) return "authentication_failed";
   if (status === 429) return "rate_limited";
   if (status === 408 || status === 504) return "timeout";

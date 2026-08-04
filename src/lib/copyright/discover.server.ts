@@ -22,7 +22,6 @@ import {
   websiteTypeFor,
   type DiscoveryCandidate,
 } from "./url.server";
-import { queryTitleVariants } from "./title-identity";
 import {
   runBatchedDiscovery,
   FIRECRAWL_MAX_RETRIES,
@@ -30,6 +29,8 @@ import {
   isTransientFirecrawlFailure,
   parseRetryAfterMs,
   sleepWithAbort,
+  isPastDiscoveryDeadline,
+  emptyDiscoveryCircuit,
 } from "./discovery-runtime";
 import {
   bumpProviderFailure,
@@ -38,7 +39,33 @@ import {
   sanitizeProviderFailureDetail,
   type ProviderFailureCategory,
 } from "./provider-failures";
+import {
+  DEFAULT_PAGE_CAP,
+  FIRECRAWL_PRIORITY_QUERY_PAGES,
+  FIRECRAWL_SEARCH_LIMIT,
+  FIRECRAWL_PROVIDER_BUDGET_MS,
+  MAX_DISCOVERY_CANDIDATES,
+  MAX_DISCOVERY_QUERIES_PER_SCAN,
+  MIN_DISCOVERY_QUERIES,
+} from "./discovery-config";
 import { PROVIDER_CRAWL_BUDGET_MS } from "./crawl-budget";
+import {
+  buildAllDiscoveryQueries,
+  buildStagedDiscoveryQueries,
+  type DiscoveryQueryPlan,
+} from "./discovery-query-stages";
+import {
+  buildSaturationMetrics,
+  buildCoverageStateFromPageKeys,
+  emptyDiscoveryCoverageState,
+  expandPlansForDiscoveryMode,
+  recordCompletedDiscoveryQuery,
+  recordQueryCategoryFromPlan,
+  resolveDiscoveryMode,
+  shouldIssueDiscoveryPlan,
+  shouldSkipStageExpansion,
+  type DiscoverySaturationMetrics,
+} from "./discovery-saturation";
 
 export interface ReferenceAnalysis {
   title: string | null;
@@ -188,13 +215,80 @@ export interface ProviderSearchAttempt {
   httpStatus?: number | null;
 }
 
-/** Focused query cap — early-stop may finish sooner when enough pages are found. */
-const DISCOVERY_MAX_QUERIES_PER_SCAN = 35;
+/** Focused query cap — discovery continues until plans exhausted or deadline. */
+export { MIN_DISCOVERY_QUERIES, MAX_DISCOVERY_QUERIES_PER_SCAN } from "./discovery-config";
+
+export interface DiscoveryProgress {
+  queriesGenerated: number;
+  queriesExecuted: number;
+  providerSuccesses: number;
+  providerFailures: number;
+  uniquePages: number;
+  /** New page leads seen in this wave (streamed to the live investigation UI). */
+  leads: Array<{ url: string; title: string | null; query: string }>;
+  /** Image-search hits with remote thumbnails for the reference carousel. */
+  referenceImages: Array<{
+    pageUrl: string;
+    imageUrl: string;
+    title: string | null;
+    query: string;
+  }>;
+}
 
 export interface FirecrawlDiscoverOptions {
   signal?: AbortSignal;
   deadlineAt?: number;
   analysis?: ReferenceAnalysis;
+  /** Additional leak-monitoring queries prepended before default plans. */
+  extraQueryStrings?: string[];
+  onProgress?: (progress: DiscoveryProgress) => void | Promise<void>;
+}
+
+function extractAttemptProgress(
+  attempt: ProviderSearchAttempt,
+  progressSeen: Set<string>,
+  imageSeen: Set<string>,
+): Pick<DiscoveryProgress, "leads" | "referenceImages"> {
+  const leads: DiscoveryProgress["leads"] = [];
+  const referenceImages: DiscoveryProgress["referenceImages"] = [];
+  if (!attempt.ok || !attempt.payload) return { leads, referenceImages };
+
+  for (const img of attempt.payload.data?.images ?? []) {
+    const page = img.url ?? img.sourceUrl;
+    const image = img.imageUrl ?? img.thumbnailUrl;
+    if (!page || !image) continue;
+    const pageKey = canonicalUrl(page);
+    if (isExcludedHost(pageKey)) continue;
+    const imageKey = image.trim();
+    if (imageSeen.has(imageKey)) continue;
+    imageSeen.add(imageKey);
+    referenceImages.push({
+      pageUrl: pageKey,
+      imageUrl: imageKey,
+      title: img.title ?? null,
+      query: attempt.query,
+    });
+  }
+
+  const rows = [
+    ...(attempt.payload.data?.web ?? []).map((w) => ({
+      url: w.url,
+      title: w.title ?? null,
+    })),
+    ...(attempt.payload.data?.images ?? []).map((i) => ({
+      url: i.url ?? i.sourceUrl,
+      title: i.title ?? null,
+    })),
+  ];
+  for (const row of rows) {
+    if (!row.url) continue;
+    const key = canonicalUrl(row.url);
+    if (progressSeen.has(key) || isExcludedHost(key)) continue;
+    progressSeen.add(key);
+    leads.push({ url: key, title: row.title, query: attempt.query });
+  }
+
+  return { leads, referenceImages };
 }
 
 async function search(
@@ -202,6 +296,7 @@ async function search(
   recent: boolean,
   signal?: AbortSignal,
   deadlineAt?: number,
+  page = 1,
 ): Promise<ProviderSearchAttempt> {
   if (!isFirecrawlConfigured()) {
     return {
@@ -238,7 +333,8 @@ async function search(
         "/search",
         {
           query,
-          limit: 10,
+          limit: FIRECRAWL_SEARCH_LIMIT,
+          page,
           sources: ["web", "images"],
           ...(recent ? { tbs: "qdr:m" } : {}),
         },
@@ -385,159 +481,14 @@ const LOCAL_TERMS: Record<string, string[]> = {
   english: ["full movie", "watch online free", "download"],
 };
 
-const PIRACY_SITE_FILTER =
-  "(site:telegram.me OR site:t.me OR site:archive.org OR site:ok.ru OR site:dailymotion.com OR site:rumble.com OR site:vk.com OR site:pastebin.com OR site:reddit.com OR site:x.com OR site:facebook.com)";
-
-/** File lockers and embed hosts that typically carry unauthorized copies. */
-const FILE_HOST_FILTER =
-  "(site:mega.nz OR site:mediafire.com OR site:gofile.io OR site:pixeldrain.com OR site:doodstream.com OR site:streamtape.com OR site:mixdrop.co OR site:filemoon.sx OR site:1fichier.com)";
-
-/** Known unauthorized streaming / index domains. */
-const STREAM_SITE_FILTER =
-  "(site:movierulz.vc OR site:ibomma.bet OR site:tamilrockers.ws OR site:123movies.ai OR site:fmovies.to OR site:soap2day.day OR site:vegamovies.nl OR site:mp4moviez.ink OR site:9xmovies.gold) full movie";
-
-function localTermsFor(langs: string[]): string[] {
-  const out: string[] = [];
-  for (const l of langs) {
-    const terms = LOCAL_TERMS[l.trim().toLowerCase()];
-    if (terms) out.push(...terms);
-  }
-  return [...new Set(out)];
-}
-
-function daysSince(dateStr: string | null): number | null {
-  if (!dateStr) return null;
-  const t = Date.parse(dateStr);
-  if (!Number.isFinite(t)) return null;
-  return Math.floor((Date.now() - t) / 86_400_000);
-}
-
-interface QueryPlan {
-  query: string;
-  /** restrict to recent results */
-  recent: boolean;
-}
-
-/** Optional discovery seed domains for regression / focused hunting — never auto-guilty. */
-const OPTIONAL_SEED_DOMAINS = ["ogomovies1.com.pk"];
+interface QueryPlan extends DiscoveryQueryPlan {}
 
 /**
- * Focused exact-title piracy queries. Never search using generic title tokens alone.
+ * Focused exact-title piracy queries across all adaptive stages.
  * Exported for regression tests.
  */
 export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
-  const primary = (a.title || workTitle).trim();
-  if (!primary) return [];
-  const year = a.releaseDate?.slice(0, 4) || null;
-  // Quoted exact-title variants (user title + AI title + alt + compound splits).
-  const names = queryTitleVariants(primary, [
-    workTitle,
-    a.title ?? "",
-    ...a.altTitles,
-  ]).slice(0, 6);
-  const base = names[0] ?? primary;
-
-  const age = daysSince(a.releaseDate);
-  const isFresh = age !== null && age <= 30;
-
-  // Focused distribution phrases — never bare title / generic tokens alone.
-  const general = [
-    "watch online",
-    "watch full movie",
-    "full movie",
-    "download",
-    "stream",
-    "server",
-    "CAM",
-    "HDCAM",
-    "HDTS",
-    "theatre print",
-    "WEB-DL",
-    "WEBRip",
-    "torrent",
-    "magnet",
-    "telegram",
-    "file host",
-    "video host",
-    "streaming server",
-    "mega.nz",
-    "mediafire",
-    "free streaming",
-    "hdcam download",
-    "dubbed",
-  ];
-  const fresh = [
-    "theatre print online",
-    "cinema recording leak",
-    "same day leak",
-    "hdcam 720p download",
-    "first day print online",
-    "full movie leaked",
-  ];
-
-  const NEG =
-    "-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -site:voxcinemas.com -site:bookmyshow.com -site:fandango.com -\"box office\" -showtimes -\"now showing\"";
-
-  const plans: QueryPlan[] = [];
-  const push = (query: string, recent = false) => {
-    // Refuse queries that are only the bare title / tokens.
-    const trimmed = query.replace(NEG, "").trim().replace(/^"|"$/g, "");
-    if (!trimmed || trimmed === base || names.some((n) => trimmed === n || trimmed === `"${n}"`)) {
-      return;
-    }
-    plans.push({ query, recent });
-  };
-
-  // Core phrases against the primary quoted title.
-  for (const term of general) push(`"${base}" ${term} ${NEG}`, isFresh);
-
-  // Verified alternate / compound title variants (bounded).
-  for (const n of names.slice(1, 4)) {
-    push(`"${n}" watch full movie ${NEG}`, isFresh);
-    push(`"${n}" download ${NEG}`, isFresh);
-    push(`"${n}" watch online ${NEG}`, isFresh);
-    push(`"${n}" torrent magnet ${NEG}`, isFresh);
-    if (year) push(`"${n}" ${year} full movie ${NEG}`, isFresh);
-  }
-
-  if (year) {
-    push(`"${base}" ${year} watch full movie ${NEG}`, isFresh);
-    push(`"${base}" ${year} download ${NEG}`, isFresh);
-    push(`"${base}" ${year} stream ${NEG}`, isFresh);
-  }
-
-  if (isFresh || !a.releaseDate) {
-    for (const term of fresh) push(`"${base}" ${term} ${NEG}`, true);
-  }
-
-  const langs = [a.language, ...a.audienceLanguages].filter(Boolean) as string[];
-  for (const term of localTermsFor(langs).slice(0, 8)) {
-    push(`"${base}" ${term}`, isFresh);
-  }
-  if (a.language) push(`"${base}" ${a.language} dubbed watch online ${NEG}`, isFresh);
-
-  // Actor queries always keep the exact quoted title — never actor alone.
-  for (const actor of a.actors.slice(0, 2)) {
-    push(`"${base}" ${actor} download full movie ${NEG}`, isFresh);
-  }
-
-  // Optional seed domains early so the bounded query budget cannot drop them.
-  // Discovery only — every result still needs exact-page evidence.
-  for (const seed of OPTIONAL_SEED_DOMAINS) {
-    push(`"${base}" site:${seed}`, isFresh);
-    for (const n of names.slice(1, 3)) push(`"${n}" site:${seed}`, isFresh);
-  }
-
-  push(`"${base}" full movie ${PIRACY_SITE_FILTER}`, isFresh);
-  push(`"${base}" ${FILE_HOST_FILTER}`, isFresh);
-  push(`"${base}" ${STREAM_SITE_FILTER}`, isFresh);
-  push(`"${base}" torrent magnet ${NEG}`, isFresh);
-  push(`"${base}" telegram full movie ${NEG}`, isFresh);
-
-  const seen = new Set<string>();
-  return plans
-    .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
-    .slice(0, 40);
+  return buildAllDiscoveryQueries(a, workTitle);
 }
 
 /**
@@ -619,6 +570,7 @@ export interface DiscoveryResult {
   firecrawl_operator_action: string | null;
   firecrawl_stopped_early: boolean;
   firecrawl_stopped_early_reason: string | null;
+  discovery_saturation: DiscoverySaturationMetrics;
   candidates_by_provider: Record<string, number>;
   telegram_queries: number;
   telegram_posts: number;
@@ -671,6 +623,11 @@ export async function firecrawlDiscover(
     firecrawl_operator_action: null,
     firecrawl_stopped_early: false,
     firecrawl_stopped_early_reason: null,
+    discovery_saturation: buildSaturationMetrics({
+      state: emptyDiscoveryCoverageState(),
+      stoppedLowPriorityQueries: 0,
+      providersExhausted: false,
+    }),
     candidates_by_provider: {},
     telegram_queries: 0,
     telegram_posts: 0,
@@ -688,13 +645,18 @@ export async function firecrawlDiscover(
   }
 
   const a = analysis ?? (await analyzeReference(referenceDataUrl, workTitle));
-  const allPlans = buildQueries(a, workTitle);
-  const telegramPlans = allPlans.filter((p) => /\btelegram\b/i.test(p.query));
-  const webPlans = allPlans.filter((p) => !/\btelegram\b/i.test(p.query));
-  const plans = [...webPlans, ...telegramPlans].slice(0, DISCOVERY_MAX_QUERIES_PER_SCAN);
-  const queriesGenerated = plans.length;
-  const deadlineAt =
-    options.deadlineAt ?? Date.now() + PROVIDER_CRAWL_BUDGET_MS;
+  const staged = buildStagedDiscoveryQueries(a, workTitle);
+  const extraPlans: QueryPlan[] = (options.extraQueryStrings ?? [])
+    .map((q) => q.trim())
+    .filter(Boolean)
+    .map((query) => ({
+      query,
+      recent: true,
+      stage: 2 as const,
+    }));
+  const firecrawlDeadlineAt =
+    options.deadlineAt ??
+    Math.min(Date.now() + FIRECRAWL_PROVIDER_BUDGET_MS, Date.now() + PROVIDER_CRAWL_BUDGET_MS);
 
   const seen = new Set<string>();
   const out: DiscoveryCandidate[] = [];
@@ -723,16 +685,123 @@ export async function firecrawlDiscover(
     return uniquePageKeys.size;
   };
 
-  const batched = await runBatchedDiscovery({
-    plans,
-    signal: options.signal,
-    deadlineAt,
-    earlyStopUniquePages: DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
-    uniquePageCount: countUniquePages,
-    execute: (plan, signal) => search(plan.query, plan.recent, signal, deadlineAt),
+  const progressSeen = new Set<string>();
+  const imageSeen = new Set<string>();
+  const emitDiscoveryProgress = async (
+    attemptSlice: ProviderSearchAttempt[],
+    totals: {
+      requests: number;
+      successes: number;
+      failures: number;
+      uniquePages: number;
+    },
+  ) => {
+    if (!options.onProgress) return;
+    const leads: DiscoveryProgress["leads"] = [];
+    const referenceImages: DiscoveryProgress["referenceImages"] = [];
+    for (const attempt of attemptSlice) {
+      const chunk = extractAttemptProgress(attempt, progressSeen, imageSeen);
+      leads.push(...chunk.leads);
+      referenceImages.push(...chunk.referenceImages);
+    }
+    await options.onProgress({
+      queriesGenerated,
+      queriesExecuted: totals.requests,
+      providerSuccesses: totals.successes,
+      providerFailures: totals.failures,
+      uniquePages: totals.uniquePages,
+      leads,
+      referenceImages,
+    });
+  };
+
+  const batchedAttempts: ProviderSearchAttempt[] = [];
+  let batchedCircuit = emptyDiscoveryCircuit();
+  let batchedStoppedEarly = false;
+  let batchedStoppedEarlyReason: string | null = null;
+  let stoppedLowPriorityQueries = 0;
+  let coverageState = emptyDiscoveryCoverageState();
+  let queriesGenerated = staged.totalUniqueQueries + extraPlans.length;
+
+  const runStageBatch = async (stagePlans: QueryPlan[], stage: 1 | 2 | 3) => {
+    if (shouldSkipStageExpansion(stage, coverageState)) return;
+    const mode = resolveDiscoveryMode(coverageState.uniqueCandidateUrls);
+    const telegramPlans = stagePlans.filter((p) => /\btelegram\b/i.test(p.query));
+    const webPlans = stagePlans.filter((p) => !/\btelegram\b/i.test(p.query));
+    const basePlans = [...webPlans, ...telegramPlans].slice(0, MAX_DISCOVERY_QUERIES_PER_SCAN);
+    const plans = expandPlansForDiscoveryMode(
+      basePlans,
+      mode,
+      FIRECRAWL_PRIORITY_QUERY_PAGES,
+    );
+    const batched = await runBatchedDiscovery({
+      plans,
+      signal: options.signal,
+      deadlineAt: firecrawlDeadlineAt,
+      earlyStopUniquePages: DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
+      stopWhenUniquePagesAtLeast: MAX_DISCOVERY_CANDIDATES,
+      uniquePageCount: countUniquePages,
+      shouldIssuePlan: (plan) =>
+        shouldIssueDiscoveryPlan(plan as QueryPlan, coverageState).issue,
+      onPlanSkipped: () => {
+        stoppedLowPriorityQueries += 1;
+      },
+      execute: (plan, signal) =>
+        search(plan.query, plan.recent, signal, firecrawlDeadlineAt, plan.page ?? 1),
+      onAttempt: options.onProgress
+        ? async (attempt, totals) => {
+            await emitDiscoveryProgress([attempt], totals);
+          }
+        : undefined,
+    });
+    for (const attempt of batched.attempts) {
+      const matchedPlan = plans.find((p) => p.query === attempt.query);
+      if (matchedPlan) {
+        coverageState = recordQueryCategoryFromPlan(coverageState, matchedPlan);
+      }
+    }
+    coverageState = buildCoverageStateFromPageKeys(uniquePageKeys, coverageState);
+    for (const attempt of batched.attempts) {
+      const matchedPlan = plans.find((p) => p.query === attempt.query);
+      if (matchedPlan) {
+        coverageState = recordCompletedDiscoveryQuery(
+          coverageState,
+          matchedPlan,
+          attempt.ok,
+        );
+      }
+    }
+    batchedAttempts.push(...batched.attempts);
+    stoppedLowPriorityQueries += batched.skippedPlans;
+    batchedCircuit = batched.circuit;
+    if (batched.stoppedEarly) {
+      batchedStoppedEarly = true;
+      batchedStoppedEarlyReason = batched.stoppedEarlyReason;
+    }
+    return batched;
+  };
+
+  if (extraPlans.length) {
+    await runStageBatch(extraPlans, 2);
+  }
+
+  for (const block of staged.stages) {
+    if (isPastDiscoveryDeadline(firecrawlDeadlineAt)) break;
+    if (coverageState.uniqueCandidateUrls >= MAX_DISCOVERY_CANDIDATES) break;
+    await runStageBatch(block.plans, block.stage);
+  }
+
+  coverageState = buildCoverageStateFromPageKeys(uniquePageKeys, coverageState);
+  const stopReason = batchedStoppedEarlyReason ?? "";
+  const discoverySaturation = buildSaturationMetrics({
+    state: coverageState,
+    stoppedLowPriorityQueries,
+    providersExhausted: batchedStoppedEarly
+      ? /deadline|Safety cap|circuit/i.test(stopReason)
+      : true,
   });
 
-  const results = batched.attempts;
+  const results = batchedAttempts;
   let providerSuccesses = 0;
   let providerFailures = 0;
 
@@ -889,13 +958,14 @@ export async function firecrawlDiscover(
   for (const lead of [
     ...strongLeads.map((l) => ({ ...l, title: l.title ?? null, strong: true as const })),
     ...imagePageLeads,
-    ...weakLeads.slice(0, 12).map((l) => ({ ...l, title: l.title ?? null, strong: false as const })),
+    ...weakLeads.slice(0, 40).map((l) => ({ ...l, title: l.title ?? null, strong: false as const })),
   ]) {
     const key = canonicalUrl(lead.url);
     if (leadSeen.has(key)) continue;
     leadSeen.add(key);
     pageLeads.push({ ...lead, url: key });
-    if (pageLeads.length >= 48) break;
+    // Keep Firecrawl page leads aligned with the scan crawl cap — never stall at ~3/48.
+    if (pageLeads.length >= DEFAULT_PAGE_CAP) break;
   }
 
   // Suspicious distribution sources first, official-looking noise never here.
@@ -912,11 +982,12 @@ export async function firecrawlDiscover(
     firecrawl_requests: results.length,
     firecrawl_successes: providerSuccesses,
     firecrawl_failures: providerFailures,
-    firecrawl_circuit_opened: batched.circuit.opened,
-    firecrawl_circuit_reason: batched.circuit.openedReason,
-    firecrawl_operator_action: batched.circuit.operatorAction,
-    firecrawl_stopped_early: batched.stoppedEarly,
-    firecrawl_stopped_early_reason: batched.stoppedEarlyReason,
+    firecrawl_circuit_opened: batchedCircuit.opened,
+    firecrawl_circuit_reason: batchedCircuit.openedReason,
+    firecrawl_operator_action: batchedCircuit.operatorAction,
+    firecrawl_stopped_early: batchedStoppedEarly,
+    firecrawl_stopped_early_reason: batchedStoppedEarlyReason,
+    discovery_saturation: discoverySaturation,
     candidates_by_provider: {
       firecrawl: pageLeads.length,
       telegram: telegramCandidates,

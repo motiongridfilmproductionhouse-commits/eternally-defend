@@ -197,3 +197,138 @@
     filter: brightness(1.05);
   }
 }
+
+/* ============ Copyright Investigation Center — cyber UI ============ */
+
+@utility cyber-panel {
+  position: relative;
+  background: linear-gradient(160deg, rgba(9, 16, 34, 0.92), rgba(6, 11, 24, 0.88));
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 18px 45px -28px rgba(2, 8, 23, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+@utility cyber-grid {
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+@keyframes cyberRadarSweep {
+  to { transform: rotate(360deg); }
+}
+@keyframes cyberRadarPing {
+  0% { transform: scale(0.35); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 0; }
+}
+@keyframes cyberBlipHot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+@keyframes cyberStreamIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes cyberAlertFlash {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  35% { opacity: 0.35; }
+  60% { opacity: 0.8; }
+  100% { opacity: 0.25; }
+}
+@keyframes cyberAlertCard {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes cyberSiren {
+  0%, 100% { opacity: 0.15; transform: scale(0.9); }
+  50% { opacity: 0.55; transform: scale(1.04); }
+}
+@keyframes cyberLockBeam {
+  0% { transform: translateY(-100%); opacity: 0; }
+  40% { opacity: 0.65; }
+  100% { transform: translateY(320%); opacity: 0; }
+}
+@keyframes cyberNodePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); transform: scale(1); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); transform: scale(1.25); }
+}
+@keyframes cyberLinkDash {
+  to { stroke-dashoffset: -12; }
+}
+@keyframes cyberNeonBorder {
+  0%, 100% { border-color: rgba(56, 189, 248, 0.18); }
+  50% { border-color: rgba(56, 189, 248, 0.45); }
+}
+
+@utility cyber-radar-sweep {
+  background: conic-gradient(from 0deg, rgba(56, 189, 248, 0.35), rgba(56, 189, 248, 0) 42%);
+  will-change: transform;
+  animation: cyberRadarSweep 3.2s linear infinite;
+}
+
+@utility cyber-radar-ping {
+  will-change: transform, opacity;
+  animation: cyberRadarPing 2.6s ease-out infinite;
+}
+
+@utility cyber-blip-hot {
+  will-change: box-shadow;
+  animation: cyberBlipHot 1.4s ease-out infinite;
+}
+
+@utility cyber-stream-row {
+  will-change: transform, opacity;
+  animation: cyberStreamIn 0.35s ease-out;
+}
+
+@utility cyber-alert-flash {
+  will-change: opacity;
+  animation: cyberAlertFlash 1.6s ease-out forwards;
+}
+
+@utility cyber-alert-card {
+  will-change: transform, opacity;
+  animation: cyberAlertCard 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@utility cyber-siren-ring {
+  will-change: transform, opacity;
+  animation: cyberSiren 1.1s ease-in-out infinite;
+}
+
+@utility cyber-lock-beam {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0), rgba(239, 68, 68, 0.35), rgba(239, 68, 68, 0));
+  will-change: transform, opacity;
+  animation: cyberLockBeam 2.4s linear infinite;
+}
+
+@utility cyber-node-pulse {
+  will-change: transform, box-shadow;
+  animation: cyberNodePulse 2s ease-out infinite;
+}
+
+@utility cyber-link-line {
+  animation: cyberLinkDash 1.6s linear infinite;
+}
+
+@utility cyber-neon-border {
+  animation: cyberNeonBorder 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cyber-radar-sweep,
+  .cyber-radar-ping,
+  .cyber-blip-hot,
+  .cyber-stream-row,
+  .cyber-alert-flash,
+  .cyber-alert-card,
+  .cyber-siren-ring,
+  .cyber-lock-beam,
+  .cyber-node-pulse,
+  .cyber-link-line,
+  .cyber-neon-border {
+    animation: none !important;
+  }
+}

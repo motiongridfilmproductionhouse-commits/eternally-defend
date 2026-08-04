@@ -1,35 +1,24 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { readStoredObject, bytesToDataUrl } from "@/lib/copyright/storage.server";
-import { analyzeReference } from "@/lib/copyright/discover.server";
-import { buildMovieFingerprint } from "@/lib/copyright/fingerprint.server";
-import {
-  analyzeYoutubeVideo, buildYoutubeQueries, corroborateThumbnail,
-  discoverYoutubeVideos, scoreVideo,
-} from "@/lib/copyright/youtube-monitor.server";
+import { guessType, sameDay } from "@/lib/copyright/youtube-monitor-helpers";
 import type { Database } from "@/integrations/supabase/types";
 
 type VideoInsert = Database["public"]["Tables"]["copyright_youtube_videos"]["Insert"];
-
-function guessType(key: string): string {
-  if (/\.png$/i.test(key)) return "image/png";
-  if (/\.webp$/i.test(key)) return "image/webp";
-  return "image/jpeg";
-}
-
-function sameDay(a: string | null, b: string | null): boolean {
-  if (!a || !b) return false;
-  const da = new Date(a), db = new Date(b);
-  if (Number.isNaN(+da) || Number.isNaN(+db)) return false;
-  return Math.abs(+da - +db) < 36 * 3600 * 1000;
-}
 
 /** Discover and analyse public YouTube videos related to a protected work. */
 export const runYoutubeMonitor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
+    const [{ readStoredObject, bytesToDataUrl }, { analyzeReference }, { buildMovieFingerprint }, ytm] =
+      await Promise.all([
+        import("@/lib/copyright/storage.server"),
+        import("@/lib/copyright/discover.server"),
+        import("@/lib/copyright/fingerprint.server"),
+        import("@/lib/copyright/youtube-monitor.server"),
+      ]);
+    const { analyzeYoutubeVideo, buildYoutubeQueries, corroborateThumbnail, discoverYoutubeVideos, scoreVideo } = ytm;
     const { supabase, userId } = context;
 
     const { data: scan, error } = await supabase
@@ -184,10 +173,15 @@ export const runReleaseDayReviewAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
+    const [{ readStoredObject, bytesToDataUrl }, { analyzeReference }, ytm] = await Promise.all([
+      import("@/lib/copyright/storage.server"),
+      import("@/lib/copyright/discover.server"),
+      import("@/lib/copyright/youtube-monitor.server"),
+    ]);
     const {
       buildReleaseReviewQueries, discoverYoutubeVideos, fetchVideoComments,
       analyzeReleaseReview, scoreReputationImpact,
-    } = await import("@/lib/copyright/youtube-monitor.server");
+    } = ytm;
     const { supabase, userId } = context;
 
     const { data: scan, error } = await supabase

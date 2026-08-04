@@ -253,12 +253,19 @@ test("raw provider results never reach the UI", () => {
   assert.equal((visible[0].evidence as Record<string, unknown>).client_visible, true);
 });
 
-test("executor wires SerpApi fallback and known-URL preflight", () => {
+test("executor runs multi-provider discovery and streams known-URL preflight", () => {
   const src = readFileSync(resolve(process.cwd(), "src/lib/copyright.functions.ts"), "utf8");
+  assert.match(src, /firecrawlDiscover/);
   assert.match(src, /runCopyrightSerpApiDiscovery/);
-  assert.match(src, /Known URLs are investigated before any provider search/);
-  assert.match(src, /onlyWhenFirecrawlFailed:\s*true/);
+  assert.match(src, /runBrightDataDiscovery/);
+  assert.match(src, /onlyWhenFirecrawlFailed:\s*false/);
+  assert.match(src, /runKnownUrlEarlyPhase/);
+  assert.match(src, /onProgress: async \(progress\)/);
+  assert.match(src, /ScanTelemetryWriter/);
   assert.doesNotMatch(src, /throw discoverErr/);
+  assert.match(src, /DEFAULT_PAGE_CAP/);
+  assert.doesNotMatch(src, /pageLeads\.slice\(0,\s*20\)/);
+  assert.doesNotMatch(src, /prioritizeKnownUrlLeads\(\s*[^,]+,\s*[^,]+,\s*40\s*\)/);
 });
 
 test("dedupeCopyrightMatchRows prevents duplicate upsert keys", () => {

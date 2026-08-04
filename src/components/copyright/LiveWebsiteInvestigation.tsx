@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import {
   formatRelativeActivityTime,
-  parseRecentActivity,
+  parseWebsiteActivity,
   providerDisplayLabel,
   resolveNewVerifiedActivityPulse,
   sortActivityNewestFirst,
@@ -165,7 +165,7 @@ export function LiveWebsiteInvestigation({
   const reducedMotion = usePrefersReducedMotion();
   const tabVisible = useTabVisible();
   const events = useMemo(
-    () => sortActivityNewestFirst(parseRecentActivity(stats)),
+    () => sortActivityNewestFirst(parseWebsiteActivity(stats)),
     [stats],
   );
 
@@ -206,9 +206,12 @@ export function LiveWebsiteInvestigation({
     }
   }, [scanId]);
 
-  const scanning = isScanning ?? (scanStatus === "running" || scanStatus === "pending");
+  const scanning = isScanning ?? (scanStatus === "queued" || scanStatus === "running" || scanStatus === "pending");
+  const bootstrapActive = stats?.scan_bootstrap === true;
   const emptyMessage = scanning
-    ? "Waiting for the first real website candidate…"
+    ? bootstrapActive
+      ? "Initializing Eterna investigation channels…"
+      : "Initializing Eterna investigation channels…"
     : "No website investigation activity recorded for this scan.";
 
   return (

@@ -48,7 +48,7 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
   const run = useMutation({
     mutationFn: () => runFn({ data: { scanId } }),
     onSuccess: (r) => {
-      toast.success(`Monitored ${r.scanned} YouTube videos · ${r.flagged} flagged`);
+      toast.success(`Monitored ${r.scanned} public videos · ${r.flagged} flagged`);
       qc.invalidateQueries({ queryKey: ["copyright-youtube", scanId] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -67,22 +67,22 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur">
         <div>
           <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <Youtube className="h-4 w-4 text-primary" />YouTube Copyright &amp; Reputation Monitoring
+            <Youtube className="h-4 w-4 text-primary" />Public Video Copyright &amp; Reputation Monitoring
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Public YouTube data only. Detects reuse of your footage, posters and promos, plus sentiment and reputation risk around the release window. Evidence collection only — nothing is reported or removed.
+            Public video platform data only. Detects reuse of your footage, posters and promos, plus sentiment and reputation risk around the release window. Evidence collection only — nothing is reported or removed.
           </p>
         </div>
         <Button size="sm" onClick={() => run.mutate()} disabled={run.isPending}>
           {run.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Radar className="mr-2 h-4 w-4" />}
-          Run YouTube monitoring
+          Run video monitoring
         </Button>
       </div>
 
       {videos.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
       {!videos.isLoading && !rows.length && (
         <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
-          No monitored YouTube videos yet for this reference. Run monitoring to collect intelligence.
+          No monitored public videos yet for this reference. Run monitoring to collect intelligence.
         </div>
       )}
 
@@ -96,7 +96,7 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
           <article key={v.id} className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur">
             <div className="flex gap-4">
               {v.thumbnail_url && (
-                <img src={v.thumbnail_url} alt={`Thumbnail of monitored YouTube video ${v.title}`} loading="lazy"
+                <img src={v.thumbnail_url} alt={`Thumbnail of monitored public video ${v.title}`} loading="lazy"
                   className="h-24 w-40 shrink-0 rounded-lg border border-border/60 object-cover" />
               )}
               <div className="min-w-0 flex-1 space-y-2">

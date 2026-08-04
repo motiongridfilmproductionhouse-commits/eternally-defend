@@ -4,6 +4,150 @@
  */
 
 import { CRAWL_FAILURE_CATEGORIES } from "./crawl-failure";
+import { emptyCrawlMetrics, type CrawlMetrics } from "./crawl-metrics";
+
+/** Allowed scan stop reasons — never stop because "enough matches" were found. */
+export type ScanTerminationReason =
+  | "providers_exhausted"
+  | "timeout_reached"
+  | "cancelled"
+  | "fatal_configuration_error";
+
+export const FORBIDDEN_TERMINATION_REASONS = [
+  "enough_matches_found",
+  "maximum_verified_findings_reached",
+] as const;
+
+/** Operator-facing coverage counters written into scan.stats. */
+export interface DiscoveryCoverageDiagnostics {
+  queries_generated: number;
+  provider_requests_started: number;
+  provider_requests_succeeded: number;
+  provider_requests_failed: number;
+  raw_results_received: number;
+  unique_candidate_urls: number;
+  unique_candidate_domains: number;
+  pages_crawled: number;
+  detail_links_queued: number;
+  detail_links_processed: number;
+  redirects_followed: number;
+  candidates_rejected: number;
+  candidates_pending: number;
+  findings_verified: number;
+  scan_elapsed_ms: number;
+  termination_reason: ScanTerminationReason;
+  not_processed_due_to_budget: number;
+}
+
+export function emptyDiscoveryCoverageDiagnostics(
+  overrides: Partial<DiscoveryCoverageDiagnostics> = {},
+): DiscoveryCoverageDiagnostics {
+  return {
+    queries_generated: 0,
+    provider_requests_started: 0,
+    provider_requests_succeeded: 0,
+    provider_requests_failed: 0,
+    raw_results_received: 0,
+    unique_candidate_urls: 0,
+    unique_candidate_domains: 0,
+    pages_crawled: 0,
+    detail_links_queued: 0,
+    detail_links_processed: 0,
+    redirects_followed: 0,
+    candidates_rejected: 0,
+    candidates_pending: 0,
+    findings_verified: 0,
+    scan_elapsed_ms: 0,
+    termination_reason: "providers_exhausted",
+    not_processed_due_to_budget: 0,
+    ...overrides,
+  };
+}
+
+export function resolveScanTerminationReason(input: {
+  cancelled?: boolean;
+  abortedByDeadline?: boolean;
+  fatalConfigurationError?: boolean;
+  fatalReason?: string | null;
+}): ScanTerminationReason {
+  if (input.fatalConfigurationError || input.fatalReason) {
+    return "fatal_configuration_error";
+  }
+  if (input.cancelled) return "cancelled";
+  if (input.abortedByDeadline) return "timeout_reached";
+  return "providers_exhausted";
+}
+
+export function coverageDiagnosticsFromStats(
+  stats: Record<string, unknown> | null | undefined,
+): DiscoveryCoverageDiagnostics {
+  const n = (key: string) => {
+    const v = stats?.[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
+  const reasonRaw = stats?.termination_reason;
+  const reason: ScanTerminationReason =
+    reasonRaw === "timeout_reached" ||
+    reasonRaw === "cancelled" ||
+    reasonRaw === "fatal_configuration_error" ||
+    reasonRaw === "providers_exhausted"
+      ? reasonRaw
+      : resolveScanTerminationReason({
+          abortedByDeadline:
+            stats?.aborted_by_deadline === true ||
+            /deadline|timeout/i.test(String(stats?.failure_reason ?? "")),
+          cancelled: stats?.cancelled === true || String(stats?.terminal_status) === "cancelled",
+          fatalConfigurationError:
+            String(stats?.terminal_status) === "failed" &&
+            /config|never started|no discovery queries/i.test(
+              String(stats?.failure_reason ?? ""),
+            ),
+        });
+
+  return emptyDiscoveryCoverageDiagnostics({
+    queries_generated: n("queries_generated"),
+    provider_requests_started:
+      n("provider_requests_started") || n("provider_requests") || n("queries_executed"),
+    provider_requests_succeeded:
+      n("provider_requests_succeeded") || n("provider_successes"),
+    provider_requests_failed:
+      n("provider_requests_failed") || n("provider_failures"),
+    raw_results_received:
+      n("raw_results_received") || n("provider_results") || n("provider_candidates"),
+    unique_candidate_urls:
+      n("unique_candidate_urls") || n("unique_candidate_pages") || n("unique_pages"),
+    unique_candidate_domains: n("unique_candidate_domains"),
+    pages_crawled: n("pages_crawled"),
+    detail_links_queued:
+      n("detail_links_queued") || n("detail_pages_queued"),
+    detail_links_processed:
+      n("detail_links_processed") || n("detail_pages_followed"),
+    redirects_followed: n("redirects_followed"),
+    candidates_rejected:
+      n("candidates_rejected") ||
+      n("title_identity_rejected") +
+        n("hard_negative_rejected") +
+        n("access_evidence_rejected") +
+        n("artwork_only_rejected"),
+    candidates_pending:
+      n("candidates_pending") || n("suspected_review_pages"),
+    findings_verified:
+      n("findings_verified") ||
+      n("client_visible_findings") ||
+      n("verified_client_visible_findings"),
+    scan_elapsed_ms: n("scan_elapsed_ms"),
+    termination_reason: reason,
+    not_processed_due_to_budget:
+      n("not_processed_due_to_budget") || n("detail_links_remaining"),
+  });
+}
+
+export interface ProviderRunMetrics {
+  requested: number;
+  succeeded: number;
+  failed: number;
+  result_count: number;
+}
 
 export interface CopyrightScanDiagnostics {
   queries_generated: number;
@@ -41,6 +185,87 @@ export interface CopyrightScanDiagnostics {
   catalog_listing_rejected: number;
   youtube_promotional_rejected: number;
   registered_monitored_sources: number;
+  static_fetch_succeeded: number;
+  static_fetch_empty: number;
+  browser_fallback_attempted: number;
+  browser_fallback_succeeded: number;
+  browser_fallback_failed: number;
+  crawl4ai_fallback_attempted: number;
+  crawl4ai_fallback_succeeded: number;
+  pages_rendered: number;
+  exact_title_pages_found: number;
+  pages_with_access_evidence: number;
+  findings_created: number;
+  pages_rejected_by_title: number;
+  pages_rejected_as_official_or_promo: number;
+  pages_missing_access_evidence: number;
+  fresh_discovery_candidates: number;
+  historical_candidates_restored: number;
+  monitored_sources_rechecked: number;
+  known_risk_domains_searched: number;
+  mirror_redirect_candidates: number;
+  candidates_before_dedup: number;
+  candidates_after_dedup: number;
+  detail_links_discovered: number;
+  detail_pages_queued: number;
+  suspected_review_pages: number;
+  historical_findings_reconfirmed: number;
+  historical_sources_temporarily_unreachable: number;
+  historical_requires_review: number;
+  redirected_historical_sources: number;
+  suspicious_sources_displayed: number;
+  suspicious_sources_summary: string | null;
+}
+
+export function crawlMetricsFromStats(
+  stats: Record<string, unknown> | null | undefined,
+): CrawlMetrics {
+  const nested =
+    stats?.crawl_metrics && typeof stats.crawl_metrics === "object"
+      ? (stats.crawl_metrics as Record<string, unknown>)
+      : null;
+  const source = nested ?? stats ?? {};
+  const n = (key: keyof CrawlMetrics) => {
+    const v = source[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
+  const base = emptyCrawlMetrics();
+  return {
+    static_fetch_succeeded: n("static_fetch_succeeded"),
+    static_fetch_empty: n("static_fetch_empty"),
+    browser_fallback_attempted: n("browser_fallback_attempted"),
+    browser_fallback_succeeded: n("browser_fallback_succeeded"),
+    browser_fallback_failed: n("browser_fallback_failed"),
+    crawl4ai_fallback_attempted: n("crawl4ai_fallback_attempted"),
+    crawl4ai_fallback_succeeded: n("crawl4ai_fallback_succeeded"),
+    detail_pages_followed: n("detail_pages_followed"),
+    pages_rendered: n("pages_rendered"),
+    pages_rejected_by_title: n("pages_rejected_by_title"),
+    pages_rejected_as_official_or_promo: n("pages_rejected_as_official_or_promo"),
+    pages_missing_access_evidence: n("pages_missing_access_evidence"),
+    findings_created: n("findings_created"),
+    exact_title_pages_found: n("exact_title_pages_found"),
+    pages_with_access_evidence: n("pages_with_access_evidence"),
+  };
+}
+
+/** Canonical provider telemetry — discovery success is independent of crawl outcomes. */
+export function providerMetricsFromStats(
+  stats: Record<string, unknown> | null | undefined,
+): ProviderRunMetrics {
+  const n = (key: string) => {
+    const v = stats?.[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
+  const requested = n("provider_requests") || n("queries_executed");
+  const succeeded = n("provider_successes");
+  const failed = n("provider_failures");
+  const result_count =
+    n("provider_results") ||
+    n("provider_candidates") ||
+    n("candidates") ||
+    n("unique_candidate_pages");
+  return { requested, succeeded, failed, result_count };
 }
 
 export function diagnosticsFromStats(
@@ -50,13 +275,13 @@ export function diagnosticsFromStats(
     const v = stats?.[key];
     return typeof v === "number" && Number.isFinite(v) ? v : 0;
   };
+  const crawl = crawlMetricsFromStats(stats);
   return {
     queries_generated: n("queries_generated"),
     queries_executed: n("queries_executed"),
     provider_results: n("provider_results") || n("provider_candidates") || n("candidates"),
     unique_candidate_pages: n("unique_candidate_pages"),
     listing_pages_found: n("listing_pages_found"),
-    detail_pages_followed: n("detail_pages_followed"),
     pages_crawled: n("pages_crawled"),
     pages_failed: n("pages_failed"),
     title_identity_rejected: n("title_identity_rejected"),
@@ -90,6 +315,27 @@ export function diagnosticsFromStats(
     catalog_listing_rejected: n("catalog_listing_rejected"),
     youtube_promotional_rejected: n("youtube_promotional_rejected"),
     registered_monitored_sources: n("registered_monitored_sources"),
+    ...crawl,
+    detail_pages_followed: Math.max(n("detail_pages_followed"), crawl.detail_pages_followed),
+    fresh_discovery_candidates: n("fresh_discovery_candidates"),
+    historical_candidates_restored: n("historical_candidates_restored"),
+    monitored_sources_rechecked: n("monitored_sources_rechecked"),
+    known_risk_domains_searched: n("known_risk_domains_searched"),
+    mirror_redirect_candidates: n("mirror_redirect_candidates"),
+    candidates_before_dedup: n("candidates_before_dedup"),
+    candidates_after_dedup: n("candidates_after_dedup"),
+    detail_links_discovered: n("detail_links_discovered"),
+    detail_pages_queued: n("detail_pages_queued"),
+    suspected_review_pages: n("suspected_review_pages"),
+    historical_findings_reconfirmed: n("historical_findings_reconfirmed"),
+    historical_sources_temporarily_unreachable: n("historical_sources_temporarily_unreachable"),
+    historical_requires_review: n("historical_requires_review"),
+    redirected_historical_sources: n("redirected_historical_sources"),
+    suspicious_sources_displayed: n("suspicious_sources_displayed"),
+    suspicious_sources_summary:
+      typeof stats?.suspicious_sources_summary === "string"
+        ? stats.suspicious_sources_summary
+        : null,
   };
 }
 
@@ -155,8 +401,23 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
   lines.push(
     `Discovery: ${d.queries_generated} queries generated, ${d.queries_executed} executed, ${d.provider_results} provider results, ${d.unique_candidate_pages} unique candidate pages.`,
   );
+  if (
+    d.fresh_discovery_candidates > 0 ||
+    d.historical_candidates_restored > 0 ||
+    d.known_risk_domains_searched > 0
+  ) {
+    lines.push(
+      `Candidate union: ${d.fresh_discovery_candidates} fresh discovery, ${d.historical_candidates_restored} historical/monitored restored, ${d.monitored_sources_rechecked} monitored sources rechecked, ${d.known_risk_domains_searched} known-risk domains searched, ${d.mirror_redirect_candidates} mirror/redirect candidates, ${d.candidates_before_dedup} before dedup → ${d.candidates_after_dedup} after dedup.`,
+    );
+  }
   lines.push(
-    `Crawl: ${d.pages_crawled} pages crawled (${d.pages_failed} failed), ${d.listing_pages_found} listing/search pages, ${d.detail_pages_followed} title-detail pages followed.`,
+    `Crawl: ${d.pages_crawled} pages crawled (${d.pages_failed} failed), ${d.listing_pages_found} listing/search pages, ${d.detail_pages_followed} title-detail pages followed (${d.detail_links_discovered} links discovered, ${d.detail_pages_queued} queued).`,
+  );
+  lines.push(
+    `Render ladder: ${d.static_fetch_succeeded} static pages fetched, ${d.static_fetch_empty} empty static, ${d.browser_fallback_attempted} dynamic render attempts (${d.browser_fallback_succeeded} recovered, ${d.browser_fallback_failed} failed), ${d.pages_rendered} rendered pages inspected.`,
+  );
+  lines.push(
+    `Evidence funnel: ${d.exact_title_pages_found} exact-title pages, ${d.pages_with_access_evidence} with strong access evidence, ${d.suspected_review_pages} suspected (requires review), ${d.pages_rejected_by_title} title rejected, ${d.pages_rejected_as_official_or_promo} official/promo rejected, ${d.pages_missing_access_evidence} missing access evidence, ${d.findings_created} findings created.`,
   );
   lines.push(...crawlFailureBreakdownLines(stats));
   lines.push(
@@ -166,15 +427,16 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
     `Access signals seen: ${d.access_evidence_pages} pages with access evidence, ${d.embedded_players} embedded players, ${d.download_pages} download pages, ${d.file_host_destinations} file-host, ${d.torrents_magnets} torrent/magnet, ${d.theatre_print_findings} theatre-print.`,
   );
   lines.push(
-    `Outcome: ${d.internal_leads_persisted} internal leads retained, ${d.client_visible_findings} client-visible piracy findings, ${d.registered_monitored_sources} monitored sources created (require exact title + exact-page access evidence).`,
+    `Outcome: ${d.internal_leads_persisted} internal leads retained, ${d.client_visible_findings} client-visible piracy findings, ${d.historical_findings_reconfirmed} historical findings reconfirmed, ${d.historical_sources_temporarily_unreachable} historical sources temporarily unreachable, ${d.historical_requires_review} historical requiring review, ${d.suspicious_sources_displayed} suspicious sources displayed, ${d.registered_monitored_sources} monitored sources created (require exact title + exact-page access evidence).`,
   );
+  if (d.suspicious_sources_summary) {
+    lines.push(d.suspicious_sources_summary);
+  }
 
-  const providerSuccesses = n("provider_successes");
-  const providerFailures = n("provider_failures");
-  const providerRequests = n("provider_requests") || d.queries_executed;
-  if (providerRequests > 0 || providerFailures > 0) {
+  const provider = providerMetricsFromStats(stats);
+  if (provider.requested > 0 || provider.failed > 0) {
     lines.push(
-      `Providers: ${providerRequests} requests, ${providerSuccesses} successful, ${providerFailures} failed.`,
+      `Providers: ${provider.requested} requests, ${provider.succeeded} successful, ${provider.failed} failed, ${provider.result_count} candidate results (discovery success is separate from crawl failures).`,
     );
   }
   if (stats?.provider_failures_by_category && typeof stats.provider_failures_by_category === "object") {
@@ -195,7 +457,7 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
     lines.push(
       "Primary bottleneck: accepted known URL(s) could not be retrieved (network/render failure) — not a content rejection.",
     );
-  } else if (providerSuccesses === 0 && (providerFailures > 0 || d.queries_executed === 0)) {
+  } else if (provider.succeeded === 0 && (provider.failed > 0 || d.queries_executed === 0)) {
     lines.push(
       "Primary bottleneck: discovery providers never returned a successful response — scan should be failed, not completed.",
     );
@@ -204,7 +466,7 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
       "Primary bottleneck: known URL(s) were retrieved but failed exact-title identity and/or distribution-access evidence gates.",
     );
   } else if (d.queries_executed === 0 && d.provider_results === 0 && d.known_urls_attempted === 0) {
-    lines.push("Primary bottleneck: discovery returned no provider results — check Firecrawl configuration and query coverage.");
+    lines.push("Primary bottleneck: discovery returned no candidate results — check public discovery configuration and query coverage.");
   } else if (d.pages_crawled === 0) {
     lines.push("Primary bottleneck: no candidate pages were crawled for exact-page distribution evidence.");
   } else if (d.pages_failed > 0 && d.pages_failed >= d.pages_crawled * 0.6) {

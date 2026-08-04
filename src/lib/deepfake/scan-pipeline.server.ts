@@ -63,7 +63,18 @@ import {
   shouldPersistFinding,
   type FindingClassification,
 } from "./page-evidence.server";
+import { collectReferenceImages } from "./reference-collection.server";
+import { expandIdentityVariants } from "./identity-variants.server";
 import { isUrlVerified } from "./url-verification.server";
+import {
+  parseReferenceImagesFromMetrics,
+  type CollectedReferenceImage,
+} from "./reference-images";
+import {
+  queueGoogleImagesInvestigation,
+  syncGoogleImagesScanMetrics,
+} from "./google-images-jobs.server";
+import { dispatchGoogleImagesWorker } from "./google-images-worker-dispatch.server";
 
 type ProviderHit = {
   url: string;
@@ -156,6 +167,14 @@ type RiskCounts = {
   low: number;
 };
 
+export type PipelineWorkerLimits = {
+  maxQueryBatches: number;
+  onBatchProcessed?: (info: {
+    batchNumber: number;
+    queryIds: string[];
+  }) => void;
+};
+
 export type PipelineResult = {
   completed: boolean;
   checkpointPaused: boolean;
@@ -166,6 +185,7 @@ export type PipelineResult = {
   metrics: DiscoveryFunnelMetrics;
   checkpoint: ScanCheckpoint;
   planQueryCount: number;
+  queryBatchesProcessed: number;
 };
 
 const THREAT_TRIAGE_SIGNALS = new Set([
@@ -312,7 +332,8 @@ function findingRowFromClassification(input: {
   };
 }
 
-function buildScheduledQueries(input: {
+/** Build the initial query schedule persisted at scan startup and reused by workers. */
+export function buildScheduledQueries(input: {
   target: { name: string; aliases: string[]; handles: string[] };
   googleImagesUrl?: string;
   maxQueries: number;
@@ -359,12 +380,23 @@ export async function executeInterleavedDeepfakePipeline(input: {
   perQueryLimit?: number;
   runtime: ScanRuntime;
   resumeCheckpoint?: ScanCheckpoint | null;
+  workerLimits?: PipelineWorkerLimits;
 }): Promise<PipelineResult> {
-  const maxQueries = input.resumeCheckpoint?.max_queries ?? input.maxQueries ?? 56;
+  const autoAliases = expandIdentityVariants({
+    name: input.target.name,
+    aliases: input.target.aliases,
+    handles: input.target.handles,
+  });
+  const mergedAliases = [
+    ...new Set([...input.target.aliases, ...autoAliases]),
+  ].slice(0, 48);
+  const mergedTarget = { ...input.target, aliases: mergedAliases };
+
+  const maxQueries = input.resumeCheckpoint?.max_queries ?? input.maxQueries ?? 72;
   const perQueryLimit =
     input.resumeCheckpoint?.per_query_limit ?? input.perQueryLimit ?? 20;
   const scheduledQueries = buildScheduledQueries({
-    target: input.target,
+    target: mergedTarget,
     googleImagesUrl: input.googleImagesUrl,
     maxQueries,
   });
@@ -384,15 +416,219 @@ export async function executeInterleavedDeepfakePipeline(input: {
     resumeCheckpoint ??
     createEmptyCheckpoint({
       queries: scheduledQueries,
-      targetName: input.target.name,
+      targetName: mergedTarget.name,
       profileId: input.profileId ?? null,
-      aliases: input.target.aliases,
-      handles: input.target.handles,
+      aliases: mergedTarget.aliases,
+      handles: mergedTarget.handles,
       perQueryLimit,
       maxQueries,
       initialWaveCount: INITIAL_PRIORITY_QUERY_COUNT,
       metrics,
     });
+
+  metrics.aliases_generated = autoAliases.length;
+
+  let collectedReferenceImages: CollectedReferenceImage[] = resumeCheckpoint
+    ? parseReferenceImagesFromMetrics(resumeCheckpoint.metrics as Record<string, unknown>)
+    : [];
+
+  // Google Images is a first-class early discovery source: queue investigation
+  // queries before reference harvest so diagnostics/UI show it first. Dispatch
+  // workers after references are available for reliable face comparison.
+  // Failures never abort the scan (Bing/Brave/Yandex continue independently).
+  if (!metrics.google_images_jobs_queued) {
+    await touchScanProgress({
+      supabase: input.supabase,
+      ownership: input.ownership,
+      patch: {
+        discovery_metrics: {
+          ...stageMetrics(metrics, checkpoint),
+          investigation_stage: "searching_google",
+          google_images_background_status: "queued",
+        },
+      },
+    });
+
+    try {
+      const queued = await queueGoogleImagesInvestigation({
+        supabase: input.supabase,
+        scanId: input.scanId,
+        userId: input.userId,
+        identityId: input.profileId ?? null,
+        name: mergedTarget.name,
+        aliases: mergedTarget.aliases,
+        handles: mergedTarget.handles,
+      });
+      metrics.google_images_jobs_queued = queued.queued > 0 ? 1 : 0;
+      metrics.google_images_jobs_total = queued.queued;
+      await syncGoogleImagesScanMetrics({
+        supabase: input.supabase,
+        scanId: input.scanId,
+        userId: input.userId,
+        backgroundStatus: queued.queued > 0 ? "queued" : "completed",
+        extraMetrics: {
+          google_images_jobs_queued: queued.queued > 0 ? 1 : 0,
+          google_images_investigation_complete: 0,
+        },
+      });
+    } catch (error) {
+      console.warn("[DEEPFAKE] Google Images queue isolated failure:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      metrics.google_images_jobs_queued = 1;
+      await touchScanProgress({
+        supabase: input.supabase,
+        ownership: input.ownership,
+        patch: {
+          discovery_metrics: {
+            ...stageMetrics(metrics, checkpoint),
+            google_images_diagnostic: {
+              provider_status: "unavailable",
+              failure_reason:
+                error instanceof Error ? error.message : String(error),
+            },
+            google_images_background_status: "failed",
+          },
+        },
+      });
+    }
+  }
+
+  if (!resumeCheckpoint) {
+    await touchScanProgress({
+      supabase: input.supabase,
+      ownership: input.ownership,
+      patch: {
+        discovery_metrics: {
+          ...metrics,
+          investigation_stage: "collecting_reference_images",
+          aliases_generated: metrics.aliases_generated,
+        },
+      },
+    });
+
+    const refResult = await collectReferenceImages({
+      name: mergedTarget.name,
+      aliases: mergedTarget.aliases,
+      handles: mergedTarget.handles,
+      signal: input.runtime.signal,
+      softDeadlineMs: input.runtime.softDeadlineMs,
+      onProgress: async (stage) => {
+        await touchScanProgress({
+          supabase: input.supabase,
+          ownership: input.ownership,
+          patch: {
+            discovery_metrics: {
+              ...metrics,
+              investigation_stage: stage,
+            },
+          },
+        });
+      },
+    });
+
+    collectedReferenceImages = refResult.images;
+
+    metrics.reference_images_count = refResult.final_reference_count;
+    metrics.final_reference_images = refResult.final_reference_count;
+    metrics.embeddings_indexed = refResult.images.filter((i) => i.embedding_indexed).length;
+    metrics.images_downloaded = refResult.provider_stats.reduce(
+      (sum, s) => sum + s.images_downloaded,
+      0,
+    );
+    for (const stat of refResult.provider_stats) {
+      if (stat.provider === "google_images") {
+        metrics.reference_google_images_found = stat.images_found;
+      } else if (stat.provider === "bing_images") {
+        metrics.reference_bing_images_found = stat.images_found;
+      } else if (stat.provider === "yandex_images") {
+        metrics.reference_yandex_images_found = stat.images_found;
+      }
+    }
+    await touchScanProgress({
+      supabase: input.supabase,
+      ownership: input.ownership,
+      patch: {
+        discovery_metrics: {
+          ...metrics,
+          reference_image_provider_stats: refResult.provider_stats,
+          reference_images: refResult.images.slice(0, 120),
+        },
+      },
+    });
+  }
+
+  // Start Google Images workers once reference faces are available (or after
+  // a best-effort harvest). Isolation: dispatch failures never abort the scan.
+  // Only kick workers when queued/not finished — avoid re-dispatch every wave.
+  const metricsRecord = metrics as Record<string, unknown>;
+  const googleImagesBg =
+    typeof metricsRecord.google_images_background_status === "string"
+      ? metricsRecord.google_images_background_status
+      : null;
+  if (
+    metrics.google_images_jobs_queued &&
+    googleImagesBg !== "completed" &&
+    googleImagesBg !== "failed"
+  ) {
+    try {
+      console.info("deepfake_startup_stage", {
+        stage: "google_images_queue",
+        scan_id: input.scanId,
+        background_status: googleImagesBg,
+      });
+      const dispatch = await dispatchGoogleImagesWorker({
+        scanId: input.scanId,
+        timeoutMs: 8_000,
+      });
+      if (!dispatch.dispatched) {
+        console.warn("[DEEPFAKE] Google Images worker dispatch failed:", {
+          scanId: input.scanId,
+          reason: dispatch.reason,
+          category: dispatch.category,
+          worker_url: dispatch.worker_url,
+        });
+        const { isProductionDeepfakeRuntime, keepBackgroundWorkAlive } =
+          await import("./startup-network.server");
+        // Production: leave GI jobs queued/retryable — never inline sync/async fallback.
+        if (!isProductionDeepfakeRuntime()) {
+          const { executeGoogleImagesWorkerBatch } = await import(
+            "./google-images-worker.server"
+          );
+          keepBackgroundWorkAlive(
+            executeGoogleImagesWorkerBatch({
+              supabase: input.supabase,
+              scanId: input.scanId,
+              userId: input.userId,
+            }).catch((error) => {
+              console.warn(
+                "[DEEPFAKE] Inline Google Images worker fallback failed:",
+                {
+                  scanId: input.scanId,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+              );
+            }),
+          );
+        }
+      }
+      await touchScanProgress({
+        supabase: input.supabase,
+        ownership: input.ownership,
+        patch: {
+          discovery_metrics: {
+            ...stageMetrics(metrics, checkpoint),
+            google_images_background_status: "running",
+            investigation_stage: "searching_google",
+          },
+        },
+      });
+    } catch (error) {
+      console.warn("[DEEPFAKE] Google Images dispatch isolated failure:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   if (!resumeCheckpoint) {
     checkpoint.queries = scheduledQueries;
@@ -407,8 +643,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
       "./serpapi-images.server"
     );
     checkpoint.serpapi_queries = buildSerpApiExactIdentityQueries({
-      name: input.target.name,
-      aliases: input.target.aliases,
+      name: mergedTarget.name,
+      aliases: mergedTarget.aliases,
     });
     checkpoint.serpapi_next_query_index = 0;
     checkpoint.serpapi_completed_query_ids =
@@ -656,6 +892,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
           softDeadlineMs: input.runtime.softDeadlineMs,
         });
 
+        metrics.face_comparisons += analyzableCandidates.length;
+        metrics.images_compared += analyzableCandidates.length;
+
         metrics.serpapi_face_rejected += faceResults.rejected.filter(
           (item) => item.source === "serpapi_google_images",
         ).length;
@@ -674,6 +913,65 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
         hiveCandidates = [
           ...(faceResults.matched as any[]),
+          ...syntheticUnavailable.map((item) => ({
+            ...item,
+            target_face_match: false,
+            face_similarity: 0,
+            matched_face_id: null,
+          })),
+        ];
+      } else if (collectedReferenceImages.length > 0 && analyzableCandidates.length) {
+        await touchScanProgress({
+          supabase: input.supabase,
+          ownership: input.ownership,
+          patch: {
+            discovery_metrics: {
+              ...stageMetrics(metrics, checkpoint),
+              investigation_stage: "comparing_faces",
+            },
+          },
+        });
+        const { filterCandidatesByAutoReferences } = await import(
+          "./auto-reference-face-filter.server"
+        );
+        const faceResults = await filterCandidatesByAutoReferences({
+          referenceImages: collectedReferenceImages,
+          candidates: analyzableCandidates,
+          similarityThreshold: 88,
+          signal: input.runtime.signal,
+          softDeadlineMs: input.runtime.softDeadlineMs,
+        });
+
+        metrics.face_comparisons += faceResults.comparisons;
+        metrics.images_compared += faceResults.comparisons;
+
+        const syntheticUnavailable = faceResults.errors.filter((item) => {
+          const text = [
+            item.title ?? "",
+            item.description ?? "",
+            item.page_text ?? "",
+            item.url ?? "",
+          ].join(" ");
+          return /\b(?:deepfake|face\s*swap|ai\s*nude|fake\s*nude|morphed|synthetic\s*media)\b/i.test(
+            text,
+          );
+        });
+
+        hiveCandidates = [
+          ...(faceResults.matched as any[]),
+          ...analyzableCandidates
+            .filter(
+              (c) =>
+                !faceResults.matched.some((m) => m.url === c.url) &&
+                !faceResults.rejected.some((r) => r.url === c.url) &&
+                !faceResults.errors.some((e) => e.url === c.url),
+            )
+            .map((item) => ({
+              ...item,
+              target_face_match: false,
+              face_similarity: 0,
+              matched_face_id: null,
+            })),
           ...syntheticUnavailable.map((item) => ({
             ...item,
             target_face_match: false,
@@ -1233,10 +1531,22 @@ export async function executeInterleavedDeepfakePipeline(input: {
     }
   };
 
+  let queryBatchesProcessed = 0;
+  const workerMaxQueryBatches = input.workerLimits?.maxQueryBatches ?? Number.POSITIVE_INFINITY;
+
+  const shouldPauseForWorkerContinuation = () =>
+    Number.isFinite(workerMaxQueryBatches) &&
+    queryBatchesProcessed >= workerMaxQueryBatches &&
+    checkpointHasPendingWork(checkpoint);
+
   try {
     // First SerpApi wave (≤2 requests) so verification can begin early.
     await runSerpApiDiscoveryWave(2);
     await processPendingCandidates();
+
+    if (shouldPauseForWorkerContinuation()) {
+      await pauseIfPending();
+    }
 
     if (!isFirecrawlConfigured()) {
       console.warn(
@@ -1253,14 +1563,25 @@ export async function executeInterleavedDeepfakePipeline(input: {
       assertNotAborted(input.runtime.signal);
       await processPendingCandidates();
 
+      if (shouldPauseForWorkerContinuation()) {
+        await pauseIfPending();
+      }
+
       // Interleave remaining SerpApi requests inside Firecrawl waves.
       await runSerpApiDiscoveryWave(2);
       await processPendingCandidates();
+
+      if (shouldPauseForWorkerContinuation()) {
+        await pauseIfPending();
+      }
 
       if (
         checkpoint.next_query_index >= checkpoint.initial_wave_count &&
         discoveryBudgetRemaining(budget) < MIN_PROVIDER_TIME_MS
       ) {
+        if (checkpointHasPendingWork(checkpoint)) {
+          await pauseIfPending();
+        }
         break;
       }
 
@@ -1269,6 +1590,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
         MIN_PROVIDER_TIME_MS,
       );
       if (!canStartProviderCall(budget, estimatedProviderMs)) {
+        if (checkpointHasPendingWork(checkpoint)) {
+          await pauseIfPending();
+        }
         break;
       }
 
@@ -1278,6 +1602,12 @@ export async function executeInterleavedDeepfakePipeline(input: {
         QUERY_BATCH_SIZE,
       );
       if (!batch.length) break;
+
+      const batchQueryIds = batch.map((query) => query.trim().toLowerCase());
+      input.workerLimits?.onBatchProcessed?.({
+        batchNumber: queryBatchesProcessed + 1,
+        queryIds: batchQueryIds,
+      });
 
       const providerStartedAt = Date.now();
       const perQuery = adaptivePerQueryLimit({
@@ -1322,11 +1652,31 @@ export async function executeInterleavedDeepfakePipeline(input: {
       await heartbeat("discovering");
       await enqueueProviderHits(results.hits as ProviderHit[]);
       await heartbeat("discovering");
+
+      queryBatchesProcessed += 1;
+      if (shouldPauseForWorkerContinuation()) {
+        await pauseIfPending();
+      }
+    }
+
+    if (shouldPauseForWorkerContinuation()) {
+      await pauseIfPending();
     }
 
     // Drain any remaining SerpApi budget after Firecrawl waves.
     await runSerpApiDiscoveryWave(5);
     await processPendingCandidates();
+
+    if (shouldPauseForWorkerContinuation()) {
+      await pauseIfPending();
+    }
+
+    if (
+      input.workerLimits &&
+      checkpoint.next_query_index < checkpoint.queries.length
+    ) {
+      await pauseIfPending();
+    }
 
     if (
       !checkpoint.youtube_done &&
@@ -1433,6 +1783,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       metrics,
       checkpoint,
       planQueryCount: checkpoint.queries.length,
+      queryBatchesProcessed,
     };
   } catch (error) {
     if (error instanceof ScanCheckpointPauseError) {

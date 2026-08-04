@@ -23,7 +23,7 @@ export type CopyrightScanStage = (typeof COPYRIGHT_SCAN_STAGES)[number];
 /** How long a scan may remain running without executor_started_at. */
 export const EXECUTOR_START_WATCHDOG_MS = 120_000;
 
-export type CopyrightTerminalStatus = "completed" | "failed" | "partial";
+export type CopyrightTerminalStatus = "completed" | "failed" | "partial" | "cancelled";
 
 export interface DiscoveryOutcomeInput {
   executorStarted: boolean;
@@ -42,6 +42,11 @@ export interface DiscoveryOutcomeInput {
   firecrawlCircuitOpened?: boolean;
   serpapiSuccesses?: number;
   serpapiCandidates?: number;
+  /** Bright Data SERP discovery runs independently of Firecrawl. */
+  brightDataQueriesGenerated?: number;
+  brightDataRequests?: number;
+  brightDataSuccesses?: number;
+  brightDataCandidates?: number;
   /** Explicit fatal reason when discovery could not start. */
   fatalReason?: string | null;
 }
@@ -75,7 +80,21 @@ export function decideCopyrightTerminalStatus(
     return { status: "failed", reason: input.fatalReason };
   }
 
-  if (input.queriesGenerated <= 0 && input.queriesExecuted <= 0) {
+  const knownAttempted = input.knownUrlsAttempted ?? 0;
+  const knownAccepted = input.knownUrlsAccepted ?? 0;
+  const serpapiSuccesses = input.serpapiSuccesses ?? 0;
+  const serpapiCandidates = input.serpapiCandidates ?? 0;
+  const bdQueries = input.brightDataQueriesGenerated ?? 0;
+  const bdRequests = input.brightDataRequests ?? 0;
+  const bdSuccesses = input.brightDataSuccesses ?? 0;
+  const bdCandidates = input.brightDataCandidates ?? 0;
+
+  if (
+    input.queriesGenerated <= 0 &&
+    input.queriesExecuted <= 0 &&
+    bdQueries <= 0 &&
+    bdRequests <= 0
+  ) {
     return {
       status: "failed",
       reason:
@@ -83,12 +102,12 @@ export function decideCopyrightTerminalStatus(
     };
   }
 
-  const knownAttempted = input.knownUrlsAttempted ?? 0;
-  const knownAccepted = input.knownUrlsAccepted ?? 0;
-  const serpapiSuccesses = input.serpapiSuccesses ?? 0;
-  const serpapiCandidates = input.serpapiCandidates ?? 0;
-
-  if (input.queriesExecuted <= 0 && knownAccepted <= 0 && serpapiCandidates <= 0) {
+  if (
+    input.queriesExecuted <= 0 &&
+    knownAccepted <= 0 &&
+    serpapiCandidates <= 0 &&
+    bdRequests <= 0
+  ) {
     return {
       status: "failed",
       reason:
@@ -97,15 +116,22 @@ export function decideCopyrightTerminalStatus(
   }
 
   const anyDiscoverySuccess =
-    input.providerSuccesses > 0 || serpapiSuccesses > 0 || serpapiCandidates > 0;
-  const anyCandidates = input.providerCandidates > 0 || serpapiCandidates > 0;
+    input.providerSuccesses > 0 ||
+    serpapiSuccesses > 0 ||
+    serpapiCandidates > 0 ||
+    bdSuccesses > 0 ||
+    bdCandidates > 0;
+  const anyCandidates =
+    input.providerCandidates > 0 || serpapiCandidates > 0 || bdCandidates > 0;
 
   if (
     input.providerSuccesses <= 0 &&
     input.providerFailures > 0 &&
     knownAttempted <= 0 &&
     serpapiSuccesses <= 0 &&
-    serpapiCandidates <= 0
+    serpapiCandidates <= 0 &&
+    bdSuccesses <= 0 &&
+    bdCandidates <= 0
   ) {
     return {
       status: "failed",

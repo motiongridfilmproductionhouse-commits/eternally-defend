@@ -7,7 +7,6 @@ import {
   Globe,
   FileCheck,
   CheckCircle2,
-  Film,
   Radar,
   Search,
   Download,
@@ -25,6 +24,8 @@ import {
   type SeenActivityThreatState,
 } from "@/lib/copyright/scan-activity";
 import { LiveWebsiteInvestigation } from "@/components/copyright/LiveWebsiteInvestigation";
+import { brightDataTelemetryFromStats } from "@/lib/copyright/scan-activity";
+import { ReferenceMaterialReel } from "@/components/copyright/ReferenceMaterialReel";
 
 export interface ScanProgressProps {
   previews: string[];
@@ -94,6 +95,9 @@ function currentStageLabel(
   stats: Record<string, unknown> | null | undefined,
   workflowIndex: number,
 ): string {
+  if (stats?.scan_bootstrap === true) {
+    return "Starting copyright investigation";
+  }
   const wf = resolveWorkflowStageFromStats(stats);
   const idx = workflowStageIndex(wf);
   return COPYRIGHT_WORKFLOW_STAGES[Math.min(idx, COPYRIGHT_WORKFLOW_STAGES.length - 1)]!.label;
@@ -116,6 +120,7 @@ export function ScanProgress({
   const counters = activityCountersFromStats(stats);
   const badge = resolveCopyrightThreatBadge({ scanStatus, stats });
   const stageNote = currentStageLabel(stats, stageIndex);
+  const brightData = brightDataTelemetryFromStats(stats, scanStatus ?? "running");
 
   const seenRef = useRef<SeenActivityThreatState | null>(null);
   const [badgePulse, setBadgePulse] = useState(false);
@@ -147,9 +152,13 @@ export function ScanProgress({
       { label: "Websites checked", value: counters.websites_checked },
       { label: "Potential threats", value: counters.potential_threats },
       { label: "Verified findings", value: counters.verified_findings },
-      { label: "Provider failures", value: counters.provider_failures },
+      { label: "Discovery errors", value: counters.provider_failures },
+      { label: "Expanded discovery sweeps", value: brightData.requests },
+      { label: "Sweeps with results", value: brightData.successes },
+      { label: "Leads discovered", value: brightData.candidates },
+      { label: "Unique candidate URLs", value: brightData.uniqueUrls },
     ],
-    [counters],
+    [counters, brightData],
   );
 
   const animate = !reducedMotion && tabVisible;
@@ -207,40 +216,34 @@ export function ScanProgress({
       </div>
 
       <div className="relative mt-5 grid gap-5 lg:grid-cols-[minmax(0,240px)_1fr]">
-        <div className="space-y-2">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            {kind === "video" ? "Extracted frames" : "Reference material"}
-          </p>
-          <div className="relative overflow-hidden rounded-lg border border-border/60 bg-background/40">
-            {previews[0] ? (
-              <img
-                src={previews[0]}
-                alt={`Reference material for ${title}`}
-                className="h-36 w-full object-cover sm:h-40"
-              />
-            ) : (
-              <div className="grid h-36 w-full place-items-center text-muted-foreground sm:h-40">
-                {kind === "video" ? <Film className="h-6 w-6" /> : <ImageIcon className="h-6 w-6" />}
+        <div className="space-y-3">
+          <ReferenceMaterialReel
+            originalPreview={previews[0] ?? null}
+            title={title}
+            stats={stats}
+            scanStatus={scanStatus}
+            reducedMotion={reducedMotion}
+            forceLive
+          />
+          {kind === "video" && previews.length > 1 && (
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Extracted frames
+              </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {previews.map((src, i) => (
+                  <div
+                    key={src}
+                    className={`relative overflow-hidden rounded border transition-all duration-500 ${
+                      i < visibleFrames
+                        ? "border-primary/40 opacity-100"
+                        : "border-border/40 opacity-0"
+                    }`}
+                  >
+                    <img src={src} alt={`Frame ${i + 1}`} className="h-12 w-full object-cover" />
+                  </div>
+                ))}
               </div>
-            )}
-            {animate && (
-              <span className="pointer-events-none absolute inset-x-0 top-0 h-10 animate-[scanSweep_2.4s_ease-in-out_infinite] bg-gradient-to-b from-primary/40 to-transparent" />
-            )}
-          </div>
-          {previews.length > 1 && (
-            <div className="grid grid-cols-4 gap-1.5">
-              {previews.map((src, i) => (
-                <div
-                  key={src}
-                  className={`relative overflow-hidden rounded border transition-all duration-500 ${
-                    i < visibleFrames
-                      ? "border-primary/40 opacity-100"
-                      : "border-border/40 opacity-0"
-                  }`}
-                >
-                  <img src={src} alt={`Frame ${i + 1}`} className="h-12 w-full object-cover" />
-                </div>
-              ))}
             </div>
           )}
         </div>

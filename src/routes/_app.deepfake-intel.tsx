@@ -11,7 +11,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   runDeepfakeScan,
-  executeDeepfakeScanPipeline,
   continueDeepfakeScan,
   listDeepfakeScans,
   getDeepfakeScan,
@@ -29,6 +28,8 @@ import {
   uploadDeepfakeReferenceFace,
   deleteDeepfakeReferenceFace,
 } from "@/lib/deepfake/face-profile.functions";
+import { getDeepfakeReportUrl, listDeepfakeReports, downloadDeepfakeReport } from "@/lib/deepfake/report.functions";
+import { DeepfakeReportActionBar } from "@/components/deepfake/DeepfakeReportActionBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,7 @@ import { toast } from "sonner";
 import {
   ScanFace, ShieldAlert, ExternalLink, Loader2, AlertTriangle,
   CheckCircle2, Filter, Radar, Upload, Trash2,
-  UserRoundCheck, Copy, Camera, FileSearch, Download,
+  UserRoundCheck, Copy, Camera, FileSearch, Download, FileDown,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import {
@@ -47,17 +48,25 @@ import {
   scanPollInterval,
   scanProgressSignature,
   SCAN_STALL_WARNING_MS,
+  filterScanHistory,
   shouldShowHistoryEmpty,
   shouldShowHistoryLoading,
   shouldShowResultsLoader,
 } from "@/lib/deepfake/scan-ui-state";
 import {
   decideResultsConsoleMount,
+  emptyFindingsDetailLines,
   emptyFindingsStatusMessage,
   explainResultsConsoleMountDecision,
   extractClientVisibleFindings,
   shouldRenderLegacyFindingCards,
 } from "@/lib/deepfake/results-console-mount";
+import { InvestigationStatsPanel } from "@/components/deepfake/InvestigationStatsPanel";
+import {
+  resolveWorkerProgressUiState,
+  workerProgressUiCopy,
+} from "@/lib/deepfake/worker-progress-ui";
+import { googleImagesBackgroundProgress } from "@/lib/deepfake/google-images-diagnostics";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { ThreatAlertBanner } from "@/components/deepfake/ThreatAlertBanner";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
@@ -216,9 +225,48 @@ function stageLabel(stage?: unknown): string | null {
   return labels[stage] ?? null;
 }
 
+/** Never show raw undici "TypeError: fetch failed" in the Deepfake UI. */
+function formatDeepfakeStartupError(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "Unable to start investigation.";
+
+  if (raw.includes("Unable to start investigation.")) {
+    return raw;
+  }
+
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("fetch failed") ||
+    lower.includes("typeerror") ||
+    lower.includes("networkerror") ||
+    lower.includes("failed to fetch")
+  ) {
+    return [
+      "Unable to start investigation.",
+      "",
+      "The Deepfake Intelligence worker could not be reached.",
+      "",
+      "Error:",
+      "Worker endpoint unavailable.",
+    ].join("\n");
+  }
+
+  return [
+    "Unable to start investigation.",
+    "",
+    "The Deepfake Intelligence worker could not be reached.",
+    "",
+    "Error:",
+    raw,
+  ].join("\n");
+}
+
 function DeepfakeIntelPage() {
   const runFn = useServerFn(runDeepfakeScan);
-  const executeFn = useServerFn(executeDeepfakeScanPipeline);
   const continueFn = useServerFn(continueDeepfakeScan);
   const listFn = useServerFn(listDeepfakeScans);
   const getFn = useServerFn(getDeepfakeScan);
@@ -233,8 +281,121 @@ function DeepfakeIntelPage() {
   const listProfilesFn = useServerFn(listDeepfakeTargetProfiles);
   const uploadReferenceFn = useServerFn(uploadDeepfakeReferenceFace);
   const deleteReferenceFn = useServerFn(deleteDeepfakeReferenceFace);
+  const reportFn = useServerFn(getDeepfakeReportUrl);
+  const listReportsFn = useServerFn(listDeepfakeReports);
+  const downloadReportFn = useServerFn(downloadDeepfakeReport);
   const qc = useQueryClient();
   const { isAdmin } = useUserRoles();
+
+  const [reportHistoryOpen, setReportHistoryOpen] = useState(false);
+  const [reportGenerateMode, setReportGenerateMode] = useState<
+    "final" | "interim" | null
+  >(null);
+  const [downloadingHistoryId, setDownloadingHistoryId] = useState<string | null>(
+    null,
+  );
+  const [startupDispatchError, setStartupDispatchError] = useState<string | null>(
+    null,
+  );
+  const [lastGeneratedReport, setLastGeneratedReport] = useState<{
+    historyId: string | null;
+    url: string;
+    fileName: string;
+    scanId: string | null;
+  } | null>(null);
+
+  const openReportUrl = (url: string) => {
+    // Async generation often loses the user-gesture context, so window.open
+    // is blocked. Prefer a temporary anchor click, then fall back.
+    try {
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      return;
+    } catch {
+      /* fall through */
+    }
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      toast.message("Report ready — allow pop-ups, or use Download PDF.");
+    }
+  };
+
+  const reportErrorMessage = (error: unknown) => {
+    if (error instanceof Error && error.message.trim()) return error.message;
+    if (typeof error === "string" && error.trim()) return error;
+    return "Unable to generate or download the deepfake report.";
+  };
+
+  const reportMutation = useMutation({
+    mutationFn: (vars: {
+      data: {
+        scanId?: string;
+        profileId?: string;
+        force?: boolean;
+        reportMode?: "final" | "interim";
+      };
+    }) => reportFn(vars),
+    onMutate: (vars) => {
+      setReportGenerateMode(vars.data.reportMode === "interim" ? "interim" : "final");
+    },
+    onSuccess: (res: {
+      url: string;
+      findings: number;
+      reportMode?: "final" | "interim";
+      historyId?: string | null;
+      fileName?: string;
+      scanId?: string;
+    }) => {
+      setLastGeneratedReport({
+        historyId: res.historyId ?? null,
+        url: res.url,
+        fileName: res.fileName ?? "eterna-deepfake-report.pdf",
+        scanId: res.scanId ?? selectedScanId,
+      });
+      openReportUrl(res.url);
+      const label =
+        res.reportMode === "interim" ? "Interim report" : "Deepfake threat report";
+      toast.success(
+        res.findings > 0
+          ? `${label} ready (${res.findings} finding${res.findings === 1 ? "" : "s"}).`
+          : `${label} ready (no client-visible findings).`,
+      );
+      void qc.invalidateQueries({ queryKey: ["deepfake-report-history"] });
+      setReportHistoryOpen(true);
+    },
+    onError: (e: unknown) => toast.error(reportErrorMessage(e)),
+    onSettled: () => setReportGenerateMode(null),
+  });
+
+  const downloadMutation = useMutation({
+    mutationFn: (vars: { data: { historyId: string } }) =>
+      downloadReportFn(vars),
+    onMutate: (vars) => {
+      setDownloadingHistoryId(vars.data.historyId);
+    },
+    onSuccess: (res: { url: string; fileName?: string }) => {
+      setLastGeneratedReport((prev) =>
+        prev
+          ? { ...prev, url: res.url, fileName: res.fileName ?? prev.fileName }
+          : {
+              historyId: downloadingHistoryId,
+              url: res.url,
+              fileName: res.fileName ?? "eterna-deepfake-report.pdf",
+              scanId: selectedScanId,
+            },
+      );
+      openReportUrl(res.url);
+      toast.success("Opening report PDF.");
+    },
+    onError: (e: unknown) => toast.error(reportErrorMessage(e)),
+    onSettled: () => setDownloadingHistoryId(null),
+  });
 
   const [targetName, setTargetName] = useState("");
   const [googleImagesUrl, setGoogleImagesUrl] = useState("");
@@ -307,15 +468,21 @@ function DeepfakeIntelPage() {
     },
   });
 
+  const historyScans = filterScanHistory(scans.data ?? []);
+
   const selected = useQuery({
     queryKey: ["deepfake-scan", selectedScanId],
     queryFn: () => selectedScanId ? getFn({ data: { scan_id: selectedScanId } }) : null,
     enabled: !!selectedScanId,
     refetchInterval: (q) => {
-      const d = q.state.data as { scan?: { status?: string } } | null | undefined;
+      const d = q.state.data as {
+        scan?: { status?: string; discovery_metrics?: Record<string, unknown> };
+      } | null | undefined;
+      const googleProgress = googleImagesBackgroundProgress(d?.scan?.discovery_metrics);
       return scanPollInterval({
         status: d?.scan?.status ?? null,
         requestPending: runPendingRef.current,
+        googleImagesBackgroundRunning: googleProgress.running,
       });
     },
   });
@@ -390,44 +557,6 @@ function DeepfakeIntelPage() {
     }) ?? null;
   };
 
-  const executePipeline = useMutation({
-    mutationFn: (input: {
-      scan_id: string;
-      google_images_url?: string;
-    }) => executeFn({ data: input }),
-    onSuccess: (res) => {
-      setSelectedScanId(res.scan_id);
-      qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
-      qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
-
-      if (res.status === "partial") {
-        toast.message(
-          `Partial results — ${res.total_results} threats saved before the scan deadline.`,
-        );
-        return;
-      }
-
-      if (res.status === "failed") {
-        toast.error(
-          "Scan failed before verified progress was saved. Check the scan error details.",
-        );
-        return;
-      }
-
-      if (res.status === "completed") {
-        toast.success(
-          `Scan complete — ${res.total_results} threats classified from ${res.discovered_results} latest public leads`,
-        );
-      }
-    },
-    onError: (error) =>
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Scan pipeline failed to start",
-      ),
-  });
-
   const run = useMutation({
     mutationFn: (input: {
       target_name: string;
@@ -442,22 +571,33 @@ function DeepfakeIntelPage() {
       qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
 
       if ((res as { already_running?: boolean }).already_running) {
+        setStartupDispatchError(null);
         toast.message(
           "A scan is already running for this identity — showing live progress.",
         );
         return;
       }
 
-      toast.message("Scan started — verifying public leads…");
-      executePipeline.mutate({
-        scan_id: res.scan_id,
-        google_images_url: lastStartOptionsRef.current.google_images_url,
-      });
+      const dispatchError =
+        typeof (res as { dispatch_error?: unknown }).dispatch_error === "string"
+          ? (res as { dispatch_error: string }).dispatch_error
+          : null;
+      if (dispatchError) {
+        setStartupDispatchError(dispatchError);
+        toast.error(dispatchError, { duration: 12_000 });
+        return;
+      }
+
+      setStartupDispatchError(null);
+      toast.message(
+        "Scan started — background worker dispatched. Live progress will update automatically.",
+      );
     },
-    onError: (e) =>
-      toast.error(
-        e instanceof Error ? e.message : "Unable to start scan",
-      ),
+    onError: (e) => {
+      const message = formatDeepfakeStartupError(e);
+      setStartupDispatchError(message);
+      toast.error(message, { duration: 12_000 });
+    },
   });
 
   const submitManual = useMutation({
@@ -550,19 +690,31 @@ function DeepfakeIntelPage() {
       qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
 
       if ((res as { already_running?: boolean }).already_running) {
+        setStartupDispatchError(null);
         toast.message(
           "A scan is already running for this identity — showing live progress.",
         );
         return;
       }
 
-      toast.message("Continuing from checkpoint…");
-      executePipeline.mutate({ scan_id: res.scan_id });
+      const dispatchError =
+        typeof (res as { dispatch_error?: unknown }).dispatch_error === "string"
+          ? (res as { dispatch_error: string }).dispatch_error
+          : null;
+      if (dispatchError) {
+        setStartupDispatchError(dispatchError);
+        toast.error(dispatchError, { duration: 12_000 });
+        return;
+      }
+
+      setStartupDispatchError(null);
+      toast.message("Continuing from checkpoint — background worker dispatched.");
     },
-    onError: (error) =>
-      toast.error(
-        error instanceof Error ? error.message : "Unable to continue scan",
-      ),
+    onError: (error) => {
+      const message = formatDeepfakeStartupError(error);
+      setStartupDispatchError(message);
+      toast.error(message, { duration: 12_000 });
+    },
   });
 
   const createProfile = useMutation({
@@ -668,7 +820,7 @@ function DeepfakeIntelPage() {
   const selectedScanRow = selected.data?.scan ?? null;
   const selectedScanStatus = selectedScanRow?.status ?? null;
   const scanRequestPending =
-    run.isPending || continueScan.isPending || executePipeline.isPending;
+    run.isPending || continueScan.isPending;
   const scanningUi =
     scanRequestPending ||
     selectedScanStatus === "running" ||
@@ -698,7 +850,7 @@ function DeepfakeIntelPage() {
     if (!isTerminalScanStatus(selectedScanStatus)) return;
     if (run.isPending) run.reset();
     if (continueScan.isPending) continueScan.reset();
-    if (executePipeline.isPending) executePipeline.reset();
+    if (continueScan.isPending) continueScan.reset();
     setStalled(false);
     qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -847,6 +999,71 @@ function DeepfakeIntelPage() {
   // Threat alert always uses the complete client-visible findings array
   // (never console filters / pagination).
   const threatSummary = buildThreatAlertSummary(findings);
+
+  const reportScope = {
+    scanId: selectedScanId || undefined,
+    // When a scan is selected, omit profileId so generation cannot fail on a
+    // mismatched leftover profile selection in the left panel.
+    profileId: selectedScanId
+      ? undefined
+      : selectedProfileId || undefined,
+  };
+  const canRequestReport = Boolean(reportScope.scanId || reportScope.profileId);
+
+  const reportHistory = useQuery({
+    queryKey: [
+      "deepfake-report-history",
+      selectedScanId ?? null,
+      selectedProfileId || null,
+    ],
+    enabled: canRequestReport,
+    queryFn: () =>
+      listReportsFn({
+        data: {
+          scanId: selectedScanId || undefined,
+          profileId: selectedProfileId || undefined,
+        },
+      }),
+    retry: 1,
+  });
+
+  const runDeepfakeReport = (reportMode: "final" | "interim") => {
+    if (!canRequestReport) {
+      toast.error("Select a protected identity or scan first.");
+      return;
+    }
+    if (reportMutation.isPending || downloadMutation.isPending) {
+      toast.message("A report request is already in progress…");
+      return;
+    }
+    reportMutation.mutate({
+      data: {
+        ...reportScope,
+        reportMode,
+        // Explicit Generate actions always rebuild from current persisted findings.
+        force: true,
+      },
+    });
+  };
+
+  const downloadLatestReport = () => {
+    if (lastGeneratedReport?.url) {
+      openReportUrl(lastGeneratedReport.url);
+      toast.success("Opening report PDF.");
+      return;
+    }
+    const latest = reportHistory.data?.[0];
+    if (latest?.id) {
+      downloadMutation.mutate({ data: { historyId: latest.id } });
+      return;
+    }
+    toast.error("Generate a report first.");
+  };
+
+  const canDownloadReport = Boolean(
+    lastGeneratedReport?.url ||
+      reportHistory.data?.some((row) => Boolean(row.storageKey)),
+  );
   const threatAnnouncementRef = useRef<ThreatAlertAnnouncementState | null>(
     null,
   );
@@ -858,6 +1075,11 @@ function DeepfakeIntelPage() {
   // history selection / reload of an already-saved multi-threat scan stays role="status".
   useEffect(() => {
     setThreatDomainFocus(null);
+  }, [selectedScanId]);
+
+  useEffect(() => {
+    setLastGeneratedReport(null);
+    setReportHistoryOpen(false);
   }, [selectedScanId]);
 
   useLayoutEffect(() => {
@@ -1064,6 +1286,27 @@ function DeepfakeIntelPage() {
             are triaged with a cautious classifier and never asserted as fact.
           </p>
         </div>
+        {(selectedProfileId || selectedScanId) && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto shrink-0"
+            onClick={() => {
+              if (selectedScanId) {
+                scrollToThreatSection([
+                  "deepfake-report-action-bar",
+                  "deepfake-results-panel",
+                ]);
+                setReportHistoryOpen(true);
+                return;
+              }
+              runDeepfakeReport("final");
+            }}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Generate Deepfake Report
+          </Button>
+        )}
       </header>
 
       <section className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
@@ -1362,6 +1605,41 @@ function DeepfakeIntelPage() {
                       </Button>
                     </div>
                   )}
+                  <div className="space-y-1.5 pt-1 border-t border-border/60">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      disabled={reportMutation.isPending}
+                      onClick={() => {
+                        if (selectedScanId) {
+                          scrollToThreatSection([
+                            "deepfake-report-action-bar",
+                            "deepfake-results-panel",
+                          ]);
+                          setReportHistoryOpen(true);
+                          return;
+                        }
+                        runDeepfakeReport("final");
+                      }}
+                    >
+                      {reportMutation.isPending ? (
+                        <>
+                          <Loader2 className="size-4 mr-2 animate-spin" />
+                          Preparing report…
+                        </>
+                      ) : (
+                        <>
+                          <FileDown className="size-4 mr-2" />
+                          Generate Deepfake Report
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground">
+                      Opens the report action bar above verified findings when a
+                      scan is selected. Builds from existing scan evidence only.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -1416,12 +1694,45 @@ function DeepfakeIntelPage() {
                 </>
               )}
             </Button>
-            {(run.error || executePipeline.error || continueScan.error) && (
-              <p className="text-[11px] text-red-500">
-                {(run.error || executePipeline.error || continueScan.error) instanceof Error
-                  ? (run.error || executePipeline.error || continueScan.error)!.message
-                  : "Scan request failed"}
-              </p>
+            {(startupDispatchError ||
+              run.error ||
+              continueScan.error) && (
+              <div
+                className="rounded-md border border-red-500/40 bg-red-500/5 px-3 py-2 text-[11px] text-red-600 whitespace-pre-wrap"
+                data-testid="deepfake-startup-error"
+              >
+                <div>
+                  {startupDispatchError ||
+                    formatDeepfakeStartupError(
+                      run.error || continueScan.error,
+                    )}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px]"
+                    onClick={() => onRun()}
+                  >
+                    Retry
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px]"
+                    onClick={() => {
+                      const el = document.querySelector(
+                        '[data-testid="deepfake-investigation-stats"]',
+                      );
+                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                  >
+                    View diagnostics
+                  </Button>
+                </div>
+              </div>
             )}
             <p className="text-[11px] text-muted-foreground">
               {identityScanLocked
@@ -1448,12 +1759,12 @@ function DeepfakeIntelPage() {
                 isLoading: scans.isLoading,
                 isFetching: scans.isFetching,
                 isError: scans.isError,
-                count: (scans.data ?? []).length,
+                count: historyScans.length,
               }) ? (
               <div className="text-xs text-muted-foreground py-4 text-center">No scans yet.</div>
             ) : (
               <ul className="space-y-1.5 max-h-[420px] overflow-auto">
-                {(scans.data ?? []).map((s) => (
+                {historyScans.map((s) => (
                   <li key={s.id}>
                     <button
                       onClick={() => setSelectedScanId(s.id)}
@@ -1650,16 +1961,43 @@ function DeepfakeIntelPage() {
                         {diagnostics?.client_visible ?? scan.total_results ?? 0} threats saved
                       </div>
                     )}
-                    {scan.status === "running" && stalled && (
-                      <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-500">
-                        <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
-                        <span>
-                          No new progress for 15s — the sweep may have stalled on
-                          the server. Saved results below stay visible; the status
-                          updates automatically once the run recovers or times out.
-                        </span>
-                      </div>
-                    )}
+                    {scan.status === "running" && (() => {
+                      const metrics =
+                        scan.discovery_metrics &&
+                        typeof scan.discovery_metrics === "object"
+                          ? (scan.discovery_metrics as Record<string, unknown>)
+                          : null;
+                      const workerState = resolveWorkerProgressUiState({
+                        status: scan.status,
+                        queriesGenerated: plannedQueries,
+                        queriesExecuted: executedQueries,
+                        discoveryMetrics: metrics,
+                      });
+                      if (
+                        workerState === "running_unknown" &&
+                        !(stalled && executedQueries === 0)
+                      ) {
+                        return null;
+                      }
+                      const copy = workerProgressUiCopy(
+                        stalled && executedQueries === 0 && workerState === "running_unknown"
+                          ? "accepted_but_not_started"
+                          : workerState,
+                      );
+                      return (
+                        <div
+                          className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-600"
+                          data-testid="deepfake-worker-progress-banner"
+                        >
+                          <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
+                          <span>
+                            <span className="font-semibold">{copy.title}</span>
+                            <br />
+                            {copy.body}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={scan.status} />
@@ -1701,7 +2039,6 @@ function DeepfakeIntelPage() {
                       className="border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
                       disabled={
                         continueScan.isPending ||
-                        executePipeline.isPending ||
                         Boolean(activeScanForSelectedScan(scan))
                       }
                       onClick={() => continueScan.mutate(scan.id)}
@@ -1727,11 +2064,31 @@ function DeepfakeIntelPage() {
                     <AlertTriangle className="size-3.5 mt-0.5" /> {scan.error_message}
                   </div>
                 )}
-                {(diagnostics || scan.status === "running") && (
-                  <details className="mt-3 rounded-md border border-border/70 bg-secondary/20 p-3" open={scan.status === "running"}>
+                {(diagnostics ||
+                  scan.status === "running" ||
+                  googleImagesBackgroundProgress(discoveryMetricObject ?? undefined)
+                    .running) && (
+                  <details
+                    className="mt-3 rounded-md border border-border/70 bg-secondary/20 p-3"
+                    open={
+                      scan.status === "running" ||
+                      googleImagesBackgroundProgress(discoveryMetricObject ?? undefined)
+                        .running
+                    }
+                  >
                     <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      {scan.status === "running" ? "Live Discovery Progress" : "Discovery Diagnostics"}
+                      {scan.status === "running" ||
+                      googleImagesBackgroundProgress(discoveryMetricObject ?? undefined)
+                        .running
+                        ? "Live Investigation Progress"
+                        : "Investigation Diagnostics"}
                     </summary>
+                    <div className="mt-3">
+                      <InvestigationStatsPanel
+                        metrics={discoveryMetricObject ?? undefined}
+                        status={scan.status}
+                      />
+                    </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                       {DIAGNOSTIC_KEYS.map((key) => (
                         <div
@@ -1767,6 +2124,33 @@ function DeepfakeIntelPage() {
                 )}
               </div>
 
+              <DeepfakeReportActionBar
+                scanStatus={scan.status}
+                findingCount={findings.length}
+                history={reportHistory.data ?? []}
+                historyLoading={reportHistory.isLoading}
+                historyOpen={reportHistoryOpen}
+                onToggleHistory={() => {
+                  setReportHistoryOpen((open) => !open);
+                  if (!reportHistoryOpen) {
+                    void qc.invalidateQueries({
+                      queryKey: ["deepfake-report-history"],
+                    });
+                  }
+                }}
+                generatingFinal={reportGenerateMode === "final"}
+                generatingInterim={reportGenerateMode === "interim"}
+                downloading={downloadMutation.isPending}
+                downloadingHistoryId={downloadingHistoryId}
+                canDownload={canDownloadReport}
+                onGenerateFinal={() => runDeepfakeReport("final")}
+                onGenerateInterim={() => runDeepfakeReport("interim")}
+                onDownloadLatest={downloadLatestReport}
+                onDownloadHistory={(historyId) =>
+                  downloadMutation.mutate({ data: { historyId } })
+                }
+              />
+
               <div
                 data-testid="deepfake-results-panel"
                 data-legacy-finding-cards={renderLegacyFindingCards ? "enabled" : "disabled"}
@@ -1794,6 +2178,7 @@ function DeepfakeIntelPage() {
                     emptyMessage={emptyFindingsStatusMessage({
                       status: scan.status,
                       errorMessage: scan.error_message,
+                      discoveryMetrics: discoveryMetricObject ?? undefined,
                     })}
                     threatTone={threatSummary.tone}
                     focusDomain={threatDomainFocus}
@@ -1803,10 +2188,21 @@ function DeepfakeIntelPage() {
                     className="card-surface p-10 text-center text-sm text-muted-foreground"
                     data-testid="deepfake-results-empty"
                   >
-                    {emptyFindingsStatusMessage({
-                      status: scan.status,
-                      errorMessage: scan.error_message,
-                    })}
+                    <p>
+                      {emptyFindingsStatusMessage({
+                        status: scan.status,
+                        errorMessage: scan.error_message,
+                        discoveryMetrics: discoveryMetricObject ?? undefined,
+                      })}
+                    </p>
+                    <ul className="mt-4 text-left text-xs space-y-1 max-w-lg mx-auto list-disc pl-4">
+                      {emptyFindingsDetailLines({
+                        status: scan.status,
+                        discoveryMetrics: discoveryMetricObject ?? undefined,
+                      }).map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>

@@ -39,6 +39,7 @@ import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
 import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
+import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public/image-proxy'
 import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
 import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes/_app.sensitive-protection.removal-cases'
 import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
@@ -48,8 +49,11 @@ import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.adm
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
+import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
 import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
+import { Route as ApiPublicHooksDeepfakeScanExecuteRouteImport } from './routes/api/public/hooks/deepfake-scan-execute'
 import { Route as ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport } from './routes/api/public/hooks/deepfake-manual-evidence-execute'
+import { Route as ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport } from './routes/api/public/hooks/deepfake-google-images-worker'
 import { Route as ApiPublicHooksCopyrightScanExecuteRouteImport } from './routes/api/public/hooks/copyright-scan-execute'
 import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
 import { Route as ApiPublicHooksAutomationStatusRouteImport } from './routes/api/public/hooks/automation-status'
@@ -206,6 +210,11 @@ const ApiPublicVeriffWebhookRoute = ApiPublicVeriffWebhookRouteImport.update({
   path: '/api/public/veriff-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicImageProxyRoute = ApiPublicImageProxyRouteImport.update({
+  id: '/api/public/image-proxy',
+  path: '/api/public/image-proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMediaPreviewRoute = ApiMediaPreviewRouteImport.update({
   id: '/api/media/preview',
   path: '/api/media/preview',
@@ -258,16 +267,34 @@ const AppSensitiveProtectionResultsIndexRoute =
     path: '/sensitive-protection/results/',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiPublicHooksReleaseProtectionMonitorRoute =
+  ApiPublicHooksReleaseProtectionMonitorRouteImport.update({
+    id: '/api/public/hooks/release-protection-monitor',
+    path: '/api/public/hooks/release-protection-monitor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDistributionMonitorRoute =
   ApiPublicHooksDistributionMonitorRouteImport.update({
     id: '/api/public/hooks/distribution-monitor',
     path: '/api/public/hooks/distribution-monitor',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksDeepfakeScanExecuteRoute =
+  ApiPublicHooksDeepfakeScanExecuteRouteImport.update({
+    id: '/api/public/hooks/deepfake-scan-execute',
+    path: '/api/public/hooks/deepfake-scan-execute',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDeepfakeManualEvidenceExecuteRoute =
   ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport.update({
     id: '/api/public/hooks/deepfake-manual-evidence-execute',
     path: '/api/public/hooks/deepfake-manual-evidence-execute',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksDeepfakeGoogleImagesWorkerRoute =
+  ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport.update({
+    id: '/api/public/hooks/deepfake-google-images-worker',
+    path: '/api/public/hooks/deepfake-google-images-worker',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksCopyrightScanExecuteRoute =
@@ -336,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
+  '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
@@ -343,8 +371,11 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
+  '/api/public/hooks/deepfake-google-images-worker': typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
   '/api/public/hooks/deepfake-manual-evidence-execute': typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
+  '/api/public/hooks/deepfake-scan-execute': typeof ApiPublicHooksDeepfakeScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -382,6 +413,7 @@ export interface FileRoutesByTo {
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
+  '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
@@ -389,8 +421,11 @@ export interface FileRoutesByTo {
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
+  '/api/public/hooks/deepfake-google-images-worker': typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
   '/api/public/hooks/deepfake-manual-evidence-execute': typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
+  '/api/public/hooks/deepfake-scan-execute': typeof ApiPublicHooksDeepfakeScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
@@ -431,6 +466,7 @@ export interface FileRoutesById {
   '/_app/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/_app/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
+  '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
@@ -438,8 +474,11 @@ export interface FileRoutesById {
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
+  '/api/public/hooks/deepfake-google-images-worker': typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
   '/api/public/hooks/deepfake-manual-evidence-execute': typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
+  '/api/public/hooks/deepfake-scan-execute': typeof ApiPublicHooksDeepfakeScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -479,6 +518,7 @@ export interface FileRouteTypes {
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
     | '/api/media/preview'
+    | '/api/public/image-proxy'
     | '/api/public/veriff-webhook'
     | '/sensitive-protection/'
     | '/sensitive-protection/results/$id'
@@ -486,8 +526,11 @@ export interface FileRouteTypes {
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
+    | '/api/public/hooks/deepfake-google-images-worker'
     | '/api/public/hooks/deepfake-manual-evidence-execute'
+    | '/api/public/hooks/deepfake-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/release-protection-monitor'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -525,6 +568,7 @@ export interface FileRouteTypes {
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
     | '/api/media/preview'
+    | '/api/public/image-proxy'
     | '/api/public/veriff-webhook'
     | '/sensitive-protection'
     | '/sensitive-protection/results/$id'
@@ -532,8 +576,11 @@ export interface FileRouteTypes {
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
+    | '/api/public/hooks/deepfake-google-images-worker'
     | '/api/public/hooks/deepfake-manual-evidence-execute'
+    | '/api/public/hooks/deepfake-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/release-protection-monitor'
     | '/sensitive-protection/results'
   id:
     | '__root__'
@@ -573,6 +620,7 @@ export interface FileRouteTypes {
     | '/_app/sensitive-protection/emergency'
     | '/_app/sensitive-protection/removal-cases'
     | '/api/media/preview'
+    | '/api/public/image-proxy'
     | '/api/public/veriff-webhook'
     | '/_app/sensitive-protection/'
     | '/_app/sensitive-protection/results/$id'
@@ -580,8 +628,11 @@ export interface FileRouteTypes {
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
+    | '/api/public/hooks/deepfake-google-images-worker'
     | '/api/public/hooks/deepfake-manual-evidence-execute'
+    | '/api/public/hooks/deepfake-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/release-protection-monitor'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
@@ -596,13 +647,17 @@ export interface RootRouteChildren {
   ApiScanRoute: typeof ApiScanRoute
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
+  ApiPublicImageProxyRoute: typeof ApiPublicImageProxyRoute
   ApiPublicVeriffWebhookRoute: typeof ApiPublicVeriffWebhookRoute
   ApiPublicHooksAutomationFetchRoute: typeof ApiPublicHooksAutomationFetchRoute
   ApiPublicHooksAutomationStatusRoute: typeof ApiPublicHooksAutomationStatusRoute
   ApiPublicHooksChannelWatchPollRoute: typeof ApiPublicHooksChannelWatchPollRoute
   ApiPublicHooksCopyrightScanExecuteRoute: typeof ApiPublicHooksCopyrightScanExecuteRoute
+  ApiPublicHooksDeepfakeGoogleImagesWorkerRoute: typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
   ApiPublicHooksDeepfakeManualEvidenceExecuteRoute: typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
+  ApiPublicHooksDeepfakeScanExecuteRoute: typeof ApiPublicHooksDeepfakeScanExecuteRoute
   ApiPublicHooksDistributionMonitorRoute: typeof ApiPublicHooksDistributionMonitorRoute
+  ApiPublicHooksReleaseProtectionMonitorRoute: typeof ApiPublicHooksReleaseProtectionMonitorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -817,6 +872,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicVeriffWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/image-proxy': {
+      id: '/api/public/image-proxy'
+      path: '/api/public/image-proxy'
+      fullPath: '/api/public/image-proxy'
+      preLoaderRoute: typeof ApiPublicImageProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/media/preview': {
       id: '/api/media/preview'
       path: '/api/media/preview'
@@ -880,6 +942,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/hooks/release-protection-monitor': {
+      id: '/api/public/hooks/release-protection-monitor'
+      path: '/api/public/hooks/release-protection-monitor'
+      fullPath: '/api/public/hooks/release-protection-monitor'
+      preLoaderRoute: typeof ApiPublicHooksReleaseProtectionMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/distribution-monitor': {
       id: '/api/public/hooks/distribution-monitor'
       path: '/api/public/hooks/distribution-monitor'
@@ -887,11 +956,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksDistributionMonitorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/deepfake-scan-execute': {
+      id: '/api/public/hooks/deepfake-scan-execute'
+      path: '/api/public/hooks/deepfake-scan-execute'
+      fullPath: '/api/public/hooks/deepfake-scan-execute'
+      preLoaderRoute: typeof ApiPublicHooksDeepfakeScanExecuteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/deepfake-manual-evidence-execute': {
       id: '/api/public/hooks/deepfake-manual-evidence-execute'
       path: '/api/public/hooks/deepfake-manual-evidence-execute'
       fullPath: '/api/public/hooks/deepfake-manual-evidence-execute'
       preLoaderRoute: typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/deepfake-google-images-worker': {
+      id: '/api/public/hooks/deepfake-google-images-worker'
+      path: '/api/public/hooks/deepfake-google-images-worker'
+      fullPath: '/api/public/hooks/deepfake-google-images-worker'
+      preLoaderRoute: typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/copyright-scan-execute': {
@@ -1020,16 +1103,23 @@ const rootRouteChildren: RootRouteChildren = {
   ApiScanRoute: ApiScanRoute,
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
+  ApiPublicImageProxyRoute: ApiPublicImageProxyRoute,
   ApiPublicVeriffWebhookRoute: ApiPublicVeriffWebhookRoute,
   ApiPublicHooksAutomationFetchRoute: ApiPublicHooksAutomationFetchRoute,
   ApiPublicHooksAutomationStatusRoute: ApiPublicHooksAutomationStatusRoute,
   ApiPublicHooksChannelWatchPollRoute: ApiPublicHooksChannelWatchPollRoute,
   ApiPublicHooksCopyrightScanExecuteRoute:
     ApiPublicHooksCopyrightScanExecuteRoute,
+  ApiPublicHooksDeepfakeGoogleImagesWorkerRoute:
+    ApiPublicHooksDeepfakeGoogleImagesWorkerRoute,
   ApiPublicHooksDeepfakeManualEvidenceExecuteRoute:
     ApiPublicHooksDeepfakeManualEvidenceExecuteRoute,
+  ApiPublicHooksDeepfakeScanExecuteRoute:
+    ApiPublicHooksDeepfakeScanExecuteRoute,
   ApiPublicHooksDistributionMonitorRoute:
     ApiPublicHooksDistributionMonitorRoute,
+  ApiPublicHooksReleaseProtectionMonitorRoute:
+    ApiPublicHooksReleaseProtectionMonitorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

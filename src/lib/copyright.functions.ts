@@ -4,8 +4,37 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
-import { analyzeReference, firecrawlDiscover } from "@/lib/copyright/discover.server";
-import { runCopyrightSerpApiDiscovery } from "@/lib/copyright/serpapi-discovery.server";
+import { firecrawlEnvironmentDiagnostic } from "@/lib/firecrawl-client.server";
+import {
+  analyzeReference,
+  firecrawlDiscover,
+  type PageLead,
+} from "@/lib/copyright/discover.server";
+import {
+  ReferenceImageRecorder,
+  referenceImageFromDiscoveryCandidate,
+  type ReferenceImage,
+} from "@/lib/copyright/reference-images";
+import {
+  ReferenceMaterialRecorder,
+  isYoutubeConfigured,
+  materialFromYoutubeVideo,
+} from "@/lib/copyright/reference-materials";
+import {
+  buildYoutubeQueries,
+  discoverYoutubeVideos,
+} from "@/lib/copyright/youtube-monitor.server";
+import {
+  brightDataDiagnostic,
+  isBrightDataConfigured,
+  runBrightDataDiscovery,
+  type BrightDataDiscoveryResult,
+} from "@/lib/copyright/brightdata-provider.server";
+import {
+  isCopyrightSerpApiConfigured,
+  runCopyrightSerpApiDiscovery,
+} from "@/lib/copyright/serpapi-discovery.server";
+import { emptyProviderFailureCounts } from "@/lib/copyright/provider-failures";
 import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.server";
 import { readStoredObject } from "@/lib/copyright/storage.server";
 
@@ -24,7 +53,17 @@ import { filterClientVisibleCopyrightMatches } from "@/lib/copyright/client-filt
 import { dedupeCopyrightMatchRows } from "@/lib/copyright/match-upsert";
 import { detectPrimaryPurpose } from "@/lib/copyright/page-classify.server";
 import { expandTitleVariants } from "@/lib/copyright/title-identity";
-import { explainZeroMatchFunnel, summarizeProviderFailures } from "@/lib/copyright/scan-diagnostics";
+import {
+  sanitizeCopyrightScanRowForClient,
+  sanitizeCopyrightStatsForClient,
+  sanitizeDiscoveryQueryForClient,
+} from "@/lib/copyright/public-surface";
+import {
+  explainZeroMatchFunnel,
+  resolveScanTerminationReason,
+  summarizeProviderFailures,
+  type DiscoveryCoverageDiagnostics,
+} from "@/lib/copyright/scan-diagnostics";
 import {
   acceptedKnownUrls,
   parseKnownUrlInputs,
@@ -34,11 +73,37 @@ import {
 import { isNeverMonitoredDomain } from "@/lib/copyright/official-platforms";
 import {
   allocateCrawlSlots,
+  DEFAULT_PAGE_CAP,
+  DETAIL_FOLLOW_BUDGET_MS,
+  BROWSER_FALLBACK_BUDGET_MS,
+  PER_PAGE_BROWSER_BUDGET_MS,
   isPastDeadline,
   KNOWN_URL_BUDGET_MS,
   PROVIDER_CRAWL_BUDGET_MS,
   splitKnownAndProviderLeads,
+  absoluteScanDeadlineAt,
+  knownUrlDeadlineAt,
+  discoveryPhaseDeadlineAt,
+  providerCrawlDeadlineAt,
 } from "@/lib/copyright/crawl-budget";
+import { CrawlMetricsRecorder } from "@/lib/copyright/crawl-metrics";
+import {
+  DETAIL_FOLLOW_DRAIN_CAP,
+  DETAIL_FOLLOW_MAX_DEPTH,
+  DetailFollowRecorder,
+} from "@/lib/copyright/detail-follow.server";
+import { loadHistoricalScanCandidates } from "@/lib/copyright/historical-candidates.server";
+import {
+  mergeScanCandidateLeads,
+  type CandidateUnionEntry,
+} from "@/lib/copyright/candidate-union";
+import { buildPageEvidenceResult } from "@/lib/copyright/page-evidence";
+import {
+  buildSuspiciousSourcesFromMatches,
+  countSuspiciousSourceStates,
+  resolveHistoricalRecheckStatus,
+  suspiciousSourcesDiagnosticLine,
+} from "@/lib/copyright/suspicious-sources";
 import {
   bumpCrawlFailure,
   emptyCrawlFailureCounts,
@@ -51,8 +116,29 @@ import {
 } from "@/lib/copyright/scan-worker-dispatch.server";
 import {
   ScanActivityRecorder,
-  flushScanActivity,
 } from "@/lib/copyright/scan-activity";
+import {
+  SourceActivityRecorder,
+  type SourceActivityStatus,
+} from "@/lib/copyright/source-activity";
+import { ScanTelemetryWriter } from "@/lib/copyright/scan-telemetry";
+import {
+  configuredCopyrightScanProviders,
+  forcePersistCopyrightScanProviderSeed,
+} from "@/lib/copyright/scan-provider-seed.server";
+import {
+  DISCOVERY_FALLBACK_DEADLINE_FRACTION,
+  MAX_SCAN_TIME_MS,
+  TARGET_DISCOVERY_CANDIDATES,
+} from "@/lib/copyright/discovery-config";
+import { mergeProviderPageLeads } from "@/lib/copyright/discovery-provider-merge";
+import { buildSecondStageDiscoveryQueries } from "@/lib/copyright/discovery-fallback";
+import { sortDiscoveryLeadsByPriority } from "@/lib/copyright/discovery-candidate-priority";
+import {
+  buildSaturationMetrics,
+  emptyDiscoveryCoverageState,
+} from "@/lib/copyright/discovery-saturation";
+import type { ProviderFailureCategory } from "@/lib/copyright/provider-failures";
 import {
   decideCopyrightTerminalStatus,
   EXECUTOR_START_WATCHDOG_MS,
@@ -61,7 +147,6 @@ import {
   watchdogFailureStats,
   type CopyrightTerminalStatus,
 } from "@/lib/copyright/scan-lifecycle";
-import type { ProviderFailureCategory } from "@/lib/copyright/provider-failures";
 
 import {
   buildMovieFingerprint,
@@ -73,6 +158,18 @@ import {
 import { fetchImageBytes } from "@/lib/aws/s3.server";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  buildReleaseProtectionDiscoveryQueries,
+  type AlertThreshold,
+  type ReleaseProtectionSettings,
+  type ReferencePackage,
+} from "@/lib/copyright/release-protection";
+import { createReleaseProtectionRecord } from "@/lib/copyright/release-protection.server";
+import {
+  findingsFromDistributionMatches,
+  finalizeReleaseMonitorRun,
+  syncReleaseProtectionIncidentsFromScan,
+} from "@/lib/copyright/release-protection-incidents.server";
 
 type MatchInsert = Database["public"]["Tables"]["copyright_matches"]["Insert"];
 type ContextSupabase = SupabaseClient<Database>;
@@ -84,6 +181,15 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function leadForceDetailFollow(query: string | null | undefined): boolean {
+  return (
+    query === "monitored_source_recheck" ||
+    query === "historical_finding_recheck" ||
+    query === "mirror_redirect" ||
+    Boolean(query?.startsWith("known_risk_domain:"))
+  );
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (error && typeof error === "object" && "message" in error) {
@@ -91,6 +197,37 @@ function errorMessage(error: unknown): string {
   }
   return String(error);
 }
+
+/** Neutral legacy-provider placeholder. Copyright discovery is Firecrawl-only. */
+function emptyBrightDataDiscovery(): BrightDataDiscoveryResult {
+  return {
+    provider: "brightdata",
+    configured: false,
+    hits: [],
+    pageLeads: [],
+    queriesGenerated: 0,
+    requests: 0,
+    successes: 0,
+    failures: 0,
+    candidates: 0,
+    duplicatesDropped: 0,
+    failuresByCategory: emptyProviderFailureCounts(),
+    failureSamples: [],
+    diagnostic: brightDataDiagnostic(),
+  };
+}
+
+function mergeProviderFailureCounts(
+  a: Record<string, number>,
+  b: Record<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = { ...emptyProviderFailureCounts(), ...a };
+  for (const [key, value] of Object.entries(b)) {
+    out[key] = (out[key] ?? 0) + value;
+  }
+  return out;
+}
+
 
 function plainStats(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -257,21 +394,32 @@ export async function writeCopyrightTerminalStatus(
   throw lastError instanceof Error ? lastError : new Error(errorMessage(lastError));
 }
 
-async function dispatchCopyrightScanExecutionInline(scanId: string): Promise<void> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  void executeCopyrightScanById({
-    supabase: supabaseAdmin,
+async function dispatchCopyrightScanExecutionInline(
+  scanId: string,
+  requestSupabase?: ContextSupabase,
+): Promise<void> {
+  const executorSupabase = requestSupabase ?? (
+    await import("@/integrations/supabase/client.server")
+  ).supabaseAdmin;
+
+  // A detached promise is cancelled when a serverless request finishes. Await
+  // the fallback so the executor actually claims the queued scan before this
+  // request can be torn down. Prefer the authenticated request client so this
+  // recovery path does not depend on an admin runtime credential.
+  const result = await executeCopyrightScanById({
+    supabase: executorSupabase,
     scanId,
     source: "worker",
-  }).catch((error) => {
+  });
+  if (result.status === "failed") {
     console.error("copyright_scan_inline_executor_failed", {
       scan_id: scanId,
-      error: errorMessage(error),
+      error: result.stats.failure_reason ?? "Inline executor failed",
     });
-  });
+  }
 }
 
-async function dispatchCopyrightScanExecution(
+export async function dispatchCopyrightScanExecution(
   scanId: string,
   supabase?: ContextSupabase,
 ): Promise<void> {
@@ -308,7 +456,7 @@ async function dispatchCopyrightScanExecution(
         worker_dispatch_fallback: "inline",
       });
     }
-    await dispatchCopyrightScanExecutionInline(scanId);
+    await dispatchCopyrightScanExecutionInline(scanId, supabase);
     return;
   }
 
@@ -326,7 +474,7 @@ async function dispatchCopyrightScanExecution(
         worker_dispatch_fallback: "inline",
       });
     }
-    await dispatchCopyrightScanExecutionInline(scanId);
+    await dispatchCopyrightScanExecutionInline(scanId, supabase);
     return;
   }
 
@@ -412,7 +560,7 @@ async function dispatchCopyrightScanExecution(
       worker_dispatch_fallback_at: new Date().toISOString(),
     });
   }
-  await dispatchCopyrightScanExecutionInline(scanId);
+  await dispatchCopyrightScanExecutionInline(scanId, supabase);
 }
 
 
@@ -456,6 +604,36 @@ export const uploadCopyrightReference = createServerFn({ method: "POST" })
     return { key };
   });
 
+const releaseProtectionSettingsSchema = z.object({
+  enabled: z.boolean(),
+  release_date: z.string(),
+  release_timezone: z.string(),
+  release_type: z.enum(["theatrical", "festival", "streaming", "television", "direct-to-video"]),
+  release_countries: z.array(z.string()),
+  languages: z.array(z.string()),
+  primary_language: z.string(),
+  alternate_titles: z.array(z.string()).optional(),
+  studio: z.string(),
+  distributor: z.string(),
+  ott_platform: z.string().optional(),
+  premiere_date: z.string().optional(),
+  censor_date: z.string().optional(),
+  press_screening_date: z.string().optional(),
+  trailer_release_date: z.string().optional(),
+  embargo_date: z.string().optional(),
+  digital_release_date: z.string().optional(),
+  home_video_release_date: z.string().optional(),
+  alert_threshold: z.enum(["critical_only", "high_and_critical", "all_verified", "daily_summary"]),
+  cadence_profile: z.enum(["default", "custom"]),
+  custom_cadence_minutes: z.number().optional(),
+});
+
+const referencePackageSchema = z.object({
+  primary_poster_key: z.string().optional(),
+  additional_visual_keys: z.array(z.string()).default([]),
+  video_reference_keys: z.array(z.string()).default([]),
+});
+
 const copyrightScanInputSchema = z.object({
   title: z.string().trim().min(1).max(200),
   referenceKind: z.enum(["image", "video"]),
@@ -464,6 +642,12 @@ const copyrightScanInputSchema = z.object({
   keys: z.array(z.string().min(10).max(500)).min(1).max(6),
   /** Optional known public URLs to investigate first (max 10). Never auto-guilty. */
   knownUrls: z.array(z.string().trim().min(8).max(2000)).max(10).optional(),
+  releaseProtection: z
+    .object({
+      settings: releaseProtectionSettingsSchema,
+      referencePackage: referencePackageSchema,
+    })
+    .optional(),
 });
 
 /**
@@ -527,11 +711,49 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
       throw new Error(message);
     }
 
+    if (data.releaseProtection?.settings?.enabled) {
+      const pkg: ReferencePackage = {
+        primary_poster_key:
+          data.releaseProtection.referencePackage.primary_poster_key ?? data.keys[0],
+        additional_visual_keys: data.releaseProtection.referencePackage.additional_visual_keys,
+        video_reference_keys: data.releaseProtection.referencePackage.video_reference_keys,
+      };
+      const protection = await createReleaseProtectionRecord(supabase, {
+        userId,
+        scanId: scan.id as string,
+        title: data.title,
+        settings: data.releaseProtection.settings as ReleaseProtectionSettings,
+        referencePackage: pkg,
+      });
+      await supabase
+        .from("copyright_scans")
+        .update({
+          stats: {
+            scan_created: nowIso,
+            scan_created_at: nowIso,
+            last_progress_at: nowIso,
+            discovery_never_started: true,
+            release_protection_id: protection.id,
+            release_protection_enabled: true,
+            release_date: data.releaseProtection.settings.release_date,
+            release_alt_titles: data.releaseProtection.settings.alternate_titles ?? [],
+            release_alert_threshold: data.releaseProtection.settings.alert_threshold,
+            pending_input: {
+              contentType: data.contentType,
+              knownUrls: data.knownUrls ?? [],
+              keys: data.keys,
+            },
+          } as never,
+        })
+        .eq("id", scan.id);
+    }
+
     // Immediate start — must not imply completion or zero-result success.
     return {
       scanId: scan.id as string,
       started: true as const,
       status: "queued" as const,
+      configuredProviders: configuredCopyrightScanProviders().map((p) => p.label),
     };
   });
 
@@ -613,9 +835,17 @@ export async function executeCopyrightScanById(opts: {
       scan_id: scan.id,
       source: opts.source ?? "user",
     });
-    const userId = scan.user_id as string;
 
-    const priorStats = (scan.stats ?? {}) as Record<string, unknown>;
+    let priorStats = (scan.stats ?? {}) as Record<string, unknown>;
+    const seedResult = await forcePersistCopyrightScanProviderSeed({
+      supabase,
+      scanId: scan.id as string,
+      scanStatus: "running",
+      priorStats,
+    });
+    priorStats = seedResult.stats;
+
+    const userId = scan.user_id as string;
     const pending = (priorStats.pending_input ?? {}) as {
       contentType?: string;
       knownUrls?: string[];
@@ -633,6 +863,18 @@ export async function executeCopyrightScanById(opts: {
     ) as typeof copyrightImageTypes[number];
     const knownUrls = Array.isArray(pending.knownUrls) ? pending.knownUrls : [];
     const workTitle = scan.title;
+    const releaseProtectionId =
+      typeof priorStats.release_protection_id === "string"
+        ? priorStats.release_protection_id
+        : undefined;
+    const releaseProtectionRun = Boolean(priorStats.release_protection_run);
+    const releaseProtectionReleaseDate =
+      typeof priorStats.release_date === "string" ? priorStats.release_date : undefined;
+    const releaseProtectionAltTitles = Array.isArray(priorStats.release_alt_titles)
+      ? (priorStats.release_alt_titles as string[])
+      : [];
+    const releaseAlertThreshold = (priorStats.release_alert_threshold ??
+      "high_and_critical") as AlertThreshold;
 
     if (!keys.length) {
       const failedStats = {
@@ -667,8 +909,25 @@ export async function executeCopyrightScanById(opts: {
 
     const activity = new ScanActivityRecorder();
     activity.restoreFromStats(priorStats);
+    const referenceImages = new ReferenceImageRecorder();
+    referenceImages.restoreFromStats(priorStats);
+    const referenceMaterials = new ReferenceMaterialRecorder();
+    referenceMaterials.restoreFromStats(priorStats);
+    const sourceActivity = new SourceActivityRecorder();
+    sourceActivity.restoreFromStats(priorStats);
+
+    const mergeReferenceStats = (stats: Record<string, unknown>) =>
+      referenceMaterials.mergeToStats(referenceImages.mergeToStats(stats));
+
+    const appendDiscoveredImages = (images: ReferenceImage[]) => {
+      if (!images.length) return;
+      referenceImages.append(images);
+      referenceMaterials.appendImages(images);
+    };
+
     activity.setWorkflowStage("preparing_reference");
     let abortedByDeadline = false;
+    let cancelledByOperator = false;
     let liveStats: Record<string, unknown> = {
       ...priorStats,
       ...stages,
@@ -677,38 +936,63 @@ export async function executeCopyrightScanById(opts: {
     };
 
     let lastActivityFlush = 0;
-    let activityFlushInFlight = false;
 
-    const pushActivity = (extra?: Record<string, unknown>, force = false) => {
-      if (abortedByDeadline) return Promise.resolve();
-      liveStats = activity.mergeToStats({ ...liveStats, ...stages, ...(extra ?? {}) });
-      const now = Date.now();
-      if (!force && (activityFlushInFlight || now - lastActivityFlush < 900)) {
-        return Promise.resolve();
-      }
-      lastActivityFlush = now;
-      activityFlushInFlight = true;
-      return flushScanActivity(
-        async (stats) => {
-          await supabase
-            .from("copyright_scans")
-            .update({ stats: stats as never })
-            .eq("id", scan.id)
-            .eq("status", "running");
-        },
-        liveStats,
-        activity,
-        extra,
-      ).finally(() => {
-        activityFlushInFlight = false;
+    const buildTelemetryStats = (extra?: Record<string, unknown>) => {
+      const merged = activity.mergeToStats({
+        ...liveStats,
+        ...stages,
+        ...(extra ?? {}),
       });
+      return sourceActivity.mergeToStats(mergeReferenceStats(merged));
     };
 
-    await supabase
+    const telemetryWriter = new ScanTelemetryWriter(async (payload) => {
+      await supabase
+        .from("copyright_scans")
+        .update({ stats: payload as never })
+        .eq("id", scan.id)
+        .eq("status", "running");
+      lastActivityFlush = Date.now();
+    });
+
+    const pushActivity = (extra?: Record<string, unknown>, force = false) => {
+      if (abortedByDeadline || cancelledByOperator) return Promise.resolve();
+      liveStats = buildTelemetryStats(extra);
+      return telemetryWriter.flush(() => buildTelemetryStats(), force);
+    };
+
+    /** Soft-cancel: operator marked the scan cancelled/failed while we were running. */
+    const refreshCancellation = async (): Promise<boolean> => {
+      if (cancelledByOperator) return true;
+      const { data } = await supabase
+        .from("copyright_scans")
+        .select("status")
+        .eq("id", scan.id)
+        .maybeSingle();
+      const status = typeof data?.status === "string" ? data.status : null;
+      if (status === "cancelled") {
+        cancelledByOperator = true;
+        return true;
+      }
+      return false;
+    };
+
+    const executorBootstrapStats = sourceActivity.mergeToStats(
+      mergeReferenceStats(activity.mergeToStats(liveStats)),
+    );
+    const { data: bootstrapRows, error: bootstrapErr } = await supabase
       .from("copyright_scans")
-      .update({ stats: activity.mergeToStats(liveStats) as never })
+      .update({ stats: executorBootstrapStats as never })
       .eq("id", scan.id)
-      .eq("status", "running");
+      .eq("status", "running")
+      .select("id, stats");
+    if (bootstrapErr) {
+      throw new Error(`Executor bootstrap stats write failed: ${bootstrapErr.message}`);
+    }
+    if (!bootstrapRows?.length) {
+      throw new Error("Executor bootstrap stats write updated zero rows.");
+    }
+    priorStats = (bootstrapRows[0] as { stats?: Record<string, unknown> }).stats ?? executorBootstrapStats;
 
     try {
       const firstBytes = await readStoredObject(keys[0]!);
@@ -717,7 +1001,7 @@ export async function executeCopyrightScanById(opts: {
       const referenceDataUrl = bytesToDataUrl(firstBytes, contentType);
 
       activity.setWorkflowStage("analyzing_visual");
-      await pushActivity();
+      await pushActivity({}, true);
 
       // 1. AI-vision analysis + AWS Rekognition fingerprint of the reference material.
       const allFrames = await Promise.all(
@@ -729,20 +1013,83 @@ export async function executeCopyrightScanById(opts: {
       ]);
 
       activity.setWorkflowStage("extracting_identifiers");
-      await pushActivity();
+      await pushActivity({}, true);
 
       // 2a. Optional known-URL seeds (high priority) — validated before provider search.
       const knownInputs = parseKnownUrlInputs(knownUrls);
       const knownSeeds = await validateKnownUrlSeeds(knownInputs);
       const knownAccepted = acceptedKnownUrls(knownSeeds);
 
+      if (knownAccepted.length) {
+        sourceActivity.upsert({ provider: "known_url", status: "queued" });
+      }
+
+      const runYoutubeDiscovery = async () => {
+        if (!isYoutubeConfigured()) return;
+        sourceActivity.upsert({ provider: "youtube", status: "searching" });
+        await pushActivity({}, true);
+        try {
+          const protectionReleaseDate = releaseProtectionReleaseDate ?? analysis.releaseDate;
+          const protectionQueries =
+            releaseProtectionRun && protectionReleaseDate
+              ? buildReleaseProtectionDiscoveryQueries(
+                  workTitle,
+                  protectionReleaseDate,
+                  [...releaseProtectionAltTitles, ...analysis.altTitles],
+                  analysis.title ?? undefined,
+                )
+              : [];
+          const queries = [
+            ...protectionQueries,
+            ...buildYoutubeQueries({
+              title: workTitle,
+              altTitles: [...releaseProtectionAltTitles, ...analysis.altTitles],
+              actors: analysis.actors,
+              language: analysis.language ?? undefined,
+            }),
+          ].slice(0, 16);
+          let youtubeCandidates = 0;
+          const videos = await discoverYoutubeVideos(queries.slice(0, 8), {
+            perQuery: 6,
+            onBatch: async (batch) => {
+              for (const video of batch) {
+                const material = materialFromYoutubeVideo(video);
+                if (material) referenceMaterials.append([material]);
+                activity.recordDiscovered({
+                  url: video.videoUrl,
+                  pageTitle: video.title,
+                  leadQuery: `youtube:${video.matchedQuery || "discovery"}`,
+                });
+                youtubeCandidates += 1;
+              }
+              sourceActivity.upsert({
+                provider: "youtube",
+                status: "searching",
+                requests: Math.min(queries.length, 8),
+                candidates: youtubeCandidates,
+              });
+              await pushActivity({}, true);
+            },
+          });
+          sourceActivity.upsert({
+            provider: "youtube",
+            status: videos.length ? "completed" : "no_results",
+            requests: Math.min(queries.length, 8),
+            candidates: videos.length,
+          });
+        } catch {
+          sourceActivity.upsert({ provider: "youtube", status: "failed", failures: 1 });
+        }
+        await pushActivity({}, true);
+      };
+      void runYoutubeDiscovery();
+
       // 2b. Firecrawl reverse discovery, seeded by that analysis.
       stages = markStage(stages, "queries_generated");
       stages = markStage(stages, "discovery_started");
       activity.setWorkflowStage("discovering_candidates");
-      await pushActivity({ queries_generated: 0 });
+      await pushActivity({ queries_generated: 0 }, true);
 
-      // Known URLs are investigated before any provider search.
       const titleSeedsEarly = [workTitle, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
       const titlesEarly = [
         ...new Set([
@@ -750,7 +1097,20 @@ export async function executeCopyrightScanById(opts: {
           ...titleSeedsEarly.flatMap((t) => expandTitleVariants(t).filter((v) => /[\s-]/.test(v))),
         ]),
       ].slice(0, 12);
-      const earlyKnownInspected = new Set<string>();
+      const historicalCandidates = await loadHistoricalScanCandidates(supabase, {
+        userId,
+        scanId: scan.id as string,
+        workTitle,
+        titles: titlesEarly,
+      });
+      const detailFollowRecorder = new DetailFollowRecorder();
+      let browserFallbackBudgetRemaining = BROWSER_FALLBACK_BUDGET_MS;
+      const crawledUrls = new Set<string>();
+      const earlyDistributionResults: Array<{
+        dist: Awaited<ReturnType<typeof analyzeDistributionPage>>;
+        query: string;
+        title: string | null;
+      }> = [];
       const earlyKnownInvestigations: Array<{
         url: string;
         retrieved: boolean;
@@ -758,89 +1118,448 @@ export async function executeCopyrightScanById(opts: {
         reason?: string | null;
       }> = [];
       let earlyKnownUrlsAttempted = 0;
-      const knownPreDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
-      for (const url of knownAccepted) {
-        if (isPastDeadline(knownPreDeadlineAt)) {
-          abortedByDeadline = true;
-          break;
-        }
-        earlyKnownUrlsAttempted += 1;
-        activity.recordChecking({
-          url,
-          pageTitle: workTitle,
-          leadQuery: "known_url_seed",
-        });
-        const dist = await analyzeDistributionPage({
-          url,
-          title: workTitle,
-          titles: titlesEarly,
-          releaseDate: analysis.releaseDate,
-          preferRender: true,
-          signal: AbortSignal.timeout(Math.max(1_000, knownPreDeadlineAt - Date.now())),
-        });
-        activity.recordDistributionOutcome({
-          url: dist.url,
-          pageTitle: dist.pageTitle ?? workTitle,
-          leadQuery: "known_url_seed",
-          crawlFailed: dist.crawlFailed,
-          classification: dist.classification,
-          clientVisible: dist.clientVisible,
-          strongEvidence: dist.strongEvidence,
-          identityEvidence: dist.identityEvidence,
-          rendered: dist.rendered,
-        });
-        earlyKnownInspected.add(canonicalUrl(dist.url));
-        earlyKnownInvestigations.push({
-          url: dist.url,
-          retrieved: !dist.crawlFailed,
-          rendered: dist.rendered,
-          reason: dist.crawlFailureReason ?? dist.reason ?? null,
-        });
-        await pushActivity({
-          known_urls_attempted: earlyKnownUrlsAttempted,
-          pages_crawled: earlyKnownUrlsAttempted,
-        });
-      }
-
-      const discoveryDeadlineAt = Date.now() + PROVIDER_CRAWL_BUDGET_MS;
+      const scanStartedAt = Date.now();
+      const scanDeadlineAt = absoluteScanDeadlineAt(scanStartedAt);
+      const knownPreDeadlineAt = knownUrlDeadlineAt(scanStartedAt, scanDeadlineAt);
+      const discoveryDeadlineAt = discoveryPhaseDeadlineAt(scanStartedAt, scanDeadlineAt);
       const discoverySignal = AbortSignal.timeout(
         Math.max(5_000, discoveryDeadlineAt - Date.now()),
       );
-
       const byUrl = new Map<string, DiscoveryCandidate>();
-      let discovery = await firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
-        signal: discoverySignal,
-        deadlineAt: discoveryDeadlineAt,
-        analysis,
-      });
+      let discoveredLeadCount = 0;
 
-      let serpapiDiscovery = await runCopyrightSerpApiDiscovery({
-        analysis,
-        workTitle,
-        signal: discoverySignal,
-        deadlineAt: discoveryDeadlineAt,
-        onlyWhenFirecrawlFailed: true,
-        firecrawlHadSuccess: discovery.providerSuccesses > 0,
-      });
-
-      if (serpapiDiscovery.pageLeads.length) {
-        const mergedLeads = [...discovery.pageLeads];
-        const seenLeadUrls = new Set(mergedLeads.map((l) => canonicalUrl(l.url)));
-        for (const lead of serpapiDiscovery.pageLeads) {
-          const key = canonicalUrl(lead.url);
-          if (seenLeadUrls.has(key)) continue;
-          seenLeadUrls.add(key);
-          mergedLeads.push(lead);
+      const runKnownUrlEarlyPhase = async () => {
+        if (!knownAccepted.length) return;
+        sourceActivity.upsert({ provider: "known_url", status: "searching" });
+        await pushActivity({}, true);
+        for (const url of knownAccepted) {
+          if (isPastDeadline(knownPreDeadlineAt)) {
+            abortedByDeadline = true;
+            break;
+          }
+          earlyKnownUrlsAttempted += 1;
+          activity.recordChecking({
+            url,
+            pageTitle: workTitle,
+            leadQuery: "known_url_seed",
+          });
+          const dist = await analyzeDistributionPage({
+            url,
+            title: workTitle,
+            titles: titlesEarly,
+            releaseDate: analysis.releaseDate,
+            preferRender: true,
+            allowBrowserFallback: browserFallbackBudgetRemaining > 0,
+            detailFollow: detailFollowRecorder,
+            signal: AbortSignal.timeout(Math.max(1_000, knownPreDeadlineAt - Date.now())),
+          });
+          if (dist.rendered) {
+            browserFallbackBudgetRemaining = Math.max(
+              0,
+              browserFallbackBudgetRemaining - PER_PAGE_BROWSER_BUDGET_MS,
+            );
+          }
+          crawledUrls.add(canonicalUrl(dist.url));
+          earlyDistributionResults.push({
+            dist,
+            query: "known_url_seed",
+            title: workTitle,
+          });
+          activity.recordDistributionOutcome({
+            url: dist.url,
+            pageTitle: dist.pageTitle ?? workTitle,
+            leadQuery: "known_url_seed",
+            crawlFailed: dist.crawlFailed,
+            classification: dist.classification,
+            clientVisible: dist.clientVisible,
+            strongEvidence: dist.strongEvidence,
+            identityEvidence: dist.identityEvidence,
+            rendered: dist.rendered,
+          });
+          earlyKnownInvestigations.push({
+            url: dist.url,
+            retrieved: !dist.crawlFailed,
+            rendered: dist.rendered,
+            reason: dist.crawlFailureReason ?? dist.reason ?? null,
+          });
+          if (dist.pageReferenceImages?.length) {
+            appendDiscoveredImages(dist.pageReferenceImages);
+          }
+          await pushActivity(
+            {
+              known_urls_attempted: earlyKnownUrlsAttempted,
+              pages_crawled: earlyKnownUrlsAttempted,
+            },
+            true,
+          );
         }
-        discovery = {
-          ...discovery,
-          pageLeads: mergedLeads,
-          candidates_by_provider: {
-            ...discovery.candidates_by_provider,
-            serpapi: serpapiDiscovery.candidates,
-          },
-        };
+        sourceActivity.upsert({
+          provider: "known_url",
+          status: earlyKnownUrlsAttempted > 0 ? "completed" : "no_results",
+          requests: earlyKnownUrlsAttempted,
+          candidates: earlyKnownUrlsAttempted,
+          failures: earlyKnownInvestigations.filter((r) => !r.retrieved).length,
+        });
+        await pushActivity({}, true);
+      };
+
+      await pushActivity({
+        brightdata_configured: isBrightDataConfigured(),
+        brightdata_diagnostic: brightDataDiagnostic(),
+        brightdata_running: false,
+        brightdata_last_status: isBrightDataConfigured() ? "idle" : "disabled",
+      }, true);
+
+      sourceActivity.upsert({ provider: "firecrawl", status: "searching" });
+      const protectionReleaseDateForDiscovery =
+        releaseProtectionReleaseDate ?? analysis.releaseDate;
+      const releaseProtectionQueries =
+        releaseProtectionRun && protectionReleaseDateForDiscovery
+          ? buildReleaseProtectionDiscoveryQueries(
+              workTitle,
+              protectionReleaseDateForDiscovery,
+              [...releaseProtectionAltTitles, ...analysis.altTitles],
+              analysis.title ?? undefined,
+            )
+          : [];
+      const discoveryPromise = firecrawlDiscover(referenceDataUrl, workTitle, 0, analysis, {
+        signal: discoverySignal,
+        deadlineAt: discoveryDeadlineAt,
+        analysis,
+        extraQueryStrings: [
+          ...releaseProtectionQueries,
+          ...historicalCandidates.siteScopedQueries,
+        ],
+        onProgress: async (progress) => {
+          for (const lead of progress.leads) {
+            activity.recordDiscovered({
+              url: lead.url,
+              pageTitle: lead.title,
+              leadQuery: lead.query,
+            });
+            discoveredLeadCount += 1;
+          }
+          const additions = (progress.referenceImages ?? [])
+            .map((img) =>
+              referenceImageFromDiscoveryCandidate({
+                pageUrl: img.pageUrl,
+                imageUrl: img.imageUrl,
+                title: img.title,
+                provider: "firecrawl",
+              }),
+            )
+            .filter((img): img is NonNullable<typeof img> => Boolean(img));
+          if (additions.length) appendDiscoveredImages(additions);
+          sourceActivity.upsert({
+            provider: "firecrawl",
+            status: "searching",
+            requests: progress.queriesExecuted,
+            candidates: progress.uniquePages,
+            failures: progress.providerFailures,
+          });
+          await pushActivity(
+            {
+              queries_generated: progress.queriesGenerated,
+              queries_executed: progress.queriesExecuted,
+              firecrawl_queries_completed: progress.queriesExecuted,
+              provider_failures: progress.providerFailures,
+              provider_results: discoveredLeadCount,
+              unique_candidate_pages: progress.uniquePages,
+            },
+            true,
+          );
+        },
+      });
+
+      const brightDataPromise = isBrightDataConfigured()
+        ? runBrightDataDiscovery({
+            analysis,
+            workTitle,
+            signal: discoverySignal,
+            deadlineAt: discoveryDeadlineAt,
+          }).catch((error) => {
+            console.warn(
+              "[copyright] Bright Data discovery failed:",
+              error instanceof Error ? error.message : String(error),
+            );
+            return emptyBrightDataDiscovery();
+          })
+        : Promise.resolve(emptyBrightDataDiscovery());
+
+      const serpapiPromise = isCopyrightSerpApiConfigured()
+        ? runCopyrightSerpApiDiscovery({
+            analysis,
+            workTitle,
+            signal: discoverySignal,
+            deadlineAt: discoveryDeadlineAt,
+            onlyWhenFirecrawlFailed: false,
+            firecrawlHadSuccess: false,
+          }).catch((error) => ({
+            hits: [],
+            pageLeads: [] as PageLead[],
+            requests: 0,
+            successes: 0,
+            failures: 1,
+            candidates: 0,
+            failureMessages: [
+              error instanceof Error ? error.message : String(error),
+            ],
+            configured: true,
+          }))
+        : Promise.resolve({
+            hits: [],
+            pageLeads: [] as PageLead[],
+            requests: 0,
+            successes: 0,
+            failures: 0,
+            candidates: 0,
+            failureMessages: [] as string[],
+            configured: false,
+          });
+
+      let discovery: Awaited<ReturnType<typeof firecrawlDiscover>>;
+      let brightDataDiscovery: Awaited<ReturnType<typeof runBrightDataDiscovery>>;
+      let serpapiDiscovery: Awaited<ReturnType<typeof runCopyrightSerpApiDiscovery>>;
+
+      const emptyFirecrawlDiscovery = (): Awaited<ReturnType<typeof firecrawlDiscover>> => ({
+        candidates: [],
+        pageLeads: [],
+        queriesGenerated: 0,
+        queriesExecuted: 0,
+        providerSuccesses: 0,
+        providerRequests: 0,
+        providerFailures: 1,
+        providerFailuresByCategory: emptyProviderFailureCounts(),
+        providerFailureSamples: [{ query: "", category: "provider_unavailable", detail: "Firecrawl discovery rejected" }],
+        firecrawl_requests: 0,
+        firecrawl_successes: 0,
+        firecrawl_failures: 1,
+        firecrawl_circuit_opened: false,
+        firecrawl_circuit_reason: null,
+        firecrawl_operator_action: null,
+        firecrawl_stopped_early: false,
+        firecrawl_stopped_early_reason: null,
+        discovery_saturation: buildSaturationMetrics({
+          state: emptyDiscoveryCoverageState(),
+          stoppedLowPriorityQueries: 0,
+          providersExhausted: false,
+        }),
+        candidates_by_provider: {},
+        telegram_queries: 0,
+        telegram_posts: 0,
+        telegram_candidates: 0,
+        telegram_failures: 0,
+        telegram_requests: 0,
+        firecrawl_env_diagnostic: firecrawlEnvironmentDiagnostic(),
+      });
+
+      const [, providerSettled] = await Promise.all([
+        runKnownUrlEarlyPhase(),
+        Promise.allSettled([discoveryPromise, brightDataPromise, serpapiPromise]),
+      ]);
+
+      discovery =
+        providerSettled[0]?.status === "fulfilled"
+          ? providerSettled[0].value
+          : emptyFirecrawlDiscovery();
+      brightDataDiscovery =
+        providerSettled[1]?.status === "fulfilled"
+          ? providerSettled[1].value
+          : emptyBrightDataDiscovery();
+      serpapiDiscovery =
+        providerSettled[2]?.status === "fulfilled"
+          ? providerSettled[2].value
+          : {
+              hits: [],
+              pageLeads: [] as PageLead[],
+              requests: 0,
+              successes: 0,
+              failures: 1,
+              candidates: 0,
+              failureMessages: ["SerpApi discovery rejected"],
+              configured: isCopyrightSerpApiConfigured(),
+            };
+
+      for (const candidate of discovery.candidates) {
+        const img = candidate.thumbnail ?? candidate.imageUrl;
+        if (!img) continue;
+        const entry = referenceImageFromDiscoveryCandidate({
+          pageUrl: candidate.url,
+          imageUrl: img,
+          title: candidate.title,
+          provider: "firecrawl",
+        });
+        if (entry) appendDiscoveredImages([entry]);
       }
+      const firecrawlStatus: SourceActivityStatus =
+        discovery.providerFailures > 0 && discovery.providerSuccesses === 0
+          ? "failed"
+          : discovery.candidates.length === 0 && discovery.pageLeads.length === 0
+            ? "no_results"
+            : "completed";
+      sourceActivity.upsert({
+        provider: "firecrawl",
+        status: firecrawlStatus,
+        requests: discovery.providerRequests,
+        candidates: discovery.candidates.length + discovery.pageLeads.length,
+        failures: discovery.providerFailures,
+      });
+      activity.setWorkflowStage("expanding_queries");
+      const brightDataStartedAt = Date.now();
+      await pushActivity({
+        brightdata_running: false,
+        brightdata_configured: brightDataDiscovery.configured,
+        brightdata_diagnostic: brightDataDiscovery.diagnostic,
+        brightdata_duration_ms: Date.now() - brightDataStartedAt,
+        brightdata_queries_generated: brightDataDiscovery.queriesGenerated,
+        brightdata_requests: brightDataDiscovery.requests,
+        brightdata_successes: brightDataDiscovery.successes,
+        brightdata_failures: brightDataDiscovery.failures,
+        brightdata_candidates: brightDataDiscovery.candidates,
+        brightdata_duplicates_dropped: brightDataDiscovery.duplicatesDropped,
+        brightdata_failures_by_category: brightDataDiscovery.failuresByCategory,
+        brightdata_failure_samples: brightDataDiscovery.failureSamples.slice(0, 6),
+        brightdata_last_status: brightDataDiscovery.configured
+          ? brightDataDiscovery.failures > 0 && brightDataDiscovery.successes === 0
+            ? "failed"
+            : "completed"
+          : "disabled",
+        investigation_stage: "Merging multi-provider discovery results…",
+      }, true);
+
+      if (brightDataDiscovery.configured) {
+        sourceActivity.upsert({
+          provider: "brightdata",
+          status: brightDataDiscovery.pageLeads.length
+            ? "completed"
+            : brightDataDiscovery.failures > 0
+              ? "failed"
+              : "no_results",
+          requests: brightDataDiscovery.requests,
+          candidates: brightDataDiscovery.candidates,
+          failures: brightDataDiscovery.failures,
+        });
+      }
+
+      if (serpapiDiscovery.configured) {
+        sourceActivity.upsert({
+          provider: "serpapi",
+          status: serpapiDiscovery.pageLeads.length
+            ? "completed"
+            : serpapiDiscovery.failures > 0
+              ? "failed"
+              : "no_results",
+          requests: serpapiDiscovery.requests,
+          candidates: serpapiDiscovery.candidates,
+          failures: serpapiDiscovery.failures,
+        });
+      }
+
+      activity.setWorkflowStage("discovering_mirrors");
+      await pushActivity({
+        investigation_stage: "Discovering Mirrors… Following redirects…",
+      }, true);
+
+      // Merge all fulfilled provider page leads by canonical URL (not by domain).
+      const providerMerge = mergeProviderPageLeads([
+        {
+          provider: "firecrawl",
+          leads: discovery.pageLeads.map((l) => ({ ...l, query: l.query ?? "firecrawl" })),
+        },
+        {
+          provider: "brightdata",
+          leads: brightDataDiscovery.pageLeads.map((l) => ({
+            ...l,
+            query: l.query ? `brightdata:${l.query}` : "brightdata:discovery",
+          })),
+        },
+        {
+          provider: "serpapi",
+          leads: serpapiDiscovery.pageLeads.map((l) => ({
+            ...l,
+            query: l.query ?? "serpapi:google",
+          })),
+        },
+      ]);
+      discovery = {
+        ...discovery,
+        pageLeads: providerMerge.leads,
+        providerFailuresByCategory: mergeProviderFailureCounts(
+          mergeProviderFailureCounts(
+            discovery.providerFailuresByCategory,
+            brightDataDiscovery.failuresByCategory,
+          ),
+          emptyProviderFailureCounts(),
+        ),
+        providerFailureSamples: [
+          ...discovery.providerFailureSamples,
+          ...brightDataDiscovery.failureSamples,
+        ].slice(0, 12),
+        candidates_by_provider: {
+          ...discovery.candidates_by_provider,
+          ...providerMerge.by_provider,
+          brightdata: brightDataDiscovery.candidates,
+          serpapi: serpapiDiscovery.candidates,
+        },
+      };
+
+      let rawSearchResults = providerMerge.raw_results_received;
+      let mergedUniqueCandidateUrls = providerMerge.unique_candidate_urls;
+      let mergedUniqueCandidateDomains = providerMerge.unique_candidate_domains;
+
+      const fallbackDeadlineAt =
+        scanStartedAt + MAX_SCAN_TIME_MS * DISCOVERY_FALLBACK_DEADLINE_FRACTION;
+      if (
+        mergedUniqueCandidateUrls < TARGET_DISCOVERY_CANDIDATES &&
+        Date.now() >= fallbackDeadlineAt &&
+        !isPastDeadline(discoveryDeadlineAt)
+      ) {
+        const discoveredHosts = providerMerge.leads
+          .map((l) => hostOf(l.url))
+          .filter((h): h is string => Boolean(h));
+        const fallbackQueries = buildSecondStageDiscoveryQueries({
+          analysis,
+          workTitle,
+          uniqueCandidateUrls: mergedUniqueCandidateUrls,
+          discoveredHosts,
+          discoveredFilenames: [],
+          ripTermsSeen: [],
+        });
+        if (fallbackQueries.length) {
+          const extraDiscovery = await firecrawlDiscover(
+            referenceDataUrl,
+            workTitle,
+            0,
+            analysis,
+            {
+              signal: discoverySignal,
+              deadlineAt: discoveryDeadlineAt,
+              analysis,
+              extraQueryStrings: fallbackQueries,
+            },
+          );
+          const secondMerge = mergeProviderPageLeads([
+            { provider: "merged", leads: discovery.pageLeads },
+            { provider: "firecrawl_second_stage", leads: extraDiscovery.pageLeads },
+          ]);
+          discovery = {
+            ...discovery,
+            pageLeads: secondMerge.leads,
+            queriesExecuted: discovery.queriesExecuted + extraDiscovery.queriesExecuted,
+            providerRequests: discovery.providerRequests + extraDiscovery.providerRequests,
+            providerSuccesses: discovery.providerSuccesses + extraDiscovery.providerSuccesses,
+            providerFailures: discovery.providerFailures + extraDiscovery.providerFailures,
+          };
+          rawSearchResults += secondMerge.raw_results_received;
+          mergedUniqueCandidateUrls = secondMerge.unique_candidate_urls;
+          mergedUniqueCandidateDomains = secondMerge.unique_candidate_domains;
+        }
+      }
+
+      const discoveryShortfallExplanation =
+        mergedUniqueCandidateUrls < TARGET_DISCOVERY_CANDIDATES
+          ? `Only ${mergedUniqueCandidateUrls} relevant public candidates were discoverable (target ${TARGET_DISCOVERY_CANDIDATES}). All configured providers were exhausted or the scan deadline was reached.`
+          : null;
 
       stages = markStage(stages, "first_provider_response");
 
@@ -848,38 +1567,53 @@ export async function executeCopyrightScanById(opts: {
         if (!byUrl.has(c.url)) byUrl.set(c.url, c);
       }
 
-      for (const lead of discovery.pageLeads.slice(0, 20)) {
+      for (const lead of discovery.pageLeads) {
         activity.recordDiscovered({
           url: lead.url,
           pageTitle: lead.title,
           leadQuery: lead.query,
         });
       }
-      for (const lead of serpapiDiscovery.pageLeads.slice(0, 20)) {
+      for (const lead of brightDataDiscovery.pageLeads) {
         activity.recordDiscovered({
           url: lead.url,
           pageTitle: lead.title,
-          leadQuery: lead.query ?? "serpapi:fallback",
+          leadQuery: `brightdata:${lead.query ?? "discovery"}`,
+        });
+      }
+      for (const lead of serpapiDiscovery.pageLeads) {
+        activity.recordDiscovered({
+          url: lead.url,
+          pageTitle: lead.title,
+          leadQuery: lead.query ?? "serpapi:google",
         });
       }
       activity.setWorkflowStage("retrieving_pages");
-      await pushActivity({
-        queries_executed: discovery.queriesExecuted,
-        provider_results: byUrl.size + discovery.pageLeads.length,
-        unique_candidate_pages: new Set([
-          ...byUrl.keys(),
-          ...discovery.pageLeads.map((l) => canonicalUrl(l.url)),
-        ]).size,
-        provider_failures: discovery.providerFailures,
-        firecrawl_circuit_opened: discovery.firecrawl_circuit_opened,
-        provider_failures_by_category: discovery.providerFailuresByCategory,
-      });
+      await pushActivity(
+        {
+          queries_executed: discovery.queriesExecuted,
+          queries_generated: discovery.queriesGenerated,
+          provider_results: byUrl.size + discovery.pageLeads.length,
+          raw_search_results: rawSearchResults,
+          unique_candidate_urls: mergedUniqueCandidateUrls,
+          unique_candidate_domains: mergedUniqueCandidateDomains,
+          unique_candidate_pages: mergedUniqueCandidateUrls,
+          discovery_shortfall_explanation: discoveryShortfallExplanation,
+          provider_results_by_provider: providerMerge.by_provider,
+          candidates_by_provider: discovery.candidates_by_provider,
+          provider_failures: discovery.providerFailures,
+          firecrawl_circuit_opened: discovery.firecrawl_circuit_opened,
+          provider_failures_by_category: discovery.providerFailuresByCategory,
+        },
+        true,
+      );
 
-      // Prioritise high-signal piracy leads, keep the grading budget bounded.
+      // Image grading is supplemental identity evidence only — never a discovery
+      // gate. Grade every image-bearing candidate within the scan page budget.
       const ordered = [...byUrl.values()]
         .filter((c) => c.thumbnail || c.imageUrl)
         .sort((a, b) => Number(b.exact) - Number(a.exact))
-        .slice(0, 40);
+        .slice(0, DEFAULT_PAGE_CAP);
 
       // 3. Evidence grading with a multimodal comparison.
       // Image/OCR path produces identity-only internal leads — never actionable piracy.
@@ -1085,22 +1819,40 @@ export async function executeCopyrightScanById(opts: {
         ...titleSeeds,
         ...titleSeeds.flatMap((t) => expandTitleVariants(t).filter((v) => /[\s-]/.test(v))),
       ])].slice(0, 12);
-      const releaseDate = analysis.releaseDate;
+      const releaseDate = releaseProtectionReleaseDate ?? analysis.releaseDate;
       // Known URLs first so they receive crawl budget before provider candidates.
-      const knownLeadUrls = knownAccepted.map((url) => ({
+      const knownLeadUrls: CandidateUnionEntry[] = knownAccepted.map((url) => ({
         url,
         title: workTitle,
         query: "known_url_seed",
         text: workTitle,
-        strong: true as const,
+        strong: true,
+        origin: "known_url",
       }));
-      const providerLeads = discovery.pageLeads
-        .sort((a2, b2) => Number(b2.strong) - Number(a2.strong));
-      const leadUrls = prioritizeKnownUrlLeads(knownLeadUrls, providerLeads, 32);
+      const providerLeads = sortDiscoveryLeadsByPriority(
+        discovery.pageLeads.map(
+          (lead): CandidateUnionEntry => ({
+            ...lead,
+            origin: "fresh_discovery",
+          }),
+        ),
+      );
+      const historicalLeads: CandidateUnionEntry[] = [
+        ...historicalCandidates.monitoredSourceCandidates,
+        ...historicalCandidates.historicalFindingCandidates,
+        ...historicalCandidates.knownRiskDomainCandidates,
+        ...historicalCandidates.mirrorAndRedirectCandidates,
+      ];
+      const mergedDiscovery = mergeScanCandidateLeads([historicalLeads, providerLeads]);
+      const leadUrls = prioritizeKnownUrlLeads(
+        knownLeadUrls,
+        mergedDiscovery.leads,
+        DEFAULT_PAGE_CAP,
+      );
       const slotAllocation = allocateCrawlSlots(
         knownLeadUrls.length,
-        providerLeads.length,
-        32,
+        mergedDiscovery.leads.length,
+        DEFAULT_PAGE_CAP,
       );
       const { known: knownPhaseLeads, provider: providerPhaseLeads } =
         splitKnownAndProviderLeads(leadUrls);
@@ -1108,8 +1860,25 @@ export async function executeCopyrightScanById(opts: {
       const distributionRows: MatchInsert[] = [];
       const internalRows: MatchInsert[] = [];
       const inspectedDomains = new Set<string>();
-      const inspectedUrls = new Set<string>(earlyKnownInspected);
-      const detailFollowQueue: string[] = [];
+      const inspectedUrls = new Set<string>();
+      const crawledDistributionByUrl = new Map<
+        string,
+        Awaited<ReturnType<typeof analyzeDistributionPage>>
+      >();
+      for (const entry of earlyDistributionResults) {
+        crawledDistributionByUrl.set(canonicalUrl(entry.dist.url), entry.dist);
+      }
+      let suspectedReviewPages = 0;
+      let historicalFindingsReconfirmed = 0;
+      let historicalSourcesUnreachable = 0;
+      let historicalRequiresReview = 0;
+      const unreachableHistoricalUrls = new Set<string>();
+      const preservedByUrl = new Map(
+        historicalCandidates.preservedFindings.map((pf) => [
+          canonicalUrl(pf.source_url),
+          pf,
+        ]),
+      );
       type KnownUrlInvestigation = {
         url: string;
         host?: string | null;
@@ -1138,6 +1907,7 @@ export async function executeCopyrightScanById(opts: {
       };
       const knownUrlInvestigations: KnownUrlInvestigation[] = [];
       const crawlFailedByCategory = emptyCrawlFailureCounts();
+      const crawlMetrics = new CrawlMetricsRecorder();
       let knownUrlsAttempted = 0;
       let knownUrlsRetrieved = 0;
       let knownUrlsRendered = 0;
@@ -1209,6 +1979,8 @@ export async function executeCopyrightScanById(opts: {
       let downloadPages = 0;
       let fileHostDestinations = 0;
       let torrentsMagnets = 0;
+      let redirectsFollowed = 0;
+      const detailDepthByUrl = new Map<string, number>();
       let theatrePrintFindings = 0;
       let detailPagesFollowed = 0;
       let registeredMonitoredSources = 0;
@@ -1229,18 +2001,57 @@ export async function executeCopyrightScanById(opts: {
         dist: Awaited<ReturnType<typeof analyzeDistributionPage>>,
         leadQuery: string | null,
         leadTitle: string | null,
+        opts?: { seedUrl?: string | null; fromDepth?: number },
       ) => {
         const key = canonicalUrl(dist.url);
         if (inspectedUrls.has(key)) return;
         inspectedUrls.add(key);
         inspectedDomains.add((dist.domain ?? "").toLowerCase());
         pagesCrawled += 1;
+        const seedUrl = opts?.seedUrl ? canonicalUrl(opts.seedUrl) : null;
+        if (seedUrl && seedUrl !== key) redirectsFollowed += 1;
+        if (opts?.fromDepth != null) {
+          detailDepthByUrl.set(key, opts.fromDepth);
+        } else if (!detailDepthByUrl.has(key)) {
+          detailDepthByUrl.set(key, 0);
+        }
+
+        if (dist.pageReferenceImages?.length) {
+          appendDiscoveredImages(dist.pageReferenceImages);
+        }
 
         if (dist.crawlFailed) {
           pagesFailed += 1;
           bumpCrawlFailure(crawlFailedByCategory, dist.crawlFailureCategory);
+          if (dist.crawlFailureCategory === "empty_static_html") {
+            crawlMetrics.recordStaticEmpty();
+          }
+          if (
+            dist.crawlFailureCategory &&
+            [
+              "render_failure",
+              "browser_render_empty",
+              "provider_failure",
+              "cloudflare_challenge",
+              "javascript_required",
+              "navigation_timeout",
+              "empty_static_html",
+            ].includes(dist.crawlFailureCategory)
+          ) {
+            crawlMetrics.recordBrowserAttempt();
+            crawlMetrics.recordBrowserFailure();
+          }
           // Network/render failures are never counted as content rejection below.
         } else {
+          if (dist.retrievalMethod === "static_html") crawlMetrics.recordStaticSuccess();
+          if (dist.rendered) {
+            crawlMetrics.recordBrowserAttempt();
+            crawlMetrics.recordBrowserSuccess();
+          }
+          if (dist.retrievalMethod === "crawl4ai_render") {
+            crawlMetrics.recordCrawl4AiAttempt();
+            crawlMetrics.recordCrawl4AiSuccess();
+          }
           switch (dist.classification) {
             case "CINEMA_OR_SHOWTIME":
               cinemaRejected += 1;
@@ -1287,6 +2098,7 @@ export async function executeCopyrightScanById(opts: {
         // Content-rejection counters only apply to successfully retrieved pages.
         if (!dist.crawlFailed && !dist.identityEvidence.length && !dist.clientVisible) {
           titleIdentityRejected += 1;
+          crawlMetrics.recordTitleRejected();
         }
         if (
           !dist.crawlFailed &&
@@ -1302,6 +2114,26 @@ export async function executeCopyrightScanById(opts: {
           dist.classification !== "DUPLICATE_ARTWORK_ONLY"
         ) {
           accessEvidenceRejected += 1;
+          crawlMetrics.recordMissingAccessEvidence();
+        }
+        if (!dist.crawlFailed && dist.identityEvidence.length) {
+          crawlMetrics.recordExactTitle();
+        }
+        if (!dist.crawlFailed) {
+          const ev = buildPageEvidenceResult(dist);
+          if (ev.accessEvidence.strength !== "none") {
+            crawlMetrics.recordAccessEvidence();
+          }
+        }
+        if (
+          !dist.crawlFailed &&
+          (dist.classification === "OFFICIAL_OR_AUTHORIZED" ||
+            dist.classification === "OFFICIAL_OR_AUTHORIZED_PAGE" ||
+            dist.classification === "TRAILER_OR_PROMO" ||
+            dist.classification === "CINEMA_OR_SHOWTIME" ||
+            dist.classification === "REVIEW_OR_NEWS")
+        ) {
+          crawlMetrics.recordOfficialOrPromoRejected();
         }
 
         if (dist.indicatorKeys.includes("embedded_player")) embeddedPlayers += 1;
@@ -1309,10 +2141,36 @@ export async function executeCopyrightScanById(opts: {
         if (dist.classification === "FILE_HOST_DISTRIBUTION") fileHostDestinations += 1;
         if (dist.classification === "TORRENT_OR_MAGNET") torrentsMagnets += 1;
         if (dist.classification === "THEATRE_PRINT_DISTRIBUTION") theatrePrintFindings += 1;
-        if (dist.strongEvidence) accessEvidencePages += 1;
 
-        for (const detail of dist.detailFollowUrls) {
-          if (!inspectedUrls.has(canonicalUrl(detail))) detailFollowQueue.push(detail);
+        const pageEvidence = buildPageEvidenceResult(dist);
+        if (pageEvidence.accessEvidence.strength === "strong") accessEvidencePages += 1;
+        if (pageEvidence.suspectedReview) {
+          suspectedReviewPages += 1;
+          crawlMetrics.recordMissingAccessEvidence();
+        }
+        if (
+          dist.crawlFailed &&
+          (leadQuery === "historical_finding_recheck" ||
+            leadQuery === "monitored_source_recheck")
+        ) {
+          historicalSourcesUnreachable += 1;
+          unreachableHistoricalUrls.add(key);
+        }
+        if (dist.rendered) {
+          browserFallbackBudgetRemaining = Math.max(
+            0,
+            browserFallbackBudgetRemaining - PER_PAGE_BROWSER_BUDGET_MS,
+          );
+        }
+
+        if (dist.detailFollowUrls.length) {
+          detailFollowRecorder.enqueueCandidates({
+            pageUrl: dist.url,
+            candidates: dist.detailFollowUrls,
+            inspectedUrls: new Set([...inspectedUrls, ...crawledUrls]),
+            titles,
+            fromDepth: detailDepthByUrl.get(key) ?? opts?.fromDepth ?? 0,
+          });
         }
 
         distributionSummary.push({
@@ -1328,6 +2186,51 @@ export async function executeCopyrightScanById(opts: {
         });
 
         const contact = resolveAbuseContact(dist.url);
+        const priorPreserved = preservedByUrl.get(key);
+        const isHistoricalRecheck =
+          leadQuery === "historical_finding_recheck" ||
+          leadQuery === "monitored_source_recheck" ||
+          leadQuery === "mirror_redirect" ||
+          Boolean(leadQuery?.startsWith("known_risk_domain:")) ||
+          Boolean(priorPreserved);
+        const recheckStatus = isHistoricalRecheck
+          ? resolveHistoricalRecheckStatus({
+              crawlFailed: dist.crawlFailed,
+              clientVisible: dist.clientVisible,
+              strongEvidence: dist.strongEvidence,
+              suspectedReview: pageEvidence.suspectedReview,
+              identityMatched: pageEvidence.titleIdentity.matched,
+              accessStrength: pageEvidence.accessEvidence.strength,
+              redirected: leadQuery === "mirror_redirect",
+            })
+          : null;
+
+        if (isHistoricalRecheck && recheckStatus) {
+          if (typeof process !== "undefined" && process.env?.NODE_ENV !== "test") {
+            console.info(
+              "[copyright-suspicious] evidence result",
+              key,
+              recheckStatus,
+              pageEvidence.accessDiagnostics.accessStrength,
+              pageEvidence.rejectionReason ?? "",
+            );
+          }
+          if (recheckStatus === "reconfirmed_active") {
+            historicalFindingsReconfirmed += 1;
+          } else if (recheckStatus === "temporarily_unreachable") {
+            historicalSourcesUnreachable += 1;
+            unreachableHistoricalUrls.add(key);
+          } else if (
+            recheckStatus === "requires_review" ||
+            recheckStatus === "insufficient_current_evidence"
+          ) {
+            historicalRequiresReview += 1;
+          }
+        }
+
+        const historicalPreservation =
+          Boolean(priorPreserved) ||
+          (isHistoricalRecheck && recheckStatus !== "reconfirmed_active");
         const matchRow: MatchInsert = {
           scan_id: scan.id,
           user_id: userId,
@@ -1339,7 +2242,7 @@ export async function executeCopyrightScanById(opts: {
           confidence_band: bandFor(dist.confidence),
           detection_type: dist.classification,
           transformations: dist.qualityTags.slice(0, 8),
-          evidence: {
+          evidence: ({
             discovery: "distribution_site",
             discovery_query: leadQuery,
             keyword_match: leadQuery,
@@ -1352,7 +2255,25 @@ export async function executeCopyrightScanById(opts: {
             identity_evidence: dist.identityEvidence,
             access_evidence: dist.accessEvidence,
             confidence_breakdown: dist.confidenceBreakdown,
+            page_excerpt: dist.pageExcerpt ?? null,
             embed_sources: dist.embedSources,
+            page_evidence: pageEvidence,
+            crawl_failed: dist.crawlFailed,
+            crawl_failure_category: dist.crawlFailureCategory,
+            crawl_failure_reason: dist.crawlFailureReason,
+            ...(recheckStatus ? { recheck_status: recheckStatus } : {}),
+            ...(historicalPreservation
+              ? {
+                  historical_preservation: true,
+                  prior_classification: priorPreserved?.classification ?? dist.classification,
+                  prior_scan_id: priorPreserved?.prior_scan_id ?? null,
+                  prior_evidence: priorPreserved?.prior_evidence ?? null,
+                  prior_verified_at:
+                    (priorPreserved?.prior_evidence?.verified_at as string | undefined) ??
+                    null,
+                  show_as_historical: recheckStatus !== "reconfirmed_active",
+                }
+              : {}),
             distribution: {
               domain: dist.domain,
               domain_risk: dist.domainRisk,
@@ -1373,8 +2294,12 @@ export async function executeCopyrightScanById(opts: {
               confidence_breakdown: dist.confidenceBreakdown,
               evidence_screenshot: dist.screenshot,
               embed_sources: dist.embedSources,
+              crawl_failed: dist.crawlFailed,
+              crawl_failure_category: dist.crawlFailureCategory,
+              crawl_failure_reason: dist.crawlFailureReason,
+              ...(recheckStatus ? { recheck_status: recheckStatus } : {}),
             },
-          },
+          } as unknown as MatchInsert["evidence"]),
           ocr_text: null,
           reason: dist.reason,
           contact: contact as unknown as MatchInsert["contact"],
@@ -1437,6 +2362,7 @@ export async function executeCopyrightScanById(opts: {
             }
           }
           distributionRows.push(matchRow);
+          crawlMetrics.recordFinding();
         } else if (
           dist.clientVisible &&
           dist.strongEvidence &&
@@ -1445,13 +2371,28 @@ export async function executeCopyrightScanById(opts: {
           // Actionable finding for UI but not eligible for domain monitoring
           // (e.g. never-monitor hosts) — still show as client-visible match.
           distributionRows.push(matchRow);
-        } else if (dist.classification !== "UNRELATED") {
-          // Retain internal diagnostics / non-actionable classifications.
+          crawlMetrics.recordFinding();
+        } else {
+          // Retain every inspected source as an internal diagnostics lead so the
+          // operator-facing "all sources" list is complete (including UNRELATED).
           matchRow.evidence = {
             ...(matchRow.evidence as Record<string, unknown>),
             client_visible: false,
           };
           internalRows.push(matchRow);
+        }
+
+        if (typeof process !== "undefined" && process.env?.NODE_ENV !== "test") {
+          const ev = (matchRow.evidence ?? {}) as Record<string, unknown>;
+          console.info(
+            "[copyright-suspicious] persistence decision",
+            key,
+            distributionRows.some((r) => r.source_url === key)
+              ? "distribution_row"
+              : "internal_row",
+            ev.recheck_status ?? "",
+            ev.historical_preservation === true ? "historical" : "current",
+          );
         }
 
         activity.recordDistributionOutcome({
@@ -1469,7 +2410,7 @@ export async function executeCopyrightScanById(opts: {
 
       // Phase A — known URLs first with reserved time budget (never starved by providers).
       activity.setWorkflowStage("checking_access");
-      const knownDeadlineAt = Date.now() + KNOWN_URL_BUDGET_MS;
+      const knownDeadlineAt = scanDeadlineAt;
       for (let offset = 0; offset < knownPhaseLeads.length; offset += 2) {
         if (isPastDeadline(knownDeadlineAt)) {
           abortedByDeadline = true;
@@ -1503,6 +2444,10 @@ export async function executeCopyrightScanById(opts: {
         const analyses = await Promise.all(
           batch.map(async (lead) => {
             const key = canonicalUrl(lead.url);
+            const cached = crawledDistributionByUrl.get(key);
+            if (cached) {
+              return { lead, analysis: cached };
+            }
             if (!inspectedUrls.has(key)) {
               activity.recordChecking({
                 url: lead.url,
@@ -1510,28 +2455,43 @@ export async function executeCopyrightScanById(opts: {
                 leadQuery: lead.query,
               });
             }
-            return {
-              lead,
-              analysis: await analyzeDistributionPage({
-                url: lead.url,
-                title: lead.title,
-                titles,
-                releaseDate,
-                signal,
-                preferRender: true,
-              }),
-            };
+            const analysis = await analyzeDistributionPage({
+              url: lead.url,
+              title: lead.title,
+              titles,
+              releaseDate,
+              signal,
+              preferRender: true,
+              allowBrowserFallback: browserFallbackBudgetRemaining > 0,
+              detailFollow: detailFollowRecorder,
+              forceDetailFollow: leadForceDetailFollow(lead.query),
+            });
+            crawledDistributionByUrl.set(canonicalUrl(analysis.url), analysis);
+            crawledUrls.add(canonicalUrl(analysis.url));
+            if (analysis.rendered) {
+              browserFallbackBudgetRemaining = Math.max(
+                0,
+                browserFallbackBudgetRemaining - PER_PAGE_BROWSER_BUDGET_MS,
+              );
+            }
+            return { lead, analysis };
           }),
         );
         for (const { lead, analysis: dist } of analyses) {
-          await ingestDistribution(dist, lead.query, lead.title);
+          await ingestDistribution(dist, lead.query, lead.title, {
+            seedUrl: lead.url,
+            fromDepth: 0,
+          });
         }
-        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed });
+        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed }, true);
+        if (await refreshCancellation()) break;
       }
 
-      // Phase B — provider candidates with remaining budget / reserved leftover slots.
-      const providerDeadlineAt = Date.now() + PROVIDER_CRAWL_BUDGET_MS;
+      // Phase B — provider candidates with remaining budget (detail follow reserved).
+      const providerDeadlineAt = providerCrawlDeadlineAt(scanDeadlineAt);
+      const detailFollowDeadlineAt = scanDeadlineAt;
       for (let offset = 0; offset < providerPhaseLeads.length; offset += 4) {
+        if (cancelledByOperator || (await refreshCancellation())) break;
         if (isPastDeadline(providerDeadlineAt)) {
           abortedByDeadline = true;
           for (const lead of providerPhaseLeads.slice(offset)) {
@@ -1551,6 +2511,10 @@ export async function executeCopyrightScanById(opts: {
         const analyses = await Promise.all(
           batch.map(async (lead) => {
             const key = canonicalUrl(lead.url);
+            const cached = crawledDistributionByUrl.get(key);
+            if (cached) {
+              return { lead, analysis: cached };
+            }
             if (!inspectedUrls.has(key)) {
               activity.recordChecking({
                 url: lead.url,
@@ -1558,22 +2522,35 @@ export async function executeCopyrightScanById(opts: {
                 leadQuery: lead.query,
               });
             }
-            return {
-              lead,
-              analysis: await analyzeDistributionPage({
-                url: lead.url,
-                title: lead.title,
-                titles,
-                releaseDate,
-                signal,
-              }),
-            };
+            const analysis = await analyzeDistributionPage({
+              url: lead.url,
+              title: lead.title,
+              titles,
+              releaseDate,
+              signal,
+              preferRender: Boolean((lead as { strong?: boolean }).strong),
+              allowBrowserFallback: browserFallbackBudgetRemaining > 0,
+              detailFollow: detailFollowRecorder,
+              forceDetailFollow: leadForceDetailFollow(lead.query),
+            });
+            crawledDistributionByUrl.set(canonicalUrl(analysis.url), analysis);
+            crawledUrls.add(canonicalUrl(analysis.url));
+            if (analysis.rendered) {
+              browserFallbackBudgetRemaining = Math.max(
+                0,
+                browserFallbackBudgetRemaining - PER_PAGE_BROWSER_BUDGET_MS,
+              );
+            }
+            return { lead, analysis };
           }),
         );
         for (const { lead, analysis: dist } of analyses) {
-          await ingestDistribution(dist, lead.query, lead.title);
+          await ingestDistribution(dist, lead.query, lead.title, {
+            seedUrl: lead.url,
+            fromDepth: 0,
+          });
         }
-        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed });
+        await pushActivity({ pages_crawled: pagesCrawled, pages_failed: pagesFailed }, true);
       }
 
       if (pagesCrawled > 0) stages = markStage(stages, "first_page_crawled");
@@ -1581,41 +2558,83 @@ export async function executeCopyrightScanById(opts: {
       activity.setWorkflowStage("classifying_evidence");
       await pushActivity({}, true);
 
-      // Bounded same-domain detail follow from listing pages.
-      const details = detailFollowQueue.slice(0, 12);
-      for (let offset = 0; offset < details.length; offset += 4) {
-        if (isPastDeadline(providerDeadlineAt)) {
+      // Recursive listing / mirror / download follow until queue empty, timeout, or cancel.
+      // Drain in batches of DETAIL_FOLLOW_DRAIN_CAP but keep looping so the 120-slot
+      // queue is not stranded after a single 80-item pass. Child pages may re-enqueue
+      // up to DETAIL_FOLLOW_MAX_DEPTH hops.
+      detailFollowPhase: while (!cancelledByOperator) {
+        if (await refreshCancellation()) break;
+        if (isPastDeadline(detailFollowDeadlineAt)) {
           abortedByDeadline = true;
+          for (const item of detailFollowRecorder.drain()) {
+            detailFollowRecorder.recordSkipped(item.url, "deadline");
+          }
           break;
         }
-        const batch = details.slice(offset, offset + 4);
-        const signal = AbortSignal.timeout(
-          Math.max(1_000, providerDeadlineAt - Date.now()),
-        );
-        const analyses = await Promise.all(
-          batch.map(async (url) => {
-            activity.recordChecking({
-              url,
-              leadQuery: "detail_follow",
-              stage: "detail_follow",
+        const details = detailFollowRecorder.drain(DETAIL_FOLLOW_DRAIN_CAP);
+        if (!details.length) break;
+
+        for (let offset = 0; offset < details.length; offset += 4) {
+          if (cancelledByOperator || (await refreshCancellation())) {
+            for (const item of details.slice(offset)) {
+              detailFollowRecorder.recordSkipped(item.url, "deadline", "cancelled");
+            }
+            break detailFollowPhase;
+          }
+          if (isPastDeadline(detailFollowDeadlineAt)) {
+            abortedByDeadline = true;
+            for (const item of details.slice(offset)) {
+              detailFollowRecorder.recordSkipped(item.url, "deadline");
+            }
+            break detailFollowPhase;
+          }
+          const batch = details.slice(offset, offset + 4);
+          const signal = AbortSignal.timeout(
+            Math.max(1_000, detailFollowDeadlineAt - Date.now()),
+          );
+          const analyses = await Promise.all(
+            batch.map(async (item) => {
+              activity.recordChecking({
+                url: item.url,
+                leadQuery: "detail_follow",
+                stage: "detail_follow",
+              });
+              return {
+                item,
+                dist: await analyzeDistributionPage({
+                  url: item.url,
+                  titles,
+                  releaseDate,
+                  // Allow recursive follow until depth budget is exhausted.
+                  skipDetailFollow: item.depth >= DETAIL_FOLLOW_MAX_DEPTH,
+                  preferRender: true,
+                  allowBrowserFallback: browserFallbackBudgetRemaining > 0,
+                  detailFollow: detailFollowRecorder,
+                  signal,
+                }),
+              };
+            }),
+          );
+          for (const { item, dist } of analyses) {
+            detailPagesFollowed += 1;
+            detailFollowRecorder.recordCrawled(dist.url);
+            detailFollowRecorder.recordEvidenceResult(
+              dist.url,
+              dist.classification,
+              dist.reason,
+            );
+            crawlMetrics.recordDetailFollow();
+            await ingestDistribution(dist, "detail_follow", dist.pageTitle, {
+              seedUrl: item.url,
+              fromDepth: item.depth,
             });
-            return analyzeDistributionPage({
-              url,
-              titles,
-              releaseDate,
-              skipDetailFollow: true,
-              signal,
-            });
-          }),
-        );
-        for (const dist of analyses) {
-          detailPagesFollowed += 1;
-          await ingestDistribution(dist, "detail_follow", dist.pageTitle);
+          }
+          await pushActivity({
+            detail_pages_followed: detailPagesFollowed,
+            pages_crawled: pagesCrawled,
+            detail_links_processed: detailFollowRecorder.stats().detail_links_processed,
+          });
         }
-        await pushActivity({
-          detail_pages_followed: detailPagesFollowed,
-          pages_crawled: pagesCrawled,
-        });
       }
 
       activity.setWorkflowStage("saving_report");
@@ -1631,6 +2650,112 @@ export async function executeCopyrightScanById(opts: {
         excludeDomains: [...inspectedDomains].filter(Boolean),
       }).catch(() => ({ checked: 0, incidents: 0 }));
 
+      const detailFollowStats = detailFollowRecorder.stats();
+      const preservedHistoricalFindings: Array<Record<string, unknown>> = [];
+      for (const pf of historicalCandidates.preservedFindings) {
+        const key = canonicalUrl(pf.source_url);
+        const rechecked = crawledUrls.has(key) || inspectedUrls.has(key);
+        const existingRow =
+          distributionRows.find((r) => r.source_url === key) ??
+          internalRows.find((r) => r.source_url === key);
+        const rowInScan = Boolean(existingRow);
+
+        const recheckStatus =
+          existingRow &&
+          typeof (existingRow.evidence as Record<string, unknown>)?.recheck_status === "string"
+            ? ((existingRow.evidence as Record<string, unknown>).recheck_status as string)
+            : rechecked
+              ? unreachableHistoricalUrls.has(key)
+                ? "temporarily_unreachable"
+                : "requires_review"
+              : "pending";
+
+        if (rowInScan && existingRow) {
+          const ev = (existingRow.evidence ?? {}) as Record<string, unknown>;
+          if (!ev.historical_preservation) {
+            existingRow.evidence = {
+              ...ev,
+              historical_preservation: true,
+              prior_classification: pf.classification,
+              prior_scan_id: pf.prior_scan_id,
+              prior_evidence: pf.prior_evidence ?? null,
+              prior_verified_at:
+                (pf.prior_evidence?.verified_at as string | undefined) ?? null,
+              recheck_status: recheckStatus,
+              show_as_historical: recheckStatus !== "reconfirmed_active",
+            } as unknown as MatchInsert["evidence"];
+          } else if (!ev.recheck_status) {
+            existingRow.evidence = {
+              ...ev,
+              recheck_status: recheckStatus,
+            } as unknown as MatchInsert["evidence"];
+          }
+          preservedHistoricalFindings.push({
+            source_url: key,
+            page_title: pf.page_title,
+            classification: pf.classification,
+            prior_scan_id: pf.prior_scan_id,
+            recheck_status: recheckStatus,
+          });
+          continue;
+        }
+
+        preservedHistoricalFindings.push({
+          source_url: key,
+          page_title: pf.page_title,
+          classification: pf.classification,
+          prior_scan_id: pf.prior_scan_id,
+          recheck_status: recheckStatus,
+        });
+        historicalRequiresReview += recheckStatus === "pending" || recheckStatus === "requires_review" ? 1 : 0;
+        if (recheckStatus === "temporarily_unreachable") {
+          historicalSourcesUnreachable += 1;
+        }
+
+        if (typeof process !== "undefined" && process.env?.NODE_ENV !== "test") {
+          console.info(
+            "[copyright-suspicious] persistence decision",
+            key,
+            "preserved_historical",
+            recheckStatus,
+          );
+        }
+
+        const contact = resolveAbuseContact(key);
+        internalRows.push({
+          scan_id: scan.id,
+          user_id: userId,
+          source_url: key,
+          platform: contact.platform,
+          page_title: pf.page_title ?? `Historical finding: ${workTitle}`,
+          thumbnail_url: null,
+          confidence: 70,
+          confidence_band: "review",
+          detection_type: pf.classification,
+          transformations: [],
+          evidence: {
+            discovery: "historical_preservation",
+            discovery_query: "historical_finding_recheck",
+            client_visible: false,
+            historical_preservation: true,
+            prior_scan_id: pf.prior_scan_id,
+            prior_classification: pf.classification,
+            prior_evidence: pf.prior_evidence ?? null,
+            prior_verified_at:
+              (pf.prior_evidence?.verified_at as string | undefined) ?? null,
+            recheck_status: recheckStatus,
+            show_as_historical: true,
+            classification: pf.classification,
+          } as unknown as MatchInsert["evidence"],
+          ocr_text: null,
+          reason:
+            recheckStatus === "temporarily_unreachable"
+              ? "Previously confirmed source could not be reached this scan — historical evidence preserved."
+              : "Historical finding preserved from prior scan — pending recheck confirmation.",
+          contact: contact as unknown as MatchInsert["contact"],
+        });
+      }
+
       // Persist actionable findings + a bounded set of internal non-piracy leads.
       // Internal leads never use ripped_copy and are marked client_visible: false.
       // Keep client_visible:false rows even when taxonomy is "actionable" (e.g.
@@ -1638,18 +2763,45 @@ export async function executeCopyrightScanById(opts: {
       const seenUrls = new Set(distributionRows.map((r) => r.source_url));
       const isInternalLeadRow = (r: MatchInsert) => {
         const ev = (r.evidence ?? {}) as Record<string, unknown>;
+        if (ev.historical_preservation === true) return true;
         if (ev.client_visible === false) return true;
         return !isActionablePiracy(r.detection_type);
       };
-      const internalPersist = dedupeCopyrightMatchRows(
-        [...internalRows, ...fallbackRows].filter(
-          (r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r),
-        ),
-      ).slice(0, 20) as MatchInsert[];
+      const internalCandidates = [...internalRows, ...fallbackRows].filter(
+        (r) => !seenUrls.has(r.source_url) && isInternalLeadRow(r),
+      );
+      internalCandidates.sort((a, b) => {
+        const aHist = (a.evidence as Record<string, unknown>)?.historical_preservation === true ? 1 : 0;
+        const bHist = (b.evidence as Record<string, unknown>)?.historical_preservation === true ? 1 : 0;
+        return bHist - aHist;
+      });
+      // Persist the full inspected-lead set (not just the top slice) so the UI can
+      // show 100% of detected sources; the results list pages/groups them client-side.
+      const internalPersist = dedupeCopyrightMatchRows(internalCandidates).slice(0, 600) as MatchInsert[];
       const allRows = dedupeCopyrightMatchRows([
         ...distributionRows,
         ...internalPersist,
       ]) as MatchInsert[];
+
+      const suspiciousSourcesPreview = buildSuspiciousSourcesFromMatches(
+        allRows.map((row) => ({
+          id: row.source_url,
+          source_url: row.source_url,
+          page_title: row.page_title,
+          confidence: row.confidence,
+          confidence_band: row.confidence_band,
+          detection_type: row.detection_type,
+          reason: row.reason,
+          review_status: null,
+          contact: row.contact,
+          evidence: row.evidence,
+          created_at: null,
+        })),
+      );
+      const suspiciousSourceCounts = countSuspiciousSourceStates(suspiciousSourcesPreview);
+      const redirectedHistoricalSources = suspiciousSourcesPreview.filter(
+        (s) => s.source_state === "redirected" || s.source_state === "removed",
+      ).length;
 
       if (allRows.length) {
         const { error: mErr } = await supabase.from("copyright_matches").upsert(allRows, { onConflict: "scan_id,source_url" });
@@ -1671,15 +2823,109 @@ export async function executeCopyrightScanById(opts: {
         else verifiedFindingsByProvider.firecrawl += 1;
       }
 
-      const uniqueCandidatePages = new Set([
+      const uniqueCandidateUrlSet = new Set([
         ...byUrl.keys(),
         ...discovery.pageLeads.map((l) => canonicalUrl(l.url)),
-      ]).size;
+        ...leadUrls.map((l) => canonicalUrl(l.url)),
+      ]);
+      const uniqueCandidatePages = uniqueCandidateUrlSet.size;
+      const uniqueCandidateDomains = new Set(
+        [...uniqueCandidateUrlSet]
+          .map((url) => hostOf(url))
+          .filter((h): h is string => Boolean(h)),
+      ).size;
       const artworkOnlyRejected =
         artworkRejected +
         fallbackRows.filter((r) => r.detection_type === "DUPLICATE_ARTWORK_ONLY").length;
+      const candidatesRejectedTotal =
+        titleIdentityRejected +
+        hardNegativeRejected +
+        accessEvidenceRejected +
+        artworkOnlyRejected;
+      const providerRequestsStarted =
+        discovery.providerRequests +
+        serpapiDiscovery.requests +
+        brightDataDiscovery.requests;
+      const providerRequestsSucceeded =
+        discovery.providerSuccesses +
+        serpapiDiscovery.successes +
+        brightDataDiscovery.successes;
+      const providerRequestsFailed =
+        discovery.providerFailures +
+        serpapiDiscovery.failures +
+        brightDataDiscovery.failures;
+      const rawResultsReceived = Math.max(
+        rawSearchResults,
+        byUrl.size + discovery.pageLeads.length,
+      );
+      const providerNotProcessed = providerPhaseLeads.filter(
+        (lead) => !inspectedUrls.has(canonicalUrl(lead.url)),
+      ).length;
+      const notProcessedDueToBudget =
+        detailFollowStats.detail_links_remaining +
+        (abortedByDeadline || cancelledByOperator ? providerNotProcessed : 0);
+      const scanElapsedMs = Math.max(0, Date.now() - scanStartedAt);
+      const terminationReason = resolveScanTerminationReason({
+        cancelled: cancelledByOperator,
+        abortedByDeadline,
+        fatalConfigurationError: false,
+      });
+      const coverageDiagnostics: DiscoveryCoverageDiagnostics = {
+        queries_generated: discovery.queriesGenerated,
+        provider_requests_started: providerRequestsStarted,
+        provider_requests_succeeded: providerRequestsSucceeded,
+        provider_requests_failed: providerRequestsFailed,
+        raw_results_received: rawResultsReceived,
+        unique_candidate_urls: uniqueCandidatePages,
+        unique_candidate_domains: uniqueCandidateDomains,
+        pages_crawled: pagesCrawled,
+        detail_links_queued: detailFollowStats.detail_pages_queued,
+        detail_links_processed: detailFollowStats.detail_links_processed,
+        redirects_followed: redirectsFollowed,
+        candidates_rejected: candidatesRejectedTotal,
+        candidates_pending: suspectedReviewPages,
+        findings_verified: clientVisibleFindings.length,
+        scan_elapsed_ms: scanElapsedMs,
+        termination_reason: terminationReason,
+        not_processed_due_to_budget: notProcessedDueToBudget,
+      };
 
+      const crawlMetricValues = crawlMetrics.get();
+      const freshDiscoveryCount = providerLeads.length;
+      const historicalRestoredCount = historicalLeads.length;
       const stats = {
+        ...crawlMetricValues,
+        crawl_metrics: crawlMetricValues,
+        ...coverageDiagnostics,
+        discovery_coverage: coverageDiagnostics,
+        discovery_shortfall_explanation: discoveryShortfallExplanation,
+        raw_search_results: rawResultsReceived,
+        probable_threats: clientVisibleFindings.filter(
+          (r) => r.confidence_band === "probable",
+        ).length,
+        fresh_discovery_candidates: freshDiscoveryCount,
+        historical_candidates_restored: historicalRestoredCount,
+        monitored_sources_rechecked: historicalCandidates.monitoredSourceCandidates.length,
+        known_risk_domains_searched: historicalCandidates.domainsSearched.length,
+        mirror_redirect_candidates: historicalCandidates.mirrorAndRedirectCandidates.length,
+        candidates_before_dedup: mergedDiscovery.before_dedup,
+        candidates_after_dedup: mergedDiscovery.after_dedup,
+        candidate_dedup_records: mergedDiscovery.removed.slice(0, 40),
+        candidates_by_origin: mergedDiscovery.by_origin,
+        detail_follow_logs: detailFollowRecorder.getLogs().slice(-80),
+        detail_links_discovered: detailFollowStats.detail_links_discovered,
+        detail_pages_queued: detailFollowStats.detail_pages_queued,
+        detail_links_remaining: detailFollowStats.detail_links_remaining,
+        suspected_review_pages: suspectedReviewPages,
+        historical_findings_reconfirmed: historicalFindingsReconfirmed,
+        historical_sources_temporarily_unreachable: historicalSourcesUnreachable,
+        historical_requires_review: historicalRequiresReview,
+        redirected_historical_sources: redirectedHistoricalSources,
+        preserved_historical_findings: preservedHistoricalFindings,
+        suspicious_sources_displayed: suspiciousSourceCounts.suspicious_sources_displayed,
+        suspicious_sources_summary: suspiciousSourcesDiagnosticLine(suspiciousSourceCounts),
+        suspicious_source_counts: suspiciousSourceCounts,
+        browser_fallback_budget_remaining_ms: browserFallbackBudgetRemaining,
         candidates: byUrl.size,
         graded: ordered.length,
         rekognition: fingerprint.available,
@@ -1704,13 +2950,33 @@ export async function executeCopyrightScanById(opts: {
         firecrawl_operator_action: discovery.firecrawl_operator_action,
         firecrawl_stopped_early: discovery.firecrawl_stopped_early,
         firecrawl_stopped_early_reason: discovery.firecrawl_stopped_early_reason,
+        discovery_mode: discovery.discovery_saturation.discovery_mode,
+        platform_categories_covered: discovery.discovery_saturation.platform_categories_covered,
+        high_priority_queries_completed:
+          discovery.discovery_saturation.high_priority_queries_completed,
+        providers_exhausted: discovery.discovery_saturation.providers_exhausted,
+        stopped_low_priority_queries:
+          discovery.discovery_saturation.stopped_low_priority_queries,
+        active_requests_completed_after_target:
+          discovery.discovery_saturation.active_requests_completed_after_target,
         serpapi_requests: serpapiDiscovery.requests,
         serpapi_successes: serpapiDiscovery.successes,
         serpapi_failures: serpapiDiscovery.failures,
         serpapi_candidates: serpapiDiscovery.candidates,
         serpapi_failure_messages: serpapiDiscovery.failureMessages.slice(0, 6),
+        brightdata_configured: brightDataDiscovery.configured,
+        brightdata_queries_generated: brightDataDiscovery.queriesGenerated,
+        brightdata_requests: brightDataDiscovery.requests,
+        brightdata_successes: brightDataDiscovery.successes,
+        brightdata_failures: brightDataDiscovery.failures,
+        brightdata_candidates: brightDataDiscovery.candidates,
+        brightdata_duplicates_dropped: brightDataDiscovery.duplicatesDropped,
+        brightdata_failures_by_category: brightDataDiscovery.failuresByCategory,
+        brightdata_failure_samples: brightDataDiscovery.failureSamples.slice(0, 6),
+        brightdata_diagnostic: brightDataDiscovery.diagnostic,
         candidates_by_provider: {
           ...discovery.candidates_by_provider,
+          brightdata: brightDataDiscovery.candidates,
           known_url: knownAccepted.length,
         },
         verified_findings_by_provider: verifiedFindingsByProvider,
@@ -1723,6 +2989,9 @@ export async function executeCopyrightScanById(opts: {
         telegram_failures: discovery.telegram_failures,
         unique_candidate_pages: uniqueCandidatePages,
         unique_pages: uniqueCandidatePages,
+        unique_candidate_domains: uniqueCandidateDomains,
+        aborted_by_deadline: abortedByDeadline,
+        cancelled: cancelledByOperator,
         known_urls_submitted: knownInputs.length,
         known_urls_accepted: knownAccepted.length,
         known_urls_rejected: knownSeeds.filter((s) => !s.accepted).length,
@@ -1788,8 +3057,13 @@ export async function executeCopyrightScanById(opts: {
         distribution_high_risk: distributionSummary.filter((d) => d.domain_risk === "high").length,
         distribution_summary: distributionSummary.slice(0, 25),
         rejection_funnel: explainZeroMatchFunnel({
+          ...crawlMetricValues,
+          crawl_metrics: crawlMetricValues,
           queries_generated: discovery.queriesGenerated,
           queries_executed: discovery.queriesExecuted,
+          provider_requests: discovery.providerRequests,
+          provider_successes: discovery.providerSuccesses + serpapiDiscovery.successes,
+          provider_failures: discovery.providerFailures,
           provider_results: byUrl.size + discovery.pageLeads.length,
           unique_candidate_pages: uniqueCandidatePages,
           listing_pages_found: listingPagesFound,
@@ -1851,22 +3125,31 @@ export async function executeCopyrightScanById(opts: {
         discovery_never_started: false,
       };
 
-      const terminal = decideCopyrightTerminalStatus({
-        executorStarted: true,
-        queriesGenerated: discovery.queriesGenerated,
-        queriesExecuted: discovery.queriesExecuted,
-        providerSuccesses: discovery.providerSuccesses + serpapiDiscovery.successes,
-        providerFailures: discovery.providerFailures,
-        providerCandidates: byUrl.size + discovery.pageLeads.length,
-        knownUrlsAttempted: Math.max(knownUrlsAttempted, earlyKnownUrlsAttempted),
-        knownUrlsAccepted: knownAccepted.length,
-        pagesCrawled,
-        clientVisibleFindings: clientVisibleFindings.length,
-        abortedByDeadline,
-        firecrawlCircuitOpened: discovery.firecrawl_circuit_opened,
-        serpapiSuccesses: serpapiDiscovery.successes,
-        serpapiCandidates: serpapiDiscovery.candidates,
-      });
+      const terminal = cancelledByOperator
+        ? {
+            status: "cancelled" as CopyrightTerminalStatus,
+            reason: "Scan cancelled by operator before discovery completed.",
+          }
+        : decideCopyrightTerminalStatus({
+            executorStarted: true,
+            queriesGenerated: discovery.queriesGenerated,
+            queriesExecuted: discovery.queriesExecuted,
+            providerSuccesses: discovery.providerSuccesses + serpapiDiscovery.successes,
+            providerFailures: discovery.providerFailures,
+            providerCandidates: byUrl.size + discovery.pageLeads.length,
+            knownUrlsAttempted: Math.max(knownUrlsAttempted, earlyKnownUrlsAttempted),
+            knownUrlsAccepted: knownAccepted.length,
+            pagesCrawled,
+            clientVisibleFindings: clientVisibleFindings.length,
+            abortedByDeadline,
+            firecrawlCircuitOpened: discovery.firecrawl_circuit_opened,
+            serpapiSuccesses: serpapiDiscovery.successes,
+            serpapiCandidates: serpapiDiscovery.candidates,
+            brightDataQueriesGenerated: brightDataDiscovery.queriesGenerated,
+            brightDataRequests: brightDataDiscovery.requests,
+            brightDataSuccesses: brightDataDiscovery.successes,
+            brightDataCandidates: brightDataDiscovery.candidates,
+          });
 
       const providerFailureHint = summarizeProviderFailures({
         provider_failures_by_category: discovery.providerFailuresByCategory,
@@ -1879,15 +3162,30 @@ export async function executeCopyrightScanById(opts: {
           ? `${terminal.reason}${providerFailureHint ? ` (${providerFailureHint})` : ""}${operatorHint}`
           : terminal.reason ?? discovery.firecrawl_circuit_reason;
 
-      const finalStats = activity.mergeToStats({
-        ...stats,
-        failure_reason: failureReason,
-        terminal_status: terminal.status,
+      const finalCoverage: DiscoveryCoverageDiagnostics = {
+        ...coverageDiagnostics,
         pages_crawled: Math.max(
           pagesCrawled,
           typeof liveStats.pages_crawled === "number" ? liveStats.pages_crawled : 0,
           earlyKnownUrlsAttempted,
         ),
+        scan_elapsed_ms: Math.max(0, Date.now() - scanStartedAt),
+        termination_reason: resolveScanTerminationReason({
+          cancelled: cancelledByOperator,
+          abortedByDeadline,
+          fatalConfigurationError: terminal.status === "failed",
+          fatalReason: terminal.status === "failed" ? failureReason : null,
+        }),
+        findings_verified: clientVisibleFindings.length,
+      };
+
+      const finalStats = activity.mergeToStats({
+        ...stats,
+        ...finalCoverage,
+        discovery_coverage: finalCoverage,
+        failure_reason: failureReason,
+        terminal_status: terminal.status,
+        pages_crawled: finalCoverage.pages_crawled,
       });
 
       await pushActivity({}, true);
@@ -1898,6 +3196,62 @@ export async function executeCopyrightScanById(opts: {
         error: terminal.status === "failed" ? (failureReason ?? "Scan failed").slice(0, 500) : null,
         stats: finalStats,
       });
+
+      if (terminal.status === "completed") {
+        const { autoGenerateCopyrightReport } = await import("@/lib/copyright/report.server");
+        await autoGenerateCopyrightReport(supabase, scan.id, userId);
+      }
+
+      if (releaseProtectionId && releaseProtectionRun && releaseProtectionReleaseDate) {
+        const incidentFindings = findingsFromDistributionMatches(
+          [
+            ...clientVisibleFindings,
+            ...distributionRows.filter((row) => {
+              const ev = (row.evidence ?? {}) as Record<string, unknown>;
+              return Boolean(ev.client_visible) || Boolean(ev.strong_evidence);
+            }),
+          ].map((row) => ({
+            source_url: row.source_url,
+            page_title: row.page_title,
+            platform: row.platform,
+            evidence:
+              row.evidence && typeof row.evidence === "object" && !Array.isArray(row.evidence)
+                ? (row.evidence as Record<string, unknown>)
+                : null,
+          })),
+        );
+        const incidentSync = await syncReleaseProtectionIncidentsFromScan(supabase, {
+          protectionId: releaseProtectionId,
+          userId,
+          releaseDateIso: releaseProtectionReleaseDate,
+          alertThreshold: releaseAlertThreshold,
+          findings: incidentFindings,
+        });
+        await finalizeReleaseMonitorRun(supabase, {
+          scanId: scan.id as string,
+          protectionId: releaseProtectionId,
+          status:
+            terminal.status === "cancelled"
+              ? "failed"
+              : terminal.status,
+          providersAttempted:
+            discovery.providerRequests +
+            serpapiDiscovery.requests +
+            brightDataDiscovery.requests,
+          providersSucceeded:
+            discovery.providerSuccesses +
+            serpapiDiscovery.successes +
+            brightDataDiscovery.successes,
+          providersFailed:
+            discovery.providerFailures +
+            serpapiDiscovery.failures +
+            brightDataDiscovery.failures,
+          candidatesFound: incidentSync.candidatesFound,
+          incidentsCreated: incidentSync.incidentsCreated,
+          preReleaseFindings: incidentSync.preReleaseFindings,
+          errorSummary: terminal.status === "failed" ? failureReason ?? null : null,
+        });
+      }
 
       return {
         scanId: scan.id as string,
@@ -1932,7 +3286,7 @@ export async function executeCopyrightScanById(opts: {
 }
 
 /** Ensure server-fn return stats are JSON-serializable for TanStack Start. */
-function serializeCopyrightStats(stats: unknown): {
+type SerializedCopyrightStats = {
   candidates?: number;
   matches?: number;
   graded?: number;
@@ -1943,20 +3297,57 @@ function serializeCopyrightStats(stats: unknown): {
   provider_failures?: number;
   executor_started_at?: string | null;
   last_progress_at?: string | null;
-} {
+  reference_materials?: Array<{
+    id: string;
+    material_type: string;
+    title: string | null;
+    image_url: string | null;
+    video_url: string | null;
+    page_url: string | null;
+    source_domain: string | null;
+    source_name: string | null;
+    provider: string;
+    channel_name: string | null;
+    duration_seconds: number | null;
+    status: string;
+    classification: string;
+    discovered_at: string;
+  }>;
+  reference_images?: Array<{
+    image_url: string;
+    page_url: string;
+    source_domain: string | null;
+    source_type: string;
+    title: string | null;
+    provider: string;
+    status: string;
+    discovered_at: string;
+  }>;
+  source_activity?: Array<{
+    provider: string;
+    label: string;
+    status: string;
+    requests: number;
+    candidates: number;
+    failures: number;
+    updated_at: string;
+  }>;
+  website_activity?: Array<{
+    id: string;
+    hostname: string;
+    page_label: string;
+    provider: string;
+    stage: string;
+    stage_label: string;
+    threat: string;
+    threat_label: string;
+    occurred_at: string;
+  }>;
+};
+
+function serializeCopyrightStats(stats: unknown): SerializedCopyrightStats {
   try {
-    return JSON.parse(JSON.stringify(stats ?? {})) as {
-      candidates?: number;
-      matches?: number;
-      graded?: number;
-      failure_reason?: string | null;
-      queries_generated?: number;
-      queries_executed?: number;
-      provider_successes?: number;
-      provider_failures?: number;
-      executor_started_at?: string | null;
-      last_progress_at?: string | null;
-    };
+    return JSON.parse(JSON.stringify(stats ?? {})) as SerializedCopyrightStats;
   } catch {
     return { failure_reason: "Unable to serialize scan stats" };
   }
@@ -2011,7 +3402,9 @@ export const listCopyrightScans = createServerFn({ method: "GET" })
       context.supabase,
       (data ?? []) as Array<Record<string, unknown>>,
     );
-    return rows as typeof data;
+    return rows.map((row) =>
+      sanitizeCopyrightScanRowForClient(row as Record<string, unknown>),
+    ) as typeof data;
   });
 
 export const getCopyrightScan = createServerFn({ method: "GET" })
@@ -2030,9 +3423,100 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
       .order("confidence", { ascending: false });
     if (mErr) throw new Error(mErr.message);
     // Raw / non-actionable / identity-only rows stay internal — never as piracy UI.
+    // `allSources` is the full inspected-source list (evidence status included)
+    // so operators can see every site that was discovered and checked.
+    const allSources = (matches ?? []).map((m) => {
+      const ev = (m.evidence ?? {}) as Record<string, unknown>;
+      const dist = (ev.distribution ?? {}) as Record<string, unknown>;
+      const identity = Array.isArray(dist.identity_evidence)
+        ? (dist.identity_evidence as string[])
+        : Array.isArray(ev.identity_evidence)
+          ? (ev.identity_evidence as string[])
+          : [];
+      const access = Array.isArray(dist.access_evidence)
+        ? (dist.access_evidence as string[])
+        : Array.isArray(ev.access_evidence)
+          ? (ev.access_evidence as string[])
+          : [];
+      const crawlFailed = ev.crawl_failed === true || dist.crawl_failed === true;
+      const historicalPreservation = ev.historical_preservation === true;
+      const recheckStatus =
+        typeof ev.recheck_status === "string"
+          ? ev.recheck_status
+          : typeof dist.recheck_status === "string"
+            ? (dist.recheck_status as string)
+            : null;
+      const clientVisible = ev.client_visible !== false && dist.client_visible !== false;
+      const strong = dist.strong_evidence === true;
+      let status:
+        | "verified_piracy"
+        | "insufficient_evidence"
+        | "no_match"
+        | "unreachable"
+        | "historical_unreachable"
+        | "historical_preserved";
+      if (historicalPreservation && recheckStatus === "temporarily_unreachable") {
+        status = "historical_unreachable";
+      } else if (
+        historicalPreservation &&
+        (recheckStatus === "pending" || recheckStatus === "requires_review")
+      ) {
+        status = "historical_preserved";
+      } else if (crawlFailed) {
+        status = "unreachable";
+      } else if (clientVisible && strong) {
+        status = "verified_piracy";
+      } else if (identity.length || access.length) {
+        status = "insufficient_evidence";
+      } else {
+        status = "no_match";
+      }
+      return {
+        id: m.id,
+        url: m.source_url,
+        host: typeof ev.host === "string" ? ev.host : null,
+        page_title: m.page_title,
+        classification: (dist.classification as string) ?? m.detection_type,
+        content_type: (dist.content_type as string) ?? (ev.website_type as string) ?? null,
+        domain_risk: (dist.domain_risk as string) ?? null,
+        confidence: m.confidence,
+        checked: historicalPreservation
+          ? recheckStatus === "active"
+          : !crawlFailed,
+        crawl_failure_reason:
+          (ev.crawl_failure_reason as string) ??
+          (dist.crawl_failure_reason as string) ??
+          null,
+        identity_evidence: identity.slice(0, 4),
+        access_evidence: access.slice(0, 4),
+        quality_tags: Array.isArray(dist.quality_tags) ? (dist.quality_tags as string[]).slice(0, 6) : [],
+        status,
+        reason: m.reason,
+        page_excerpt:
+          typeof ev.page_excerpt === "string" ? ev.page_excerpt.slice(0, 320) : null,
+        confidence_breakdown:
+          ev.confidence_breakdown && typeof ev.confidence_breakdown === "object"
+            ? (ev.confidence_breakdown as {
+                identity?: number;
+                access?: number;
+                releaseWindow?: number;
+                penalties?: number;
+              })
+            : null,
+        discovery_query: sanitizeDiscoveryQueryForClient(
+          (ev.discovery_query as string) ?? null,
+        ),
+      };
+    });
+    const suspiciousSources = buildSuspiciousSourcesFromMatches(matches ?? []);
+    const sanitizedScan = sanitizeCopyrightScanRowForClient(
+      watchedScan as unknown as Record<string, unknown>,
+    ) as unknown as typeof watchedScan;
     return {
-      scan: watchedScan,
+      scan: sanitizedScan,
       matches: filterClientVisibleCopyrightMatches(matches ?? []),
+      suspiciousSources,
+      allSources,
     };
   });
 

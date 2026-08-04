@@ -12,9 +12,17 @@ export const FIRECRAWL_MAX_RETRIES = 1;
 export const FIRECRAWL_CIRCUIT_BREAKER_THRESHOLD = 3;
 export const FIRECRAWL_BATCH_DELAY_BASE_MS = 1_200;
 export const FIRECRAWL_BATCH_DELAY_JITTER_MS = 800;
-export const DISCOVERY_EARLY_STOP_UNIQUE_PAGES = 24;
+/**
+ * Soft ceiling only — discovery should not stop because a few matches were
+ * found. Prefer exhausting the query plan or hitting the scan deadline.
+ * Set extremely high so unique-page count never ends a healthy provider run.
+ */
+export const DISCOVERY_EARLY_STOP_UNIQUE_PAGES = Number.MAX_SAFE_INTEGER;
 
-export type CircuitTripCategory = "rate_limited" | "provider_unavailable";
+export type CircuitTripCategory =
+  | "rate_limited"
+  | "provider_unavailable"
+  | "insufficient_credits";
 
 export interface DiscoveryCircuitState {
   consecutiveTripFailures: number;
@@ -37,7 +45,11 @@ export function emptyDiscoveryCircuit(): DiscoveryCircuitState {
 export function isCircuitTripCategory(
   category: ProviderFailureCategory | null | undefined,
 ): category is CircuitTripCategory {
-  return category === "rate_limited" || category === "provider_unavailable";
+  return (
+    category === "rate_limited" ||
+    category === "provider_unavailable" ||
+    category === "insufficient_credits"
+  );
 }
 
 export function circuitOperatorAction(
@@ -45,6 +57,9 @@ export function circuitOperatorAction(
 ): string {
   if (category === "rate_limited") {
     return "Firecrawl rate limit tripped — wait and retry the scan, or rely on SerpApi fallback / known URLs.";
+  }
+  if (category === "insufficient_credits") {
+    return "Web search quota for this project is exhausted — top up or upgrade the discovery plan, then retry the scan.";
   }
   if (category === "provider_unavailable") {
     return "Firecrawl gateway unavailable — verify FIRECRAWL_API_KEY and LOVABLE_API_KEY (lovc_ gateway), then retry.";
@@ -147,6 +162,47 @@ export interface RunBatchedDiscoveryOptions<TPlan, TAttempt extends ProviderSear
   deadlineAt?: number;
   earlyStopUniquePages?: number;
   uniquePageCount: (attempts: TAttempt[]) => number;
+  /**
+   * Called after every completed search attempt so telemetry streams per query.
+   */
+  onAttempt?: (
+    attempt: TAttempt,
+    totals: {
+      requests: number;
+      successes: number;
+      failures: number;
+      uniquePages: number;
+    },
+  ) => void | Promise<void>;
+  /**
+   * Per-plan gate for adaptive saturation. Returning false skips the plan without
+   * cancelling in-flight requests in the current wave.
+   */
+  shouldIssuePlan?: (
+    plan: TPlan,
+    context: {
+      uniquePages: number;
+      requestsCompleted: number;
+    },
+  ) => boolean;
+  onPlanSkipped?: (plan: TPlan, reason: string) => void;
+  /**
+   * Hard safety cap — stop issuing new plans when unique pages reach MAX.
+   */
+  stopWhenUniquePagesAtLeast?: number;
+  /**
+   * Called after every completed concurrency wave so callers can stream live
+   * discovery telemetry (queries done, leads found) while the scan is running.
+   */
+  onWave?: (
+    waveAttempts: TAttempt[],
+    totals: {
+      requests: number;
+      successes: number;
+      failures: number;
+      uniquePages: number;
+    },
+  ) => void | Promise<void>;
 }
 
 export interface RunBatchedDiscoveryResult<TAttempt extends ProviderSearchAttemptLike> {
@@ -157,6 +213,7 @@ export interface RunBatchedDiscoveryResult<TAttempt extends ProviderSearchAttemp
   requests: number;
   successes: number;
   failures: number;
+  skippedPlans: number;
 }
 
 /**
@@ -172,6 +229,7 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
   let stoppedEarlyReason: string | null = null;
   let successes = 0;
   let failures = 0;
+  let skippedPlans = 0;
 
   const earlyStopAt = options.earlyStopUniquePages ?? DISCOVERY_EARLY_STOP_UNIQUE_PAGES;
 
@@ -201,8 +259,34 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
       }
 
       const wave = batchPlans.slice(i, i + FIRECRAWL_MAX_CONCURRENCY);
+      const toRun: TPlan[] = [];
+      for (const plan of wave) {
+        const uniqueSoFar = options.uniquePageCount(attempts);
+        if (
+          typeof options.stopWhenUniquePagesAtLeast === "number" &&
+          uniqueSoFar >= options.stopWhenUniquePagesAtLeast
+        ) {
+          stoppedEarly = true;
+          stoppedEarlyReason = `Safety cap: ${uniqueSoFar} unique pages (max ${options.stopWhenUniquePagesAtLeast}).`;
+          if (options.onPlanSkipped) options.onPlanSkipped(plan, "max_discovery_candidates");
+          skippedPlans += 1;
+          continue;
+        }
+        const shouldIssue =
+          !options.shouldIssuePlan ||
+          options.shouldIssuePlan(plan, {
+            uniquePages: uniqueSoFar,
+            requestsCompleted: attempts.length,
+          });
+        if (!shouldIssue) {
+          if (options.onPlanSkipped) options.onPlanSkipped(plan, "stopped_low_priority_query");
+          skippedPlans += 1;
+          continue;
+        }
+        toRun.push(plan);
+      }
       const waveResults = await Promise.all(
-        wave.map((plan) => options.execute(plan, options.signal)),
+        toRun.map((plan) => options.execute(plan, options.signal)),
       );
       attempts.push(...waveResults);
 
@@ -214,9 +298,41 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
           failures += 1;
           circuit = recordCircuitFailure(circuit, attempt.failureCategory);
         }
+        if (options.onAttempt) {
+          await options.onAttempt(attempt, {
+            requests: attempts.length,
+            successes,
+            failures,
+            uniquePages: options.uniquePageCount(attempts),
+          });
+        }
       }
 
-      if (options.uniquePageCount(attempts) >= earlyStopAt) {
+      const uniqueSoFar = options.uniquePageCount(attempts);
+      if (options.onWave) {
+        await options.onWave(waveResults, {
+          requests: attempts.length,
+          successes,
+          failures,
+          uniquePages: uniqueSoFar,
+        });
+      }
+
+      // Never stop because N verified threats were found. Only deadline, circuit,
+      // safety cap (MAX), or exhausted plans end discovery.
+      if (
+        typeof options.stopWhenUniquePagesAtLeast === "number" &&
+        uniqueSoFar >= options.stopWhenUniquePagesAtLeast
+      ) {
+        stoppedEarly = true;
+        stoppedEarlyReason = `Safety cap: ${uniqueSoFar} unique pages (max ${options.stopWhenUniquePagesAtLeast}).`;
+        break;
+      }
+      if (
+        Number.isFinite(earlyStopAt) &&
+        earlyStopAt < Number.MAX_SAFE_INTEGER &&
+        uniqueSoFar >= earlyStopAt
+      ) {
         stoppedEarly = true;
         stoppedEarlyReason = `Early stop: ${earlyStopAt} unique candidate pages collected.`;
         break;
@@ -224,6 +340,12 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
     }
 
     if (stoppedEarly || circuit.opened) break;
+    if (
+      typeof options.stopWhenUniquePagesAtLeast === "number" &&
+      options.uniquePageCount(attempts) >= options.stopWhenUniquePagesAtLeast
+    ) {
+      break;
+    }
     if (offset < options.plans.length) {
       await sleepWithAbort(batchDelayWithJitter(), options.signal);
     }
@@ -237,5 +359,6 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
     requests: attempts.length,
     successes,
     failures,
+    skippedPlans,
   };
 }

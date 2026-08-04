@@ -6,6 +6,8 @@
 import { sanitizeEvidenceUrl } from "@/lib/deepfake/evidence-url";
 import { isActionablePiracy } from "./taxonomy";
 import { hostOf } from "./url.server";
+import { publicCapabilityLabel } from "./public-surface";
+import { isNeverDisplayHost } from "./verified-distribution";
 
 /** Maximum persisted investigation events (newest retained). */
 export const SCAN_ACTIVITY_MAX_EVENTS = 25;
@@ -14,17 +16,24 @@ export const COPYRIGHT_WORKFLOW_STAGES = [
   { key: "preparing_reference", label: "Preparing reference material" },
   { key: "analyzing_visual", label: "Analyzing visual content" },
   { key: "extracting_identifiers", label: "Extracting title identifiers" },
-  { key: "discovering_candidates", label: "Discovering online candidates" },
+  { key: "discovering_candidates", label: "Searching Google / Firecrawl…" },
+  { key: "expanding_queries", label: "Expanding search queries…" },
+  { key: "discovering_mirrors", label: "Discovering mirrors & cloud hosts…" },
   { key: "retrieving_pages", label: "Retrieving exact pages" },
-  { key: "checking_access", label: "Checking distribution access" },
-  { key: "classifying_evidence", label: "Classifying evidence" },
-  { key: "saving_report", label: "Saving report" },
+  { key: "checking_access", label: "Analysing streaming & download pages…" },
+  { key: "classifying_evidence", label: "Verifying evidence…" },
+  { key: "saving_report", label: "Generating report…" },
 ] as const;
 
 export type CopyrightWorkflowStageKey =
   (typeof COPYRIGHT_WORKFLOW_STAGES)[number]["key"];
 
-export type ScanActivityProvider = "known_url" | "firecrawl" | "serpapi" | "telegram";
+export type ScanActivityProvider =
+  | "known_url"
+  | "firecrawl"
+  | "brightdata"
+  | "serpapi"
+  | "telegram";
 
 export type ScanActivityStage =
   | "discovered"
@@ -170,24 +179,14 @@ export function resolveActivityProvider(
 ): ScanActivityProvider {
   const q = (leadQuery ?? "").toLowerCase();
   if (q === "known_url_seed" || q.startsWith("known_url")) return "known_url";
+  if (q.startsWith("brightdata:") || q.includes("brightdata")) return "brightdata";
   if (q.startsWith("serpapi:") || q.includes("serpapi")) return "serpapi";
   if (/\btelegram\b/i.test(q)) return "telegram";
   return "firecrawl";
 }
 
-export function providerDisplayLabel(provider: ScanActivityProvider): string {
-  switch (provider) {
-    case "known_url":
-      return "Known URL";
-    case "firecrawl":
-      return "Firecrawl";
-    case "serpapi":
-      return "SerpApi";
-    case "telegram":
-      return "Telegram";
-    default:
-      return provider;
-  }
+export function providerDisplayLabel(provider: ScanActivityProvider | string): string {
+  return publicCapabilityLabel(provider);
 }
 
 export function workflowStageIndex(
@@ -209,8 +208,9 @@ export function resolveWorkflowStageFromStats(
   if (stats?.finished_at) return "saving_report";
   if (stats?.classification_started) return "classifying_evidence";
   if (stats?.first_page_crawled) return "checking_access";
+  if (stats?.brightdata_requests || stats?.serpapi_requests) return "discovering_mirrors";
   if (stats?.discovery_started) return "discovering_candidates";
-  if (stats?.queries_generated) return "extracting_identifiers";
+  if (stats?.queries_generated) return "expanding_queries";
   if (stats?.executor_started || stats?.executor_started_at) return "analyzing_visual";
   return "preparing_reference";
 }
@@ -304,6 +304,17 @@ export function parseRecentActivity(
   return out;
 }
 
+/** Website investigation stream — prefers dedicated website_activity, falls back to recent_activity. */
+export function parseWebsiteActivity(
+  stats: Record<string, unknown> | null | undefined,
+): ScanActivityEvent[] {
+  const dedicated = stats?.website_activity;
+  if (Array.isArray(dedicated) && dedicated.length > 0) {
+    return parseRecentActivity({ recent_activity: dedicated });
+  }
+  return parseRecentActivity(stats);
+}
+
 /** Newest-first ordering for UI. */
 export function sortActivityNewestFirst(
   events: ScanActivityEvent[],
@@ -337,11 +348,21 @@ export function activityCountersFromStats(
     (e) => e.threat === "verified_finding",
   ).length;
   return {
-    queries_completed: n("queries_executed"),
-    candidate_pages:
-      n("unique_candidate_pages") ||
-      n("provider_results") ||
+    // Query progress can come from the crawl phase (`queries_executed`) or,
+    // earlier in the run, from live search-sweep telemetry.
+    queries_completed: Math.max(
+      n("queries_executed"),
+      n("brightdata_queries_completed"),
+      n("firecrawl_queries_completed"),
+    ),
+    candidate_pages: Math.max(
+      n("unique_candidate_pages"),
+      n("provider_results"),
       n("candidates"),
+      n("leads"),
+      n("brightdata_unique_urls"),
+      n("brightdata_candidates"),
+    ),
     websites_checked:
       Math.max(
         n("websites_checked"),
@@ -355,7 +376,141 @@ export function activityCountersFromStats(
       n("client_visible_findings") ||
       n("verified_findings") ||
       verifiedFromEvents,
-    provider_failures: n("provider_failures"),
+    provider_failures: Math.max(
+      n("provider_failures"),
+      n("brightdata_failures"),
+    ),
+  };
+
+}
+
+export type BrightDataProviderStatus =
+  | "not_configured"
+  | "pending"
+  | "idle"
+  | "running"
+  | "completed"
+  | "error";
+
+
+export type BrightDataTelemetry = {
+  configured: boolean;
+  running: boolean;
+  status: BrightDataProviderStatus;
+  statusLabel: string;
+  requests: number;
+  successes: number;
+  failures: number;
+  candidates: number;
+  uniqueUrls: number;
+  queriesGenerated: number;
+  queriesCompleted: number;
+  durationMs: number;
+  lastQuery: string | null;
+  errors: string[];
+  endpoint: string | null;
+  zone: string | null;
+  apiKeyPresent: boolean;
+};
+
+const BRIGHTDATA_ERROR_LABELS: Record<string, string> = {
+  missing_api_key: "Missing API key",
+  invalid_credentials: "Invalid credentials",
+  insufficient_credits: "Insufficient credits",
+  rate_limited: "Rate limited",
+  timeout: "Timeout",
+  provider_unavailable: "Provider unavailable",
+  invalid_response: "Invalid response",
+  no_results: "No results",
+  http_error: "Provider HTTP error",
+  network_error: "Network error",
+};
+
+export function brightDataErrorLabel(category: string): string {
+  return BRIGHTDATA_ERROR_LABELS[category] ?? category.replace(/_/g, " ");
+}
+
+/** Bright Data provider telemetry derived from live scan stats (no secrets). */
+export function brightDataTelemetryFromStats(
+  stats: Record<string, unknown> | null | undefined,
+  scanStatus?: string | null,
+): BrightDataTelemetry {
+  const num = (key: string) => {
+    const v = stats?.[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
+  const diag = (stats?.["brightdata_diagnostic"] ?? null) as Record<string, unknown> | null;
+  const configuredRaw = stats?.["brightdata_configured"];
+  const diagConfigured = diag?.["configured"];
+  const configured =
+    configuredRaw === true || (typeof diagConfigured === "boolean" && diagConfigured === true);
+  // Before the first Bright Data activity push there is no provider state yet —
+  // that is "pending", not "missing API key".
+  const unknownConfig =
+    typeof configuredRaw !== "boolean" && typeof diagConfigured !== "boolean";
+  const scanRunning = scanStatus === "running" || scanStatus === "queued" || scanStatus === "pending";
+  const running = stats?.["brightdata_running"] === true && scanRunning;
+
+  const byCategory = (stats?.["brightdata_failures_by_category"] ?? null) as
+    | Record<string, unknown>
+    | null;
+  const errors: string[] = [];
+  if (byCategory) {
+    for (const [category, count] of Object.entries(byCategory)) {
+      if (typeof count === "number" && count > 0) {
+        errors.push(`${brightDataErrorLabel(category)} (${count})`);
+      }
+    }
+  }
+  if (!configured && !unknownConfig && !errors.length) {
+    errors.push(brightDataErrorLabel("missing_api_key"));
+  }
+
+  const requests = num("brightdata_requests");
+  const failures = num("brightdata_failures");
+  const durationMs = num("brightdata_duration_ms") || num("brightdata_elapsed_ms");
+
+  let status: BrightDataProviderStatus;
+  if (unknownConfig) status = "pending";
+  else if (!configured) status = "not_configured";
+  else if (running) status = "running";
+  else if (failures > 0 && num("brightdata_successes") === 0 && requests > 0) status = "error";
+  else if (requests > 0 || durationMs > 0) status = "completed";
+  else status = "idle";
+
+  const statusLabel =
+    status === "not_configured"
+      ? "Not configured"
+      : status === "pending"
+        ? "Pending"
+        : status === "running"
+          ? "Running"
+          : status === "error"
+            ? "Error"
+            : status === "completed"
+              ? "Completed"
+              : "Idle";
+
+  const lastQueryRaw = stats?.["brightdata_last_query"];
+
+  return {
+    configured,
+    running,
+    status,
+    statusLabel,
+    requests,
+    successes: num("brightdata_successes"),
+    failures,
+    candidates: num("brightdata_candidates"),
+    uniqueUrls: num("brightdata_unique_urls") || num("brightdata_candidates"),
+    queriesGenerated: num("brightdata_queries_generated"),
+    queriesCompleted: num("brightdata_queries_completed"),
+    durationMs,
+    lastQuery: typeof lastQueryRaw === "string" && lastQueryRaw ? lastQueryRaw.slice(0, 160) : null,
+    errors,
+    endpoint: typeof diag?.["endpoint"] === "string" ? (diag["endpoint"] as string) : null,
+    zone: typeof diag?.["zone"] === "string" ? (diag["zone"] as string) : null,
+    apiKeyPresent: diag?.["api_key_present"] === true,
   };
 }
 
@@ -426,7 +581,7 @@ export function resolveCopyrightThreatBadge(input: {
     return { tone: "potential", label: "POTENTIAL THREAT DETECTED" };
   }
   if (providerLimited && status === "running") {
-    return { tone: "provider_limited", label: "DISCOVERY PROVIDER LIMITED" };
+    return { tone: "provider_limited", label: "DISCOVERY CHANNEL LIMITED" };
   }
   return { tone: "scanning", label: "SCANNING — NO VERIFIED THREAT YET" };
 }
@@ -724,6 +879,19 @@ export class ScanActivityRecorder {
           : 0,
       ),
       last_progress_at: new Date().toISOString(),
+      website_activity: this.events.map((e) => ({
+        id: e.id,
+        hostname: e.hostname,
+        page_label: e.page_label,
+        provider: e.provider,
+        stage: e.stage,
+        stage_label: e.stage_label,
+        threat: e.threat,
+        threat_label: e.threat_label,
+        classification: e.classification ?? null,
+        evidence_href: e.evidence_href ?? null,
+        occurred_at: e.occurred_at,
+      })),
     };
   }
 
@@ -764,4 +932,41 @@ export async function flushScanActivity(
   } catch {
     /* never block the scan */
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * User-facing activity presentation
+ *
+ * Only verified illegal distribution findings may reach the dashboard,
+ * timeline, radar or map. Searched-only platforms, retrieval failures and
+ * official/catalog pages stay in the internal log.
+ * ------------------------------------------------------------------ */
+
+/** Clean, operator-facing phrase for a verified activity event. */
+export function cleanActivityLabel(event: ScanActivityEvent): string {
+  const cls = (event.classification ?? "").toUpperCase();
+  if (cls.includes("DOWNLOAD")) return "Unauthorized download page detected";
+  if (cls.includes("STREAM")) return "Embedded streaming player verified";
+  if (cls.includes("TORRENT")) return "Torrent distribution confirmed";
+  if (cls.includes("REUPLOAD")) return "Unauthorized re-upload verified";
+  if (cls.includes("MIRROR")) return "Mirror domain discovered";
+  if (cls.includes("TELEGRAM")) return "Public Telegram distribution verified";
+  if (cls.includes("FILE") || cls.includes("HOST")) return "Direct file copy verified";
+  if (cls.includes("ARCHIVE")) return "Archived full copy verified";
+  return "Unauthorized distribution verified";
+}
+
+/**
+ * Keep only verified distribution events on hosts that may be displayed.
+ * Everything else remains internal telemetry.
+ */
+export function filterDisplayableActivity(
+  events: ScanActivityEvent[],
+): ScanActivityEvent[] {
+  return events.filter((event) => {
+    if (event.threat !== "verified_finding" || event.stage !== "saved_finding") return false;
+    if (isNeverDisplayHost(event.hostname)) return false;
+    if (event.classification && EXCLUDED_CLASSIFICATIONS.has(event.classification)) return false;
+    return true;
+  });
 }

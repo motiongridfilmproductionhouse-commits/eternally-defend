@@ -141,8 +141,55 @@ function asMetrics(value: unknown): DiscoveryFunnelMetrics {
   const base = createDiscoveryFunnelMetrics();
   if (!value || typeof value !== "object" || Array.isArray(value)) return base;
   const row = value as Record<string, unknown>;
-  for (const key of Object.keys(base) as Array<keyof DiscoveryFunnelMetrics>) {
-    base[key] = clampInt(row[key], 0, 0, 1_000_000);
+  const numericKeys: Array<keyof DiscoveryFunnelMetrics> = [
+    "queries_generated",
+    "queries_executed",
+    "provider_candidates",
+    "unique_candidates",
+    "crawl_succeeded",
+    "crawl_failed",
+    "identity_rejected",
+    "page_type_rejected",
+    "url_rejected",
+    "dns_resolution_failed",
+    "private_address_rejected",
+    "tls_connection_failed",
+    "request_timeout",
+    "redirect_rejected",
+    "crawl_provider_failed",
+    "network_failed",
+    "unverified",
+    "probable",
+    "verified",
+    "client_visible",
+    "provider_failures",
+    "query_failures",
+    "serpapi_requests",
+    "serpapi_failures",
+    "serpapi_candidates",
+    "serpapi_unique_pages",
+    "serpapi_face_rejected",
+    "serpapi_verified",
+    "serpapi_credits_used",
+    "reference_images_count",
+    "final_reference_images",
+    "embeddings_indexed",
+    "aliases_generated",
+    "images_downloaded",
+    "images_compared",
+    "face_comparisons",
+    "reference_google_images_found",
+    "reference_bing_images_found",
+    "reference_yandex_images_found",
+    "google_images_investigation_complete",
+    "google_images_jobs_queued",
+    "google_images_jobs_total",
+    "google_images_jobs_completed",
+    "google_images_progress_percent",
+  ];
+  for (const key of numericKeys) {
+    const fallback = base[key] as number;
+    base[key] = clampInt(row[key], fallback, 0, 1_000_000) as (typeof base)[typeof key];
   }
   return base;
 }

@@ -22,7 +22,13 @@ import {
 import { retrieveCopyrightPage } from "./page-retrieve.server";
 import type { CrawlFailureCategory } from "./crawl-failure";
 import { releaseTimingFor, type ReleaseTiming } from "./release-timing";
+import { isLikelyListingPage } from "./page-extract.server";
+import type { DetailFollowRecorder } from "./detail-follow.server";
 import type { CopyrightClassification } from "./taxonomy";
+import {
+  extractReferenceImagesFromPage,
+  type ReferenceImage,
+} from "./reference-images";
 
 export type { ReleaseTiming, PiracyIndicator };
 export { releaseTimingFor };
@@ -76,9 +82,13 @@ export interface DistributionAnalysis {
   /** Sanitized diagnostic reason for retrieval failure. */
   crawlFailureReason: string | null;
   /** How the page body was retrieved. */
-  retrievalMethod: "static_html" | "firecrawl_render" | "none";
+  retrievalMethod: "static_html" | "firecrawl_render" | "crawl4ai_render" | "none";
   /** True when Firecrawl rendered fallback was used. */
   rendered: boolean;
+  /** Thumbnails discovered on this page for the live reference carousel only. */
+  pageReferenceImages?: ReferenceImage[];
+  /** Short readable excerpt of the inspected page body, for evidence display. */
+  pageExcerpt?: string | null;
 }
 
 function toLegacyContentType(
@@ -185,6 +195,12 @@ export async function analyzeDistributionPage(opts: {
   signal?: AbortSignal;
   /** Prefer Firecrawl render (used for known evidence URLs). */
   preferRender?: boolean;
+  /** Skip browser-render fallback when the scan render budget is exhausted. */
+  allowBrowserFallback?: boolean;
+  /** Optional detail-follow diagnostics recorder. */
+  detailFollow?: DetailFollowRecorder;
+  /** Force title-detail link extraction on listing/home/historical recheck pages. */
+  forceDetailFollow?: boolean;
 }): Promise<DistributionAnalysis> {
   if (!isSafePublicHttpUrl(opts.url)) {
     return fromClassify(
@@ -231,6 +247,7 @@ export async function analyzeDistributionPage(opts: {
   const retrieved = await retrieveCopyrightPage(opts.url, {
     signal: opts.signal,
     preferRender: opts.preferRender,
+    allowBrowserFallback: opts.allowBrowserFallback !== false,
   });
 
   if (!retrieved.ok) {
@@ -274,34 +291,96 @@ export async function analyzeDistributionPage(opts: {
   });
 
   let detailFollowUrls: string[] = [];
-  const looksLikeListing =
+  const listingByPurpose =
     classified.primaryPurpose === "listing_or_search" ||
-    /\/(search|category|tag|genre|latest|movies|browse)(\/|$|\?)/i.test(retrieved.finalUrl) ||
-    links.length >= 15;
-  if (!opts.skipDetailFollow && !classified.clientVisible && looksLikeListing) {
-    // Bounded same-host title-detail follow. Listing pages themselves are never evidence.
-    detailFollowUrls = extractTitleMatchedDetailLinks({
-      pageUrl: retrieved.finalUrl,
-      html,
-      markdown,
-      links,
-      titles: opts.titles,
-      limit: 6,
-    });
+    classified.classification === "CATALOG_OR_LISTING";
+  const looksLikeListing =
+    !opts.skipDetailFollow &&
+    (opts.forceDetailFollow ||
+      isLikelyListingPage({
+        url: retrieved.finalUrl,
+        primaryPurpose: classified.primaryPurpose,
+        linkCount: links.length,
+        html,
+        markdown,
+      }) ||
+      listingByPurpose ||
+      (links.length >= 10 && !classified.clientVisible) ||
+      (links.length >= 3 && /\/$|\/(search|movies|latest|category)(\/|$)/i.test(retrieved.finalUrl)));
+
+  if (looksLikeListing) {
+    opts.detailFollow?.recordListingDetected(retrieved.finalUrl, links.length);
+    if (!links.length) {
+      opts.detailFollow?.recordSkipped(
+        retrieved.finalUrl,
+        "no_links_extracted",
+        "listing page had no extractable links",
+      );
+    } else {
+      opts.detailFollow?.recordLinksExtracted(retrieved.finalUrl, links.length);
+      detailFollowUrls = extractTitleMatchedDetailLinks({
+        pageUrl: retrieved.finalUrl,
+        html,
+        markdown,
+        links,
+        titles: opts.titles,
+        limit: 20,
+        metadata: meta,
+      });
+      opts.detailFollow?.recordTitleCandidatesScored(
+        retrieved.finalUrl,
+        detailFollowUrls.length,
+      );
+      if (!detailFollowUrls.length) {
+        opts.detailFollow?.recordSkipped(
+          retrieved.finalUrl,
+          "title_score_below_threshold",
+          "no title-matched detail links scored above threshold",
+        );
+      }
+    }
+  } else if (!opts.skipDetailFollow && classified.distributionLinks.length) {
+    // Non-listing movie pages still expand into cloud/file/mirror destinations.
+    detailFollowUrls = classified.distributionLinks
+      .filter((l) => l.startsWith("http"))
+      .slice(0, 12);
+    if (detailFollowUrls.length) {
+      opts.detailFollow?.recordLinksExtracted(retrieved.finalUrl, detailFollowUrls.length);
+      opts.detailFollow?.recordTitleCandidatesScored(
+        retrieved.finalUrl,
+        detailFollowUrls.length,
+      );
+    }
+  } else if (opts.forceDetailFollow && opts.detailFollow) {
+    opts.detailFollow.recordSkipped(
+      retrieved.finalUrl,
+      "listing_not_detected",
+      "historical or known-risk page did not qualify as listing for detail follow",
+    );
   }
 
-  return fromClassify(
-    retrieved.finalUrl,
-    pageTitle,
-    retrieved.screenshot ?? opts.screenshot ?? null,
-    classified,
-    detailFollowUrls,
-    false,
-    null,
-    null,
-    retrieved.method,
-    retrieved.rendered,
-  );
+  return {
+    ...fromClassify(
+      retrieved.finalUrl,
+      pageTitle,
+      retrieved.screenshot ?? opts.screenshot ?? null,
+      classified,
+      detailFollowUrls,
+      false,
+      null,
+      null,
+      retrieved.method,
+      retrieved.rendered,
+    ),
+    pageReferenceImages: extractReferenceImagesFromPage({
+      pageUrl: retrieved.finalUrl,
+      title: pageTitle,
+      metadata: meta,
+      html,
+      screenshot: retrieved.screenshot ?? opts.screenshot ?? null,
+      provider: retrieved.rendered ? "firecrawl" : "direct_retrieval",
+    }),
+  };
 }
 
 /**
