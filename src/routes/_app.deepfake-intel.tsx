@@ -78,6 +78,11 @@ import {
   type ThreatAlertAnnouncementState,
 } from "@/lib/deepfake/threat-alert";
 import { ResultsIntelligenceConsole } from "@/components/deepfake/results/ResultsIntelligenceConsole";
+import {
+  isSarayuMohanIdentity,
+  normalizeIdentityName,
+  resolveActiveIdentityName,
+} from "@/lib/deepfake/identity-state";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
@@ -431,9 +436,6 @@ function DeepfakeIntelPage() {
   const selectedProfile = (profiles.data ?? []).find(
     (profile) => profile.id === selectedProfileId,
   );
-  const isSarayuMohan =
-    (selectedProfile?.target_name ?? targetName).trim().toLowerCase() ===
-    "sarayumohan";
 
   const enrolledFaces =
     selectedProfile?.deepfake_reference_faces ?? [];
@@ -472,6 +474,9 @@ function DeepfakeIntelPage() {
   });
 
   const historyScans = filterScanHistory(scans.data ?? []);
+  const selectedHistoryScan = historyScans.find(
+    (historyScan) => historyScan.id === selectedScanId,
+  ) ?? null;
 
   const selected = useQuery({
     queryKey: ["deepfake-scan", selectedScanId],
@@ -822,6 +827,13 @@ function DeepfakeIntelPage() {
 
   const selectedScanRow = selected.data?.scan ?? null;
   const selectedScanStatus = selectedScanRow?.status ?? null;
+  const activeIdentityName = resolveActiveIdentityName({
+    selectedProfileName: selectedProfile?.target_name,
+    scan: selectedScanRow as { target_name?: string | null; identity_name?: string | null } | null,
+    selectedScan: selectedHistoryScan,
+    targetName,
+  });
+  const isSarayuMohan = isSarayuMohanIdentity(activeIdentityName);
   const scanRequestPending =
     run.isPending || continueScan.isPending;
   const scanningUi =
@@ -834,6 +846,20 @@ function DeepfakeIntelPage() {
    * Select the freshly created scan row as soon as it shows up in history so
    * live progress renders while status is still "running".
    */
+  useEffect(() => {
+    if (!selectedScanRow?.target_name) return;
+    setTargetName(selectedScanRow.target_name);
+    const matchingProfile = (profiles.data ?? []).find(
+      (profile) =>
+        normalizeIdentityName(profile.target_name) ===
+        normalizeIdentityName(selectedScanRow.target_name),
+    );
+    setSelectedProfileId(
+      matchingProfile?.id ??
+        ((selectedScanRow as { profile_id?: string | null }).profile_id ?? ""),
+    );
+  }, [profiles.data, selectedScanRow?.id, selectedScanRow?.target_name]);
+
   useEffect(() => {
     const candidateId = pickLiveScanId({
       scans: (scans.data ?? []) as Array<{ id: string; status: string; target_name: string }>,
@@ -1631,9 +1657,6 @@ function DeepfakeIntelPage() {
                     <Badge variant="outline">Supplied Evidence Report — 6 Links</Badge>
                     <span className="text-[10px] text-muted-foreground">Pending Verification</span>
                   </div>
-                  <div style={{ background: "red", padding: 20 }}>
-                    TEST SARAYU BUTTON
-                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -1774,7 +1797,19 @@ function DeepfakeIntelPage() {
                 {historyScans.map((s) => (
                   <li key={s.id}>
                     <button
-                      onClick={() => setSelectedScanId(s.id)}
+                      onClick={() => {
+                        setSelectedScanId(s.id);
+                        setTargetName(s.target_name);
+                        const scanProfileId =
+                          (s as { profile_id?: string | null }).profile_id ?? null;
+                        const matchingProfile = (profiles.data ?? []).find(
+                          (profile) =>
+                            profile.id === scanProfileId ||
+                            normalizeIdentityName(profile.target_name) ===
+                              normalizeIdentityName(s.target_name),
+                        );
+                        setSelectedProfileId(matchingProfile?.id ?? scanProfileId ?? "");
+                      }}
                       className={`w-full text-left rounded-lg border p-2.5 transition ${
                         selectedScanId === s.id
                           ? "border-primary/60 bg-primary/5"
