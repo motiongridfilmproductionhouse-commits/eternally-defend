@@ -2313,9 +2313,6 @@ function ManualEvidenceLeadsSection({
   onRetry: (leadId: string) => void;
   retryPending: boolean;
 }) {
-  const visible = loading || error || leads.length > 0;
-  if (!visible) return null;
-
   return (
     <div className="card-surface p-4" data-testid="manual-evidence-leads">
       <div className="mb-3 flex items-center justify-between gap-3">
