@@ -6,6 +6,8 @@
  * sample listings so the selection + confirmation flow is fully testable.
  */
 
+import type { Json } from "@/integrations/supabase/types";
+
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
 
 export interface BusinessListing {
@@ -26,7 +28,7 @@ export interface BusinessListing {
   reviewCount?: number | null;
   businessStatus?: string | null;
   isSample: boolean;
-  raw: Record<string, unknown>;
+  raw: Json;
 }
 
 export function placesConfigured(): boolean {
@@ -167,7 +169,7 @@ export async function searchBusinessListings(query: string): Promise<{
         reviewCount: p.userRatingCount ?? null,
         businessStatus: p.businessStatus ?? null,
         isSample: false,
-        raw: p as Record<string, unknown>,
+        raw: p as unknown as Json,
       } satisfies BusinessListing;
     });
 

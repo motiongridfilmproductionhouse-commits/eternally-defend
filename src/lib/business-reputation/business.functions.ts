@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { Json } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { searchBusinessListings } from "@/lib/business-reputation/places.server";
 import {
@@ -26,7 +27,7 @@ const listingSchema = z.object({
   reviewCount: z.number().nullable().optional(),
   businessStatus: z.string().nullable().optional(),
   isSample: z.boolean().default(false),
-  raw: z.record(z.string(), z.unknown()).default({}),
+  raw: z.custom<Json>(() => true).default({}),
 });
 
 /** Business listing search (Google Places when connected, sample data otherwise). */
