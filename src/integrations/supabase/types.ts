@@ -4006,7 +4006,8 @@ export type Database = {
       onboarding_progress: {
         Row: {
           created_at: string
-          current_step: number
+        current_step: number
+          onboarding_version: string | null
           overall_status: Database["public"]["Enums"]["onboarding_overall_status"]
           step_states: Json
           updated_at: string
@@ -4015,6 +4016,7 @@ export type Database = {
         Insert: {
           created_at?: string
           current_step?: number
+          onboarding_version?: string | null
           overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
           step_states?: Json
           updated_at?: string
@@ -4023,6 +4025,7 @@ export type Database = {
         Update: {
           created_at?: string
           current_step?: number
+          onboarding_version?: string | null
           overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
           step_states?: Json
           updated_at?: string
@@ -5157,11 +5160,14 @@ export type Database = {
       }
       scans: {
         Row: {
+          brand_profile: Json | null
           completed_at: string | null
           created_at: string
           duplicate_hits_removed: number
           error: string | null
           id: string
+          heartbeat_at: string | null
+          lease_expires_at: string | null
           name: string | null
           new_hits: number
           organisation_id: string | null
@@ -5171,6 +5177,10 @@ export type Database = {
           period_start: string | null
           protection_profile_id: string | null
           query: string | null
+          query_plan: Json | null
+          scan_checkpoint: Json | null
+          scan_run_token: string | null
+          scan_type: string
           sources: string[]
           started_at: string | null
           status: string
@@ -5179,13 +5189,18 @@ export type Database = {
           updated_at: string
           updated_hits: number
           user_id: string
+          discovery_metrics: Json
+          report_summary: Json | null
         }
         Insert: {
+          brand_profile?: Json | null
           completed_at?: string | null
           created_at?: string
           duplicate_hits_removed?: number
           error?: string | null
           id?: string
+          heartbeat_at?: string | null
+          lease_expires_at?: string | null
           name?: string | null
           new_hits?: number
           organisation_id?: string | null
@@ -5195,6 +5210,10 @@ export type Database = {
           period_start?: string | null
           protection_profile_id?: string | null
           query?: string | null
+          query_plan?: Json | null
+          scan_checkpoint?: Json | null
+          scan_run_token?: string | null
+          scan_type?: string
           sources?: string[]
           started_at?: string | null
           status?: string
@@ -5203,13 +5222,18 @@ export type Database = {
           updated_at?: string
           updated_hits?: number
           user_id: string
+          discovery_metrics?: Json
+          report_summary?: Json | null
         }
         Update: {
+          brand_profile?: Json | null
           completed_at?: string | null
           created_at?: string
           duplicate_hits_removed?: number
           error?: string | null
           id?: string
+          heartbeat_at?: string | null
+          lease_expires_at?: string | null
           name?: string | null
           new_hits?: number
           organisation_id?: string | null
@@ -5219,6 +5243,10 @@ export type Database = {
           period_start?: string | null
           protection_profile_id?: string | null
           query?: string | null
+          query_plan?: Json | null
+          scan_checkpoint?: Json | null
+          scan_run_token?: string | null
+          scan_type?: string
           sources?: string[]
           started_at?: string | null
           status?: string
@@ -5227,6 +5255,8 @@ export type Database = {
           updated_at?: string
           updated_hits?: number
           user_id?: string
+          discovery_metrics?: Json
+          report_summary?: Json | null
         }
         Relationships: []
       }
@@ -6390,7 +6420,7 @@ export type Database = {
       }
     }
     Enums: {
-      account_type_enum: "personal" | "business"
+      account_type_enum: "personal" | "business" | "individual" | "celebrity" | "enterprise" | "production_house"
       app_role: "admin" | "analyst" | "user" | "super_admin" | "partner"
       asset_kind_enum:
         | "name"
@@ -6706,7 +6736,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      account_type_enum: ["personal", "business"],
+      account_type_enum: ["personal", "business", "individual", "celebrity", "enterprise", "production_house"],
       app_role: ["admin", "analyst", "user", "super_admin", "partner"],
       asset_kind_enum: [
         "name",

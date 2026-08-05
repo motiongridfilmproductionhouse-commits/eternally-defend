@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { getOrAssignOnboardingVersion } from "./version.server";
 
 const ProfileSchema = z.object({
   legal_name: z.string().trim().min(1).max(200),
@@ -39,8 +40,13 @@ export const saveClientProfile = createServerFn({ method: "POST" })
   .inputValidator((d: z.infer<typeof ProfileSchema>) => ProfileSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const onboardingVersion = await getOrAssignOnboardingVersion(supabase, userId);
     const client_id = await ensureClientId(supabase, userId);
-    const { data: existing } = await supabase.from("client_profiles").select("user_id, email").eq("user_id", userId).maybeSingle();
+    const { data: existing } = await supabase
+      .from("client_profiles")
+      .select("user_id, email, onboarding_version")
+      .eq("user_id", userId)
+      .maybeSingle();
     const { data: userInfo } = await supabase.auth.getUser();
     const email = existing?.email ?? userInfo.user?.email ?? null;
     const patch = {
@@ -49,8 +55,13 @@ export const saveClientProfile = createServerFn({ method: "POST" })
       email,
       email_verified_at: userInfo.user?.email_confirmed_at ?? new Date().toISOString(),
       ...data,
+      ...(existing ? {} : { onboarding_version: onboardingVersion }),
     };
-    const { data: row, error } = await supabase.from("client_profiles").upsert({ ...patch, full_name: data.legal_name } as never, { onConflict: "user_id" }).select().single();
+    const { data: row, error } = await supabase
+      .from("client_profiles")
+      .upsert({ ...patch, full_name: data.legal_name } as never, { onConflict: "user_id" })
+      .select()
+      .single();
     if (error) throw new Error(error.message);
     return row;
   });
@@ -59,6 +70,10 @@ export const getClientProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data } = await supabase.from("client_profiles").select("*").eq("user_id", userId).maybeSingle();
+    const { data } = await supabase
+      .from("client_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
     return data;
   });

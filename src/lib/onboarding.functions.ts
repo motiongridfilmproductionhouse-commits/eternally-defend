@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createHash } from "crypto";
-import { CONSENT_VERSION, ONBOARDING_VERSION } from "./onboarding-versions";
+import { CONSENT_VERSION } from "./onboarding-versions";
+import { getOrAssignOnboardingVersion } from "./onboarding/version.server";
 
 type Json = Record<string, unknown>;
 
@@ -22,6 +23,7 @@ export const getOnboardingState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
+    const onboardingVersion = await getOrAssignOnboardingVersion(supabase, userId);
     const [profile, assets, activeAuth, docs] = await Promise.all([
       supabase.from("client_profiles").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("onboarding_assets").select("*").eq("user_id", userId).order("created_at"),
@@ -39,7 +41,7 @@ export const getOnboardingState = createServerFn({ method: "GET" })
       assets: assets.data ?? [],
       authorization: activeAuth.data ?? null,
       documents: docs.data ?? [],
-      versions: { onboarding: ONBOARDING_VERSION, consent: CONSENT_VERSION },
+      versions: { onboarding: onboardingVersion, consent: CONSENT_VERSION },
     };
   });
 
@@ -48,12 +50,23 @@ export const upsertClientProfile = createServerFn({ method: "POST" })
   .inputValidator((data: { step: number; patch: Json }) => data)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const onboardingVersion = await getOrAssignOnboardingVersion(supabase, userId);
+    const { data: currentProfile } = await supabase
+      .from("client_profiles")
+      .select("onboarding_version")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const safePatch = Object.fromEntries(
+      Object.entries(data.patch as Record<string, unknown>).filter(
+        ([key]) => key !== "onboarding_version" && key !== "account_type",
+      ),
+    );
     const { ip, ua } = clientMeta();
     const patch = {
-      ...(data.patch as Record<string, never>),
+      ...safePatch,
       user_id: userId,
       onboarding_step: data.step,
-      onboarding_version: ONBOARDING_VERSION,
+      ...(currentProfile ? {} : { onboarding_version: onboardingVersion }),
     } as never;
     const { data: row, error } = await supabase
       .from("client_profiles")
@@ -78,8 +91,17 @@ export const addProtectedAsset = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
       asset_kind:
-        | "name" | "brand" | "company" | "product" | "social_account"
-        | "youtube_channel" | "website" | "logo" | "image" | "video" | "copyright";
+        | "name"
+        | "brand"
+        | "company"
+        | "product"
+        | "social_account"
+        | "youtube_channel"
+        | "website"
+        | "logo"
+        | "image"
+        | "video"
+        | "copyright";
       label: string;
       value?: string | null;
       url?: string | null;
@@ -124,7 +146,8 @@ export const recordEnterpriseDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     (data: {
-      doc_type: "authorization_letter" | "agency_agreement" | "power_of_attorney" | "brand_protection";
+      doc_type:
+        "authorization_letter" | "agency_agreement" | "power_of_attorney" | "brand_protection";
       storage_path: string;
       filename: string;
       mime?: string;
@@ -169,14 +192,21 @@ export const submitAuthorization = createServerFn({ method: "POST" })
     (data: {
       consents: Record<string, boolean>;
       authorization_level:
-        | "monitoring" | "monitoring_evidence" | "monitoring_enforcement" | "full_protection";
+        "monitoring" | "monitoring_evidence" | "monitoring_enforcement" | "full_protection";
       legal_name: string;
       signature_text: string;
     }) => data,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const requiredKeys = ["ownership", "monitoring", "enforcement", "platformFinality", "noGuarantee"];
+    const onboardingVersion = await getOrAssignOnboardingVersion(supabase, userId);
+    const requiredKeys = [
+      "ownership",
+      "monitoring",
+      "enforcement",
+      "platformFinality",
+      "noGuarantee",
+    ];
     for (const k of requiredKeys) {
       if (!data.consents[k]) throw new Error(`Consent required: ${k}`);
     }
@@ -210,7 +240,7 @@ export const submitAuthorization = createServerFn({ method: "POST" })
       .insert({
         user_id: userId,
         consent_version: CONSENT_VERSION,
-        onboarding_version: ONBOARDING_VERSION,
+        onboarding_version: onboardingVersion,
         consents: consentsWithTs as never,
         authorization_level: data.authorization_level,
         legal_name: data.legal_name.trim(),
