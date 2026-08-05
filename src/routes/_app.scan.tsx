@@ -11,6 +11,7 @@ import type {
   FreshnessWindow,
 } from "@/routes/api/scan";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
+import { BusinessReputationScan } from "@/components/business/BusinessReputationScan";
 import { severityColor } from "@/lib/data-store";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
@@ -189,6 +190,7 @@ function ScanPage() {
   const userId = session?.user.id;
   const generateReportPdf = useServerFn(generateScanReportPdf);
   const [pdfPending, setPdfPending] = useState(false);
+  const [scanMode, setScanMode] = useState<"reputation" | "business">("reputation");
   const [q, setQ] = useState("");
   const [aliases, setAliases] = useState("");
   const [variations, setVariations] = useState("");
