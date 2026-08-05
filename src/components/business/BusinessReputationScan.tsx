@@ -109,9 +109,8 @@ export function BusinessReputationScan() {
     <div className="space-y-5">
       <PageCard
         title="Business Reputation Scan"
-        subtitle="Select a verified business, lock its identity, and generate the reputation query plan."
-        icon={<Building2 className="h-4 w-4" />}
-        right={<Pill tone="info">Phase 1 · Identity foundation</Pill>}
+        sub="Select a verified business, lock its identity, and generate the reputation query plan."
+        actions={<Pill>Phase 1 · Identity foundation</Pill>}
       >
         <div className="space-y-4">
           <div className="flex items-start gap-2 rounded-xl border border-primary/25 bg-primary/[0.06] p-3 text-xs text-muted-foreground">
@@ -224,9 +223,8 @@ export function BusinessReputationScan() {
       {selected && (
         <PageCard
           title="Confirm business identity"
-          subtitle="Everything below feeds the query plan. Confirm before any scanning begins."
-          icon={<ShieldCheck className="h-4 w-4" />}
-          right={<Pill tone={confirm.data ? "good" : "warn"}>{confirm.data ? "Locked" : "Awaiting confirmation"}</Pill>}
+          sub="Everything below feeds the query plan. Confirm before any scanning begins."
+          actions={<Pill>{confirm.data ? "Locked" : "Awaiting confirmation"}</Pill>}
         >
           <div className="space-y-4">
             <div className={`${glass} p-4`}>
@@ -329,9 +327,8 @@ export function BusinessReputationScan() {
       {confirm.data && (
         <PageCard
           title="Identity profile & query plan"
-          subtitle={`${aliases.length} name variants · ${queries.length} generated search phrases`}
-          icon={<ListFilter className="h-4 w-4" />}
-          right={<Pill tone="good">Ready for discovery</Pill>}
+          sub={`${aliases.length} name variants · ${queries.length} generated search phrases`}
+          actions={<Pill>Ready for discovery</Pill>}
         >
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
