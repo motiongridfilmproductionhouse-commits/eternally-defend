@@ -648,6 +648,349 @@ export type Database = {
         }
         Relationships: []
       }
+      business_aliases: {
+        Row: {
+          alias: string
+          alias_type: string
+          business_profile_id: string
+          created_at: string
+          id: string
+          language: string | null
+          user_id: string
+        }
+        Insert: {
+          alias: string
+          alias_type?: string
+          business_profile_id: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          user_id: string
+        }
+        Update: {
+          alias?: string
+          alias_type?: string
+          business_profile_id?: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_aliases_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_place_selections: {
+        Row: {
+          business_profile_id: string
+          display_name: string | null
+          formatted_address: string | null
+          google_place_id: string
+          id: string
+          raw: Json
+          scan_scope: string
+          selected_at: string
+          user_id: string
+        }
+        Insert: {
+          business_profile_id: string
+          display_name?: string | null
+          formatted_address?: string | null
+          google_place_id: string
+          id?: string
+          raw?: Json
+          scan_scope?: string
+          selected_at?: string
+          user_id: string
+        }
+        Update: {
+          business_profile_id?: string
+          display_name?: string | null
+          formatted_address?: string | null
+          google_place_id?: string
+          id?: string
+          raw?: Json
+          scan_scope?: string
+          selected_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_place_selections_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_profiles: {
+        Row: {
+          abbreviations: string[]
+          address: string | null
+          branch_names: string[]
+          business_status: string | null
+          category: string | null
+          city: string | null
+          client_id: string | null
+          confirmed_at: string | null
+          country: string | null
+          created_at: string
+          executives: string[]
+          google_maps_url: string | null
+          google_place_id: string | null
+          id: string
+          industry: string | null
+          languages: string[]
+          latitude: number | null
+          locked: boolean
+          logo_url: string | null
+          longitude: number | null
+          official_business_name: string
+          parent_company: string | null
+          phone: string | null
+          place_payload: Json
+          place_source: string
+          previous_names: string[]
+          products: string[]
+          rating: number | null
+          region: string | null
+          review_count: number | null
+          scan_scope: string
+          selected_location: string | null
+          trading_name: string | null
+          updated_at: string
+          user_id: string
+          website_domain: string | null
+          website_url: string | null
+        }
+        Insert: {
+          abbreviations?: string[]
+          address?: string | null
+          branch_names?: string[]
+          business_status?: string | null
+          category?: string | null
+          city?: string | null
+          client_id?: string | null
+          confirmed_at?: string | null
+          country?: string | null
+          created_at?: string
+          executives?: string[]
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          id?: string
+          industry?: string | null
+          languages?: string[]
+          latitude?: number | null
+          locked?: boolean
+          logo_url?: string | null
+          longitude?: number | null
+          official_business_name: string
+          parent_company?: string | null
+          phone?: string | null
+          place_payload?: Json
+          place_source?: string
+          previous_names?: string[]
+          products?: string[]
+          rating?: number | null
+          region?: string | null
+          review_count?: number | null
+          scan_scope?: string
+          selected_location?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_id: string
+          website_domain?: string | null
+          website_url?: string | null
+        }
+        Update: {
+          abbreviations?: string[]
+          address?: string | null
+          branch_names?: string[]
+          business_status?: string | null
+          category?: string | null
+          city?: string | null
+          client_id?: string | null
+          confirmed_at?: string | null
+          country?: string | null
+          created_at?: string
+          executives?: string[]
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          id?: string
+          industry?: string | null
+          languages?: string[]
+          latitude?: number | null
+          locked?: boolean
+          logo_url?: string | null
+          longitude?: number | null
+          official_business_name?: string
+          parent_company?: string | null
+          phone?: string | null
+          place_payload?: Json
+          place_source?: string
+          previous_names?: string[]
+          products?: string[]
+          rating?: number | null
+          region?: string | null
+          review_count?: number | null
+          scan_scope?: string
+          selected_location?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_id?: string
+          website_domain?: string | null
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      business_reputation_scans: {
+        Row: {
+          business_profile_id: string
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          scan_scope: string
+          stage: string | null
+          started_at: string | null
+          stats: Json
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_profile_id: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          scan_scope?: string
+          stage?: string | null
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_profile_id?: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          scan_scope?: string
+          stage?: string | null
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_reputation_scans_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_scan_queries: {
+        Row: {
+          business_profile_id: string
+          country: string | null
+          created_at: string
+          id: string
+          language: string | null
+          priority: number
+          query: string
+          query_type: string
+          user_id: string
+        }
+        Insert: {
+          business_profile_id: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          priority?: number
+          query: string
+          query_type?: string
+          user_id: string
+        }
+        Update: {
+          business_profile_id?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          priority?: number
+          query?: string
+          query_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_scan_queries_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_social_accounts: {
+        Row: {
+          business_profile_id: string
+          created_at: string
+          id: string
+          is_official: boolean
+          platform: string
+          profile_url: string | null
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          business_profile_id: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          platform: string
+          profile_url?: string | null
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          business_profile_id?: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          platform?: string
+          profile_url?: string | null
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_social_accounts_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       caption_imports: {
         Row: {
           created_at: string
