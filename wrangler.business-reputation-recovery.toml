@@ -1,0 +1,12 @@
+name = "eternally-defend-business-reputation-recovery"
+main = "workers/business-reputation-recovery.ts"
+compatibility_date = "2026-08-05"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+# Set this to the deployed application endpoint.
+BUSINESS_REPUTATION_RECOVERY_URL = "https://YOUR_APP_HOST/api/public/hooks/business-reputation-scan-recover"
+
+# Configure with: wrangler secret put COPYRIGHT_SCAN_WORKER_SECRET --config wrangler.business-reputation-recovery.toml

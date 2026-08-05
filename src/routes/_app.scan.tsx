@@ -15,8 +15,8 @@ import { severityColor } from "@/lib/data-store";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { toast } from "sonner";
-import { persistScan, listScanHits } from "@/lib/scans.functions";
-import { analyzeYoutubeVideo } from "@/lib/video-analysis.functions";
+import { listScanHits } from "@/lib/scans.functions";
+import { startBusinessReputationScan, getBusinessReputationScan } from "@/lib/business-reputation.functions";
 import { generateScanReportPdf } from "@/lib/scan-report-pdf.functions";
 import { ExactMomentsPanel, ExactMomentsSummaryChips } from "@/components/scan/ExactMomentsPanel";
 import {
@@ -174,14 +174,22 @@ interface ReportWithDiagnostics extends ReputationReport {
   };
 }
 
-async function runScan(payload: unknown): Promise<ReportWithDiagnostics> {
-  const r = await fetch("/api/scan", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+function reportFromPersisted(scan: any, rows: any[]): ReportWithDiagnostics {
+  const hits: ScanHit[] = rows.map((row) => {
+    const source = String(row.source || "Web");
+    const platform = source[0]?.toUpperCase() + source.slice(1);
+    const threat = Number(row.threat_score ?? row.risk_score ?? 0);
+    const severity = (row.severity || (threat >= 80 ? "High" : "Low")) as ScanHit["severity"];
+    return { id: row.id, title: row.title || row.canonical_url || "Untitled result", url: row.permalink || row.canonical_url || "", description: row.description || "", platform, source, author: row.author || undefined, published: row.published_at || undefined, discoveredAt: row.detected_at || row.created_at, lastChecked: row.updated_at || row.created_at, category: (row.risk_type || "General") as ScanHit["category"], contentLabel: "Reputation lead" as ScanHit["contentLabel"], severity, sentiment: (row.metrics?.sentiment || "Neutral") as Sentiment, confidence: 60, threatScore: threat, credibilityScore: 50, viralityScore: 0, copyrightRisk: 0, reputationRisk: threat, reachEstimate: Number(row.reach || 0), engagement: Number(row.engagement || 0), recommendedAction: "Preserve and conduct human review", keywords: row.tags || [], language: row.language || "en", detectionReason: "Discovered from the confirmed Google Places business profile", media: row.external_id && source === "YouTube" ? { videoId: row.external_id, thumbnail: row.thumbnail_url || undefined } : undefined };
   });
-  const j = await r.json();
-  return j as ReportWithDiagnostics;
+  const critical = hits.filter((h) => h.severity === "Critical");
+  const high = hits.filter((h) => h.severity === "High");
+  const negative = hits.filter((h) => h.sentiment === "Negative");
+  const sourceNames = [...new Set(hits.map((h) => h.platform))];
+  const buckets: ReputationReport["buckets"] = { breaking: [], recent3d: [], recent7d: [], recent30d: hits, critical, high, highRisk: [...critical, ...high], viral: [], defamation: [], expose: [], leaks: [], controversies: hits.filter((h) => /controvers/i.test(h.category)), copyright: [], deepfake: [], impersonation: [], harassment: [], legal: [], news: hits.filter((h) => h.platform === "News"), youtube: hits.filter((h) => h.platform === "YouTube"), reddit: hits.filter((h) => h.platform === "Reddit"), facebook: [], instagram: [], reviews: [], emerging: hits, duplicates: [] };
+  const score = hits.length ? Math.max(0, Math.round(100 - (negative.length / hits.length) * 65 - (critical.length / hits.length) * 25)) : 0;
+  const totals = { total: hits.length, unique: hits.length, duplicatesRemoved: 0, critical: critical.length, high: high.length, negative: negative.length, viral: 0, avgThreat: hits.length ? hits.reduce((sum, h) => sum + h.threatScore, 0) / hits.length : 0, totalReach: hits.reduce((sum, h) => sum + h.reachEstimate, 0) };
+  return { ok: true, query: scan.query || "", aliases: scan.query_plan?.aliases || [], generatedAt: scan.completed_at || scan.updated_at || new Date().toISOString(), period: scan.period || "12m", sourcesRequested: scan.sources || [], sourcesReturned: sourceNames, hits, totals, reputationScore: score, reputationLevel: score >= 75 ? "Low" : score >= 50 ? "Moderate" : "High", scoreBreakdown: [{ key: "findings", label: "Persisted findings", value: hits.length }], executiveSummary: { headline: scan.status === "running" ? `Business Reputation scan in progress · ${hits.length} persisted findings.` : `Business Reputation summary · ${hits.length} persisted findings across ${sourceNames.length} sources.`, mostDamagingTopic: critical[0]?.category || high[0]?.category || "No critical topic identified", mostInfluentialSource: sourceNames[0] || "N/A", fastestGrowing: "N/A", trend: negative.length > hits.length / 2 ? "Increasing" : "Stable", immediateActions: high.length ? [`Review ${high.length} high-priority finding${high.length === 1 ? "" : "s"}`] : ["Continue monitoring"], longTerm: ["Run recurring Business Reputation scans"] }, buckets, brandResolution: scan.brand_profile || undefined, diagnostics: scan.discovery_metrics || undefined };
 }
 
 function ScanPage() {
@@ -209,7 +217,9 @@ function ScanPage() {
     uniqueHits: number;
   } | null>(null);
 
-  const m = useMutation({ mutationFn: runScan });
+  const startScanFn = useServerFn(startBusinessReputationScan);
+  const getScanFn = useServerFn(getBusinessReputationScan);
+  const m = useMutation({ mutationFn: (payload: unknown) => startScanFn({ data: payload as any }) });
   const autoScanStarted = useRef(false);
 
   useEffect(() => {
@@ -233,144 +243,38 @@ function ScanPage() {
       handles: [],
       monthFilter: "12m",
       sources: DEFAULT_SOURCES,
-      limit: 10,
-      youtubeTarget: 300,
-      resultCap: 300,
-      assetId,
-      context: "person; uploaded identity reference",
+      site: "",
+      country: "",
+      industry: "",
     });
     window.history.replaceState({}, "", "/scan");
   }, [m]);
 
-  const report = m.data as ReportWithDiagnostics | undefined;
-  const persistFn = useServerFn(persistScan);
-  const analyzeFn = useServerFn(analyzeYoutubeVideo);
-  const persistedReportKeyRef = useRef<string | null>(null);
+  const [report, setReport] = useState<ReportWithDiagnostics | undefined>();
+  const [scanStatus, setScanStatus] = useState("idle");
+  const [scanError, setScanError] = useState<string | null>(null);
   const [analyzingVideos, setAnalyzingVideos] = useState<Set<string>>(new Set());
 
-  // Persist to DB once the report lands. Runs once per report identity.
+  // Poll only the persisted scan row and persisted findings. The browser never runs providers.
   useEffect(() => {
-    if (!report || !report.hits.length) return;
-
-    const firstUrl = report.hits[0]?.url ?? "";
-    const lastUrl = report.hits[report.hits.length - 1]?.url ?? "";
-    const reportKey = [
-      report.query,
-      report.period,
-      report.hits.length,
-      firstUrl,
-      lastUrl,
-    ].join("::");
-
-    if (persistedReportKeyRef.current === reportKey) return;
-    persistedReportKeyRef.current = reportKey;
-
+    const scanId = (m.data as { scanId?: string } | undefined)?.scanId;
+    if (!scanId) return;
+    setPersistedScanId(scanId);
     let cancelled = false;
-    (async () => {
+    const poll = async () => {
       try {
-        const mapped = report.hits.map((h) => ({
-          source: h.source,
-          sourceType: h.source === "YouTube" ? "youtube_video" : h.source.toLowerCase(),
-          externalId: h.media?.videoId ?? null,
-          canonicalUrl: h.url,
-          permalink: h.url,
-          title: h.title,
-          description: h.description,
-          author: h.author ?? h.media?.channelTitle ?? null,
-          thumbnailUrl: h.media?.thumbnailHi ?? h.media?.thumbnail ?? null,
-          language: h.language,
-          publishedAt: h.published ?? null,
-          reach: h.reachEstimate,
-          engagement: h.engagement,
-          velocity: h.viral ? "viral" : null,
-          riskScore: h.threatScore,
-          threatScore: h.threatScore,
-          severity: h.severity,
-          growthPct: h.media?.growthPerDay ?? null,
-          riskType: h.category,
-          tags: h.keywords,
-          metrics: {
-            views: h.media?.views ?? null,
-            likes: h.media?.likes ?? null,
-            comments: h.media?.comments ?? null,
-            growthPerDay: h.media?.growthPerDay ?? null,
-            engagementRate: h.media?.engagementRate ?? null,
-            credibilityScore: h.credibilityScore,
-            viralityScore: h.viralityScore,
-          } as Record<string, unknown>,
-          sourceMetadata: { platform: h.platform, channelId: h.media?.channelId ?? null } as Record<
-            string,
-            unknown
-          >,
-          evidenceRefs: [],
-        }));
-        const res = await persistFn({
-          data: {
-            query: report.query,
-            params: { period: report.period, sources: report.sourcesRequested },
-            sources: report.sourcesRequested,
-            period: report.period,
-            hits: mapped,
-            totals: {
-              total: report.totals.total,
-              unique: report.totals.unique,
-              duplicatesRemoved: report.totals.duplicatesRemoved,
-            },
-          },
-        });
+        const result = await getScanFn({ data: { scanId } });
         if (cancelled) return;
-        setPersistedScanId(res.scanId);
-        setPersistSummary({
-          newHits: res.newHits,
-          updatedHits: res.updatedHits,
-          duplicatesRemoved: res.duplicatesRemoved,
-          uniqueHits: res.uniqueHits,
-        });
-
-        // Kick off timestamp analysis for every YouTube hit (concurrency 3, fire-and-forget).
-        const ytHits = report.hits.filter((h) => h.source === "YouTube" && h.media?.videoId);
-        if (ytHits.length) {
-          const entityTerms = [report.query, ...report.aliases].filter(Boolean);
-          setAnalyzingVideos(new Set(ytHits.map((h) => h.media!.videoId!)));
-          const queue = [...ytHits];
-          const runOne = async () => {
-            while (queue.length && !cancelled) {
-              const h = queue.shift()!;
-              try {
-                await analyzeFn({
-                  data: {
-                    videoId: h.media!.videoId!,
-                    scanId: res.scanId,
-                    entityTerms,
-                    channelId: h.media?.channelId ?? null,
-                    channelName: h.media?.channelTitle ?? null,
-                    channelUrl: h.media?.channelUrl ?? null,
-                  },
-                });
-              } catch (e) {
-                console.warn("[analyze]", h.media?.videoId, e);
-              } finally {
-                setAnalyzingVideos((s) => {
-                  const n = new Set(s);
-                  n.delete(h.media!.videoId!);
-                  return n;
-                });
-              }
-            }
-          };
-          void Promise.all([runOne(), runOne(), runOne()]);
-        }
-      } catch (e) {
-        if (persistedReportKeyRef.current === reportKey) {
-          persistedReportKeyRef.current = null;
-        }
-        console.error("[scan] persist failed:", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
+        setScanStatus(result.scan.status);
+        setScanError(result.scan.error || null);
+        setReport(reportFromPersisted(result.scan, result.hits));
+        setPersistSummary({ newHits: result.scan.new_hits || 0, updatedHits: result.scan.updated_hits || 0, duplicatesRemoved: result.scan.duplicate_hits_removed || 0, uniqueHits: result.scan.unique_hits || result.hits.length });
+      } catch (error) { if (!cancelled) setScanError(error instanceof Error ? error.message : String(error)); }
     };
-  }, [report, persistFn, analyzeFn]);
+    void poll();
+    const timer = window.setInterval(() => { void poll(); }, 2500);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [m.data, getScanFn]);
 
   const toggleSource = (s: SourceKey) =>
     setSources((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
@@ -384,6 +288,9 @@ function ScanPage() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!q.trim() || m.isPending) return;
+    setReport(undefined);
+    setScanError(null);
+    setScanStatus("queued");
     setAdded(new Set());
     const aliasList = split(aliases);
     const variationList = split(variations);
@@ -400,6 +307,9 @@ function ScanPage() {
       limit: 8,
       youtubeTarget: 1500,
       context: [industry, country, site].filter(Boolean).join(" "),
+      site,
+      country,
+      industry,
     });
   };
 
@@ -672,7 +582,7 @@ function ScanPage() {
                 ) : (
                   <ScanSearch className="size-4" />
                 )}
-                {m.isPending ? "Generating report…" : "Generate Reputation Report"}
+                {m.isPending ? "Starting scan…" : scanStatus === "running" ? "Scan running…" : "Start Business Reputation Scan"}
               </button>
             </div>
 
@@ -702,6 +612,11 @@ function ScanPage() {
           {report?.error && !report.error.toLowerCase().includes("youtube quota exhausted") && (
             <div className="mt-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               Scan warning: {report.error}
+            </div>
+          )}
+          {scanError && !report?.error && (
+            <div className="mt-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              Business Reputation scan: {scanError}
             </div>
           )}
         </div>
@@ -2483,6 +2398,9 @@ type PersistedHit = {
   narrative_claim: string | null;
   risk_type: string | null;
   tags: string[];
+  metrics?: Record<string, unknown> | null;
+  source_metadata?: Record<string, unknown> | null;
+  evidence_refs?: unknown[] | null;
   is_new_since_last_scan: boolean;
   times_detected: number;
   first_seen_at: string;

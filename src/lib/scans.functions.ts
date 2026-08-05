@@ -257,7 +257,7 @@ export const listScanHits = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     let q = supabase
       .from("scan_hits")
-      .select("id, scan_id, source, source_type, external_id, canonical_url, permalink, title, description, author, thumbnail_url, published_at, detected_at, reach, engagement, velocity, risk_score, threat_score, severity, growth_pct, narrative_claim, risk_type, tags, is_new_since_last_scan, times_detected, first_seen_at, last_seen_at, hidden_at, hidden_reason")
+      .select("id, scan_id, source, source_type, external_id, canonical_url, permalink, title, description, author, thumbnail_url, published_at, detected_at, reach, engagement, velocity, risk_score, threat_score, severity, growth_pct, narrative_claim, risk_type, tags, metrics, source_metadata, evidence_refs, is_new_since_last_scan, times_detected, first_seen_at, last_seen_at, hidden_at, hidden_reason")
       .eq("user_id", userId)
       .order("published_at", { ascending: false, nullsFirst: false })
       .order("threat_score", { ascending: false, nullsFirst: false })
@@ -348,4 +348,3 @@ export const getThreatTrends = createServerFn({ method: "GET" })
     });
     return { series, types, totalHits: rows?.length ?? 0 };
   });
-

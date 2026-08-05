@@ -855,7 +855,7 @@ interface ResolutionResult {
   error: string | null;
 }
 
-async function resolveBrandWithPlaces(
+export async function resolveBrandWithPlaces(
   query: string,
   subjectType: "Auto" | "Person" | "Brand/Business" = "Auto",
   userWebsite?: string,
