@@ -3,7 +3,6 @@ import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
-  Building2,
   Search,
   Loader2,
   MapPin,
@@ -11,8 +10,6 @@ import {
   Phone,
   Star,
   CheckCircle2,
-  ShieldCheck,
-  ListFilter,
   Layers,
   Info,
 } from "lucide-react";
