@@ -18,7 +18,23 @@ export const createVeriffSession = createServerFn({ method: "POST" })
     const baseUrl = process.env.VERIFF_BASE_URL ?? "https://stationapi.veriff.com";
     if (!apiKey || !secret) throw new Error("Veriff not configured");
 
-    const { data: profile } = await supabase.from("client_profiles").select("client_id, full_name").eq("user_id", userId).maybeSingle();
+    const { data: profile } = await supabase
+      .from("client_profiles")
+      .select("client_id, full_name, onboarding_version, onboarding_account_type")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    // Only Individual v2 accounts may start Veriff. Non-individual v2 routes must not
+    // receive Government Identity Verified badges through this path.
+    if (profile?.onboarding_version === "v2") {
+      const { isV2AccountType, requiresVeriff } = await import("./v2-config");
+      if (
+        !isV2AccountType(profile.onboarding_account_type) ||
+        !requiresVeriff(profile.onboarding_account_type)
+      ) {
+        throw new Error("Veriff identity verification is only available for Individual accounts.");
+      }
+    }
     const fullName = (profile as { full_name?: string | null } | null)?.full_name ?? "Client User";
     const [firstName, ...rest] = fullName.split(" ");
     const lastName = rest.join(" ") || "User";

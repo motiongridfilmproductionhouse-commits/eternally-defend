@@ -204,12 +204,32 @@ export const finalizeSignature = createServerFn({ method: "POST" })
           .limit(1)
           .maybeSingle();
         if (cert) {
-          // Ensure onboarding is on step 8 (certificate) so the UI advances.
-          const { data: prog } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
-          const states = { ...(prog?.step_states as Record<string, string> ?? {}), "7": "COMPLETED", "8": "COMPLETED" };
-          await supabase.from("onboarding_progress").upsert({
-            user_id: userId, current_step: Math.max(prog?.current_step ?? 8, 8), step_states: states, overall_status: "IN_PROGRESS",
-          }, { onConflict: "user_id" });
+          const { upsertProgressPreservingVersion, normalizeOnboardingVersion } = await import(
+            "./version.server"
+          );
+          const { data: prog } = await supabase
+            .from("onboarding_progress")
+            .select("*")
+            .eq("user_id", userId)
+            .maybeSingle();
+          const version = normalizeOnboardingVersion(prog?.onboarding_version);
+          if (version === "v1") {
+            const states = {
+              ...((prog?.step_states as Record<string, string>) ?? {}),
+              "7": "COMPLETED",
+              "8": "COMPLETED",
+            };
+            await upsertProgressPreservingVersion(supabase, userId, {
+              current_step: Math.max(prog?.current_step ?? 8, 8),
+              step_states: states,
+              overall_status: "IN_PROGRESS",
+            });
+          } else {
+            await upsertProgressPreservingVersion(supabase, userId, {
+              current_step: Math.max(prog?.current_step ?? 9, 9),
+              overall_status: "IN_PROGRESS",
+            });
+          }
           return { ok: true, duplicate: true, certificate_id: cert.id, certificate_number: cert.certificate_number };
         }
       }
@@ -226,20 +246,50 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       const doc_sha = createHash("sha256").update(bytes).digest("hex");
       const signature_sha = createHash("sha256").update(data.drawn_signature_svg).digest("hex");
 
-      const kycOk = snap.kyc?.verification_status === "APPROVED";
+      const { normalizeOnboardingVersion, upsertProgressPreservingVersion } = await import(
+        "./version.server"
+      );
+      const {
+        V2_BADGES,
+        V2_VERIFICATION_METHODS,
+        isV2AccountType,
+        requiresVeriff,
+      } = await import("./v2-config");
+
+      const { data: profileRow } = await supabase
+        .from("client_profiles")
+        .select("onboarding_version, onboarding_account_type")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const onboardingVersion = normalizeOnboardingVersion(profileRow?.onboarding_version);
+      const v2AccountType = isV2AccountType(profileRow?.onboarding_account_type)
+        ? profileRow.onboarding_account_type
+        : null;
+      const allowGovIdClaim =
+        onboardingVersion === "v1" || (v2AccountType ? requiresVeriff(v2AccountType) : false);
+
+      const kycOk = allowGovIdClaim && snap.kyc?.verification_status === "APPROVED";
       const faceOk = snap.face?.status === "FACE_VERIFIED";
       const emailOk = !!snap.profile?.email_verified_at;
-      const assetOk = (snap.assets ?? []).some((a: any) => a.verification_status === "VERIFIED");
+      const assetOk = (snap.assets ?? []).some(
+        (a: { verification_status?: string }) => a.verification_status === "VERIFIED",
+      );
       let score = 0;
       if (kycOk) score += 30;
       if (faceOk) score += 25;
       if (emailOk) score += 10;
       if (assetOk) score += 25;
       score += 10;
-      const enforcementReady = kycOk && assetOk;
+      // v1 enforcement readiness remains KYC+asset. v2 non-individuals use asset+signature path.
+      const enforcementReady =
+        onboardingVersion === "v2" && v2AccountType && !requiresVeriff(v2AccountType)
+          ? assetOk
+          : kycOk && assetOk;
 
       const cert_number = `ETC-${new Date().getUTCFullYear()}-${randomBytes(3).toString("hex").toUpperCase()}`;
       const public_slug = randomBytes(6).toString("hex");
+      const verificationBadge = v2AccountType ? V2_BADGES[v2AccountType] : null;
+      const verificationMethod = v2AccountType ? V2_VERIFICATION_METHODS[v2AccountType] : null;
 
       const { PDFDocument, rgb } = await import("pdf-lib");
       const { embedUnicodeFontStack, drawUnicodeText } = await import("@/lib/pdf/unicode-fonts.server");
@@ -258,15 +308,20 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       cline(`Client ID: ${snap.profile?.client_id ?? ""}`);
       cline(`Name: ${snap.profile?.display_name ?? snap.profile?.legal_name ?? snap.profile?.full_name ?? ""}`);
       cline(`Company: ${snap.profile?.company_name ?? ""}`);
+      if (verificationBadge) cline(`Badge: ${verificationBadge}`, true);
       cline(`Verification Score: ${score}/100`);
       cline(`Status: ACTIVE`);
       cline(`Issued: ${new Date().toISOString().slice(0, 10)}`);
       cline(`Expires: ${auth.expiry_date}`);
       cy -= 10;
       if (kycOk) cline("✓ Identity Verified (Veriff)", true);
+      if (kycOk) cline("✓ Government ID Verified", true);
       if (faceOk) cline("✓ Real Human Verified (Rekognition Liveness)", true);
       if (faceOk) cline("✓ Face Protected Profile Created", true);
       if (assetOk) cline("✓ Asset Ownership Verified", true);
+      if (v2AccountType === "celebrity") cline("✓ Public Figure Route Verified", true);
+      if (v2AccountType === "enterprise") cline("✓ Organization Route Verified", true);
+      if (v2AccountType === "production_house") cline("✓ Rights Holder Route Verified", true);
       cline("✓ Authorization Signed", true);
       try {
         const QR = await import("qrcode");
@@ -334,6 +389,9 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         s3_key: certKey,
         sha256: certSha,
         snapshot: snap,
+        account_type: v2AccountType,
+        verification_method: verificationMethod,
+        verification_badge: verificationBadge,
       }).select().single();
       if (certErr) throw new Error(`CERT_INSERT:${certErr.message}`);
 
@@ -347,21 +405,34 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         { user_id: userId, actor_id: userId, action: "certificate_issued", target: cert_number },
       ]);
 
-      // Mark steps 7 (signature) + 8 (certificate) complete; land on 8 so the UI opens the certificate.
-      const { data: progress } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
-      const states = {
-        ...(progress?.step_states as Record<string, string> ?? {}),
-        "7": "COMPLETED",
-        "8": "COMPLETED",
-      };
-      await supabase.from("onboarding_progress").upsert({
-        user_id: userId,
-        current_step: 8,
-        step_states: states,
-        overall_status: "IN_PROGRESS",
-      }, { onConflict: "user_id" });
-
-      await supabase.from("client_profiles").update({ onboarding_completed: true } as any).eq("user_id", userId);
+      const { data: progress } = await supabase
+        .from("onboarding_progress")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (onboardingVersion === "v1") {
+        const states = {
+          ...((progress?.step_states as Record<string, string>) ?? {}),
+          "7": "COMPLETED",
+          "8": "COMPLETED",
+        };
+        await upsertProgressPreservingVersion(supabase, userId, {
+          current_step: 8,
+          step_states: states,
+          overall_status: "IN_PROGRESS",
+        });
+        // Legacy completion remains available at signature time.
+        await supabase
+          .from("client_profiles")
+          .update({ onboarding_completed: true })
+          .eq("user_id", userId);
+      } else {
+        // v2 must finish via completeV2Onboarding after route requirements pass.
+        await upsertProgressPreservingVersion(supabase, userId, {
+          current_step: Math.max(progress?.current_step ?? 9, 9),
+          overall_status: "IN_PROGRESS",
+        });
+      }
 
       return { ok: true, duplicate: false, certificate_id: insertedCert.id, certificate_number: cert_number, signature_sha256: signature_sha, document_sha256: doc_sha };
     } catch (err: any) {

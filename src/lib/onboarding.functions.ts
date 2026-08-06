@@ -3,6 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createHash } from "crypto";
 import { CONSENT_VERSION, ONBOARDING_VERSION } from "./onboarding-versions";
+import { getOrAssignOnboardingVersion } from "./onboarding/version.server";
 
 type Json = Record<string, unknown>;
 
@@ -49,12 +50,20 @@ export const upsertClientProfile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { ip, ua } = clientMeta();
+    const version = await getOrAssignOnboardingVersion(supabase, userId);
+    if (version === "v2") {
+      throw new Error("v2 accounts must use the route-specific onboarding profile endpoints.");
+    }
+    // Ignore any client-controlled onboarding_version field.
+    const { onboarding_version: _ignored, ...safePatch } = data.patch as Record<string, unknown> & {
+      onboarding_version?: unknown;
+    };
     const patch = {
-      ...(data.patch as Record<string, never>),
+      ...safePatch,
       user_id: userId,
       onboarding_step: data.step,
       onboarding_version: ONBOARDING_VERSION,
-    } as never;
+    };
     const { data: row, error } = await supabase
       .from("client_profiles")
       .upsert(patch, { onConflict: "user_id" })

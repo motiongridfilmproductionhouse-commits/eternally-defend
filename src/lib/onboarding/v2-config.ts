@@ -12,7 +12,7 @@ export type V2AccountType = (typeof V2_ACCOUNT_TYPES)[number];
 export const V2_ACCOUNT_LABELS: Record<V2AccountType, string> = {
   celebrity: "Celebrity / Public Figure",
   individual: "Individual",
-  enterprise: "Enterprise",
+  enterprise: "Enterprise / Company",
   production_house: "Production House",
 };
 
@@ -23,6 +23,14 @@ export const V2_BADGES: Record<V2AccountType, string> = {
   production_house: "Verified Production House",
 };
 
+/** Alternate badge labels accepted for display/certificate copy. */
+export const V2_BADGE_ALTERNATES: Record<V2AccountType, readonly string[]> = {
+  celebrity: ["Verified Celebrity", "Verified Public Figure"],
+  individual: ["Verified Individual"],
+  enterprise: ["Verified Enterprise", "Verified Organization"],
+  production_house: ["Verified Production House", "Verified Rights Holder"],
+};
+
 export const V2_VERIFICATION_METHODS: Record<V2AccountType, string> = {
   celebrity: "public_identity_and_asset_review",
   individual: "veriff_identity_and_face_liveness",
@@ -30,8 +38,22 @@ export const V2_VERIFICATION_METHODS: Record<V2AccountType, string> = {
   production_house: "production_rights_review",
 };
 
+export const V2_EVIDENCE_TYPES = [
+  "official_contact",
+  "representative",
+  "company",
+  "rights",
+  "authorization",
+] as const;
+
+export type V2EvidenceType = (typeof V2_EVIDENCE_TYPES)[number];
+
 export function isV2AccountType(value: unknown): value is V2AccountType {
-  return typeof value === "string" && V2_ACCOUNT_TYPES.includes(value as V2AccountType);
+  return typeof value === "string" && (V2_ACCOUNT_TYPES as readonly string[]).includes(value);
+}
+
+export function isV2EvidenceType(value: unknown): value is V2EvidenceType {
+  return typeof value === "string" && (V2_EVIDENCE_TYPES as readonly string[]).includes(value);
 }
 
 export function clientTypeForV2(accountType: V2AccountType) {
@@ -43,6 +65,111 @@ export function clientTypeForV2(accountType: V2AccountType) {
 
 export function legacyAccountTypeForV2(accountType: V2AccountType) {
   return accountType === "individual" || accountType === "celebrity"
-    ? "personal" as const
-    : "business" as const;
+    ? ("personal" as const)
+    : ("business" as const);
+}
+
+export type V2StepKey =
+  | "account_type"
+  | "profile"
+  | "veriff"
+  | "evidence"
+  | "representative"
+  | "face"
+  | "assets"
+  | "scope"
+  | "review"
+  | "signature"
+  | "certificate"
+  | "complete";
+
+export type V2FlowStep = {
+  step: number;
+  key: V2StepKey;
+  title: string;
+};
+
+export function v2FlowForAccount(accountType: V2AccountType | null): V2FlowStep[] {
+  if (!accountType) {
+    return [{ step: 1, key: "account_type", title: "Account Type" }];
+  }
+
+  if (accountType === "celebrity") {
+    return [
+      { step: 1, key: "account_type", title: "Account Type" },
+      { step: 2, key: "profile", title: "Celebrity Profile" },
+      { step: 3, key: "evidence", title: "Official Contact / Evidence" },
+      { step: 4, key: "face", title: "Face Protection" },
+      { step: 5, key: "assets", title: "Digital Assets" },
+      { step: 6, key: "scope", title: "Authorization Scope" },
+      { step: 7, key: "review", title: "Authorization Review" },
+      { step: 8, key: "signature", title: "Electronic Signature" },
+      { step: 9, key: "certificate", title: "Certificate" },
+      { step: 10, key: "complete", title: "Complete" },
+    ];
+  }
+
+  if (accountType === "individual") {
+    return [
+      { step: 1, key: "account_type", title: "Account Type" },
+      { step: 2, key: "profile", title: "Personal Profile" },
+      { step: 3, key: "veriff", title: "Veriff" },
+      { step: 4, key: "face", title: "Face Protection" },
+      { step: 5, key: "assets", title: "Digital Assets" },
+      { step: 6, key: "scope", title: "Authorization Scope" },
+      { step: 7, key: "review", title: "Authorization Review" },
+      { step: 8, key: "signature", title: "Electronic Signature" },
+      { step: 9, key: "certificate", title: "Certificate" },
+      { step: 10, key: "complete", title: "Complete" },
+    ];
+  }
+
+  if (accountType === "enterprise") {
+    return [
+      { step: 1, key: "account_type", title: "Account Type" },
+      { step: 2, key: "profile", title: "Company Profile" },
+      { step: 3, key: "representative", title: "Representative Details" },
+      { step: 4, key: "evidence", title: "Company Evidence" },
+      { step: 5, key: "assets", title: "Digital Assets" },
+      { step: 6, key: "scope", title: "Authorization Scope" },
+      { step: 7, key: "review", title: "Authorization Review" },
+      { step: 8, key: "signature", title: "Electronic Signature" },
+      { step: 9, key: "certificate", title: "Certificate" },
+      { step: 10, key: "complete", title: "Complete" },
+    ];
+  }
+
+  return [
+    { step: 1, key: "account_type", title: "Account Type" },
+    { step: 2, key: "profile", title: "Production House Profile" },
+    { step: 3, key: "representative", title: "Representative Details" },
+    { step: 4, key: "evidence", title: "Rights Evidence" },
+    { step: 5, key: "assets", title: "Film / Media Assets" },
+    { step: 6, key: "scope", title: "Authorization Scope" },
+    { step: 7, key: "review", title: "Authorization Review" },
+    { step: 8, key: "signature", title: "Electronic Signature" },
+    { step: 9, key: "certificate", title: "Certificate" },
+    { step: 10, key: "complete", title: "Complete" },
+  ];
+}
+
+export function primaryEvidenceTypeForAccount(
+  accountType: V2AccountType,
+): Exclude<V2EvidenceType, "representative" | "authorization"> | null {
+  if (accountType === "celebrity") return "official_contact";
+  if (accountType === "enterprise") return "company";
+  if (accountType === "production_house") return "rights";
+  return null;
+}
+
+export function requiresVeriff(accountType: V2AccountType): boolean {
+  return accountType === "individual";
+}
+
+export function requiresFaceProtection(accountType: V2AccountType): boolean {
+  return accountType === "individual" || accountType === "celebrity";
+}
+
+export function requiresRepresentative(accountType: V2AccountType): boolean {
+  return accountType === "enterprise" || accountType === "production_house";
 }

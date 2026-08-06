@@ -39,8 +39,15 @@ export const saveClientProfile = createServerFn({ method: "POST" })
   .inputValidator((d: z.infer<typeof ProfileSchema>) => ProfileSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { data: existing } = await supabase
+      .from("client_profiles")
+      .select("user_id, email, onboarding_version")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existing?.onboarding_version === "v2") {
+      throw new Error("v2 accounts must use the route-specific profile step.");
+    }
     const client_id = await ensureClientId(supabase, userId);
-    const { data: existing } = await supabase.from("client_profiles").select("user_id, email").eq("user_id", userId).maybeSingle();
     const { data: userInfo } = await supabase.auth.getUser();
     const email = existing?.email ?? userInfo.user?.email ?? null;
     const patch = {
@@ -49,8 +56,14 @@ export const saveClientProfile = createServerFn({ method: "POST" })
       email,
       email_verified_at: userInfo.user?.email_confirmed_at ?? new Date().toISOString(),
       ...data,
+      full_name: data.legal_name,
+      onboarding_version: "v1",
     };
-    const { data: row, error } = await supabase.from("client_profiles").upsert({ ...patch, full_name: data.legal_name } as never, { onConflict: "user_id" }).select().single();
+    const { data: row, error } = await supabase
+      .from("client_profiles")
+      .upsert(patch, { onConflict: "user_id" })
+      .select()
+      .single();
     if (error) throw new Error(error.message);
     return row;
   });

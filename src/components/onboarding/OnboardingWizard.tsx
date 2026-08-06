@@ -22,6 +22,7 @@ import { AuthorizationReviewStep } from "@/components/onboarding/AuthorizationRe
 import { SignatureStep } from "@/components/onboarding/SignatureStep";
 import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
+import { V2OnboardingWizard } from "@/components/onboarding/V2OnboardingWizard";
 
 const STEP_TITLES = [
   "Account & Client Profile",
@@ -35,7 +36,22 @@ const STEP_TITLES = [
   "Onboarding Complete",
 ];
 
-export function OnboardingWizard({ initialProgress }: { initialProgress: any }) {
+export function OnboardingWizard({
+  initialProgress,
+}: {
+  initialProgress: { current_step?: number | null; onboarding_version?: string | null } | null;
+}) {
+  if (initialProgress?.onboarding_version === "v2") {
+    return <V2OnboardingWizard initialProgress={initialProgress} />;
+  }
+  return <LegacyOnboardingWizard initialProgress={initialProgress} />;
+}
+
+function LegacyOnboardingWizard({
+  initialProgress,
+}: {
+  initialProgress: { current_step?: number | null; onboarding_version?: string | null } | null;
+}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const initialStep = Math.min(

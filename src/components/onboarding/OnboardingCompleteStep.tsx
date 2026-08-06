@@ -7,17 +7,28 @@ import { Loader2, ShieldCheck, Download, ExternalLink, FileKey2, Settings, Layou
 import { getMyCertificate, getCertificateSignedUrl } from "@/lib/onboarding/certificate.functions";
 import { getAuthorizationBundle } from "@/lib/onboarding/authorization.functions";
 import { buildAuthorizationPackage } from "@/lib/onboarding/package.functions";
-import { completeOnboarding } from "@/lib/onboarding/progress.functions";
+import { completeOnboarding, completeV2Onboarding } from "@/lib/onboarding/progress.functions";
 import { useState } from "react";
 import { toast } from "sonner";
+import { V2_BADGES, isV2AccountType, type V2AccountType } from "@/lib/onboarding/v2-config";
 
-export function OnboardingCompleteStep({ onGoToStep }: { onGoToStep: (step: number) => void }) {
+export function OnboardingCompleteStep({
+  onGoToStep,
+  accountType = null,
+  showGovernmentId,
+}: {
+  onGoToStep: (step: number) => void;
+  accountType?: V2AccountType | string | null;
+  showGovernmentId?: boolean;
+}) {
   const fetchCert = useServerFn(getMyCertificate);
   const fetchAuth = useServerFn(getAuthorizationBundle);
   const getCertUrl = useServerFn(getCertificateSignedUrl);
   const buildPkg = useServerFn(buildAuthorizationPackage);
-  const complete = useServerFn(completeOnboarding);
+  const completeV1 = useServerFn(completeOnboarding);
+  const completeV2 = useServerFn(completeV2Onboarding);
   const navigate = useNavigate();
+  const isV2 = isV2AccountType(accountType);
 
   const { data: cert, isLoading: certLoading } = useQuery({
     queryKey: ["my_certificate"],
@@ -81,11 +92,20 @@ export function OnboardingCompleteStep({ onGoToStep }: { onGoToStep: (step: numb
     );
   }
 
-  const snapshot = cert.snapshot as any;
+  const snapshot = cert.snapshot as {
+    kyc?: { verification_status?: string };
+    face?: { status?: string };
+    assets?: Array<{ verification_status?: string }>;
+    signatures?: Array<{ status?: string }>;
+  } | null;
   const snapKyc = snapshot?.kyc?.verification_status === "APPROVED";
   const snapFace = snapshot?.face?.status === "FACE_VERIFIED";
-  const snapAsset = (snapshot?.assets ?? []).some((a: any) => a.verification_status === "VERIFIED");
-  const snapSig = (snapshot?.signatures ?? []).some((s: any) => s.status === "SIGNED");
+  const snapAsset = (snapshot?.assets ?? []).some((a) => a.verification_status === "VERIFIED");
+  const snapSig = (snapshot?.signatures ?? []).some((s) => s.status === "SIGNED");
+  const allowGovId = showGovernmentId ?? (!isV2 && snapKyc);
+  const badge =
+    (typeof cert.verification_badge === "string" && cert.verification_badge) ||
+    (isV2 ? V2_BADGES[accountType] : null);
 
   return (
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50 overflow-hidden relative">
@@ -126,23 +146,57 @@ export function OnboardingCompleteStep({ onGoToStep }: { onGoToStep: (step: numb
           <div className="bg-black/20 border border-white/10 rounded-xl p-6 w-full max-w-3xl text-left space-y-3">
             <div className="text-sm font-semibold text-white/80 border-b border-white/10 pb-2 mb-3">Confirmed Protections</div>
             <div className="grid sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
-              <div className="flex items-center gap-3"><CheckCircle2 className={`size-5 ${snapKyc ? 'text-emerald-400' : 'text-white/30'}`} /> Identity Verified</div>
-              <div className="flex items-center gap-3"><CheckCircle2 className={`size-5 ${snapFace ? 'text-emerald-400' : 'text-white/30'}`} /> Real Human Verified</div>
-              <div className="flex items-center gap-3"><CheckCircle2 className="size-5 text-emerald-400" /> Protected Face Profile Created</div>
-              <div className="flex items-center gap-3"><CheckCircle2 className={`size-5 ${snapAsset ? 'text-emerald-400' : 'text-white/30'}`} /> YouTube Ownership Verified</div>
-              <div className="flex items-center gap-3"><CheckCircle2 className={`size-5 ${snapSig ? 'text-emerald-400' : 'text-white/30'}`} /> Authorization Signed</div>
-              
-              <div className="flex items-center gap-3 sm:col-span-2"><CheckCircle2 className="size-5 text-emerald-400" /> Verification Certificate Issued</div>
+              {badge && (
+                <div className="flex items-center gap-3 sm:col-span-2">
+                  <CheckCircle2 className="size-5 text-emerald-400" /> {badge}
+                </div>
+              )}
+              {allowGovId && (
+                <>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className={`size-5 ${snapKyc ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    Identity Verified
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className={`size-5 ${snapKyc ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    Government ID Verified
+                  </div>
+                </>
+              )}
+              {(!isV2 || accountType === "individual" || accountType === "celebrity") && (
+                <>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className={`size-5 ${snapFace ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    Real Human Verified
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className={`size-5 ${snapFace ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    Protected Face Profile Created
+                  </div>
+                </>
+              )}
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className={`size-5 ${snapAsset ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                Asset Ownership Verified
+              </div>
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className={`size-5 ${snapSig ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                Authorization Signed
+              </div>
+              <div className="flex items-center gap-3 sm:col-span-2">
+                <CheckCircle2 className="size-5 text-emerald-400" /> Verification Certificate Issued
+              </div>
             </div>
           </div>
 
           <div className="flex flex-wrap justify-center gap-3 w-full max-w-3xl pt-4 border-t border-white/10">
             <Button onClick={async () => {
               try {
-                await complete();
+                if (isV2) await completeV2();
+                else await completeV1();
                 navigate({ to: "/" });
-              } catch (e: any) {
-                toast.error(e?.message ?? "Failed to complete onboarding");
+              } catch (e: unknown) {
+                toast.error(e instanceof Error ? e.message : "Failed to complete onboarding");
               }
             }} className="bg-blue-600 hover:bg-blue-500 text-white">
               <LayoutDashboard className="size-4 mr-2" /> Open Dashboard
