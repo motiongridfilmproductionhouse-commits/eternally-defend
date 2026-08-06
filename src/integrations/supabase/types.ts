@@ -648,6 +648,349 @@ export type Database = {
         }
         Relationships: []
       }
+      business_aliases: {
+        Row: {
+          alias: string
+          alias_type: string
+          business_profile_id: string
+          created_at: string
+          id: string
+          language: string | null
+          user_id: string
+        }
+        Insert: {
+          alias: string
+          alias_type?: string
+          business_profile_id: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          user_id: string
+        }
+        Update: {
+          alias?: string
+          alias_type?: string
+          business_profile_id?: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_aliases_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_place_selections: {
+        Row: {
+          business_profile_id: string
+          display_name: string | null
+          formatted_address: string | null
+          google_place_id: string
+          id: string
+          raw: Json
+          scan_scope: string
+          selected_at: string
+          user_id: string
+        }
+        Insert: {
+          business_profile_id: string
+          display_name?: string | null
+          formatted_address?: string | null
+          google_place_id: string
+          id?: string
+          raw?: Json
+          scan_scope?: string
+          selected_at?: string
+          user_id: string
+        }
+        Update: {
+          business_profile_id?: string
+          display_name?: string | null
+          formatted_address?: string | null
+          google_place_id?: string
+          id?: string
+          raw?: Json
+          scan_scope?: string
+          selected_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_place_selections_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_profiles: {
+        Row: {
+          abbreviations: string[]
+          address: string | null
+          branch_names: string[]
+          business_status: string | null
+          category: string | null
+          city: string | null
+          client_id: string | null
+          confirmed_at: string | null
+          country: string | null
+          created_at: string
+          executives: string[]
+          google_maps_url: string | null
+          google_place_id: string | null
+          id: string
+          industry: string | null
+          languages: string[]
+          latitude: number | null
+          locked: boolean
+          logo_url: string | null
+          longitude: number | null
+          official_business_name: string
+          parent_company: string | null
+          phone: string | null
+          place_payload: Json
+          place_source: string
+          previous_names: string[]
+          products: string[]
+          rating: number | null
+          region: string | null
+          review_count: number | null
+          scan_scope: string
+          selected_location: string | null
+          trading_name: string | null
+          updated_at: string
+          user_id: string
+          website_domain: string | null
+          website_url: string | null
+        }
+        Insert: {
+          abbreviations?: string[]
+          address?: string | null
+          branch_names?: string[]
+          business_status?: string | null
+          category?: string | null
+          city?: string | null
+          client_id?: string | null
+          confirmed_at?: string | null
+          country?: string | null
+          created_at?: string
+          executives?: string[]
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          id?: string
+          industry?: string | null
+          languages?: string[]
+          latitude?: number | null
+          locked?: boolean
+          logo_url?: string | null
+          longitude?: number | null
+          official_business_name: string
+          parent_company?: string | null
+          phone?: string | null
+          place_payload?: Json
+          place_source?: string
+          previous_names?: string[]
+          products?: string[]
+          rating?: number | null
+          region?: string | null
+          review_count?: number | null
+          scan_scope?: string
+          selected_location?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_id: string
+          website_domain?: string | null
+          website_url?: string | null
+        }
+        Update: {
+          abbreviations?: string[]
+          address?: string | null
+          branch_names?: string[]
+          business_status?: string | null
+          category?: string | null
+          city?: string | null
+          client_id?: string | null
+          confirmed_at?: string | null
+          country?: string | null
+          created_at?: string
+          executives?: string[]
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          id?: string
+          industry?: string | null
+          languages?: string[]
+          latitude?: number | null
+          locked?: boolean
+          logo_url?: string | null
+          longitude?: number | null
+          official_business_name?: string
+          parent_company?: string | null
+          phone?: string | null
+          place_payload?: Json
+          place_source?: string
+          previous_names?: string[]
+          products?: string[]
+          rating?: number | null
+          region?: string | null
+          review_count?: number | null
+          scan_scope?: string
+          selected_location?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_id?: string
+          website_domain?: string | null
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      business_reputation_scans: {
+        Row: {
+          business_profile_id: string
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          scan_scope: string
+          stage: string | null
+          started_at: string | null
+          stats: Json
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_profile_id: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          scan_scope?: string
+          stage?: string | null
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_profile_id?: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          scan_scope?: string
+          stage?: string | null
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_reputation_scans_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_scan_queries: {
+        Row: {
+          business_profile_id: string
+          country: string | null
+          created_at: string
+          id: string
+          language: string | null
+          priority: number
+          query: string
+          query_type: string
+          user_id: string
+        }
+        Insert: {
+          business_profile_id: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          priority?: number
+          query: string
+          query_type?: string
+          user_id: string
+        }
+        Update: {
+          business_profile_id?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          priority?: number
+          query?: string
+          query_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_scan_queries_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_social_accounts: {
+        Row: {
+          business_profile_id: string
+          created_at: string
+          id: string
+          is_official: boolean
+          platform: string
+          profile_url: string | null
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          business_profile_id: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          platform: string
+          profile_url?: string | null
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          business_profile_id?: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          platform?: string
+          profile_url?: string | null
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_social_accounts_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       caption_imports: {
         Row: {
           created_at: string
@@ -1137,6 +1480,7 @@ export type Database = {
           gov_id_ref: string | null
           legal_name: string | null
           official_socials: Json
+          onboarding_account_type: string | null
           onboarding_completed: boolean
           onboarding_step: number
           onboarding_version: string
@@ -1148,6 +1492,7 @@ export type Database = {
           social_profiles: Json
           updated_at: string
           user_id: string
+          verification_badge: string | null
           website: string | null
         }
         Insert: {
@@ -1172,6 +1517,7 @@ export type Database = {
           gov_id_ref?: string | null
           legal_name?: string | null
           official_socials?: Json
+          onboarding_account_type?: string | null
           onboarding_completed?: boolean
           onboarding_step?: number
           onboarding_version?: string
@@ -1183,6 +1529,7 @@ export type Database = {
           social_profiles?: Json
           updated_at?: string
           user_id: string
+          verification_badge?: string | null
           website?: string | null
         }
         Update: {
@@ -1207,6 +1554,7 @@ export type Database = {
           gov_id_ref?: string | null
           legal_name?: string | null
           official_socials?: Json
+          onboarding_account_type?: string | null
           onboarding_completed?: boolean
           onboarding_step?: number
           onboarding_version?: string
@@ -1218,6 +1566,7 @@ export type Database = {
           social_profiles?: Json
           updated_at?: string
           user_id?: string
+          verification_badge?: string | null
           website?: string | null
         }
         Relationships: []
@@ -4006,8 +4355,8 @@ export type Database = {
       onboarding_progress: {
         Row: {
           created_at: string
-        current_step: number
-          onboarding_version: string | null
+          current_step: number
+          onboarding_version: string
           overall_status: Database["public"]["Enums"]["onboarding_overall_status"]
           step_states: Json
           updated_at: string
@@ -4016,7 +4365,7 @@ export type Database = {
         Insert: {
           created_at?: string
           current_step?: number
-          onboarding_version?: string | null
+          onboarding_version?: string
           overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
           step_states?: Json
           updated_at?: string
@@ -4025,11 +4374,59 @@ export type Database = {
         Update: {
           created_at?: string
           current_step?: number
-          onboarding_version?: string | null
+          onboarding_version?: string
           overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
           step_states?: Json
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      onboarding_v2_evidence: {
+        Row: {
+          created_at: string
+          evidence_type: string
+          filename: string | null
+          id: string
+          metadata: Json
+          mime_type: string | null
+          reference_value: string | null
+          status: string
+          storage_path: string | null
+          updated_at: string
+          user_id: string
+          verification_method: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          evidence_type: string
+          filename?: string | null
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          reference_value?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id: string
+          verification_method?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          evidence_type?: string
+          filename?: string | null
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          reference_value?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_method?: string | null
+          verified_at?: string | null
         }
         Relationships: []
       }
@@ -5160,14 +5557,11 @@ export type Database = {
       }
       scans: {
         Row: {
-          brand_profile: Json | null
           completed_at: string | null
           created_at: string
           duplicate_hits_removed: number
           error: string | null
           id: string
-          heartbeat_at: string | null
-          lease_expires_at: string | null
           name: string | null
           new_hits: number
           organisation_id: string | null
@@ -5177,10 +5571,6 @@ export type Database = {
           period_start: string | null
           protection_profile_id: string | null
           query: string | null
-          query_plan: Json | null
-          scan_checkpoint: Json | null
-          scan_run_token: string | null
-          scan_type: string
           sources: string[]
           started_at: string | null
           status: string
@@ -5189,18 +5579,13 @@ export type Database = {
           updated_at: string
           updated_hits: number
           user_id: string
-          discovery_metrics: Json
-          report_summary: Json | null
         }
         Insert: {
-          brand_profile?: Json | null
           completed_at?: string | null
           created_at?: string
           duplicate_hits_removed?: number
           error?: string | null
           id?: string
-          heartbeat_at?: string | null
-          lease_expires_at?: string | null
           name?: string | null
           new_hits?: number
           organisation_id?: string | null
@@ -5210,10 +5595,6 @@ export type Database = {
           period_start?: string | null
           protection_profile_id?: string | null
           query?: string | null
-          query_plan?: Json | null
-          scan_checkpoint?: Json | null
-          scan_run_token?: string | null
-          scan_type?: string
           sources?: string[]
           started_at?: string | null
           status?: string
@@ -5222,18 +5603,13 @@ export type Database = {
           updated_at?: string
           updated_hits?: number
           user_id: string
-          discovery_metrics?: Json
-          report_summary?: Json | null
         }
         Update: {
-          brand_profile?: Json | null
           completed_at?: string | null
           created_at?: string
           duplicate_hits_removed?: number
           error?: string | null
           id?: string
-          heartbeat_at?: string | null
-          lease_expires_at?: string | null
           name?: string | null
           new_hits?: number
           organisation_id?: string | null
@@ -5243,10 +5619,6 @@ export type Database = {
           period_start?: string | null
           protection_profile_id?: string | null
           query?: string | null
-          query_plan?: Json | null
-          scan_checkpoint?: Json | null
-          scan_run_token?: string | null
-          scan_type?: string
           sources?: string[]
           started_at?: string | null
           status?: string
@@ -5255,8 +5627,6 @@ export type Database = {
           updated_at?: string
           updated_hits?: number
           user_id?: string
-          discovery_metrics?: Json
-          report_summary?: Json | null
         }
         Relationships: []
       }
@@ -5675,6 +6045,7 @@ export type Database = {
       }
       verification_certificates: {
         Row: {
+          account_type: string | null
           authorization_id: string
           certificate_number: string
           expires_at: string | null
@@ -5687,8 +6058,11 @@ export type Database = {
           snapshot: Json | null
           status: string
           user_id: string
+          verification_badge: string | null
+          verification_method: string | null
         }
         Insert: {
+          account_type?: string | null
           authorization_id: string
           certificate_number: string
           expires_at?: string | null
@@ -5701,8 +6075,11 @@ export type Database = {
           snapshot?: Json | null
           status?: string
           user_id: string
+          verification_badge?: string | null
+          verification_method?: string | null
         }
         Update: {
+          account_type?: string | null
           authorization_id?: string
           certificate_number?: string
           expires_at?: string | null
@@ -5715,6 +6092,8 @@ export type Database = {
           snapshot?: Json | null
           status?: string
           user_id?: string
+          verification_badge?: string | null
+          verification_method?: string | null
         }
         Relationships: [
           {
@@ -6420,7 +6799,7 @@ export type Database = {
       }
     }
     Enums: {
-      account_type_enum: "personal" | "business" | "individual" | "celebrity" | "enterprise" | "production_house"
+      account_type_enum: "personal" | "business"
       app_role: "admin" | "analyst" | "user" | "super_admin" | "partner"
       asset_kind_enum:
         | "name"
@@ -6736,7 +7115,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      account_type_enum: ["personal", "business", "individual", "celebrity", "enterprise", "production_house"],
+      account_type_enum: ["personal", "business"],
       app_role: ["admin", "analyst", "user", "super_admin", "partner"],
       asset_kind_enum: [
         "name",

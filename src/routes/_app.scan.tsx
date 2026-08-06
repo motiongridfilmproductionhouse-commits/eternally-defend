@@ -11,6 +11,7 @@ import type {
   FreshnessWindow,
 } from "@/routes/api/scan";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
+import { BusinessReputationScan } from "@/components/business/BusinessReputationScan";
 import { severityColor } from "@/lib/data-store";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
@@ -189,6 +190,7 @@ function ScanPage() {
   const userId = session?.user.id;
   const generateReportPdf = useServerFn(generateScanReportPdf);
   const [pdfPending, setPdfPending] = useState(false);
+  const [scanMode, setScanMode] = useState<"reputation" | "business">("reputation");
   const [q, setQ] = useState("");
   const [aliases, setAliases] = useState("");
   const [variations, setVariations] = useState("");
@@ -561,8 +563,42 @@ function ScanPage() {
     }
   };
 
+  const tabs = (
+    <div className="flex flex-wrap gap-2">
+      {(
+        [
+          ["reputation", "Reputation scan"],
+          ["business", "Business Reputation Scan"],
+        ] as const
+      ).map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => setScanMode(value)}
+          className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
+            scanMode === value
+              ? "border-primary/60 bg-primary/10 text-foreground"
+              : "border-border bg-card text-muted-foreground hover:border-primary/40"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (scanMode === "business") {
+    return (
+      <div className="space-y-6">
+        {tabs}
+        <BusinessReputationScan />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {tabs}
       {/* Hero + form */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
         <div

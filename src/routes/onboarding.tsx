@@ -46,5 +46,5 @@ function OnboardingPage() {
     );
   }
   
-  return <OnboardingWizard initialProgress={q.data} />;
+  return <OnboardingWizard initialProgress={q.data ?? null} />;
 }

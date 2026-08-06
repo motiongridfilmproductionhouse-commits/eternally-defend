@@ -16,12 +16,16 @@ export function CertificateStep({
   kycStatus,
   faceStatus,
   assetStatus,
+  accountType = null,
+  showGovernmentId,
 }: {
   onBack: () => void;
   onNext: () => void;
   kycStatus: string;
   faceStatus: string;
   assetStatus: string;
+  accountType?: string | null;
+  showGovernmentId?: boolean;
 }) {
   const fetchCert = useServerFn(getMyCertificate);
   const fetchAuth = useServerFn(getAuthorizationBundle);
@@ -127,11 +131,22 @@ export function CertificateStep({
     return "ACTIVE";
   };
 
-  const snapshot = cert.snapshot as any;
+  const snapshot = cert.snapshot as {
+    kyc?: { verification_status?: string };
+    face?: { status?: string };
+    assets?: Array<{ verification_status?: string }>;
+    signatures?: Array<{ status?: string }>;
+  } | null;
   const snapKyc = snapshot?.kyc?.verification_status === "APPROVED";
   const snapFace = snapshot?.face?.status === "FACE_VERIFIED";
-  const snapAsset = (snapshot?.assets ?? []).some((a: any) => a.verification_status === "VERIFIED");
-  const snapSig = (snapshot?.signatures ?? []).some((s: any) => s.status === "SIGNED");
+  const snapAsset = (snapshot?.assets ?? []).some((a) => a.verification_status === "VERIFIED");
+  const snapSig = (snapshot?.signatures ?? []).some((s) => s.status === "SIGNED");
+  const allowGovId =
+    showGovernmentId ?? (accountType ? accountType === "individual" && snapKyc : snapKyc);
+  const badge =
+    typeof cert.verification_badge === "string" && cert.verification_badge
+      ? cert.verification_badge
+      : null;
 
   return (
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
@@ -189,12 +204,43 @@ export function CertificateStep({
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2 text-sm">
               <div className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Verified Claims</div>
-              <div className="flex items-center gap-2"><ShieldCheck className={`size-4 ${snapKyc ? 'text-emerald-400' : 'text-white/30'}`} /> Identity Verified</div>
-              <div className="flex items-center gap-2"><ShieldCheck className={`size-4 ${snapFace ? 'text-emerald-400' : 'text-white/30'}`} /> Real Human Verified</div>
-              <div className="flex items-center gap-2"><ShieldCheck className={`size-4 text-emerald-400`} /> Face Protected Profile Created</div>
-              <div className="flex items-center gap-2"><ShieldCheck className={`size-4 ${snapAsset ? 'text-emerald-400' : 'text-white/30'}`} /> YouTube Ownership Verified</div>
-              <div className="flex items-center gap-2"><ShieldCheck className={`size-4 ${snapSig ? 'text-emerald-400' : 'text-white/30'}`} /> Authorization Signed</div>
-              
+              {badge && (
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="size-4 text-emerald-400" /> {badge}
+                </div>
+              )}
+              {allowGovId && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className={`size-4 ${snapKyc ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    Identity Verified
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className={`size-4 ${snapKyc ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    Government ID Verified
+                  </div>
+                </>
+              )}
+              {(snapFace || !accountType || accountType === "individual" || accountType === "celebrity") && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className={`size-4 ${snapFace ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    Real Human Verified
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className={`size-4 ${snapFace ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    Face Protected Profile Created
+                  </div>
+                </>
+              )}
+              <div className="flex items-center gap-2">
+                <ShieldCheck className={`size-4 ${snapAsset ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                Asset Ownership Verified
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className={`size-4 ${snapSig ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                Authorization Signed
+              </div>
             </div>
           </div>
           
