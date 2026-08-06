@@ -96,15 +96,8 @@ export async function searchRecentRedditMentions(input: {
 
     let payload: RedditSearchResponse = {};
     try {
-      const timeoutMs = boundTimeoutMs(
-        10_000,
-        input.signal,
-        input.softDeadlineMs,
-      );
-      const signal = mergeAbortSignals(
-        input.signal,
-        AbortSignal.timeout(timeoutMs),
-      );
+      const timeoutMs = boundTimeoutMs(10_000, input.signal, input.softDeadlineMs);
+      const signal = mergeAbortSignals(input.signal, AbortSignal.timeout(timeoutMs));
       const response = await fetch(endpoint, {
         headers: {
           Accept: "application/json",
@@ -139,9 +132,7 @@ export async function searchRecentRedditMentions(input: {
       const destination = text(post.url_overridden_by_dest);
       const thumbnail = text(post.thumbnail);
       const pageUrl = new URL(permalink, "https://www.reddit.com").toString();
-      const imageUrl = isHttpUrl(destination) && isImageUrl(destination)
-        ? destination
-        : undefined;
+      const imageUrl = isHttpUrl(destination) && isImageUrl(destination) ? destination : undefined;
       const thumbnailUrl = isHttpUrl(thumbnail) ? thumbnail : imageUrl;
 
       hits.push({
@@ -162,8 +153,11 @@ export async function searchRecentRedditMentions(input: {
     }
   }
 
-  return hits.slice(0, limit).sort((a, b) =>
-    Number(b.is_sensitive) - Number(a.is_sensitive) ||
-    b.description.length - a.description.length,
-  );
+  return hits
+    .slice(0, limit)
+    .sort(
+      (a, b) =>
+        Number(b.is_sensitive) - Number(a.is_sensitive) ||
+        b.description.length - a.description.length,
+    );
 }

@@ -7,16 +7,9 @@
 
 import { isSafePublicHttpUrl } from "@/lib/deepfake/url-safety.server";
 import { hostOf, isExcludedHost } from "./url.server";
-import {
-  type CopyrightClassification,
-  riskBandFor,
-  type RiskBand,
-} from "./taxonomy";
+import { type CopyrightClassification, riskBandFor, type RiskBand } from "./taxonomy";
 import { releaseTimingFor, type ReleaseTiming } from "./release-timing";
-import {
-  hasExactTitleIdentity,
-  titleSlugCandidates,
-} from "./title-identity";
+import { hasExactTitleIdentity, titleSlugCandidates } from "./title-identity";
 import { officialPlatformDecision } from "./official-platforms";
 import {
   evaluateTelegramPublicEvidence,
@@ -90,25 +83,66 @@ export interface PageClassifyResult {
 }
 
 const FILE_HOSTS = [
-  "mega.nz", "mega.co.nz", "mediafire.com", "gofile.io", "pixeldrain.com", "krakenfiles.com",
-  "1fichier.com", "anonfiles.com", "workupload.com", "send.cm", "dropbox.com", "drive.google.com",
-  "terabox.com", "terabox.app", "1024terabox.com",
-  "doodstream.com", "dood.to", "streamtape.com", "mixdrop.co", "mixdrop.to", "filemoon.sx",
-  "streamsb.net", "upstream.to", "vidmoly.to", "vidhide.com", "streamwish.to", "abyss.to",
+  "mega.nz",
+  "mega.co.nz",
+  "mediafire.com",
+  "gofile.io",
+  "pixeldrain.com",
+  "krakenfiles.com",
+  "1fichier.com",
+  "anonfiles.com",
+  "workupload.com",
+  "send.cm",
+  "dropbox.com",
+  "drive.google.com",
+  "terabox.com",
+  "terabox.app",
+  "1024terabox.com",
+  "doodstream.com",
+  "dood.to",
+  "streamtape.com",
+  "mixdrop.co",
+  "mixdrop.to",
+  "filemoon.sx",
+  "streamsb.net",
+  "upstream.to",
+  "vidmoly.to",
+  "vidhide.com",
+  "streamwish.to",
+  "abyss.to",
 ];
 
 const CLOUD_STORAGE_HOSTS = [
-  "mega.nz", "mega.co.nz", "mediafire.com", "gofile.io", "pixeldrain.com",
-  "dropbox.com", "drive.google.com", "docs.google.com",
-  "terabox.com", "terabox.app", "1024terabox.com", "1fichier.com",
+  "mega.nz",
+  "mega.co.nz",
+  "mediafire.com",
+  "gofile.io",
+  "pixeldrain.com",
+  "dropbox.com",
+  "drive.google.com",
+  "docs.google.com",
+  "terabox.com",
+  "terabox.app",
+  "1024terabox.com",
+  "1fichier.com",
 ];
 
 const VIDEO_REUPLOAD_HOSTS =
   /(ok\.ru|vk\.com|dailymotion\.com|bilibili\.tv|bilibili\.com|rumble\.com|bitchute\.com|odysee\.com|archive\.org)/i;
 
 const TORRENT_HOSTS = [
-  "1337x", "yts", "rarbg", "thepiratebay", "piratebay", "nyaa", "limetorrents", "torlock",
-  "torrentgalaxy", "kickass", "extratorrent", "torrentz",
+  "1337x",
+  "yts",
+  "rarbg",
+  "thepiratebay",
+  "piratebay",
+  "nyaa",
+  "limetorrents",
+  "torlock",
+  "torrentgalaxy",
+  "kickass",
+  "extratorrent",
+  "torrentz",
 ];
 
 const CINEMA_HOST_HINTS =
@@ -166,7 +200,11 @@ export function detectPrimaryPurpose(opts: {
 
   // Official/licensed hosts without distribution override language.
   if (isExcludedHost(opts.url) && !hasDistributionOverride) {
-    if (CINEMA_PURPOSE_RE.test(blob) || CINEMA_HOST_HINTS.test(opts.host ?? "") || CINEMA_HOST_HINTS.test(opts.url)) {
+    if (
+      CINEMA_PURPOSE_RE.test(blob) ||
+      CINEMA_HOST_HINTS.test(opts.host ?? "") ||
+      CINEMA_HOST_HINTS.test(opts.url)
+    ) {
       return "cinema_or_showtime";
     }
     return "official_or_authorized";
@@ -295,9 +333,7 @@ function extractEmbedSources(html: string): string[] {
     if (u.startsWith("magnet:") || isSafePublicHttpUrl(u)) out.add(u);
   }
   // JSON-LD VideoObject contentUrl / embedUrl
-  for (const m of html.matchAll(
-    /"(?:contentUrl|embedUrl)"\s*:\s*"([^"]+)"/gi,
-  )) {
+  for (const m of html.matchAll(/"(?:contentUrl|embedUrl)"\s*:\s*"([^"]+)"/gi)) {
     const u = m[1]?.trim();
     if (u && (u.startsWith("magnet:") || isSafePublicHttpUrl(u))) out.add(u);
   }
@@ -416,7 +452,8 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     let classification: CopyrightClassification = "OFFICIAL_OR_AUTHORIZED";
     if (official.classification === "CATALOG_OR_LISTING") classification = "CATALOG_OR_LISTING";
     else if (official.classification === "TRAILER_OR_PROMO") classification = "TRAILER_OR_PROMO";
-    else if (official.classification === "VIDEO_HOST_REUPLOAD") classification = "VIDEO_HOST_REUPLOAD";
+    else if (official.classification === "VIDEO_HOST_REUPLOAD")
+      classification = "VIDEO_HOST_REUPLOAD";
     else if (official.classification === "UNVERIFIED_LEAD") classification = "UNVERIFIED_LEAD";
     else classification = "OFFICIAL_OR_AUTHORIZED";
 
@@ -426,7 +463,11 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
       identityMatch: identity.match,
       identityEvidence: identity.evidence,
       confidence:
-        official.kind === "youtube_internal_reupload" && identity.match ? 40 : identity.match ? 20 : 5,
+        official.kind === "youtube_internal_reupload" && identity.match
+          ? 40
+          : identity.match
+            ? 20
+            : 5,
       confidenceBreakdown: {
         identity: identity.match ? 20 : 0,
         access: 0,
@@ -460,32 +501,35 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
 
   // Hard negative gates — never actionable piracy from these primary purposes
   // unless exact-page access signals are already present (then continue).
-  if (
-    purposeClass &&
-    purpose !== "unknown" &&
-    purpose !== "distribution" &&
-    !earlyAccessSignal
-  ) {
-    return empty(purposeClass, `Primary page purpose is ${purpose.replace(/_/g, " ")} — rejected as unauthorized distribution.`, {
-      primaryPurpose: purpose,
-      identityMatch: identity.match,
-      identityEvidence: identity.evidence,
-      confidence: identity.match ? 25 : 5,
-      confidenceBreakdown: {
-        identity: identity.match ? 25 : 0,
-        access: 0,
-        releaseWindow: 0,
-        penalties: 40,
+  if (purposeClass && purpose !== "unknown" && purpose !== "distribution" && !earlyAccessSignal) {
+    return empty(
+      purposeClass,
+      `Primary page purpose is ${purpose.replace(/_/g, " ")} — rejected as unauthorized distribution.`,
+      {
+        primaryPurpose: purpose,
+        identityMatch: identity.match,
+        identityEvidence: identity.evidence,
+        confidence: identity.match ? 25 : 5,
+        confidenceBreakdown: {
+          identity: identity.match ? 25 : 0,
+          access: 0,
+          releaseWindow: 0,
+          penalties: 40,
+        },
       },
-    });
+    );
   }
 
   if (isExcludedHost(input.url) && !earlyAccessSignal) {
-    return empty("OFFICIAL_OR_AUTHORIZED", "Official, licensed, ticketing, or news host — not unauthorized distribution.", {
-      primaryPurpose: "official_or_authorized",
-      identityMatch: identity.match,
-      identityEvidence: identity.evidence,
-    });
+    return empty(
+      "OFFICIAL_OR_AUTHORIZED",
+      "Official, licensed, ticketing, or news host — not unauthorized distribution.",
+      {
+        primaryPurpose: "official_or_authorized",
+        identityMatch: identity.match,
+        identityEvidence: identity.evidence,
+      },
+    );
   }
 
   const indicators: PiracyIndicator[] = [];
@@ -557,8 +601,7 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
   }
 
   const pageIsCloudStorage = Boolean(
-    domain &&
-      CLOUD_STORAGE_HOSTS.some((f) => domain === f || domain.endsWith(`.${f}`)),
+    domain && CLOUD_STORAGE_HOSTS.some((f) => domain === f || domain.endsWith(`.${f}`)),
   );
   if (pageIsCloudStorage) {
     add(
@@ -612,11 +655,10 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     );
   }
 
-  const mirrorMentions = (
+  const mirrorMentions =
     markdown.match(
       /\b(mirror\s*\d?|server\s*\d|watch\s*server|download\s*server|fast\s*server)\b/gi,
-    ) ?? []
-  );
+    ) ?? [];
   if (mirrorMentions.length >= 2 || fileLinks.length >= 2) {
     add(
       "multiple_mirrors",
@@ -627,14 +669,21 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
   }
 
   if (FULL_MOVIE_RE.test(`${pageTitle ?? ""} ${markdown}`)) {
-    add("full_movie_offer", "Page advertises watching or downloading the complete movie.", 24, true);
+    add(
+      "full_movie_offer",
+      "Page advertises watching or downloading the complete movie.",
+      24,
+      true,
+    );
   }
 
-  const qualityTags = [...new Set(
-    [...(`${pageTitle ?? ""} ${markdown}`).matchAll(RELEASE_QUALITY_RE)].map((m) =>
-      m[0].toLowerCase(),
+  const qualityTags = [
+    ...new Set(
+      [...`${pageTitle ?? ""} ${markdown}`.matchAll(RELEASE_QUALITY_RE)].map((m) =>
+        m[0].toLowerCase(),
+      ),
     ),
-  )];
+  ];
   if (qualityTags.length) {
     add(
       "release_quality_tags",
@@ -686,8 +735,17 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
   }
 
   // Runtime / multipart hints consistent with a full work
-  if (/\b(\d{2,3}\s*min(?:utes)?|runtime\s*[:\s]\s*\d|part\s*[12]\s*of\s*[12]|cd\s*[12])\b/i.test(blobLower)) {
-    add("runtime_or_multipart", "Runtime or multipart evidence consistent with a full-length work.", 10, false);
+  if (
+    /\b(\d{2,3}\s*min(?:utes)?|runtime\s*[:\s]\s*\d|part\s*[12]\s*of\s*[12]|cd\s*[12])\b/i.test(
+      blobLower,
+    )
+  ) {
+    add(
+      "runtime_or_multipart",
+      "Runtime or multipart evidence consistent with a full-length work.",
+      10,
+      false,
+    );
   }
 
   const strongCount = indicators.filter((i) => i.strong).length;
@@ -701,35 +759,53 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
   // Identity without access → artwork / unverified only
   if (!strongAccess) {
     if (identity.match && indicators.length === 0) {
-      return empty("DUPLICATE_ARTWORK_ONLY", "Title/artwork identity matched, but no distribution or access evidence on the exact page.", {
-        primaryPurpose: "artwork_gallery",
-        identityMatch: true,
-        identityEvidence: identity.evidence,
-        indicators,
-        confidence: 30,
-        confidenceBreakdown: { identity: 30, access: 0, releaseWindow: 0, penalties: 0 },
-      });
+      return empty(
+        "DUPLICATE_ARTWORK_ONLY",
+        "Title/artwork identity matched, but no distribution or access evidence on the exact page.",
+        {
+          primaryPurpose: "artwork_gallery",
+          identityMatch: true,
+          identityEvidence: identity.evidence,
+          indicators,
+          confidence: 30,
+          confidenceBreakdown: { identity: 30, access: 0, releaseWindow: 0, penalties: 0 },
+        },
+      );
     }
     if (identity.match) {
-      return empty("UNVERIFIED_LEAD", "Exact title present with weak/incomplete access signals — retained for internal review only.", {
-        primaryPurpose: purpose,
-        identityMatch: true,
-        identityEvidence: identity.evidence,
-        accessEvidence: indicators.map((i) => i.detail),
-        indicators,
-        confidence: Math.min(45, indicators.reduce((s, i) => s + i.weight, 0)),
-        confidenceBreakdown: {
-          identity: 20,
-          access: Math.min(25, indicators.reduce((s, i) => s + i.weight, 0)),
-          releaseWindow: 0,
-          penalties: 0,
+      return empty(
+        "UNVERIFIED_LEAD",
+        "Exact title present with weak/incomplete access signals — retained for internal review only.",
+        {
+          primaryPurpose: purpose,
+          identityMatch: true,
+          identityEvidence: identity.evidence,
+          accessEvidence: indicators.map((i) => i.detail),
+          indicators,
+          confidence: Math.min(
+            45,
+            indicators.reduce((s, i) => s + i.weight, 0),
+          ),
+          confidenceBreakdown: {
+            identity: 20,
+            access: Math.min(
+              25,
+              indicators.reduce((s, i) => s + i.weight, 0),
+            ),
+            releaseWindow: 0,
+            penalties: 0,
+          },
         },
-      });
+      );
     }
-    return empty("UNRELATED", "Page does not establish exact work identity with distribution access evidence.", {
-      primaryPurpose: purpose,
-      indicators,
-    });
+    return empty(
+      "UNRELATED",
+      "Page does not establish exact work identity with distribution access evidence.",
+      {
+        primaryPurpose: purpose,
+        indicators,
+      },
+    );
   }
 
   // ---- actionable classification ------------------------------------------
@@ -764,7 +840,10 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
 
   const { timing, offsetDays } = releaseTimingFor(input.releaseDate);
   let identityScore = identity.evidence.length >= 2 ? 35 : 28;
-  let accessScore = Math.min(50, indicators.filter((i) => i.strong).reduce((s, i) => s + i.weight, 0));
+  let accessScore = Math.min(
+    50,
+    indicators.filter((i) => i.strong).reduce((s, i) => s + i.weight, 0),
+  );
   let releaseBonus = 0;
   if (timing === "same_day" || timing === "next_day") releaseBonus = 12;
   else if (timing === "first_week") releaseBonus = 8;
@@ -773,7 +852,10 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
   let confidence = Math.max(0, Math.min(99, identityScore + accessScore + releaseBonus));
   if (classification === "VERIFIED_UNAUTHORIZED_STREAM") {
     confidence = Math.max(confidence, 85);
-  } else if (classification === "THEATRE_PRINT_DISTRIBUTION" || classification === "TORRENT_OR_MAGNET") {
+  } else if (
+    classification === "THEATRE_PRINT_DISTRIBUTION" ||
+    classification === "TORRENT_OR_MAGNET"
+  ) {
     confidence = Math.max(confidence, 80);
   } else {
     confidence = Math.max(70, Math.min(confidence, 88));
@@ -788,7 +870,9 @@ export function classifyCopyrightPage(input: PageClassifyInput): PageClassifyRes
     releaseTiming: timing,
   });
 
-  const distributionLinks = [...new Set([...fileLinks, ...downloadLinks, ...magnets, ...torrentLinks, ...embedSources])]
+  const distributionLinks = [
+    ...new Set([...fileLinks, ...downloadLinks, ...magnets, ...torrentLinks, ...embedSources]),
+  ]
     .filter((l) => l.startsWith("magnet:") || isSafePublicHttpUrl(l))
     .slice(0, 15);
 

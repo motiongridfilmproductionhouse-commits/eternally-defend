@@ -1,4 +1,3 @@
-
 # Enforcement Browser Automation — v1
 
 Answers confirmed: external Node worker service, YouTube (copyright + community) first, per-client platform accounts, human-in-the-loop submission for non-API paths.

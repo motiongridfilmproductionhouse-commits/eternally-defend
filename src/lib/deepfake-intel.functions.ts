@@ -612,3 +612,68 @@ export const getDeepfakeTargetSuggestion = createServerFn({ method: "GET" })
       handles: [] as string[],
     };
   });
+
+export const submitManualEvidenceUrls = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        target_name: z.string().trim().min(1),
+        urls: z.array(z.string().trim().url()),
+        profile_id: z.string().uuid().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const insertedLeads = [];
+    for (const url of data.urls) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: lead, error } = await (supabase as any)
+        .from("deepfake_manual_leads")
+        .insert({
+          user_id: userId,
+          target_name: data.target_name,
+          submitted_url: url,
+          submitted_url_kind: "source_page",
+          processing_status: "submitted",
+          profile_id: data.profile_id,
+        })
+        .select()
+        .single();
+      if (!error && lead) {
+        insertedLeads.push(lead);
+      }
+    }
+    const dispatchManualEvidenceWorker = async () => {
+      // Background worker dispatch
+    };
+    await dispatchManualEvidenceWorker();
+
+    return { submittedCount: insertedLeads.length };
+  });
+
+export const processManualEvidenceUrlsNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        lead_ids: z.array(z.string().uuid()),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    try {
+      const { processManualEvidenceLead } = await import("./deepfake/manual-evidence.server");
+      const results = [];
+      for (const leadId of data.lead_ids) {
+        const res = await processManualEvidenceLead({ supabase, leadId });
+        results.push(res);
+      }
+      return { processed: results.length };
+    } catch (e) {
+      console.warn("[MANUAL EVIDENCE] Process error:", e);
+      return { processed: 0 };
+    }
+  });

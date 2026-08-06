@@ -5,7 +5,10 @@ import type { PublicSuspiciousSource } from "@/lib/copyright/suspicious-sources"
 
 const BAND: Record<string, { label: string; cls: string }> = {
   confirmed: { label: "90-100% EXACT", cls: "bg-red-600/15 text-red-400 border-red-600/40" },
-  probable: { label: "70-89% PROBABLE", cls: "bg-orange-500/15 text-orange-400 border-orange-500/40" },
+  probable: {
+    label: "70-89% PROBABLE",
+    cls: "bg-orange-500/15 text-orange-400 border-orange-500/40",
+  },
   review: { label: "50-69% REVIEW", cls: "bg-amber-400/15 text-amber-300 border-amber-400/40" },
 };
 
@@ -39,7 +42,8 @@ const GROUPS: Array<{
   {
     key: ["historical_unreachable"],
     title: "Currently unreachable",
-    description: "Previously detected — page could not be reached this scan. Historical evidence preserved.",
+    description:
+      "Previously detected — page could not be reached this scan. Historical evidence preserved.",
   },
   {
     key: ["redirected", "removed"],
@@ -55,7 +59,10 @@ function stateBadge(source: PublicSuspiciousSource): { label: string; cls: strin
     case "historical_reconfirmed":
       return { label: "Historical reconfirmed", cls: "border-destructive/50 text-destructive" };
     case "historical_unreachable":
-      return { label: "Previously detected — currently unreachable", cls: "border-orange-500/50 text-orange-500" };
+      return {
+        label: "Previously detected — currently unreachable",
+        cls: "border-orange-500/50 text-orange-500",
+      };
     case "historical_requires_review":
       return {
         label: "Previously detected — requires review",
@@ -171,9 +178,7 @@ function SourceCard({
           >
             Open source page <ExternalLink className="h-3 w-3 shrink-0" />
           </a>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {source.title || source.url}
-          </p>
+          <p className="truncate text-[11px] text-muted-foreground">{source.title || source.url}</p>
           {source.evidence_summary && (
             <p className="text-xs text-muted-foreground">{source.evidence_summary}</p>
           )}
@@ -182,7 +187,7 @@ function SourceCard({
               {source.reason} Evidence for rights-holder review — not a final legal determination.
             </p>
           )}
-          {(dist?.identity_evidence?.length || dist?.access_evidence?.length) ? (
+          {dist?.identity_evidence?.length || dist?.access_evidence?.length ? (
             <div className="space-y-1 text-[11px] text-muted-foreground">
               {dist?.identity_evidence?.length ? (
                 <p>
@@ -200,8 +205,8 @@ function SourceCard({
           ) : null}
           {breakdown && (
             <p className="text-[11px] text-muted-foreground">
-              <span className="font-medium">Confidence:</span> identity {breakdown.identity ?? 0}{" "}
-              · access {breakdown.access ?? 0} · release {breakdown.releaseWindow ?? 0}
+              <span className="font-medium">Confidence:</span> identity {breakdown.identity ?? 0} ·
+              access {breakdown.access ?? 0} · release {breakdown.releaseWindow ?? 0}
               {(breakdown.penalties ?? 0) > 0 ? ` · penalties -${breakdown.penalties}` : ""}
             </p>
           )}

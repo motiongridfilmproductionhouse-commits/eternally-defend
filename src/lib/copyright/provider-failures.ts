@@ -20,9 +20,10 @@ export const PROVIDER_FAILURE_CATEGORIES = [
 export type ProviderFailureCategory = (typeof PROVIDER_FAILURE_CATEGORIES)[number];
 
 export function emptyProviderFailureCounts(): Record<ProviderFailureCategory, number> {
-  return Object.fromEntries(
-    PROVIDER_FAILURE_CATEGORIES.map((c) => [c, 0]),
-  ) as Record<ProviderFailureCategory, number>;
+  return Object.fromEntries(PROVIDER_FAILURE_CATEGORIES.map((c) => [c, 0])) as Record<
+    ProviderFailureCategory,
+    number
+  >;
 }
 
 export function bumpProviderFailure(

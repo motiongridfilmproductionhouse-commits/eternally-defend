@@ -50,6 +50,8 @@ export function compareDiscoveryLeadPriority(
   return scoreDiscoveryLeadPriority(b) - scoreDiscoveryLeadPriority(a);
 }
 
-export function sortDiscoveryLeadsByPriority<T extends DiscoveryLeadPriorityInput>(leads: T[]): T[] {
+export function sortDiscoveryLeadsByPriority<T extends DiscoveryLeadPriorityInput>(
+  leads: T[],
+): T[] {
   return [...leads].sort(compareDiscoveryLeadPriority);
 }

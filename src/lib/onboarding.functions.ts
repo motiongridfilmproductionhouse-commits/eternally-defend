@@ -87,8 +87,17 @@ export const addProtectedAsset = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
       asset_kind:
-        | "name" | "brand" | "company" | "product" | "social_account"
-        | "youtube_channel" | "website" | "logo" | "image" | "video" | "copyright";
+        | "name"
+        | "brand"
+        | "company"
+        | "product"
+        | "social_account"
+        | "youtube_channel"
+        | "website"
+        | "logo"
+        | "image"
+        | "video"
+        | "copyright";
       label: string;
       value?: string | null;
       url?: string | null;
@@ -133,7 +142,8 @@ export const recordEnterpriseDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     (data: {
-      doc_type: "authorization_letter" | "agency_agreement" | "power_of_attorney" | "brand_protection";
+      doc_type:
+        "authorization_letter" | "agency_agreement" | "power_of_attorney" | "brand_protection";
       storage_path: string;
       filename: string;
       mime?: string;
@@ -178,14 +188,20 @@ export const submitAuthorization = createServerFn({ method: "POST" })
     (data: {
       consents: Record<string, boolean>;
       authorization_level:
-        | "monitoring" | "monitoring_evidence" | "monitoring_enforcement" | "full_protection";
+        "monitoring" | "monitoring_evidence" | "monitoring_enforcement" | "full_protection";
       legal_name: string;
       signature_text: string;
     }) => data,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const requiredKeys = ["ownership", "monitoring", "enforcement", "platformFinality", "noGuarantee"];
+    const requiredKeys = [
+      "ownership",
+      "monitoring",
+      "enforcement",
+      "platformFinality",
+      "noGuarantee",
+    ];
     for (const k of requiredKeys) {
       if (!data.consents[k]) throw new Error(`Consent required: ${k}`);
     }

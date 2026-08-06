@@ -27,29 +27,53 @@ function authNumber(): string {
 
 export const saveScopes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { scopes: Record<string, boolean>; territory?: string; expiry_date?: string }) => d)
+  .inputValidator(
+    (d: { scopes: Record<string, boolean>; territory?: string; expiry_date?: string }) => d,
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    let { data: auth } = await supabase.from("client_authorizations").select("*").eq("user_id", userId).order("version", { ascending: false }).limit(1).maybeSingle();
+    let { data: auth } = await supabase
+      .from("client_authorizations")
+      .select("*")
+      .eq("user_id", userId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     if (!auth || auth.status === "SIGNED" || auth.status === "ACTIVE") {
       const version = (auth?.version ?? 0) + 1;
-      const { data: created, error } = await supabase.from("client_authorizations").insert({
-        user_id: userId, auth_number: auth?.auth_number ?? authNumber(), version,
-        status: "DRAFT", territory: data.territory ?? "Worldwide",
-        expiry_date: data.expiry_date ?? new Date(Date.now() + 365 * 86400_000).toISOString().slice(0, 10),
-        effective_date: new Date().toISOString().slice(0, 10),
-      }).select().single();
+      const { data: created, error } = await supabase
+        .from("client_authorizations")
+        .insert({
+          user_id: userId,
+          auth_number: auth?.auth_number ?? authNumber(),
+          version,
+          status: "DRAFT",
+          territory: data.territory ?? "Worldwide",
+          expiry_date:
+            data.expiry_date ?? new Date(Date.now() + 365 * 86400_000).toISOString().slice(0, 10),
+          effective_date: new Date().toISOString().slice(0, 10),
+        })
+        .select()
+        .single();
       if (error) throw new Error(error.message);
       auth = created;
     }
     await supabase.from("authorization_scopes").delete().eq("authorization_id", auth.id);
-    const rows = SCOPE_KEYS.map((k) => ({ authorization_id: auth!.id, user_id: userId, scope_key: k, granted: !!data.scopes[k] }));
+    const rows = SCOPE_KEYS.map((k) => ({
+      authorization_id: auth!.id,
+      user_id: userId,
+      scope_key: k,
+      granted: !!data.scopes[k],
+    }));
     await supabase.from("authorization_scopes").insert(rows);
     if (data.territory || data.expiry_date) {
-      await supabase.from("client_authorizations").update({
-        territory: data.territory ?? auth.territory,
-        expiry_date: data.expiry_date ?? auth.expiry_date,
-      }).eq("id", auth.id);
+      await supabase
+        .from("client_authorizations")
+        .update({
+          territory: data.territory ?? auth.territory,
+          expiry_date: data.expiry_date ?? auth.expiry_date,
+        })
+        .eq("id", auth.id);
     }
     return auth;
   });
@@ -58,21 +82,55 @@ export const getAuthorizationBundle = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: auth } = await supabase.from("client_authorizations").select("*").eq("user_id", userId).order("version", { ascending: false }).limit(1).maybeSingle();
+    const { data: auth } = await supabase
+      .from("client_authorizations")
+      .select("*")
+      .eq("user_id", userId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     if (!auth) return null;
-    const [{ data: scopes }, { data: signatures }, { data: docs }, { data: reviews }] = await Promise.all([
-      supabase.from("authorization_scopes").select("*").eq("authorization_id", auth.id),
-      supabase.from("authorization_signatures").select("*").eq("authorization_id", auth.id).order("created_at", { ascending: false }),
-      supabase.from("authorization_documents").select("*").eq("authorization_id", auth.id),
-      supabase.from("authorization_admin_reviews").select("*").eq("authorization_id", auth.id).order("decided_at", { ascending: false }),
-    ]);
-    return { auth, scopes: scopes ?? [], signatures: signatures ?? [], documents: docs ?? [], reviews: reviews ?? [] };
+    const [{ data: scopes }, { data: signatures }, { data: docs }, { data: reviews }] =
+      await Promise.all([
+        supabase.from("authorization_scopes").select("*").eq("authorization_id", auth.id),
+        supabase
+          .from("authorization_signatures")
+          .select("*")
+          .eq("authorization_id", auth.id)
+          .order("created_at", { ascending: false }),
+        supabase.from("authorization_documents").select("*").eq("authorization_id", auth.id),
+        supabase
+          .from("authorization_admin_reviews")
+          .select("*")
+          .eq("authorization_id", auth.id)
+          .order("decided_at", { ascending: false }),
+      ]);
+    return {
+      auth,
+      scopes: scopes ?? [],
+      signatures: signatures ?? [],
+      documents: docs ?? [],
+      reviews: reviews ?? [],
+    };
   });
 
 async function buildSnapshot(supabase: any, userId: string, authId: string) {
-  const [{ data: profile }, { data: kyc }, { data: face }, { data: assets }, { data: scopes }, { data: auth }] = await Promise.all([
+  const [
+    { data: profile },
+    { data: kyc },
+    { data: face },
+    { data: assets },
+    { data: scopes },
+    { data: auth },
+  ] = await Promise.all([
     supabase.from("client_profiles").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("kyc_verifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase
+      .from("kyc_verifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase.from("protected_face_profiles").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("digital_assets").select("*").eq("user_id", userId),
     supabase.from("authorization_scopes").select("*").eq("authorization_id", authId),
@@ -81,7 +139,10 @@ async function buildSnapshot(supabase: any, userId: string, authId: string) {
   return { profile, kyc, face, assets, scopes, auth, generated_at: new Date().toISOString() };
 }
 
-async function renderPdf(snapshot: any, opts: { signed?: boolean; signatureSvg?: string | null; signerName?: string; signedAt?: string }) {
+async function renderPdf(
+  snapshot: any,
+  opts: { signed?: boolean; signatureSvg?: string | null; signerName?: string; signedAt?: string },
+) {
   const { PDFDocument, rgb } = await import("pdf-lib");
   const { embedUnicodeFontStack, drawUnicodeText } = await import("@/lib/pdf/unicode-fonts.server");
   const doc = await PDFDocument.create();
@@ -94,7 +155,11 @@ async function renderPdf(snapshot: any, opts: { signed?: boolean; signatureSvg?:
     y -= size + 6;
   };
   line("ETERNA — CLIENT AUTHORIZATION LETTER", true, 16, rgb(0.05, 0.1, 0.35));
-  line(`Authorization ID: ${snapshot.auth?.auth_number}   Version: ${snapshot.auth?.version}`, true, 10);
+  line(
+    `Authorization ID: ${snapshot.auth?.auth_number}   Version: ${snapshot.auth?.version}`,
+    true,
+    10,
+  );
   line(`Client ID: ${snapshot.profile?.client_id ?? ""}`);
   line(`Legal Name: ${snapshot.profile?.legal_name ?? snapshot.profile?.full_name ?? ""}`);
   line(`Display Name: ${snapshot.profile?.display_name ?? ""}`);
@@ -104,11 +169,17 @@ async function renderPdf(snapshot: any, opts: { signed?: boolean; signatureSvg?:
   line(`Email verified: ${snapshot.profile?.email_verified_at ? "Yes" : "No"}`);
   line(`Veriff KYC: ${snapshot.kyc?.verification_status ?? "NOT_STARTED"}`);
   line(`Face liveness: ${snapshot.face?.status ?? "NOT_STARTED"}`);
-  line(`Effective: ${snapshot.auth?.effective_date}   Expires: ${snapshot.auth?.expiry_date}   Territory: ${snapshot.auth?.territory}`);
+  line(
+    `Effective: ${snapshot.auth?.effective_date}   Expires: ${snapshot.auth?.expiry_date}   Territory: ${snapshot.auth?.territory}`,
+  );
   y -= 8;
   line("Verified Assets:", true, 11);
-  for (const a of (snapshot.assets ?? []).filter((x: any) => x.verification_status === "VERIFIED")) {
-    line(`  • ${a.kind.toUpperCase()} — ${a.name ?? a.handle ?? a.channel_id} (${a.verification_method})`);
+  for (const a of (snapshot.assets ?? []).filter(
+    (x: any) => x.verification_status === "VERIFIED",
+  )) {
+    line(
+      `  • ${a.kind.toUpperCase()} — ${a.name ?? a.handle ?? a.channel_id} (${a.verification_method})`,
+    );
   }
   y -= 8;
   line("Authorized Scopes:", true, 11);
@@ -126,7 +197,8 @@ async function renderPdf(snapshot: any, opts: { signed?: boolean; signatureSvg?:
     "I understand final platform submissions may require separate approval.",
     "Final platform decisions remain solely with the relevant platforms and authorities.",
     "Eterna does not guarantee content removal, account suspension, or legal outcomes.",
-  ]) line(`  • ${t}`);
+  ])
+    line(`  • ${t}`);
 
   if (opts.signed) {
     y -= 20;
@@ -138,7 +210,9 @@ async function renderPdf(snapshot: any, opts: { signed?: boolean; signatureSvg?:
         const b64 = opts.signatureSvg.split(",")[1];
         const png = await doc.embedPng(Buffer.from(b64, "base64"));
         page.drawImage(png, { x: 50, y: y - 40, width: 160, height: 50 });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
   return await doc.save();
@@ -148,7 +222,13 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: auth } = await supabase.from("client_authorizations").select("*").eq("user_id", userId).order("version", { ascending: false }).limit(1).maybeSingle();
+    const { data: auth } = await supabase
+      .from("client_authorizations")
+      .select("*")
+      .eq("user_id", userId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     if (!auth) throw new Error("No authorization draft");
     const snap = await buildSnapshot(supabase, userId, auth.id);
     const bytes = await renderPdf(snap, { signed: false });
@@ -156,7 +236,16 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
     const key = `clients/${userId}/authorization/${auth.auth_number}-v${auth.version}-draft.pdf`;
     await putObject({ key, body: Buffer.from(bytes), contentType: "application/pdf" });
     const sha256 = createHash("sha256").update(bytes).digest("hex");
-    await supabase.from("authorization_documents").insert({ authorization_id: auth.id, user_id: userId, kind: "draft", version: auth.version, s3_key: key, sha256 });
+    await supabase
+      .from("authorization_documents")
+      .insert({
+        authorization_id: auth.id,
+        user_id: userId,
+        kind: "draft",
+        version: auth.version,
+        s3_key: key,
+        sha256,
+      });
     const url = await getSignedGetUrl(key, 600);
     return { url, sha256 };
   });
@@ -169,22 +258,43 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
  */
 export const finalizeSignature = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    typed_name: string; role_title?: string; drawn_signature_svg: string;
-    confirmations: Record<string, boolean>;
-  }) => z.object({
-    typed_name: z.string().min(2),
-    role_title: z.string().optional(),
-    drawn_signature_svg: z.string().min(32, "Drawn signature is required"),
-    confirmations: z.record(z.string(), z.boolean()),
-  }).parse(d))
+  .inputValidator(
+    (d: {
+      typed_name: string;
+      role_title?: string;
+      drawn_signature_svg: string;
+      confirmations: Record<string, boolean>;
+    }) =>
+      z
+        .object({
+          typed_name: z.string().min(2),
+          role_title: z.string().optional(),
+          drawn_signature_svg: z.string().min(32, "Drawn signature is required"),
+          confirmations: z.record(z.string(), z.boolean()),
+        })
+        .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     try {
-      const required = ["reviewed", "owner", "assets_mine", "accurate", "false_claims", "scope_only", "final_approval"];
+      const required = [
+        "reviewed",
+        "owner",
+        "assets_mine",
+        "accurate",
+        "false_claims",
+        "scope_only",
+        "final_approval",
+      ];
       for (const k of required) if (!data.confirmations[k]) throw new Error(`DECL_MISSING:${k}`);
 
-      const { data: auth } = await supabase.from("client_authorizations").select("*").eq("user_id", userId).order("version", { ascending: false }).limit(1).maybeSingle();
+      const { data: auth } = await supabase
+        .from("client_authorizations")
+        .select("*")
+        .eq("user_id", userId)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (!auth) throw new Error("NO_AUTH_DRAFT");
 
       // Duplicate submission guard — if already SIGNED at this version, return the current certificate.
@@ -204,9 +314,8 @@ export const finalizeSignature = createServerFn({ method: "POST" })
           .limit(1)
           .maybeSingle();
         if (cert) {
-          const { upsertProgressPreservingVersion, normalizeOnboardingVersion } = await import(
-            "./version.server"
-          );
+          const { upsertProgressPreservingVersion, normalizeOnboardingVersion } =
+            await import("./version.server");
           const { data: prog } = await supabase
             .from("onboarding_progress")
             .select("*")
@@ -230,7 +339,12 @@ export const finalizeSignature = createServerFn({ method: "POST" })
               overall_status: "IN_PROGRESS",
             });
           }
-          return { ok: true, duplicate: true, certificate_id: cert.id, certificate_number: cert.certificate_number };
+          return {
+            ok: true,
+            duplicate: true,
+            certificate_id: cert.id,
+            certificate_number: cert.certificate_number,
+          };
         }
       }
 
@@ -242,19 +356,19 @@ export const finalizeSignature = createServerFn({ method: "POST" })
 
       // Generate BOTH PDFs (letter + certificate) before we touch signatures/certificates rows,
       // so we never leave a partial audit state on failure.
-      const bytes = await renderPdf(snap, { signed: true, signerName: data.typed_name, signatureSvg: data.drawn_signature_svg, signedAt: new Date().toISOString() });
+      const bytes = await renderPdf(snap, {
+        signed: true,
+        signerName: data.typed_name,
+        signatureSvg: data.drawn_signature_svg,
+        signedAt: new Date().toISOString(),
+      });
       const doc_sha = createHash("sha256").update(bytes).digest("hex");
       const signature_sha = createHash("sha256").update(data.drawn_signature_svg).digest("hex");
 
-      const { normalizeOnboardingVersion, upsertProgressPreservingVersion } = await import(
-        "./version.server"
-      );
-      const {
-        V2_BADGES,
-        V2_VERIFICATION_METHODS,
-        isV2AccountType,
-        requiresVeriff,
-      } = await import("./v2-config");
+      const { normalizeOnboardingVersion, upsertProgressPreservingVersion } =
+        await import("./version.server");
+      const { V2_BADGES, V2_VERIFICATION_METHODS, isV2AccountType, requiresVeriff } =
+        await import("./v2-config");
 
       const { data: profileRow } = await supabase
         .from("client_profiles")
@@ -292,21 +406,30 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       const verificationMethod = v2AccountType ? V2_VERIFICATION_METHODS[v2AccountType] : null;
 
       const { PDFDocument, rgb } = await import("pdf-lib");
-      const { embedUnicodeFontStack, drawUnicodeText } = await import("@/lib/pdf/unicode-fonts.server");
+      const { embedUnicodeFontStack, drawUnicodeText } =
+        await import("@/lib/pdf/unicode-fonts.server");
       const certDoc = await PDFDocument.create();
       const certStack = await embedUnicodeFontStack(certDoc);
       const cPage = certDoc.addPage([612, 792]);
       const { height } = cPage.getSize();
       let cy = height - 60;
       const cline = (t: string, bold = false, sz = 11) => {
-        drawUnicodeText(cPage, t, { x: 60, y: cy, size: sz, stack: bold ? certStack.bold : certStack.regular, color: rgb(0.05, 0.1, 0.35) });
+        drawUnicodeText(cPage, t, {
+          x: 60,
+          y: cy,
+          size: sz,
+          stack: bold ? certStack.bold : certStack.regular,
+          color: rgb(0.05, 0.1, 0.35),
+        });
         cy -= sz + 8;
       };
       cline("ETERNA VERIFICATION CERTIFICATE", true, 18);
       cline(`Certificate: ${cert_number}`, true);
       cline(`Authorization: ${auth.auth_number}`);
       cline(`Client ID: ${snap.profile?.client_id ?? ""}`);
-      cline(`Name: ${snap.profile?.display_name ?? snap.profile?.legal_name ?? snap.profile?.full_name ?? ""}`);
+      cline(
+        `Name: ${snap.profile?.display_name ?? snap.profile?.legal_name ?? snap.profile?.full_name ?? ""}`,
+      );
       cline(`Company: ${snap.profile?.company_name ?? ""}`);
       if (verificationBadge) cline(`Badge: ${verificationBadge}`, true);
       cline(`Verification Score: ${score}/100`);
@@ -329,8 +452,16 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         const dataUrl = await QR.toDataURL(`${publicBase}/verify/${public_slug}`);
         const png = await certDoc.embedPng(Buffer.from(dataUrl.split(",")[1], "base64"));
         cPage.drawImage(png, { x: 420, y: 90, width: 120, height: 120 });
-        drawUnicodeText(cPage, `Verify: /verify/${public_slug}`, { x: 380, y: 78, size: 8, stack: certStack.regular, color: rgb(0.3, 0.3, 0.3) });
-      } catch { /* ignore */ }
+        drawUnicodeText(cPage, `Verify: /verify/${public_slug}`, {
+          x: 380,
+          y: 78,
+          size: 8,
+          stack: certStack.regular,
+          color: rgb(0.3, 0.3, 0.3),
+        });
+      } catch {
+        /* ignore */
+      }
       const certBytes = await certDoc.save();
       const certSha = createHash("sha256").update(certBytes).digest("hex");
 
@@ -343,10 +474,21 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         putObject({ key: certKey, body: Buffer.from(certBytes), contentType: "application/pdf" }),
       ]);
 
-      await supabase.from("authorization_documents").insert({ authorization_id: auth.id, user_id: userId, kind: "signed", version: auth.version, s3_key: letterKey, sha256: doc_sha });
+      await supabase
+        .from("authorization_documents")
+        .insert({
+          authorization_id: auth.id,
+          user_id: userId,
+          kind: "signed",
+          version: auth.version,
+          s3_key: letterKey,
+          sha256: doc_sha,
+        });
 
       // Clean up any stale draft signature rows for this version.
-      await supabase.from("authorization_signatures").delete()
+      await supabase
+        .from("authorization_signatures")
+        .delete()
         .eq("authorization_id", auth.id)
         .eq("version", auth.version)
         .neq("status", "SIGNED");
@@ -365,11 +507,14 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         user_agent: userAgent,
       });
 
-      await supabase.from("client_authorizations").update({
-        status: "ACTIVE",
-        enforcement_enabled: enforcementReady,
-        snapshot: snap,
-      }).eq("id", auth.id);
+      await supabase
+        .from("client_authorizations")
+        .update({
+          status: "ACTIVE",
+          enforcement_enabled: enforcementReady,
+          snapshot: snap,
+        })
+        .eq("id", auth.id);
 
       await supabase.from("authorization_versions").insert({
         authorization_id: auth.id,
@@ -378,30 +523,44 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         snapshot: snap,
       });
 
-      const { data: insertedCert, error: certErr } = await supabase.from("verification_certificates").insert({
-        user_id: userId,
-        authorization_id: auth.id,
-        certificate_number: cert_number,
-        public_slug,
-        score,
-        status: "ACTIVE",
-        expires_at: new Date(auth.expiry_date ?? Date.now() + 365 * 86400_000).toISOString(),
-        s3_key: certKey,
-        sha256: certSha,
-        snapshot: snap,
-        account_type: v2AccountType,
-        verification_method: verificationMethod,
-        verification_badge: verificationBadge,
-      }).select().single();
+      const { data: insertedCert, error: certErr } = await supabase
+        .from("verification_certificates")
+        .insert({
+          user_id: userId,
+          authorization_id: auth.id,
+          certificate_number: cert_number,
+          public_slug,
+          score,
+          status: "ACTIVE",
+          expires_at: new Date(auth.expiry_date ?? Date.now() + 365 * 86400_000).toISOString(),
+          s3_key: certKey,
+          sha256: certSha,
+          snapshot: snap,
+          account_type: v2AccountType,
+          verification_method: verificationMethod,
+          verification_badge: verificationBadge,
+        })
+        .select()
+        .single();
       if (certErr) throw new Error(`CERT_INSERT:${certErr.message}`);
 
       await supabase.from("authorization_documents").insert({
-        authorization_id: auth.id, user_id: userId, kind: "certificate", version: auth.version, s3_key: certKey, sha256: certSha,
+        authorization_id: auth.id,
+        user_id: userId,
+        kind: "certificate",
+        version: auth.version,
+        s3_key: certKey,
+        sha256: certSha,
       });
 
       await supabase.from("authorization_audit_logs").insert([
         { user_id: userId, actor_id: userId, action: "signed", target: auth.auth_number },
-        { user_id: userId, actor_id: userId, action: "authorization_activated", target: auth.auth_number },
+        {
+          user_id: userId,
+          actor_id: userId,
+          action: "authorization_activated",
+          target: auth.auth_number,
+        },
         { user_id: userId, actor_id: userId, action: "certificate_issued", target: cert_number },
       ]);
 
@@ -434,7 +593,14 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         });
       }
 
-      return { ok: true, duplicate: false, certificate_id: insertedCert.id, certificate_number: cert_number, signature_sha256: signature_sha, document_sha256: doc_sha };
+      return {
+        ok: true,
+        duplicate: false,
+        certificate_id: insertedCert.id,
+        certificate_number: cert_number,
+        signature_sha256: signature_sha,
+        document_sha256: doc_sha,
+      };
     } catch (err: any) {
       // Log the real error server-side; surface a safe, user-facing message.
       // Preserved codes let the UI hint at what to retry vs. what to fix.
@@ -444,15 +610,21 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         throw new Error("Please confirm every required declaration before signing.");
       }
       if (raw === "NO_AUTH_DRAFT") {
-        throw new Error("Your authorization draft was not found. Please go back and re-open the Authorization Letter step.");
+        throw new Error(
+          "Your authorization draft was not found. Please go back and re-open the Authorization Letter step.",
+        );
       }
       if (raw.startsWith("CERT_INSERT:")) {
-        throw new Error("Your signature was captured but the certificate could not be issued. Please retry — no duplicate will be created.");
+        throw new Error(
+          "Your signature was captured but the certificate could not be issued. Please retry — no duplicate will be created.",
+        );
       }
       if (raw.startsWith("Font fetch failed")) {
         throw new Error("A required document font could not be loaded. Please retry in a moment.");
       }
-      throw new Error("We couldn't finalize your signature. Your entries are preserved — please retry.");
+      throw new Error(
+        "We couldn't finalize your signature. Your entries are preserved — please retry.",
+      );
     }
   });
 
@@ -461,7 +633,12 @@ export const getSignedDocUrl = createServerFn({ method: "POST" })
   .inputValidator((d: { doc_id: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: doc } = await supabase.from("authorization_documents").select("*").eq("id", data.doc_id).eq("user_id", userId).maybeSingle();
+    const { data: doc } = await supabase
+      .from("authorization_documents")
+      .select("*")
+      .eq("id", data.doc_id)
+      .eq("user_id", userId)
+      .maybeSingle();
     if (!doc) throw new Error("Not found");
     const { getSignedGetUrl } = await import("@/lib/aws/s3.server");
     return { url: await getSignedGetUrl(doc.s3_key, 300) };

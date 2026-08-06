@@ -71,9 +71,7 @@ function resolveScanWorkerUrl() {
 
 function signBody(body, secret) {
   const timestamp = String(Date.now());
-  const signature = createHmac("sha256", secret)
-    .update(`${timestamp}.${body}`)
-    .digest("hex");
+  const signature = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
   return { timestamp, signature };
 }
 
@@ -108,11 +106,7 @@ checks.push({
 });
 
 if (admin) {
-  for (const table of [
-    "deepfake_scans",
-    "deepfake_google_images_jobs",
-    "deepfake_worker_events",
-  ]) {
+  for (const table of ["deepfake_scans", "deepfake_google_images_jobs", "deepfake_worker_events"]) {
     const { error } = await admin.from(table).select("id").limit(0);
     checks.push({
       name: `schema_${table}`,
@@ -260,9 +254,7 @@ if (process.env.DEEPFAKE_PROBE_WORKER === "1") {
           .order("created_at", { ascending: true });
         const names = (events ?? []).map((e) => e.event_name);
         if (names.includes("worker_execution_started")) sawStarted = true;
-        const claim = (events ?? []).find(
-          (e) => e.event_name === "query_claim_completed",
-        );
+        const claim = (events ?? []).find((e) => e.event_name === "query_claim_completed");
         if (claim && Number(claim.metadata?.claimed_count) > 0) sawClaim = true;
         const { data: scanRow } = await admin
           .from("deepfake_scans")

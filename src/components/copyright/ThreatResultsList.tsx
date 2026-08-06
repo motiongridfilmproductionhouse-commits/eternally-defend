@@ -220,7 +220,10 @@ function ResultRow({
         <span className="hidden w-32 shrink-0 truncate text-[11px] text-muted-foreground md:block">
           {row.categoryLabel}
         </span>
-        <Badge variant="outline" className={`hidden shrink-0 text-[10px] sm:inline-flex ${STATUS_STYLE[row.status]}`}>
+        <Badge
+          variant="outline"
+          className={`hidden shrink-0 text-[10px] sm:inline-flex ${STATUS_STYLE[row.status]}`}
+        >
           {row.status === "active" ? "Active" : row.status === "removed" ? "Removed" : "Offline"}
         </Badge>
         <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums">
@@ -268,12 +271,7 @@ function ResultRow({
       </div>
 
       {open && (
-        <ExpandedDetail
-          row={row}
-          workTitle={workTitle}
-          onReview={onReview}
-          onDismiss={onDismiss}
-        />
+        <ExpandedDetail row={row} workTitle={workTitle} onReview={onReview} onDismiss={onDismiss} />
       )}
     </li>
   );
@@ -430,19 +428,21 @@ export function ThreatResultsList({
           <span className="font-semibold tabular-nums">{intel.verified}</span> verified threats
         </div>
         <div className="rounded-md border border-amber-400/30 bg-amber-400/10 px-2.5 py-1.5 text-xs text-amber-200">
-          <span className="font-semibold tabular-nums">{intel.pendingReview}</span> pending verification
+          <span className="font-semibold tabular-nums">{intel.pendingReview}</span> pending
+          verification
         </div>
         <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs text-rose-200">
           <span className="font-semibold tabular-nums">{rejectedCandidates}</span> rejected
         </div>
         <div className="rounded-md border border-slate-500/30 bg-slate-500/10 px-2.5 py-1.5 text-xs text-slate-300">
-          <span className="font-semibold tabular-nums">{notProcessedDueToBudget}</span> budget skipped
+          <span className="font-semibold tabular-nums">{notProcessedDueToBudget}</span> budget
+          skipped
         </div>
         <span className="text-xs text-muted-foreground">
-          {intel.distribution.cloud_storage || 0} cloud · {intel.distribution.streaming || 0} streaming ·{" "}
-          {(intel.distribution.archive || 0) + (intel.distribution.document || 0)} archive ·{" "}
-          {intel.distribution.mirror || 0} mirrors · {intel.distribution.telegram || 0} telegram ·{" "}
-          {intel.distribution.torrent || 0} torrents
+          {intel.distribution.cloud_storage || 0} cloud · {intel.distribution.streaming || 0}{" "}
+          streaming · {(intel.distribution.archive || 0) + (intel.distribution.document || 0)}{" "}
+          archive · {intel.distribution.mirror || 0} mirrors · {intel.distribution.telegram || 0}{" "}
+          telegram · {intel.distribution.torrent || 0} torrents
         </span>
         <div className="relative ml-auto w-full sm:w-64">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />

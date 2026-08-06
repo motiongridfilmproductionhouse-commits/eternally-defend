@@ -7,8 +7,17 @@ import {
   analyzeYoutubeVideo,
 } from "@/lib/video-analysis.functions";
 import {
-  Clock, ExternalLink, Loader2, RefreshCw, ShieldAlert, CheckCircle2,
-  XCircle, Scale, PlayCircle, Users, Sparkles,
+  Clock,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  ShieldAlert,
+  CheckCircle2,
+  XCircle,
+  Scale,
+  PlayCircle,
+  Users,
+  Sparkles,
 } from "lucide-react";
 
 const CONTEXT_LABEL: Record<string, string> = {
@@ -74,7 +83,8 @@ export function ExactMomentsPanel({
     queryKey: ["video-findings", videoId],
     queryFn: () => listFn({ data: { videoId } }),
     refetchInterval: (query) => {
-      const state = (query.state.data as { job?: { analysis_state?: string } } | undefined)?.job?.analysis_state;
+      const state = (query.state.data as { job?: { analysis_state?: string } } | undefined)?.job
+        ?.analysis_state;
       if (analysisPending && !state) return 3000;
       if (state === "running" || state === "queued") return 2500;
       return false;
@@ -114,10 +124,13 @@ export function ExactMomentsPanel({
             <Clock className="size-3.5" /> Exact video moments
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            {captionsState === "captions_analysed" && `${findings.length} finding${findings.length === 1 ? "" : "s"} · ${job?.transcript_segment_count ?? 0} caption segments · ${job?.caption_language ?? "?"}`}
-            {captionsState === "partial_captions" && `${findings.length} finding${findings.length === 1 ? "" : "s"} · partial captions`}
+            {captionsState === "captions_analysed" &&
+              `${findings.length} finding${findings.length === 1 ? "" : "s"} · ${job?.transcript_segment_count ?? 0} caption segments · ${job?.caption_language ?? "?"}`}
+            {captionsState === "partial_captions" &&
+              `${findings.length} finding${findings.length === 1 ? "" : "s"} · partial captions`}
             {captionsState === "captions_unavailable" && "Captions unavailable for this video."}
-            {captionsState === "metadata_only" && "Metadata-only analysis — exact spoken-content timestamps are unavailable."}
+            {captionsState === "metadata_only" &&
+              "Metadata-only analysis — exact spoken-content timestamps are unavailable."}
             {(captionsState === "queued" || captionsState === "running") && "Analyzing captions…"}
             {!captionsState && !analyze.isPending && "Not analyzed yet."}
           </div>
@@ -145,12 +158,13 @@ export function ExactMomentsPanel({
         </div>
       </div>
 
-      {(captionsState === "captions_unavailable" || captionsState === "metadata_only") && findings.length === 0 && (
-        <div className="text-[11px] rounded-lg border border-dashed border-border bg-background/50 px-3 py-2 text-muted-foreground">
-          Exact timestamp unavailable. This video has no publicly accessible timestamped captions. Enable
-          Speech-to-Text (coming soon) to process audio when authorised.
-        </div>
-      )}
+      {(captionsState === "captions_unavailable" || captionsState === "metadata_only") &&
+        findings.length === 0 && (
+          <div className="text-[11px] rounded-lg border border-dashed border-border bg-background/50 px-3 py-2 text-muted-foreground">
+            Exact timestamp unavailable. This video has no publicly accessible timestamped captions.
+            Enable Speech-to-Text (coming soon) to process audio when authorised.
+          </div>
+        )}
 
       {q.isLoading && !findings.length && (
         <div className="text-[11px] text-muted-foreground flex items-center gap-2">
@@ -160,138 +174,177 @@ export function ExactMomentsPanel({
 
       {findings.length > 0 && (
         <div className="space-y-2">
-          {findings.map((f: {
-            id: string;
-            start_seconds: number;
-            end_seconds: number;
-            start_time_display: string | null;
-            end_time_display: string | null;
-            speaker_label: string | null;
-            original_text: string;
-            original_language: string | null;
-            translated_text: string | null;
-            context_before: string | null;
-            context_after: string | null;
-            matched_entity: string | null;
-            claim_summary: string | null;
-            context_type: string;
-            speaker_stance: string | null;
-            risk_category: string | null;
-            severity: string | null;
-            confidence: number | null;
-            evidence_source: string | null;
-            watch_exact_moment_url: string | null;
-            review_status: string;
-          }) => {
-            const ctxColor = CONTEXT_COLOR[f.context_type] ?? "oklch(0.6 0.05 275)";
-            const sevColor = SEV_COLOR[f.severity ?? "low"] ?? "oklch(0.6 0.05 275)";
-            return (
-              <div key={f.id} className="rounded-lg border border-border bg-background/70 p-3 space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <a
-                    href={f.watch_exact_moment_url ?? `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(f.start_seconds)}s`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] font-bold inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-600 text-white hover:bg-red-700"
-                  >
-                    <PlayCircle className="size-3" />
-                    {f.start_time_display ?? formatSec(f.start_seconds)} – {f.end_time_display ?? formatSec(f.end_seconds)}
-                  </a>
-                  <span
-                    className="text-[10px] font-semibold px-2 py-0.5 rounded-md text-white"
-                    style={{ background: ctxColor }}
-                  >
-                    {CONTEXT_LABEL[f.context_type] ?? f.context_type}
-                  </span>
-                  {f.severity && (
+          {findings.map(
+            (f: {
+              id: string;
+              start_seconds: number;
+              end_seconds: number;
+              start_time_display: string | null;
+              end_time_display: string | null;
+              speaker_label: string | null;
+              original_text: string;
+              original_language: string | null;
+              translated_text: string | null;
+              context_before: string | null;
+              context_after: string | null;
+              matched_entity: string | null;
+              claim_summary: string | null;
+              context_type: string;
+              speaker_stance: string | null;
+              risk_category: string | null;
+              severity: string | null;
+              confidence: number | null;
+              evidence_source: string | null;
+              watch_exact_moment_url: string | null;
+              review_status: string;
+            }) => {
+              const ctxColor = CONTEXT_COLOR[f.context_type] ?? "oklch(0.6 0.05 275)";
+              const sevColor = SEV_COLOR[f.severity ?? "low"] ?? "oklch(0.6 0.05 275)";
+              return (
+                <div
+                  key={f.id}
+                  className="rounded-lg border border-border bg-background/70 p-3 space-y-2"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a
+                      href={
+                        f.watch_exact_moment_url ??
+                        `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(f.start_seconds)}s`
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-bold inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-600 text-white hover:bg-red-700"
+                    >
+                      <PlayCircle className="size-3" />
+                      {f.start_time_display ?? formatSec(f.start_seconds)} –{" "}
+                      {f.end_time_display ?? formatSec(f.end_seconds)}
+                    </a>
                     <span
                       className="text-[10px] font-semibold px-2 py-0.5 rounded-md text-white"
-                      style={{ background: sevColor }}
+                      style={{ background: ctxColor }}
                     >
-                      {f.severity.toUpperCase()}
+                      {CONTEXT_LABEL[f.context_type] ?? f.context_type}
                     </span>
-                  )}
-                  {typeof f.confidence === "number" && (
-                    <span className="text-[10px] text-muted-foreground">
-                      Confidence {Math.round(f.confidence)}%
-                    </span>
-                  )}
-                  {f.review_status !== "pending" && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-muted">
-                      {f.review_status.replace("_", " ")}
-                    </span>
-                  )}
-                </div>
-
-                {f.claim_summary && (
-                  <div className="text-xs">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Summary · </span>
-                    {f.claim_summary}
+                    {f.severity && (
+                      <span
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-md text-white"
+                        style={{ background: sevColor }}
+                      >
+                        {f.severity.toUpperCase()}
+                      </span>
+                    )}
+                    {typeof f.confidence === "number" && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Confidence {Math.round(f.confidence)}%
+                      </span>
+                    )}
+                    {f.review_status !== "pending" && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-muted">
+                        {f.review_status.replace("_", " ")}
+                      </span>
+                    )}
                   </div>
-                )}
 
-                <div className="text-[11px] rounded-md bg-muted/40 border border-border px-2 py-1.5">
-                  <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
-                    Original {f.original_language ? `(${f.original_language})` : ""}
+                  {f.claim_summary && (
+                    <div className="text-xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Summary ·{" "}
+                      </span>
+                      {f.claim_summary}
+                    </div>
+                  )}
+
+                  <div className="text-[11px] rounded-md bg-muted/40 border border-border px-2 py-1.5">
+                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                      Original {f.original_language ? `(${f.original_language})` : ""}
+                    </div>
+                    <div className="whitespace-pre-wrap">{f.original_text}</div>
                   </div>
-                  <div className="whitespace-pre-wrap">{f.original_text}</div>
-                </div>
-                {f.translated_text && (
-                  <div className="text-[11px] rounded-md bg-background border border-border px-2 py-1.5">
-                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Translation (EN)</div>
-                    <div className="whitespace-pre-wrap">{f.translated_text}</div>
+                  {f.translated_text && (
+                    <div className="text-[11px] rounded-md bg-background border border-border px-2 py-1.5">
+                      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                        Translation (EN)
+                      </div>
+                      <div className="whitespace-pre-wrap">{f.translated_text}</div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+                    {f.matched_entity && (
+                      <div>
+                        <span className="font-semibold text-foreground">Entity:</span>{" "}
+                        {f.matched_entity}
+                      </div>
+                    )}
+                    {f.speaker_stance && (
+                      <div>
+                        <span className="font-semibold text-foreground">Stance:</span>{" "}
+                        {f.speaker_stance}
+                      </div>
+                    )}
+                    {f.risk_category && (
+                      <div>
+                        <span className="font-semibold text-foreground">Risk:</span>{" "}
+                        {f.risk_category}
+                      </div>
+                    )}
+                    {f.evidence_source && (
+                      <div>
+                        <span className="font-semibold text-foreground">Source:</span>{" "}
+                        {f.evidence_source.replace("_", " ")}
+                      </div>
+                    )}
                   </div>
-                )}
 
-                <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
-                  {f.matched_entity && <div><span className="font-semibold text-foreground">Entity:</span> {f.matched_entity}</div>}
-                  {f.speaker_stance && <div><span className="font-semibold text-foreground">Stance:</span> {f.speaker_stance}</div>}
-                  {f.risk_category && <div><span className="font-semibold text-foreground">Risk:</span> {f.risk_category}</div>}
-                  {f.evidence_source && <div><span className="font-semibold text-foreground">Source:</span> {f.evidence_source.replace("_", " ")}</div>}
+                  <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                    <a
+                      href={
+                        f.watch_exact_moment_url ??
+                        `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(f.start_seconds)}s`
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1"
+                    >
+                      <ExternalLink className="size-3" /> Watch exact moment
+                    </a>
+                    <button
+                      onClick={() => review.mutate({ id: f.id, status: "approved" })}
+                      className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1"
+                    >
+                      <CheckCircle2 className="size-3" /> Approve evidence
+                    </button>
+                    <button
+                      onClick={() => review.mutate({ id: f.id, status: "false_positive" })}
+                      className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1"
+                    >
+                      <XCircle className="size-3" /> False positive
+                    </button>
+                    <button
+                      onClick={() => review.mutate({ id: f.id, status: "legal_review" })}
+                      className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1"
+                    >
+                      <Scale className="size-3" /> Request legal review
+                    </button>
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                  <a
-                    href={f.watch_exact_moment_url ?? `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(f.start_seconds)}s`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1"
-                  >
-                    <ExternalLink className="size-3" /> Watch exact moment
-                  </a>
-                  <button
-                    onClick={() => review.mutate({ id: f.id, status: "approved" })}
-                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1"
-                  >
-                    <CheckCircle2 className="size-3" /> Approve evidence
-                  </button>
-                  <button
-                    onClick={() => review.mutate({ id: f.id, status: "false_positive" })}
-                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1"
-                  >
-                    <XCircle className="size-3" /> False positive
-                  </button>
-                  <button
-                    onClick={() => review.mutate({ id: f.id, status: "legal_review" })}
-                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-accent inline-flex items-center gap-1"
-                  >
-                    <Scale className="size-3" /> Request legal review
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            },
+          )}
         </div>
       )}
 
-      {job?.error && captionsState !== "captions_unavailable" && captionsState !== "metadata_only" && (
-        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-          <ShieldAlert className="size-3" /> Analysis note: {job.error}
-        </div>
-      )}
+      {job?.error &&
+        captionsState !== "captions_unavailable" &&
+        captionsState !== "metadata_only" && (
+          <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <ShieldAlert className="size-3" /> Analysis note: {job.error}
+          </div>
+        )}
 
       <div className="text-[10px] text-muted-foreground italic border-t border-dashed border-border pt-2">
-        Automated classification only — not a legal determination. Categories such as "potential defamation risk" require review by qualified counsel.
+        Automated classification only — not a legal determination. Categories such as "potential
+        defamation risk" require review by qualified counsel.
       </div>
     </div>
   );
@@ -317,7 +370,9 @@ export function ExactMomentsSummaryChips({ videoId }: { videoId: string }) {
   const findings = q.data?.findings ?? [];
   const job = q.data?.job;
   if (!findings.length && !job) return null;
-  const critical = findings.filter((f: { severity: string | null }) => f.severity === "critical" || f.severity === "high").length;
+  const critical = findings.filter(
+    (f: { severity: string | null }) => f.severity === "critical" || f.severity === "high",
+  ).length;
   return (
     <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted border border-border">

@@ -20,7 +20,17 @@ function Ring({ value }: { value: number }) {
           </linearGradient>
         </defs>
         <circle cx="50" cy="50" r={r} strokeWidth="9" stroke="oklch(0.94 0.02 295)" fill="none" />
-        <circle cx="50" cy="50" r={r} strokeWidth="9" stroke="url(#expGrad)" fill="none" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" />
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          strokeWidth="9"
+          stroke="url(#expGrad)"
+          fill="none"
+          strokeDasharray={c}
+          strokeDashoffset={off}
+          strokeLinecap="round"
+        />
       </svg>
       <div className="absolute inset-0 grid place-items-center">
         <div className="text-center">
@@ -48,17 +58,22 @@ export function AIExposureIndex() {
     refetchInterval: 30_000,
   });
   const e = data?.exposure;
-  const chart = Array.from({ length: 12 }, (_, i) => ({ i, v: (e?.score ?? 0) + Math.sin(i / 2) * 0.6 }));
+  const chart = Array.from({ length: 12 }, (_, i) => ({
+    i,
+    v: (e?.score ?? 0) + Math.sin(i / 2) * 0.6,
+  }));
 
   return (
     <div className="card-surface p-5 flex flex-col">
-      <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">AI EXPOSURE INDEX</div>
+      <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">
+        AI EXPOSURE INDEX
+      </div>
       <div className="text-xs text-muted-foreground/80 mb-4">Overall damage assessment</div>
 
       <div className="flex flex-col items-center gap-3">
         <Ring value={e?.score ?? 0} />
         <div className="text-sm font-semibold" style={{ color: "oklch(0.63 0.24 25)" }}>
-          {isLoading ? "…" : e?.severityLabel ?? "No Data"}
+          {isLoading ? "…" : (e?.severityLabel ?? "No Data")}
         </div>
       </div>
 
@@ -70,7 +85,10 @@ export function AIExposureIndex() {
         </div>
         <div className="min-w-0 border-x border-border">
           <div className="text-[10px] text-muted-foreground truncate">Rep. Impact</div>
-          <div className="text-sm font-bold text-rose-500 mt-1">{(e?.reputationImpact ?? 0) > 0 ? "+" : ""}{e?.reputationImpact ?? 0}%</div>
+          <div className="text-sm font-bold text-rose-500 mt-1">
+            {(e?.reputationImpact ?? 0) > 0 ? "+" : ""}
+            {e?.reputationImpact ?? 0}%
+          </div>
           <div className="text-[10px] text-muted-foreground truncate">vs. baseline</div>
         </div>
         <div className="min-w-0">
@@ -83,7 +101,12 @@ export function AIExposureIndex() {
       <div className="mt-4 h-10 w-full">
         <ResponsiveContainer>
           <AreaChart data={chart}>
-            <Area dataKey="v" stroke="oklch(0.63 0.24 25)" strokeWidth={2} fill="oklch(0.63 0.24 25 / 0.15)" />
+            <Area
+              dataKey="v"
+              stroke="oklch(0.63 0.24 25)"
+              strokeWidth={2}
+              fill="oklch(0.63 0.24 25 / 0.15)"
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>

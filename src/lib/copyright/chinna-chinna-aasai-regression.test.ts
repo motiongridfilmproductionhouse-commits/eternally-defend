@@ -7,11 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildQueries, type ReferenceAnalysis } from "./discover.server";
 import { classifyCopyrightPage } from "./page-classify.server";
-import {
-  classifyThreatCategory,
-  severityFor,
-  summarizeThreatIntelligence,
-} from "./threat-results";
+import { classifyThreatCategory, severityFor, summarizeThreatIntelligence } from "./threat-results";
 
 const TITLES = ["Chinna Chinna Aasai"];
 
@@ -177,9 +173,7 @@ test("Dailymotion re-upload → Video Re-upload", () => {
   const result = classifyCopyrightPage({
     url: "https://www.dailymotion.com/video/xaswffu",
     pageTitle: "Chinna Chinna Aasai movie clip",
-    markdown: long(
-      "Chinna Chinna Aasai uploaded on Dailymotion. Watch the video online.",
-    ),
+    markdown: long("Chinna Chinna Aasai uploaded on Dailymotion. Watch the video online."),
     html: '<html><body><iframe src="https://www.dailymotion.com/embed/video/xaswffu"></iframe></body></html>',
     links: [],
     titles: TITLES,

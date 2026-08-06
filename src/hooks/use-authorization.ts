@@ -4,10 +4,7 @@ import { getOnboardingState } from "@/lib/onboarding.functions";
 import { useSession } from "./use-session";
 
 export type AuthzLevel =
-  | "monitoring"
-  | "monitoring_evidence"
-  | "monitoring_enforcement"
-  | "full_protection";
+  "monitoring" | "monitoring_evidence" | "monitoring_enforcement" | "full_protection";
 
 export type AuthzStatus = "pending" | "authorized" | "enterprise_authorized";
 

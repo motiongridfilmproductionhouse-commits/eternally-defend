@@ -2,7 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 type Sev = "Critical" | "High" | "Medium" | "Low" | "Info";
-const SEV_WEIGHT: Record<string, number> = { Critical: 10, High: 8, Medium: 5, Low: 3, Info: 1, critical: 10, high: 8, medium: 5, low: 3, info: 1 };
+const SEV_WEIGHT: Record<string, number> = {
+  Critical: 10,
+  High: 8,
+  Medium: 5,
+  Low: 3,
+  Info: 1,
+  critical: 10,
+  high: 8,
+  medium: 5,
+  low: 3,
+  info: 1,
+};
 
 function bucketPlatform(source: string | null | undefined): string {
   const s = (source ?? "").toLowerCase();
@@ -54,23 +65,56 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
     const since24h = new Date(now - 86_400_000).toISOString();
     const since48h = new Date(now - 2 * 86_400_000).toISOString();
 
-    const [hitsRes, scansRes, enfRes, evidenceRes, assetsRes, casesRes, profileRes, jobsRes] = await Promise.all([
-      supabase
-        .from("scan_hits")
-        .select("id, source, source_type, title, permalink, canonical_url, thumbnail_url, author, published_at, first_seen_at, reach, engagement, threat_score, risk_score, severity, risk_type, tags, growth_pct, hidden_at")
-        .eq("user_id", userId)
-        .is("hidden_at", null)
-        .gte("first_seen_at", since14)
-        .order("first_seen_at", { ascending: false })
-        .limit(500),
-      supabase.from("scans").select("id, name, query, status, sources, total_hits, started_at, completed_at, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
-      supabase.from("enforcement_requests").select("id, status, submission_status, platform, created_at, submitted_at, target_url").eq("user_id", userId).order("created_at", { ascending: false }).limit(200),
-      supabase.from("enforcement_evidence").select("id, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
-      supabase.from("protected_assets").select("id, name, kind, created_at").eq("user_id", userId),
-      supabase.from("cases").select("id, status, priority, created_at").eq("user_id", userId),
-      supabase.from("client_profiles").select("authorization_level, authorization_status, full_name, company_name").eq("user_id", userId).maybeSingle(),
-      supabase.from("multimedia_analysis_jobs").select("reputation_score").eq("user_id", userId).not("reputation_score", "is", null).order("created_at", { ascending: false }).limit(50),
-    ]);
+    const [hitsRes, scansRes, enfRes, evidenceRes, assetsRes, casesRes, profileRes, jobsRes] =
+      await Promise.all([
+        supabase
+          .from("scan_hits")
+          .select(
+            "id, source, source_type, title, permalink, canonical_url, thumbnail_url, author, published_at, first_seen_at, reach, engagement, threat_score, risk_score, severity, risk_type, tags, growth_pct, hidden_at",
+          )
+          .eq("user_id", userId)
+          .is("hidden_at", null)
+          .gte("first_seen_at", since14)
+          .order("first_seen_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("scans")
+          .select(
+            "id, name, query, status, sources, total_hits, started_at, completed_at, created_at",
+          )
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("enforcement_requests")
+          .select("id, status, submission_status, platform, created_at, submitted_at, target_url")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(200),
+        supabase
+          .from("enforcement_evidence")
+          .select("id, created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("protected_assets")
+          .select("id, name, kind, created_at")
+          .eq("user_id", userId),
+        supabase.from("cases").select("id, status, priority, created_at").eq("user_id", userId),
+        supabase
+          .from("client_profiles")
+          .select("authorization_level, authorization_status, full_name, company_name")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("multimedia_analysis_jobs")
+          .select("reputation_score")
+          .eq("user_id", userId)
+          .not("reputation_score", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(50),
+      ]);
 
     const hits = hitsRes.data ?? [];
     const scans = scansRes.data ?? [];
@@ -84,7 +128,9 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
     // Reputation score: derive from jobs, fall back to 100 - avg(threat_score)
     let reputation = 100;
     if (jobs.length) {
-      reputation = Math.round(jobs.reduce((s, j) => s + Number(j.reputation_score ?? 0), 0) / jobs.length);
+      reputation = Math.round(
+        jobs.reduce((s, j) => s + Number(j.reputation_score ?? 0), 0) / jobs.length,
+      );
     } else if (hits.length) {
       const avg = hits.reduce((s, h) => s + Number(h.threat_score ?? 0), 0) / hits.length;
       reputation = Math.max(0, Math.min(100, Math.round(100 - avg)));
@@ -109,25 +155,38 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
 
     // Velocity: last 24h vs prior 24h
     const last24 = hits.filter((h) => (h.first_seen_at as string) >= since24h).length;
-    const prior24 = hits.filter((h) => (h.first_seen_at as string) >= since48h && (h.first_seen_at as string) < since24h).length;
+    const prior24 = hits.filter(
+      (h) => (h.first_seen_at as string) >= since48h && (h.first_seen_at as string) < since24h,
+    ).length;
     const velocityDelta = last24 - prior24;
 
     const totalReach = hits.reduce((s, h) => s + Number(h.reach ?? 0), 0);
 
     // Danger meter composite (0-100)
-    const avgThreat = hits.length ? hits.reduce((s, h) => s + Number(h.threat_score ?? 0), 0) / hits.length : 0;
+    const avgThreat = hits.length
+      ? hits.reduce((s, h) => s + Number(h.threat_score ?? 0), 0) / hits.length
+      : 0;
     const reachFactor = Math.min(1, Math.log10(totalReach + 1) / 8);
     const velocityFactor = Math.min(1, Math.max(0, velocityDelta) / 20);
     const criticalFactor = Math.min(1, critical / 10);
-    const danger = Math.round((avgThreat * 0.4 + reachFactor * 100 * 0.25 + velocityFactor * 100 * 0.2 + criticalFactor * 100 * 0.15));
+    const danger = Math.round(
+      avgThreat * 0.4 +
+        reachFactor * 100 * 0.25 +
+        velocityFactor * 100 * 0.2 +
+        criticalFactor * 100 * 0.15,
+    );
     let dangerZone: "SAFE" | "WATCH" | "DANGER" | "CRITICAL" = "SAFE";
     if (danger >= 75) dangerZone = "CRITICAL";
     else if (danger >= 50) dangerZone = "DANGER";
     else if (danger >= 25) dangerZone = "WATCH";
 
     // Enforcement counts
-    const enforceOpen = enforcements.filter((e) => !["resolved", "closed", "rejected"].includes(e.status)).length;
-    const enforcePending = enforcements.filter((e) => e.submission_status === "pending" || e.status === "draft").length;
+    const enforceOpen = enforcements.filter(
+      (e) => !["resolved", "closed", "rejected"].includes(e.status),
+    ).length;
+    const enforcePending = enforcements.filter(
+      (e) => e.submission_status === "pending" || e.status === "draft",
+    ).length;
     const activeScans = scans.filter((s) => s.status === "running" || s.status === "queued").length;
 
     // Radar nodes (top 40 by threat_score * log(reach))
@@ -165,7 +224,11 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       platformCounts.set(p, row);
     }
     const heatmap = [...platformCounts.entries()]
-      .map(([platform, counts]) => ({ platform, ...counts, total: Object.values(counts).reduce((a, b) => a + b, 0) }))
+      .map(([platform, counts]) => ({
+        platform,
+        ...counts,
+        total: Object.values(counts).reduce((a, b) => a + b, 0),
+      }))
       .sort((a, b) => b.total - a.total);
 
     // Spoiler detector
@@ -180,49 +243,88 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       spoilerAgg.set(cat, cur);
     }
     const spoilers = [...spoilerAgg.entries()]
-      .map(([category, v]) => ({ category, ...v, risk: v.maxSev >= 9 ? "Critical" : v.maxSev >= 7 ? "High" : v.maxSev >= 5 ? "Medium" : "Low" }))
+      .map(([category, v]) => ({
+        category,
+        ...v,
+        risk:
+          v.maxSev >= 9 ? "Critical" : v.maxSev >= 7 ? "High" : v.maxSev >= 5 ? "Medium" : "Low",
+      }))
       .sort((a, b) => b.count - a.count);
 
     // Live scanners: derive from recent scans + sources
     const scannerKinds = ["Web", "YouTube", "News", "Reddit", "Social", "Archive"];
     const liveScanners = scannerKinds.map((kind) => {
-      const s = scans.find((x) => (x.sources ?? []).some((src: string) => src.toLowerCase().includes(kind.toLowerCase())));
-      if (!s) return { kind, status: "idle", query: null as string | null, progress: 0, results: 0 };
+      const s = scans.find((x) =>
+        (x.sources ?? []).some((src: string) => src.toLowerCase().includes(kind.toLowerCase())),
+      );
+      if (!s)
+        return { kind, status: "idle", query: null as string | null, progress: 0, results: 0 };
       return {
         kind,
         status: s.status,
         query: s.query as string,
-        progress: s.status === "completed" ? 100 : s.status === "running" ? 60 : s.status === "queued" ? 10 : 0,
+        progress:
+          s.status === "completed"
+            ? 100
+            : s.status === "running"
+              ? 60
+              : s.status === "queued"
+                ? 10
+                : 0,
         results: Number(s.total_hits ?? 0),
       };
     });
 
     // Timeline: merge events
     const timeline: { time: string; type: string; label: string; sub?: string }[] = [];
-    for (const h of hits.slice(0, 8)) timeline.push({ time: h.first_seen_at as string, type: "finding", label: (h.title as string) || "New finding", sub: bucketPlatform(h.source as string) });
-    for (const e of evidence.slice(0, 5)) timeline.push({ time: e.created_at as string, type: "evidence", label: "Evidence captured" });
-    for (const e of enforcements.slice(0, 5)) timeline.push({ time: (e.submitted_at as string) || (e.created_at as string), type: "enforcement", label: `Enforcement ${e.status}`, sub: e.platform as string });
+    for (const h of hits.slice(0, 8))
+      timeline.push({
+        time: h.first_seen_at as string,
+        type: "finding",
+        label: (h.title as string) || "New finding",
+        sub: bucketPlatform(h.source as string),
+      });
+    for (const e of evidence.slice(0, 5))
+      timeline.push({ time: e.created_at as string, type: "evidence", label: "Evidence captured" });
+    for (const e of enforcements.slice(0, 5))
+      timeline.push({
+        time: (e.submitted_at as string) || (e.created_at as string),
+        type: "enforcement",
+        label: `Enforcement ${e.status}`,
+        sub: e.platform as string,
+      });
     timeline.sort((a, b) => (b.time > a.time ? 1 : -1));
 
     // Asset exposure — join by target_name contained in title
-    const targetName = ((profile?.full_name as string) || (profile?.company_name as string) || "") as string;
+    const targetName = ((profile?.full_name as string) ||
+      (profile?.company_name as string) ||
+      "") as string;
     const assetExposure = assets.slice(0, 6).map((a) => {
       const name = (a.name as string) || "";
-      const rel = hits.filter((h) => name && ((h.title as string) ?? "").toLowerCase().includes(name.toLowerCase()));
+      const rel = hits.filter(
+        (h) => name && ((h.title as string) ?? "").toLowerCase().includes(name.toLowerCase()),
+      );
       return {
         name,
         kind: (a.kind as string) || "asset",
         mentions: rel.length,
-        threats: rel.filter((h) => ["Critical", "High"].includes((h.severity as string) || "")).length,
+        threats: rel.filter((h) => ["Critical", "High"].includes((h.severity as string) || ""))
+          .length,
         reach: rel.reduce((s, h) => s + Number(h.reach ?? 0), 0),
-        riskScore: rel.length ? Math.round(rel.reduce((s, h) => s + Number(h.threat_score ?? 0), 0) / rel.length) : 0,
+        riskScore: rel.length
+          ? Math.round(rel.reduce((s, h) => s + Number(h.threat_score ?? 0), 0) / rel.length)
+          : 0,
       };
     });
 
     // 7-day sparklines
     const days: string[] = [];
-    for (let i = 6; i >= 0; i--) days.push(new Date(now - i * 86_400_000).toISOString().slice(0, 10));
-    const dayBucket = (list: { first_seen_at?: string; created_at?: string }[], key: "first_seen_at" | "created_at") => {
+    for (let i = 6; i >= 0; i--)
+      days.push(new Date(now - i * 86_400_000).toISOString().slice(0, 10));
+    const dayBucket = (
+      list: { first_seen_at?: string; created_at?: string }[],
+      key: "first_seen_at" | "created_at",
+    ) => {
       const m = new Map(days.map((d) => [d, 0]));
       for (const r of list) {
         const t = (r as any)[key] as string;
@@ -233,8 +335,16 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       return days.map((d) => ({ d, v: m.get(d) ?? 0 }));
     };
 
-    const findingsSpark = dayBucket(hits.map((h) => ({ first_seen_at: h.first_seen_at as string })), "first_seen_at");
-    const criticalSpark = dayBucket(hits.filter((h) => (h.severity as string) === "Critical").map((h) => ({ first_seen_at: h.first_seen_at as string })), "first_seen_at");
+    const findingsSpark = dayBucket(
+      hits.map((h) => ({ first_seen_at: h.first_seen_at as string })),
+      "first_seen_at",
+    );
+    const criticalSpark = dayBucket(
+      hits
+        .filter((h) => (h.severity as string) === "Critical")
+        .map((h) => ({ first_seen_at: h.first_seen_at as string })),
+      "first_seen_at",
+    );
 
     const trend = (arr: { v: number }[]) => {
       const half = Math.floor(arr.length / 2);
@@ -256,7 +366,9 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
         threatLevel,
         activeScans,
         protectedAssets: assets.length,
-        criticalCases: cases.filter((c) => (c.priority as string) === "critical" || (c.status as string) === "critical").length,
+        criticalCases: cases.filter(
+          (c) => (c.priority as string) === "critical" || (c.status as string) === "critical",
+        ).length,
         pendingActions: enforcePending,
         openEnforcement: enforceOpen,
       },
@@ -266,7 +378,8 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
         newToday: last24,
         escalated: enforcements.length,
         resolved: enforcements.filter((e) => e.status === "resolved").length,
-        falsePositives: (hits as any[]).filter((h) => (h.tags ?? []).includes("false_positive")).length,
+        falsePositives: (hits as any[]).filter((h) => (h.tags ?? []).includes("false_positive"))
+          .length,
         findingsSpark,
         criticalSpark,
         findingsTrend: trend(findingsSpark),
@@ -316,14 +429,25 @@ export const getNotifications = createServerFn({ method: "GET" })
         .limit(15),
     ]);
 
-    type Note = { id: string; kind: "threat" | "enforcement" | "asset" | "digest"; title: string; body: string; time: string; tag: string; tone: string };
+    type Note = {
+      id: string;
+      kind: "threat" | "enforcement" | "asset" | "digest";
+      title: string;
+      body: string;
+      time: string;
+      tag: string;
+      tone: string;
+    };
     const notes: Note[] = [];
 
     for (const h of hitsRes.data ?? []) {
       notes.push({
         id: `hit-${h.id}`,
         kind: "threat",
-        title: (h.severity as string) === "Critical" ? "Critical threat detected" : "High-severity threat detected",
+        title:
+          (h.severity as string) === "Critical"
+            ? "Critical threat detected"
+            : "High-severity threat detected",
         body: `${h.source ?? "Web"} — ${(h.title as string) ?? "New finding"}.`,
         time: h.first_seen_at as string,
         tag: (h.severity as string) ?? "High",
@@ -355,5 +479,10 @@ export const getNotifications = createServerFn({ method: "GET" })
     }
 
     notes.sort((a, b) => (b.time > a.time ? 1 : -1));
-    return { notes: notes.slice(0, 40), unread: (hitsRes.data ?? []).length + (enfRes.data ?? []).filter((e) => e.status !== "resolved").length };
+    return {
+      notes: notes.slice(0, 40),
+      unread:
+        (hitsRes.data ?? []).length +
+        (enfRes.data ?? []).filter((e) => e.status !== "resolved").length,
+    };
   });

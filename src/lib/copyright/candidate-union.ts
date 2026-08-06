@@ -53,9 +53,7 @@ function originRank(origin: CandidateUnionEntry["origin"]): number {
   }
 }
 
-export function mergeScanCandidateLeads(
-  groups: CandidateUnionEntry[][],
-): CandidateUnionResult {
+export function mergeScanCandidateLeads(groups: CandidateUnionEntry[][]): CandidateUnionResult {
   const flat = groups.flat();
   const before = flat.length;
   const byKey = new Map<string, CandidateUnionEntry>();
@@ -69,8 +67,7 @@ export function mergeScanCandidateLeads(
       continue;
     }
     const keepCurrent =
-      originRank(lead.origin) > originRank(existing.origin) ||
-      (lead.strong && !existing.strong);
+      originRank(lead.origin) > originRank(existing.origin) || (lead.strong && !existing.strong);
     if (keepCurrent) {
       removed.push({
         url: key,
@@ -106,10 +103,7 @@ export function mergeScanCandidateLeads(
   };
 }
 
-export function buildSiteScopedDiscoveryQueries(
-  domains: string[],
-  titles: string[],
-): string[] {
+export function buildSiteScopedDiscoveryQueries(domains: string[], titles: string[]): string[] {
   const queries: string[] = [];
   const primary = titles.find((t) => t.trim().length >= 3)?.trim();
   if (!primary) return queries;

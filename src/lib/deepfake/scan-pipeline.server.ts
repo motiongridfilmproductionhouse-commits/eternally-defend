@@ -20,10 +20,7 @@ import {
   verificationBudgetRemaining,
   VERIFY_CANDIDATE_BATCH_SIZE,
 } from "./scan-budget.server";
-import {
-  buildAdaptiveQuerySchedule,
-  nextQueryBatch,
-} from "./query-priority.server";
+import { buildAdaptiveQuerySchedule, nextQueryBatch } from "./query-priority.server";
 import {
   checkpointHasPendingWork,
   createEmptyCheckpoint,
@@ -51,10 +48,7 @@ import {
   upsertDiscoveriesBatch,
   upsertFindingsBatch,
 } from "./scan-persist.server";
-import {
-  createImportedImageQueries,
-  parseGoogleImagesUrl,
-} from "./google-images-import.server";
+import { createImportedImageQueries, parseGoogleImagesUrl } from "./google-images-import.server";
 import {
   classifyPageEvidence,
   finalizeDeepfakeFinding,
@@ -66,10 +60,7 @@ import {
 import { collectReferenceImages } from "./reference-collection.server";
 import { expandIdentityVariants } from "./identity-variants.server";
 import { isUrlVerified } from "./url-verification.server";
-import {
-  parseReferenceImagesFromMetrics,
-  type CollectedReferenceImage,
-} from "./reference-images";
+import { parseReferenceImagesFromMetrics, type CollectedReferenceImage } from "./reference-images";
 import {
   queueGoogleImagesInvestigation,
   syncGoogleImagesScanMetrics,
@@ -116,11 +107,7 @@ type FinalizedFinding = ProviderHit & {
   face_referenced: boolean;
   takedown_recommended: boolean;
   ai_reasoning: string | null;
-  classification_status?:
-    | "completed"
-    | "no_media"
-    | "provider_error"
-    | "failed";
+  classification_status?: "completed" | "no_media" | "provider_error" | "failed";
   finding_classification?: string | null;
   page_type?: string | null;
   identity_confidence?: number | null;
@@ -169,10 +156,7 @@ type RiskCounts = {
 
 export type PipelineWorkerLimits = {
   maxQueryBatches: number;
-  onBatchProcessed?: (info: {
-    batchNumber: number;
-    queryIds: string[];
-  }) => void;
+  onBatchProcessed?: (info: { batchNumber: number; queryIds: string[] }) => void;
 };
 
 export type PipelineResult = {
@@ -260,10 +244,7 @@ function stageMetrics(
   };
 }
 
-function addVerificationMetrics(
-  metrics: DiscoveryFunnelMetrics,
-  next: VerificationMetrics,
-): void {
+function addVerificationMetrics(metrics: DiscoveryFunnelMetrics, next: VerificationMetrics): void {
   metrics.crawl_succeeded += next.crawl_succeeded;
   metrics.crawl_failed += next.crawl_failed;
   metrics.identity_rejected += next.identity_rejected;
@@ -279,9 +260,7 @@ function addVerificationMetrics(
 }
 
 function hasThreatSignal(hit: { threat_signals?: string[] }): boolean {
-  return (hit.threat_signals ?? []).some((signal) =>
-    THREAT_TRIAGE_SIGNALS.has(signal),
-  );
+  return (hit.threat_signals ?? []).some((signal) => THREAT_TRIAGE_SIGNALS.has(signal));
 }
 
 function findingRowFromClassification(input: {
@@ -290,8 +269,7 @@ function findingRowFromClassification(input: {
   finding: FinalizedFinding;
 }): Record<string, unknown> {
   const { finding, scanId, userId } = input;
-  const pageUrl =
-    finding.final_url ?? finding.evidence_page_url ?? finding.url;
+  const pageUrl = finding.final_url ?? finding.evidence_page_url ?? finding.url;
 
   return {
     scan_id: scanId,
@@ -362,10 +340,7 @@ export function buildScheduledQueries(input: {
     initialCount: INITIAL_PRIORITY_QUERY_COUNT,
   });
 
-  return uniqueStrings([...importedHead, ...scheduledRemainder]).slice(
-    0,
-    input.maxQueries,
-  );
+  return uniqueStrings([...importedHead, ...scheduledRemainder]).slice(0, input.maxQueries);
 }
 
 export async function executeInterleavedDeepfakePipeline(input: {
@@ -387,14 +362,11 @@ export async function executeInterleavedDeepfakePipeline(input: {
     aliases: input.target.aliases,
     handles: input.target.handles,
   });
-  const mergedAliases = [
-    ...new Set([...input.target.aliases, ...autoAliases]),
-  ].slice(0, 48);
+  const mergedAliases = [...new Set([...input.target.aliases, ...autoAliases])].slice(0, 48);
   const mergedTarget = { ...input.target, aliases: mergedAliases };
 
   const maxQueries = input.resumeCheckpoint?.max_queries ?? input.maxQueries ?? 72;
-  const perQueryLimit =
-    input.resumeCheckpoint?.per_query_limit ?? input.perQueryLimit ?? 20;
+  const perQueryLimit = input.resumeCheckpoint?.per_query_limit ?? input.perQueryLimit ?? 20;
   const scheduledQueries = buildScheduledQueries({
     target: mergedTarget,
     googleImagesUrl: input.googleImagesUrl,
@@ -409,8 +381,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     ...createDiscoveryFunnelMetrics(),
     ...(resumeCheckpoint?.metrics ?? {}),
   };
-  metrics.queries_generated =
-    resumeCheckpoint?.queries.length ?? scheduledQueries.length;
+  metrics.queries_generated = resumeCheckpoint?.queries.length ?? scheduledQueries.length;
 
   let checkpoint =
     resumeCheckpoint ??
@@ -484,8 +455,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
             ...stageMetrics(metrics, checkpoint),
             google_images_diagnostic: {
               provider_status: "unavailable",
-              failure_reason:
-                error instanceof Error ? error.message : String(error),
+              failure_reason: error instanceof Error ? error.message : String(error),
             },
             google_images_background_status: "failed",
           },
@@ -592,22 +562,17 @@ export async function executeInterleavedDeepfakePipeline(input: {
           await import("./startup-network.server");
         // Production: leave GI jobs queued/retryable — never inline sync/async fallback.
         if (!isProductionDeepfakeRuntime()) {
-          const { executeGoogleImagesWorkerBatch } = await import(
-            "./google-images-worker.server"
-          );
+          const { executeGoogleImagesWorkerBatch } = await import("./google-images-worker.server");
           keepBackgroundWorkAlive(
             executeGoogleImagesWorkerBatch({
               supabase: input.supabase,
               scanId: input.scanId,
               userId: input.userId,
             }).catch((error) => {
-              console.warn(
-                "[DEEPFAKE] Inline Google Images worker fallback failed:",
-                {
-                  scanId: input.scanId,
-                  error: error instanceof Error ? error.message : String(error),
-                },
-              );
+              console.warn("[DEEPFAKE] Inline Google Images worker fallback failed:", {
+                scanId: input.scanId,
+                error: error instanceof Error ? error.message : String(error),
+              });
             }),
           );
         }
@@ -634,21 +599,17 @@ export async function executeInterleavedDeepfakePipeline(input: {
     checkpoint.queries = scheduledQueries;
   }
   checkpoint.planned_query_count = checkpoint.queries.length;
-  checkpoint.initial_wave_count =
-    checkpoint.initial_wave_count || INITIAL_PRIORITY_QUERY_COUNT;
+  checkpoint.initial_wave_count = checkpoint.initial_wave_count || INITIAL_PRIORITY_QUERY_COUNT;
   checkpoint.per_query_limit = perQueryLimit;
   checkpoint.max_queries = maxQueries;
   if (!checkpoint.serpapi_queries?.length) {
-    const { buildSerpApiExactIdentityQueries } = await import(
-      "./serpapi-images.server"
-    );
+    const { buildSerpApiExactIdentityQueries } = await import("./serpapi-images.server");
     checkpoint.serpapi_queries = buildSerpApiExactIdentityQueries({
       name: mergedTarget.name,
       aliases: mergedTarget.aliases,
     });
     checkpoint.serpapi_next_query_index = 0;
-    checkpoint.serpapi_completed_query_ids =
-      checkpoint.serpapi_completed_query_ids ?? [];
+    checkpoint.serpapi_completed_query_ids = checkpoint.serpapi_completed_query_ids ?? [];
     checkpoint.serpapi_seen_page_urls = checkpoint.serpapi_seen_page_urls ?? [];
   }
   checkpoint = enforceCheckpointBounds(checkpoint);
@@ -676,9 +637,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     for (const row of existingDiscoveries ?? []) {
       const status = String((row as any).analysis_status ?? "");
       if (status && status !== "url_verified") continue;
-      const key = canonicalUrl(
-        String((row as any).canonical_url || (row as any).page_url || ""),
-      );
+      const key = canonicalUrl(String((row as any).canonical_url || (row as any).page_url || ""));
       if (key) persistedDiscoveryKeys.add(key);
     }
 
@@ -696,9 +655,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
   } catch (rehydrateError) {
     console.warn(
       "[DEEPFAKE] Failed to rehydrate persisted keys; using empty dedupe sets:",
-      rehydrateError instanceof Error
-        ? rehydrateError.message
-        : String(rehydrateError),
+      rehydrateError instanceof Error ? rehydrateError.message : String(rehydrateError),
     );
   }
 
@@ -750,10 +707,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     checkpoint = enforceCheckpointBounds(checkpoint);
   };
 
-  const heartbeat = async (
-    stage: ScanCheckpoint["stage"],
-    patch?: Record<string, unknown>,
-  ) => {
+  const heartbeat = async (stage: ScanCheckpoint["stage"], patch?: Record<string, unknown>) => {
     assertNotAborted(input.runtime.signal);
     checkpoint.stage = stage;
     syncCheckpoint();
@@ -805,9 +759,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
   };
 
   const collectRelatedLinks = (verified: VerifiedCandidate[]) => {
-    const verifiedCanonical = new Set(
-      checkpoint.verified_canonical_urls.map(canonicalUrl),
-    );
+    const verifiedCanonical = new Set(checkpoint.verified_canonical_urls.map(canonicalUrl));
     for (const hit of verified) {
       const sourceHost = hostOf(hit.final_url);
       for (const link of hit.related_links ?? []) {
@@ -861,10 +813,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       };
     });
 
-    for (const inspectedBatch of chunkArray(
-      inspectedCandidates,
-      MEDIA_PROCESS_BATCH_SIZE,
-    )) {
+    for (const inspectedBatch of chunkArray(inspectedCandidates, MEDIA_PROCESS_BATCH_SIZE)) {
       assertNotAborted(input.runtime.signal);
       await heartbeat("classifying");
 
@@ -875,13 +824,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
         }),
       );
 
-      let hiveCandidates: Array<(typeof analyzableCandidates)[number]> =
-        analyzableCandidates;
+      let hiveCandidates: Array<(typeof analyzableCandidates)[number]> = analyzableCandidates;
 
       if (input.profileId && analyzableCandidates.length) {
-        const { filterCandidatesByTargetFace } = await import(
-          "./face-filter.server"
-        );
+        const { filterCandidatesByTargetFace } = await import("./face-filter.server");
         const faceResults = await filterCandidatesByTargetFace({
           supabase: input.supabase,
           userId: input.userId,
@@ -931,9 +877,8 @@ export async function executeInterleavedDeepfakePipeline(input: {
             },
           },
         });
-        const { filterCandidatesByAutoReferences } = await import(
-          "./auto-reference-face-filter.server"
-        );
+        const { filterCandidatesByAutoReferences } =
+          await import("./auto-reference-face-filter.server");
         const faceResults = await filterCandidatesByAutoReferences({
           referenceImages: collectedReferenceImages,
           candidates: analyzableCandidates,
@@ -989,13 +934,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
           })
         : [];
 
-      const hiveUsable = hiveResults.some(
-        (item) => item.classification_status === "completed",
-      );
+      const hiveUsable = hiveResults.some((item) => item.classification_status === "completed");
 
-      let mediaClassified: Array<
-        Awaited<ReturnType<typeof classifyHitsWithHive>>[number]
-      > = hiveResults;
+      let mediaClassified: Array<Awaited<ReturnType<typeof classifyHitsWithHive>>[number]> =
+        hiveResults;
 
       if (!hiveUsable && hiveCandidates.length) {
         const { classifyHits } = await import("./classify.server");
@@ -1016,8 +958,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
           mediaClassified = textResults.map((item, index) => ({
             ...textPool[index],
             ...item,
-            content_match_score:
-              (textPool[index] as any)?.content_match_score ?? 0,
+            content_match_score: (textPool[index] as any)?.content_match_score ?? 0,
             classification_status: "completed" as const,
             visibility: "triage" as const,
             ai_reasoning:
@@ -1027,9 +968,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
           if (isAbortError(fallbackError)) throw fallbackError;
           console.warn(
             "[DEEPFAKE] Text-classifier fallback failed:",
-            fallbackError instanceof Error
-              ? fallbackError.message
-              : String(fallbackError),
+            fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           );
         }
       }
@@ -1051,8 +990,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
           mediaByPage.get(hit.url);
 
         const crawledTitle = hit.page_title ?? media?.title ?? null;
-        const crawledDescription =
-          hit.page_description ?? media?.description ?? null;
+        const crawledDescription = hit.page_description ?? media?.description ?? null;
         const finalizedFields = finalizeDeepfakeFinding({
           url: pageUrl,
           title: crawledTitle,
@@ -1062,16 +1000,10 @@ export async function executeInterleavedDeepfakePipeline(input: {
           query: hit.query,
           target: input.target,
           hive_deepfake_score: (media as any)?.hive_deepfake_score ?? null,
-          hive_ai_generated_score:
-            (media as any)?.hive_ai_generated_score ?? null,
+          hive_ai_generated_score: (media as any)?.hive_ai_generated_score ?? null,
           target_face_match:
-            (media as any)?.target_face_match ??
-            (hit as any).target_face_match ??
-            null,
-          face_similarity:
-            (media as any)?.face_similarity ??
-            (hit as any).face_similarity ??
-            null,
+            (media as any)?.target_face_match ?? (hit as any).target_face_match ?? null,
+          face_similarity: (media as any)?.face_similarity ?? (hit as any).face_similarity ?? null,
           is_synthetic: media?.is_synthetic ?? null,
           content_category: media?.content_category ?? null,
           existing_reasoning: media?.ai_reasoning ?? null,
@@ -1090,17 +1022,9 @@ export async function executeInterleavedDeepfakePipeline(input: {
           threat_signals: (hit as any).threat_signals,
           classification_status: media?.classification_status ?? "no_media",
           target_face_match:
-            (media as any)?.target_face_match ??
-            (hit as any).target_face_match ??
-            false,
-          face_similarity:
-            (media as any)?.face_similarity ??
-            (hit as any).face_similarity ??
-            null,
-          matched_face_id:
-            (media as any)?.matched_face_id ??
-            (hit as any).matched_face_id ??
-            null,
+            (media as any)?.target_face_match ?? (hit as any).target_face_match ?? false,
+          face_similarity: (media as any)?.face_similarity ?? (hit as any).face_similarity ?? null,
+          matched_face_id: (media as any)?.matched_face_id ?? (hit as any).matched_face_id ?? null,
           hive_deepfake_score: (media as any)?.hive_deepfake_score,
           hive_ai_generated_score: (media as any)?.hive_ai_generated_score,
           page_text: hit.page_text,
@@ -1129,9 +1053,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       const classified = Array.from(dedupedFinalized.values()).filter(
         (item) =>
           isUrlVerified(item.url_verification_status) &&
-          shouldPersistFinding(
-            item.finding_classification as FindingClassification,
-          ),
+          shouldPersistFinding(item.finding_classification as FindingClassification),
       );
 
       await heartbeat("saving");
@@ -1168,9 +1090,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
       if (evidenceCandidates.length) {
         try {
-          const { captureAndStoreEvidence } = await import(
-            "./evidence-capture.server"
-          );
+          const { captureAndStoreEvidence } = await import("./evidence-capture.server");
           await captureAndStoreEvidence({
             supabase: input.supabase,
             userId: input.userId,
@@ -1183,9 +1103,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
           if (isAbortError(evidenceError)) throw evidenceError;
           console.warn(
             "[DEEPFAKE:EVIDENCE] Capture failed:",
-            evidenceError instanceof Error
-              ? evidenceError.message
-              : String(evidenceError),
+            evidenceError instanceof Error ? evidenceError.message : String(evidenceError),
           );
         }
         await heartbeat("saving");
@@ -1242,23 +1160,15 @@ export async function executeInterleavedDeepfakePipeline(input: {
     addVerificationMetrics(metrics, verification.metrics);
 
     const verified = verification.verified as VerifiedCandidate[];
-    const serpapiInBatch = candidates.filter(
-      (hit) => hit.source === "serpapi_google_images",
-    );
+    const serpapiInBatch = candidates.filter((hit) => hit.source === "serpapi_google_images");
     if (serpapiInBatch.length) {
-      const { isSerpApiFaceIdentityRejectionReason } = await import(
-        "./serpapi-images.server"
-      );
-      const serpapiVerified = verified.filter(
-        (hit) => hit.source === "serpapi_google_images",
-      );
+      const { isSerpApiFaceIdentityRejectionReason } = await import("./serpapi-images.server");
+      const serpapiVerified = verified.filter((hit) => hit.source === "serpapi_google_images");
       metrics.serpapi_verified += serpapiVerified.length;
 
       // Only explicit face/identity rejection outcomes — URL/crawl/page-evidence
       // rejects are already tracked via addVerificationMetrics.
-      const serpapiUrls = new Set(
-        serpapiInBatch.map((hit) => hit.url).filter(Boolean),
-      );
+      const serpapiUrls = new Set(serpapiInBatch.map((hit) => hit.url).filter(Boolean));
       for (const rejected of verification.rejected) {
         const discovered = rejected.discovered_url;
         if (!discovered || !serpapiUrls.has(discovered)) continue;
@@ -1302,14 +1212,11 @@ export async function executeInterleavedDeepfakePipeline(input: {
     const eligibleHits: ProviderHit[] = [];
     for (const hit of hits) {
       const host = hit.url ? hostOf(hit.url) : null;
-      const imageHost =
-        typeof hit.image_url === "string" ? hostOf(hit.image_url) : null;
+      const imageHost = typeof hit.image_url === "string" ? hostOf(hit.image_url) : null;
       const thumbnailHost =
         typeof hit.thumbnail_url === "string" ? hostOf(hit.thumbnail_url) : null;
-      const explicitProviderResult =
-        hit.source === "youtube_api" || hit.source === "reddit_api";
-      const hasAnyUsableUrl =
-        host !== null || imageHost !== null || thumbnailHost !== null;
+      const explicitProviderResult = hit.source === "youtube_api" || hit.source === "reddit_api";
+      const hasAnyUsableUrl = host !== null || imageHost !== null || thumbnailHost !== null;
       if (
         !hasAnyUsableUrl ||
         (!explicitProviderResult &&
@@ -1357,8 +1264,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
     syncCheckpoint();
     await heartbeat("checkpoint");
     const pause = new ScanCheckpointPauseError();
-    (pause as ScanCheckpointPauseError & { checkpoint?: ScanCheckpoint }).checkpoint =
-      checkpoint;
+    (pause as ScanCheckpointPauseError & { checkpoint?: ScanCheckpoint }).checkpoint = checkpoint;
     throw pause;
   };
 
@@ -1369,18 +1275,12 @@ export async function executeInterleavedDeepfakePipeline(input: {
    * scan. Runs inside the same discovery budget and verifies immediately.
    */
   const runSerpApiDiscoveryWave = async (maxRequests = 2) => {
-    if (
-      (checkpoint.serpapi_next_query_index ?? 0) >=
-      (checkpoint.serpapi_queries?.length ?? 0)
-    ) {
+    if ((checkpoint.serpapi_next_query_index ?? 0) >= (checkpoint.serpapi_queries?.length ?? 0)) {
       return;
     }
 
-    const {
-      isSerpApiConfigured,
-      searchSerpApiQueriesBounded,
-      SERPAPI_MAX_REQUESTS_PER_SCAN,
-    } = await import("./serpapi-images.server");
+    const { isSerpApiConfigured, searchSerpApiQueriesBounded, SERPAPI_MAX_REQUESTS_PER_SCAN } =
+      await import("./serpapi-images.server");
 
     if (!isSerpApiConfigured()) {
       checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
@@ -1398,10 +1298,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       return;
     }
 
-    const remainingRequests = Math.max(
-      0,
-      SERPAPI_MAX_REQUESTS_PER_SCAN - metrics.serpapi_requests,
-    );
+    const remainingRequests = Math.max(0, SERPAPI_MAX_REQUESTS_PER_SCAN - metrics.serpapi_requests);
     const requestBudget = Math.min(maxRequests, remainingRequests);
     if (requestBudget <= 0) {
       checkpoint.serpapi_next_query_index = checkpoint.serpapi_queries.length;
@@ -1469,10 +1366,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       );
 
       metrics.serpapi_failures += result.failures;
-      metrics.serpapi_unique_pages = Math.max(
-        metrics.serpapi_unique_pages,
-        result.uniquePages,
-      );
+      metrics.serpapi_unique_pages = Math.max(metrics.serpapi_unique_pages, result.uniquePages);
       if (result.failures > 0) {
         metrics.provider_failures += result.failures;
       }
@@ -1483,10 +1377,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
         }
       }
       checkpoint.serpapi_seen_page_urls = Array.from(
-        new Set([
-          ...checkpoint.serpapi_seen_page_urls,
-          ...result.seenPageUrls,
-        ]),
+        new Set([...checkpoint.serpapi_seen_page_urls, ...result.seenPageUrls]),
       );
       checkpoint.serpapi_next_query_index = Math.min(
         checkpoint.serpapi_queries.length,
@@ -1549,17 +1440,12 @@ export async function executeInterleavedDeepfakePipeline(input: {
     }
 
     if (!isFirecrawlConfigured()) {
-      console.warn(
-        "[DEEPFAKE] Firecrawl is not configured; skipping Firecrawl search provider.",
-      );
+      console.warn("[DEEPFAKE] Firecrawl is not configured; skipping Firecrawl search provider.");
       checkpoint.next_query_index = checkpoint.queries.length;
       await heartbeat("discovering");
     }
 
-    while (
-      isFirecrawlConfigured() &&
-      checkpoint.next_query_index < checkpoint.queries.length
-    ) {
+    while (isFirecrawlConfigured() && checkpoint.next_query_index < checkpoint.queries.length) {
       assertNotAborted(input.runtime.signal);
       await processPendingCandidates();
 
@@ -1671,10 +1557,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       await pauseIfPending();
     }
 
-    if (
-      input.workerLimits &&
-      checkpoint.next_query_index < checkpoint.queries.length
-    ) {
+    if (input.workerLimits && checkpoint.next_query_index < checkpoint.queries.length) {
       await pauseIfPending();
     }
 
@@ -1688,9 +1571,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       const startedAt = Date.now();
       try {
         assertNotAborted(input.runtime.signal);
-        const { searchRecentYouTubeMentions } = await import(
-          "./youtube-discovery.server"
-        );
+        const { searchRecentYouTubeMentions } = await import("./youtube-discovery.server");
         const hits = await searchRecentYouTubeMentions({
           name: input.target.name,
           aliases: input.target.aliases,
@@ -1726,9 +1607,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       const startedAt = Date.now();
       try {
         assertNotAborted(input.runtime.signal);
-        const { searchRecentRedditMentions } = await import(
-          "./reddit-discovery.server"
-        );
+        const { searchRecentRedditMentions } = await import("./reddit-discovery.server");
         const hits = await searchRecentRedditMentions({
           name: input.target.name,
           aliases: input.target.aliases,

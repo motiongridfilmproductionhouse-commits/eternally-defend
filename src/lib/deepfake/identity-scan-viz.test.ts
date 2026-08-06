@@ -14,10 +14,7 @@ import {
 } from "./identity-scan-viz";
 
 test("idle mode when profile selected with no scan", () => {
-  assert.equal(
-    resolveIdentityScanVizMode({ hasSelectedProfile: true, scanStatus: null }),
-    "idle",
-  );
+  assert.equal(resolveIdentityScanVizMode({ hasSelectedProfile: true, scanStatus: null }), "idle");
   assert.equal(identityScanStatusHeadline("idle"), "Ready to scan.");
   assert.equal(identityScanRingTone("idle"), "cyan");
   assert.equal(shouldAnimateIdentityScan("idle", false), true);
@@ -40,22 +37,10 @@ test("running mode activates discovery stage nodes and stage copy", () => {
     }),
     "running",
   );
-  assert.equal(
-    identityScanStageMessage("discovering"),
-    "Searching public sources",
-  );
-  assert.equal(
-    identityScanStageMessage("verifying"),
-    "Validating evidence URLs",
-  );
-  assert.equal(
-    identityScanStageMessage("classifying"),
-    "Inspecting media",
-  );
-  assert.equal(
-    identityScanStageMessage("saving"),
-    "Saving verified findings",
-  );
+  assert.equal(identityScanStageMessage("discovering"), "Searching public sources");
+  assert.equal(identityScanStageMessage("verifying"), "Validating evidence URLs");
+  assert.equal(identityScanStageMessage("classifying"), "Inspecting media");
+  assert.equal(identityScanStageMessage("saving"), "Saving verified findings");
   const nodes = activeIdentityScanNodeIds("discovering", "running");
   assert.ok(nodes.includes("web_discovery"));
   assert.ok(!nodes.includes("evidence_classification"));
@@ -71,10 +56,7 @@ test("partial mode pauses animation and shows verified progress copy", () => {
     }),
     "partial",
   );
-  assert.equal(
-    identityScanStatusHeadline("partial"),
-    "Verified progress saved",
-  );
+  assert.equal(identityScanStatusHeadline("partial"), "Verified progress saved");
   assert.equal(identityScanRingTone("partial"), "amber");
   assert.equal(shouldAnimateIdentityScan("partial", false), false);
 });
@@ -88,10 +70,7 @@ test("completed mode uses green verified ring and lights all nodes", () => {
     "completed",
   );
   assert.equal(identityScanRingTone("completed"), "green");
-  assert.equal(
-    activeIdentityScanNodeIds("done", "completed").length,
-    6,
-  );
+  assert.equal(activeIdentityScanNodeIds("done", "completed").length, 6);
   assert.equal(shouldAnimateIdentityScan("completed", false), false);
 });
 

@@ -9,12 +9,7 @@ export function findingPersistKey(row: {
   final_url?: string | null;
   url?: string | null;
 }): string {
-  return (
-    row.canonical_url?.trim() ||
-    row.final_url?.trim() ||
-    row.url?.trim() ||
-    ""
-  );
+  return row.canonical_url?.trim() || row.final_url?.trim() || row.url?.trim() || "";
 }
 
 export async function upsertDiscoveriesBatch(input: {
@@ -48,29 +43,21 @@ export async function upsertDiscoveriesBatch(input: {
     user_id: input.userId,
     scan_id: input.scanId,
     source: (hit as any).source ?? "firecrawl",
-    search_query:
-      String((hit as any).query ?? "").trim() || input.targetName,
+    search_query: String((hit as any).query ?? "").trim() || input.targetName,
     page_url: pageUrl,
     canonical_url: (hit as any).canonical_url ?? pageUrl,
-    source_host:
-      (hit as any).verified_domain ??
-      input.hostOf(pageUrl),
+    source_host: (hit as any).verified_domain ?? input.hostOf(pageUrl),
     page_title: (hit as any).page_title ?? null,
     snippet: (hit as any).page_description ?? null,
     image_url: (hit as any).image_url ?? null,
     thumbnail_url: (hit as any).thumbnail_url ?? null,
-    media_type:
-      (hit as any).image_url || (hit as any).thumbnail_url
-        ? "image"
-        : null,
+    media_type: (hit as any).image_url || (hit as any).thumbnail_url ? "image" : null,
     analysis_status: "url_verified",
     updated_at: new Date().toISOString(),
   }));
 
   if (discoveryRows.some((row) => !row.page_url?.trim())) {
-    throw new Error(
-      "URL-verified discovery upsert refused empty page_url.",
-    );
+    throw new Error("URL-verified discovery upsert refused empty page_url.");
   }
 
   const { error } = await (input.supabase as any)
@@ -78,10 +65,7 @@ export async function upsertDiscoveriesBatch(input: {
     .upsert(discoveryRows, { onConflict: "scan_id,page_url" });
 
   if (error) {
-    console.warn(
-      "[DEEPFAKE] Unable to store verified discoveries:",
-      error.message,
-    );
+    console.warn("[DEEPFAKE] Unable to store verified discoveries:", error.message);
     return 0;
   }
 
@@ -146,10 +130,7 @@ export async function upsertFindingsBatch(input: {
         .upsert(legacyRows as any, { onConflict: "scan_id,url" });
 
       if (legacyErr) {
-        console.warn(
-          "[deepfake] findings insert (legacy fallback):",
-          legacyErr.message,
-        );
+        console.warn("[deepfake] findings insert (legacy fallback):", legacyErr.message);
         return 0;
       }
     } else {

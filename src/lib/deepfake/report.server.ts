@@ -52,7 +52,9 @@ export interface DeepfakeReportHistoryItem {
 }
 
 function hashOf(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
+  return createHash("sha256")
+    .update(JSON.stringify(value ?? null))
+    .digest("hex");
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -61,10 +63,7 @@ function rec(value: unknown): Record<string, unknown> {
     : {};
 }
 
-async function resolveClientName(
-  supabase: AnySupabase,
-  userId: string | null,
-): Promise<string> {
+async function resolveClientName(supabase: AnySupabase, userId: string | null): Promise<string> {
   if (!userId) return "Eterna Client";
   try {
     const { data } = await supabase
@@ -73,13 +72,7 @@ async function resolveClientName(
       .eq("id", userId)
       .maybeSingle();
     const row = rec(data);
-    for (const key of [
-      "legal_name",
-      "company_name",
-      "full_name",
-      "display_name",
-      "email",
-    ]) {
+    for (const key of ["legal_name", "company_name", "full_name", "display_name", "email"]) {
       const value = row[key];
       if (typeof value === "string" && value.trim()) return value.trim();
     }
@@ -157,15 +150,11 @@ export async function resolveDeepfakeReportScan(
   if (error) throw new Error(error.message);
   const scans = (data ?? []) as ReportScanInput[];
   if (!scans.length) {
-    throw new Error(
-      "No Deepfake Intelligence scans found for this protected identity yet.",
-    );
+    throw new Error("No Deepfake Intelligence scans found for this protected identity yet.");
   }
 
   const preferred =
-    scans.find((scan) =>
-      ["completed", "partial", "running"].includes(scan.status),
-    ) ?? scans[0];
+    scans.find((scan) => ["completed", "partial", "running"].includes(scan.status)) ?? scans[0];
 
   return preferred;
 }
@@ -238,12 +227,8 @@ export async function buildReportForDeepfakeScan(
     if (!normalized) continue;
     findings.push({
       ...normalized,
-      face_similarity:
-        typeof row.face_similarity === "number" ? row.face_similarity : null,
-      target_face_match:
-        typeof row.target_face_match === "boolean"
-          ? row.target_face_match
-          : null,
+      face_similarity: typeof row.face_similarity === "number" ? row.face_similarity : null,
+      target_face_match: typeof row.target_face_match === "boolean" ? row.target_face_match : null,
     });
   }
 
@@ -283,30 +268,19 @@ async function findExistingReport(
         ? filters.report_mode
         : "final";
     if (mode !== reportMode) continue;
-    const storageKey =
-      typeof filters.storage_key === "string" ? filters.storage_key : null;
+    const storageKey = typeof filters.storage_key === "string" ? filters.storage_key : null;
     if (!storageKey) continue;
     return {
-      reportId:
-        typeof filters.report_id === "string"
-          ? filters.report_id
-          : row.id,
+      reportId: typeof filters.report_id === "string" ? filters.report_id : row.id,
       storageKey,
       sha256: typeof filters.sha256 === "string" ? filters.sha256 : "",
       bytes: typeof filters.bytes === "number" ? filters.bytes : 0,
-      findings:
-        typeof row.findings_count === "number" ? row.findings_count : 0,
-      generatedAt:
-        typeof filters.generated_at === "string"
-          ? filters.generated_at
-          : row.created_at,
+      findings: typeof row.findings_count === "number" ? row.findings_count : 0,
+      generatedAt: typeof filters.generated_at === "string" ? filters.generated_at : row.created_at,
       fileName:
-        typeof filters.file_name === "string"
-          ? filters.file_name
-          : "eterna-deepfake-report.pdf",
+        typeof filters.file_name === "string" ? filters.file_name : "eterna-deepfake-report.pdf",
       scanId,
-      profileId:
-        typeof filters.profile_id === "string" ? filters.profile_id : null,
+      profileId: typeof filters.profile_id === "string" ? filters.profile_id : null,
       historyId: row.id,
       reportMode: mode,
     };
@@ -325,18 +299,14 @@ function historyItemFromRow(row: Record<string, unknown>): DeepfakeReportHistory
     id: String(row.id),
     name: typeof row.name === "string" ? row.name : "Deepfake Threat Report",
     status: typeof row.status === "string" ? row.status : "Ready",
-    findingsCount:
-      typeof row.findings_count === "number" ? row.findings_count : 0,
-    createdAt:
-      typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+    findingsCount: typeof row.findings_count === "number" ? row.findings_count : 0,
+    createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
     reportId: typeof filters.report_id === "string" ? filters.report_id : null,
     scanId: typeof filters.scan_id === "string" ? filters.scan_id : null,
-    profileId:
-      typeof filters.profile_id === "string" ? filters.profile_id : null,
+    profileId: typeof filters.profile_id === "string" ? filters.profile_id : null,
     reportMode: mode,
     fileName: typeof filters.file_name === "string" ? filters.file_name : null,
-    storageKey:
-      typeof filters.storage_key === "string" ? filters.storage_key : null,
+    storageKey: typeof filters.storage_key === "string" ? filters.storage_key : null,
     generatedAt:
       typeof filters.generated_at === "string"
         ? filters.generated_at
@@ -402,10 +372,7 @@ async function persistReportHistory(
     .maybeSingle();
 
   if (error) {
-    console.warn(
-      "[deepfake-report] history insert failed:",
-      error.message,
-    );
+    console.warn("[deepfake-report] history insert failed:", error.message);
     return null;
   }
 
@@ -432,12 +399,7 @@ export async function generateAndStoreDeepfakeReport(
   // Interim snapshots always regenerate; final can reuse unless forced.
   const shouldReuse = !input.force && reportMode === "final";
   if (shouldReuse) {
-    const existing = await findExistingReport(
-      supabase,
-      userId,
-      scan.id,
-      reportMode,
-    );
+    const existing = await findExistingReport(supabase, userId, scan.id, reportMode);
     if (existing) return existing;
   }
 
@@ -481,12 +443,7 @@ export async function generateAndStoreDeepfakeReport(
     reportMode,
   };
 
-  report.historyId = await persistReportHistory(
-    supabase,
-    userId,
-    report,
-    model.protectedIdentity,
-  );
+  report.historyId = await persistReportHistory(supabase, userId, report, model.protectedIdentity);
 
   return report;
 }
@@ -528,8 +485,6 @@ export async function downloadDeepfakeReportByHistoryId(
   };
 }
 
-export async function signDeepfakeReportUrl(
-  storageKey: string,
-): Promise<string> {
+export async function signDeepfakeReportUrl(storageKey: string): Promise<string> {
   return getSignedGetUrl(storageKey, 900);
 }

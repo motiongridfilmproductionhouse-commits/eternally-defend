@@ -130,7 +130,9 @@ export function hasExactTitleIdentity(
         const tokenOk =
           significantTokens(spacedV).length >= 2 ||
           spacedV.length >= 4 ||
-          new RegExp(`(?:^|\\s)${spacedV.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`).test(spacedBlob);
+          new RegExp(`(?:^|\\s)${spacedV.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`).test(
+            spacedBlob,
+          );
         if (tokenOk) {
           evidence.push(`exact_title:${raw}`);
           if (year && (spacedBlob.includes(year) || blob.includes(year))) {
@@ -172,7 +174,11 @@ export function hasExactTitleIdentity(
       }
     } else if (tokens.length === 1 && tokens[0]!.length >= 4) {
       const tok = tokens[0]!;
-      if (new RegExp(`(?:^|\\s)${tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`).test(spacedBlob)) {
+      if (
+        new RegExp(`(?:^|\\s)${tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`).test(
+          spacedBlob,
+        )
+      ) {
         evidence.push(`exact_title:${raw}`);
         if (year && (spacedBlob.includes(year) || blob.includes(year))) {
           evidence.push(`release_year:${year}`);
@@ -185,7 +191,5 @@ export function hasExactTitleIdentity(
 }
 
 export function titleSlugCandidates(title: string): string[] {
-  return expandTitleVariants(title).map((v) =>
-    normalizeSpaced(v).replace(/\s+/g, "-"),
-  );
+  return expandTitleVariants(title).map((v) => normalizeSpaced(v).replace(/\s+/g, "-"));
 }

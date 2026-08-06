@@ -230,8 +230,7 @@ export function verifyIllegalDistribution(
   const pageEvidence = record(ev.page_evidence);
 
   const crawlFailed = ev.crawl_failed === true || dist.crawl_failed === true;
-  const reachability =
-    typeof ev.current_reachability === "string" ? ev.current_reachability : null;
+  const reachability = typeof ev.current_reachability === "string" ? ev.current_reachability : null;
   if (crawlFailed || reachability === "unreachable") {
     return { verified: false, reason: "not_publicly_accessible" };
   }
@@ -244,8 +243,7 @@ export function verifyIllegalDistribution(
     contentType:
       (typeof dist.content_type === "string" && dist.content_type) ||
       (typeof ev.website_type === "string" ? ev.website_type : null),
-    strongEvidence:
-      typeof dist.strong_evidence === "boolean" ? dist.strong_evidence : undefined,
+    strongEvidence: typeof dist.strong_evidence === "boolean" ? dist.strong_evidence : undefined,
   });
 
   if (OFFICIAL_CLASSIFICATIONS.has(classification) || ev.official_source === true) {
@@ -268,8 +266,7 @@ export function verifyIllegalDistribution(
     titleIdentity.matched === true ||
     stringArray(dist.identity_evidence).length > 0 ||
     stringArray(ev.identity_evidence).length > 0;
-  const strongDistributionEvidence =
-    dist.strong_evidence === true || ev.strong_evidence === true;
+  const strongDistributionEvidence = dist.strong_evidence === true || ev.strong_evidence === true;
   // A VERIFIED_* classification with strong page evidence already encodes a
   // positive title identification made by the analysis pipeline.
   const identityProven =

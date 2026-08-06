@@ -10,36 +10,79 @@ function classifyAwsError(e: any): AwsErrorInfo {
   const name = e?.name ?? e?.Code ?? "";
   const raw = String(e?.message ?? e);
   if (name === "AccessDeniedException" || /not authorized|AccessDenied/i.test(raw)) {
-    return { code: "AWS_CONFIG_ERROR", message: "Face Protection is temporarily unavailable (service permissions). You can retry or complete this setup later.", retryable: true };
+    return {
+      code: "AWS_CONFIG_ERROR",
+      message:
+        "Face Protection is temporarily unavailable (service permissions). You can retry or complete this setup later.",
+      retryable: true,
+    };
   }
   if (name === "InvalidSignatureException" || /Signature|clock skew/i.test(raw)) {
-    return { code: "AWS_CREDENTIALS_ERROR", message: "Face Protection is temporarily unavailable (credential sync). You can retry or complete this setup later.", retryable: true };
+    return {
+      code: "AWS_CREDENTIALS_ERROR",
+      message:
+        "Face Protection is temporarily unavailable (credential sync). You can retry or complete this setup later.",
+      retryable: true,
+    };
   }
   if (/region|endpoint/i.test(raw)) {
-    return { code: "AWS_REGION_ERROR", message: "Face Protection is temporarily unavailable (region mismatch). You can retry or complete this setup later.", retryable: true };
+    return {
+      code: "AWS_REGION_ERROR",
+      message:
+        "Face Protection is temporarily unavailable (region mismatch). You can retry or complete this setup later.",
+      retryable: true,
+    };
   }
   if (name === "SessionNotFoundException" || /session.*(expired|not found)/i.test(raw)) {
-    return { code: "AWS_SESSION_ERROR", message: "The face scan session expired. Please restart the scan or complete this setup later.", retryable: true };
+    return {
+      code: "AWS_SESSION_ERROR",
+      message:
+        "The face scan session expired. Please restart the scan or complete this setup later.",
+      retryable: true,
+    };
   }
-  if (name === "ThrottlingException" || name === "ServiceUnavailableException" || /throttl|unavailable|timeout/i.test(raw)) {
-    return { code: "AWS_SERVICE_ERROR", message: "Face Protection is temporarily unavailable. You can retry or complete this setup later.", retryable: true };
+  if (
+    name === "ThrottlingException" ||
+    name === "ServiceUnavailableException" ||
+    /throttl|unavailable|timeout/i.test(raw)
+  ) {
+    return {
+      code: "AWS_SERVICE_ERROR",
+      message:
+        "Face Protection is temporarily unavailable. You can retry or complete this setup later.",
+      retryable: true,
+    };
   }
   return { code: "UNKNOWN", message: raw || "Face Protection error", retryable: true };
 }
 
-function describeLivenessFailure(status: string | undefined, confidence: number): { code: string; message: string } {
+function describeLivenessFailure(
+  status: string | undefined,
+  confidence: number,
+): { code: string; message: string } {
   if (status === "FAILED") {
-    return { code: "LIVENESS_FAILED", message: `Liveness check failed (confidence ${confidence.toFixed(1)}%). Please ensure you are well-lit, facing the camera, and follow the on-screen prompts.` };
+    return {
+      code: "LIVENESS_FAILED",
+      message: `Liveness check failed (confidence ${confidence.toFixed(1)}%). Please ensure you are well-lit, facing the camera, and follow the on-screen prompts.`,
+    };
   }
   if (status === "EXPIRED") {
-    return { code: "LIVENESS_EXPIRED", message: "The liveness session expired before completing. Please start a new scan." };
+    return {
+      code: "LIVENESS_EXPIRED",
+      message: "The liveness session expired before completing. Please start a new scan.",
+    };
   }
   if (status === "SUCCEEDED" && confidence < 80) {
-    return { code: "LOW_CONFIDENCE", message: `Liveness confidence too low (${confidence.toFixed(1)}%). Please retry in a well-lit area, without masks or heavy glasses.` };
+    return {
+      code: "LOW_CONFIDENCE",
+      message: `Liveness confidence too low (${confidence.toFixed(1)}%). Please retry in a well-lit area, without masks or heavy glasses.`,
+    };
   }
-  return { code: "LIVENESS_UNKNOWN", message: `Liveness result "${status ?? "UNKNOWN"}" could not be verified. Please retry the scan.` };
+  return {
+    code: "LIVENESS_UNKNOWN",
+    message: `Liveness result "${status ?? "UNKNOWN"}" could not be verified. Please retry the scan.`,
+  };
 }
-
 
 export const recordBiometricConsent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -68,20 +111,27 @@ export const recordBiometricConsent = createServerFn({ method: "POST" })
       consent_text_identifier: `consent_v${data.consent_version}`,
     };
 
-    const { data: row, error } = await supabase.from("biometric_consents").insert({
-      user_id: userId,
-      consent_version: data.consent_version,
-      consents: consentPayload as any,
-      user_agent: userAgent,
-      ip_address: ipAddress,
-    }).select().single();
+    const { data: row, error } = await supabase
+      .from("biometric_consents")
+      .insert({
+        user_id: userId,
+        consent_version: data.consent_version,
+        consents: consentPayload as any,
+        user_agent: userAgent,
+        ip_address: ipAddress,
+      })
+      .select()
+      .single();
     if (error) throw new Error(error.message);
 
-    await supabase.from("protected_face_profiles").upsert({
-      user_id: userId,
-      collection_id: collectionIdForUser(userId),
-      status: "CAMERA_PERMISSION_REQUIRED",
-    }, { onConflict: "user_id" });
+    await supabase.from("protected_face_profiles").upsert(
+      {
+        user_id: userId,
+        collection_id: collectionIdForUser(userId),
+        status: "CAMERA_PERMISSION_REQUIRED",
+      },
+      { onConflict: "user_id" },
+    );
 
     return row;
   });
@@ -91,33 +141,49 @@ export const createLivenessSession = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     try {
-      const { data: consent } = await supabase.from("biometric_consents").select("id").eq("user_id", userId).is("revoked_at", null).order("signed_at", { ascending: false }).limit(1).maybeSingle();
+      const { data: consent } = await supabase
+        .from("biometric_consents")
+        .select("id")
+        .eq("user_id", userId)
+        .is("revoked_at", null)
+        .order("signed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (!consent) throw new Error("Biometric consent required");
       const { CreateFaceLivenessSessionCommand } = await import("@aws-sdk/client-rekognition");
       const { getRekognition, getBucket } = await import("@/lib/aws/clients.server");
       const { STSClient, GetSessionTokenCommand } = await import("@aws-sdk/client-sts");
 
       const collectionId = await ensureCollection(userId);
-      const out = await getRekognition().send(new CreateFaceLivenessSessionCommand({
-        Settings: {
-          OutputConfig: { S3Bucket: getBucket(), S3KeyPrefix: `clients/${userId}/liveness/` },
-          AuditImagesLimit: 4,
-        },
-      }));
+      const out = await getRekognition().send(
+        new CreateFaceLivenessSessionCommand({
+          Settings: {
+            OutputConfig: { S3Bucket: getBucket(), S3KeyPrefix: `clients/${userId}/liveness/` },
+            AuditImagesLimit: 4,
+          },
+        }),
+      );
       const sid = out.SessionId!;
-      await supabase.from("protected_face_profiles").upsert({
-        user_id: userId, collection_id: collectionId, liveness_session_id: sid,
-        status: "CAPTURE_IN_PROGRESS",
-        failure_code: null, failure_reason: null, failure_at: null,
-      } as any, { onConflict: "user_id" });
+      await supabase.from("protected_face_profiles").upsert(
+        {
+          user_id: userId,
+          collection_id: collectionId,
+          liveness_session_id: sid,
+          status: "CAPTURE_IN_PROGRESS",
+          failure_code: null,
+          failure_reason: null,
+          failure_at: null,
+        } as any,
+        { onConflict: "user_id" },
+      );
 
       const region = process.env.AWS_REGION || "us-east-1";
       const sts = new STSClient({
         region,
         credentials: {
           accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
-        }
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        },
       });
 
       const stsCreds = await sts.send(new GetSessionTokenCommand({ DurationSeconds: 900 }));
@@ -129,20 +195,23 @@ export const createLivenessSession = createServerFn({ method: "POST" })
           accessKeyId: stsCreds.Credentials!.AccessKeyId!,
           secretAccessKey: stsCreds.Credentials!.SecretAccessKey!,
           sessionToken: stsCreds.Credentials!.SessionToken!,
-          expiration: stsCreds.Credentials!.Expiration!.toISOString()
-        }
+          expiration: stsCreds.Credentials!.Expiration!.toISOString(),
+        },
       };
     } catch (e: any) {
       if (/Biometric consent/i.test(String(e?.message))) throw e;
       const info = classifyAwsError(e);
-      await supabase.from("protected_face_profiles").upsert({
-        user_id: userId,
-        collection_id: collectionIdForUser(userId),
-        status: "CONSENT_REQUIRED",
-        failure_code: info.code,
-        failure_reason: info.message,
-        failure_at: new Date().toISOString(),
-      } as any, { onConflict: "user_id" });
+      await supabase.from("protected_face_profiles").upsert(
+        {
+          user_id: userId,
+          collection_id: collectionIdForUser(userId),
+          status: "CONSENT_REQUIRED",
+          failure_code: info.code,
+          failure_reason: info.message,
+          failure_at: new Date().toISOString(),
+        } as any,
+        { onConflict: "user_id" },
+      );
       const err: any = new Error(info.message);
       err.code = info.code;
       err.retryable = info.retryable;
@@ -170,16 +239,28 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
     try {
       const { GetFaceLivenessSessionResultsCommand } = await import("@aws-sdk/client-rekognition");
       const { getRekognition } = await import("@/lib/aws/clients.server");
-      res = await getRekognition().send(new GetFaceLivenessSessionResultsCommand({ SessionId: data.sessionId }));
+      res = await getRekognition().send(
+        new GetFaceLivenessSessionResultsCommand({ SessionId: data.sessionId }),
+      );
     } catch (e: any) {
       const info = classifyAwsError(e);
-      await supabase.from("protected_face_profiles").update({
-        status: "LIVENESS_FAILED",
-        failure_code: info.code,
-        failure_reason: info.message,
-        failure_at: new Date().toISOString(),
-      } as any).eq("user_id", userId);
-      return { ok: false, status: "LIVENESS_FAILED" as const, code: info.code, reason: info.message, confidence: 0, technical: true };
+      await supabase
+        .from("protected_face_profiles")
+        .update({
+          status: "LIVENESS_FAILED",
+          failure_code: info.code,
+          failure_reason: info.message,
+          failure_at: new Date().toISOString(),
+        } as any)
+        .eq("user_id", userId);
+      return {
+        ok: false,
+        status: "LIVENESS_FAILED" as const,
+        code: info.code,
+        reason: info.message,
+        confidence: 0,
+        technical: true,
+      };
     }
 
     const conf = Number(res.Confidence ?? 0);
@@ -188,14 +269,24 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
 
     if (!pass) {
       const detail = describeLivenessFailure(awsStatus, conf);
-      await supabase.from("protected_face_profiles").update({
-        status: "LIVENESS_FAILED",
-        liveness_score: conf,
-        failure_code: detail.code,
-        failure_reason: detail.message,
-        failure_at: new Date().toISOString(),
-      } as any).eq("user_id", userId);
-      return { ok: false, status: "LIVENESS_FAILED" as const, code: detail.code, reason: detail.message, confidence: conf, technical: false };
+      await supabase
+        .from("protected_face_profiles")
+        .update({
+          status: "LIVENESS_FAILED",
+          liveness_score: conf,
+          failure_code: detail.code,
+          failure_reason: detail.message,
+          failure_at: new Date().toISOString(),
+        } as any)
+        .eq("user_id", userId);
+      return {
+        ok: false,
+        status: "LIVENESS_FAILED" as const,
+        code: detail.code,
+        reason: detail.message,
+        confidence: conf,
+        technical: false,
+      };
     }
 
     const collectionId = await ensureCollection(userId);
@@ -211,7 +302,11 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
       const bytes = ref as Uint8Array;
       const key = `clients/${userId}/reference/liveness/${data.sessionId}.jpg`;
       const stored = await putObject({ key, body: Buffer.from(bytes), contentType: "image/jpeg" });
-      const faces = await indexFace({ collectionId, bytes, externalImageId: `user_${userId.replace(/-/g, "")}` });
+      const faces = await indexFace({
+        collectionId,
+        bytes,
+        externalImageId: `user_${userId.replace(/-/g, "")}`,
+      });
 
       if (faces.length === 0) {
         throw new Error("AWS did not index a valid face. Please repeat the face scan.");
@@ -251,28 +346,40 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
       }
     } catch (e: any) {
       const info = classifyAwsError(e);
-      await supabase.from("protected_face_profiles").update({
-        status: "QUALITY_FAILED",
-        liveness_score: conf,
-        failure_code: info.code,
-        failure_reason: `Face indexing failed: ${info.message}`,
-        failure_at: new Date().toISOString(),
-      } as any).eq("user_id", userId);
-      return { ok: false, status: "QUALITY_FAILED" as const, code: info.code, reason: info.message, confidence: conf, technical: true };
+      await supabase
+        .from("protected_face_profiles")
+        .update({
+          status: "QUALITY_FAILED",
+          liveness_score: conf,
+          failure_code: info.code,
+          failure_reason: `Face indexing failed: ${info.message}`,
+          failure_at: new Date().toISOString(),
+        } as any)
+        .eq("user_id", userId);
+      return {
+        ok: false,
+        status: "QUALITY_FAILED" as const,
+        code: info.code,
+        reason: info.message,
+        confidence: conf,
+        technical: true,
+      };
     }
 
-    await supabase.from("protected_face_profiles").update({
-      status: "FACE_VERIFIED",
-      liveness_score: conf,
-      enrollment_date: new Date().toISOString(),
-      failure_code: null,
-      failure_reason: null,
-      failure_at: null,
-    } as any).eq("user_id", userId);
+    await supabase
+      .from("protected_face_profiles")
+      .update({
+        status: "FACE_VERIFIED",
+        liveness_score: conf,
+        enrollment_date: new Date().toISOString(),
+        failure_code: null,
+        failure_reason: null,
+        failure_at: null,
+      } as any)
+      .eq("user_id", userId);
 
-    const { upsertProgressPreservingVersion, normalizeOnboardingVersion } = await import(
-      "./version.server"
-    );
+    const { upsertProgressPreservingVersion, normalizeOnboardingVersion } =
+      await import("./version.server");
     const { data: progress } = await supabase
       .from("onboarding_progress")
       .select("*")
@@ -302,13 +409,25 @@ export const getFaceEnrollment = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: profile } = await supabase.from("protected_face_profiles").select("*").eq("user_id", userId).maybeSingle();
-    const { data: consent } = await supabase.from("biometric_consents").select("id").eq("user_id", userId).is("revoked_at", null).order("signed_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: profile } = await supabase
+      .from("protected_face_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const { data: consent } = await supabase
+      .from("biometric_consents")
+      .select("id")
+      .eq("user_id", userId)
+      .is("revoked_at", null)
+      .order("signed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     const dbStatus = profile?.status ?? "NOT_STARTED";
-    const status = (dbStatus === "NOT_STARTED" || dbStatus === "CONSENT_REQUIRED") && consent
-      ? "CAMERA_PERMISSION_REQUIRED"
-      : dbStatus;
+    const status =
+      (dbStatus === "NOT_STARTED" || dbStatus === "CONSENT_REQUIRED") && consent
+        ? "CAMERA_PERMISSION_REQUIRED"
+        : dbStatus;
 
     return profile ? { ...profile, status } : { status };
   });
@@ -317,14 +436,25 @@ export const revokeBiometrics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: refs } = await supabase.from("protected_face_references").select("*").eq("user_id", userId);
+    const { data: refs } = await supabase
+      .from("protected_face_references")
+      .select("*")
+      .eq("user_id", userId);
     if (refs && refs.length) {
       const { deleteFace } = await import("@/lib/aws/rekognition.server");
-      for (const r of refs) if (r.face_id) await deleteFace(collectionIdForUser(userId), r.face_id).catch(() => {});
+      for (const r of refs)
+        if (r.face_id) await deleteFace(collectionIdForUser(userId), r.face_id).catch(() => {});
     }
     await supabase.from("protected_face_references").delete().eq("user_id", userId);
-    await supabase.from("protected_face_profiles").update({ status: "DELETED" }).eq("user_id", userId);
-    await supabase.from("biometric_consents").update({ revoked_at: new Date().toISOString() }).eq("user_id", userId).is("revoked_at", null);
+    await supabase
+      .from("protected_face_profiles")
+      .update({ status: "DELETED" })
+      .eq("user_id", userId);
+    await supabase
+      .from("biometric_consents")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .is("revoked_at", null);
     return { ok: true };
   });
 
@@ -336,9 +466,8 @@ export const deferFaceEnrollment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { upsertProgressPreservingVersion, normalizeOnboardingVersion } = await import(
-      "./version.server"
-    );
+    const { upsertProgressPreservingVersion, normalizeOnboardingVersion } =
+      await import("./version.server");
     const { isV2AccountType, requiresVeriff } = await import("./v2-config");
 
     const { data: progress } = await supabase
@@ -421,19 +550,21 @@ export const resumeFaceEnrollment = createServerFn({ method: "POST" })
 
     const nextStatus = consent ? "CAMERA_PERMISSION_REQUIRED" : "CONSENT_REQUIRED";
 
-    await supabase.from("protected_face_profiles").upsert({
-      user_id: userId,
-      collection_id: collectionIdForUser(userId),
-      status: nextStatus,
-      liveness_session_id: null,
-      failure_code: null,
-      failure_reason: null,
-      failure_at: null,
-    } as any, { onConflict: "user_id" });
-
-    const { upsertProgressPreservingVersion, normalizeOnboardingVersion } = await import(
-      "./version.server"
+    await supabase.from("protected_face_profiles").upsert(
+      {
+        user_id: userId,
+        collection_id: collectionIdForUser(userId),
+        status: nextStatus,
+        liveness_session_id: null,
+        failure_code: null,
+        failure_reason: null,
+        failure_at: null,
+      } as any,
+      { onConflict: "user_id" },
     );
+
+    const { upsertProgressPreservingVersion, normalizeOnboardingVersion } =
+      await import("./version.server");
     const { data: progress } = await supabase
       .from("onboarding_progress")
       .select("*")

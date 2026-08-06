@@ -20,10 +20,7 @@ import {
   sanitizeProviderText,
 } from "@/lib/deepfake/url-safety.server";
 import { firecrawlFetch } from "@/lib/firecrawl-client.server";
-import {
-  mapSafeFetchToCrawlFailure,
-  type CrawlFailureCategory,
-} from "./crawl-failure";
+import { mapSafeFetchToCrawlFailure, type CrawlFailureCategory } from "./crawl-failure";
 import { canonicalUrl, hostOf } from "./url.server";
 
 import {
@@ -103,10 +100,7 @@ function assertNotAborted(signal?: AbortSignal): void {
   }
 }
 
-function mergeTimeoutSignal(
-  parent: AbortSignal | undefined,
-  timeoutMs: number,
-): AbortSignal {
+function mergeTimeoutSignal(parent: AbortSignal | undefined, timeoutMs: number): AbortSignal {
   const timeout = AbortSignal.timeout(timeoutMs);
   if (!parent) return timeout;
   if (typeof AbortSignal.any === "function") {
@@ -180,10 +174,9 @@ export function needsRenderedFallback(html: string, markdown: string): boolean {
     /id=["']root["']|id=["']__next["']|id=["']app["']|data-reactroot|ng-app|window\.__INITIAL_STATE__/i.test(
       html,
     );
-  const hasPlayerHints =
-    /<iframe|<video|magnet:|\.m3u8|\.mpd|download|watch\s*now|jwplayer/i.test(
-      `${html}\n${text}`,
-    );
+  const hasPlayerHints = /<iframe|<video|magnet:|\.m3u8|\.mpd|download|watch\s*now|jwplayer/i.test(
+    `${html}\n${text}`,
+  );
   if (shell && !hasPlayerHints && text.length < 800) return true;
   return false;
 }
@@ -209,10 +202,7 @@ async function followRedirects(
         ok: false,
         finalUrl: current,
         status: 0,
-        failureCategory: mapSafeFetchToCrawlFailure(
-          classifySafeFetchFailure(e),
-          e,
-        ),
+        failureCategory: mapSafeFetchToCrawlFailure(classifySafeFetchFailure(e), e),
         failureReason: e instanceof Error ? e.message : "URL safety failed",
       };
     }
@@ -232,10 +222,7 @@ async function followRedirects(
         ok: false,
         finalUrl: current,
         status: 0,
-        failureCategory: mapSafeFetchToCrawlFailure(
-          classifySafeFetchFailure(e),
-          e,
-        ),
+        failureCategory: mapSafeFetchToCrawlFailure(classifySafeFetchFailure(e), e),
         failureReason: e instanceof Error ? e.message : "Connect failed",
       };
     }
@@ -540,12 +527,12 @@ async function firecrawlRender(
     return {
       ok: false,
       data: null,
-      failureCategory: mapSafeFetchToCrawlFailure(classifySafeFetchFailure(e), e) ===
-      "provider_failure"
-        ? "provider_failure"
-        : mapSafeFetchToCrawlFailure(classifySafeFetchFailure(e), e) === "timeout"
-          ? "timeout"
-          : "render_failure",
+      failureCategory:
+        mapSafeFetchToCrawlFailure(classifySafeFetchFailure(e), e) === "provider_failure"
+          ? "provider_failure"
+          : mapSafeFetchToCrawlFailure(classifySafeFetchFailure(e), e) === "timeout"
+            ? "timeout"
+            : "render_failure",
       failureReason: e instanceof Error ? e.message : "Render failed",
     };
   }
@@ -575,7 +562,11 @@ export async function retrieveCopyrightPage(
   const start = canonicalUrl(url);
 
   if (!isSafePublicHttpUrl(start)) {
-    return emptyResult(start, "private_or_reserved_address", "URL failed public http(s) safety checks");
+    return emptyResult(
+      start,
+      "private_or_reserved_address",
+      "URL failed public http(s) safety checks",
+    );
   }
 
   try {
@@ -744,11 +735,7 @@ export async function retrieveCopyrightPage(
   }
 
   // Prefer-render requested but render failed — keep usable static HTML if present.
-  if (
-    staticPage.ok &&
-    html.trim() &&
-    !needsRenderedFallback(html, markdown)
-  ) {
+  if (staticPage.ok && html.trim() && !needsRenderedFallback(html, markdown)) {
     return {
       ok: true,
       url: start,
@@ -790,12 +777,8 @@ export async function retrieveCopyrightPage(
   if (!staticPage.ok) {
     return emptyResult(
       start,
-      staticPage.failureCategory ??
-        renderedPage.failureCategory ??
-        "empty_static_html",
-      staticPage.failureReason ??
-        renderedPage.failureReason ??
-        "Static HTML retrieval failed",
+      staticPage.failureCategory ?? renderedPage.failureCategory ?? "empty_static_html",
+      staticPage.failureReason ?? renderedPage.failureReason ?? "Static HTML retrieval failed",
       { finalUrl, httpStatus: staticPage.status },
     );
   }

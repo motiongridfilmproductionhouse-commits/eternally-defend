@@ -18,35 +18,27 @@ export async function lookupInfrastructure(url: string) {
     lookupHTTP(url),
     analyzePage(url),
     discoverContacts(url),
-]);
-    
+  ]);
 
-  const cdn = detectCDN(
-    new Headers(http.headers),
-    dns.ns ?? []
-  );
-const provider = detectProvider(
-  dns.ipv4,
-  cdn,
-  http.headers
-);
-const risk = calculateRisk({
-  cdn,
-  provider,
-  http,
-});
+  const cdn = detectCDN(new Headers(http.headers), dns.ns ?? []);
+  const provider = detectProvider(dns.ipv4, cdn, http.headers);
+  const risk = calculateRisk({
+    cdn,
+    provider,
+    http,
+  });
 
   return {
-  url,
-  hostname,
-  dns,
-  rdap,
-  whois,
-  http,
-  cdn,
-  provider,
-  risk,
-  page,
-  contacts,
-};
+    url,
+    hostname,
+    dns,
+    rdap,
+    whois,
+    http,
+    cdn,
+    provider,
+    risk,
+    page,
+    contacts,
+  };
 }

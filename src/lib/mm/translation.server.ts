@@ -3,7 +3,13 @@
  * v2 supports API-key auth; v3 requires OAuth service account.
  * Docs: https://cloud.google.com/translate/docs/reference/rest/v2/translate
  */
-import { getProviderConfig, ok, unavailable, failed, type ProviderResult } from "./providers.server";
+import {
+  getProviderConfig,
+  ok,
+  unavailable,
+  failed,
+  type ProviderResult,
+} from "./providers.server";
 
 export interface TranslationResult {
   detectedLanguage: string | null;
@@ -12,7 +18,9 @@ export interface TranslationResult {
   provider: string;
 }
 
-export async function detectLanguage(text: string): Promise<ProviderResult<{ language: string; confidence: number }>> {
+export async function detectLanguage(
+  text: string,
+): Promise<ProviderResult<{ language: string; confidence: number }>> {
   const cfg = getProviderConfig();
   if (cfg.translation === "stub" || !cfg.googleApiKey) {
     return unavailable("Translation API key not configured");
@@ -26,7 +34,9 @@ export async function detectLanguage(text: string): Promise<ProviderResult<{ lan
       body: new URLSearchParams({ q: text.slice(0, 5000) }).toString(),
     });
     if (!res.ok) return failed(`Detect [${res.status}]: ${(await res.text()).slice(0, 200)}`);
-    const j = (await res.json()) as { data?: { detections?: Array<Array<{ language: string; confidence: number }>> } };
+    const j = (await res.json()) as {
+      data?: { detections?: Array<Array<{ language: string; confidence: number }>> };
+    };
     const d = j.data?.detections?.[0]?.[0];
     if (!d) return failed("no detection");
     return ok({ language: d.language, confidence: d.confidence ?? 0 });
@@ -44,11 +54,21 @@ export async function translateText(
   if (cfg.translation === "stub" || !cfg.googleApiKey) {
     return unavailable("Translation API key not configured");
   }
-  if (!text.trim()) return ok({ detectedLanguage: sourceLang ?? null, translatedText: text, confidence: 1, provider: "google_translate_v2" });
+  if (!text.trim())
+    return ok({
+      detectedLanguage: sourceLang ?? null,
+      translatedText: text,
+      confidence: 1,
+      provider: "google_translate_v2",
+    });
 
   const url = new URL("https://translation.googleapis.com/language/translate/v2");
   url.searchParams.set("key", cfg.googleApiKey);
-  const params = new URLSearchParams({ q: text.slice(0, 5000), target: targetLang, format: "text" });
+  const params = new URLSearchParams({
+    q: text.slice(0, 5000),
+    target: targetLang,
+    format: "text",
+  });
   if (sourceLang) params.set("source", sourceLang);
   try {
     const res = await fetch(url.toString(), {

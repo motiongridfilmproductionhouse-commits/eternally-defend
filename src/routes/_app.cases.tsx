@@ -36,8 +36,16 @@ function CasesPage() {
   const qc = useQueryClient();
 
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<{ subject: string; type: CaseType; priority: Severity; assignee: string }>({
-    subject: "", type: "DMCA", priority: "Medium", assignee: "",
+  const [form, setForm] = useState<{
+    subject: string;
+    type: CaseType;
+    priority: Severity;
+    assignee: string;
+  }>({
+    subject: "",
+    type: "DMCA",
+    priority: "Medium",
+    assignee: "",
   });
 
   const casesQuery = useQuery({
@@ -91,35 +99,89 @@ function CasesPage() {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="OPEN CASES" value={cases.filter((c) => c.status !== "Closed").length} sub="Active workload" />
-        <StatCard label="ESCALATED" value={cases.filter((c) => c.status === "Escalated").length} sub="With external counsel" accent="oklch(0.63 0.24 25)" />
-        <StatCard label="IN PROGRESS" value={cases.filter((c) => c.status === "In Progress").length} sub="Being worked on" accent="oklch(0.75 0.16 70)" />
-        <StatCard label="CLOSED" value={cases.filter((c) => c.status === "Closed").length} sub="Resolved" accent="oklch(0.68 0.16 155)" />
+        <StatCard
+          label="OPEN CASES"
+          value={cases.filter((c) => c.status !== "Closed").length}
+          sub="Active workload"
+        />
+        <StatCard
+          label="ESCALATED"
+          value={cases.filter((c) => c.status === "Escalated").length}
+          sub="With external counsel"
+          accent="oklch(0.63 0.24 25)"
+        />
+        <StatCard
+          label="IN PROGRESS"
+          value={cases.filter((c) => c.status === "In Progress").length}
+          sub="Being worked on"
+          accent="oklch(0.75 0.16 70)"
+        />
+        <StatCard
+          label="CLOSED"
+          value={cases.filter((c) => c.status === "Closed").length}
+          sub="Resolved"
+          accent="oklch(0.68 0.16 155)"
+        />
       </div>
 
       <PageCard
         title="CASE BOARD"
         sub="Kanban across statuses"
         actions={
-          <button onClick={() => setShowForm((s) => !s)} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{ background: "var(--gradient-brand)" }}>
+          <button
+            onClick={() => setShowForm((s) => !s)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-white"
+            style={{ background: "var(--gradient-brand)" }}
+          >
             <Plus className="size-3.5" /> New Case
           </button>
         }
       >
         {showForm && (
           <form
-            onSubmit={(e) => { e.preventDefault(); addMut.mutate(); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              addMut.mutate();
+            }}
             className="mb-4 grid grid-cols-1 md:grid-cols-5 gap-2 border border-border rounded-xl p-3 bg-accent/20"
           >
-            <input required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Case subject" className="md:col-span-2 text-sm px-3 py-2 rounded-md border border-border bg-card" />
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as CaseType })} className="text-sm px-3 py-2 rounded-md border border-border bg-card">
-              {TYPES.map((t) => <option key={t}>{t}</option>)}
+            <input
+              required
+              value={form.subject}
+              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              placeholder="Case subject"
+              className="md:col-span-2 text-sm px-3 py-2 rounded-md border border-border bg-card"
+            />
+            <select
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value as CaseType })}
+              className="text-sm px-3 py-2 rounded-md border border-border bg-card"
+            >
+              {TYPES.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
             </select>
-            <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as Severity })} className="text-sm px-3 py-2 rounded-md border border-border bg-card">
-              {PRIORITIES.map((p) => <option key={p}>{p}</option>)}
+            <select
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value as Severity })}
+              className="text-sm px-3 py-2 rounded-md border border-border bg-card"
+            >
+              {PRIORITIES.map((p) => (
+                <option key={p}>{p}</option>
+              ))}
             </select>
-            <input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} placeholder="Assignee" className="text-sm px-3 py-2 rounded-md border border-border bg-card" />
-            <button type="submit" disabled={addMut.isPending} className="md:col-span-5 text-xs font-semibold px-3 py-2 rounded-md text-white" style={{ background: "var(--gradient-brand)" }}>
+            <input
+              value={form.assignee}
+              onChange={(e) => setForm({ ...form, assignee: e.target.value })}
+              placeholder="Assignee"
+              className="text-sm px-3 py-2 rounded-md border border-border bg-card"
+            />
+            <button
+              type="submit"
+              disabled={addMut.isPending}
+              className="md:col-span-5 text-xs font-semibold px-3 py-2 rounded-md text-white"
+              style={{ background: "var(--gradient-brand)" }}
+            >
               {addMut.isPending ? "Opening…" : "Open case"}
             </button>
           </form>
@@ -131,7 +193,11 @@ function CasesPage() {
           </div>
         ) : cases.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
-            No active cases. Open your first case from a finding in the <Link to="/threat-radar" className="text-primary font-semibold">Threat Radar</Link>.
+            No active cases. Open your first case from a finding in the{" "}
+            <Link to="/threat-radar" className="text-primary font-semibold">
+              Threat Radar
+            </Link>
+            .
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -139,24 +205,43 @@ function CasesPage() {
               const bucket = cases.filter((c) => c.status === s);
               return (
                 <div key={s}>
-                  <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground mb-2">{s.toUpperCase()} · {bucket.length}</div>
+                  <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground mb-2">
+                    {s.toUpperCase()} · {bucket.length}
+                  </div>
                   <div className="space-y-3">
                     {bucket.map((c) => (
                       <div key={c.id} className="border border-border rounded-xl p-3">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-xs font-mono text-muted-foreground">#{c.id.slice(0, 8)}</div>
+                          <div className="text-xs font-mono text-muted-foreground">
+                            #{c.id.slice(0, 8)}
+                          </div>
                           <Pill color={severityColor(c.priority)}>{c.priority}</Pill>
                         </div>
                         <div className="text-sm font-semibold mt-1">{c.subject}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{c.type}{c.assignee ? ` · ${c.assignee}` : ""}</div>
-                        <div className="text-[11px] text-muted-foreground mt-1">Opened {new Date(c.opened_at).toLocaleDateString()}</div>
-                        <select value={c.status} onChange={(e) => statusMut.mutate({ id: c.id, status: e.target.value as CaseStatus })} className="mt-2 w-full text-xs px-2 py-1.5 rounded-md border border-border bg-card">
-                          {STATUSES.map((x) => <option key={x}>{x}</option>)}
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {c.type}
+                          {c.assignee ? ` · ${c.assignee}` : ""}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          Opened {new Date(c.opened_at).toLocaleDateString()}
+                        </div>
+                        <select
+                          value={c.status}
+                          onChange={(e) =>
+                            statusMut.mutate({ id: c.id, status: e.target.value as CaseStatus })
+                          }
+                          className="mt-2 w-full text-xs px-2 py-1.5 rounded-md border border-border bg-card"
+                        >
+                          {STATUSES.map((x) => (
+                            <option key={x}>{x}</option>
+                          ))}
                         </select>
                       </div>
                     ))}
                     {bucket.length === 0 && (
-                      <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border rounded-xl">No cases</div>
+                      <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border rounded-xl">
+                        No cases
+                      </div>
                     )}
                   </div>
                 </div>

@@ -38,11 +38,16 @@ function normalize(value: string): string {
 
 function severityRisk(severity: string): number {
   switch (severity.toLowerCase()) {
-    case "critical": return 95;
-    case "high": return 80;
-    case "medium": return 60;
-    case "low": return 35;
-    default: return 0;
+    case "critical":
+      return 95;
+    case "high":
+      return 80;
+    case "medium":
+      return 60;
+    case "low":
+      return 35;
+    default:
+      return 0;
   }
 }
 
@@ -51,9 +56,7 @@ export async function analyzeChannelWatchCaptions(
   aliases: string[],
 ): Promise<ChannelCaptionResult> {
   try {
-    const { fetchYoutubeCaptions } = await import(
-      "@/lib/mm/youtube-captions.server"
-    );
+    const { fetchYoutubeCaptions } = await import("@/lib/mm/youtube-captions.server");
 
     const captions = await fetchYoutubeCaptions(videoId);
 
@@ -70,24 +73,16 @@ export async function analyzeChannelWatchCaptions(
       };
     }
 
-    const segments = [...captions.segments].sort(
-      (a, b) => a.startSeconds - b.startSeconds,
-    );
+    const segments = [...captions.segments].sort((a, b) => a.startSeconds - b.startSeconds);
 
-    const normalizedAliases = aliases
-      .map(normalize)
-      .filter((alias) => alias.length >= 2);
+    const normalizedAliases = aliases.map(normalize).filter((alias) => alias.length >= 2);
 
     const mentionCount = segments.reduce((count, segment) => {
       const text = normalize(segment.text);
-      return count + normalizedAliases.filter((alias) =>
-        text.includes(alias)
-      ).length;
+      return count + normalizedAliases.filter((alias) => text.includes(alias)).length;
     }, 0);
 
-    const { classifyTranscriptSegments } = await import(
-      "@/lib/mm/video-classify.server"
-    );
+    const { classifyTranscriptSegments } = await import("@/lib/mm/video-classify.server");
 
     const classified = await classifyTranscriptSegments(
       segments.map((segment, index) => ({ ...segment, index })),
@@ -116,23 +111,19 @@ export async function analyzeChannelWatchCaptions(
           severity: String(finding.severity),
           confidence: finding.confidence,
           watchUrl:
-            `https://www.youtube.com/watch?v=${videoId}` +
-            `&t=${Math.floor(startSeconds)}s`,
+            `https://www.youtube.com/watch?v=${videoId}` + `&t=${Math.floor(startSeconds)}s`,
         };
       })
       .filter((finding): finding is ChannelCaptionFinding => finding !== null)
       .slice(0, 50);
 
     const maxRisk = findings.reduce(
-      (maximum, finding) =>
-        Math.max(maximum, severityRisk(finding.severity)),
+      (maximum, finding) => Math.max(maximum, severityRisk(finding.severity)),
       0,
     );
 
     return {
-      state: segments.length > 20
-        ? "captions_analysed"
-        : "partial_captions",
+      state: segments.length > 20 ? "captions_analysed" : "partial_captions",
       language: captions.language ?? null,
       source: captions.source ?? "youtube_caption",
       segmentCount: segments.length,

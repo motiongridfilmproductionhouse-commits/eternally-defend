@@ -24,14 +24,8 @@ function migrationSql(): string {
 test("migration accepts partial status and uses exact terminal trigger values", () => {
   const sql = migrationSql();
   assert.match(sql, /deepfake_scans_status_check/);
-  assert.match(
-    sql,
-    /CHECK \(status IN \('running', 'completed', 'failed', 'partial'\)\)/,
-  );
-  assert.match(
-    sql,
-    /OLD\.status IN \('completed', 'failed', 'partial'\)/,
-  );
+  assert.match(sql, /CHECK \(status IN \('running', 'completed', 'failed', 'partial'\)\)/);
+  assert.match(sql, /OLD\.status IN \('completed', 'failed', 'partial'\)/);
   assert.match(sql, /NEW\.status = 'running'/);
 });
 
@@ -39,12 +33,8 @@ test("migration dedupes discoveries before creating unique page index", () => {
   const sql = migrationSql();
   const dedupeIdx = sql.indexOf("WITH ranked AS");
   // Use the discoveries-specific ranked block (second occurrence after scans).
-  const discoveriesBlock = sql.indexOf(
-    "FROM public.deepfake_discoveries",
-  );
-  const deleteIdx = sql.indexOf(
-    "DELETE FROM public.deepfake_discoveries AS discoveries",
-  );
+  const discoveriesBlock = sql.indexOf("FROM public.deepfake_discoveries");
+  const deleteIdx = sql.indexOf("DELETE FROM public.deepfake_discoveries AS discoveries");
   const indexIdx = sql.indexOf("deepfake_discoveries_unique_page");
 
   assert.ok(discoveriesBlock > 0);

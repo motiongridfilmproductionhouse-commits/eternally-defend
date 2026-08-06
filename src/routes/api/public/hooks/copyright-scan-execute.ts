@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-
 const BodySchema = z.object({ scan_id: z.string().uuid() });
 
 export const Route = createFileRoute("/api/public/hooks/copyright-scan-execute")({
@@ -34,7 +33,8 @@ export const Route = createFileRoute("/api/public/hooks/copyright-scan-execute")
           return new Response("Invalid body", { status: 400 });
         }
 
-        const { verifyCopyrightScanWorkerRequestDetailed } = await import("@/lib/copyright/worker-auth.server");
+        const { verifyCopyrightScanWorkerRequestDetailed } =
+          await import("@/lib/copyright/worker-auth.server");
         const verification = await verifyCopyrightScanWorkerRequestDetailed(
           raw,
           request.headers.get("x-eterna-timestamp"),
@@ -59,13 +59,17 @@ export const Route = createFileRoute("/api/public/hooks/copyright-scan-execute")
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : null,
           });
-          return new Response(`Invalid body: ${error instanceof Error ? error.message : String(error)}`, {
-            status: 400,
-          });
+          return new Response(
+            `Invalid body: ${error instanceof Error ? error.message : String(error)}`,
+            {
+              status: 400,
+            },
+          );
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { executeCopyrightScanById, recordCopyrightScanDiagnostic } = await import("@/lib/copyright.functions");
+        const { executeCopyrightScanById, recordCopyrightScanDiagnostic } =
+          await import("@/lib/copyright.functions");
         await recordCopyrightScanDiagnostic(supabaseAdmin, parsed.scan_id, {
           worker_hook_request_id: requestId,
           worker_hook_received_at: receivedAt,
@@ -97,7 +101,8 @@ export const Route = createFileRoute("/api/public/hooks/copyright-scan-execute")
             stack: error instanceof Error ? error.stack : null,
           });
           await recordCopyrightScanDiagnostic(supabaseAdmin, parsed.scan_id, {
-            worker_hook_executor_error: error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500),
+            worker_hook_executor_error:
+              error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500),
             worker_hook_executor_failed_at: new Date().toISOString(),
           });
           return Response.json(

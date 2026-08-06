@@ -22,11 +22,13 @@ export function scopedScanMatches<T>(
   detail: { scan?: { id?: string | null } | null; matches?: T[] | null } | null | undefined,
   opts?: { isLoading?: boolean },
 ): T[] {
-  if (!isScanDetailAligned({
-    selectedScanId,
-    detailScanId: detail?.scan?.id,
-    isLoading: opts?.isLoading,
-  })) {
+  if (
+    !isScanDetailAligned({
+      selectedScanId,
+      detailScanId: detail?.scan?.id,
+      isLoading: opts?.isLoading,
+    })
+  ) {
     return [];
   }
   return detail?.matches ?? [];
@@ -74,10 +76,8 @@ export function monitoredSourceAttribution(source: MonitoredSourceDisplay): {
 }
 
 /** Active monitored sources for dashboard counters (excludes deactivated). */
-export function activeMonitoredSources<T extends { status?: string | null; monitor_enabled?: boolean | null }>(
-  sources: T[],
-): T[] {
-  return sources.filter(
-    (s) => s.status === "active" && s.monitor_enabled !== false,
-  );
+export function activeMonitoredSources<
+  T extends { status?: string | null; monitor_enabled?: boolean | null },
+>(sources: T[]): T[] {
+  return sources.filter((s) => s.status === "active" && s.monitor_enabled !== false);
 }

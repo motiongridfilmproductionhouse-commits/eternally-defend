@@ -20,12 +20,7 @@ export const GOOGLE_IMAGES_INVESTIGATION_KEYWORDS = [
   "leaked AI",
 ] as const;
 
-export const GOOGLE_IMAGES_PRIORITY_KEYWORDS = [
-  "deepfake",
-  "AI",
-  "face swap",
-  "fake",
-] as const;
+export const GOOGLE_IMAGES_PRIORITY_KEYWORDS = ["deepfake", "AI", "face swap", "fake"] as const;
 
 export const GOOGLE_IMAGES_MAX_QUERIES = 58;
 export const GOOGLE_IMAGES_TARGET_MIN = 300;
@@ -104,10 +99,7 @@ export function buildGoogleImagesInvestigationQueries(input: {
     return true;
   };
 
-  const pushIdentityKeywords = (
-    identity: string,
-    keywords: readonly string[],
-  ) => {
+  const pushIdentityKeywords = (identity: string, keywords: readonly string[]) => {
     const quoted = quoteIdentity(identity);
     if (!quoted) return;
     for (const keyword of keywords) {

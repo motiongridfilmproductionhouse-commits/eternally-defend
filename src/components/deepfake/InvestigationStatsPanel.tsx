@@ -25,9 +25,7 @@ export function buildInvestigationDiagnostics(
 ): InvestigationDiagnostics {
   const d = diagnosticsFromMetrics(metrics);
   const stats =
-    d.provider_stats.length > 0
-      ? d.provider_stats
-      : parseProviderStatsFromMetrics(metrics);
+    d.provider_stats.length > 0 ? d.provider_stats : parseProviderStatsFromMetrics(metrics);
   return { ...d, provider_stats: stats };
 }
 
@@ -43,8 +41,7 @@ export function InvestigationStatsPanel({
   const googleBackground = googleImagesBackgroundStatus(metrics);
   const googleProgress = googleImagesBackgroundProgress(metrics);
   const stageLabel =
-    INVESTIGATION_TIMELINE_STAGES.find((s) => s.key === d.investigation_stage)
-      ?.label ??
+    INVESTIGATION_TIMELINE_STAGES.find((s) => s.key === d.investigation_stage)?.label ??
     (typeof d.investigation_stage === "string" ? d.investigation_stage : "Investigating…");
 
   return (
@@ -92,8 +89,7 @@ export function InvestigationStatsPanel({
 
       {(() => {
         const startup =
-          metrics?.startup_diagnostic &&
-          typeof metrics.startup_diagnostic === "object"
+          metrics?.startup_diagnostic && typeof metrics.startup_diagnostic === "object"
             ? (metrics.startup_diagnostic as Record<string, unknown>)
             : null;
         if (!startup) return null;
@@ -103,21 +99,15 @@ export function InvestigationStatsPanel({
               Startup Diagnostics
             </div>
             <div className="text-xs text-muted-foreground space-y-1">
-              {typeof startup.stage === "string" && (
-                <div>Stage: {startup.stage}</div>
-              )}
-              {typeof startup.mode === "string" && (
-                <div>Dispatch mode: {startup.mode}</div>
-              )}
+              {typeof startup.stage === "string" && <div>Stage: {startup.stage}</div>}
+              {typeof startup.mode === "string" && <div>Dispatch mode: {startup.mode}</div>}
               {typeof startup.worker_url === "string" && (
                 <div>Worker URL: {startup.worker_url}</div>
               )}
               {typeof startup.category === "string" && (
                 <div>Error category: {startup.category}</div>
               )}
-              {typeof startup.reason === "string" && (
-                <div>Reason: {startup.reason}</div>
-              )}
+              {typeof startup.reason === "string" && <div>Reason: {startup.reason}</div>}
               {typeof startup.http_status === "number" && (
                 <div>HTTP status: {startup.http_status}</div>
               )}

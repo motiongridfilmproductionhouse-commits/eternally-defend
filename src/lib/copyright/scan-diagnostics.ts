@@ -8,10 +8,7 @@ import { emptyCrawlMetrics, type CrawlMetrics } from "./crawl-metrics";
 
 /** Allowed scan stop reasons — never stop because "enough matches" were found. */
 export type ScanTerminationReason =
-  | "providers_exhausted"
-  | "timeout_reached"
-  | "cancelled"
-  | "fatal_configuration_error";
+  "providers_exhausted" | "timeout_reached" | "cancelled" | "fatal_configuration_error";
 
 export const FORBIDDEN_TERMINATION_REASONS = [
   "enough_matches_found",
@@ -99,29 +96,23 @@ export function coverageDiagnosticsFromStats(
           cancelled: stats?.cancelled === true || String(stats?.terminal_status) === "cancelled",
           fatalConfigurationError:
             String(stats?.terminal_status) === "failed" &&
-            /config|never started|no discovery queries/i.test(
-              String(stats?.failure_reason ?? ""),
-            ),
+            /config|never started|no discovery queries/i.test(String(stats?.failure_reason ?? "")),
         });
 
   return emptyDiscoveryCoverageDiagnostics({
     queries_generated: n("queries_generated"),
     provider_requests_started:
       n("provider_requests_started") || n("provider_requests") || n("queries_executed"),
-    provider_requests_succeeded:
-      n("provider_requests_succeeded") || n("provider_successes"),
-    provider_requests_failed:
-      n("provider_requests_failed") || n("provider_failures"),
+    provider_requests_succeeded: n("provider_requests_succeeded") || n("provider_successes"),
+    provider_requests_failed: n("provider_requests_failed") || n("provider_failures"),
     raw_results_received:
       n("raw_results_received") || n("provider_results") || n("provider_candidates"),
     unique_candidate_urls:
       n("unique_candidate_urls") || n("unique_candidate_pages") || n("unique_pages"),
     unique_candidate_domains: n("unique_candidate_domains"),
     pages_crawled: n("pages_crawled"),
-    detail_links_queued:
-      n("detail_links_queued") || n("detail_pages_queued"),
-    detail_links_processed:
-      n("detail_links_processed") || n("detail_pages_followed"),
+    detail_links_queued: n("detail_links_queued") || n("detail_pages_queued"),
+    detail_links_processed: n("detail_links_processed") || n("detail_pages_followed"),
     redirects_followed: n("redirects_followed"),
     candidates_rejected:
       n("candidates_rejected") ||
@@ -129,16 +120,14 @@ export function coverageDiagnosticsFromStats(
         n("hard_negative_rejected") +
         n("access_evidence_rejected") +
         n("artwork_only_rejected"),
-    candidates_pending:
-      n("candidates_pending") || n("suspected_review_pages"),
+    candidates_pending: n("candidates_pending") || n("suspected_review_pages"),
     findings_verified:
       n("findings_verified") ||
       n("client_visible_findings") ||
       n("verified_client_visible_findings"),
     scan_elapsed_ms: n("scan_elapsed_ms"),
     termination_reason: reason,
-    not_processed_due_to_budget:
-      n("not_processed_due_to_budget") || n("detail_links_remaining"),
+    not_processed_due_to_budget: n("not_processed_due_to_budget") || n("detail_links_remaining"),
   });
 }
 
@@ -289,9 +278,7 @@ export function diagnosticsFromStats(
     access_evidence_rejected: n("access_evidence_rejected"),
     internal_leads_persisted: n("internal_leads_persisted") || n("leads"),
     client_visible_findings:
-      n("client_visible_findings") ||
-      n("verified_client_visible_findings") ||
-      n("matches"),
+      n("client_visible_findings") || n("verified_client_visible_findings") || n("matches"),
     cinema_showtime_rejected: n("cinema_showtime_rejected"),
     trailer_promo_rejected: n("trailer_promo_rejected"),
     review_news_rejected: n("review_news_rejected"),
@@ -309,8 +296,7 @@ export function diagnosticsFromStats(
     known_urls_retrieved: n("known_urls_retrieved"),
     known_urls_rendered: n("known_urls_rendered"),
     known_urls_verified: n("known_urls_verified"),
-    known_urls_rejected:
-      n("known_urls_rejected") + n("known_urls_rejected_after_crawl"),
+    known_urls_rejected: n("known_urls_rejected") + n("known_urls_rejected_after_crawl"),
     official_authorized_rejected: n("official_authorized_rejected"),
     catalog_listing_rejected: n("catalog_listing_rejected"),
     youtube_promotional_rejected: n("youtube_promotional_rejected"),
@@ -378,12 +364,16 @@ export function providerFailureCategoryLines(
 export function summarizeProviderFailures(
   stats: Record<string, unknown> | null | undefined,
 ): string | null {
-  const parts = providerFailureCategoryLines(stats).map(({ category, count }) => `${category}: ${count}`);
+  const parts = providerFailureCategoryLines(stats).map(
+    ({ category, count }) => `${category}: ${count}`,
+  );
   return parts.length ? parts.join(", ") : null;
 }
 
 /** Human-readable funnel explanation for empty client-visible result sets. */
-export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | undefined): string[] {
+export function explainZeroMatchFunnel(
+  stats: Record<string, unknown> | null | undefined,
+): string[] {
   const d = diagnosticsFromStats(stats);
   const n = (key: string) => {
     const v = stats?.[key];
@@ -439,7 +429,10 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
       `Providers: ${provider.requested} requests, ${provider.succeeded} successful, ${provider.failed} failed, ${provider.result_count} candidate results (discovery success is separate from crawl failures).`,
     );
   }
-  if (stats?.provider_failures_by_category && typeof stats.provider_failures_by_category === "object") {
+  if (
+    stats?.provider_failures_by_category &&
+    typeof stats.provider_failures_by_category === "object"
+  ) {
     const parts = Object.entries(stats.provider_failures_by_category as Record<string, number>)
       .filter(([, v]) => typeof v === "number" && v > 0)
       .map(([k, v]) => `${k}: ${v}`);
@@ -461,24 +454,42 @@ export function explainZeroMatchFunnel(stats: Record<string, unknown> | null | u
     lines.push(
       "Primary bottleneck: discovery providers never returned a successful response — scan should be failed, not completed.",
     );
-  } else if (d.known_urls_retrieved > 0 && d.known_urls_verified === 0 && d.client_visible_findings === 0) {
+  } else if (
+    d.known_urls_retrieved > 0 &&
+    d.known_urls_verified === 0 &&
+    d.client_visible_findings === 0
+  ) {
     lines.push(
       "Primary bottleneck: known URL(s) were retrieved but failed exact-title identity and/or distribution-access evidence gates.",
     );
   } else if (d.queries_executed === 0 && d.provider_results === 0 && d.known_urls_attempted === 0) {
-    lines.push("Primary bottleneck: discovery returned no candidate results — check public discovery configuration and query coverage.");
+    lines.push(
+      "Primary bottleneck: discovery returned no candidate results — check public discovery configuration and query coverage.",
+    );
   } else if (d.pages_crawled === 0) {
-    lines.push("Primary bottleneck: no candidate pages were crawled for exact-page distribution evidence.");
+    lines.push(
+      "Primary bottleneck: no candidate pages were crawled for exact-page distribution evidence.",
+    );
   } else if (d.pages_failed > 0 && d.pages_failed >= d.pages_crawled * 0.6) {
-    lines.push("Primary bottleneck: most exact-page crawls failed or returned empty content (fail closed; not content rejection).");
+    lines.push(
+      "Primary bottleneck: most exact-page crawls failed or returned empty content (fail closed; not content rejection).",
+    );
   } else if (d.hard_negative_rejected > 0 && d.access_evidence_pages === 0) {
-    lines.push("Primary bottleneck: candidates were cinema/trailer/review/official pages without independent distribution access.");
+    lines.push(
+      "Primary bottleneck: candidates were cinema/trailer/review/official pages without independent distribution access.",
+    );
   } else if (d.title_identity_rejected > 0 && d.client_visible_findings === 0) {
-    lines.push("Primary bottleneck: crawled pages did not establish exact-title identity for the protected work.");
+    lines.push(
+      "Primary bottleneck: crawled pages did not establish exact-title identity for the protected work.",
+    );
   } else if (d.access_evidence_rejected > 0 && d.client_visible_findings === 0) {
-    lines.push("Primary bottleneck: title-matched pages lacked playable/download/torrent/file-host access evidence.");
+    lines.push(
+      "Primary bottleneck: title-matched pages lacked playable/download/torrent/file-host access evidence.",
+    );
   } else if (d.detail_pages_followed === 0 && d.listing_pages_found > 0) {
-    lines.push("Primary bottleneck: listing/search pages were found but no title-matched detail pages were followed.");
+    lines.push(
+      "Primary bottleneck: listing/search pages were found but no title-matched detail pages were followed.",
+    );
   }
 
   return lines;

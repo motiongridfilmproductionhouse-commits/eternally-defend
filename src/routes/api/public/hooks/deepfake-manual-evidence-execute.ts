@@ -31,9 +31,8 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-manual-evidence
           return new Response("Invalid body", { status: 400 });
         }
 
-        const { verifyManualEvidenceWorkerRequest } = await import(
-          "@/lib/deepfake/manual-evidence.server"
-        );
+        const { verifyManualEvidenceWorkerRequest } =
+          await import("@/lib/deepfake/manual-evidence.server");
         const verification = await verifyManualEvidenceWorkerRequest(
           raw,
           request.headers.get("x-eterna-timestamp"),
@@ -64,9 +63,8 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-manual-evidence
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { processManualEvidenceLeadsById } = await import(
-          "@/lib/deepfake/manual-evidence.server"
-        );
+        const { processManualEvidenceLeadsById } =
+          await import("@/lib/deepfake/manual-evidence.server");
 
         console.info("deepfake_manual_evidence_worker_execute_start", {
           request_id: requestId,

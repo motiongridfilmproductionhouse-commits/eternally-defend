@@ -128,7 +128,10 @@ export function findingsFromDistributionMatches(
   });
 }
 
-function releaseTimingLabel(releaseDateIso: string, nowMs = Date.now()): "pre_release" | "post_release" | "release_day" {
+function releaseTimingLabel(
+  releaseDateIso: string,
+  nowMs = Date.now(),
+): "pre_release" | "post_release" | "release_day" {
   const until = daysUntilRelease(releaseDateIso, nowMs);
   if (until > 0) return "pre_release";
   if (until === 0) return "release_day";

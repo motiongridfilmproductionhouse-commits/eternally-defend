@@ -26,7 +26,9 @@ export function UnauthorizedUsage() {
 
   return (
     <div className="card-surface p-5 flex flex-col">
-      <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">UNAUTHORIZED USAGE</div>
+      <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">
+        UNAUTHORIZED USAGE
+      </div>
       <div className="text-xs text-muted-foreground/80 mb-4">Brand & image misuse</div>
 
       <div className="flex items-center gap-3">
@@ -34,7 +36,9 @@ export function UnauthorizedUsage() {
           <ShieldAlert className="size-6" />
         </div>
         <div className="min-w-0">
-          <div className="text-2xl font-bold font-display leading-none">{isLoading ? "…" : u?.detected ?? 0}</div>
+          <div className="text-2xl font-bold font-display leading-none">
+            {isLoading ? "…" : (u?.detected ?? 0)}
+          </div>
           <div className="text-[11px] text-muted-foreground mt-1">Unauthorized Uses</div>
         </div>
       </div>
@@ -51,10 +55,18 @@ export function UnauthorizedUsage() {
         ) : (
           <div className="flex gap-2">
             {platforms.map((p) => {
-              const meta = PLATFORM_ICON[p.name] ?? { icon: Globe, bg: "bg-secondary", fg: "text-muted-foreground" };
+              const meta = PLATFORM_ICON[p.name] ?? {
+                icon: Globe,
+                bg: "bg-secondary",
+                fg: "text-muted-foreground",
+              };
               const Icon = meta.icon;
               return (
-                <div key={p.name} className={`size-9 rounded-lg grid place-items-center ${meta.bg} ${meta.fg} relative`} title={`${p.name}: ${p.count}`}>
+                <div
+                  key={p.name}
+                  className={`size-9 rounded-lg grid place-items-center ${meta.bg} ${meta.fg} relative`}
+                  title={`${p.name}: ${p.count}`}
+                >
                   <Icon className="size-4" />
                   <span className="absolute -top-1 -right-1 text-[9px] font-bold bg-rose-500 text-white rounded-full min-w-[16px] h-4 px-1 grid place-items-center">
                     {p.count}

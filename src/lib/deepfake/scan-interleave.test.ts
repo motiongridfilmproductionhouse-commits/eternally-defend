@@ -32,14 +32,8 @@ import {
   parseScanCheckpoint,
 } from "./scan-checkpoint.server";
 import { ScanCheckpointPauseError } from "./scan-runtime.server";
-import {
-  nextQueryBatch,
-  prioritizeDeepfakeQueries,
-} from "./query-priority.server";
-import {
-  selectRedundantDiscoveryIds,
-  type DiscoveryDedupeRow,
-} from "./discovery-dedupe";
+import { nextQueryBatch, prioritizeDeepfakeQueries } from "./query-priority.server";
+import { selectRedundantDiscoveryIds, type DiscoveryDedupeRow } from "./discovery-dedupe";
 import { findingPersistKey } from "./scan-persist.server";
 
 const CHECKPOINT_MIGRATION = resolve(
@@ -127,11 +121,7 @@ test("checkpoint resume starts after completed query ids", () => {
   markQueryCompleted(checkpoint, "q2");
   checkpoint.next_query_index = 2;
 
-  const next = nextQueryBatch(
-    checkpoint.queries,
-    checkpoint.next_query_index,
-    QUERY_BATCH_SIZE,
-  );
+  const next = nextQueryBatch(checkpoint.queries, checkpoint.next_query_index, QUERY_BATCH_SIZE);
 
   assert.deepEqual(checkpoint.completed_query_ids, ["q1", "q2"]);
   assert.deepEqual(next.batch, ["q3", "q4"]);
@@ -267,15 +257,8 @@ test("parseScanCheckpoint rejects hostile payloads and bounds size", () => {
     queries: ["q1", "q2", "q3"],
     next_query_index: 0,
     completed_query_ids: ["q1", "javascript:alert(1)", "q2"],
-    pending_candidate_urls: [
-      "https://evil.example/pending",
-      "not-a-url",
-      "ftp://bad.example/x",
-    ],
-    verified_canonical_urls: [
-      "https://evil.example/verified",
-      "data:text/html,hi",
-    ],
+    pending_candidate_urls: ["https://evil.example/pending", "not-a-url", "ftp://bad.example/x"],
+    verified_canonical_urls: ["https://evil.example/verified", "data:text/html,hi"],
     stage: "verifying",
     youtube_done: false,
     reddit_done: false,
@@ -285,12 +268,8 @@ test("parseScanCheckpoint rejects hostile payloads and bounds size", () => {
 
   assert.ok(hostile);
   assert.equal(hostile.next_query_index, 2, "completed plan ids advance cursor");
-  assert.deepEqual(hostile.pending_candidate_urls, [
-    "https://evil.example/pending",
-  ]);
-  assert.deepEqual(hostile.verified_canonical_urls, [
-    "https://evil.example/verified",
-  ]);
+  assert.deepEqual(hostile.pending_candidate_urls, ["https://evil.example/pending"]);
+  assert.deepEqual(hostile.verified_canonical_urls, ["https://evil.example/verified"]);
   assert.ok(!hostile.completed_query_ids.includes("javascript:alert(1)"));
 
   const oversized = createEmptyCheckpoint({

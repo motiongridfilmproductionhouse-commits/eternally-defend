@@ -29,19 +29,28 @@ type SearchResult = {
 
 function apiKey(): string {
   const k = process.env.YOUTUBE_API_KEY;
-  if (!k) throw new Error("YouTube verification is temporarily unavailable. Save as pending or try again later.");
+  if (!k)
+    throw new Error(
+      "YouTube verification is temporarily unavailable. Save as pending or try again later.",
+    );
   return k;
 }
 
 /** Normalize any YouTube channel input into { channelId?, handle?, name? }. */
-export function parseYouTubeInput(raw: string): { channelId?: string; handle?: string; name?: string } {
+export function parseYouTubeInput(raw: string): {
+  channelId?: string;
+  handle?: string;
+  name?: string;
+} {
   const s = (raw || "").trim();
   if (!s) return {};
   // Try URL
   let u: URL | null = null;
   try {
     u = new URL(s.startsWith("http") ? s : `https://${s}`);
-  } catch { /* not a url */ }
+  } catch {
+    /* not a url */
+  }
 
   if (u && /(^|\.)youtube\.com$/i.test(u.hostname)) {
     const parts = u.pathname.split("/").filter(Boolean);
@@ -62,7 +71,10 @@ async function ytFetch(path: string, params: Record<string, string>): Promise<an
   const res = await fetch(url.toString());
   if (res.status === 403) {
     const body = await res.text().catch(() => "");
-    if (/quota/i.test(body)) throw new Error("YouTube verification is temporarily unavailable. Save as pending or try again later.");
+    if (/quota/i.test(body))
+      throw new Error(
+        "YouTube verification is temporarily unavailable. Save as pending or try again later.",
+      );
     throw new Error(`YouTube API blocked: ${body.slice(0, 200)}`);
   }
   if (!res.ok) {
@@ -76,7 +88,11 @@ function toChannel(item: any, confidence = 1): YTChannel {
   const stats = item.statistics ?? {};
   const snip = item.snippet ?? {};
   const brand = item.brandingSettings ?? {};
-  const handle: string | null = snip.customUrl?.startsWith("@") ? snip.customUrl : snip.customUrl ? `@${snip.customUrl}` : null;
+  const handle: string | null = snip.customUrl?.startsWith("@")
+    ? snip.customUrl
+    : snip.customUrl
+      ? `@${snip.customUrl}`
+      : null;
   const channel_url = handle
     ? `https://www.youtube.com/${handle}`
     : `https://www.youtube.com/channel/${item.id}`;
@@ -101,7 +117,10 @@ function toChannel(item: any, confidence = 1): YTChannel {
   };
 }
 
-async function fetchChannelsByIds(ids: string[], confidenceById?: Map<string, number>): Promise<YTChannel[]> {
+async function fetchChannelsByIds(
+  ids: string[],
+  confidenceById?: Map<string, number>,
+): Promise<YTChannel[]> {
   if (ids.length === 0) return [];
   const data = await ytFetch("channels", {
     part: "snippet,statistics,brandingSettings",
@@ -133,7 +152,11 @@ export const searchYouTubeChannels = createServerFn({ method: "POST" })
       });
       const items: any[] = direct.items ?? [];
       if (items.length) {
-        return { channels: items.map((i) => toChannel(i, 1)), query: data.input, strategy: "handle" };
+        return {
+          channels: items.map((i) => toChannel(i, 1)),
+          query: data.input,
+          strategy: "handle",
+        };
       }
       // Fallback: search
       parsed.name = parsed.handle;
@@ -147,7 +170,9 @@ export const searchYouTubeChannels = createServerFn({ method: "POST" })
       maxResults: String(max),
     });
     const items: any[] = searchRes.items ?? [];
-    const ids = items.map((i) => i.snippet?.channelId ?? i.id?.channelId).filter(Boolean) as string[];
+    const ids = items
+      .map((i) => i.snippet?.channelId ?? i.id?.channelId)
+      .filter(Boolean) as string[];
     // Confidence: linearly decreasing with rank
     const confMap = new Map<string, number>();
     ids.forEach((id, idx) => confMap.set(id, Math.max(0.5, 1 - idx * 0.1)));
@@ -161,7 +186,10 @@ export const refreshYouTubeChannel = createServerFn({ method: "POST" })
   .inputValidator((data: { channel_id: string }) => data)
   .handler(async ({ data }): Promise<YTChannel> => {
     const [c] = await fetchChannelsByIds([data.channel_id]);
-    if (!c) throw new Error("No matching YouTube channel was found. Check the channel URL, handle or spelling.");
+    if (!c)
+      throw new Error(
+        "No matching YouTube channel was found. Check the channel URL, handle or spelling.",
+      );
     return c;
   });
 
@@ -182,7 +210,10 @@ export const refreshOnboardingYouTubeAsset = createServerFn({ method: "POST" })
     const channelId: string | undefined = meta.channel_id;
     if (!channelId) throw new Error("Asset is not linked to a YouTube channel.");
     const [fresh] = await fetchChannelsByIds([channelId]);
-    if (!fresh) throw new Error("No matching YouTube channel was found. Check the channel URL, handle or spelling.");
+    if (!fresh)
+      throw new Error(
+        "No matching YouTube channel was found. Check the channel URL, handle or spelling.",
+      );
     // Preserve confirmation/verification/authorization; refresh fetched fields.
     const preserved = {
       confirmation_status: meta.confirmation_status ?? "user_confirmed",

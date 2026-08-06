@@ -14,14 +14,14 @@ import {
   GOOGLE_IMAGES_MAX_JOB_ATTEMPTS,
 } from "./google-images-jobs.server";
 import { dispatchGoogleImagesWorker } from "./google-images-worker-dispatch.server";
-import { processGoogleImagesQuery, findingRowFromGoogleImagesCandidate } from "./google-images-investigation.server";
+import {
+  processGoogleImagesQuery,
+  findingRowFromGoogleImagesCandidate,
+} from "./google-images-investigation.server";
 import { parseReferenceImagesFromMetrics } from "./reference-images";
 import { parseGoogleImagesEvidencePackages } from "./google-images-evidence.server";
 import { upsertDiscoveriesBatch, upsertFindingsBatch } from "./scan-persist.server";
-import {
-  isGoogleImagesViewerUrl,
-  isUsableSourceWebsiteUrl,
-} from "./google-images-source.server";
+import { isGoogleImagesViewerUrl, isUsableSourceWebsiteUrl } from "./google-images-source.server";
 
 export const GOOGLE_IMAGES_WORKER_BUDGET_MS = 35_000;
 export const GOOGLE_IMAGES_WORKER_BATCH_SIZE = 4;
@@ -87,16 +87,14 @@ export async function executeGoogleImagesWorkerBatch(input: {
       supabase: input.supabase,
       scanId: input.scanId,
     });
-    const backgroundStatus =
-      counts.queued > 0 || counts.running > 0 ? "running" : "completed";
+    const backgroundStatus = counts.queued > 0 || counts.running > 0 ? "running" : "completed";
     await syncGoogleImagesScanMetrics({
       supabase: input.supabase,
       scanId: input.scanId,
       userId,
       backgroundStatus,
       extraMetrics: {
-        google_images_investigation_complete:
-          backgroundStatus === "completed" ? 1 : 0,
+        google_images_investigation_complete: backgroundStatus === "completed" ? 1 : 0,
       },
     });
     return {
@@ -226,11 +224,9 @@ export async function executeGoogleImagesWorkerBatch(input: {
         extraMetrics: {
           google_images_evidence_packages: mergedEvidence.slice(0, 80),
           face_comparisons:
-            (Number(existingMetrics.face_comparisons) || 0) +
-            result.metrics.face_comparisons,
+            (Number(existingMetrics.face_comparisons) || 0) + result.metrics.face_comparisons,
           images_compared:
-            (Number(existingMetrics.images_compared) || 0) +
-            result.metrics.face_comparisons,
+            (Number(existingMetrics.images_compared) || 0) + result.metrics.face_comparisons,
           reference_google_images_found:
             (Number(existingMetrics.reference_google_images_found) || 0) +
             result.metrics.images_discovered,

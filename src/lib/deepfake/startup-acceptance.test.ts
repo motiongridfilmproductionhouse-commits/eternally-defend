@@ -21,10 +21,7 @@ import { resolveGoogleImagesWorkerUrl } from "./google-images-worker-dispatch.se
 const FUNCTIONS = resolve(process.cwd(), "src/lib/deepfake-intel.functions.ts");
 const PIPELINE = resolve(process.cwd(), "src/lib/deepfake/scan-pipeline.server.ts");
 const UI = resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx");
-const SCAN_HOOK = resolve(
-  process.cwd(),
-  "src/routes/api/public/hooks/deepfake-scan-execute.ts",
-);
+const SCAN_HOOK = resolve(process.cwd(), "src/routes/api/public/hooks/deepfake-scan-execute.ts");
 
 test("Sarayu Mohan startup plan persists non-zero queries before dispatch", () => {
   const plan = prepareDeepfakeStartupPlan({
@@ -117,8 +114,7 @@ test("invalid worker URL failure is categorized for the user", () => {
 test("deployment worker URL resolution prefers exact hook or appends it", () => {
   assert.equal(
     resolveDeepfakeScanWorkerUrl({
-      DEEPFAKE_SCAN_WORKER_URL:
-        "https://app.example.com/api/public/hooks/deepfake-scan-execute",
+      DEEPFAKE_SCAN_WORKER_URL: "https://app.example.com/api/public/hooks/deepfake-scan-execute",
       COPYRIGHT_SCAN_WORKER_SECRET: "x",
     } as NodeJS.ProcessEnv),
     "https://app.example.com/api/public/hooks/deepfake-scan-execute",
@@ -139,10 +135,7 @@ test("deployment worker URL resolution prefers exact hook or appends it", () => 
 });
 
 test("isProductionDeepfakeRuntime gates inline fallback", () => {
-  assert.equal(
-    isProductionDeepfakeRuntime({ VERCEL: "1" } as NodeJS.ProcessEnv),
-    true,
-  );
+  assert.equal(isProductionDeepfakeRuntime({ VERCEL: "1" } as NodeJS.ProcessEnv), true);
   assert.equal(
     isProductionDeepfakeRuntime({ NODE_ENV: "development" } as NodeJS.ProcessEnv),
     false,

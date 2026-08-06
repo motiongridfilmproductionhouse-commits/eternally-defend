@@ -19,9 +19,7 @@ const MIGRATION_PATH = resolve(
 );
 
 test("Google Images search URL imports as manual evidence", () => {
-  const parsed = classifyManualEvidenceUrl(
-    "https://www.google.com/search?q=Sarayu+Mohan&tbm=isch",
-  );
+  const parsed = classifyManualEvidenceUrl("https://www.google.com/search?q=Sarayu+Mohan&tbm=isch");
   assert.equal(parsed.kind, "google_images_search");
   assert.equal(parsed.selectedResultFragment, null);
 });
@@ -35,10 +33,8 @@ test("Google Images #sv viewer URL imports and preserves selected fragment", () 
 });
 
 test("multiple #sv fragments remain separate before resolution", () => {
-  const a =
-    "https://www.google.com/search?q=Sarayu+Mohan&tbm=isch#sv=selected-a";
-  const b =
-    "https://www.google.com/search?q=Sarayu+Mohan&tbm=isch#sv=selected-b";
+  const a = "https://www.google.com/search?q=Sarayu+Mohan&tbm=isch#sv=selected-a";
+  const b = "https://www.google.com/search?q=Sarayu+Mohan&tbm=isch#sv=selected-b";
   assert.notEqual(manualLeadInitialDedupeKey(a), manualLeadInitialDedupeKey(b));
 });
 

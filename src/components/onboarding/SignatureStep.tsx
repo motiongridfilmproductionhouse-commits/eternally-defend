@@ -7,8 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, ChevronRight, ChevronLeft, PenTool, ShieldCheck, Download, ExternalLink } from "lucide-react";
-import { finalizeSignature, getAuthorizationBundle, getSignedDocUrl } from "@/lib/onboarding/authorization.functions";
+import {
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
+  PenTool,
+  ShieldCheck,
+  Download,
+  ExternalLink,
+} from "lucide-react";
+import {
+  finalizeSignature,
+  getAuthorizationBundle,
+  getSignedDocUrl,
+} from "@/lib/onboarding/authorization.functions";
 import { getClientProfile } from "@/lib/onboarding/profile.functions";
 
 const DECLARATIONS = [
@@ -21,20 +33,18 @@ const DECLARATIONS = [
   { key: "final_approval", label: "Final submissions may require separate approval." },
 ] as const;
 
-export function SignatureStep({
-  onBack,
-  onNext,
-}: {
-  onBack: () => void;
-  onNext: () => void;
-}) {
+export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   const qc = useQueryClient();
   const fetchAuth = useServerFn(getAuthorizationBundle);
   const fetchProfile = useServerFn(getClientProfile);
   const signDoc = useServerFn(finalizeSignature);
   const fetchUrl = useServerFn(getSignedDocUrl);
 
-  const { data: authBundle, refetch, isLoading } = useQuery({
+  const {
+    data: authBundle,
+    refetch,
+    isLoading,
+  } = useQuery({
     queryKey: ["auth_bundle"],
     queryFn: () => fetchAuth(),
   });
@@ -67,10 +77,10 @@ export function SignatureStep({
   const missingReason = !allConfirmed
     ? "Please check all declarations above."
     : !nameOk
-    ? "Enter your full legal name."
-    : !hasStrokes
-    ? "Draw your signature in the box."
-    : null;
+      ? "Enter your full legal name."
+      : !hasStrokes
+        ? "Draw your signature in the box."
+        : null;
 
   const handleClearSig = () => {
     sigCanvas.current?.clear();
@@ -147,15 +157,22 @@ export function SignatureStep({
   if (isLoading) {
     return (
       <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl">
-        <CardContent className="py-12 flex justify-center"><Loader2 className="size-6 animate-spin text-blue-500" /></CardContent>
+        <CardContent className="py-12 flex justify-center">
+          <Loader2 className="size-6 animate-spin text-blue-500" />
+        </CardContent>
       </Card>
     );
   }
 
   const auth = authBundle?.auth;
-  const isSigned = auth?.status === "ACTIVE" || auth?.status === "SIGNED" || auth?.status === "UNDER_ADMIN_REVIEW";
-  const signedDoc = authBundle?.documents?.find((d: any) => d.kind === "signed" && d.version === auth?.version);
-  const signatureRec = authBundle?.signatures?.find((s: any) => s.status === "SIGNED" && s.version === auth?.version);
+  const isSigned =
+    auth?.status === "ACTIVE" || auth?.status === "SIGNED" || auth?.status === "UNDER_ADMIN_REVIEW";
+  const signedDoc = authBundle?.documents?.find(
+    (d: any) => d.kind === "signed" && d.version === auth?.version,
+  );
+  const signatureRec = authBundle?.signatures?.find(
+    (s: any) => s.status === "SIGNED" && s.version === auth?.version,
+  );
 
   if (isSigned && signedDoc && signatureRec) {
     return (
@@ -167,7 +184,9 @@ export function SignatureStep({
             </div>
             <div>
               <h2 className="text-2xl font-bold text-emerald-400">Authorization Signed</h2>
-              <p className="text-white/60 mt-1">Your authorization document is sealed and legally binding.</p>
+              <p className="text-white/60 mt-1">
+                Your authorization document is sealed and legally binding.
+              </p>
             </div>
           </div>
 
@@ -182,21 +201,47 @@ export function SignatureStep({
             </div>
             <div className="flex justify-between border-b border-white/10 pb-2">
               <span className="text-white/50">Signed Date</span>
-              <span className="text-white">{signatureRec.signed_at ? new Date(signatureRec.signed_at).toLocaleString() : "Unknown"}</span>
+              <span className="text-white">
+                {signatureRec.signed_at
+                  ? new Date(signatureRec.signed_at).toLocaleString()
+                  : "Unknown"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-white/50">Document Hash</span>
-              <span className="font-mono text-xs text-white/80 max-w-[200px] truncate" title={signedDoc.sha256 ?? undefined}>{signedDoc.sha256}</span>
+              <span
+                className="font-mono text-xs text-white/80 max-w-[200px] truncate"
+                title={signedDoc.sha256 ?? undefined}
+              >
+                {signedDoc.sha256}
+              </span>
             </div>
           </div>
 
           <div className="flex gap-3 justify-center">
-            <Button variant="outline" onClick={() => handleViewPdf(signedDoc.id, true)} disabled={loadingUrl === signedDoc.id} className="border-white/20 text-white hover:bg-white/10">
-              {loadingUrl === signedDoc.id ? <Loader2 className="size-4 animate-spin mr-2" /> : <Download className="size-4 mr-2" />}
+            <Button
+              variant="outline"
+              onClick={() => handleViewPdf(signedDoc.id, true)}
+              disabled={loadingUrl === signedDoc.id}
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              {loadingUrl === signedDoc.id ? (
+                <Loader2 className="size-4 animate-spin mr-2" />
+              ) : (
+                <Download className="size-4 mr-2" />
+              )}
               Download
             </Button>
-            <Button onClick={() => handleViewPdf(signedDoc.id, false)} disabled={loadingUrl === signedDoc.id} className="bg-white/10 hover:bg-white/20 text-white border border-white/10">
-              {loadingUrl === signedDoc.id ? <Loader2 className="size-4 animate-spin mr-2" /> : <ExternalLink className="size-4 mr-2" />}
+            <Button
+              onClick={() => handleViewPdf(signedDoc.id, false)}
+              disabled={loadingUrl === signedDoc.id}
+              className="bg-white/10 hover:bg-white/20 text-white border border-white/10"
+            >
+              {loadingUrl === signedDoc.id ? (
+                <Loader2 className="size-4 animate-spin mr-2" />
+              ) : (
+                <ExternalLink className="size-4 mr-2" />
+              )}
               View PDF
             </Button>
           </div>
@@ -205,7 +250,10 @@ export function SignatureStep({
             <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
               <ChevronLeft className="size-4 mr-1" /> Back
             </Button>
-            <Button onClick={onNext} className="bg-emerald-600 hover:bg-emerald-500 text-white border-0">
+            <Button
+              onClick={onNext}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white border-0"
+            >
               Continue <ChevronRight className="size-4 ml-1" />
             </Button>
           </div>
@@ -219,16 +267,21 @@ export function SignatureStep({
       <CardHeader>
         <CardTitle className="text-xl">Electronic Signature</CardTitle>
         <CardDescription className="text-white/60">
-          Sign the authorization letter to grant Eterna AI legal permission to act on your behalf. Your signature is securely hashed and sealed alongside the document.
+          Sign the authorization letter to grant Eterna AI legal permission to act on your behalf.
+          Your signature is securely hashed and sealed alongside the document.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-
         <div className="space-y-2">
-          <div className="text-sm font-semibold text-white/80 uppercase tracking-wider">Required Declarations</div>
+          <div className="text-sm font-semibold text-white/80 uppercase tracking-wider">
+            Required Declarations
+          </div>
           <div className="space-y-2 bg-white/5 border border-white/10 p-3 rounded-lg">
             {DECLARATIONS.map((d) => (
-              <label key={d.key} className="flex gap-3 items-start cursor-pointer hover:bg-white/5 p-1.5 rounded transition-colors">
+              <label
+                key={d.key}
+                className="flex gap-3 items-start cursor-pointer hover:bg-white/5 p-1.5 rounded transition-colors"
+              >
                 <Checkbox
                   checked={confirmations[d.key] || false}
                   onCheckedChange={(c) => setConfirmations((p) => ({ ...p, [d.key]: !!c }))}
@@ -243,7 +296,9 @@ export function SignatureStep({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-white/50 uppercase tracking-wider">Full Legal Name</label>
+            <label className="text-xs text-white/50 uppercase tracking-wider">
+              Full Legal Name
+            </label>
             <Input
               value={typedName}
               onChange={(e) => setTypedName(e.target.value)}
@@ -253,7 +308,9 @@ export function SignatureStep({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-white/50 uppercase tracking-wider">Role / Designation (Optional)</label>
+            <label className="text-xs text-white/50 uppercase tracking-wider">
+              Role / Designation (Optional)
+            </label>
             <Input
               value={roleTitle}
               onChange={(e) => setRoleTitle(e.target.value)}
@@ -267,21 +324,34 @@ export function SignatureStep({
         <div className="space-y-1.5">
           <label className="text-xs text-white/50 uppercase tracking-wider flex justify-between">
             <span>Draw Signature</span>
-            <button onClick={handleClearSig} disabled={busy} className="text-blue-400 hover:text-blue-300 text-[10px]">Clear</button>
+            <button
+              onClick={handleClearSig}
+              disabled={busy}
+              className="text-blue-400 hover:text-blue-300 text-[10px]"
+            >
+              Clear
+            </button>
           </label>
-          <div className="bg-white rounded-lg border-2 border-white/20 overflow-hidden relative" style={{ height: "150px" }}>
+          <div
+            className="bg-white rounded-lg border-2 border-white/20 overflow-hidden relative"
+            style={{ height: "150px" }}
+          >
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
               <PenTool className="size-16 text-black" />
             </div>
             <SignatureCanvas
               ref={sigCanvas}
               penColor="black"
-              onEnd={() => setHasStrokes(!(sigCanvas.current?.isEmpty()))}
-              canvasProps={{ className: "w-full h-full cursor-crosshair", style: { width: "100%", height: "100%" } }}
+              onEnd={() => setHasStrokes(!sigCanvas.current?.isEmpty())}
+              canvasProps={{
+                className: "w-full h-full cursor-crosshair",
+                style: { width: "100%", height: "100%" },
+              }}
             />
           </div>
           <div className="text-[10px] text-white/40 pt-1">
-            Your signature will be hashed (SHA-256) and stored alongside your identity, IP, and user-agent for audit purposes.
+            Your signature will be hashed (SHA-256) and stored alongside your identity, IP, and
+            user-agent for audit purposes.
           </div>
         </div>
 
@@ -293,7 +363,12 @@ export function SignatureStep({
         )}
 
         <div className="flex flex-col sm:flex-row justify-between pt-4 border-t border-white/10 gap-3">
-          <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10" disabled={busy}>
+          <Button
+            variant="ghost"
+            onClick={onBack}
+            className="text-white hover:bg-white/10"
+            disabled={busy}
+          >
             <ChevronLeft className="size-4 mr-1" /> Back
           </Button>
           <div className="flex flex-col items-end gap-1">
@@ -303,7 +378,11 @@ export function SignatureStep({
               aria-disabled={!canSign}
               className="bg-emerald-600 hover:bg-emerald-500 text-white border-0 disabled:opacity-70"
             >
-              {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : <ShieldCheck className="size-4 mr-2" />}
+              {busy ? (
+                <Loader2 className="size-4 animate-spin mr-2" />
+              ) : (
+                <ShieldCheck className="size-4 mr-2" />
+              )}
               Sign &amp; Complete Onboarding
             </Button>
             {missingReason && !busy && (

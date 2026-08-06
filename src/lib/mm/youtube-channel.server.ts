@@ -47,7 +47,9 @@ export async function fetchYoutubeChannel(channelId: string): Promise<YoutubeCha
       description: typeof sn.description === "string" ? sn.description : undefined,
       country: typeof sn.country === "string" ? sn.country : undefined,
       channelCreatedAt: typeof sn.publishedAt === "string" ? sn.publishedAt : undefined,
-      subscriberCount: st.hiddenSubscriberCount ? undefined : Number(st.subscriberCount ?? 0) || undefined,
+      subscriberCount: st.hiddenSubscriberCount
+        ? undefined
+        : Number(st.subscriberCount ?? 0) || undefined,
       totalViewCount: Number(st.viewCount ?? 0) || undefined,
       videoCount: Number(st.videoCount ?? 0) || undefined,
       raw: item,

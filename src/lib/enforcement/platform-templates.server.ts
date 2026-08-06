@@ -155,7 +155,9 @@ function buildNarrative(input: TemplateInput, kind: ComplaintKind, strength: str
     input.author ? `  Author / channel: ${input.author}` : ``,
     ``,
     `Basis for this report:`,
-    input.claimSummary ? `  ${input.claimSummary}` : `  The content contains material that violates ${input.platform} policy and/or applicable law.`,
+    input.claimSummary
+      ? `  ${input.claimSummary}`
+      : `  The content contains material that violates ${input.platform} policy and/or applicable law.`,
     ``,
     `Evidence attached to this submission (evidence strength: ${strength}):`,
     `  - ${input.timestampsCount} timestamped evidence segment(s) captured by Eterna AI.`,
@@ -173,14 +175,23 @@ function buildNarrative(input: TemplateInput, kind: ComplaintKind, strength: str
 
 function labelFor(kind: ComplaintKind): string {
   switch (kind) {
-    case "youtube_copyright": return "YouTube copyright";
-    case "youtube_harassment": return "YouTube harassment";
-    case "youtube_defamation": return "YouTube defamation / privacy";
-    case "x_impersonation": return "X impersonation";
-    case "x_abuse": return "X abuse";
-    case "reddit_content_policy": return "Reddit content policy";
-    case "meta_ip_report": return "Meta rights infringement";
-    case "tiktok_ip": return "TikTok rights infringement";
-    default: return "DMCA takedown";
+    case "youtube_copyright":
+      return "YouTube copyright";
+    case "youtube_harassment":
+      return "YouTube harassment";
+    case "youtube_defamation":
+      return "YouTube defamation / privacy";
+    case "x_impersonation":
+      return "X impersonation";
+    case "x_abuse":
+      return "X abuse";
+    case "reddit_content_policy":
+      return "Reddit content policy";
+    case "meta_ip_report":
+      return "Meta rights infringement";
+    case "tiktok_ip":
+      return "TikTok rights infringement";
+    default:
+      return "DMCA takedown";
   }
 }

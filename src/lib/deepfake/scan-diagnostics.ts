@@ -68,11 +68,19 @@ export function diagnosticsFromMetrics(
     n("reference_bing_images_found") > 0,
     n("reference_yandex_images_found") > 0,
     Array.isArray(metrics?.reference_image_provider_stats) &&
-      (metrics.reference_image_provider_stats as Array<{ provider?: string; images_found?: number }>).some(
-        (s) => s.provider === "brave_images" && (s.images_found ?? 0) > 0,
-      ),
+      (
+        metrics.reference_image_provider_stats as Array<{
+          provider?: string;
+          images_found?: number;
+        }>
+      ).some((s) => s.provider === "brave_images" && (s.images_found ?? 0) > 0),
     Array.isArray(metrics?.reference_image_provider_stats) &&
-      (metrics.reference_image_provider_stats as Array<{ provider?: string; images_found?: number }>).some(
+      (
+        metrics.reference_image_provider_stats as Array<{
+          provider?: string;
+          images_found?: number;
+        }>
+      ).some(
         (s) =>
           ["public_website", "news_website", "official_website", "social_public"].includes(
             s.provider ?? "",
@@ -92,8 +100,7 @@ export function diagnosticsFromMetrics(
   else if (referenceImages > 0) confidence = "low";
 
   const stageRaw = metrics?.investigation_stage ?? metrics?.stage;
-  const stage =
-    typeof stageRaw === "string" ? stageRaw : ("discovering" as InvestigationStage);
+  const stage = typeof stageRaw === "string" ? stageRaw : ("discovering" as InvestigationStage);
 
   return {
     reference_images: referenceImages,
@@ -134,7 +141,9 @@ export function explainNoDeepfakeResults(
   const reasons: string[] = [];
 
   if (d.reference_images === 0) {
-    reasons.push("No reference images were collected — image providers may be unavailable or returned no usable faces.");
+    reasons.push(
+      "No reference images were collected — image providers may be unavailable or returned no usable faces.",
+    );
   } else if (d.reference_images < 30) {
     reasons.push(
       `Only ${d.reference_images} reference images collected (target 300+ when publicly available).`,
@@ -156,12 +165,13 @@ export function explainNoDeepfakeResults(
   }
 
   if (d.images_compared === 0 && d.reference_images > 0) {
-    reasons.push("Reference images exist but no candidate images were compared via face embeddings.");
+    reasons.push(
+      "Reference images exist but no candidate images were compared via face embeddings.",
+    );
   }
 
   const googleDiag = metrics?.google_images_diagnostic as
-    | { provider_status?: string; failure_reason?: string }
-    | undefined;
+    { provider_status?: string; failure_reason?: string } | undefined;
   if (googleDiag?.provider_status === "unavailable") {
     reasons.push(
       `Google Images was unavailable${googleDiag.failure_reason ? `: ${googleDiag.failure_reason}` : ""}. Other providers continued independently.`,
@@ -183,7 +193,9 @@ export function explainNoDeepfakeResults(
   }
 
   if (typeof metrics?.provider_failures === "number" && metrics.provider_failures > 0) {
-    reasons.push(`${metrics.provider_failures} provider request(s) failed — other providers continued independently.`);
+    reasons.push(
+      `${metrics.provider_failures} provider request(s) failed — other providers continued independently.`,
+    );
   }
 
   if (status === "failed" && typeof metrics?.failure_reason === "string") {

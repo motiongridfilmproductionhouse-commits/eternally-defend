@@ -8,7 +8,8 @@ export function guessType(key: string): string {
 
 export function sameDay(a: string | null, b: string | null): boolean {
   if (!a || !b) return false;
-  const da = new Date(a), db = new Date(b);
+  const da = new Date(a),
+    db = new Date(b);
   if (Number.isNaN(+da) || Number.isNaN(+db)) return false;
   return Math.abs(+da - +db) < 36 * 3600 * 1000;
 }

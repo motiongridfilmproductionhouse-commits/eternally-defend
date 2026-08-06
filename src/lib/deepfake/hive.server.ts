@@ -1,7 +1,4 @@
-import type {
-  RawHit,
-  ClassifiedHit,
-} from "./classify.server";
+import type { RawHit, ClassifiedHit } from "./classify.server";
 import {
   assertNotAborted,
   boundTimeoutMs,
@@ -10,15 +7,11 @@ import {
   readResponseText,
 } from "./scan-runtime.server";
 
-const HIVE_ENDPOINT =
-  process.env.HIVE_API_URL ??
-  "https://api.hivemoderation.com/api/v1/task/sync";
+const HIVE_ENDPOINT = process.env.HIVE_API_URL ?? "https://api.hivemoderation.com/api/v1/task/sync";
 
-const IMAGE_EXTENSIONS =
-  /\.(?:avif|gif|jpe?g|png|webp)(?:$|[?#])/i;
+const IMAGE_EXTENSIONS = /\.(?:avif|gif|jpe?g|png|webp)(?:$|[?#])/i;
 
-const VIDEO_EXTENSIONS =
-  /\.(?:avi|mkv|mov|mp4|webm|wmv)(?:$|[?#])/i;
+const VIDEO_EXTENSIONS = /\.(?:avi|mkv|mov|mp4|webm|wmv)(?:$|[?#])/i;
 
 type HiveModel = "ai_generated_media" | "deepfake";
 
@@ -27,10 +20,7 @@ type HiveScore = {
   score: number;
 };
 
-export type HiveClassificationStatus =
-  | "completed"
-  | "no_media"
-  | "provider_error";
+export type HiveClassificationStatus = "completed" | "no_media" | "provider_error";
 
 function clamp(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -88,18 +78,9 @@ function collectHiveScores(
 
   const record = value as Record<string, unknown>;
 
-  const rawLabel =
-    record.class ??
-    record.label ??
-    record.name ??
-    record.type ??
-    record.category;
+  const rawLabel = record.class ?? record.label ?? record.name ?? record.type ?? record.category;
 
-  const rawScore =
-    record.score ??
-    record.value ??
-    record.confidence ??
-    record.probability;
+  const rawScore = record.score ?? record.value ?? record.confidence ?? record.probability;
 
   if (typeof rawLabel === "string") {
     const numericScore = toNumber(rawScore);
@@ -119,10 +100,7 @@ function collectHiveScores(
   return output;
 }
 
-function highestMatchingScore(
-  scores: HiveScore[],
-  patterns: RegExp[],
-): number {
+function highestMatchingScore(scores: HiveScore[], patterns: RegExp[]): number {
   let highest = 0;
 
   for (const item of scores) {
@@ -171,9 +149,7 @@ function getMediaUrl(hit: RawHit): string | null {
       continue;
     }
 
-    const isDirectMedia =
-      IMAGE_EXTENSIONS.test(candidate) ||
-      VIDEO_EXTENSIONS.test(candidate);
+    const isDirectMedia = IMAGE_EXTENSIONS.test(candidate) || VIDEO_EXTENSIONS.test(candidate);
 
     const isExplicitMediaField =
       candidate === extendedHit.image_url ||
@@ -204,15 +180,8 @@ async function callHive(
   }
 
   assertNotAborted(options?.signal);
-  const timeoutMs = boundTimeoutMs(
-    30_000,
-    options?.signal,
-    options?.softDeadlineMs,
-  );
-  const signal = mergeAbortSignals(
-    options?.signal,
-    AbortSignal.timeout(timeoutMs),
-  );
+  const timeoutMs = boundTimeoutMs(30_000, options?.signal, options?.softDeadlineMs);
+  const signal = mergeAbortSignals(options?.signal, AbortSignal.timeout(timeoutMs));
 
   const response = await fetch(HIVE_ENDPOINT, {
     method: "POST",
@@ -295,13 +264,9 @@ function fallbackThreatClassification(hit: RawHit): {
      */
   ].join(" ");
 
-  const explicitMatches = EXPLICIT_SEXUAL_PATTERNS.filter(
-    (pattern) => pattern.test(text),
-  ).length;
+  const explicitMatches = EXPLICIT_SEXUAL_PATTERNS.filter((pattern) => pattern.test(text)).length;
 
-  const syntheticMatches = SYNTHETIC_ABUSE_PATTERNS.filter(
-    (pattern) => pattern.test(text),
-  ).length;
+  const syntheticMatches = SYNTHETIC_ABUSE_PATTERNS.filter((pattern) => pattern.test(text)).length;
 
   /*
    * Text fallback may only elevate risk when both identity-adjacent
@@ -402,58 +367,36 @@ async function classifyOneWithHive(
   const uniqueId = `${Date.now()}-${index}`;
 
   try {
-    const [generatedResponse, deepfakeResponse] =
-      await Promise.all([
-        callHive(
-          mediaUrl,
-          "ai_generated_media",
-          `eterna-ai-${uniqueId}`,
-          options,
-        ),
-        callHive(
-          mediaUrl,
-          "deepfake",
-          `eterna-df-${uniqueId}`,
-          options,
-        ),
-      ]);
+    const [generatedResponse, deepfakeResponse] = await Promise.all([
+      callHive(mediaUrl, "ai_generated_media", `eterna-ai-${uniqueId}`, options),
+      callHive(mediaUrl, "deepfake", `eterna-df-${uniqueId}`, options),
+    ]);
 
-    const generatedScores =
-      collectHiveScores(generatedResponse);
+    const generatedScores = collectHiveScores(generatedResponse);
 
-    const deepfakeScores =
-      collectHiveScores(deepfakeResponse);
+    const deepfakeScores = collectHiveScores(deepfakeResponse);
 
-    const aiGeneratedScore = highestMatchingScore(
-      generatedScores,
-      [
-        /^ai_generated$/,
-        /ai_generated/,
-        /synthetic/,
-        /generated_image/,
-        /generated_video/,
-      ],
-    );
+    const aiGeneratedScore = highestMatchingScore(generatedScores, [
+      /^ai_generated$/,
+      /ai_generated/,
+      /synthetic/,
+      /generated_image/,
+      /generated_video/,
+    ]);
 
-    const positiveDeepfakeScore = highestMatchingScore(
-      deepfakeScores,
-      [
-        /^deepfake$/,
-        /^yes_deepfake$/,
-        /deepfake_yes/,
-        /face_swap/,
-        /faceswap/,
-      ],
-    );
+    const positiveDeepfakeScore = highestMatchingScore(deepfakeScores, [
+      /^deepfake$/,
+      /^yes_deepfake$/,
+      /deepfake_yes/,
+      /face_swap/,
+      /faceswap/,
+    ]);
 
-    const negativeDeepfakeScore = highestMatchingScore(
-      deepfakeScores,
-      [
-        /^no_deepfake$/,
-        /not_deepfake/,
-        /deepfake_no/,
-      ],
-    );
+    const negativeDeepfakeScore = highestMatchingScore(deepfakeScores, [
+      /^no_deepfake$/,
+      /not_deepfake/,
+      /deepfake_no/,
+    ]);
 
     const deepfakeScore =
       positiveDeepfakeScore > 0
@@ -462,10 +405,7 @@ async function classifyOneWithHive(
           ? 1 - negativeDeepfakeScore
           : 0;
 
-    const finalScore = Math.max(
-      aiGeneratedScore,
-      deepfakeScore,
-    );
+    const finalScore = Math.max(aiGeneratedScore, deepfakeScore);
 
     /*
      * Hive documentation recommends 0.90 for deepfake images.
@@ -508,10 +448,7 @@ async function classifyOneWithHive(
         `Deepfake score: ${Math.round(deepfakeScore * 100)}%. ` +
         `AI-generated score: ${Math.round(aiGeneratedScore * 100)}%.`,
       classification_status: "completed",
-      visibility:
-        isDeepfake || isAiGenerated
-          ? "primary"
-          : "triage",
+      visibility: isDeepfake || isAiGenerated ? "primary" : "triage",
       hive_deepfake_score: deepfakeScore,
       hive_ai_generated_score: aiGeneratedScore,
       hive_raw: {
@@ -524,10 +461,7 @@ async function classifyOneWithHive(
       throw error;
     }
 
-    const message =
-      error instanceof Error
-        ? error.message
-        : String(error);
+    const message = error instanceof Error ? error.message : String(error);
 
     console.error("[DEEPFAKE:HIVE] Classification failed:", {
       url: hit.url,
@@ -535,11 +469,7 @@ async function classifyOneWithHive(
       error: message,
     });
 
-    return createUnclassifiedResult(
-      hit,
-      "provider_error",
-      `Hive analysis unavailable: ${message}`,
-    );
+    return createUnclassifiedResult(hit, "provider_error", `Hive analysis unavailable: ${message}`);
   }
 }
 
@@ -561,19 +491,12 @@ export async function classifyHitsWithHive(
       return classifyHitsWithVision(hits, options);
     }
 
-    console.warn(
-      "[DEEPFAKE:HIVE] HIVE_API_KEY is missing. Results will be routed to triage.",
-    );
+    console.warn("[DEEPFAKE:HIVE] HIVE_API_KEY is missing. Results will be routed to triage.");
 
     return hits.map((hit) =>
-      createUnclassifiedResult(
-        hit,
-        "provider_error",
-        "Hive API key is not configured.",
-      ),
+      createUnclassifiedResult(hit, "provider_error", "Hive API key is not configured."),
     );
   }
-
 
   const output: ClassifiedHit[] = [];
 
@@ -588,9 +511,7 @@ export async function classifyHitsWithHive(
     const batch = hits.slice(start, start + batchSize);
 
     const batchResults = await Promise.all(
-      batch.map((hit, offset) =>
-        classifyOneWithHive(hit, start + offset, options),
-      ),
+      batch.map((hit, offset) => classifyOneWithHive(hit, start + offset, options)),
     );
 
     output.push(...batchResults);
@@ -598,22 +519,11 @@ export async function classifyHitsWithHive(
 
   console.log("[DEEPFAKE:HIVE] Classification summary:", {
     submitted: hits.length,
-    completed: output.filter(
-      (item: any) =>
-        item.classification_status === "completed",
-    ).length,
-    noMedia: output.filter(
-      (item: any) =>
-        item.classification_status === "no_media",
-    ).length,
-    providerErrors: output.filter(
-      (item: any) =>
-        item.classification_status === "provider_error",
-    ).length,
-    confirmedDeepfakes: output.filter(
-      (item: any) =>
-        item.content_category === "deepfake",
-    ).length,
+    completed: output.filter((item: any) => item.classification_status === "completed").length,
+    noMedia: output.filter((item: any) => item.classification_status === "no_media").length,
+    providerErrors: output.filter((item: any) => item.classification_status === "provider_error")
+      .length,
+    confirmedDeepfakes: output.filter((item: any) => item.content_category === "deepfake").length,
   });
 
   return output;

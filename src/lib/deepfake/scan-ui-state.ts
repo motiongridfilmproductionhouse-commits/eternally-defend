@@ -38,17 +38,13 @@ export function pickLiveScanId(input: {
   const name = input.targetName.trim().toLowerCase();
   const match = input.scans.find(
     (scan) =>
-      scan.status === "running" &&
-      (!name || scan.target_name.trim().toLowerCase() === name),
+      scan.status === "running" && (!name || scan.target_name.trim().toLowerCase() === name),
   );
   return match?.id ?? null;
 }
 
 /** Findings must render during "running"; only block on the very first fetch. */
-export function shouldShowResultsLoader(input: {
-  isLoading: boolean;
-  hasScan: boolean;
-}): boolean {
+export function shouldShowResultsLoader(input: { isLoading: boolean; hasScan: boolean }): boolean {
   return input.isLoading && !input.hasScan;
 }
 
@@ -92,25 +88,23 @@ export function shouldShowHistoryEmpty(input: {
   count: number;
 }): boolean {
   if (input.isError) return false;
-  if (shouldShowHistoryLoading({
-    isLoading: input.isLoading,
-    isFetching: input.isFetching,
-    hasData: input.count > 0,
-  })) {
+  if (
+    shouldShowHistoryLoading({
+      isLoading: input.isLoading,
+      isFetching: input.isFetching,
+      hasData: input.count > 0,
+    })
+  ) {
     return false;
   }
   return input.count === 0;
 }
 
 /** Failed scans stay out of SCAN HISTORY (partial/completed/running remain). */
-export function isVisibleScanHistoryStatus(
-  status: ScanStatus | null | undefined,
-): boolean {
+export function isVisibleScanHistoryStatus(status: ScanStatus | null | undefined): boolean {
   return status !== "failed";
 }
 
-export function filterScanHistory<T extends { status: ScanStatus }>(
-  scans: T[],
-): T[] {
+export function filterScanHistory<T extends { status: ScanStatus }>(scans: T[]): T[] {
   return scans.filter((scan) => isVisibleScanHistoryStatus(scan.status));
 }

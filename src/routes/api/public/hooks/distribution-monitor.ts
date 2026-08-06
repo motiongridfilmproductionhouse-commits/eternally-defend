@@ -10,7 +10,8 @@ export const Route = createFileRoute("/api/public/hooks/distribution-monitor")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env.DISTRIBUTION_MONITOR_SECRET ?? process.env.CHANNEL_WATCH_POLL_SECRET;
+        const secret =
+          process.env.DISTRIBUTION_MONITOR_SECRET ?? process.env.CHANNEL_WATCH_POLL_SECRET;
         if (!secret) return new Response("Not configured", { status: 500 });
         const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
         const a = Buffer.from(token);

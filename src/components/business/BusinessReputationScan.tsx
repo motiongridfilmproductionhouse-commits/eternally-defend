@@ -114,9 +114,9 @@ export function BusinessReputationScan() {
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
             <p>
               This module is only for businesses — it never mixes with celebrity, personal
-              reputation, deepfake or copyright scans. Business listings come from Google Places once
-              a Google Maps connection is linked; until then, clearly-labelled sample listings let
-              you exercise the full selection and confirmation flow.
+              reputation, deepfake or copyright scans. Business listings come from Google Places
+              once a Google Maps connection is linked; until then, clearly-labelled sample listings
+              let you exercise the full selection and confirmation flow.
             </p>
           </div>
 
@@ -189,7 +189,9 @@ export function BusinessReputationScan() {
                       {active && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                      {l.category && <span className="rounded-md bg-white/5 px-2 py-0.5">{l.category}</span>}
+                      {l.category && (
+                        <span className="rounded-md bg-white/5 px-2 py-0.5">{l.category}</span>
+                      )}
                       {typeof l.rating === "number" && (
                         <span className="inline-flex items-center gap-1">
                           <Star className="h-3 w-3 text-amber-400" />
@@ -275,9 +277,24 @@ export function BusinessReputationScan() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Trading / brand name" value={tradingName} onChange={setTradingName} placeholder="Optional" />
-              <Field label="Parent company" value={parentCompany} onChange={setParentCompany} placeholder="Optional" />
-              <Field label="Industry" value={industry} onChange={setIndustry} placeholder="e.g. Healthcare" />
+              <Field
+                label="Trading / brand name"
+                value={tradingName}
+                onChange={setTradingName}
+                placeholder="Optional"
+              />
+              <Field
+                label="Parent company"
+                value={parentCompany}
+                onChange={setParentCompany}
+                placeholder="Optional"
+              />
+              <Field
+                label="Industry"
+                value={industry}
+                onChange={setIndustry}
+                placeholder="e.g. Healthcare"
+              />
               <Field
                 label="Abbreviations"
                 value={abbreviations}
@@ -363,7 +380,10 @@ export function BusinessReputationScan() {
               <div className={`${glass} max-h-72 overflow-auto p-2`}>
                 <ul className="divide-y divide-white/5 text-xs">
                   {queries.slice(0, 40).map((q) => (
-                    <li key={q.query} className="flex items-center justify-between gap-3 px-2 py-1.5">
+                    <li
+                      key={q.query}
+                      className="flex items-center justify-between gap-3 px-2 py-1.5"
+                    >
                       <span className="truncate">{q.query}</span>
                       <span className="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
                         {q.queryType}

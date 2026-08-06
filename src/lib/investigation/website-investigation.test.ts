@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  normalizeInvestigationResponse,
-  resolveInvestigationUrl,
-} from "./website-investigation";
+import { normalizeInvestigationResponse, resolveInvestigationUrl } from "./website-investigation";
 
 test("resolveInvestigationUrl reads source_url from copyright matches", () => {
   const url = resolveInvestigationUrl({

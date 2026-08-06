@@ -17,14 +17,46 @@ const METRIC_CARDS: Array<{
   label: string;
   tone: string;
 }> = [
-  { key: "verified_deepfakes", label: "Verified deepfakes", tone: "text-red-400 border-red-500/40 bg-red-500/10" },
-  { key: "probable_deepfakes", label: "Probable deepfakes", tone: "text-orange-400 border-orange-500/40 bg-orange-500/10" },
-  { key: "url_verified_pages", label: "URL-verified pages", tone: "text-cyan-300 border-cyan-500/40 bg-cyan-500/10" },
-  { key: "unique_domains", label: "Unique domains", tone: "text-sky-300 border-sky-500/40 bg-sky-500/10" },
-  { key: "identity_rejected", label: "Identity rejected", tone: "text-slate-300 border-slate-500/40 bg-slate-500/10" },
-  { key: "url_rejected", label: "URL rejected", tone: "text-slate-400 border-slate-500/40 bg-slate-500/10" },
-  { key: "crawl_failed", label: "Crawl failed", tone: "text-slate-400 border-slate-500/40 bg-slate-500/10" },
-  { key: "client_visible", label: "Client-visible findings", tone: "text-blue-300 border-blue-500/40 bg-blue-500/10" },
+  {
+    key: "verified_deepfakes",
+    label: "Verified deepfakes",
+    tone: "text-red-400 border-red-500/40 bg-red-500/10",
+  },
+  {
+    key: "probable_deepfakes",
+    label: "Probable deepfakes",
+    tone: "text-orange-400 border-orange-500/40 bg-orange-500/10",
+  },
+  {
+    key: "url_verified_pages",
+    label: "URL-verified pages",
+    tone: "text-cyan-300 border-cyan-500/40 bg-cyan-500/10",
+  },
+  {
+    key: "unique_domains",
+    label: "Unique domains",
+    tone: "text-sky-300 border-sky-500/40 bg-sky-500/10",
+  },
+  {
+    key: "identity_rejected",
+    label: "Identity rejected",
+    tone: "text-slate-300 border-slate-500/40 bg-slate-500/10",
+  },
+  {
+    key: "url_rejected",
+    label: "URL rejected",
+    tone: "text-slate-400 border-slate-500/40 bg-slate-500/10",
+  },
+  {
+    key: "crawl_failed",
+    label: "Crawl failed",
+    tone: "text-slate-400 border-slate-500/40 bg-slate-500/10",
+  },
+  {
+    key: "client_visible",
+    label: "Client-visible findings",
+    tone: "text-blue-300 border-blue-500/40 bg-blue-500/10",
+  },
 ];
 
 const BAR_COLORS: Record<string, string> = {
@@ -51,11 +83,7 @@ function FunnelChart({ funnel }: { funnel: FunnelChartPoint[] }) {
                 value.replace(" candidates", "").replace(" findings", "")
               }
             />
-            <YAxis
-              allowDecimals={false}
-              tick={{ fill: "#94a3b8", fontSize: 10 }}
-              width={36}
-            />
+            <YAxis allowDecimals={false} tick={{ fill: "#94a3b8", fontSize: 10 }} width={36} />
             <Tooltip
               cursor={{ fill: "rgba(56,189,248,0.08)" }}
               contentStyle={{
@@ -68,10 +96,7 @@ function FunnelChart({ funnel }: { funnel: FunnelChartPoint[] }) {
             />
             <Bar dataKey="value" radius={[6, 6, 0, 0]}>
               {funnel.map((entry) => (
-                <Cell
-                  key={entry.key}
-                  fill={BAR_COLORS[entry.key] ?? "#38bdf8"}
-                />
+                <Cell key={entry.key} fill={BAR_COLORS[entry.key] ?? "#38bdf8"} />
               ))}
             </Bar>
           </BarChart>
@@ -90,9 +115,7 @@ function FunnelFallback({ funnel }: { funnel: FunnelChartPoint[] }) {
           className="flex items-center justify-between rounded border border-white/10 px-2.5 py-1.5 text-[12px]"
         >
           <span className="text-slate-400">{point.label}</span>
-          <span className="font-semibold tabular-nums text-slate-100">
-            {point.value}
-          </span>
+          <span className="font-semibold tabular-nums text-slate-100">{point.value}</span>
         </li>
       ))}
     </ul>
@@ -148,16 +171,9 @@ export function VerifiedThreatOverview({
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {METRIC_CARDS.map((card) => (
-          <div
-            key={card.key}
-            className={`rounded-lg border px-3 py-2.5 ${card.tone}`}
-          >
-            <div className="text-[10px] uppercase tracking-[0.16em] opacity-80">
-              {card.label}
-            </div>
-            <div className="mt-1 text-xl font-semibold tabular-nums">
-              {metrics[card.key]}
-            </div>
+          <div key={card.key} className={`rounded-lg border px-3 py-2.5 ${card.tone}`}>
+            <div className="text-[10px] uppercase tracking-[0.16em] opacity-80">{card.label}</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{metrics[card.key]}</div>
           </div>
         ))}
       </div>

@@ -40,7 +40,10 @@ export function isManualLeadTableUnavailable(error: unknown): boolean {
 }
 
 function normalizeIdentityName(value: string): string {
-  return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function configuredUrls(): string[] {
@@ -49,11 +52,11 @@ function configuredUrls(): string[] {
   try {
     if (raw.trim().startsWith("[")) values = JSON.parse(raw);
   } catch {
-    throw new Error("SARAYU_MOHAN_MANUAL_EVIDENCE_URLS must be valid JSON or newline-separated URLs.");
+    throw new Error(
+      "SARAYU_MOHAN_MANUAL_EVIDENCE_URLS must be valid JSON or newline-separated URLs.",
+    );
   }
-  const urls = Array.isArray(values)
-    ? values
-    : raw.split(/[\r\n,]+/);
+  const urls = Array.isArray(values) ? values : raw.split(/[\r\n,]+/);
   return urls
     .filter((value): value is string => typeof value === "string")
     .map((value) => value.trim())
@@ -112,7 +115,8 @@ async function findOrCreateFallbackScan(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (existingError) throw new Error(`Unable to locate a Deepfake scan container: ${existingError.message}`);
+  if (existingError)
+    throw new Error(`Unable to locate a Deepfake scan container: ${existingError.message}`);
   if (existing?.id) return String(existing.id);
 
   const { data: created, error: createError } = await supabase
@@ -131,13 +135,16 @@ async function findOrCreateFallbackScan(
     .select("id")
     .single();
   if (createError || !created?.id) {
-    throw new Error(`Unable to create a manual preload scan container: ${createError?.message ?? "unknown error"}`);
+    throw new Error(
+      `Unable to create a manual preload scan container: ${createError?.message ?? "unknown error"}`,
+    );
   }
   return String(created.id);
 }
 
 function fallbackLeadFromDiscovery(row: any, profileId: string): SarayuFallbackLead | null {
-  if (row.source !== SARAYU_FALLBACK_SOURCE || row.search_query !== SARAYU_FALLBACK_QUERY) return null;
+  if (row.source !== SARAYU_FALLBACK_SOURCE || row.search_query !== SARAYU_FALLBACK_QUERY)
+    return null;
   let metadata: Record<string, unknown>;
   try {
     metadata = JSON.parse(String(row.snippet ?? "{}")) as Record<string, unknown>;
@@ -181,7 +188,9 @@ export async function listSarayuFallbackEvidence(supabase: any, profileId: strin
     .order("discovered_at", { ascending: false })
     .limit(100);
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row: any) => fallbackLeadFromDiscovery(row, profileId)).filter(Boolean) as SarayuFallbackLead[];
+  return (data ?? [])
+    .map((row: any) => fallbackLeadFromDiscovery(row, profileId))
+    .filter(Boolean) as SarayuFallbackLead[];
 }
 
 export async function seedSarayuFallbackEvidence(
@@ -269,7 +278,9 @@ export async function seedSarayuMohanManualEvidence(
       .eq("submitted_by", "admin_preload")
       .limit(PRELOAD_COUNT);
     if (preloadError) throw new Error(preloadError.message);
-    rawUrls = (existingPreloadRows ?? []).map((row: { submitted_url: string }) => row.submitted_url);
+    rawUrls = (existingPreloadRows ?? []).map(
+      (row: { submitted_url: string }) => row.submitted_url,
+    );
   }
   const urls = assertSixExactUrls(rawUrls);
 
@@ -283,7 +294,9 @@ export async function seedSarayuMohanManualEvidence(
   }
   if (existingError) throw new Error(existingError.message);
 
-  const existing = new Set((existingRows ?? []).map((row: { submitted_url: string }) => row.submitted_url));
+  const existing = new Set(
+    (existingRows ?? []).map((row: { submitted_url: string }) => row.submitted_url),
+  );
   const rows = urls
     .filter((submittedUrl) => !existing.has(submittedUrl))
     .map((submittedUrl) => ({
@@ -328,7 +341,11 @@ export async function seedSarayuMohanManualEvidence(
   if (!dispatch.dispatched && leadIds.length) {
     await supabase
       .from("deepfake_manual_leads")
-      .update({ error_reason: "Processing pending", state: "submitted", processing_status: "submitted" })
+      .update({
+        error_reason: "Processing pending",
+        state: "submitted",
+        processing_status: "submitted",
+      })
       .in("id", leadIds);
   }
 
@@ -351,12 +368,19 @@ export async function removeSarayuMohanPreloadedEvidence(supabase: any, ownerUse
     .eq("submitted_by", "admin_preload")
     .limit(1);
   if (probe.error && isManualLeadTableUnavailable(probe.error)) {
-    const leads = await listSarayuFallbackEvidence(supabase, profile.id, ownerUserId ?? profile.user_id);
+    const leads = await listSarayuFallbackEvidence(
+      supabase,
+      profile.id,
+      ownerUserId ?? profile.user_id,
+    );
     if (!leads.length) return { profile_id: profile.id, removed_count: 0 };
     const { error } = await supabase
       .from("deepfake_discoveries")
       .delete()
-      .in("id", leads.map((lead) => lead.id));
+      .in(
+        "id",
+        leads.map((lead) => lead.id),
+      );
     if (error) throw new Error(`Unable to remove Sarayu compatibility preload: ${error.message}`);
     return { profile_id: profile.id, removed_count: leads.length };
   }

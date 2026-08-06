@@ -53,7 +53,10 @@ export function buildSecondStageDiscoveryQueries(input: FallbackQueryInput): str
   const base = names[0] ?? primary;
   const year = input.analysis.releaseDate?.slice(0, 4) ?? null;
   const titleNoYear = base.replace(/\s*\(?\d{4}\)?\s*$/g, "").trim();
-  const titleNoPunct = base.replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  const titleNoPunct = base
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const titleHyphen = titleNoPunct.replace(/\s+/g, "-");
 
   const out: string[] = [];

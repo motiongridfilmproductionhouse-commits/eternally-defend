@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { CheckCircle2, XCircle, HelpCircle, ShieldCheck, ShieldQuestion, ExternalLink, ChevronDown, ChevronUp, BadgeCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  ShieldCheck,
+  ShieldQuestion,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  BadgeCheck,
+} from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { PLATFORM_LABEL, type Platform } from "@/lib/discovery/scoring";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +50,11 @@ export function AccountCard({ account, onDecide, onVerify, busy }: Props) {
       <div className="flex items-start gap-3">
         {account.profile_image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={account.profile_image_url} alt="" className="size-12 rounded-full object-cover shrink-0 bg-muted" />
+          <img
+            src={account.profile_image_url}
+            alt=""
+            className="size-12 rounded-full object-cover shrink-0 bg-muted"
+          />
         ) : (
           <div className="size-12 rounded-full bg-primary/10 grid place-items-center text-primary shrink-0 text-lg font-bold">
             {(account.display_name ?? account.handle ?? "?")[0]?.toUpperCase()}
@@ -48,23 +62,45 @@ export function AccountCard({ account, onDecide, onVerify, busy }: Props) {
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{PLATFORM_LABEL[platform]}</div>
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${status.bg} ${status.fg}`}>{status.label}</span>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+              {PLATFORM_LABEL[platform]}
+            </div>
+            <span
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${status.bg} ${status.fg}`}
+            >
+              {status.label}
+            </span>
             {account.platform_verified && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-700"><BadgeCheck className="size-3" /> Platform verified</span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-700">
+                <BadgeCheck className="size-3" /> Platform verified
+              </span>
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-2 flex-wrap">
-            <div className="font-semibold truncate">{account.display_name ?? account.handle ?? "Unknown"}</div>
-            {account.handle && <div className="text-xs text-muted-foreground truncate">@{account.handle}</div>}
+            <div className="font-semibold truncate">
+              {account.display_name ?? account.handle ?? "Unknown"}
+            </div>
+            {account.handle && (
+              <div className="text-xs text-muted-foreground truncate">@{account.handle}</div>
+            )}
           </div>
           <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-            {account.follower_count != null && <span>{formatCount(account.follower_count)} followers</span>}
-            <a href={account.profile_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary underline underline-offset-2">
-              {new URL(account.profile_url).hostname.replace(/^www\./, "")} <ExternalLink className="size-3" />
+            {account.follower_count != null && (
+              <span>{formatCount(account.follower_count)} followers</span>
+            )}
+            <a
+              href={account.profile_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 hover:text-primary underline underline-offset-2"
+            >
+              {new URL(account.profile_url).hostname.replace(/^www\./, "")}{" "}
+              <ExternalLink className="size-3" />
             </a>
           </div>
-          {account.bio && <div className="mt-2 text-xs text-muted-foreground line-clamp-2">{account.bio}</div>}
+          {account.bio && (
+            <div className="mt-2 text-xs text-muted-foreground line-clamp-2">{account.bio}</div>
+          )}
         </div>
 
         <div className="w-24 shrink-0 text-right">
@@ -92,7 +128,9 @@ export function AccountCard({ account, onDecide, onVerify, busy }: Props) {
       {showSignals && (
         <div className="flex flex-wrap gap-1.5">
           {account.match_reasons.map((r) => (
-            <Badge key={r} variant="secondary" className="text-[10px] font-medium">{r}</Badge>
+            <Badge key={r} variant="secondary" className="text-[10px] font-medium">
+              {r}
+            </Badge>
           ))}
         </div>
       )}

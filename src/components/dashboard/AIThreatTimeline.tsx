@@ -1,5 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { Youtube, Brain, FileImage, Send, Plus, AlertTriangle, ShieldAlert, Activity } from "lucide-react";
+import {
+  Youtube,
+  Brain,
+  FileImage,
+  Send,
+  Plus,
+  AlertTriangle,
+  ShieldAlert,
+  Activity,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/mm/dashboard.functions";
@@ -49,10 +58,14 @@ export function AIThreatTimeline() {
     <div className="card-surface p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">AI THREAT TIMELINE</div>
+          <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">
+            AI THREAT TIMELINE
+          </div>
           <div className="text-xs text-muted-foreground/80">Real-time events</div>
         </div>
-        <Link to="/intelligence" className="text-xs font-semibold text-primary">View All</Link>
+        <Link to="/intelligence" className="text-xs font-semibold text-primary">
+          View All
+        </Link>
       </div>
 
       {!session ? (
@@ -66,14 +79,28 @@ export function AIThreatTimeline() {
           <div className="absolute left-[7px] top-1 bottom-1 w-px bg-border" />
           <div className="space-y-4">
             {events.map((e) => {
-              const meta = TYPE_ICON[e.type] ?? { icon: Activity, color: SEVERITY_COLOR[e.severity] ?? "oklch(0.6 0.05 260)" };
+              const meta = TYPE_ICON[e.type] ?? {
+                icon: Activity,
+                color: SEVERITY_COLOR[e.severity] ?? "oklch(0.6 0.05 260)",
+              };
               const Icon = meta.icon;
               const dotColor = SEVERITY_COLOR[e.severity] ?? meta.color;
               return (
                 <div key={e.id} className="relative flex items-start gap-3">
-                  <span className="absolute -left-4 top-1.5 size-3 rounded-full ring-4 ring-background" style={{ background: dotColor }} />
-                  <div className="text-xs font-semibold text-muted-foreground w-16 shrink-0 pt-0.5">{fmtTime(e.time)}</div>
-                  <div className="size-8 rounded-lg grid place-items-center shrink-0" style={{ background: `color-mix(in oklab, ${meta.color} 12%, white)`, color: meta.color }}>
+                  <span
+                    className="absolute -left-4 top-1.5 size-3 rounded-full ring-4 ring-background"
+                    style={{ background: dotColor }}
+                  />
+                  <div className="text-xs font-semibold text-muted-foreground w-16 shrink-0 pt-0.5">
+                    {fmtTime(e.time)}
+                  </div>
+                  <div
+                    className="size-8 rounded-lg grid place-items-center shrink-0"
+                    style={{
+                      background: `color-mix(in oklab, ${meta.color} 12%, white)`,
+                      color: meta.color,
+                    }}
+                  >
                     <Icon className="size-4" />
                   </div>
                   <div className="min-w-0">

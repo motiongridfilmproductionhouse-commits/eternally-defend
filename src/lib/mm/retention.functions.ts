@@ -20,62 +20,91 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-export type RetentionPolicy = "immediate" | "retain_7_days" | "retain_30_days" | "case_closure" | "legal_hold";
+export type RetentionPolicy =
+  "immediate" | "retain_7_days" | "retain_30_days" | "case_closure" | "legal_hold";
 
 const POLICY_DAYS: Record<RetentionPolicy, number | null> = {
   immediate: 0,
   retain_7_days: 7,
   retain_30_days: 30,
-  case_closure: null,   // never age-based
-  legal_hold: null,     // never cleaned
+  case_closure: null, // never age-based
+  legal_hold: null, // never cleaned
 };
 
 export const setJobRetentionPolicy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({
-    jobId: z.string().uuid(),
-    policy: z.enum(["immediate", "retain_7_days", "retain_30_days", "case_closure", "legal_hold"]),
-  }).parse(raw))
+  .inputValidator((raw) =>
+    z
+      .object({
+        jobId: z.string().uuid(),
+        policy: z.enum([
+          "immediate",
+          "retain_7_days",
+          "retain_30_days",
+          "case_closure",
+          "legal_hold",
+        ]),
+      })
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { error } = await supabase.from("multimedia_analysis_jobs")
+    const { error } = await supabase
+      .from("multimedia_analysis_jobs")
       .update({ canceled_reason: null } as any) // placeholder to enable RLS check
-      .eq("id", data.jobId).eq("user_id", userId);
+      .eq("id", data.jobId)
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     // Store policy in source_metadata to avoid a migration
-    const { data: job } = await supabase.from("multimedia_analysis_jobs")
-      .select("source_metadata").eq("id", data.jobId).maybeSingle();
+    const { data: job } = await supabase
+      .from("multimedia_analysis_jobs")
+      .select("source_metadata")
+      .eq("id", data.jobId)
+      .maybeSingle();
     const meta = (job?.source_metadata ?? {}) as any;
     meta.retention_policy = data.policy;
     meta.retention_set_at = new Date().toISOString();
-    await supabase.from("multimedia_analysis_jobs")
-      .update({ source_metadata: meta }).eq("id", data.jobId);
+    await supabase
+      .from("multimedia_analysis_jobs")
+      .update({ source_metadata: meta })
+      .eq("id", data.jobId);
     return { ok: true, policy: data.policy };
   });
 
 export const runRetentionCleanup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({
-    dryRun: z.boolean().default(true),
-  }).parse(raw))
+  .inputValidator((raw) =>
+    z
+      .object({
+        dryRun: z.boolean().default(true),
+      })
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
     // Admin-only (admin or super_admin) when any admin exists
-    const { data: myRoles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const { data: myRoles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
     const isAdmin = ((myRoles ?? []) as Array<{ role: string }>).some(
       (r) => r.role === "admin" || r.role === "super_admin",
     );
     if (!isAdmin) {
       const { data: anyAdmin } = await supabase
-        .from("user_roles").select("user_id").in("role", ["admin", "super_admin"]).limit(1);
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["admin", "super_admin"])
+        .limit(1);
       if (anyAdmin && anyAdmin.length > 0) {
         throw new Error("Forbidden: admin role required for retention operations");
       }
     }
 
     const now = Date.now();
-    const { data: jobs } = await supabase.from("multimedia_analysis_jobs")
+    const { data: jobs } = await supabase
+      .from("multimedia_analysis_jobs")
       .select("id, user_id, finished_at, created_at, source_metadata, status");
 
     const toClean: string[] = [];
@@ -84,8 +113,14 @@ export const runRetentionCleanup = createServerFn({ method: "POST" })
       const meta = (j.source_metadata ?? {}) as any;
       const policy = (meta.retention_policy ?? "retain_30_days") as RetentionPolicy;
       const days = POLICY_DAYS[policy];
-      if (policy === "legal_hold") { summary.legal_hold = (summary.legal_hold ?? 0) + 1; continue; }
-      if (policy === "case_closure") { summary.case_closure = (summary.case_closure ?? 0) + 1; continue; }
+      if (policy === "legal_hold") {
+        summary.legal_hold = (summary.legal_hold ?? 0) + 1;
+        continue;
+      }
+      if (policy === "case_closure") {
+        summary.case_closure = (summary.case_closure ?? 0) + 1;
+        continue;
+      }
       const anchor = j.finished_at ?? j.created_at;
       if (!anchor) continue;
       const ageDays = (now - new Date(anchor).getTime()) / 86400000;
@@ -105,7 +140,8 @@ export const runRetentionCleanup = createServerFn({ method: "POST" })
     const deleted: Record<string, number> = {};
     const del = async (table: string) => {
       const { error, count } = await ((supabase as any).from(table) as any)
-        .delete({ count: "exact" }).in("job_id", toClean);
+        .delete({ count: "exact" })
+        .in("job_id", toClean);
       if (!error) deleted[table] = count ?? 0;
     };
     await del("multimedia_uploads");
@@ -118,8 +154,10 @@ export const runRetentionCleanup = createServerFn({ method: "POST" })
 
     // Old provider errors (>30d)
     const cutoff = new Date(now - 30 * 86400000).toISOString();
-    const { count: errCount } = await supabase.from("multimedia_errors")
-      .delete({ count: "exact" }).lt("created_at", cutoff);
+    const { count: errCount } = await supabase
+      .from("multimedia_errors")
+      .delete({ count: "exact" })
+      .lt("created_at", cutoff);
     deleted.multimedia_errors = errCount ?? 0;
 
     return { dryRun: false, jobsMatched: toClean.length, summary, deleted };
@@ -129,9 +167,17 @@ export const getRetentionPreview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const { data: jobs } = await supabase.from("multimedia_analysis_jobs")
+    const { data: jobs } = await supabase
+      .from("multimedia_analysis_jobs")
       .select("id, source_metadata, finished_at, created_at, status");
-    const buckets: Record<string, number> = { immediate: 0, retain_7_days: 0, retain_30_days: 0, case_closure: 0, legal_hold: 0, unspecified: 0 };
+    const buckets: Record<string, number> = {
+      immediate: 0,
+      retain_7_days: 0,
+      retain_30_days: 0,
+      case_closure: 0,
+      legal_hold: 0,
+      unspecified: 0,
+    };
     for (const j of jobs ?? []) {
       const p = ((j.source_metadata as any)?.retention_policy ?? "unspecified") as string;
       buckets[p] = (buckets[p] ?? 0) + 1;

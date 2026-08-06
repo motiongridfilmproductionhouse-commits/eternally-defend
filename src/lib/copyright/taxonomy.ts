@@ -32,17 +32,16 @@ export const COPYRIGHT_CLASSIFICATIONS = [
 export type CopyrightClassification = (typeof COPYRIGHT_CLASSIFICATIONS)[number];
 
 /** First eight classifications may appear as actionable piracy findings. */
-export const ACTIONABLE_PIRACY_CLASSIFICATIONS: ReadonlySet<CopyrightClassification> =
-  new Set([
-    "VERIFIED_UNAUTHORIZED_STREAM",
-    "PROBABLE_UNAUTHORIZED_STREAM",
-    "DOWNLOAD_PAGE",
-    "FILE_HOST_DISTRIBUTION",
-    "TORRENT_OR_MAGNET",
-    "VIDEO_HOST_REUPLOAD",
-    "THEATRE_PRINT_DISTRIBUTION",
-    "MIRROR_OR_REDIRECT",
-  ]);
+export const ACTIONABLE_PIRACY_CLASSIFICATIONS: ReadonlySet<CopyrightClassification> = new Set([
+  "VERIFIED_UNAUTHORIZED_STREAM",
+  "PROBABLE_UNAUTHORIZED_STREAM",
+  "DOWNLOAD_PAGE",
+  "FILE_HOST_DISTRIBUTION",
+  "TORRENT_OR_MAGNET",
+  "VIDEO_HOST_REUPLOAD",
+  "THEATRE_PRINT_DISTRIBUTION",
+  "MIRROR_OR_REDIRECT",
+]);
 
 export const TYPE_LABEL: Record<CopyrightClassification, string> = {
   VERIFIED_UNAUTHORIZED_STREAM: "Verified unauthorized stream",
@@ -104,15 +103,11 @@ const LEGACY_CONTENT_TYPE_TO_TAXONOMY: Record<string, CopyrightClassification> =
   linking_page: "MIRROR_OR_REDIRECT",
 };
 
-export function isCopyrightClassification(
-  value: string,
-): value is CopyrightClassification {
+export function isCopyrightClassification(value: string): value is CopyrightClassification {
   return (COPYRIGHT_CLASSIFICATIONS as readonly string[]).includes(value);
 }
 
-export function normalizeClassification(
-  value: string | null | undefined,
-): CopyrightClassification {
+export function normalizeClassification(value: string | null | undefined): CopyrightClassification {
   if (!value) return "UNVERIFIED_LEAD";
   if (isCopyrightClassification(value)) return value;
   return LEGACY_TO_TAXONOMY[value] ?? "UNVERIFIED_LEAD";
@@ -154,9 +149,7 @@ export function resolveClassification(opts: {
   return normalizeClassification(raw);
 }
 
-export function isActionablePiracy(
-  classification: string | null | undefined,
-): boolean {
+export function isActionablePiracy(classification: string | null | undefined): boolean {
   const cls = normalizeClassification(classification);
   // YouTube-style VIDEO_HOST_REUPLOAD is actionable only when client-visible
   // gates also pass; official aliases never are.
@@ -174,9 +167,7 @@ export function isActionablePiracy(
 }
 
 /** Alias normalization for newer outcome labels. */
-export function canonicalClassification(
-  value: string | null | undefined,
-): CopyrightClassification {
+export function canonicalClassification(value: string | null | undefined): CopyrightClassification {
   const raw = value ?? "";
   if (raw === "OFFICIAL_OR_AUTHORIZED_PAGE") return "OFFICIAL_OR_AUTHORIZED";
   if (raw === "TRAILER_OR_PROMOTIONAL") return "TRAILER_OR_PROMO";

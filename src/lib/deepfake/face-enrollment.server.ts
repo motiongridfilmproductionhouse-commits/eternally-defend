@@ -5,34 +5,24 @@ import {
   RekognitionClient,
 } from "@aws-sdk/client-rekognition";
 
-const region =
-  process.env.AWS_REKOGNITION_REGION ??
-  process.env.AWS_REGION ??
-  "eu-north-1";
+const region = process.env.AWS_REKOGNITION_REGION ?? process.env.AWS_REGION ?? "eu-north-1";
 
-const collectionId =
-  process.env.REKOGNITION_DEEPFAKE_COLLECTION ??
-  "eterna-protected-identities";
+const collectionId = process.env.REKOGNITION_DEEPFAKE_COLLECTION ?? "eterna-protected-identities";
 
 const rekognition = new RekognitionClient({
   region,
   credentials:
-    process.env.AWS_ACCESS_KEY_ID &&
-    process.env.AWS_SECRET_ACCESS_KEY
+    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
       ? {
           accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey:
-            process.env.AWS_SECRET_ACCESS_KEY,
-          sessionToken:
-            process.env.AWS_SESSION_TOKEN,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          sessionToken: process.env.AWS_SESSION_TOKEN,
         }
       : undefined,
 });
 
 function cleanExternalImageId(value: string): string {
-  return value
-    .replace(/[^a-zA-Z0-9_.-]/g, "_")
-    .slice(0, 255);
+  return value.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 255);
 }
 
 export async function ensureDeepfakeFaceCollection(): Promise<string> {
@@ -45,9 +35,7 @@ export async function ensureDeepfakeFaceCollection(): Promise<string> {
 
     return collectionId;
   } catch (error: any) {
-    if (
-      error?.name !== "ResourceNotFoundException"
-    ) {
+    if (error?.name !== "ResourceNotFoundException") {
       throw error;
     }
   }
@@ -65,10 +53,7 @@ export async function ensureDeepfakeFaceCollection(): Promise<string> {
      * Two simultaneous requests may both try to create it.
      * Treat "already exists" as success.
      */
-    if (
-      error?.name ===
-      "ResourceAlreadyExistsException"
-    ) {
+    if (error?.name === "ResourceAlreadyExistsException") {
       return collectionId;
     }
 
@@ -98,13 +83,8 @@ export async function indexDeepfakeReferenceFace(input: {
     throw new Error("Reference image is empty.");
   }
 
-  if (
-    input.imageBytes.byteLength >
-    10 * 1024 * 1024
-  ) {
-    throw new Error(
-      "Reference image exceeds the 10 MB limit.",
-    );
+  if (input.imageBytes.byteLength > 10 * 1024 * 1024) {
+    throw new Error("Reference image exceeds the 10 MB limit.");
   }
 
   await ensureDeepfakeFaceCollection();
@@ -144,11 +124,8 @@ export async function indexDeepfakeReferenceFace(input: {
 
   return {
     faceId: faceRecord.Face.FaceId,
-    externalImageId:
-      faceRecord.Face.ExternalImageId ??
-      externalImageId,
-    confidence:
-      faceRecord.Face.Confidence ?? 0,
+    externalImageId: faceRecord.Face.ExternalImageId ?? externalImageId,
+    confidence: faceRecord.Face.Confidence ?? 0,
     collectionId,
     boundingBox: faceRecord.Face.BoundingBox
       ? {
@@ -167,7 +144,6 @@ export function getDeepfakeFaceCollectionId(): string {
 
 export function isDeepfakeFaceEnrollmentConfigured(): boolean {
   return Boolean(
-    process.env.AWS_ACCESS_KEY_ID?.trim() &&
-      process.env.AWS_SECRET_ACCESS_KEY?.trim(),
+    process.env.AWS_ACCESS_KEY_ID?.trim() && process.env.AWS_SECRET_ACCESS_KEY?.trim(),
   );
 }

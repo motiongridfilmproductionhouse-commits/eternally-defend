@@ -1,7 +1,10 @@
 // @ts-nocheck -- pre-existing sensitive-protection module (out of onboarding scope)
 import { createAPIFileRoute } from "@tanstack/react-start/api";
 import { createClient } from "@supabase/supabase-js";
-import { normalizeHiveResponse, calculateRiskLevel } from "@/lib/providers/hive-classification.functions";
+import {
+  normalizeHiveResponse,
+  calculateRiskLevel,
+} from "@/lib/providers/hive-classification.functions";
 
 export const APIRoute = createAPIFileRoute("/api/public/hive-webhook")({
   POST: async ({ request }) => {
@@ -13,10 +16,10 @@ export const APIRoute = createAPIFileRoute("/api/public/hive-webhook")({
       }
 
       const taskId = body.task_id;
-      
+
       const supabase = createClient(
         process.env.VITE_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
       );
 
       // Find pending task
@@ -35,11 +38,14 @@ export const APIRoute = createAPIFileRoute("/api/public/hive-webhook")({
       const normalized = normalizeHiveResponse(body);
 
       // Update provider task status
-      await supabase.from("hive_provider_tasks").update({
-        provider_status: "completed",
-        completed_at: new Date().toISOString(),
-        raw_result_private_reference: JSON.stringify(body)
-      }).eq("id", task.id);
+      await supabase
+        .from("hive_provider_tasks")
+        .update({
+          provider_status: "completed",
+          completed_at: new Date().toISOString(),
+          raw_result_private_reference: JSON.stringify(body),
+        })
+        .eq("id", task.id);
 
       // We should ideally fetch the current result to compute risk level with Rekognition similarities
       const { data: currentResult } = await supabase
@@ -51,22 +57,25 @@ export const APIRoute = createAPIFileRoute("/api/public/hive-webhook")({
       let risk_level = "LOW";
       if (currentResult) {
         risk_level = calculateRiskLevel(
-          normalized.explicit_content_score, 
-          normalized.deepfake_score, 
-          currentResult.face_similarity ?? 0, 
-          currentResult.duplicate_count ?? 0
+          normalized.explicit_content_score,
+          normalized.deepfake_score,
+          currentResult.face_similarity ?? 0,
+          currentResult.duplicate_count ?? 0,
         );
       }
 
       // Update the scan result
-      await supabase.from("sensitive_scan_results").update({
-        ...normalized,
-        risk_level: risk_level as any,
-      }).eq("id", task.result_id);
+      await supabase
+        .from("sensitive_scan_results")
+        .update({
+          ...normalized,
+          risk_level: risk_level as any,
+        })
+        .eq("id", task.result_id);
 
-      return new Response(JSON.stringify({ received: true }), { 
-        status: 200, 
-        headers: { "Content-Type": "application/json" }
+      return new Response(JSON.stringify({ received: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
       });
     } catch (e: any) {
       console.error("Hive Webhook Error:", e.message);

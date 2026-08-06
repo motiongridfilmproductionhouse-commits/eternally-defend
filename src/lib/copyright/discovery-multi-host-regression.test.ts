@@ -108,9 +108,7 @@ const MOCK_PROVIDER_HITS: Array<{
   {
     url: "https://www.dailymotion.com/video/xaswffu",
     title: "Chinna Chinna Aasai movie",
-    markdown: long(
-      "Chinna Chinna Aasai uploaded on Dailymotion. Watch the video online.",
-    ),
+    markdown: long("Chinna Chinna Aasai uploaded on Dailymotion. Watch the video online."),
     html: '<html><body><iframe src="https://www.dailymotion.com/embed/video/xaswffu"></iframe></body></html>',
     links: [],
     origin: "fresh_discovery",
@@ -118,9 +116,7 @@ const MOCK_PROVIDER_HITS: Array<{
   {
     url: "https://t.me/s/piracy_movies_channel/chinna-chinna-aasai",
     title: "Chinna Chinna Aasai Telegram post",
-    markdown: long(
-      "Chinna Chinna Aasai 2026 full movie telegram channel download link HDRip.",
-    ),
+    markdown: long("Chinna Chinna Aasai 2026 full movie telegram channel download link HDRip."),
     html: '<html><body><a href="https://t.me/piracy_movies_channel">Join</a><a href="magnet:?xt=urn:btih:abc">torrent</a></body></html>',
     links: ["https://t.me/piracy_movies_channel", "magnet:?xt=urn:btih:abc"],
     origin: "site_scoped_search",
@@ -129,16 +125,14 @@ const MOCK_PROVIDER_HITS: Array<{
 
 function simulateCoverageFromMocks() {
   const merged = mergeScanCandidateLeads([
-    MOCK_PROVIDER_HITS.map(
-      (hit): CandidateUnionEntry => ({
-        url: hit.url,
-        title: hit.title,
-        query: `site:${hostOf(hit.url) ?? "web"} Chinna Chinna Aasai`,
-        text: hit.title,
-        strong: true,
-        origin: hit.origin,
-      }),
-    ),
+    MOCK_PROVIDER_HITS.map((hit): CandidateUnionEntry => ({
+      url: hit.url,
+      title: hit.title,
+      query: `site:${hostOf(hit.url) ?? "web"} Chinna Chinna Aasai`,
+      text: hit.title,
+      strong: true,
+      origin: hit.origin,
+    })),
   ]);
 
   const uniqueUrls = new Set(merged.leads.map((l) => canonicalUrl(l.url)));
@@ -162,12 +156,8 @@ function simulateCoverageFromMocks() {
   });
 
   const verified = classified.filter((c) => c.result.clientVisible);
-  const pending = classified.filter(
-    (c) => !c.result.clientVisible && c.result.identityMatch,
-  );
-  const rejected = classified.filter(
-    (c) => !c.result.clientVisible && !c.result.identityMatch,
-  );
+  const pending = classified.filter((c) => !c.result.clientVisible && c.result.identityMatch);
+  const rejected = classified.filter((c) => !c.result.clientVisible && !c.result.identityMatch);
 
   const rows: ThreatResultRow[] = verified.map((c, i) => {
     const domain = hostOf(c.hit.url) ?? "unknown";

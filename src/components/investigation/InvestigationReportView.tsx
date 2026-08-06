@@ -1,10 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  Copy,
-  Download,
-  ExternalLink,
-  ShieldAlert,
-} from "lucide-react";
+import { Copy, Download, ExternalLink, ShieldAlert } from "lucide-react";
 import type { WebsiteInvestigationResult } from "@/lib/investigation/website-investigation";
 import { Button } from "@/components/ui/button";
 
@@ -13,18 +8,10 @@ type InvestigationReportViewProps = {
   onClose: () => void;
 };
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-4">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-300">
-        {title}
-      </h3>
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-300">{title}</h3>
       <div className="space-y-1.5 text-sm text-zinc-200">{children}</div>
     </section>
   );
@@ -62,10 +49,7 @@ function riskTone(level: string): string {
   return "text-emerald-400";
 }
 
-export function InvestigationReportView({
-  result,
-  onClose,
-}: InvestigationReportViewProps) {
+export function InvestigationReportView({ result, onClose }: InvestigationReportViewProps) {
   const copyUrl = async () => {
     try {
       await navigator.clipboard.writeText(result.url);
@@ -130,11 +114,7 @@ export function InvestigationReportView({
           <Row label="Abuse email" value={result.whoisAbuseEmail} />
           <Row
             label="Nameservers"
-            value={
-              result.whoisNameservers.length
-                ? result.whoisNameservers.join(", ")
-                : null
-            }
+            value={result.whoisNameservers.length ? result.whoisNameservers.join(", ") : null}
           />
         </Section>
 

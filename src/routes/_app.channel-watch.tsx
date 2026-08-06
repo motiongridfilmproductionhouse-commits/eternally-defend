@@ -2,12 +2,34 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Play, Pause, Search, Trash2, ExternalLink, ShieldCheck, Activity, Users, Radar, RefreshCw, AlertTriangle, Eye } from "lucide-react";
 import {
-  addChannelWatch, getVerifiedUserSummary, listChannelWatches, listRecentEvents,
-  addWatchVideoToRemovalCenter, analyzeCurrentChannelVideos,
-  listWatchVideos, removeChannelWatch, resolveChannelSearch,
-  scanChannelNow, setWatchStatus, submitReviewDecision,
+  Plus,
+  Play,
+  Pause,
+  Search,
+  Trash2,
+  ExternalLink,
+  ShieldCheck,
+  Activity,
+  Users,
+  Radar,
+  RefreshCw,
+  AlertTriangle,
+  Eye,
+} from "lucide-react";
+import {
+  addChannelWatch,
+  getVerifiedUserSummary,
+  listChannelWatches,
+  listRecentEvents,
+  addWatchVideoToRemovalCenter,
+  analyzeCurrentChannelVideos,
+  listWatchVideos,
+  removeChannelWatch,
+  resolveChannelSearch,
+  scanChannelNow,
+  setWatchStatus,
+  submitReviewDecision,
 } from "@/lib/channel-watch/channel-watch.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,8 +37,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -25,9 +60,17 @@ export const Route = createFileRoute("/_app/channel-watch")({
   head: () => ({
     meta: [
       { title: "Channel Watch — Persistent Creator Monitoring | Eterna" },
-      { name: "description", content: "Continuously monitor external YouTube creator channels for content concerning the verified user. Detect, analyze, and route potential violations to human review." },
+      {
+        name: "description",
+        content:
+          "Continuously monitor external YouTube creator channels for content concerning the verified user. Detect, analyze, and route potential violations to human review.",
+      },
       { property: "og:title", content: "Channel Watch — Persistent Creator Monitoring" },
-      { property: "og:description", content: "Continuously monitor external YouTube creators for content concerning the verified user." },
+      {
+        property: "og:description",
+        content:
+          "Continuously monitor external YouTube creators for content concerning the verified user.",
+      },
     ],
   }),
   component: ChannelWatchPage,
@@ -36,13 +79,17 @@ export const Route = createFileRoute("/_app/channel-watch")({
 const CYAN = "text-cyan-300/80";
 const CORAL = "text-orange-300/90";
 
-const summaryQO = () => queryOptions({ queryKey: ["cw", "summary"], queryFn: () => getVerifiedUserSummary() });
-const watchesQO = () => queryOptions({ queryKey: ["cw", "watches"], queryFn: () => listChannelWatches() });
-const videosQO = (watchId?: string) => queryOptions({
-  queryKey: ["cw", "videos", watchId ?? "all"],
-  queryFn: () => listWatchVideos({ data: { watchId, limit: 200 } }),
-});
-const eventsQO = () => queryOptions({ queryKey: ["cw", "events"], queryFn: () => listRecentEvents() });
+const summaryQO = () =>
+  queryOptions({ queryKey: ["cw", "summary"], queryFn: () => getVerifiedUserSummary() });
+const watchesQO = () =>
+  queryOptions({ queryKey: ["cw", "watches"], queryFn: () => listChannelWatches() });
+const videosQO = (watchId?: string) =>
+  queryOptions({
+    queryKey: ["cw", "videos", watchId ?? "all"],
+    queryFn: () => listWatchVideos({ data: { watchId, limit: 200 } }),
+  });
+const eventsQO = () =>
+  queryOptions({ queryKey: ["cw", "events"], queryFn: () => listRecentEvents() });
 
 function ChannelWatchPage() {
   const [selectedWatch, setSelectedWatch] = useState<string | undefined>(undefined);
@@ -59,28 +106,34 @@ function ChannelWatchPage() {
   });
 
   const events = useQuery(eventsQO());
-  const selectedChannel = (watches.data ?? []).find(
-    (watch) => watch.id === selectedWatch,
-  );
+  const selectedChannel = (watches.data ?? []).find((watch) => watch.id === selectedWatch);
 
   return (
-    <div className="min-h-full text-slate-100" style={{
-      background:
-        "radial-gradient(1200px 600px at 15% -10%, rgba(56,189,248,0.08), transparent 60%)," +
-        "radial-gradient(900px 500px at 90% 10%, rgba(148,163,184,0.06), transparent 60%)," +
-        "linear-gradient(180deg, #0b1220 0%, #0a111d 100%)",
-    }}>
+    <div
+      className="min-h-full text-slate-100"
+      style={{
+        background:
+          "radial-gradient(1200px 600px at 15% -10%, rgba(56,189,248,0.08), transparent 60%)," +
+          "radial-gradient(900px 500px at 90% 10%, rgba(148,163,184,0.06), transparent 60%)," +
+          "linear-gradient(180deg, #0b1220 0%, #0a111d 100%)",
+      }}
+    >
       <div className="mx-auto max-w-[1400px] p-6 space-y-6">
-
         {/* Top intelligence bar */}
         <div className="grid grid-cols-12 gap-4">
           <VerifiedUserCard summary={summary.data} className="col-span-12 lg:col-span-5" />
           <Card className="col-span-12 lg:col-span-4 bg-slate-900/40 backdrop-blur border-slate-700/40 p-4 flex flex-col justify-between">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Add creator channel</div>
-            <div className="mt-2 text-sm text-slate-300 leading-relaxed">
-              Monitor new uploads only when they concern the assigned protected person or brand. Relevant risks are analyzed and routed into human-approved enforcement.
+            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">
+              Add creator channel
             </div>
-            <Button onClick={() => setAddOpen(true)} className="mt-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-100 border border-cyan-400/30">
+            <div className="mt-2 text-sm text-slate-300 leading-relaxed">
+              Monitor new uploads only when they concern the assigned protected person or brand.
+              Relevant risks are analyzed and routed into human-approved enforcement.
+            </div>
+            <Button
+              onClick={() => setAddOpen(true)}
+              className="mt-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-100 border border-cyan-400/30"
+            >
               <Plus className="size-4 mr-2" /> Add Risk Channel
             </Button>
           </Card>
@@ -91,20 +144,22 @@ function ChannelWatchPage() {
         <FlowGraph
           channelCount={watches.data?.length ?? 0}
           videoCount={allVideos.data?.length ?? 0}
-          reviewCount={(allVideos.data ?? []).filter(
-            (video) => video.review_status === "pending",
-          ).length}
+          reviewCount={
+            (allVideos.data ?? []).filter((video) => video.review_status === "pending").length
+          }
         />
 
-        <LiveMonitoringAnimation
-          watches={watches.data ?? []}
-          videos={allVideos.data ?? []}
-        />
+        <LiveMonitoringAnimation watches={watches.data ?? []} videos={allVideos.data ?? []} />
 
         {/* Monitored channels */}
         <section>
-          <SectionHeader title="Monitored Creator Channels" subtitle="Persistent YouTube watch — historical baseline plus continuous future upload monitoring." />
-          {watches.isLoading ? <SkeletonRow /> : (watches.data?.length ?? 0) === 0 ? (
+          <SectionHeader
+            title="Monitored Creator Channels"
+            subtitle="Persistent YouTube watch — historical baseline plus continuous future upload monitoring."
+          />
+          {watches.isLoading ? (
+            <SkeletonRow />
+          ) : (watches.data?.length ?? 0) === 0 ? (
             <Card className="p-8 bg-slate-900/30 border-slate-700/40 text-center text-slate-400">
               No creator channels yet. Add one to start persistent monitoring.
             </Card>
@@ -116,9 +171,7 @@ function ChannelWatchPage() {
                   watch={w}
                   isSelected={selectedWatch === w.id}
                   onSelect={() => setSelectedWatch(selectedWatch === w.id ? undefined : w.id)}
-                  videos={(allVideos.data ?? []).filter(
-                    (video) => video.watch_id === w.id,
-                  )}
+                  videos={(allVideos.data ?? []).filter((video) => video.watch_id === w.id)}
                 />
               ))}
             </div>
@@ -133,9 +186,7 @@ function ChannelWatchPage() {
           >
             <SectionHeader
               title={`Fetched Videos — ${
-                selectedChannel?.channel_title ??
-                selectedChannel?.handle ??
-                "Selected channel"
+                selectedChannel?.channel_title ?? selectedChannel?.handle ?? "Selected channel"
               }`}
               subtitle="Only videos fetched from this monitored channel are shown below."
               action={
@@ -150,9 +201,7 @@ function ChannelWatchPage() {
               }
             />
             <VideosTable
-              rows={(selectedVideos.data ?? []).filter(
-                (video) => video.watch_id === selectedWatch,
-              )}
+              rows={(selectedVideos.data ?? []).filter((video) => video.watch_id === selectedWatch)}
               loading={selectedVideos.isLoading}
             />
           </section>
@@ -160,10 +209,12 @@ function ChannelWatchPage() {
 
         {/* Activity feed */}
         <section>
-          <SectionHeader title="Creator Upload Activity" subtitle="Recent events across all monitored channels." />
+          <SectionHeader
+            title="Creator Upload Activity"
+            subtitle="Recent events across all monitored channels."
+          />
           <ActivityFeed rows={events.data ?? []} />
         </section>
-
       </div>
       <AddChannelDialog open={addOpen} onOpenChange={setAddOpen} />
     </div>
@@ -171,7 +222,6 @@ function ChannelWatchPage() {
 }
 
 // -------- Sub-components --------
-
 
 function LiveMonitoringAnimation({
   watches,
@@ -183,11 +233,7 @@ function LiveMonitoringAnimation({
   const stream = useMemo(
     () =>
       [...videos]
-        .sort(
-          (a, b) =>
-            new Date(b.detected_at).getTime() -
-            new Date(a.detected_at).getTime(),
-        )
+        .sort((a, b) => new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime())
         .slice(0, 30),
     [videos],
   );
@@ -212,8 +258,7 @@ function LiveMonitoringAnimation({
   const watch = watches.find((item) => item.id === current?.watch_id);
 
   const isScanning =
-    current?.analysis_status === "pending" ||
-    current?.analysis_status === "running";
+    current?.analysis_status === "pending" || current?.analysis_status === "running";
 
   const isFailed = current?.analysis_status === "failed";
 
@@ -222,13 +267,7 @@ function LiveMonitoringAnimation({
     current?.review_status === "escalated" ||
     (current?.risk_score ?? 0) >= 55;
 
-  const state = isFailed
-    ? "failed"
-    : isScanning
-      ? "scanning"
-      : isReview
-        ? "review"
-        : "safe";
+  const state = isFailed ? "failed" : isScanning ? "scanning" : isReview ? "review" : "safe";
 
   const stateLabel =
     state === "failed"
@@ -241,7 +280,7 @@ function LiveMonitoringAnimation({
 
   const stateDescription =
     state === "failed"
-      ? current?.analysis_error ?? "Analysis could not be completed"
+      ? (current?.analysis_error ?? "Analysis could not be completed")
       : state === "scanning"
         ? "Checking title, aliases, captions and identity signals"
         : state === "review"
@@ -250,18 +289,12 @@ function LiveMonitoringAnimation({
             ? "Subject mention detected — no actionable risk confirmed"
             : "No actionable subject risk detected";
 
-  const activeCount = watches.filter(
-    (item) => item.status === "active",
-  ).length;
+  const activeCount = watches.filter((item) => item.status === "active").length;
 
-  const completedCount = videos.filter(
-    (video) => video.analysis_status === "completed",
-  ).length;
+  const completedCount = videos.filter((video) => video.analysis_status === "completed").length;
 
   const reviewCount = videos.filter(
-    (video) =>
-      video.review_status === "pending" ||
-      video.review_status === "escalated",
+    (video) => video.review_status === "pending" || video.review_status === "escalated",
   ).length;
 
   const recent = stream.slice(0, 5);
@@ -290,20 +323,12 @@ function LiveMonitoringAnimation({
 
         <div className="flex gap-5 text-right">
           <div>
-            <div className="text-xl font-semibold text-cyan-200">
-              {completedCount}
-            </div>
-            <div className="text-[8px] uppercase tracking-wider text-slate-500">
-              Analyzed
-            </div>
+            <div className="text-xl font-semibold text-cyan-200">{completedCount}</div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">Analyzed</div>
           </div>
           <div>
-            <div className="text-xl font-semibold text-amber-300">
-              {reviewCount}
-            </div>
-            <div className="text-[8px] uppercase tracking-wider text-slate-500">
-              Review
-            </div>
+            <div className="text-xl font-semibold text-amber-300">{reviewCount}</div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">Review</div>
           </div>
         </div>
       </div>
@@ -322,9 +347,7 @@ function LiveMonitoringAnimation({
             <div className="text-[9px] uppercase tracking-[0.2em] text-cyan-300/70">
               Protected identity
             </div>
-            <div className="mt-1 text-xs text-slate-400">
-              Continuous subject protection
-            </div>
+            <div className="mt-1 text-xs text-slate-400">Continuous subject protection</div>
           </div>
         </div>
 
@@ -347,11 +370,7 @@ function LiveMonitoringAnimation({
                 }`}
               >
                 {video.thumbnail_url ? (
-                  <img
-                    src={video.thumbnail_url}
-                    alt=""
-                    className="size-full object-cover"
-                  />
+                  <img src={video.thumbnail_url} alt="" className="size-full object-cover" />
                 ) : (
                   <div className="grid size-full place-items-center">
                     <Play className="size-4 text-slate-500" />
@@ -382,9 +401,7 @@ function LiveMonitoringAnimation({
             <div className="text-[9px] uppercase tracking-[0.2em] text-slate-500">
               AI analysis engine
             </div>
-            <div className="mt-1 text-xs text-slate-300">
-              Alias + identity + captions
-            </div>
+            <div className="mt-1 text-xs text-slate-300">Alias + identity + captions</div>
           </div>
         </div>
       </div>
@@ -425,9 +442,7 @@ function LiveMonitoringAnimation({
             <div className="text-sm font-semibold uppercase tracking-wider text-slate-100">
               {stateLabel}
             </div>
-            <div className="truncate text-[10px] text-slate-400">
-              {stateDescription}
-            </div>
+            <div className="truncate text-[10px] text-slate-400">{stateDescription}</div>
           </div>
         </div>
 
@@ -436,9 +451,7 @@ function LiveMonitoringAnimation({
             {current?.risk_score ?? 0}
             <span className="text-[10px] text-slate-500">/100</span>
           </div>
-          <div className="text-[8px] uppercase tracking-wider text-slate-500">
-            Current risk
-          </div>
+          <div className="text-[8px] uppercase tracking-wider text-slate-500">Current risk</div>
         </div>
       </div>
 
@@ -485,18 +498,36 @@ function LiveMonitoringAnimation({
   );
 }
 
-function VerifiedUserCard({ summary, className }: { summary: Awaited<ReturnType<typeof getVerifiedUserSummary>> | undefined; className?: string }) {
+function VerifiedUserCard({
+  summary,
+  className,
+}: {
+  summary: Awaited<ReturnType<typeof getVerifiedUserSummary>> | undefined;
+  className?: string;
+}) {
   return (
-    <Card className={`bg-slate-900/40 backdrop-blur border-slate-700/40 p-4 flex items-center gap-4 ${className ?? ""}`}>
+    <Card
+      className={`bg-slate-900/40 backdrop-blur border-slate-700/40 p-4 flex items-center gap-4 ${className ?? ""}`}
+    >
       <div className="size-14 rounded-full bg-gradient-to-br from-cyan-500/30 to-slate-700/40 grid place-items-center overflow-hidden border border-slate-600/40">
-        {summary?.avatarUrl ? <img src={summary.avatarUrl} alt="" className="size-full object-cover" /> : <ShieldCheck className="size-6 text-cyan-300" />}
+        {summary?.avatarUrl ? (
+          <img src={summary.avatarUrl} alt="" className="size-full object-cover" />
+        ) : (
+          <ShieldCheck className="size-6 text-cyan-300" />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <div className="text-sm font-semibold truncate">{summary?.displayName ?? "…"}</div>
-          {summary?.verified && <Badge variant="outline" className="border-cyan-400/40 text-cyan-200 text-[10px]">VERIFIED</Badge>}
+          {summary?.verified && (
+            <Badge variant="outline" className="border-cyan-400/40 text-cyan-200 text-[10px]">
+              VERIFIED
+            </Badge>
+          )}
         </div>
-        <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">Verified Eterna User</div>
+        <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+          Verified Eterna User
+        </div>
         <div className="mt-3 grid grid-cols-4 gap-3 text-center">
           <Metric label="Channels" value={summary?.monitoredChannels ?? 0} />
           <Metric label="Active" value={summary?.activeChannels ?? 0} accent />
@@ -508,16 +539,34 @@ function VerifiedUserCard({ summary, className }: { summary: Awaited<ReturnType<
   );
 }
 
-function Metric({ label, value, accent, coral }: { label: string; value: number; accent?: boolean; coral?: boolean }) {
+function Metric({
+  label,
+  value,
+  accent,
+  coral,
+}: {
+  label: string;
+  value: number;
+  accent?: boolean;
+  coral?: boolean;
+}) {
   return (
     <div>
-      <div className={`text-lg font-semibold ${coral ? CORAL : accent ? CYAN : "text-slate-100"}`}>{value}</div>
+      <div className={`text-lg font-semibold ${coral ? CORAL : accent ? CYAN : "text-slate-100"}`}>
+        {value}
+      </div>
       <div className="text-[9px] uppercase tracking-[0.18em] text-slate-500 mt-0.5">{label}</div>
     </div>
   );
 }
 
-function GlobalStats({ summary, className }: { summary: Awaited<ReturnType<typeof getVerifiedUserSummary>> | undefined; className?: string }) {
+function GlobalStats({
+  summary,
+  className,
+}: {
+  summary: Awaited<ReturnType<typeof getVerifiedUserSummary>> | undefined;
+  className?: string;
+}) {
   return (
     <Card className={`bg-slate-900/40 backdrop-blur border-slate-700/40 p-4 ${className ?? ""}`}>
       <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Exposure index</div>
@@ -526,27 +575,45 @@ function GlobalStats({ summary, className }: { summary: Awaited<ReturnType<typeo
         <div className="text-xs text-slate-400 pb-1">/ 100</div>
       </div>
       <div className="mt-3 h-1.5 rounded-full bg-slate-800 overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-cyan-400/50 via-cyan-300/60 to-orange-300/70" style={{ width: `${Math.min(100, summary?.exposureScore ?? 0)}%` }} />
+        <div
+          className="h-full bg-gradient-to-r from-cyan-400/50 via-cyan-300/60 to-orange-300/70"
+          style={{ width: `${Math.min(100, summary?.exposureScore ?? 0)}%` }}
+        />
       </div>
       <div className="mt-3 text-xs text-slate-400 leading-relaxed">
-        Weighted from open review items across monitored channels. Human review confirms actual basis before enforcement.
+        Weighted from open review items across monitored channels. Human review confirms actual
+        basis before enforcement.
       </div>
     </Card>
   );
 }
 
-function FlowGraph({ channelCount, videoCount, reviewCount }: { channelCount: number; videoCount: number; reviewCount: number }) {
+function FlowGraph({
+  channelCount,
+  videoCount,
+  reviewCount,
+}: {
+  channelCount: number;
+  videoCount: number;
+  reviewCount: number;
+}) {
   const nodes: Array<{ label: string; caption: string; color: string }> = [
     { label: "Verified User", caption: "1 protected identity", color: "#7dd3fc" },
     { label: "Monitored Channels", caption: `${channelCount} creators`, color: "#67e8f9" },
     { label: "Fetched Videos", caption: `${videoCount} tracked`, color: "#cbd5e1" },
     { label: "Analysis", caption: "Alias + face + captions", color: "#a5f3fc" },
-    { label: "Review Queue", caption: `${reviewCount} pending`, color: reviewCount ? "#fdba74" : "#94a3b8" },
+    {
+      label: "Review Queue",
+      caption: `${reviewCount} pending`,
+      color: reviewCount ? "#fdba74" : "#94a3b8",
+    },
     { label: "Evidence + Continuous Watch", caption: "Loops back to channels", color: "#86efac" },
   ];
   return (
     <Card className="bg-slate-900/30 border-slate-700/40 p-6 relative overflow-hidden">
-      <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-4">Intelligence flow</div>
+      <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-4">
+        Intelligence flow
+      </div>
       <div className="relative">
         <svg viewBox="0 0 1200 120" className="w-full h-24">
           <defs>
@@ -555,15 +622,33 @@ function FlowGraph({ channelCount, videoCount, reviewCount }: { channelCount: nu
               <stop offset="100%" stopColor="#fdba74" stopOpacity="0.5" />
             </linearGradient>
           </defs>
-          <path d="M 60 60 C 250 20, 400 100, 600 60 S 950 20, 1140 60" stroke="url(#cwline)" strokeWidth="1" fill="none" strokeDasharray="3 4" />
-          <path d="M 1140 60 C 900 110, 400 120, 60 80" stroke="#67e8f9" strokeOpacity="0.15" strokeWidth="1" fill="none" strokeDasharray="2 6" />
+          <path
+            d="M 60 60 C 250 20, 400 100, 600 60 S 950 20, 1140 60"
+            stroke="url(#cwline)"
+            strokeWidth="1"
+            fill="none"
+            strokeDasharray="3 4"
+          />
+          <path
+            d="M 1140 60 C 900 110, 400 120, 60 80"
+            stroke="#67e8f9"
+            strokeOpacity="0.15"
+            strokeWidth="1"
+            fill="none"
+            strokeDasharray="2 6"
+          />
         </svg>
         <div className="absolute inset-0 grid grid-cols-6 gap-2 px-2">
           {nodes.map((n) => (
             <div key={n.label} className="flex flex-col items-center justify-center text-center">
-              <div className="size-3 rounded-full mb-2" style={{ background: n.color, boxShadow: `0 0 12px ${n.color}` }} />
+              <div
+                className="size-3 rounded-full mb-2"
+                style={{ background: n.color, boxShadow: `0 0 12px ${n.color}` }}
+              />
               <div className="text-[11px] font-medium text-slate-200 leading-tight">{n.label}</div>
-              <div className="text-[9px] uppercase tracking-[0.15em] text-slate-500 mt-1 leading-tight">{n.caption}</div>
+              <div className="text-[9px] uppercase tracking-[0.15em] text-slate-500 mt-1 leading-tight">
+                {n.caption}
+              </div>
             </div>
           ))}
         </div>
@@ -572,11 +657,21 @@ function FlowGraph({ channelCount, videoCount, reviewCount }: { channelCount: nu
   );
 }
 
-function SectionHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
+function SectionHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="flex items-end justify-between mb-3">
       <div>
-        <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">{subtitle ?? " "}</div>
+        <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
+          {subtitle ?? " "}
+        </div>
         <div className="text-lg font-semibold text-slate-100">{title}</div>
       </div>
       {action}
@@ -585,10 +680,17 @@ function SectionHeader({ title, subtitle, action }: { title: string; subtitle?: 
 }
 
 function SkeletonRow() {
-  return <Card className="p-6 bg-slate-900/30 border-slate-700/40 text-slate-500 text-sm">Loading…</Card>;
+  return (
+    <Card className="p-6 bg-slate-900/30 border-slate-700/40 text-slate-500 text-sm">Loading…</Card>
+  );
 }
 
-function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
+function MonitoredChannelCard({
+  watch,
+  isSelected,
+  onSelect,
+  videos,
+}: {
   watch: Awaited<ReturnType<typeof listChannelWatches>>[number];
   isSelected: boolean;
   onSelect: () => void;
@@ -602,23 +704,25 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
 
   const scanMut = useMutation({
     mutationFn: () => scanFn({ data: { watchId: watch.id } }),
-    onSuccess: (r) => { toast.success(`Scan complete — ${(r as { inserted?: number }).inserted ?? 0} new video(s)`); qc.invalidateQueries({ queryKey: ["cw"] }); },
+    onSuccess: (r) => {
+      toast.success(`Scan complete — ${(r as { inserted?: number }).inserted ?? 0} new video(s)`);
+      qc.invalidateQueries({ queryKey: ["cw"] });
+    },
     onError: (e) => toast.error((e as Error).message),
   });
   const historyMut = useMutation({
-    mutationFn: () => historyFn({
-      data: {
-        watchId: watch.id,
-        count: 200,
-      },
-    }),
+    mutationFn: () =>
+      historyFn({
+        data: {
+          watchId: watch.id,
+          count: 200,
+        },
+      }),
     onSuccess: (result) => {
       toast.success(
         `Analysis complete — ${
           (result as { analyzed?: number }).analyzed ?? 0
-        } new video(s) analyzed from ${
-          (result as { checked?: number }).checked ?? 0
-        } checked`,
+        } new video(s) analyzed from ${(result as { checked?: number }).checked ?? 0} checked`,
       );
       qc.invalidateQueries({ queryKey: ["cw"] });
     },
@@ -631,12 +735,18 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
   });
   const removeMut = useMutation({
     mutationFn: () => removeFn({ data: { watchId: watch.id } }),
-    onSuccess: () => { toast.success("Channel removed"); qc.invalidateQueries({ queryKey: ["cw"] }); },
+    onSuccess: () => {
+      toast.success("Channel removed");
+      qc.invalidateQueries({ queryKey: ["cw"] });
+    },
   });
 
-  const statusColor = watch.status === "active" ? "text-emerald-300 border-emerald-500/40"
-    : watch.status === "paused" ? "text-slate-400 border-slate-500/40"
-      : "text-orange-300 border-orange-500/40";
+  const statusColor =
+    watch.status === "active"
+      ? "text-emerald-300 border-emerald-500/40"
+      : watch.status === "paused"
+        ? "text-slate-400 border-slate-500/40"
+        : "text-orange-300 border-orange-500/40";
 
   const analyzed = videos.filter((video) => video.analysis_status === "completed");
   const relevant = analyzed.filter(
@@ -650,9 +760,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
   // Mentions include informational subject matches. They are displayed
   // separately and are not automatically treated as violations.
   const subjectMentions = analyzed.filter(
-    (video) =>
-      video.classification &&
-      video.classification !== "not_relevant",
+    (video) => video.classification && video.classification !== "not_relevant",
   );
 
   const suspectedViolations = relevant.filter(
@@ -663,9 +771,7 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
   );
 
   const confirmedViolations = relevant.filter(
-    (video) =>
-      video.review_status === "approved" ||
-      video.review_status === "escalated",
+    (video) => video.review_status === "approved" || video.review_status === "escalated",
   );
 
   const criticalCount = relevant.filter((video) => (video.risk_score ?? 0) >= 85).length;
@@ -692,37 +798,43 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
     100,
     Math.round(
       maximumRisk * 0.35 +
-      confirmedViolations.length * 14 +
-      suspectedViolations.length * 5 +
-      criticalCount * 8 +
-      highCount * 4,
+        confirmedViolations.length * 14 +
+        suspectedViolations.length * 5 +
+        criticalCount * 8 +
+        highCount * 4,
     ),
   );
 
   const strengthLevel =
-    removalStrength >= 85 ? "Critical" :
-    removalStrength >= 70 ? "Very Strong" :
-    removalStrength >= 50 ? "Strong" :
-    removalStrength >= 30 ? "Moderate" :
-    "Low";
+    removalStrength >= 85
+      ? "Critical"
+      : removalStrength >= 70
+        ? "Very Strong"
+        : removalStrength >= 50
+          ? "Strong"
+          : removalStrength >= 30
+            ? "Moderate"
+            : "Low";
 
   const strengthColor =
-    removalStrength >= 85 ? "bg-red-800" :
-    removalStrength >= 70 ? "bg-red-500" :
-    removalStrength >= 50 ? "bg-orange-400" :
-    removalStrength >= 30 ? "bg-yellow-400" :
-    "bg-slate-500";
+    removalStrength >= 85
+      ? "bg-red-800"
+      : removalStrength >= 70
+        ? "bg-red-500"
+        : removalStrength >= 50
+          ? "bg-orange-400"
+          : removalStrength >= 30
+            ? "bg-yellow-400"
+            : "bg-slate-500";
 
   const latestViolation = [...relevant]
     .filter((video) => video.detected_at)
-    .sort(
-      (a, b) =>
-        new Date(b.detected_at).getTime() -
-        new Date(a.detected_at).getTime(),
-    )[0];
+    .sort((a, b) => new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime())[0];
 
   return (
-    <Card className={`relative bg-slate-900/40 backdrop-blur border p-4 transition-colors ${isSelected ? "border-cyan-400/60" : "border-slate-700/40"}`}>
+    <Card
+      className={`relative bg-slate-900/40 backdrop-blur border p-4 transition-colors ${isSelected ? "border-cyan-400/60" : "border-slate-700/40"}`}
+    >
       {(scanMut.isPending || historyMut.isPending) && (
         <ChannelScanOverlay
           channelName={watch.channel_title ?? watch.channel_id}
@@ -732,37 +844,59 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
       )}
       <div className="flex items-start gap-3">
         <div className="size-11 rounded-lg overflow-hidden bg-slate-800 shrink-0">
-          {watch.avatar_url ? <img src={watch.avatar_url} alt="" className="size-full object-cover" /> : <Users className="size-full p-2 text-slate-500" />}
+          {watch.avatar_url ? (
+            <img src={watch.avatar_url} alt="" className="size-full object-cover" />
+          ) : (
+            <Users className="size-full p-2 text-slate-500" />
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <div className="font-medium truncate">{watch.channel_title ?? watch.channel_id}</div>
-            <Badge variant="outline" className={`text-[9px] ${statusColor}`}>{watch.status.toUpperCase()}</Badge>
+            <Badge variant="outline" className={`text-[9px] ${statusColor}`}>
+              {watch.status.toUpperCase()}
+            </Badge>
           </div>
-          <div className="text-[11px] text-slate-500 truncate">{watch.handle ?? watch.channel_id}</div>
+          <div className="text-[11px] text-slate-500 truncate">
+            {watch.handle ?? watch.channel_id}
+          </div>
           <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-slate-400">
-            <div>Subs: <span className="text-slate-200">{formatNumber(watch.subscriber_count)}</span></div>
-            <div>Videos: <span className="text-slate-200">{formatNumber(watch.video_count)}</span></div>
-            <div>Priority: <span className="text-slate-200 uppercase">{watch.priority}</span></div>
+            <div>
+              Subs: <span className="text-slate-200">{formatNumber(watch.subscriber_count)}</span>
+            </div>
+            <div>
+              Videos: <span className="text-slate-200">{formatNumber(watch.video_count)}</span>
+            </div>
+            <div>
+              Priority: <span className="text-slate-200 uppercase">{watch.priority}</span>
+            </div>
           </div>
-          <div className="mt-2 text-[10px] text-cyan-200/80 truncate" title={watch.reason ?? undefined}>
+          <div
+            className="mt-2 text-[10px] text-cyan-200/80 truncate"
+            title={watch.reason ?? undefined}
+          >
             Monitoring for: {watch.reason}
           </div>
           <div className="mt-1 text-[10px] text-slate-500">
-            Last checked {watch.last_checked_at ? formatDistanceToNow(new Date(watch.last_checked_at), { addSuffix: true }) : "never"}
-            {watch.next_check_at && ` · next ${formatDistanceToNow(new Date(watch.next_check_at), { addSuffix: true })}`}
+            Last checked{" "}
+            {watch.last_checked_at
+              ? formatDistanceToNow(new Date(watch.last_checked_at), { addSuffix: true })
+              : "never"}
+            {watch.next_check_at &&
+              ` · next ${formatDistanceToNow(new Date(watch.next_check_at), { addSuffix: true })}`}
           </div>
           {watch.last_error && (
-            <div className="mt-1 text-[10px] text-orange-300 flex items-center gap-1"><AlertTriangle className="size-3" />{watch.last_error}</div>
+            <div className="mt-1 text-[10px] text-orange-300 flex items-center gap-1">
+              <AlertTriangle className="size-3" />
+              {watch.last_error}
+            </div>
           )}
         </div>
       </div>
       <div className="mt-3 rounded-lg border border-slate-700/60 bg-slate-950/45 p-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
-            <div className="text-lg font-semibold text-cyan-200">
-              {subjectMentions.length}
-            </div>
+            <div className="text-lg font-semibold text-cyan-200">{subjectMentions.length}</div>
             <div className="text-[8px] uppercase tracking-wider text-slate-500">
               Subject mentions
             </div>
@@ -771,17 +905,11 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
             <div className="text-lg font-semibold text-orange-200">
               {suspectedViolations.length}
             </div>
-            <div className="text-[8px] uppercase tracking-wider text-slate-500">
-              Suspected risk
-            </div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">Suspected risk</div>
           </div>
           <div>
-            <div className="text-lg font-semibold text-red-300">
-              {confirmedViolations.length}
-            </div>
-            <div className="text-[8px] uppercase tracking-wider text-slate-500">
-              Confirmed
-            </div>
+            <div className="text-lg font-semibold text-red-300">{confirmedViolations.length}</div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500">Confirmed</div>
           </div>
           <div>
             <div className="text-lg font-semibold text-cyan-200">
@@ -821,8 +949,14 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={onSelect}>
-          <Eye className="size-3 mr-1" />{isSelected ? "Hide" : "View"} videos
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-slate-700 h-7 text-[11px]"
+          onClick={onSelect}
+        >
+          <Eye className="size-3 mr-1" />
+          {isSelected ? "Hide" : "View"} videos
         </Button>
         <Button
           size="sm"
@@ -856,20 +990,40 @@ function MonitoredChannelCard({ watch, isSelected, onSelect, videos }: {
           {historyMut.isPending ? "Analyzing captions…" : "Analyze next 10"}
         </Button>
         {watch.status === "active" ? (
-          <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={() => statusMut.mutate("paused")}>
-            <Pause className="size-3 mr-1" />Pause
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-slate-700 h-7 text-[11px]"
+            onClick={() => statusMut.mutate("paused")}
+          >
+            <Pause className="size-3 mr-1" />
+            Pause
           </Button>
         ) : (
-          <Button size="sm" variant="outline" className="border-slate-700 h-7 text-[11px]" onClick={() => statusMut.mutate("active")}>
-            <Play className="size-3 mr-1" />Resume
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-slate-700 h-7 text-[11px]"
+            onClick={() => statusMut.mutate("active")}
+          >
+            <Play className="size-3 mr-1" />
+            Resume
           </Button>
         )}
         <a href={watch.channel_url ?? "#"} target="_blank" rel="noreferrer">
           <Button size="sm" variant="ghost" className="h-7 text-[11px]">
-            <ExternalLink className="size-3 mr-1" />Open
+            <ExternalLink className="size-3 mr-1" />
+            Open
           </Button>
         </a>
-        <Button size="sm" variant="ghost" className="h-7 text-[11px] text-orange-300 hover:text-orange-200" onClick={() => { if (confirm("Remove this channel?")) removeMut.mutate(); }}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-[11px] text-orange-300 hover:text-orange-200"
+          onClick={() => {
+            if (confirm("Remove this channel?")) removeMut.mutate();
+          }}
+        >
           <Trash2 className="size-3 mr-1" />
         </Button>
       </div>
@@ -890,11 +1044,14 @@ function ChannelScanOverlay({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#030712]/95 backdrop-blur-xl">
-      <div className="absolute inset-0 opacity-30" style={{
-        background:
-          "radial-gradient(circle at 50% 45%, rgba(34,211,238,.18), transparent 32%)," +
-          "radial-gradient(circle at 35% 60%, rgba(59,130,246,.13), transparent 30%)",
-      }} />
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 45%, rgba(34,211,238,.18), transparent 32%)," +
+            "radial-gradient(circle at 35% 60%, rgba(59,130,246,.13), transparent 30%)",
+        }}
+      />
 
       <div className="relative flex w-full max-w-4xl flex-col items-center px-6 text-center">
         <div className="mb-6 text-[10px] uppercase tracking-[0.4em] text-cyan-300/70">
@@ -912,8 +1069,7 @@ function ChannelScanOverlay({
               background:
                 "radial-gradient(circle at 40% 35%, rgba(255,255,255,.18), transparent 8%)," +
                 "radial-gradient(circle at 45% 45%, rgba(34,211,238,.30), rgba(30,64,175,.20) 42%, rgba(2,6,23,.94) 72%)",
-              boxShadow:
-                "0 0 80px rgba(34,211,238,.18), inset 0 0 55px rgba(59,130,246,.22)",
+              boxShadow: "0 0 80px rgba(34,211,238,.18), inset 0 0 55px rgba(59,130,246,.22)",
             }}
           />
 
@@ -929,8 +1085,7 @@ function ChannelScanOverlay({
                     width: size,
                     height: size,
                     opacity: 0.25 + (index % 7) * 0.08,
-                    transform:
-                      `rotate(${angle}deg) translateY(-135px) rotate(-${angle}deg)`,
+                    transform: `rotate(${angle}deg) translateY(-135px) rotate(-${angle}deg)`,
                     boxShadow: "0 0 8px rgba(103,232,249,.8)",
                   }}
                 />
@@ -968,9 +1123,7 @@ function ChannelScanOverlay({
         <div className="mt-5 flex flex-wrap items-center justify-center gap-5 text-[10px] uppercase tracking-[0.18em] text-slate-400">
           <span className="flex items-center gap-2">
             <span className="size-1.5 animate-pulse rounded-full bg-cyan-300" />
-            {mode === "historical"
-              ? "Fetching current channel videos"
-              : "Fetching newest uploads"}
+            {mode === "historical" ? "Fetching current channel videos" : "Fetching newest uploads"}
           </span>
           <span className="flex items-center gap-2">
             <span className="size-1.5 animate-pulse rounded-full bg-blue-400 [animation-delay:300ms]" />
@@ -998,7 +1151,13 @@ function ChannelScanOverlay({
   );
 }
 
-function VideosTable({ rows, loading }: { rows: Awaited<ReturnType<typeof listWatchVideos>>; loading: boolean }) {
+function VideosTable({
+  rows,
+  loading,
+}: {
+  rows: Awaited<ReturnType<typeof listWatchVideos>>;
+  loading: boolean;
+}) {
   const [filter, setFilter] = useState<"all" | "baseline" | "new" | "review">("all");
   const filtered = useMemo(() => {
     if (filter === "baseline") return rows.filter((r) => r.is_baseline);
@@ -1025,7 +1184,9 @@ function VideosTable({ rows, loading }: { rows: Awaited<ReturnType<typeof listWa
         <div className="text-center text-slate-500 text-sm py-8">No videos yet.</div>
       ) : (
         <div className="divide-y divide-slate-800/60">
-          {filtered.map((v) => <VideoRow key={v.id} v={v} />)}
+          {filtered.map((v) => (
+            <VideoRow key={v.id} v={v} />
+          ))}
         </div>
       )}
     </Card>
@@ -1051,29 +1212,57 @@ function VideoRow({ v }: { v: Awaited<ReturnType<typeof listWatchVideos>>[number
   });
 
   const reviewMut = useMutation({
-    mutationFn: (decision: "approved" | "dismissed" | "escalated") => reviewFn({ data: { videoRowId: v.id, decision } }),
-    onSuccess: () => { toast.success("Review saved"); qc.invalidateQueries({ queryKey: ["cw"] }); },
+    mutationFn: (decision: "approved" | "dismissed" | "escalated") =>
+      reviewFn({ data: { videoRowId: v.id, decision } }),
+    onSuccess: () => {
+      toast.success("Review saved");
+      qc.invalidateQueries({ queryKey: ["cw"] });
+    },
   });
   const classColor = classificationColor(v.classification);
   return (
     <div className="flex gap-3 py-3 items-start">
-      <img src={v.thumbnail_url ?? ""} alt="" className="w-32 h-18 object-cover rounded bg-slate-800 shrink-0" />
+      <img
+        src={v.thumbnail_url ?? ""}
+        alt=""
+        className="w-32 h-18 object-cover rounded bg-slate-800 shrink-0"
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <a href={v.url ?? "#"} target="_blank" rel="noreferrer" className="text-sm font-medium truncate hover:text-cyan-200">{v.title ?? v.video_id}</a>
+          <a
+            href={v.url ?? "#"}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm font-medium truncate hover:text-cyan-200"
+          >
+            {v.title ?? v.video_id}
+          </a>
           {v.is_baseline ? (
-            <Badge variant="outline" className="text-[9px] border-slate-500/40 text-slate-400">BASELINE</Badge>
+            <Badge variant="outline" className="text-[9px] border-slate-500/40 text-slate-400">
+              BASELINE
+            </Badge>
           ) : (
-            <Badge variant="outline" className="text-[9px] border-cyan-400/50 text-cyan-100">NEW</Badge>
+            <Badge variant="outline" className="text-[9px] border-cyan-400/50 text-cyan-100">
+              NEW
+            </Badge>
           )}
           {v.classification && (
-            <Badge variant="outline" className={`text-[9px] ${classColor}`}>{v.classification.replace(/_/g, " ").toUpperCase()}</Badge>
+            <Badge variant="outline" className={`text-[9px] ${classColor}`}>
+              {v.classification.replace(/_/g, " ").toUpperCase()}
+            </Badge>
           )}
         </div>
         <div className="text-[11px] text-slate-500 mt-1">
-          {v.published_at ? `Published ${formatDistanceToNow(new Date(v.published_at), { addSuffix: true })}` : ""}
+          {v.published_at
+            ? `Published ${formatDistanceToNow(new Date(v.published_at), { addSuffix: true })}`
+            : ""}
           {" · "}Views {formatNumber(v.view_count)} · Likes {formatNumber(v.like_count)}
-          {typeof v.risk_score === "number" && <> · Risk <span className="text-slate-300">{v.risk_score}</span></>}
+          {typeof v.risk_score === "number" && (
+            <>
+              {" "}
+              · Risk <span className="text-slate-300">{v.risk_score}</span>
+            </>
+          )}
         </div>
         <div className="mt-1 text-[11px] text-slate-500">
           Analysis: <span className="text-slate-300">{v.analysis_status}</span>
@@ -1090,16 +1279,10 @@ function VideoRow({ v }: { v: Awaited<ReturnType<typeof listWatchVideos>>[number
                 onClick={() => removalMut.mutate()}
               >
                 <ShieldCheck className="mr-1 size-3" />
-                {removalMut.isPending
-                  ? "Adding evidence…"
-                  : "Add to Removal Center"}
+                {removalMut.isPending ? "Adding evidence…" : "Add to Removal Center"}
               </Button>
               <a href="/removals">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 border-slate-700 text-[10px]"
-                >
+                <Button size="sm" variant="outline" className="h-7 border-slate-700 text-[10px]">
                   Open Removal Center
                 </Button>
               </a>
@@ -1108,9 +1291,29 @@ function VideoRow({ v }: { v: Awaited<ReturnType<typeof listWatchVideos>>[number
 
         {v.review_status === "pending" && (
           <div className="mt-2 flex gap-2">
-            <Button size="sm" className="h-6 text-[10px] bg-emerald-500/20 border border-emerald-400/30 text-emerald-100 hover:bg-emerald-500/30" onClick={() => reviewMut.mutate("approved")}>Confirm violation</Button>
-            <Button size="sm" variant="outline" className="h-6 text-[10px] border-slate-700" onClick={() => reviewMut.mutate("dismissed")}>Dismiss</Button>
-            <Button size="sm" variant="outline" className="h-6 text-[10px] border-orange-400/40 text-orange-200" onClick={() => reviewMut.mutate("escalated")}>Escalate legal</Button>
+            <Button
+              size="sm"
+              className="h-6 text-[10px] bg-emerald-500/20 border border-emerald-400/30 text-emerald-100 hover:bg-emerald-500/30"
+              onClick={() => reviewMut.mutate("approved")}
+            >
+              Confirm violation
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-[10px] border-slate-700"
+              onClick={() => reviewMut.mutate("dismissed")}
+            >
+              Dismiss
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-[10px] border-orange-400/40 text-orange-200"
+              onClick={() => reviewMut.mutate("escalated")}
+            >
+              Escalate legal
+            </Button>
           </div>
         )}
       </div>
@@ -1119,7 +1322,12 @@ function VideoRow({ v }: { v: Awaited<ReturnType<typeof listWatchVideos>>[number
 }
 
 function ActivityFeed({ rows }: { rows: Awaited<ReturnType<typeof listRecentEvents>> }) {
-  if (rows.length === 0) return <Card className="p-6 bg-slate-900/30 border-slate-700/40 text-slate-500 text-sm text-center">No activity yet.</Card>;
+  if (rows.length === 0)
+    return (
+      <Card className="p-6 bg-slate-900/30 border-slate-700/40 text-slate-500 text-sm text-center">
+        No activity yet.
+      </Card>
+    );
   return (
     <Card className="bg-slate-900/30 border-slate-700/40 p-3">
       <div className="divide-y divide-slate-800/60">
@@ -1127,7 +1335,9 @@ function ActivityFeed({ rows }: { rows: Awaited<ReturnType<typeof listRecentEven
           <div key={e.id} className="py-2 flex items-center gap-3 text-xs">
             <Activity className="size-3 text-cyan-300/70" />
             <div className="flex-1 text-slate-300">{humanizeEvent(e.event_type)}</div>
-            <div className="text-[10px] text-slate-500">{formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}</div>
+            <div className="text-[10px] text-slate-500">
+              {formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}
+            </div>
           </div>
         ))}
       </div>
@@ -1139,7 +1349,13 @@ function ActivityFeed({ rows }: { rows: Awaited<ReturnType<typeof listRecentEven
 
 type Candidate = Awaited<ReturnType<typeof resolveChannelSearch>>[number];
 
-function AddChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function AddChannelDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const qc = useQueryClient();
   const searchFn = useServerFn(resolveChannelSearch);
   const addFn = useServerFn(addChannelWatch);
@@ -1162,10 +1378,17 @@ function AddChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   });
 
   const addMut = useMutation({
-    mutationFn: () => addFn({ data: {
-      channelId: selected!.channelId, reason, priority, notes: notes || undefined,
-      analyzeExisting, existingCount: analyzeExisting ? existingCount : 0,
-    } }),
+    mutationFn: () =>
+      addFn({
+        data: {
+          channelId: selected!.channelId,
+          reason,
+          priority,
+          notes: notes || undefined,
+          analyzeExisting,
+          existingCount: analyzeExisting ? existingCount : 0,
+        },
+      }),
     onSuccess: () => {
       toast.success("Channel added. Baseline fetch running…");
       qc.invalidateQueries({ queryKey: ["cw"] });
@@ -1176,17 +1399,30 @@ function AddChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   });
 
   function reset() {
-    setQuery(""); setCandidates([]); setSelected(null); setReason(""); setNotes("");
-    setPriority("standard"); setAnalyzeExisting(true); setExistingCount(25);
+    setQuery("");
+    setCandidates([]);
+    setSelected(null);
+    setReason("");
+    setNotes("");
+    setPriority("standard");
+    setAnalyzeExisting(true);
+    setExistingCount(25);
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) reset();
+      }}
+    >
       <DialogContent className="max-w-2xl bg-slate-950 border-slate-700 text-slate-100">
         <DialogHeader>
           <DialogTitle>Add Risk Channel</DialogTitle>
           <DialogDescription className="text-slate-400">
-            Confirm the exact channel before adding — Eterna never monitors a channel from an uncertain name match.
+            Confirm the exact channel before adding — Eterna never monitors a channel from an
+            uncertain name match.
           </DialogDescription>
         </DialogHeader>
 
@@ -1194,15 +1430,33 @@ function AddChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           <div className="space-y-3">
             <Label>Channel name, @handle, YouTube URL or channel ID</Label>
             <div className="flex gap-2">
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="@channelhandle or https://youtube.com/channel/UC…" className="bg-slate-900 border-slate-700" />
-              <Button onClick={() => searchMut.mutate()} disabled={!query.trim() || searchMut.isPending} className="bg-cyan-500/20 border border-cyan-400/30 text-cyan-100">
-                <Search className="size-4 mr-1" />{searchMut.isPending ? "Resolving…" : "Resolve"}
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="@channelhandle or https://youtube.com/channel/UC…"
+                className="bg-slate-900 border-slate-700"
+              />
+              <Button
+                onClick={() => searchMut.mutate()}
+                disabled={!query.trim() || searchMut.isPending}
+                className="bg-cyan-500/20 border border-cyan-400/30 text-cyan-100"
+              >
+                <Search className="size-4 mr-1" />
+                {searchMut.isPending ? "Resolving…" : "Resolve"}
               </Button>
             </div>
             <div className="space-y-2">
               {candidates.map((c) => (
-                <button key={c.channelId} onClick={() => setSelected(c)} className="w-full text-left p-3 rounded-lg border border-slate-700 hover:border-cyan-400/50 bg-slate-900/40 flex gap-3 items-center">
-                  <img src={c.avatarUrl ?? ""} alt="" className="size-12 rounded-lg object-cover bg-slate-800" />
+                <button
+                  key={c.channelId}
+                  onClick={() => setSelected(c)}
+                  className="w-full text-left p-3 rounded-lg border border-slate-700 hover:border-cyan-400/50 bg-slate-900/40 flex gap-3 items-center"
+                >
+                  <img
+                    src={c.avatarUrl ?? ""}
+                    alt=""
+                    className="size-12 rounded-lg object-cover bg-slate-800"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <div className="font-medium truncate">{c.title}</div>
@@ -1210,7 +1464,8 @@ function AddChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                     </div>
                     <div className="text-[11px] text-slate-500 line-clamp-2">{c.description}</div>
                     <div className="text-[10px] text-slate-500 mt-1">
-                      {c.channelId} · Subs {formatNumber(c.subscriberCount ?? null)} · Videos {formatNumber(c.videoCount ?? null)}
+                      {c.channelId} · Subs {formatNumber(c.subscriberCount ?? null)} · Videos{" "}
+                      {formatNumber(c.videoCount ?? null)}
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -1227,10 +1482,17 @@ function AddChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
             <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-cyan-400/30">
               <img src={selected.avatarUrl ?? ""} alt="" className="size-12 rounded-lg" />
               <div className="flex-1 min-w-0">
-                <div className="font-medium">{selected.title} {selected.handle && <span className="text-xs text-slate-400">{selected.handle}</span>}</div>
+                <div className="font-medium">
+                  {selected.title}{" "}
+                  {selected.handle && (
+                    <span className="text-xs text-slate-400">{selected.handle}</span>
+                  )}
+                </div>
                 <div className="text-[10px] text-slate-500">{selected.channelId}</div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>Change</Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+                Change
+              </Button>
             </div>
             <div>
               <Label>Protected person/brand and aliases</Label>
@@ -1249,7 +1511,9 @@ function AddChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
               <div>
                 <Label>Monitoring priority</Label>
                 <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)}>
-                  <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-slate-900 border-slate-700">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="critical">Critical (30 min)</SelectItem>
                     <SelectItem value="high">High (60 min)</SelectItem>
@@ -1260,23 +1524,45 @@ function AddChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
               </div>
               <div>
                 <Label>Notes (optional)</Label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="bg-slate-900 border-slate-700" />
+                <Input
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="bg-slate-900 border-slate-700"
+                />
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-slate-900/40 rounded border border-slate-700">
               <Switch checked={analyzeExisting} onCheckedChange={setAnalyzeExisting} />
               <div className="flex-1">
                 <div className="text-sm">Fetch existing videos as baseline</div>
-                <div className="text-[10px] text-slate-500">Historical videos are labelled BASELINE and are not presented as newly detected.</div>
+                <div className="text-[10px] text-slate-500">
+                  Historical videos are labelled BASELINE and are not presented as newly detected.
+                </div>
               </div>
               {analyzeExisting && (
-                <Input type="number" min={1} max={200} value={existingCount} onChange={(e) => setExistingCount(Math.max(1, Math.min(200, Number(e.target.value) || 25)))} className="w-20 bg-slate-900 border-slate-700" />
+                <Input
+                  type="number"
+                  min={1}
+                  max={200}
+                  value={existingCount}
+                  onChange={(e) =>
+                    setExistingCount(Math.max(1, Math.min(200, Number(e.target.value) || 25)))
+                  }
+                  className="w-20 bg-slate-900 border-slate-700"
+                />
               )}
             </div>
             <DialogFooter>
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button onClick={() => addMut.mutate()} disabled={!reason.trim() || addMut.isPending} className="bg-cyan-500/20 border border-cyan-400/30 text-cyan-100">
-                <Radar className="size-4 mr-1" />{addMut.isPending ? "Adding…" : "Start monitoring"}
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => addMut.mutate()}
+                disabled={!reason.trim() || addMut.isPending}
+                className="bg-cyan-500/20 border border-cyan-400/30 text-cyan-100"
+              >
+                <Radar className="size-4 mr-1" />
+                {addMut.isPending ? "Adding…" : "Start monitoring"}
               </Button>
             </DialogFooter>
           </div>
@@ -1298,7 +1584,8 @@ function formatNumber(n: number | null | undefined): string {
 function classificationColor(c: string | null | undefined): string {
   if (!c) return "border-slate-600/40 text-slate-400";
   if (c === "not_relevant") return "border-slate-600/40 text-slate-400";
-  if (c === "informational" || c === "commentary_no_violation") return "border-slate-500/40 text-slate-300";
+  if (c === "informational" || c === "commentary_no_violation")
+    return "border-slate-500/40 text-slate-300";
   return "border-orange-400/40 text-orange-200";
 }
 

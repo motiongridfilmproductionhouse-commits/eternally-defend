@@ -29,25 +29,15 @@ function embeddingCacheKey(name: string): string {
   return `embeddings:${celebrityKey(name)}`;
 }
 
-export function loadReferenceEmbeddingLibrary(
-  celebrityName: string,
-): StoredReferenceEmbedding[] {
-  return (
-    getInvestigationCache<StoredReferenceEmbedding[]>(
-      embeddingCacheKey(celebrityName),
-    ) ?? []
-  );
+export function loadReferenceEmbeddingLibrary(celebrityName: string): StoredReferenceEmbedding[] {
+  return getInvestigationCache<StoredReferenceEmbedding[]>(embeddingCacheKey(celebrityName)) ?? [];
 }
 
 export function storeReferenceEmbeddingLibrary(
   celebrityName: string,
   embeddings: StoredReferenceEmbedding[],
 ): void {
-  setInvestigationCache(
-    embeddingCacheKey(celebrityName),
-    embeddings,
-    EMBEDDING_CACHE_TTL_MS,
-  );
+  setInvestigationCache(embeddingCacheKey(celebrityName), embeddings, EMBEDDING_CACHE_TTL_MS);
 }
 
 export function mergeCollectedIntoEmbeddingLibrary(input: {
@@ -75,17 +65,12 @@ export function mergeCollectedIntoEmbeddingLibrary(input: {
     });
   }
 
-  const merged = [...bySha.values()].sort(
-    (a, b) => b.quality_score - a.quality_score,
-  );
+  const merged = [...bySha.values()].sort((a, b) => b.quality_score - a.quality_score);
   storeReferenceEmbeddingLibrary(input.celebrityName, merged);
   return merged;
 }
 
-export function topReferenceImageUrls(
-  celebrityName: string,
-  limit = 24,
-): string[] {
+export function topReferenceImageUrls(celebrityName: string, limit = 24): string[] {
   return loadReferenceEmbeddingLibrary(celebrityName)
     .slice(0, limit)
     .map((row) => row.image_url);

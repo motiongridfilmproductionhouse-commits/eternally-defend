@@ -3,10 +3,7 @@ import test from "node:test";
 import { expandIdentityVariants } from "./identity-variants.server";
 import { explainNoDeepfakeResults } from "./scan-diagnostics";
 import { assessReferenceImageQuality } from "./image-quality.server";
-import {
-  isBraveImageSearchConfigured,
-  searchBraveImagesForQuery,
-} from "./brave-images.server";
+import { isBraveImageSearchConfigured, searchBraveImagesForQuery } from "./brave-images.server";
 import {
   mergeCollectedIntoEmbeddingLibrary,
   topReferenceImageUrls,

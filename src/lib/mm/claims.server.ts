@@ -41,7 +41,11 @@ Text:
     const j = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const content = j.choices?.[0]?.message?.content ?? "{}";
     let parsed: unknown;
-    try { parsed = JSON.parse(content); } catch { return ok([]); }
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      return ok([]);
+    }
     const arr = Array.isArray(parsed) ? parsed : ((parsed as { claims?: unknown }).claims ?? []);
     if (!Array.isArray(arr)) return ok([]);
     const claims: ExtractedClaim[] = [];

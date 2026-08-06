@@ -58,9 +58,7 @@ test("2. District/cast/review page → rejected", () => {
   const review = classifyCopyrightPage({
     url: "https://filmblog.example/neon-horizon-movie-review",
     pageTitle: "Neon Horizon Movie Review — 3.5/5",
-    markdown: long(
-      "Our critic review of Neon Horizon. Rating and opinion. Box office outlook.",
-    ),
+    markdown: long("Our critic review of Neon Horizon. Rating and opinion. Box office outlook."),
     html: "<html></html>",
     links: [],
     titles: TITLES,
@@ -88,9 +86,7 @@ test("4. Reddit discussion without access URL → SOCIAL_DISCUSSION", () => {
   const result = classifyCopyrightPage({
     url: "https://www.reddit.com/r/movies/comments/xyz/neon_horizon_discussion/",
     pageTitle: "Neon Horizon discussion thread",
-    markdown: long(
-      "What did you think of Neon Horizon? Spoiler thread. Comment thread for fans.",
-    ),
+    markdown: long("What did you think of Neon Horizon? Spoiler thread. Comment thread for fans."),
     html: "<html></html>",
     links: ["https://www.reddit.com/r/movies/"],
     titles: TITLES,
@@ -144,25 +140,21 @@ test("7. Exact title plus download/file-host destination → actionable", () => 
   const result = classifyCopyrightPage({
     url: "https://dlhub.test/neon-horizon-download",
     pageTitle: "Neon Horizon Download Full Movie",
-    markdown: long(
-      "Download full movie Neon Horizon from file host mirrors. Click to download.",
-    ),
+    markdown: long("Download full movie Neon Horizon from file host mirrors. Click to download."),
     html: '<a href="https://mega.nz/file/abc">Download</a>',
     links: ["https://mega.nz/file/abc", "https://mediafire.com/file/xyz"],
     titles: TITLES,
     pageInspected: true,
   });
   assert.ok(
-    result.classification === "DOWNLOAD_PAGE" ||
-      result.classification === "FILE_HOST_DISTRIBUTION",
+    result.classification === "DOWNLOAD_PAGE" || result.classification === "FILE_HOST_DISTRIBUTION",
   );
   assert.equal(result.clientVisible, true);
   assert.ok(result.distributionLinks.length >= 1);
 });
 
 test("8. Exact title plus magnet/torrent → actionable", () => {
-  const magnet =
-    "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Neon+Horizon";
+  const magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Neon+Horizon";
   const result = classifyCopyrightPage({
     url: "https://torrentindex.test/neon-horizon",
     pageTitle: "Neon Horizon 1080p WEBRip torrent",
@@ -444,11 +436,7 @@ test("18. Queries require exact title + distribution phrase (never bare tokens)"
 });
 
 test("title identity helper requires near-exact title", () => {
-  const hit = hasExactTitleIdentity(
-    "Watch Neon Horizon full movie online free",
-    TITLES,
-    "2026",
-  );
+  const hit = hasExactTitleIdentity("Watch Neon Horizon full movie online free", TITLES, "2026");
   assert.equal(hit.match, true);
   const miss = hasExactTitleIdentity("Watch Horizon news online", TITLES);
   assert.equal(miss.match, false);

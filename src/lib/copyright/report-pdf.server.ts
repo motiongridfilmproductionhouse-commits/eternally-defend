@@ -5,18 +5,22 @@
  * `CopyrightReportModel` and optional embedded screenshot bytes.
  */
 
-import { PDFDocument, PDFName, PDFString, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import {
+  PDFDocument,
+  PDFName,
+  PDFString,
+  rgb,
+  type PDFFont,
+  type PDFPage,
+  type RGB,
+} from "pdf-lib";
 import {
   embedUnicodeFontStack,
   drawUnicodeText,
   measureUnicodeText,
   type UnicodeFontStack,
 } from "@/lib/pdf/unicode-fonts.server";
-import {
-  PRIORITY_LABEL,
-  type CopyrightReportModel,
-  type ReportThreat,
-} from "./report-model";
+import { PRIORITY_LABEL, type CopyrightReportModel, type ReportThreat } from "./report-model";
 
 const A4: [number, number] = [595.28, 841.89];
 const MARGIN = 44;
@@ -43,7 +47,11 @@ function severityColor(severity: string): RGB {
 
 /** Strip glyphs the embedded fonts cannot render. */
 export function sanitize(value: unknown): string {
-  return Array.from(String(value ?? "").normalize("NFC").replace(/\p{Extended_Pictographic}/gu, ""))
+  return Array.from(
+    String(value ?? "")
+      .normalize("NFC")
+      .replace(/\p{Extended_Pictographic}/gu, ""),
+  )
     .filter((ch) => {
       const cp = ch.codePointAt(0) ?? 0;
       return cp >= 32 && cp !== 127;
@@ -169,7 +177,13 @@ function text(
   const width = opts.width ?? CONTENT_W - (x - MARGIN);
   for (const line of wrapText(value, size, fonts, width)) {
     ensure(ctx, size + 4);
-    drawUnicodeText(ctx.page, line, { x, y: ctx.y - size, size, stack: fonts, color: opts.color ?? TEXT });
+    drawUnicodeText(ctx.page, line, {
+      x,
+      y: ctx.y - size,
+      size,
+      stack: fonts,
+      color: opts.color ?? TEXT,
+    });
     ctx.y -= size + 3;
   }
   ctx.y -= opts.gap ?? 0;
@@ -235,8 +249,23 @@ function keyValueGrid(ctx: Ctx, rows: Array<[string, string]>, columns = 2): voi
 
 function badge(ctx: Ctx, label: string, color: RGB, x: number, y: number): number {
   const w = measure(label, 7, ctx.stack.bold) + 14;
-  ctx.page.drawRectangle({ x, y: y - 3, width: w, height: 14, color, opacity: 0.18, borderColor: color, borderWidth: 0.6 });
-  drawUnicodeText(ctx.page, sanitize(label), { x: x + 7, y: y + 1, size: 7, stack: ctx.stack.bold, color });
+  ctx.page.drawRectangle({
+    x,
+    y: y - 3,
+    width: w,
+    height: 14,
+    color,
+    opacity: 0.18,
+    borderColor: color,
+    borderWidth: 0.6,
+  });
+  drawUnicodeText(ctx.page, sanitize(label), {
+    x: x + 7,
+    y: y + 1,
+    size: 7,
+    stack: ctx.stack.bold,
+    color,
+  });
   return w + 6;
 }
 
@@ -272,10 +301,20 @@ function drawCover(ctx: Ctx): void {
   ctx.page.drawRectangle({ x: 0, y: 0, width: A4[0], height: A4[1], color: BG });
   // grid backdrop
   for (let gy = 0; gy < A4[1]; gy += 28) {
-    ctx.page.drawLine({ start: { x: 0, y: gy }, end: { x: A4[0], y: gy }, thickness: 0.2, color: PANEL_ALT });
+    ctx.page.drawLine({
+      start: { x: 0, y: gy },
+      end: { x: A4[0], y: gy },
+      thickness: 0.2,
+      color: PANEL_ALT,
+    });
   }
   for (let gx = 0; gx < A4[0]; gx += 28) {
-    ctx.page.drawLine({ start: { x: gx, y: 0 }, end: { x: gx, y: A4[1] }, thickness: 0.2, color: PANEL_ALT });
+    ctx.page.drawLine({
+      start: { x: gx, y: 0 },
+      end: { x: gx, y: A4[1] },
+      thickness: 0.2,
+      color: PANEL_ALT,
+    });
   }
   ctx.page.drawRectangle({ x: 0, y: A4[1] - 6, width: A4[0], height: 6, color: ACCENT });
 
@@ -367,7 +406,15 @@ function drawCover(ctx: Ctx): void {
     y -= 22;
   }
 
-  ctx.page.drawRectangle({ x: MARGIN, y: 74, width: CONTENT_W, height: 44, color: PANEL_ALT, borderColor: CRITICAL, borderWidth: 0.7 });
+  ctx.page.drawRectangle({
+    x: MARGIN,
+    y: 74,
+    width: CONTENT_W,
+    height: 44,
+    color: PANEL_ALT,
+    borderColor: CRITICAL,
+    borderWidth: 0.7,
+  });
   drawUnicodeText(ctx.page, sanitize("CONFIDENTIAL — LEGAL & ENFORCEMENT USE ONLY"), {
     x: MARGIN + 14,
     y: 100,
@@ -409,7 +456,13 @@ function drawExecutiveSummary(ctx: Ctx): void {
     color: MUTED,
   });
   const barW = CONTENT_W - 120;
-  ctx.page.drawRectangle({ x: box.x + 12, y: box.y + 14, width: barW, height: 10, color: PANEL_ALT });
+  ctx.page.drawRectangle({
+    x: box.x + 12,
+    y: box.y + 14,
+    width: barW,
+    height: 10,
+    color: PANEL_ALT,
+  });
   ctx.page.drawRectangle({
     x: box.x + 12,
     y: box.y + 14,
@@ -437,7 +490,13 @@ function drawThreatTable(ctx: Ctx): void {
 
   const header = () => {
     ensure(ctx, 24);
-    ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 18, width: CONTENT_W, height: 18, color: PANEL_ALT });
+    ctx.page.drawRectangle({
+      x: MARGIN,
+      y: ctx.y - 18,
+      width: CONTENT_W,
+      height: 18,
+      color: PANEL_ALT,
+    });
     let x = MARGIN + 6;
     headers.forEach((label, i) => {
       drawUnicodeText(ctx.page, sanitize(label.toUpperCase()), {
@@ -454,10 +513,14 @@ function drawThreatTable(ctx: Ctx): void {
   header();
 
   if (!ctx.model.threats.length) {
-    text(ctx, "No verified unauthorized distribution sources were confirmed in this investigation.", {
-      size: 9,
-      color: MUTED,
-    });
+    text(
+      ctx,
+      "No verified unauthorized distribution sources were confirmed in this investigation.",
+      {
+        size: 9,
+        color: MUTED,
+      },
+    );
     return;
   }
 
@@ -467,7 +530,14 @@ function drawThreatTable(ctx: Ctx): void {
       header();
     }
     if (index % 2 === 1) {
-      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 15, width: CONTENT_W, height: 17, color: PANEL, opacity: 0.7 });
+      ctx.page.drawRectangle({
+        x: MARGIN,
+        y: ctx.y - 15,
+        width: CONTENT_W,
+        height: 17,
+        color: PANEL,
+        opacity: 0.7,
+      });
     }
     const baseY = ctx.y - 11;
     let x = MARGIN + 6;
@@ -506,7 +576,13 @@ function drawThreatDetail(ctx: Ctx, threat: ReportThreat): void {
   let bx = MARGIN;
   bx += badge(ctx, threat.severity.toUpperCase(), sev, bx, ctx.y - 10);
   bx += badge(ctx, `${threat.confidence}% CONFIDENCE`, ACCENT, bx, ctx.y - 10);
-  bx += badge(ctx, threat.status.toUpperCase(), threat.status === "active" ? CRITICAL : LOW, bx, ctx.y - 10);
+  bx += badge(
+    ctx,
+    threat.status.toUpperCase(),
+    threat.status === "active" ? CRITICAL : LOW,
+    bx,
+    ctx.y - 10,
+  );
   badge(ctx, PRIORITY_LABEL[threat.enforcement.priority].toUpperCase(), MEDIUM, bx, ctx.y - 10);
   ctx.y -= 26;
 
@@ -527,7 +603,13 @@ function drawThreatDetail(ctx: Ctx, threat: ReportThreat): void {
   const urlLines = wrapText(threat.url, 8, ctx.stack.regular, CONTENT_W);
   for (const lineText of urlLines) {
     ensure(ctx, 12);
-    drawUnicodeText(ctx.page, lineText, { x: MARGIN, y: ctx.y - 8, size: 8, stack: ctx.stack.regular, color: ACCENT });
+    drawUnicodeText(ctx.page, lineText, {
+      x: MARGIN,
+      y: ctx.y - 8,
+      size: 8,
+      stack: ctx.stack.regular,
+      color: ACCENT,
+    });
     link(ctx, threat.url, MARGIN, ctx.y - 10, measure(lineText, 8, ctx.stack.regular), 11);
     ctx.y -= 11;
   }
@@ -544,7 +626,9 @@ function drawThreatDetail(ctx: Ctx, threat: ReportThreat): void {
     findings.push(`Release quality markers: ${threat.evidence.qualityTags.join(", ")}`);
   }
   if (threat.evidence.visualFingerprintScore !== null) {
-    findings.push(`Visual fingerprint similarity: ${Math.round(threat.evidence.visualFingerprintScore)}%`);
+    findings.push(
+      `Visual fingerprint similarity: ${Math.round(threat.evidence.visualFingerprintScore)}%`,
+    );
   }
   if (threat.evidence.videoFingerprintScore !== null) {
     findings.push(`Face / actor similarity: ${Math.round(threat.evidence.videoFingerprintScore)}%`);
@@ -555,7 +639,14 @@ function drawThreatDetail(ctx: Ctx, threat: ReportThreat): void {
 
   if (threat.evidence.downloadLinks.length || threat.evidence.directFileUrls.length) {
     text(ctx, "Distribution links captured", { size: 10, bold: true, color: ACCENT, gap: 4 });
-    bulletList(ctx, [...new Set([...threat.evidence.directFileUrls, ...threat.evidence.downloadLinks])].slice(0, 8), MUTED);
+    bulletList(
+      ctx,
+      [...new Set([...threat.evidence.directFileUrls, ...threat.evidence.downloadLinks])].slice(
+        0,
+        8,
+      ),
+      MUTED,
+    );
     ctx.y -= 4;
   }
 
@@ -587,7 +678,13 @@ function drawThreatDetail(ctx: Ctx, threat: ReportThreat): void {
     });
     ctx.y -= 11;
     const lineText = wrapText(entry.url, 7.6, ctx.stack.regular, CONTENT_W)[0] ?? "";
-    drawUnicodeText(ctx.page, lineText, { x: MARGIN, y: ctx.y - 8, size: 7.6, stack: ctx.stack.regular, color: ACCENT });
+    drawUnicodeText(ctx.page, lineText, {
+      x: MARGIN,
+      y: ctx.y - 8,
+      size: 7.6,
+      stack: ctx.stack.regular,
+      color: ACCENT,
+    });
     link(ctx, entry.url, MARGIN, ctx.y - 10, measure(lineText, 7.6, ctx.stack.regular), 11);
     ctx.y -= 14;
   }
@@ -639,7 +736,10 @@ function drawThreatDetail(ctx: Ctx, threat: ReportThreat): void {
     ["Related infrastructure", threat.relationships.relatedInfrastructure],
   ];
   for (const [label, values] of relations) {
-    text(ctx, `${label}: ${values.length ? values.join(", ") : "None identified"}`, { size: 8, color: MUTED });
+    text(ctx, `${label}: ${values.length ? values.join(", ") : "None identified"}`, {
+      size: 8,
+      color: MUTED,
+    });
   }
   ctx.y -= 6;
 
@@ -676,13 +776,17 @@ function drawTimeline(ctx: Ctx): void {
       stack: ctx.stack.bold,
       color: MUTED,
     });
-    drawUnicodeText(ctx.page, wrapText(entry.label, 8.5, ctx.stack.regular, CONTENT_W - 160)[0] ?? "", {
-      x: MARGIN + 150,
-      y: ctx.y - 10,
-      size: 8.5,
-      stack: ctx.stack.regular,
-      color: TEXT,
-    });
+    drawUnicodeText(
+      ctx.page,
+      wrapText(entry.label, 8.5, ctx.stack.regular, CONTENT_W - 160)[0] ?? "",
+      {
+        x: MARGIN + 150,
+        y: ctx.y - 10,
+        size: 8.5,
+        stack: ctx.stack.regular,
+        color: TEXT,
+      },
+    );
     ctx.y -= 22;
   }
 }
@@ -690,7 +794,10 @@ function drawTimeline(ctx: Ctx): void {
 function drawGeography(ctx: Ctx): void {
   sectionTitle(ctx, "Geographic Distribution", { newPage: false });
   if (!ctx.model.geography.length) {
-    text(ctx, "No geographic hosting data available for the verified sources.", { size: 9, color: MUTED });
+    text(ctx, "No geographic hosting data available for the verified sources.", {
+      size: 9,
+      color: MUTED,
+    });
     return;
   }
   const max = Math.max(...ctx.model.geography.map((g) => g.sources));
@@ -736,10 +843,20 @@ function drawActions(ctx: Ctx): void {
     const items = ctx.model.actions.filter((a) => a.priority === priority);
     if (!items.length) continue;
     ensure(ctx, 24);
-    badge(ctx, PRIORITY_LABEL[priority as keyof typeof PRIORITY_LABEL].toUpperCase(), color, MARGIN, ctx.y - 12);
+    badge(
+      ctx,
+      PRIORITY_LABEL[priority as keyof typeof PRIORITY_LABEL].toUpperCase(),
+      color,
+      MARGIN,
+      ctx.y - 12,
+    );
     ctx.y -= 22;
     for (const item of items) {
-      text(ctx, `${item.target} — ${item.action} · Route: ${item.route}`, { x: MARGIN + 10, size: 8.5, color: TEXT });
+      text(ctx, `${item.target} — ${item.action} · Route: ${item.route}`, {
+        x: MARGIN + 10,
+        size: 8.5,
+        color: TEXT,
+      });
     }
     ctx.y -= 6;
   }
@@ -778,7 +895,13 @@ function drawFinalSummary(ctx: Ctx): void {
       stack: ctx.stack.bold,
       color: TEXT,
     });
-    badge(ctx, target.severity.toUpperCase(), severityColor(target.severity), MARGIN + 230, ctx.y - 12);
+    badge(
+      ctx,
+      target.severity.toUpperCase(),
+      severityColor(target.severity),
+      MARGIN + 230,
+      ctx.y - 12,
+    );
     drawUnicodeText(ctx.page, sanitize(`${target.confidence}%`), {
       x: MARGIN + 320,
       y: ctx.y - 9,
@@ -809,7 +932,13 @@ function drawFinalSummary(ctx: Ctx): void {
     "This dossier documents verified unauthorized distribution of the protected asset. All findings were collected through automated investigation and preserved with SHA-256 integrity hashes. No takedown notices were submitted automatically; enforcement decisions remain with the rights holder and their legal counsel.";
   let dy = ctx.y - 30;
   for (const lineText of wrapText(disclaimer, 7.5, ctx.stack.regular, CONTENT_W - 24).slice(0, 4)) {
-    drawUnicodeText(ctx.page, lineText, { x: box.x + 12, y: dy, size: 7.5, stack: ctx.stack.regular, color: MUTED });
+    drawUnicodeText(ctx.page, lineText, {
+      x: box.x + 12,
+      y: dy,
+      size: 7.5,
+      stack: ctx.stack.regular,
+      color: MUTED,
+    });
     dy -= 10;
   }
   ctx.y = box.y - 12;
@@ -834,7 +963,15 @@ export async function renderCopyrightReportPdf(
   pdf.setCreator("Eterna Copyright Investigation Center");
 
   const stack = await embedUnicodeFontStack(pdf);
-  const ctx: Ctx = { pdf, stack, page: pdf.addPage(A4), y: A4[1] - MARGIN, pageNumber: 1, model, outline: [] };
+  const ctx: Ctx = {
+    pdf,
+    stack,
+    page: pdf.addPage(A4),
+    y: A4[1] - MARGIN,
+    pageNumber: 1,
+    model,
+    outline: [],
+  };
   drawCover(ctx);
 
   drawExecutiveSummary(ctx);
@@ -846,7 +983,8 @@ export async function renderCopyrightReportPdf(
     const shot = byMatch.get(threat.matchId);
     if (!shot) continue;
     try {
-      const isPng = shot.contentType.includes("png") || (shot.bytes[0] === 0x89 && shot.bytes[1] === 0x50);
+      const isPng =
+        shot.contentType.includes("png") || (shot.bytes[0] === 0x89 && shot.bytes[1] === 0x50);
       const image = isPng ? await pdf.embedPng(shot.bytes) : await pdf.embedJpg(shot.bytes);
       const maxW = CONTENT_W;
       const scale = Math.min(maxW / image.width, 320 / image.height);
@@ -862,11 +1000,19 @@ export async function renderCopyrightReportPdf(
         borderColor: BORDER,
         borderWidth: 0.6,
       });
-      ctx.page.drawImage(image, { x: MARGIN + (CONTENT_W - w) / 2, y: ctx.y - h - 4, width: w, height: h });
+      ctx.page.drawImage(image, {
+        x: MARGIN + (CONTENT_W - w) / 2,
+        y: ctx.y - h - 4,
+        width: w,
+        height: h,
+      });
       ctx.y -= h + 14;
       text(ctx, threat.evidence.screenshotCaption, { size: 7.5, color: MUTED, gap: 6 });
     } catch (error) {
-      console.warn("[copyright-report] screenshot embed failed:", error instanceof Error ? error.message : error);
+      console.warn(
+        "[copyright-report] screenshot embed failed:",
+        error instanceof Error ? error.message : error,
+      );
     }
   }
 

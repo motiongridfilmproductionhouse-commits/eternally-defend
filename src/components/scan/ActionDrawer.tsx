@@ -1,5 +1,11 @@
 import { useMemo, useState } from "react";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useServerFn } from "@tanstack/react-start";
 import { createEnforcementRequest } from "@/lib/scan-actions.functions";
 import { useAuthorization } from "@/hooks/use-authorization";
@@ -28,12 +34,30 @@ const ACTIONS_BY_PLATFORM: Record<string, string[]> = {
     "Deepfake / Synthetic Media Review",
     "Add to Legal Review",
   ],
-  Instagram: ["Copyright Report", "Impersonation / Fake Account", "Trademark Report", "Harassment Report", "Privacy Report"],
-  Facebook: ["Copyright Report", "Impersonation / Fake Account", "Trademark Report", "Harassment Report", "Privacy Report"],
+  Instagram: [
+    "Copyright Report",
+    "Impersonation / Fake Account",
+    "Trademark Report",
+    "Harassment Report",
+    "Privacy Report",
+  ],
+  Facebook: [
+    "Copyright Report",
+    "Impersonation / Fake Account",
+    "Trademark Report",
+    "Harassment Report",
+    "Privacy Report",
+  ],
   TikTok: ["Copyright Report", "Impersonation Report", "Trademark Report", "Harassment Report"],
   X: ["Impersonation Report", "Trademark Report", "Harassment / Abuse Report", "Privacy Report"],
   Reddit: ["Report Post", "Moderator Contact Package", "Copyright Review", "Harassment Review"],
-  News: ["Publisher Contact", "Correction Request", "Right-of-Reply Package", "Copyright Notice", "Legal Review"],
+  News: [
+    "Publisher Contact",
+    "Correction Request",
+    "Right-of-Reply Package",
+    "Copyright Notice",
+    "Legal Review",
+  ],
   Blogs: ["Publisher Contact", "Correction Request", "Copyright Notice", "Legal Review"],
   Archive: ["Preserve as Evidence", "Link to Existing Case", "Generate Historical Evidence Record"],
 };
@@ -69,7 +93,10 @@ export function ActionDrawer({
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const actions = useMemo(() => (target ? actionsFor(target.platform || target.source) : []), [target]);
+  const actions = useMemo(
+    () => (target ? actionsFor(target.platform || target.source) : []),
+    [target],
+  );
 
   const submit = async () => {
     if (!target || !selected) return;
@@ -95,24 +122,34 @@ export function ActionDrawer({
         <SheetHeader>
           <SheetTitle>Take Action</SheetTitle>
           <SheetDescription>
-            Draft a takedown or platform report. Nothing is submitted externally without your approval.
+            Draft a takedown or platform report. Nothing is submitted externally without your
+            approval.
           </SheetDescription>
         </SheetHeader>
 
         {target && (
           <div className="mt-4 space-y-4 text-sm">
             <div className="rounded-lg border border-border p-3 space-y-1">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Finding</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Finding
+              </div>
               <div className="font-semibold line-clamp-2">{target.title || "Untitled finding"}</div>
               <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                 <span>{target.platform || target.source}</span>
                 {target.author && <span>· {target.author}</span>}
-                {typeof target.threatScore === "number" && <span>· Threat {Math.round(target.threatScore)}</span>}
+                {typeof target.threatScore === "number" && (
+                  <span>· Threat {Math.round(target.threatScore)}</span>
+                )}
                 <span>· Evidence {target.evidenceCount}</span>
                 {target.status && <span>· {target.status}</span>}
               </div>
               {target.url && (
-                <a href={target.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary text-[11px] hover:underline">
+                <a
+                  href={target.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-primary text-[11px] hover:underline"
+                >
                   <ExternalLink className="size-3" /> Open source
                 </a>
               )}
@@ -123,13 +160,18 @@ export function ActionDrawer({
                 <ShieldAlert className="size-4 shrink-0 mt-0.5" />
                 <div>
                   <div className="font-semibold">Enforcement unavailable</div>
-                  <div>Complete authorization and ownership verification before submitting a takedown. You can still save a draft.</div>
+                  <div>
+                    Complete authorization and ownership verification before submitting a takedown.
+                    You can still save a draft.
+                  </div>
                 </div>
               </div>
             )}
 
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Available actions for {target.platform || target.source}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                Available actions for {target.platform || target.source}
+              </div>
               <div className="space-y-1">
                 {actions.map((a) => (
                   <button
@@ -146,11 +188,15 @@ export function ActionDrawer({
 
             <div className="rounded-lg border border-dashed border-border p-3 text-[11px] text-muted-foreground flex gap-2">
               <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-              This will create a Draft enforcement request. It will not be submitted to any platform until you review and approve it in the Enforcement Center.
+              This will create a Draft enforcement request. It will not be submitted to any platform
+              until you review and approve it in the Enforcement Center.
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
-              <button onClick={() => onOpenChange(false)} className="text-xs px-3 py-2 rounded-lg border border-border hover:bg-accent">
+              <button
+                onClick={() => onOpenChange(false)}
+                className="text-xs px-3 py-2 rounded-lg border border-border hover:bg-accent"
+              >
                 Cancel
               </button>
               <button

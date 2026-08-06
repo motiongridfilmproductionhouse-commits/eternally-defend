@@ -1,63 +1,43 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  expandTitleVariants,
-  hasExactTitleIdentity,
-  queryTitleVariants,
-} from "./title-identity";
-import {
-  classifyCopyrightPage,
-  extractTitleMatchedDetailLinks,
-} from "./page-classify.server";
+import { expandTitleVariants, hasExactTitleIdentity, queryTitleVariants } from "./title-identity";
+import { classifyCopyrightPage, extractTitleMatchedDetailLinks } from "./page-classify.server";
 import { buildQueries, type ReferenceAnalysis } from "./discover.server";
-import {
-  diagnosticsFromStats,
-  explainZeroMatchFunnel,
-} from "./scan-diagnostics";
+import { diagnosticsFromStats, explainZeroMatchFunnel } from "./scan-diagnostics";
 import { isActionablePiracy } from "./taxonomy";
-import {
-  filterClientVisibleCopyrightMatches,
-} from "./client-filter";
+import { filterClientVisibleCopyrightMatches } from "./client-filter";
 
 const long = (s: string) =>
   `${s} ${"Additional page body confirming this is a full crawled article page with enough text for exact-page evidence. ".repeat(3)}`;
 
 test("spiderman vs Spider-Man brand new day title identity matches", () => {
   const userTitle = "spiderman brand new day";
-  const pageBlob =
-    "Watch Spider-Man: Brand New Day full movie online free HDCAM";
+  const pageBlob = "Watch Spider-Man: Brand New Day full movie online free HDCAM";
   const hit = hasExactTitleIdentity(pageBlob, [userTitle], "2026");
   assert.equal(hit.match, true, `expected identity match, evidence=${hit.evidence.join(",")}`);
 
-  const reverse = hasExactTitleIdentity(
-    "spiderman brand new day watch online free",
-    ["Spider-Man: Brand New Day"],
-  );
+  const reverse = hasExactTitleIdentity("spiderman brand new day watch online free", [
+    "Spider-Man: Brand New Day",
+  ]);
   assert.equal(reverse.match, true);
 });
 
 test("query variants never emit bare single tokens", () => {
-  const variants = queryTitleVariants("spiderman brand new day", [
-    "Spider-Man: Brand New Day",
-  ]);
+  const variants = queryTitleVariants("spiderman brand new day", ["Spider-Man: Brand New Day"]);
   assert.ok(variants.length >= 2);
   for (const v of variants) {
     assert.notEqual(v.toLowerCase(), "spiderman");
     assert.notEqual(v.toLowerCase(), "spider");
     assert.ok(v.length >= 8);
   }
-  assert.ok(
-    variants.some((v) => /spider[\s-]?man/i.test(v) || /spiderman/i.test(v)),
-  );
+  assert.ok(variants.some((v) => /spider[\s-]?man/i.test(v) || /spiderman/i.test(v)));
 });
 
 test("exact-title page with playable unauthorized stream → visible", () => {
   const result = classifyCopyrightPage({
     url: "https://streamexample.test/watch/spiderman-brand-new-day",
     pageTitle: "Spider-Man Brand New Day Watch Full Movie",
-    markdown: long(
-      "Watch full movie Spider-Man Brand New Day online free. Streaming server 1.",
-    ),
+    markdown: long("Watch full movie Spider-Man Brand New Day online free. Streaming server 1."),
     html: '<iframe src="https://doodstream.com/e/abc"></iframe>',
     links: ["https://doodstream.com/e/abc"],
     titles: ["spiderman brand new day", "Spider-Man: Brand New Day"],
@@ -79,14 +59,12 @@ test("exact-title download/file-host page → visible", () => {
   });
   assert.equal(result.clientVisible, true);
   assert.ok(
-    result.classification === "DOWNLOAD_PAGE" ||
-      result.classification === "FILE_HOST_DISTRIBUTION",
+    result.classification === "DOWNLOAD_PAGE" || result.classification === "FILE_HOST_DISTRIBUTION",
   );
 });
 
 test("exact-title torrent/magnet page → visible", () => {
-  const magnet =
-    "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Spider-Man";
+  const magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Spider-Man";
   const result = classifyCopyrightPage({
     url: "https://torrentindex.test/spiderman-brand-new-day",
     pageTitle: "Spider-Man Brand New Day 1080p WEBRip torrent",
@@ -104,9 +82,7 @@ test("exact-title CAM/theatre-print distribution page → visible", () => {
   const result = classifyCopyrightPage({
     url: "https://leakprint.test/spiderman-brand-new-day-hdcam",
     pageTitle: "Spider-Man Brand New Day HDCAM Theatre Print",
-    markdown: long(
-      "Spider-Man Brand New Day HDTS theatre print. Watch full movie on server 1.",
-    ),
+    markdown: long("Spider-Man Brand New Day HDTS theatre print. Watch full movie on server 1."),
     html: '<iframe src="https://streamtape.com/e/cam"></iframe>',
     links: ["https://streamtape.com/e/cam"],
     titles: ["spiderman brand new day"],
@@ -274,10 +250,7 @@ test("expandTitleVariants produces spider-man compounds", () => {
 });
 
 test("short single-word titles still establish identity", () => {
-  assert.equal(
-    hasExactTitleIdentity("Watch Soul full movie online free", ["Soul"]).match,
-    true,
-  );
+  assert.equal(hasExactTitleIdentity("Watch Soul full movie online free", ["Soul"]).match, true);
   assert.equal(
     hasExactTitleIdentity("Nope official theatre print watch online", ["Nope"]).match,
     true,

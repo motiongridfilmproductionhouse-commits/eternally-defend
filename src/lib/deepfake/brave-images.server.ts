@@ -25,10 +25,7 @@ export const BRAVE_IMAGES_PER_QUERY = 80;
 
 const BRAVE_IMAGES_ENDPOINT = "https://api.search.brave.com/res/v1/images/search";
 
-function parseBraveImageHits(
-  payload: unknown,
-  query: string,
-): ReferenceImageHit[] {
+function parseBraveImageHits(payload: unknown, query: string): ReferenceImageHit[] {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return [];
   const row = payload as Record<string, unknown>;
   const results = Array.isArray(row.results) ? row.results : [];
@@ -57,18 +54,15 @@ function parseBraveImageHits(
       (typeof properties?.url === "string" && isSafePublicHttpUrl(properties.url)
         ? properties.url.trim()
         : null) ??
-      (typeof item.url === "string" && isSafePublicHttpUrl(item.url)
-        ? item.url.trim()
-        : null) ??
+      (typeof item.url === "string" && isSafePublicHttpUrl(item.url) ? item.url.trim() : null) ??
       thumbnailSrc;
 
     if (!imageUrl || seen.has(imageUrl)) continue;
     seen.add(imageUrl);
 
     const pageUrl =
-      (typeof item.url === "string" && isSafePublicHttpUrl(item.url)
-        ? item.url.trim()
-        : null) ?? imageUrl;
+      (typeof item.url === "string" && isSafePublicHttpUrl(item.url) ? item.url.trim() : null) ??
+      imageUrl;
 
     const width = Number(properties?.width ?? item.width);
     const height = Number(properties?.height ?? item.height);
@@ -121,11 +115,7 @@ export async function searchBraveImagesForQuery(input: {
     params.set("offset", String(input.offset));
   }
 
-  const timeoutMs = boundTimeoutMs(
-    BRAVE_IMAGES_TIMEOUT_MS,
-    input.signal,
-    input.softDeadlineMs,
-  );
+  const timeoutMs = boundTimeoutMs(BRAVE_IMAGES_TIMEOUT_MS, input.signal, input.softDeadlineMs);
   const timeoutController = new AbortController();
   const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
   const signal = mergeAbortSignals(input.signal, timeoutController.signal);
@@ -142,12 +132,22 @@ export async function searchBraveImagesForQuery(input: {
     assertNotAborted(input.signal);
 
     if (!isAllowedJsonMime(response.headers.get("content-type"))) {
-      return { hits: [], images_found: 0, failure: "Brave Images returned non-JSON", skipped: false };
+      return {
+        hits: [],
+        images_found: 0,
+        failure: "Brave Images returned non-JSON",
+        skipped: false,
+      };
     }
 
     const text = await readResponseText(response, signal);
     if (text.length > MAX_SAFE_RESPONSE_BYTES) {
-      return { hits: [], images_found: 0, failure: "Brave Images response too large", skipped: false };
+      return {
+        hits: [],
+        images_found: 0,
+        failure: "Brave Images response too large",
+        skipped: false,
+      };
     }
 
     let payload: unknown = null;

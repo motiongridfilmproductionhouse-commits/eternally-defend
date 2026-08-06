@@ -29,7 +29,10 @@ export interface PlatformAdapter {
   authenticate(ctx: AdapterContext): Promise<"logged_in" | "login_required">;
   navigateToForm(ctx: AdapterContext): Promise<void>;
   populate(ctx: AdapterContext, caseData: FetchedJob["input"]): Promise<void>;
-  uploadEvidence(ctx: AdapterContext, files: Array<{ name: string; buffer: Buffer }>): Promise<void>;
+  uploadEvidence(
+    ctx: AdapterContext,
+    files: Array<{ name: string; buffer: Buffer }>,
+  ): Promise<void>;
   validate(ctx: AdapterContext): Promise<ValidationReport>;
   generateReviewSummary(ctx: AdapterContext): Promise<ReviewSummary>;
   /** Only implemented for API-backed flows. Web forms return `unsupported`. */

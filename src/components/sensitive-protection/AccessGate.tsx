@@ -33,7 +33,8 @@ export function SensitiveAccessGate({ children }: { children: React.ReactNode })
             </div>
             <h2 className="text-xl font-bold text-white mb-3 tracking-tight">Restricted Module</h2>
             <p className="text-sm text-white/70 mb-8 max-w-[280px]">
-              Complete verification and authorization to activate Intimate Image & Deepfake Protection.
+              Complete verification and authorization to activate Intimate Image & Deepfake
+              Protection.
             </p>
             <Link to="/onboarding">
               <Button className="bg-brand-glow hover:bg-brand-glow/90 text-white w-full max-w-[240px]">
@@ -49,7 +50,8 @@ export function SensitiveAccessGate({ children }: { children: React.ReactNode })
   return (
     <div className="relative">
       <div className="bg-red-950/30 border border-red-500/20 text-red-200 text-xs px-4 py-2 flex items-center justify-center tracking-wide font-medium">
-        RESTRICTED AND CONFIDENTIAL. AUTOMATED CLASSIFICATIONS ARE INDICATORS ONLY AND REQUIRE HUMAN CONFIRMATION.
+        RESTRICTED AND CONFIDENTIAL. AUTOMATED CLASSIFICATIONS ARE INDICATORS ONLY AND REQUIRE HUMAN
+        CONFIRMATION.
       </div>
       {children}
     </div>

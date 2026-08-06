@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  classifyCopyrightPage,
-  extractTitleMatchedDetailLinks,
-} from "./page-classify.server";
+import { classifyCopyrightPage, extractTitleMatchedDetailLinks } from "./page-classify.server";
 import {
   isAuthorizedCatalogHost,
   isNeverMonitoredDomain,
@@ -58,14 +55,17 @@ function baseAnalysis(over: Partial<DistributionAnalysis>): DistributionAnalysis
 }
 
 test("watch.plex.tv catalog page is not piracy", () => {
-  assert.equal(isAuthorizedCatalogHost("https://watch.plex.tv/movie/spider-man-brand-new-day"), true);
+  assert.equal(
+    isAuthorizedCatalogHost("https://watch.plex.tv/movie/spider-man-brand-new-day"),
+    true,
+  );
   const result = classifyCopyrightPage({
     url: "https://watch.plex.tv/movie/spider-man-brand-new-day",
     pageTitle: "Spider-Man: Brand New Day | Watch on Plex",
     markdown: long(
       "Watch now on Plex. Runtime 120 minutes. Official catalog discovery page for Spider-Man Brand New Day.",
     ),
-    html: '<button>Watch now</button><video></video>',
+    html: "<button>Watch now</button><video></video>",
     links: [],
     titles: ["spiderman brand new day", "Spider-Man: Brand New Day"],
     pageInspected: true,
@@ -170,10 +170,7 @@ test("supplied known URL enters verification before search results", () => {
   assert.equal(ordered[0]?.query, "known_url_seed");
   assert.equal(ordered[1]?.query, "known_url_seed");
   assert.ok(ordered.every((l, i) => i < 2 || l.query === "provider"));
-  assert.equal(
-    ordered.filter((l) => l.url.includes("flixbaba.org.uk")).length,
-    1,
-  );
+  assert.equal(ordered.filter((l) => l.url.includes("flixbaba.org.uk")).length, 1);
 });
 
 test("known URL capacity is reserved when provider candidates exceed page cap", () => {
@@ -200,7 +197,11 @@ test("known URL cannot bypass SSRF or private-host checks", async () => {
     "not a url",
   ]);
   assert.ok(seeds.every((s) => !s.accepted));
-  assert.ok(seeds.some((s) => s.rejectReason === "private_or_reserved" || s.rejectReason === "url_safety_rejected"));
+  assert.ok(
+    seeds.some(
+      (s) => s.rejectReason === "private_or_reserved" || s.rejectReason === "url_safety_rejected",
+    ),
+  );
   assert.ok(seeds.some((s) => s.rejectReason === "unsupported_protocol"));
   assert.ok(seeds.some((s) => s.rejectReason === "invalid_url"));
 });

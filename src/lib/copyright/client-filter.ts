@@ -21,9 +21,7 @@ export interface CopyrightMatchLike {
 }
 
 function evidenceRecord(evidence: unknown): Record<string, unknown> {
-  return evidence && typeof evidence === "object"
-    ? (evidence as Record<string, unknown>)
-    : {};
+  return evidence && typeof evidence === "object" ? (evidence as Record<string, unknown>) : {};
 }
 
 function distributionRecord(evidence: Record<string, unknown>): Record<string, unknown> {
@@ -74,10 +72,8 @@ export function classificationOf(match: CopyrightMatchLike): CopyrightClassifica
     detectionType: match.detection_type,
     distributionClassification:
       (typeof dist.classification === "string" && dist.classification) || null,
-    contentType:
-      (typeof dist.content_type === "string" && dist.content_type) || null,
-    strongEvidence:
-      typeof dist.strong_evidence === "boolean" ? dist.strong_evidence : undefined,
+    contentType: (typeof dist.content_type === "string" && dist.content_type) || null,
+    strongEvidence: typeof dist.strong_evidence === "boolean" ? dist.strong_evidence : undefined,
   });
 }
 

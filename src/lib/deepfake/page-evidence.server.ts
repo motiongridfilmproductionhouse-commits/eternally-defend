@@ -7,10 +7,7 @@
  */
 
 import { normalizeDeepfakeText } from "./filter.server";
-import {
-  getIdentityPhrases,
-  matchesSelectedIdentity,
-} from "./identity.server";
+import { getIdentityPhrases, matchesSelectedIdentity } from "./identity.server";
 
 export type FindingClassification =
   | "VERIFIED_DEEPFAKE"
@@ -20,22 +17,14 @@ export type FindingClassification =
   | "UNVERIFIED_LEAD";
 
 export type PageType =
-  | "search"
-  | "tag"
-  | "category"
-  | "performer_index"
-  | "listing"
-  | "content"
-  | "unknown";
+  "search" | "tag" | "category" | "performer_index" | "listing" | "content" | "unknown";
 
 export const CLIENT_VISIBLE_CLASSIFICATIONS: FindingClassification[] = [
   "VERIFIED_DEEPFAKE",
   "PROBABLE_DEEPFAKE",
 ];
 
-export const INTERNAL_REVIEW_CLASSIFICATIONS: FindingClassification[] = [
-  "UNVERIFIED_LEAD",
-];
+export const INTERNAL_REVIEW_CLASSIFICATIONS: FindingClassification[] = ["UNVERIFIED_LEAD"];
 
 export const PERSISTED_FINDING_CLASSIFICATIONS: FindingClassification[] = [
   "VERIFIED_DEEPFAKE",
@@ -91,13 +80,7 @@ export interface PageEvidenceResult {
   client_visible: boolean;
 }
 
-const LISTING_PAGE_TYPES: PageType[] = [
-  "search",
-  "tag",
-  "category",
-  "performer_index",
-  "listing",
-];
+const LISTING_PAGE_TYPES: PageType[] = ["search", "tag", "category", "performer_index", "listing"];
 
 const SEARCH_URL_PATTERNS = [
   /\/search(?:\/|\?|$)/i,
@@ -105,11 +88,7 @@ const SEARCH_URL_PATTERNS = [
   /[?&](?:q|query|search|keyword|keywords|k|s|term|terms)=/i,
 ];
 
-const TAG_URL_PATTERNS = [
-  /\/tags?(?:\/|\?|$)/i,
-  /\/labelled?\//i,
-  /[?&]tags?=/i,
-];
+const TAG_URL_PATTERNS = [/\/tags?(?:\/|\?|$)/i, /\/labelled?\//i, /[?&]tags?=/i];
 
 const CATEGORY_URL_PATTERNS = [
   /\/categor(?:y|ies)(?:\/|\?|$)/i,
@@ -170,12 +149,14 @@ const SYNTHETIC_PATTERNS: Array<{ label: string; pattern: RegExp; weight: number
   },
   {
     label: "ai-nude",
-    pattern: /\b(?:ai\s*nude|fake\s*nude|synthetic\s*nude|generated\s*nude|undress(?:ing)?\s*ai)\b/i,
+    pattern:
+      /\b(?:ai\s*nude|fake\s*nude|synthetic\s*nude|generated\s*nude|undress(?:ing)?\s*ai)\b/i,
     weight: 45,
   },
   {
     label: "morphed-media",
-    pattern: /\b(?:morph(?:ed|ing)|digitally\s+altered|ai[-\s]?generated\s+(?:image|video|photo|nude|porn))\b/i,
+    pattern:
+      /\b(?:morph(?:ed|ing)|digitally\s+altered|ai[-\s]?generated\s+(?:image|video|photo|nude|porn))\b/i,
     weight: 35,
   },
   {
@@ -193,11 +174,7 @@ function targetNames(target: PageEvidenceTarget): string[] {
   return getIdentityPhrases(target);
 }
 
-function containsTarget(
-  text: string,
-  names: string[],
-  target?: PageEvidenceTarget,
-): boolean {
+function containsTarget(text: string, names: string[], target?: PageEvidenceTarget): boolean {
   if (target) {
     return matchesSelectedIdentity(text, target);
   }
@@ -236,9 +213,7 @@ export function detectPageType(
     return "category";
   }
 
-  if (
-    PERFORMER_INDEX_URL_PATTERNS.some((pattern) => pattern.test(url))
-  ) {
+  if (PERFORMER_INDEX_URL_PATTERNS.some((pattern) => pattern.test(url))) {
     /*
      * /pornstar/Name can be a performer profile index (listing of clips)
      * rather than a single deepfake asset page.
@@ -282,11 +257,7 @@ function scoreIdentityEvidence(input: {
   let score = 0;
 
   const titleMatch = containsTarget(input.title, input.names, input.target);
-  const descriptionMatch = containsTarget(
-    input.description,
-    input.names,
-    input.target,
-  );
+  const descriptionMatch = containsTarget(input.description, input.names, input.target);
   const bodyMatch = containsTarget(input.pageText, input.names, input.target);
   const urlMatch = containsTarget(
     decodeURIComponent(input.url.replace(/[/_+\-.]/g, " ")),
@@ -343,12 +314,7 @@ function scoreSyntheticEvidence(input: {
   const evidence: string[] = [];
   let score = 0;
 
-  const combined = [
-    input.title,
-    input.description,
-    input.pageText,
-    input.url,
-  ].join(" ");
+  const combined = [input.title, input.description, input.pageText, input.url].join(" ");
 
   for (const item of SYNTHETIC_PATTERNS) {
     if (item.pattern.test(combined)) {
@@ -378,17 +344,18 @@ function scoreSyntheticEvidence(input: {
 
   if (
     input.isSynthetic ||
-    ["deepfake", "synthetic_media", "suspected_explicit_deepfake", "suspected_synthetic_media"].includes(
-      input.contentCategory ?? "",
-    )
+    [
+      "deepfake",
+      "synthetic_media",
+      "suspected_explicit_deepfake",
+      "suspected_synthetic_media",
+    ].includes(input.contentCategory ?? "")
   ) {
     score += 15;
     evidence.push("synthetic:media-classifier");
   }
 
-  const hasSyntheticSignal = evidence.some((item) =>
-    item.startsWith("synthetic:"),
-  );
+  const hasSyntheticSignal = evidence.some((item) => item.startsWith("synthetic:"));
 
   /*
    * Explicit adult language without synthetic/impersonation terms must not
@@ -411,12 +378,7 @@ function isAdultContext(input: {
   description: string;
   pageText: string;
 }): boolean {
-  const combined = [
-    input.url,
-    input.title,
-    input.description,
-    input.pageText,
-  ].join(" ");
+  const combined = [input.url, input.title, input.description, input.pageText].join(" ");
 
   return ADULT_SITE_PATTERNS.some((pattern) => pattern.test(combined));
 }
@@ -425,9 +387,7 @@ function isAdultContext(input: {
  * Classify a crawled result page using identity + synthetic evidence.
  * Call after scraping/inspecting the exact page whenever possible.
  */
-export function classifyPageEvidence(
-  input: PageEvidenceInput,
-): PageEvidenceResult {
+export function classifyPageEvidence(input: PageEvidenceInput): PageEvidenceResult {
   const title = input.title ?? "";
   const description = input.description ?? "";
   const pageText = input.page_text ?? "";
@@ -497,25 +457,19 @@ export function classifyPageEvidence(
   const listingHasIdentity =
     listingIdentity.confidence >= 40 &&
     !listingIdentity.evidence.every((item) => item === "identity:url-only");
-  const hasIdentity = identity.confidence >= 40 && !identity.evidence.every((item) => item === "identity:url-only");
+  const hasIdentity =
+    identity.confidence >= 40 && !identity.evidence.every((item) => item === "identity:url-only");
   const hasStrongIdentity =
     identity.confidence >= 70 &&
-    (
-      Boolean(input.target_face_match) ||
+    (Boolean(input.target_face_match) ||
       identity.evidence.includes("identity:page-body") ||
-      (
-        identity.evidence.includes("identity:title") &&
-        identity.evidence.includes("identity:description")
-      )
-    );
+      (identity.evidence.includes("identity:title") &&
+        identity.evidence.includes("identity:description")));
   const hasSynthetic = synthetic.hasSyntheticSignal && synthetic.confidence >= 40;
   const hasStrongSynthetic = synthetic.confidence >= 70;
   const hasVisualSyntheticConfirmation =
     (input.hive_deepfake_score ?? 0) >= 0.9 ||
-    (
-      Boolean(input.target_face_match) &&
-      (input.hive_ai_generated_score ?? 0) >= 0.9
-    );
+    (Boolean(input.target_face_match) && (input.hive_ai_generated_score ?? 0) >= 0.9);
 
   let findingClassification: FindingClassification;
   let explanation: string;
@@ -523,16 +477,13 @@ export function classifyPageEvidence(
   if (isExcludedListingPageType(pageType)) {
     if (listingHasIdentity && adultContext) {
       findingClassification = "ADULT_NAME_MENTION";
-      explanation =
-        `Excluded ${pageType.replace(/_/g, " ")} page. Generic search, tag, category, performer-index or listing pages are not deepfake findings even when they mention the target name.`;
+      explanation = `Excluded ${pageType.replace(/_/g, " ")} page. Generic search, tag, category, performer-index or listing pages are not deepfake findings even when they mention the target name.`;
     } else if (adultContext) {
       findingClassification = "UNRELATED_ADULT_CONTENT";
-      explanation =
-        `Excluded ${pageType.replace(/_/g, " ")} page. Adult listing or index content without verified target deepfake evidence.`;
+      explanation = `Excluded ${pageType.replace(/_/g, " ")} page. Adult listing or index content without verified target deepfake evidence.`;
     } else {
       findingClassification = "UNRELATED_ADULT_CONTENT";
-      explanation =
-        `Excluded ${pageType.replace(/_/g, " ")} page. Not a specific synthetic-media content page.`;
+      explanation = `Excluded ${pageType.replace(/_/g, " ")} page. Not a specific synthetic-media content page.`;
     }
   } else if (!exactPage) {
     /*
@@ -586,24 +537,18 @@ export function classifyPageEvidence(
     matched_evidence: matchedEvidence,
     finding_classification: findingClassification,
     classification_explanation: explanation,
-    client_visible: CLIENT_VISIBLE_CLASSIFICATIONS.includes(
-      findingClassification,
-    ),
+    client_visible: CLIENT_VISIBLE_CLASSIFICATIONS.includes(findingClassification),
   };
 }
 
-export function shouldPersistFinding(
-  classification: FindingClassification,
-): boolean {
+export function shouldPersistFinding(classification: FindingClassification): boolean {
   return PERSISTED_FINDING_CLASSIFICATIONS.includes(classification);
 }
 
 export function isClientVisibleClassification(
   classification: FindingClassification | string | null | undefined,
 ): boolean {
-  return CLIENT_VISIBLE_CLASSIFICATIONS.includes(
-    classification as FindingClassification,
-  );
+  return CLIENT_VISIBLE_CLASSIFICATIONS.includes(classification as FindingClassification);
 }
 
 export interface FinalizedFindingFields {
@@ -628,11 +573,13 @@ export interface FinalizedFindingFields {
  * Combine crawled page evidence with optional media-classifier scores
  * into the final finding taxonomy used for persistence and client filtering.
  */
-export function finalizeDeepfakeFinding(input: PageEvidenceInput & {
-  existing_reasoning?: string | null;
-  existing_category?: string | null;
-  existing_confidence?: number | null;
-}): FinalizedFindingFields {
+export function finalizeDeepfakeFinding(
+  input: PageEvidenceInput & {
+    existing_reasoning?: string | null;
+    existing_category?: string | null;
+    existing_confidence?: number | null;
+  },
+): FinalizedFindingFields {
   const evidence = classifyPageEvidence(input);
 
   const riskLevel =
@@ -658,11 +605,7 @@ export function finalizeDeepfakeFinding(input: PageEvidenceInput & {
   const confidence = clampScore(
     Math.max(
       input.existing_confidence ?? 0,
-      Math.round(
-        (evidence.identity_confidence +
-          evidence.synthetic_media_confidence) /
-          2,
-      ),
+      Math.round((evidence.identity_confidence + evidence.synthetic_media_confidence) / 2),
     ),
   );
 

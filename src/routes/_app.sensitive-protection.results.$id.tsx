@@ -31,7 +31,9 @@ function SensitiveResultDetail() {
             <h1 className="text-2xl font-bold font-display text-white mb-1">Result Detail</h1>
             <p className="text-white/60 font-mono text-xs uppercase tracking-wider">{id}</p>
           </div>
-          <Button variant="outline" className="border-white/10 text-white hover:bg-white/5">Back to List</Button>
+          <Button variant="outline" className="border-white/10 text-white hover:bg-white/5">
+            Back to List
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -54,19 +56,40 @@ function SensitiveResultDetail() {
                   <EyeOff className="size-12 text-white/20 mb-4" />
                   <h3 className="text-lg font-semibold text-white">Content Blurred</h3>
                   <p className="text-sm text-white/50 mt-2 max-w-[250px]">
-                    This content has been blocked for your protection. Review metadata carefully before revealing.
+                    This content has been blocked for your protection. Review metadata carefully
+                    before revealing.
                   </p>
                   {confirmingReveal ? (
                     <div className="mt-6 bg-red-950/40 border border-red-500/20 p-4 rounded-lg text-sm text-left">
-                      <p className="text-red-200 font-semibold mb-2 flex items-center"><AlertTriangle className="size-4 mr-2" /> Action will be audited</p>
-                      <p className="text-red-200/70 text-xs mb-4">By revealing this content, your identity and IP will be logged.</p>
+                      <p className="text-red-200 font-semibold mb-2 flex items-center">
+                        <AlertTriangle className="size-4 mr-2" /> Action will be audited
+                      </p>
+                      <p className="text-red-200/70 text-xs mb-4">
+                        By revealing this content, your identity and IP will be logged.
+                      </p>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={handleReveal} className="bg-red-600 hover:bg-red-500 text-white flex-1">Confirm Reveal</Button>
-                        <Button size="sm" variant="outline" onClick={() => setConfirmingReveal(false)} className="border-white/10 text-white hover:bg-white/10 flex-1">Cancel</Button>
+                        <Button
+                          size="sm"
+                          onClick={handleReveal}
+                          className="bg-red-600 hover:bg-red-500 text-white flex-1"
+                        >
+                          Confirm Reveal
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setConfirmingReveal(false)}
+                          className="border-white/10 text-white hover:bg-white/10 flex-1"
+                        >
+                          Cancel
+                        </Button>
                       </div>
                     </div>
                   ) : (
-                    <Button onClick={() => setConfirmingReveal(true)} className="mt-6 bg-white/5 border border-white/10 text-white hover:bg-white/10">
+                    <Button
+                      onClick={() => setConfirmingReveal(true)}
+                      className="mt-6 bg-white/5 border border-white/10 text-white hover:bg-white/10"
+                    >
                       <Eye className="size-4 mr-2" /> Reveal Temporarily
                     </Button>
                   )}
@@ -101,7 +124,10 @@ function SensitiveResultDetail() {
               <Button className="bg-red-600 hover:bg-red-500 text-white justify-start">
                 <ShieldCheck className="size-4 mr-2" /> Request Immediate Takedown
               </Button>
-              <Button variant="outline" className="border-white/10 text-white hover:bg-white/10 justify-start">
+              <Button
+                variant="outline"
+                className="border-white/10 text-white hover:bg-white/10 justify-start"
+              >
                 Mark as False Match
               </Button>
             </div>

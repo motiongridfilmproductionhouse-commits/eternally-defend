@@ -299,7 +299,11 @@ test("parses organic_results, results and body-nested organic shapes", () => {
 
 test("hits carry provider, rank, domain and discovery timestamp", () => {
   const [hit] = brightDataHitsFromPayload(
-    { organic: [{ link: "https://piracy-example.test/x", title: "t", description: "torrent", rank: 4 }] },
+    {
+      organic: [
+        { link: "https://piracy-example.test/x", title: "t", description: "torrent", rank: 4 },
+      ],
+    },
     "q",
   );
   assert.equal(hit.provider, "bright_data");
@@ -397,9 +401,14 @@ test("official and trailer style hosts never become candidates", () => {
 test("candidate leads stay discovery-only pending page evidence", async () => {
   setup();
   mockFetch(
-    () => new Response(JSON.stringify(serpPayload(["https://piracy-example.test/x"])), { status: 200 }),
+    () =>
+      new Response(JSON.stringify(serpPayload(["https://piracy-example.test/x"])), { status: 200 }),
   );
-  const result = await runBrightDataDiscovery({ analysis, workTitle: "Balan The Boy", maxQueries: 1 });
+  const result = await runBrightDataDiscovery({
+    analysis,
+    workTitle: "Balan The Boy",
+    maxQueries: 1,
+  });
   for (const lead of result.pageLeads) {
     assert.equal("finding" in lead, false);
     assert.equal("verified" in lead, false);

@@ -3,9 +3,7 @@ export type ParsedGoogleImagesUrl = {
   query: string;
 };
 
-export function parseGoogleImagesUrl(
-  input: string,
-): ParsedGoogleImagesUrl {
+export function parseGoogleImagesUrl(input: string): ParsedGoogleImagesUrl {
   const value = input.trim();
 
   if (!value) {
@@ -20,30 +18,19 @@ export function parseGoogleImagesUrl(
     throw new Error("Enter a valid Google Images search URL.");
   }
 
-  const host = url.hostname
-    .replace(/^www\./, "")
-    .toLowerCase();
+  const host = url.hostname.replace(/^www\./, "").toLowerCase();
 
   const isGoogleHost =
-    host === "google.com" ||
-    host.startsWith("google.") ||
-    host.endsWith(".google.com");
+    host === "google.com" || host.startsWith("google.") || host.endsWith(".google.com");
 
   if (!isGoogleHost) {
-    throw new Error(
-      "The supplied URL is not a Google search URL.",
-    );
+    throw new Error("The supplied URL is not a Google search URL.");
   }
 
-  const query =
-    url.searchParams.get("q")?.trim() ??
-    url.searchParams.get("query")?.trim() ??
-    "";
+  const query = url.searchParams.get("q")?.trim() ?? url.searchParams.get("query")?.trim() ?? "";
 
   if (!query) {
-    throw new Error(
-      "The Google URL does not contain a search query.",
-    );
+    throw new Error("The Google URL does not contain a search query.");
   }
 
   return {
@@ -52,12 +39,8 @@ export function parseGoogleImagesUrl(
   };
 }
 
-export function createImportedImageQueries(
-  query: string,
-): string[] {
-  const clean = query
-    .replace(/\s+/g, " ")
-    .trim();
+export function createImportedImageQueries(query: string): string[] {
+  const clean = query.replace(/\s+/g, " ").trim();
 
   const quoted = `"${clean}"`;
 

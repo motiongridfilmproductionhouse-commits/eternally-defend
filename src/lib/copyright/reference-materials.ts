@@ -259,7 +259,5 @@ export class ReferenceMaterialRecorder {
 }
 
 export function isYoutubeConfigured(): boolean {
-  return Boolean(
-    (process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY ?? "").trim(),
-  );
+  return Boolean((process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY ?? "").trim());
 }

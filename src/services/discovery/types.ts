@@ -24,7 +24,6 @@ export interface SearchResult {
 }
 
 export interface DiscoveryCandidate {
-
   url: string;
 
   canonicalUrl: string;
@@ -34,5 +33,4 @@ export interface DiscoveryCandidate {
   query: string;
 
   score: number;
-
 }

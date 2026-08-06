@@ -63,14 +63,19 @@ export const createVeriffSession = createServerFn({ method: "POST" })
     });
     if (!res.ok) {
       const providerMessage = await res.text();
-      console.error("Veriff session creation failed", { status: res.status, response: providerMessage });
+      console.error("Veriff session creation failed", {
+        status: res.status,
+        response: providerMessage,
+      });
       return {
         session_url: null,
         veriff_session_id: null,
         error: "Identity verification is temporarily unavailable. Please try again.",
       } satisfies VeriffSessionResult;
     }
-    const json = await res.json() as { verification?: { id?: string; url?: string; sessionToken?: string } };
+    const json = (await res.json()) as {
+      verification?: { id?: string; url?: string; sessionToken?: string };
+    };
     const veriff_session_id = json.verification?.id ?? null;
     const session_url = json.verification?.url ?? null;
 
@@ -86,13 +91,16 @@ export const createVeriffSession = createServerFn({ method: "POST" })
       } satisfies VeriffSessionResult;
     }
 
-    const { error: persistenceError } = await supabase.from("kyc_verifications").upsert({
-      user_id: userId,
-      client_id: (profile as { client_id?: string | null } | null)?.client_id ?? null,
-      veriff_session_id,
-      session_url,
-      verification_status: "SESSION_CREATED",
-    } as never, { onConflict: "veriff_session_id" });
+    const { error: persistenceError } = await supabase.from("kyc_verifications").upsert(
+      {
+        user_id: userId,
+        client_id: (profile as { client_id?: string | null } | null)?.client_id ?? null,
+        veriff_session_id,
+        session_url,
+        verification_status: "SESSION_CREATED",
+      } as never,
+      { onConflict: "veriff_session_id" },
+    );
 
     if (persistenceError) {
       console.error("Failed to persist Veriff session", { message: persistenceError.message });
@@ -110,7 +118,13 @@ export const getKycStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data } = await supabase.from("kyc_verifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data } = await supabase
+      .from("kyc_verifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     return data;
   });
 
@@ -145,7 +159,12 @@ export const syncVeriffStatus = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
     const sessionId = (row as { veriff_session_id?: string | null } | null)?.veriff_session_id;
-    if (!sessionId) return { verification_status: (row as { verification_status?: string } | null)?.verification_status ?? null, error: null };
+    if (!sessionId)
+      return {
+        verification_status:
+          (row as { verification_status?: string } | null)?.verification_status ?? null,
+        error: null,
+      };
 
     const signature = createHmac("sha256", secret).update(sessionId).digest("hex");
     const res = await fetch(`${baseUrl}/v1/sessions/${sessionId}/decision`, {
@@ -159,9 +178,13 @@ export const syncVeriffStatus = createServerFn({ method: "POST" })
     if (!res.ok) {
       const text = await res.text();
       console.error("Veriff decision fetch failed", { status: res.status, response: text });
-      return { verification_status: (row as { verification_status?: string } | null)?.verification_status ?? null, error: null };
+      return {
+        verification_status:
+          (row as { verification_status?: string } | null)?.verification_status ?? null,
+        error: null,
+      };
     }
-    const json = await res.json() as {
+    const json = (await res.json()) as {
       status?: string;
       verification?: {
         status?: string;
@@ -172,7 +195,10 @@ export const syncVeriffStatus = createServerFn({ method: "POST" })
       } | null;
     };
     const code = json.verification?.status?.toLowerCase() ?? "";
-    const mapped = VERIFF_STATUS_MAP[code] ?? (row as { verification_status?: string } | null)?.verification_status ?? "IN_PROGRESS";
+    const mapped =
+      VERIFF_STATUS_MAP[code] ??
+      (row as { verification_status?: string } | null)?.verification_status ??
+      "IN_PROGRESS";
 
     const patch: Record<string, unknown> = {
       verification_status: mapped,
@@ -180,10 +206,15 @@ export const syncVeriffStatus = createServerFn({ method: "POST" })
       review_reason: json.verification?.reason ?? null,
       country: json.verification?.document?.country ?? null,
       document_type: json.verification?.document?.type ?? null,
-      verification_date: mapped === "APPROVED" ? (json.verification?.decisionTime ?? new Date().toISOString()) : null,
+      verification_date:
+        mapped === "APPROVED"
+          ? (json.verification?.decisionTime ?? new Date().toISOString())
+          : null,
     };
-    await supabase.from("kyc_verifications").update(patch as never).eq("veriff_session_id", sessionId);
+    await supabase
+      .from("kyc_verifications")
+      .update(patch as never)
+      .eq("veriff_session_id", sessionId);
 
     return { verification_status: mapped, error: null };
   });
-

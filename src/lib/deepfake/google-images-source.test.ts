@@ -44,10 +44,7 @@ test("isGoogleImagesViewerUrl rejects tbnid / udm=2 / #sv= viewer pages", () => 
     assert.equal(isGoogleImagesViewerUrl(url), true, url);
     assert.equal(isUsableSourceWebsiteUrl(url), false, url);
   }
-  assert.equal(
-    isUsableSourceWebsiteUrl("https://news.example.com/gallery/sarayu"),
-    true,
-  );
+  assert.equal(isUsableSourceWebsiteUrl("https://news.example.com/gallery/sarayu"), true);
 });
 
 test("resolveGoogleImagesSourceWebsite never returns Google viewer URLs", () => {
@@ -79,12 +76,8 @@ test("extractGoogleImagesMetaFromHtml reads ou/ru pairs and href imgrefurl", () 
   `;
   const rows = extractGoogleImagesMetaFromHtml(html);
   assert.ok(rows.some((r) => r.image_url.includes("cdn.example.com")));
-  assert.ok(
-    rows.some((r) => r.source_website_url === "https://site.example.com/post"),
-  );
-  assert.ok(
-    rows.some((r) => r.source_website_url === "https://blog.example.com/item"),
-  );
+  assert.ok(rows.some((r) => r.source_website_url === "https://site.example.com/post"));
+  assert.ok(rows.some((r) => r.source_website_url === "https://blog.example.com/item"));
   assert.ok(rows.every((r) => !isGoogleImagesViewerUrl(r.source_website_url)));
 });
 

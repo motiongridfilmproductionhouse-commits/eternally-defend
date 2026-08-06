@@ -59,8 +59,7 @@ export function buildGoogleImagesEvidencePackage(input: {
       google_viewer_rejected: isGoogleImagesViewerUrl(input.sourceWebsiteUrl),
       evidence_target: "original_source_webpage",
     },
-    evidence_status:
-      input.evidenceStatus ?? (hasCapture ? "captured" : "queued"),
+    evidence_status: input.evidenceStatus ?? (hasCapture ? "captured" : "queued"),
   };
 }
 
@@ -99,20 +98,15 @@ export function parseGoogleImagesEvidencePackages(
     if (typeof r.image_url !== "string" || typeof r.google_search_query !== "string") {
       continue;
     }
-    const rawSource =
-      typeof r.source_website_url === "string" ? r.source_website_url : null;
+    const rawSource = typeof r.source_website_url === "string" ? r.source_website_url : null;
     out.push({
       google_search_query: r.google_search_query,
-      google_result_url:
-        typeof r.google_result_url === "string" ? r.google_result_url : "",
+      google_result_url: typeof r.google_result_url === "string" ? r.google_result_url : "",
       source_website_url: isUsableSourceWebsiteUrl(rawSource) ? rawSource : null,
       image_url: r.image_url,
-      screenshot_url:
-        typeof r.screenshot_url === "string" ? r.screenshot_url : null,
+      screenshot_url: typeof r.screenshot_url === "string" ? r.screenshot_url : null,
       capture_timestamp:
-        typeof r.capture_timestamp === "string"
-          ? r.capture_timestamp
-          : new Date().toISOString(),
+        typeof r.capture_timestamp === "string" ? r.capture_timestamp : new Date().toISOString(),
       sha256: typeof r.sha256 === "string" ? r.sha256 : null,
       perceptual_hash: typeof r.perceptual_hash === "string" ? r.perceptual_hash : null,
       face_similarity_score: Number(r.face_similarity_score) || 0,

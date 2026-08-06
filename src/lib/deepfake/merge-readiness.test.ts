@@ -8,10 +8,7 @@ import {
   isInternalOnlyClassification,
   isRejectedUrlStatus,
 } from "./client-results.server";
-import {
-  isGenericTokenOnlyMention,
-  matchesSelectedIdentity,
-} from "./identity.server";
+import { isGenericTokenOnlyMention, matchesSelectedIdentity } from "./identity.server";
 import { filterDeepfakeCandidates } from "./filter.server";
 import {
   evaluateUrlVerification,
@@ -70,18 +67,9 @@ test("Latest Public Leads never returns another actress when Honey Rose is selec
 });
 
 test("generic meanings of honey or rose are rejected", () => {
-  assert.equal(
-    matchesSelectedIdentity("wild honey recipe with rose syrup", honeyRose),
-    false,
-  );
-  assert.equal(
-    isGenericTokenOnlyMention("wild honey recipe with rose syrup", honeyRose),
-    true,
-  );
-  assert.equal(
-    matchesSelectedIdentity("Honey Rose deepfake face swap", honeyRose),
-    true,
-  );
+  assert.equal(matchesSelectedIdentity("wild honey recipe with rose syrup", honeyRose), false);
+  assert.equal(isGenericTokenOnlyMention("wild honey recipe with rose syrup", honeyRose), true);
+  assert.equal(matchesSelectedIdentity("Honey Rose deepfake face swap", honeyRose), true);
 
   /*
    * Generic single-token aliases like "Honey" / "@honey" are not usable
@@ -140,11 +128,7 @@ test("search, tag, category, listing and performer-index pages are rejected", ()
       target: honeyRose,
     });
 
-    assert.equal(
-      result.url_verification_status,
-      "URL_REJECTED",
-      `expected reject for ${url}`,
-    );
+    assert.equal(result.url_verification_status, "URL_REJECTED", `expected reject for ${url}`);
   }
 
   const prefilter = filterDeepfakeCandidates(
@@ -161,9 +145,7 @@ test("search, tag, category, listing and performer-index pages are rejected", ()
 
   assert.equal(prefilter.accepted.length, 0);
   assert.ok(
-    prefilter.rejected.some((item) =>
-      /listing page excluded/i.test(item.rejection_reason ?? ""),
-    ),
+    prefilter.rejected.some((item) => /listing page excluded/i.test(item.rejection_reason ?? "")),
   );
 });
 
@@ -283,10 +265,10 @@ test("only URL_VERIFIED plus VERIFIED_DEEPFAKE or PROBABLE_DEEPFAKE are client-v
   ];
 
   const visible = filterClientFindings(rows, honeyRose, scanId);
-  assert.deepEqual(
-    visible.map((item) => item.finding_classification).sort(),
-    ["PROBABLE_DEEPFAKE", "VERIFIED_DEEPFAKE"],
-  );
+  assert.deepEqual(visible.map((item) => item.finding_classification).sort(), [
+    "PROBABLE_DEEPFAKE",
+    "VERIFIED_DEEPFAKE",
+  ]);
 
   for (const item of visible) {
     assert.ok(item.final_url);
@@ -298,10 +280,7 @@ test("only URL_VERIFIED plus VERIFIED_DEEPFAKE or PROBABLE_DEEPFAKE are client-v
 
   assert.equal(isClientVisibleClassification("UNVERIFIED_LEAD"), false);
   assert.equal(isUrlVerified("URL_REJECTED"), false);
-  assert.equal(
-    isClientVisibleFinding(rows[2]!, honeyRose, scanId),
-    false,
-  );
+  assert.equal(isClientVisibleFinding(rows[2]!, honeyRose, scanId), false);
 });
 
 test("client findings expose validated final_url and canonical_url for opening", () => {
@@ -331,8 +310,7 @@ test("client findings expose validated final_url and canonical_url for opening",
 
 test("redirects resolve to final URL for opening", () => {
   const discovered = "https://tracker.example/r/honey";
-  const finalUrl =
-    "https://abuse.example/watch/honey-rose-deepfake-face-swap-77";
+  const finalUrl = "https://abuse.example/watch/honey-rose-deepfake-face-swap-77";
 
   const result = evaluateUrlVerification({
     discovered_url: discovered,

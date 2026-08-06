@@ -45,11 +45,9 @@ type FirecrawlScrapeResponse = {
   error?: string;
 };
 
-const IMAGE_EXTENSION =
-  /\.(?:avif|gif|jpe?g|png|webp)(?:$|[?#])/i;
+const IMAGE_EXTENSION = /\.(?:avif|gif|jpe?g|png|webp)(?:$|[?#])/i;
 
-const VIDEO_EXTENSION =
-  /\.(?:avi|mkv|mov|mp4|m4v|webm|wmv)(?:$|[?#])/i;
+const VIDEO_EXTENSION = /\.(?:avi|mkv|mov|mp4|m4v|webm|wmv)(?:$|[?#])/i;
 
 const EXPLICIT_TERMS =
   /\b(?:nude|nudes|naked|nudity|porn|xxx|sex(?:\s+video|\s+tape)?|adult|explicit|deepfake\s+porn|ai\s+nude|fake\s+nude|morphed|leaked\s+video)\b/i;
@@ -65,10 +63,7 @@ function validHttpUrl(value: unknown): value is string {
   }
 }
 
-function absoluteUrl(
-  value: string,
-  pageUrl: string,
-): string | null {
+function absoluteUrl(value: string, pageUrl: string): string | null {
   try {
     const resolved = new URL(value, pageUrl);
 
@@ -128,12 +123,7 @@ function extractPageText(data: NonNullable<FirecrawlScrapeResponse["data"]>): st
     "og:title",
   ]);
 
-  const combined = [
-    metadataDescription ?? "",
-    markdown,
-    content,
-    html ? stripHtmlToText(html) : "",
-  ]
+  const combined = [metadataDescription ?? "", markdown, content, html ? stripHtmlToText(html) : ""]
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
@@ -153,16 +143,10 @@ function extractAttributeMedia(
     media_type: "image" | "video";
   }> = [];
 
-  const add = (
-    rawValue: string | undefined,
-    type: "image" | "video",
-  ) => {
+  const add = (rawValue: string | undefined, type: "image" | "video") => {
     if (!rawValue) return;
 
-    const firstCandidate = rawValue
-      .split(",")[0]
-      ?.trim()
-      .split(/\s+/)[0];
+    const firstCandidate = rawValue.split(",")[0]?.trim().split(/\s+/)[0];
 
     if (!firstCandidate || firstCandidate.startsWith("data:")) {
       return;
@@ -197,18 +181,15 @@ function extractAttributeMedia(
       type: "video",
     },
     {
-      regex:
-        /<img[^>]+(?:src|data-src|data-lazy-src|srcset)=["']([^"']+)["'][^>]*>/gi,
+      regex: /<img[^>]+(?:src|data-src|data-lazy-src|srcset)=["']([^"']+)["'][^>]*>/gi,
       type: "image",
     },
     {
-      regex:
-        /<(?:video|source)[^>]+src=["']([^"']+)["'][^>]*>/gi,
+      regex: /<(?:video|source)[^>]+src=["']([^"']+)["'][^>]*>/gi,
       type: "video",
     },
     {
-      regex:
-        /<video[^>]+poster=["']([^"']+)["'][^>]*>/gi,
+      regex: /<video[^>]+poster=["']([^"']+)["'][^>]*>/gi,
       type: "image",
     },
   ];
@@ -281,9 +262,7 @@ function isTransientFirecrawlStatus(status: number): boolean {
 function isTransientFirecrawlError(error: unknown): boolean {
   return (
     error instanceof Error &&
-    /\b(?:timeout|timed out|abort|econnreset|etimedout)\b/i.test(
-      error.message,
-    )
+    /\b(?:timeout|timed out|abort|econnreset|etimedout)\b/i.test(error.message)
   );
 }
 
@@ -292,9 +271,7 @@ export function hasExplicitPageRisk(hit: {
   title?: string;
   description?: string;
 }): boolean {
-  return EXPLICIT_TERMS.test(
-    `${hit.title ?? ""} ${hit.description ?? ""} ${hit.url ?? ""}`,
-  );
+  return EXPLICIT_TERMS.test(`${hit.title ?? ""} ${hit.description ?? ""} ${hit.url ?? ""}`);
 }
 
 export async function scrapeMediaFromPage(
@@ -306,14 +283,9 @@ export async function scrapeMediaFromPage(
 ): Promise<MediaDiscoveryHit[]> {
   assertNotAborted(options?.signal);
 
-  const existingDirectMedia =
-    hit.image_url ??
-    hit.media_url ??
-    hit.thumbnail_url;
+  const existingDirectMedia = hit.image_url ?? hit.media_url ?? hit.thumbnail_url;
 
-  const urlIsDirectMedia =
-    IMAGE_EXTENSION.test(hit.url) ||
-    VIDEO_EXTENSION.test(hit.url);
+  const urlIsDirectMedia = IMAGE_EXTENSION.test(hit.url) || VIDEO_EXTENSION.test(hit.url);
 
   /*
    * Direct media URLs have no HTML body to inspect. Keep the media for
@@ -326,13 +298,10 @@ export async function scrapeMediaFromPage(
         ...hit,
         evidence_page_url: hit.evidence_page_url ?? hit.url,
         media_url: hit.url,
-        media_type: VIDEO_EXTENSION.test(hit.url)
-          ? "video"
-          : "image",
+        media_type: VIDEO_EXTENSION.test(hit.url) ? "video" : "image",
         page_inspected: false,
         page_text: hit.page_text,
-        is_sensitive:
-          hit.is_sensitive ?? hasExplicitPageRisk(hit),
+        is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
       },
     ];
   }
@@ -343,9 +312,7 @@ export async function scrapeMediaFromPage(
    * not produce client-visible deepfake findings.
    */
   try {
-    const { firecrawlFetch } = await import(
-      "@/lib/firecrawl-client.server"
-    );
+    const { firecrawlFetch } = await import("@/lib/firecrawl-client.server");
 
     let response: Response | null = null;
     let rawBody = "";
@@ -353,11 +320,7 @@ export async function scrapeMediaFromPage(
     for (let attempt = 0; attempt < 3; attempt++) {
       assertNotAborted(options?.signal);
       let requestError: unknown = null;
-      const requestTimeoutMs = boundTimeoutMs(
-        20_000,
-        options?.signal,
-        options?.softDeadlineMs,
-      );
+      const requestTimeoutMs = boundTimeoutMs(20_000, options?.signal, options?.softDeadlineMs);
 
       try {
         response = await firecrawlFetch(
@@ -381,8 +344,7 @@ export async function scrapeMediaFromPage(
         }
         requestError = error;
         response = null;
-        rawBody =
-          error instanceof Error ? error.message : String(error);
+        rawBody = error instanceof Error ? error.message : String(error);
       }
 
       /*
@@ -393,22 +355,16 @@ export async function scrapeMediaFromPage(
 
       if (
         response?.ok ||
-        (
-          response
-            ? !isTransientFirecrawlStatus(response.status)
-            : !isTransientFirecrawlError(requestError)
-        ) ||
+        (response
+          ? !isTransientFirecrawlStatus(response.status)
+          : !isTransientFirecrawlError(requestError)) ||
         attempt === 2
       ) {
         break;
       }
 
       await abortableSleep(
-        boundTimeoutMs(
-          (attempt + 1) * 2_000,
-          options?.signal,
-          options?.softDeadlineMs,
-        ),
+        boundTimeoutMs((attempt + 1) * 2_000, options?.signal, options?.softDeadlineMs),
         options?.signal,
       );
     }
@@ -426,9 +382,10 @@ export async function scrapeMediaFromPage(
         {
           ...hit,
           evidence_page_url: hit.evidence_page_url ?? hit.url,
-          media_url: existingDirectMedia && validHttpUrl(existingDirectMedia)
-            ? existingDirectMedia
-            : hit.media_url,
+          media_url:
+            existingDirectMedia && validHttpUrl(existingDirectMedia)
+              ? existingDirectMedia
+              : hit.media_url,
           image_url:
             existingDirectMedia && validHttpUrl(existingDirectMedia)
               ? existingDirectMedia
@@ -436,8 +393,7 @@ export async function scrapeMediaFromPage(
           page_inspected: false,
           provider_scrape_failed: true,
           page_text: "",
-          is_sensitive:
-            hit.is_sensitive ?? hasExplicitPageRisk(hit),
+          is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
         },
       ];
     }
@@ -450,14 +406,14 @@ export async function scrapeMediaFromPage(
         {
           ...hit,
           evidence_page_url: hit.evidence_page_url ?? hit.url,
-          media_url: existingDirectMedia && validHttpUrl(existingDirectMedia)
-            ? existingDirectMedia
-            : hit.media_url,
+          media_url:
+            existingDirectMedia && validHttpUrl(existingDirectMedia)
+              ? existingDirectMedia
+              : hit.media_url,
           page_inspected: false,
           provider_scrape_failed: true,
           page_text: "",
-          is_sensitive:
-            hit.is_sensitive ?? hasExplicitPageRisk(hit),
+          is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
         },
       ];
     }
@@ -467,14 +423,14 @@ export async function scrapeMediaFromPage(
         {
           ...hit,
           evidence_page_url: hit.evidence_page_url ?? hit.url,
-          media_url: existingDirectMedia && validHttpUrl(existingDirectMedia)
-            ? existingDirectMedia
-            : hit.media_url,
+          media_url:
+            existingDirectMedia && validHttpUrl(existingDirectMedia)
+              ? existingDirectMedia
+              : hit.media_url,
           page_inspected: false,
           provider_scrape_failed: true,
           page_text: "",
-          is_sensitive:
-            hit.is_sensitive ?? hasExplicitPageRisk(hit),
+          is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
         },
       ];
     }
@@ -511,20 +467,13 @@ export async function scrapeMediaFromPage(
       page_inspected: pageInspected,
       evidence_page_url: hit.evidence_page_url ?? hit.url,
       related_links: relatedLinks,
-      is_sensitive:
-        hit.is_sensitive ?? hasExplicitPageRisk(hit),
+      is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
     };
 
-    if (
-      existingDirectMedia &&
-      validHttpUrl(existingDirectMedia) &&
-      !inspectedHit.media_url
-    ) {
+    if (existingDirectMedia && validHttpUrl(existingDirectMedia) && !inspectedHit.media_url) {
       inspectedHit.media_url = existingDirectMedia;
       inspectedHit.image_url = existingDirectMedia;
-      inspectedHit.media_type = VIDEO_EXTENSION.test(existingDirectMedia)
-        ? "video"
-        : "image";
+      inspectedHit.media_type = VIDEO_EXTENSION.test(existingDirectMedia) ? "video" : "image";
     }
 
     const metadataImage = metadataString(data.metadata, [
@@ -535,11 +484,7 @@ export async function scrapeMediaFromPage(
       "image",
     ]);
 
-    const metadataVideo = metadataString(data.metadata, [
-      "ogVideo",
-      "og:video",
-      "video",
-    ]);
+    const metadataVideo = metadataString(data.metadata, ["ogVideo", "og:video", "video"]);
 
     const candidates: Array<{
       media_url: string;
@@ -593,11 +538,7 @@ export async function scrapeMediaFromPage(
       /*
        * Reject common tracking pixels and tiny inline assets by URL hints.
        */
-      if (
-        /(?:pixel|spacer|tracking|favicon|logo|avatar|sprite)/i.test(
-          candidate.media_url,
-        )
-      ) {
+      if (/(?:pixel|spacer|tracking|favicon|logo|avatar|sprite)/i.test(candidate.media_url)) {
         continue;
       }
 
@@ -610,16 +551,12 @@ export async function scrapeMediaFromPage(
         ...inspectedHit,
         url: candidate.media_url,
         media_url: candidate.media_url,
-        image_url:
-          candidate.media_type === "image"
-            ? candidate.media_url
-            : undefined,
+        image_url: candidate.media_type === "image" ? candidate.media_url : undefined,
         media_type: candidate.media_type,
         evidence_page_url: hit.url,
         page_text: inspectedHit.page_text,
         page_inspected: inspectedHit.page_inspected,
-        is_sensitive:
-          hit.is_sensitive ?? hasExplicitPageRisk(inspectedHit),
+        is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(inspectedHit),
       }));
 
     /*
@@ -638,10 +575,7 @@ export async function scrapeMediaFromPage(
 
     console.warn("[DEEPFAKE:MEDIA] Extraction error:", {
       url: hit.url,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
+      error: error instanceof Error ? error.message : String(error),
     });
 
     return [
@@ -651,8 +585,7 @@ export async function scrapeMediaFromPage(
         page_inspected: false,
         provider_scrape_failed: true,
         page_text: "",
-        is_sensitive:
-          hit.is_sensitive ?? hasExplicitPageRisk(hit),
+        is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
       },
     ];
   }
@@ -666,9 +599,7 @@ export async function enrichHitsWithMedia(
    * Prioritise explicit/deepfake-risk pages to control Firecrawl costs.
    */
   const ordered = [...hits].sort(
-    (a, b) =>
-      Number(hasExplicitPageRisk(b)) -
-      Number(hasExplicitPageRisk(a)),
+    (a, b) => Number(hasExplicitPageRisk(b)) - Number(hasExplicitPageRisk(a)),
   );
 
   const pages = ordered.slice(0, maxPages);
@@ -678,9 +609,7 @@ export async function enrichHitsWithMedia(
   for (let start = 0; start < pages.length; start += batchSize) {
     const batch = pages.slice(start, start + batchSize);
 
-    const results = await Promise.all(
-      batch.map((hit) => scrapeMediaFromPage(hit)),
-    );
+    const results = await Promise.all(batch.map((hit) => scrapeMediaFromPage(hit)));
 
     for (let index = 0; index < results.length; index++) {
       const original = batch[index];
@@ -698,9 +627,7 @@ export async function enrichHitsWithMedia(
           evidence_page_url: original.url,
           page_inspected: false,
           page_text: "",
-          is_sensitive:
-            original.is_sensitive ??
-            hasExplicitPageRisk(original),
+          is_sensitive: original.is_sensitive ?? hasExplicitPageRisk(original),
         });
       }
     }
@@ -719,8 +646,8 @@ export async function enrichHitsWithMedia(
   console.log("[DEEPFAKE:MEDIA] Enrichment summary:", {
     pagesAttempted: pages.length,
     enrichedResults: deduped.size,
-    directMedia: Array.from(deduped.values()).filter(
-      (item) => Boolean(item.media_url || item.image_url),
+    directMedia: Array.from(deduped.values()).filter((item) =>
+      Boolean(item.media_url || item.image_url),
     ).length,
     explicitRiskPages: pages.filter(hasExplicitPageRisk).length,
   });

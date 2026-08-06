@@ -28,7 +28,9 @@ export function AuthorizationBadge() {
   const Icon = isEnterprise ? Building2 : level === "full_protection" ? ShieldCheck : CheckCircle2;
   const label = isEnterprise
     ? `Enterprise · ${level ? LEVEL_LABEL[level] : "Authorized"}`
-    : level ? LEVEL_LABEL[level] : "Authorized";
+    : level
+      ? LEVEL_LABEL[level]
+      : "Authorized";
 
   return (
     <Link

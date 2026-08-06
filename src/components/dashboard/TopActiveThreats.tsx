@@ -25,8 +25,12 @@ export function TopActiveThreats() {
   return (
     <div className="card-surface p-5">
       <div className="flex items-center justify-between mb-1">
-        <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">TOP ACTIVE THREATS</div>
-        <Link to="/intelligence" className="text-xs font-semibold text-primary">View All</Link>
+        <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">
+          TOP ACTIVE THREATS
+        </div>
+        <Link to="/intelligence" className="text-xs font-semibold text-primary">
+          View All
+        </Link>
       </div>
       <div className="text-xs text-muted-foreground/80 mb-4">By severity</div>
 
@@ -36,7 +40,9 @@ export function TopActiveThreats() {
         <div className="text-xs text-muted-foreground py-8 text-center">
           No active threats detected.
           <br />
-          <Link to="/intelligence" className="text-primary font-semibold">Start an analysis →</Link>
+          <Link to="/intelligence" className="text-primary font-semibold">
+            Start an analysis →
+          </Link>
         </div>
       ) : (
         <div className="space-y-3">
@@ -55,7 +61,9 @@ export function TopActiveThreats() {
                   <div className="text-[11px] text-muted-foreground truncate">{t.platform}</div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-sm font-bold" style={{ color }}>{t.score.toFixed(1)}</div>
+                  <div className="text-sm font-bold" style={{ color }}>
+                    {t.score.toFixed(1)}
+                  </div>
                   <div className="text-[10px] text-muted-foreground">{t.tag}</div>
                 </div>
               </div>

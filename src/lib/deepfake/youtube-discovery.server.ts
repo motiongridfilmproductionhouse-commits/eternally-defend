@@ -41,9 +41,7 @@ export async function searchRecentYouTubeMentions(input: {
   signal?: AbortSignal;
   softDeadlineMs?: number;
 }): Promise<FirecrawlSearchHit[]> {
-  const apiKey = (
-    process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY
-  )?.trim();
+  const apiKey = (process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY)?.trim();
 
   if (!apiKey) {
     console.warn("[DEEPFAKE:YOUTUBE] API key is not configured");
@@ -81,15 +79,8 @@ export async function searchRecentYouTubeMentions(input: {
       url.searchParams.set("pageToken", pageToken);
     }
 
-    const timeoutMs = boundTimeoutMs(
-      15_000,
-      input.signal,
-      input.softDeadlineMs,
-    );
-    const signal = mergeAbortSignals(
-      input.signal,
-      AbortSignal.timeout(timeoutMs),
-    );
+    const timeoutMs = boundTimeoutMs(15_000, input.signal, input.softDeadlineMs);
+    const signal = mergeAbortSignals(input.signal, AbortSignal.timeout(timeoutMs));
     const response = await fetch(url, { signal });
     const text = await readResponseText(response, signal);
 
@@ -106,35 +97,40 @@ export async function searchRecentYouTubeMentions(input: {
       );
     }
 
-    hits.push(...(payload.items ?? []).flatMap((item) => {
-    const videoId = item.id?.videoId;
-    if (!videoId) return [];
+    hits.push(
+      ...(payload.items ?? []).flatMap((item) => {
+        const videoId = item.id?.videoId;
+        if (!videoId) return [];
 
-    const snippet = item.snippet ?? {};
-    const thumbnail =
-      snippet.thumbnails?.high?.url ??
-      snippet.thumbnails?.medium?.url ??
-      snippet.thumbnails?.default?.url;
-    const published = snippet.publishedAt
-      ? `Published ${snippet.publishedAt.slice(0, 10)}. `
-      : "";
-    const channel = snippet.channelTitle
-      ? `Channel: ${decodeHtml(snippet.channelTitle)}. `
-      : "";
+        const snippet = item.snippet ?? {};
+        const thumbnail =
+          snippet.thumbnails?.high?.url ??
+          snippet.thumbnails?.medium?.url ??
+          snippet.thumbnails?.default?.url;
+        const published = snippet.publishedAt
+          ? `Published ${snippet.publishedAt.slice(0, 10)}. `
+          : "";
+        const channel = snippet.channelTitle
+          ? `Channel: ${decodeHtml(snippet.channelTitle)}. `
+          : "";
 
-    return [{
-      url: `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,
-      title: decodeHtml(snippet.title ?? "YouTube video mention"),
-      description: `${published}${channel}${decodeHtml(snippet.description ?? "")}`.trim(),
-      query,
-      source: "youtube_api" as const,
-      thumbnail_url: thumbnail,
-      image_url: thumbnail,
-      is_sensitive: /\b(?:deepfake|fake|morph|nude|explicit|defam|harass|impersonat)\w*\b/i.test(
-        `${snippet.title ?? ""} ${snippet.description ?? ""}`,
-      ),
-    }];
-    }));
+        return [
+          {
+            url: `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,
+            title: decodeHtml(snippet.title ?? "YouTube video mention"),
+            description: `${published}${channel}${decodeHtml(snippet.description ?? "")}`.trim(),
+            query,
+            source: "youtube_api" as const,
+            thumbnail_url: thumbnail,
+            image_url: thumbnail,
+            is_sensitive:
+              /\b(?:deepfake|fake|morph|nude|explicit|defam|harass|impersonat)\w*\b/i.test(
+                `${snippet.title ?? ""} ${snippet.description ?? ""}`,
+              ),
+          },
+        ];
+      }),
+    );
 
     if (!payload.nextPageToken) break;
     pageToken = payload.nextPageToken;

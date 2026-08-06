@@ -211,7 +211,10 @@ export const getPartnerAgreementUrl = createServerFn({ method: "POST" })
   });
 
 // ================== Admin ==================
-async function requireAdmin(ctx: { supabase: { rpc: (n: string, a: unknown) => Promise<{ data: unknown }> }; userId: string }) {
+async function requireAdmin(ctx: {
+  supabase: { rpc: (n: string, a: unknown) => Promise<{ data: unknown }> };
+  userId: string;
+}) {
   const { data } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
   if (!data) throw new Error("Forbidden");
 }
@@ -229,12 +232,14 @@ export const listPartnerApplications = createServerFn({ method: "GET" })
 
 export const decidePartnerApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    application_id: string;
-    decision: "approve" | "reject" | "request_info";
-    territory?: string | null;
-    notes?: string | null;
-  }) => d)
+  .inputValidator(
+    (d: {
+      application_id: string;
+      decision: "approve" | "reject" | "request_info";
+      territory?: string | null;
+      notes?: string | null;
+    }) => d,
+  )
   .handler(async ({ data, context }) => {
     await requireAdmin(context as never);
     const { supabase, userId } = context;
@@ -246,16 +251,22 @@ export const decidePartnerApplication = createServerFn({ method: "POST" })
     if (!app) throw new Error("Not found");
 
     const nextStatus =
-      data.decision === "approve" ? "APPROVED" :
-      data.decision === "reject" ? "REJECTED" : "INFO_REQUESTED";
+      data.decision === "approve"
+        ? "APPROVED"
+        : data.decision === "reject"
+          ? "REJECTED"
+          : "INFO_REQUESTED";
 
-    await supabase.from("partner_applications").update({
-      status: nextStatus,
-      review_notes: data.notes ?? null,
-      reviewed_by: userId,
-      reviewed_at: new Date().toISOString(),
-      territory: data.territory ?? app.territory,
-    } as never).eq("id", app.id);
+    await supabase
+      .from("partner_applications")
+      .update({
+        status: nextStatus,
+        review_notes: data.notes ?? null,
+        reviewed_by: userId,
+        reviewed_at: new Date().toISOString(),
+        territory: data.territory ?? app.territory,
+      } as never)
+      .eq("id", app.id);
 
     if (data.decision === "approve") {
       // Provision partner_profile + sign agreement + activate
@@ -272,9 +283,12 @@ export const decidePartnerApplication = createServerFn({ method: "POST" })
         status: "ACTIVE",
       });
 
-      await supabase.from("partner_applications").update({
-        assigned_partner_id: partnerId,
-      } as never).eq("id", app.id);
+      await supabase
+        .from("partner_applications")
+        .update({
+          assigned_partner_id: partnerId,
+        } as never)
+        .eq("id", app.id);
 
       // Countersign the draft agreement
       const { data: agreement } = await supabase
@@ -313,21 +327,27 @@ export const decidePartnerApplication = createServerFn({ method: "POST" })
           .from("partner-documents")
           .upload(signedKey, bytes, { contentType: "application/pdf", upsert: true });
         if (up.error) throw new Error(up.error.message);
-        await supabase.from("partner_agreements").update({
-          status: "ACTIVE",
-          signed_s3_key: signedKey,
-          sha256: sha,
-          eterna_signer_id: userId,
-          eterna_signed_at: signedAt,
-        } as never).eq("id", agreement.id);
+        await supabase
+          .from("partner_agreements")
+          .update({
+            status: "ACTIVE",
+            signed_s3_key: signedKey,
+            sha256: sha,
+            eterna_signer_id: userId,
+            eterna_signed_at: signedAt,
+          } as never)
+          .eq("id", agreement.id);
       }
 
       // Grant partner role (ignore duplicates)
       try {
-        await supabase.from("user_roles").insert({ user_id: app.user_id, role: "partner" } as never);
-      } catch { /* ignore */ }
+        await supabase
+          .from("user_roles")
+          .insert({ user_id: app.user_id, role: "partner" } as never);
+      } catch {
+        /* ignore */
+      }
     }
-
 
     await supabase.from("partner_audit_log").insert({
       actor_id: userId,

@@ -17,15 +17,7 @@ function isRunningStatus(status: string | null | undefined): boolean {
   return status === "queued" || status === "running" || status === "pending";
 }
 
-function CarouselImage({
-  src,
-  alt,
-  className,
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-}) {
+function CarouselImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const [resolved, setResolved] = useState(src);
   const [failed, setFailed] = useState(false);
 

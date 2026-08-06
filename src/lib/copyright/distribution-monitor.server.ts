@@ -18,10 +18,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { hostOf, canonicalUrl } from "./url.server";
-import {
-  analyzeDistributionPage,
-  type DistributionAnalysis,
-} from "./distribution.server";
+import { analyzeDistributionPage, type DistributionAnalysis } from "./distribution.server";
 import { isNeverMonitoredDomain } from "./official-platforms";
 import { isActionablePiracy } from "./taxonomy";
 
@@ -40,15 +37,26 @@ export type SourceKind =
   | "video_platform";
 
 const FILE_SHARE_HOSTS = [
-  "mega.nz", "mega.co.nz", "mediafire.com", "gofile.io", "pixeldrain.com", "krakenfiles.com",
-  "1fichier.com", "anonfiles.com", "workupload.com", "send.cm", "dropbox.com", "drive.google.com",
+  "mega.nz",
+  "mega.co.nz",
+  "mediafire.com",
+  "gofile.io",
+  "pixeldrain.com",
+  "krakenfiles.com",
+  "1fichier.com",
+  "anonfiles.com",
+  "workupload.com",
+  "send.cm",
+  "dropbox.com",
+  "drive.google.com",
 ];
 
 /** Classify a discovered source by URL + inspected content type. */
 export function sourceKindFor(url: string, contentType?: string | null): SourceKind {
   const host = (hostOf(url) ?? "").toLowerCase();
   const u = url.toLowerCase();
-  if (host.endsWith("t.me") || host.endsWith("telegram.me") || host.endsWith("telegram.org")) return "telegram_channel";
+  if (host.endsWith("t.me") || host.endsWith("telegram.me") || host.endsWith("telegram.org"))
+    return "telegram_channel";
   if (host.endsWith("discord.gg") || host.includes("discord.com")) return "discord_server";
   if (host.endsWith("reddit.com") || host.endsWith("redd.it")) return "reddit_community";
   if (FILE_SHARE_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return "file_sharing";
@@ -140,10 +148,8 @@ export async function registerDistributionSource(
   // Prefer keeping a more specific evidence URL over a homepage if one exists.
   // Keep evidence.exact_evidence_url / canonical_url aligned with the stored url.
   const priorUrl = existing?.url ? canonicalUrl(existing.url) : null;
-  const currentIsHomepage =
-    (new URL(evidenceUrl).pathname.replace(/\/$/, "") || "/") === "/";
-  const priorIsDetail =
-    !!priorUrl && /\/.+/.test(new URL(priorUrl).pathname);
+  const currentIsHomepage = (new URL(evidenceUrl).pathname.replace(/\/$/, "") || "/") === "/";
+  const priorIsDetail = !!priorUrl && /\/.+/.test(new URL(priorUrl).pathname);
   const keepPriorDetail = Boolean(
     priorUrl && priorUrl !== evidenceUrl && priorIsDetail && currentIsHomepage,
   );
@@ -202,7 +208,9 @@ export async function registerDistributionSource(
     url: preferUrl,
     source_kind: keepPriorDetail ? (existing?.source_kind ?? kind) : kind,
     content_type: keepPriorDetail ? (existing?.content_type ?? a.contentType) : a.contentType,
-    platform: keepPriorDetail ? (existing?.platform ?? opts.platform ?? null) : (opts.platform ?? null),
+    platform: keepPriorDetail
+      ? (existing?.platform ?? opts.platform ?? null)
+      : (opts.platform ?? null),
     page_title: keepPriorDetail ? (existing?.page_title ?? a.pageTitle) : a.pageTitle,
     risk_level: keepPriorDetail ? (existing?.risk_level ?? a.domainRisk) : a.domainRisk,
     risk_score: keepPriorDetail ? (existing?.risk_score ?? riskScoreFor(a)) : riskScoreFor(a),
@@ -210,7 +218,8 @@ export async function registerDistributionSource(
     indicators: (keepPriorDetail
       ? (existing?.indicators ?? a.indicatorKeys)
       : a.indicatorKeys) as unknown as Database["public"]["Tables"]["distribution_sources"]["Insert"]["indicators"],
-    evidence: evidence as unknown as Database["public"]["Tables"]["distribution_sources"]["Insert"]["evidence"],
+    evidence:
+      evidence as unknown as Database["public"]["Tables"]["distribution_sources"]["Insert"]["evidence"],
     screenshot_url: keepPriorDetail
       ? (existing?.screenshot_url ?? a.screenshot ?? null)
       : (a.screenshot ?? existing?.screenshot_url ?? null),
@@ -282,9 +291,10 @@ async function createIncident(
     confidence: opts.confidence,
     url: opts.url ?? null,
     summary: opts.summary,
-    evidence: (opts.evidence ?? {}) as Database["public"]["Tables"]["distribution_incidents"]["Insert"]["evidence"],
+    evidence: (opts.evidence ??
+      {}) as Database["public"]["Tables"]["distribution_incidents"]["Insert"]["evidence"],
   });
-  
+
   const { data: src } = await supabase
     .from("distribution_sources")
     .select("incident_count")
@@ -308,7 +318,9 @@ export async function monitorOneSource(
   const startedAt = new Date().toISOString();
   const titles = (source.tracked_titles as string[] | null) ?? [];
   const prev = (source.evidence ?? {}) as Record<string, unknown>;
-  const prevLinks = new Set(((prev.distribution_links as string[] | undefined) ?? []).map(canonicalUrl));
+  const prevLinks = new Set(
+    ((prev.distribution_links as string[] | undefined) ?? []).map(canonicalUrl),
+  );
   const prevDomains = new Set((prev.link_domains as string[] | undefined) ?? []);
 
   const analysis = await analyzeDistributionPage({
@@ -327,7 +339,9 @@ export async function monitorOneSource(
         last_checked_at: new Date().toISOString(),
         check_count: source.check_count + 1,
         status: "unreachable",
-        next_check_at: new Date(Date.now() + source.monitor_interval_minutes * 60_000).toISOString(),
+        next_check_at: new Date(
+          Date.now() + source.monitor_interval_minutes * 60_000,
+        ).toISOString(),
       })
       .eq("id", source.id);
     await supabase.from("distribution_monitor_runs").insert({
@@ -337,7 +351,9 @@ export async function monitorOneSource(
       status: "completed",
       reachable: false,
       risk_level: source.risk_level,
-      changes: ["unreachable"] as unknown as Database["public"]["Tables"]["distribution_monitor_runs"]["Insert"]["changes"],
+      changes: [
+        "unreachable",
+      ] as unknown as Database["public"]["Tables"]["distribution_monitor_runs"]["Insert"]["changes"],
       notes: "Source did not respond to the crawler.",
       finished_at: new Date().toISOString(),
       started_at: startedAt,
@@ -372,7 +388,11 @@ export async function monitorOneSource(
       "new_upload",
       `${newLinks.length} new distribution link(s) detected on ${source.domain}.`,
       analysis.domainRisk,
-      { new_links: newLinks.slice(0, 20), quality_tags: analysis.qualityTags, screenshot: analysis.screenshot },
+      {
+        new_links: newLinks.slice(0, 20),
+        quality_tags: analysis.qualityTags,
+        screenshot: analysis.screenshot,
+      },
     );
   }
   if (newDomains.length) {
@@ -414,8 +434,10 @@ export async function monitorOneSource(
       risk_level: analysis.domainRisk,
       risk_score: riskScoreFor(analysis),
       confidence: analysis.confidence,
-      indicators: analysis.indicatorKeys as unknown as Database["public"]["Tables"]["distribution_sources"]["Update"]["indicators"],
-      evidence: evidence as unknown as Database["public"]["Tables"]["distribution_sources"]["Update"]["evidence"],
+      indicators:
+        analysis.indicatorKeys as unknown as Database["public"]["Tables"]["distribution_sources"]["Update"]["indicators"],
+      evidence:
+        evidence as unknown as Database["public"]["Tables"]["distribution_sources"]["Update"]["evidence"],
       screenshot_url: analysis.screenshot ?? source.screenshot_url,
       page_title: analysis.pageTitle ?? source.page_title,
       last_seen_at: analysis.strongEvidence ? new Date().toISOString() : source.last_seen_at,
@@ -434,7 +456,8 @@ export async function monitorOneSource(
     reachable: true,
     confidence: analysis.confidence,
     risk_level: analysis.domainRisk,
-    changes: changes as unknown as Database["public"]["Tables"]["distribution_monitor_runs"]["Insert"]["changes"],
+    changes:
+      changes as unknown as Database["public"]["Tables"]["distribution_monitor_runs"]["Insert"]["changes"],
     incidents_created: incidents,
     notes: analysis.reason.slice(0, 400),
     started_at: startedAt,
@@ -480,7 +503,11 @@ export async function runAutoMonitor(
 
   for (const source of due ?? []) {
     try {
-      const res = await monitorOneSource(supabase, source as SourceRow, opts.runType ?? "auto_monitor");
+      const res = await monitorOneSource(
+        supabase,
+        source as SourceRow,
+        opts.runType ?? "auto_monitor",
+      );
       incidents += res.incidents;
       checked++;
     } catch {

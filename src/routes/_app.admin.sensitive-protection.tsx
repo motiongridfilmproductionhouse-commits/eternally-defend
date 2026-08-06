@@ -30,7 +30,9 @@ function AdminSensitiveProtection() {
           <Shield className="size-6 mr-3 text-warning" />
           System Admin: Intimate Image & Deepfake Protection
         </h1>
-        <p className="text-white/60">Module oversight, API diagnostics, and emergency manual overrides.</p>
+        <p className="text-white/60">
+          Module oversight, API diagnostics, and emergency manual overrides.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -48,13 +50,23 @@ function AdminSensitiveProtection() {
                 <div className="flex justify-between border-b border-white/10 pb-1">
                   <span className="text-white/50">Configured</span>
                   <span className="text-white flex items-center">
-                    {diagnostics.configured ? <CheckCircle2 className="size-3 text-emerald-400 mr-1"/> : <XCircle className="size-3 text-red-400 mr-1"/>}
-                    {diagnostics.configured ? 'Yes' : 'No'}
+                    {diagnostics.configured ? (
+                      <CheckCircle2 className="size-3 text-emerald-400 mr-1" />
+                    ) : (
+                      <XCircle className="size-3 text-red-400 mr-1" />
+                    )}
+                    {diagnostics.configured ? "Yes" : "No"}
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-white/10 pb-1">
                   <span className="text-white/50">Auth Status</span>
-                  <span className={diagnostics.configured ? "text-emerald-400 font-medium" : "text-red-400 font-medium"}>
+                  <span
+                    className={
+                      diagnostics.configured
+                        ? "text-emerald-400 font-medium"
+                        : "text-red-400 font-medium"
+                    }
+                  >
                     {diagnostics.authStatus}
                   </span>
                 </div>
@@ -69,13 +81,18 @@ function AdminSensitiveProtection() {
                 <div className="flex justify-between border-b border-white/10 pb-1">
                   <span className="text-white/50">Last Success</span>
                   <span className="text-white truncate max-w-[120px] text-right">
-                    {diagnostics.lastSuccess ? new Date(diagnostics.lastSuccess).toLocaleString() : 'Never'}
+                    {diagnostics.lastSuccess
+                      ? new Date(diagnostics.lastSuccess).toLocaleString()
+                      : "Never"}
                   </span>
                 </div>
                 <div className="flex justify-between pb-1">
                   <span className="text-white/50">Last Error</span>
-                  <span className="text-red-400 truncate max-w-[120px] text-right" title={diagnostics.lastError || ''}>
-                    {diagnostics.lastError || 'None'}
+                  <span
+                    className="text-red-400 truncate max-w-[120px] text-right"
+                    title={diagnostics.lastError || ""}
+                  >
+                    {diagnostics.lastError || "None"}
                   </span>
                 </div>
               </div>
@@ -92,7 +109,9 @@ function AdminSensitiveProtection() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-             <div className="text-center py-4 text-white/50 text-sm">No profiles currently in emergency mode.</div>
+            <div className="text-center py-4 text-white/50 text-sm">
+              No profiles currently in emergency mode.
+            </div>
           </CardContent>
         </Card>
       </div>

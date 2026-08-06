@@ -39,11 +39,9 @@ export interface ImageQualityResult {
 const TRACKING_PIXEL_PATTERNS =
   /(?:pixel|beacon|1x1|spacer|transparent|analytics|doubleclick|facebook\.com\/tr)/i;
 
-const PLACEHOLDER_PATTERNS =
-  /(?:placeholder|no-image|noimage|default-avatar|blank|loading)/i;
+const PLACEHOLDER_PATTERNS = /(?:placeholder|no-image|noimage|default-avatar|blank|loading)/i;
 
-const CARTOON_PATTERNS =
-  /(?:cartoon|anime|illustration|vector|clipart|poster-only|wallpaper)/i;
+const CARTOON_PATTERNS = /(?:cartoon|anime|illustration|vector|clipart|poster-only|wallpaper)/i;
 
 export function assessReferenceImageQuality(input: ImageQualityInput): ImageQualityResult {
   const url = input.url.toLowerCase();

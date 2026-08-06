@@ -21,11 +21,20 @@ export function SidebarLayoutProvider({ children }: { children: React.ReactNode 
   const [hidden, setHiddenState] = useState<boolean>(false);
   const persist = useServerFn(setSidebarCollapsed);
 
-  const setCollapsed = useCallback((v: boolean) => {
-    setCollapsedState(v);
-    try { window.localStorage.setItem("sidebar_collapsed", v ? "1" : "0"); } catch { /* ignore */ }
-    persist({ data: { collapsed: v } }).catch(() => { /* preference sync is best-effort */ });
-  }, [persist]);
+  const setCollapsed = useCallback(
+    (v: boolean) => {
+      setCollapsedState(v);
+      try {
+        window.localStorage.setItem("sidebar_collapsed", v ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      persist({ data: { collapsed: v } }).catch(() => {
+        /* preference sync is best-effort */
+      });
+    },
+    [persist],
+  );
 
   const setHidden = useCallback((v: boolean) => setHiddenState(v), []);
 

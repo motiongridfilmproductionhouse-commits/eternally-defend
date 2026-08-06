@@ -2,10 +2,30 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-async function requirePartner(ctx: { supabase: { from: (t: string) => { select: (s: string) => { eq: (c: string, v: string) => { maybeSingle: () => Promise<{ data: unknown }> } } } }; userId: string }) {
-  const { data } = await ctx.supabase.from("partner_profiles").select("*").eq("user_id", ctx.userId).maybeSingle();
+async function requirePartner(ctx: {
+  supabase: {
+    from: (t: string) => {
+      select: (s: string) => {
+        eq: (c: string, v: string) => { maybeSingle: () => Promise<{ data: unknown }> };
+      };
+    };
+  };
+  userId: string;
+}) {
+  const { data } = await ctx.supabase
+    .from("partner_profiles")
+    .select("*")
+    .eq("user_id", ctx.userId)
+    .maybeSingle();
   if (!data) throw new Error("Not an active partner");
-  return data as { partner_id: string; referral_code: string; legal_company_name: string; territory: string | null; commission_pct: number; status: string };
+  return data as {
+    partner_id: string;
+    referral_code: string;
+    legal_company_name: string;
+    territory: string | null;
+    commission_pct: number;
+    status: string;
+  };
 }
 
 export const getPartnerDashboard = createServerFn({ method: "GET" })
@@ -14,9 +34,21 @@ export const getPartnerDashboard = createServerFn({ method: "GET" })
     const { supabase } = context;
     const partner = await requirePartner(context as never);
     const [{ data: leads }, { data: commissions }, { data: agreements }] = await Promise.all([
-      supabase.from("partner_referred_clients").select("*").eq("partner_id", partner.partner_id).order("created_at", { ascending: false }),
-      supabase.from("partner_commissions").select("*").eq("partner_id", partner.partner_id).order("earned_at", { ascending: false }),
-      supabase.from("partner_agreements").select("*").eq("user_id", context.userId).order("version", { ascending: false }),
+      supabase
+        .from("partner_referred_clients")
+        .select("*")
+        .eq("partner_id", partner.partner_id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("partner_commissions")
+        .select("*")
+        .eq("partner_id", partner.partner_id)
+        .order("earned_at", { ascending: false }),
+      supabase
+        .from("partner_agreements")
+        .select("*")
+        .eq("user_id", context.userId)
+        .order("version", { ascending: false }),
     ]);
     const totals = (commissions ?? []).reduce(
       (acc, c) => {
@@ -29,18 +61,28 @@ export const getPartnerDashboard = createServerFn({ method: "GET" })
       },
       { paid: 0, payable: 0, pending: 0, lifetime: 0 },
     );
-    return { partner, leads: leads ?? [], commissions: commissions ?? [], agreements: agreements ?? [], totals };
+    return {
+      partner,
+      leads: leads ?? [],
+      commissions: commissions ?? [],
+      agreements: agreements ?? [],
+      totals,
+    };
   });
 
 export const registerPartnerLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { lead_email: string; lead_name?: string; lead_phone?: string; notes?: string }) =>
-    z.object({
-      lead_email: z.string().email().max(200),
-      lead_name: z.string().max(200).optional(),
-      lead_phone: z.string().max(40).optional(),
-      notes: z.string().max(2000).optional(),
-    }).parse(d))
+  .inputValidator(
+    (d: { lead_email: string; lead_name?: string; lead_phone?: string; notes?: string }) =>
+      z
+        .object({
+          lead_email: z.string().email().max(200),
+          lead_name: z.string().max(200).optional(),
+          lead_phone: z.string().max(40).optional(),
+          notes: z.string().max(2000).optional(),
+        })
+        .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const partner = await requirePartner(context as never);
     const { supabase } = context;
@@ -52,7 +94,9 @@ export const registerPartnerLead = createServerFn({ method: "POST" })
       .in("status", ["LEAD", "ONBOARDING", "ACTIVE", "PAID"])
       .maybeSingle();
     if (existing && existing.partner_id !== partner.partner_id) {
-      throw new Error("This client email is already attributed to another partner and cannot be claimed.");
+      throw new Error(
+        "This client email is already attributed to another partner and cannot be claimed.",
+      );
     }
     const { error } = await supabase.from("partner_referred_clients").insert({
       partner_id: partner.partner_id,
@@ -75,13 +119,20 @@ export const generatePartnerProposalUrl = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const partner = await requirePartner(context as never);
     const { PDFDocument, rgb } = await import("pdf-lib");
-    const { embedUnicodeFontStack, drawUnicodeText } = await import("@/lib/pdf/unicode-fonts.server");
+    const { embedUnicodeFontStack, drawUnicodeText } =
+      await import("@/lib/pdf/unicode-fonts.server");
     const doc = await PDFDocument.create();
     const stack = await embedUnicodeFontStack(doc);
     const page = doc.addPage([612, 792]);
     let y = 740;
     const line = (t: string, size = 11, bold = false) => {
-      drawUnicodeText(page, t, { x: 60, y, size, stack: bold ? stack.bold : stack.regular, color: rgb(0.05, 0.1, 0.35) });
+      drawUnicodeText(page, t, {
+        x: 60,
+        y,
+        size,
+        stack: bold ? stack.bold : stack.regular,
+        color: rgb(0.05, 0.1, 0.35),
+      });
       y -= size + 8;
     };
     line("ETERNA PROTECTION PROPOSAL", 18, true);
@@ -106,7 +157,9 @@ export const generatePartnerProposalUrl = createServerFn({ method: "POST" })
     const bytes = await doc.save();
     const key = `${context.userId}/proposals/${Date.now()}-${data.client_name.replace(/[^\w]+/g, "_").slice(0, 60)}.pdf`;
     const { supabase } = context;
-    const up = await supabase.storage.from("partner-documents").upload(key, bytes, { contentType: "application/pdf", upsert: true });
+    const up = await supabase.storage
+      .from("partner-documents")
+      .upload(key, bytes, { contentType: "application/pdf", upsert: true });
     if (up.error) throw new Error(up.error.message);
     const signed = await supabase.storage.from("partner-documents").createSignedUrl(key, 600);
     if (signed.error || !signed.data) throw new Error(signed.error?.message ?? "signing failed");

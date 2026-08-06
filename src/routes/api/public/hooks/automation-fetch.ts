@@ -31,7 +31,9 @@ export const Route = createFileRoute("/api/public/hooks/automation-fetch")({
         try {
           parsed = BodySchema.parse(JSON.parse(raw));
         } catch (e) {
-          return new Response(`Invalid body: ${e instanceof Error ? e.message : String(e)}`, { status: 400 });
+          return new Response(`Invalid body: ${e instanceof Error ? e.message : String(e)}`, {
+            status: 400,
+          });
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -48,12 +50,16 @@ export const Route = createFileRoute("/api/public/hooks/automation-fetch")({
         // Signed URLs for evidence artifacts.
         const bucket = "enforcement-packages";
         const inputs = job.input_json as Record<string, string | null>;
-        const paths = [inputs.evidence_pdf_path, inputs.authorization_pdf_path, inputs.platform_complaint_pdf_path].filter(
-          (p): p is string => typeof p === "string" && p.length > 0,
-        );
+        const paths = [
+          inputs.evidence_pdf_path,
+          inputs.authorization_pdf_path,
+          inputs.platform_complaint_pdf_path,
+        ].filter((p): p is string => typeof p === "string" && p.length > 0);
         const signed: Record<string, string> = {};
         for (const p of paths) {
-          const { data: url } = await supabaseAdmin.storage.from(bucket).createSignedUrl(p, 60 * 30);
+          const { data: url } = await supabaseAdmin.storage
+            .from(bucket)
+            .createSignedUrl(p, 60 * 30);
           if (url) signed[p] = url.signedUrl;
         }
 
@@ -82,7 +88,11 @@ export const Route = createFileRoute("/api/public/hooks/automation-fetch")({
         // Move to running and increment attempts.
         await supabaseAdmin
           .from("automation_jobs")
-          .update({ status: "running", attempts: job.attempts + 1, started_at: new Date().toISOString() })
+          .update({
+            status: "running",
+            attempts: job.attempts + 1,
+            started_at: new Date().toISOString(),
+          })
           .eq("id", job.id);
 
         return Response.json({

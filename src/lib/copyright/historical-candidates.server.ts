@@ -38,15 +38,9 @@ function normalizeTitleNeedle(title: string): string {
   return title.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function titleMatchesWork(
-  blob: string,
-  workTitle: string,
-  titles: string[],
-): boolean {
+function titleMatchesWork(blob: string, workTitle: string, titles: string[]): boolean {
   const lower = blob.toLowerCase();
-  const needles = [workTitle, ...titles]
-    .map(normalizeTitleNeedle)
-    .filter((t) => t.length >= 3);
+  const needles = [workTitle, ...titles].map(normalizeTitleNeedle).filter((t) => t.length >= 3);
   return needles.some((t) => lower.includes(t));
 }
 
@@ -105,8 +99,7 @@ export async function loadHistoricalScanCandidates(
       const clientVisible = ev.client_visible !== false && dist.client_visible !== false;
       const classification =
         (dist.classification as string) ?? match.detection_type ?? "UNVERIFIED_LEAD";
-      const actionable =
-        clientVisible && isActionablePiracy(classification);
+      const actionable = clientVisible && isActionablePiracy(classification);
       const identityEvidence = Array.isArray(dist.identity_evidence)
         ? (dist.identity_evidence as string[])
         : Array.isArray(ev.identity_evidence)
@@ -178,9 +171,7 @@ export async function loadHistoricalScanCandidates(
 
     const evidence = (row.evidence ?? {}) as Record<string, unknown>;
     const evidenceUrl =
-      typeof evidence.exact_evidence_url === "string"
-        ? evidence.exact_evidence_url
-        : row.url;
+      typeof evidence.exact_evidence_url === "string" ? evidence.exact_evidence_url : row.url;
     const url = canonicalUrl(evidenceUrl);
     domainSet.add(row.domain.toLowerCase());
 
@@ -208,13 +199,10 @@ export async function loadHistoricalScanCandidates(
       }
     }
 
-    const finalDomain =
-      typeof evidence.final_domain === "string" ? evidence.final_domain : null;
+    const finalDomain = typeof evidence.final_domain === "string" ? evidence.final_domain : null;
     if (finalDomain && finalDomain.toLowerCase() !== row.domain.toLowerCase()) {
       try {
-        const redirected = canonicalUrl(
-          url.replace(row.domain, finalDomain),
-        );
+        const redirected = canonicalUrl(url.replace(row.domain, finalDomain));
         mirrorAndRedirectCandidates.push({
           url: redirected,
           title: row.page_title,

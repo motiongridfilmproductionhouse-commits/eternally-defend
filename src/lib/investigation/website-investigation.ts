@@ -2,11 +2,7 @@
  * Website Investigation modal — types, response normalization, and URL helpers.
  */
 
-export type WebsiteInvestigationModalState =
-  | "idle"
-  | "investigating"
-  | "completed"
-  | "failed";
+export type WebsiteInvestigationModalState = "idle" | "investigating" | "completed" | "failed";
 
 export interface WebsiteInvestigationResult {
   url: string;
@@ -91,13 +87,7 @@ export function resolveInvestigationUrl(match: unknown): string | null {
   const evidence = asRecord(m.evidence);
   const distribution = evidence ? asRecord(evidence.distribution) : null;
 
-  const candidates = [
-    m.url,
-    m.source_url,
-    m.canonical_url,
-    m.final_url,
-    distribution?.url,
-  ];
+  const candidates = [m.url, m.source_url, m.canonical_url, m.final_url, distribution?.url];
 
   for (const candidate of candidates) {
     const value = asString(candidate);
@@ -122,18 +112,12 @@ export function normalizeInvestigationResponse(
     return { kind: "job", jobId };
   }
 
-  const payload =
-    asRecord(root.investigation) ??
-    asRecord(root.data) ??
-    root;
+  const payload = asRecord(root.investigation) ?? asRecord(root.data) ?? root;
 
   if (status === "failed") {
     return {
       kind: "error",
-      message:
-        asString(root.error) ??
-        asString(payload.error) ??
-        "Investigation failed.",
+      message: asString(root.error) ?? asString(payload.error) ?? "Investigation failed.",
     };
   }
 
@@ -151,11 +135,7 @@ export function normalizeInvestigationRecord(
   if (!r) return null;
 
   const url =
-    asString(r.url) ??
-    asString(r.finalUrl) ??
-    asString(r.final_url) ??
-    opts?.fallbackUrl ??
-    null;
+    asString(r.url) ?? asString(r.finalUrl) ?? asString(r.final_url) ?? opts?.fallbackUrl ?? null;
   if (!url) return null;
 
   const dns = asRecord(r.dns);
@@ -166,10 +146,7 @@ export function normalizeInvestigationRecord(
   const risk = asRecord(r.risk);
   const ip = asRecord(r.ip);
   const cdnRaw = r.cdn;
-  const cdnString =
-    typeof cdnRaw === "string"
-      ? cdnRaw
-      : asString(asRecord(cdnRaw)?.provider);
+  const cdnString = typeof cdnRaw === "string" ? cdnRaw : asString(asRecord(cdnRaw)?.provider);
 
   const httpStatus = asNumber(http?.status);
   const pageEvidence = asStringArray(page?.evidence);
@@ -193,10 +170,7 @@ export function normalizeInvestigationRecord(
   }
 
   const threatScore =
-    asNumber(r.threatScore) ??
-    asNumber(r.threat_score) ??
-    asNumber(risk?.score) ??
-    0;
+    asNumber(r.threatScore) ?? asNumber(r.threat_score) ?? asNumber(risk?.score) ?? 0;
 
   const riskLevel =
     asString(r.riskLevel) ??
@@ -220,9 +194,7 @@ export function normalizeInvestigationRecord(
     whoisAbuseEmail: asString(whois?.abuseEmail) ?? asString(whois?.abuse_email),
     whoisNameservers: asStringArray(whois?.nameservers),
     hostingProvider:
-      asString(provider?.name) ??
-      asString(provider?.organization) ??
-      asString(provider?.hosting),
+      asString(provider?.name) ?? asString(provider?.organization) ?? asString(provider?.hosting),
     ipAddress: asString(dns?.ipv4) ?? asString(ip?.ip),
     country: asString(ip?.country) ?? asString(provider?.country),
     city: asString(ip?.city),

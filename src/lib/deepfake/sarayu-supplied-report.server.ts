@@ -47,7 +47,9 @@ export type SarayuSuppliedEvidenceReportData = {
   };
 };
 
-export function getSarayuSuppliedEvidenceReportData(now = new Date()): SarayuSuppliedEvidenceReportData {
+export function getSarayuSuppliedEvidenceReportData(
+  now = new Date(),
+): SarayuSuppliedEvidenceReportData {
   const captureDate = now.toISOString();
   return {
     report_scope: SARAYU_SUPPLIED_REPORT_SCOPE,
@@ -91,7 +93,12 @@ function measure(value: string, size: number, font: PDFFont): number {
   return font.widthOfTextAtSize(safeText(value), size);
 }
 
-export function wrapSarayuReportUrl(url: string, size: number, font: PDFFont, width: number): string[] {
+export function wrapSarayuReportUrl(
+  url: string,
+  size: number,
+  font: PDFFont,
+  width: number,
+): string[] {
   const lines: string[] = [];
   let current = "";
   for (const character of safeText(url)) {
@@ -107,20 +114,40 @@ export function wrapSarayuReportUrl(url: string, size: number, font: PDFFont, wi
   return lines.length ? lines : [""];
 }
 
-function addLink(pdf: PDFDocument, page: PDFPage, url: string, x: number, y: number, width: number, height: number) {
-  const annotation = pdf.context.register(pdf.context.obj({
-    Type: PDFName.of("Annot"),
-    Subtype: PDFName.of("Link"),
-    Rect: [x, y, x + width, y + height],
-    Border: [0, 0, 0],
-    A: { Type: PDFName.of("Action"), S: PDFName.of("URI"), URI: PDFString.of(url) },
-  }));
+function addLink(
+  pdf: PDFDocument,
+  page: PDFPage,
+  url: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const annotation = pdf.context.register(
+    pdf.context.obj({
+      Type: PDFName.of("Annot"),
+      Subtype: PDFName.of("Link"),
+      Rect: [x, y, x + width, y + height],
+      Border: [0, 0, 0],
+      A: { Type: PDFName.of("Action"), S: PDFName.of("URI"), URI: PDFString.of(url) },
+    }),
+  );
   const existing = page.node.lookup(PDFName.of("Annots"));
   if (existing instanceof PDFArray) existing.push(annotation);
   else page.node.set(PDFName.of("Annots"), pdf.context.obj([annotation]));
 }
 
-function drawWrapped(page: PDFPage, text: string, x: number, y: number, width: number, size: number, font: PDFFont, color = ink, leading = 14) {
+function drawWrapped(
+  page: PDFPage,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  size: number,
+  font: PDFFont,
+  color = ink,
+  leading = 14,
+) {
   const lines = wrapSarayuReportUrl(text, size, font, width);
   for (const lineText of lines) {
     page.drawText(lineText, { x, y, size, font, color });
@@ -138,27 +165,86 @@ export async function buildSarayuSuppliedEvidencePdf(
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const reportId = "ETR-SARAYU-SUPPLIED-" + createHash("sha256").update(JSON.stringify(data.links)).digest("hex").slice(0, 12).toUpperCase();
+  const reportId =
+    "ETR-SARAYU-SUPPLIED-" +
+    createHash("sha256")
+      .update(JSON.stringify(data.links))
+      .digest("hex")
+      .slice(0, 12)
+      .toUpperCase();
   pdf.setTitle("Sarayu Mohan Investigator-Supplied Google Images Evidence Links");
   pdf.setSubject(SARAYU_SUPPLIED_REPORT_SCOPE);
 
   let page = pdf.addPage(A4);
   page.drawRectangle({ x: 0, y: 0, width: A4[0], height: A4[1], color: navy });
-  page.drawText("ETERNA AI", { x: margin, y: 770, size: 15, font: boldFont, color: rgb(0.52, 0.72, 1) });
-  page.drawText("INVESTIGATOR-SUPPLIED GOOGLE IMAGES EVIDENCE LINKS", { x: margin, y: 690, size: 20, font: boldFont, color: rgb(1, 1, 1) });
-  page.drawText("Sarayu Mohan - 6 Links - Pending Verification", { x: margin, y: 652, size: 12, font, color: rgb(0.84, 0.9, 1) });
+  page.drawText("ETERNA AI", {
+    x: margin,
+    y: 770,
+    size: 15,
+    font: boldFont,
+    color: rgb(0.52, 0.72, 1),
+  });
+  page.drawText("INVESTIGATOR-SUPPLIED GOOGLE IMAGES EVIDENCE LINKS", {
+    x: margin,
+    y: 690,
+    size: 20,
+    font: boldFont,
+    color: rgb(1, 1, 1),
+  });
+  page.drawText("Sarayu Mohan - 6 Links - Pending Verification", {
+    x: margin,
+    y: 652,
+    size: 12,
+    font,
+    color: rgb(0.84, 0.9, 1),
+  });
   let y = 600;
-  y = drawWrapped(page, SARAYU_SUPPLIED_REPORT_DISCLAIMER, margin, y, contentWidth, 10, font, rgb(0.78, 0.84, 0.94), 15) - 20;
+  y =
+    drawWrapped(
+      page,
+      SARAYU_SUPPLIED_REPORT_DISCLAIMER,
+      margin,
+      y,
+      contentWidth,
+      10,
+      font,
+      rgb(0.78, 0.84, 0.94),
+      15,
+    ) - 20;
   page.drawText("Report scope", { x: margin, y, size: 8, font, color: rgb(0.52, 0.65, 0.82) });
-  page.drawText(SARAYU_SUPPLIED_REPORT_SCOPE, { x: margin, y: y - 16, size: 10, font, color: rgb(1, 1, 1) });
+  page.drawText(SARAYU_SUPPLIED_REPORT_SCOPE, {
+    x: margin,
+    y: y - 16,
+    size: 10,
+    font,
+    color: rgb(1, 1, 1),
+  });
   page.drawText("Report ID", { x: margin, y: y - 52, size: 8, font, color: rgb(0.52, 0.65, 0.82) });
   page.drawText(reportId, { x: margin, y: y - 68, size: 10, font, color: rgb(1, 1, 1) });
-  page.drawText("Capture date", { x: margin, y: y - 104, size: 8, font, color: rgb(0.52, 0.65, 0.82) });
-  page.drawText(data.capture_date.slice(0, 10), { x: margin, y: y - 120, size: 10, font, color: rgb(1, 1, 1) });
+  page.drawText("Capture date", {
+    x: margin,
+    y: y - 104,
+    size: 8,
+    font,
+    color: rgb(0.52, 0.65, 0.82),
+  });
+  page.drawText(data.capture_date.slice(0, 10), {
+    x: margin,
+    y: y - 120,
+    size: 10,
+    font,
+    color: rgb(1, 1, 1),
+  });
 
   page = pdf.addPage(A4);
   page.drawRectangle({ x: 0, y: 0, width: A4[0], height: A4[1], color: rgb(0.98, 0.99, 1) });
-  page.drawText("INVESTIGATOR-SUPPLIED GOOGLE IMAGES EVIDENCE LINKS", { x: margin, y: 780, size: 15, font: boldFont, color: navy });
+  page.drawText("INVESTIGATOR-SUPPLIED GOOGLE IMAGES EVIDENCE LINKS", {
+    x: margin,
+    y: 780,
+    size: 15,
+    font: boldFont,
+    color: navy,
+  });
   y = 748;
   const summary = [
     "Total investigator-supplied links: 6",
@@ -177,10 +263,24 @@ export async function buildSarayuSuppliedEvidencePdf(
     if (y - blockHeight < 46) {
       page = pdf.addPage(A4);
       page.drawRectangle({ x: 0, y: 0, width: A4[0], height: A4[1], color: rgb(0.98, 0.99, 1) });
-      page.drawText("INVESTIGATOR-SUPPLIED GOOGLE IMAGES EVIDENCE LINKS", { x: margin, y: 780, size: 15, font: boldFont, color: navy });
+      page.drawText("INVESTIGATOR-SUPPLIED GOOGLE IMAGES EVIDENCE LINKS", {
+        x: margin,
+        y: 780,
+        size: 15,
+        font: boldFont,
+        color: navy,
+      });
       y = 748;
     }
-    page.drawRectangle({ x: margin, y: y - blockHeight + 12, width: contentWidth, height: blockHeight, color: rgb(1, 1, 1), borderColor: line, borderWidth: 1 });
+    page.drawRectangle({
+      x: margin,
+      y: y - blockHeight + 12,
+      width: contentWidth,
+      height: blockHeight,
+      color: rgb(1, 1, 1),
+      borderColor: line,
+      borderWidth: 1,
+    });
     page.drawText(lead.evidence_lead, { x: margin + 10, y, size: 11, font: boldFont, color: blue });
     y -= 18;
     const fields = [

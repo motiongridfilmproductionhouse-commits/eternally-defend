@@ -15,8 +15,7 @@ export async function lookupRDAP(domain: string): Promise<WhoisResult> {
 
     return {
       registrar: data.registrarName ?? "Unknown",
-      nameservers:
-        data.nameservers?.map((ns: any) => ns.ldhName) ?? [],
+      nameservers: data.nameservers?.map((ns: any) => ns.ldhName) ?? [],
     };
   } catch {
     return {

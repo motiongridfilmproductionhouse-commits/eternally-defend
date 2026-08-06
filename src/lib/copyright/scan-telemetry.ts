@@ -6,9 +6,7 @@ export class ScanTelemetryWriter {
   private chain = Promise.resolve();
   private trailingTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(
-    private readonly persist: (stats: Record<string, unknown>) => Promise<void>,
-  ) {}
+  constructor(private readonly persist: (stats: Record<string, unknown>) => Promise<void>) {}
 
   /** Build final payload with website_activity mirror for the live investigation UI. */
   static withWebsiteActivity(stats: Record<string, unknown>): Record<string, unknown> {

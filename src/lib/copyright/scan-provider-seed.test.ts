@@ -32,7 +32,10 @@ test("mergeSourceActivityIntoStats preserves zero-count entries through parseSou
   const entries = buildQueuedProviderSeedEntries([
     { provider: "bright_data", label: "Bright Data" },
   ]);
-  const merged = mergeSourceActivityIntoStats({ scan_created: "2026-08-01T00:00:00.000Z" }, entries);
+  const merged = mergeSourceActivityIntoStats(
+    { scan_created: "2026-08-01T00:00:00.000Z" },
+    entries,
+  );
   const parsed = parseSourceActivity(merged);
   assert.equal(parsed.length, 1);
   assert.equal(parsed[0]?.provider, "bright_data");

@@ -5,10 +5,7 @@
 
 import { hostOf } from "./url.server";
 import { isClientVisibleCopyrightMatch } from "./client-filter";
-import {
-  isActionablePiracy,
-  resolveClassification,
-} from "./taxonomy";
+import { isActionablePiracy, resolveClassification } from "./taxonomy";
 import {
   verifyIllegalDistribution,
   VERIFIED_DISTRIBUTION_THRESHOLD,
@@ -16,12 +13,7 @@ import {
 
 /** JSON-serializable value, safe to send from a server function to the client. */
 export type SerializableJson =
-  | string
-  | number
-  | boolean
-  | null
-  | SerializableJson[]
-  | { [key: string]: SerializableJson };
+  string | number | boolean | null | SerializableJson[] | { [key: string]: SerializableJson };
 
 export type SuspiciousSourceState =
   | "new_confirmed"
@@ -77,9 +69,7 @@ const HARD_NEGATIVE = new Set([
 ]);
 
 function evidenceRecord(evidence: unknown): Record<string, unknown> {
-  return evidence && typeof evidence === "object"
-    ? (evidence as Record<string, unknown>)
-    : {};
+  return evidence && typeof evidence === "object" ? (evidence as Record<string, unknown>) : {};
 }
 
 function distributionRecord(evidence: Record<string, unknown>): Record<string, unknown> {
@@ -154,12 +144,12 @@ const PRESERVED_VISIBLE_RECHECK: HistoricalRecheckStatus[] = [
 ];
 
 export function isPreviouslyConfirmedSuspicious(ev: Record<string, unknown>): boolean {
-  const prior =
-    typeof ev.prior_classification === "string" ? ev.prior_classification : null;
+  const prior = typeof ev.prior_classification === "string" ? ev.prior_classification : null;
   if (prior && isActionablePiracy(prior) && !HARD_NEGATIVE.has(prior)) return true;
-  const classification =
-    typeof ev.classification === "string" ? ev.classification : null;
-  return Boolean(classification && isActionablePiracy(classification) && !HARD_NEGATIVE.has(classification));
+  const classification = typeof ev.classification === "string" ? ev.classification : null;
+  return Boolean(
+    classification && isActionablePiracy(classification) && !HARD_NEGATIVE.has(classification),
+  );
 }
 
 /** Whether a persisted match row may appear on the Suspicious Sources tab. */
@@ -177,8 +167,7 @@ export function isSuspiciousSourceForTab(match: {
     contentType:
       (typeof dist.content_type === "string" && dist.content_type) ||
       (typeof ev.website_type === "string" ? ev.website_type : null),
-    strongEvidence:
-      typeof dist.strong_evidence === "boolean" ? dist.strong_evidence : undefined,
+    strongEvidence: typeof dist.strong_evidence === "boolean" ? dist.strong_evidence : undefined,
   });
 
   if (HARD_NEGATIVE.has(classification)) return false;
@@ -237,13 +226,17 @@ export function mapMatchToSuspiciousSource(match: {
   const crawlFailed = ev.crawl_failed === true || dist.crawl_failed === true;
   const historicalPreservation = ev.historical_preservation === true;
   const recheckStatus = (ev.recheck_status as HistoricalRecheckStatus | null) ?? null;
-  const clientVisibleNew =
-    !historicalPreservation && isClientVisibleCopyrightMatch(match);
+  const clientVisibleNew = !historicalPreservation && isClientVisibleCopyrightMatch(match);
 
   const sourceState = mapRecheckStatusToSourceState(recheckStatus, clientVisibleNew);
 
   if (typeof process !== "undefined" && process.env?.NODE_ENV !== "test") {
-    console.info("[copyright-suspicious] public mapping", match.source_url, sourceState, recheckStatus ?? "");
+    console.info(
+      "[copyright-suspicious] public mapping",
+      match.source_url,
+      sourceState,
+      recheckStatus ?? "",
+    );
   }
 
   return {
@@ -259,13 +252,15 @@ export function mapMatchToSuspiciousSource(match: {
     confidence: match.confidence ?? null,
     confidence_band: match.confidence_band ?? null,
     source_state: sourceState,
-    current_reachability: crawlFailed ? "unreachable" : historicalPreservation ? "unknown" : "reachable",
+    current_reachability: crawlFailed
+      ? "unreachable"
+      : historicalPreservation
+        ? "unknown"
+        : "reachable",
     historical_preservation: historicalPreservation,
     recheck_status: recheckStatus,
     last_verified_at:
-      typeof ev.prior_verified_at === "string"
-        ? ev.prior_verified_at
-        : match.created_at ?? null,
+      typeof ev.prior_verified_at === "string" ? ev.prior_verified_at : (match.created_at ?? null),
     evidence_summary: buildEvidenceSummary(ev),
     reason: match.reason ?? null,
     discovery_query: null,
@@ -276,19 +271,21 @@ export function mapMatchToSuspiciousSource(match: {
   };
 }
 
-export function buildSuspiciousSourcesFromMatches<T extends {
-  id: string;
-  source_url: string;
-  page_title?: string | null;
-  confidence?: number | null;
-  confidence_band?: string | null;
-  detection_type?: string | null;
-  reason?: string | null;
-  review_status?: string | null;
-  contact?: unknown;
-  evidence?: unknown;
-  created_at?: string | null;
-}>(matches: T[]): PublicSuspiciousSource[] {
+export function buildSuspiciousSourcesFromMatches<
+  T extends {
+    id: string;
+    source_url: string;
+    page_title?: string | null;
+    confidence?: number | null;
+    confidence_band?: string | null;
+    detection_type?: string | null;
+    reason?: string | null;
+    review_status?: string | null;
+    contact?: unknown;
+    evidence?: unknown;
+    created_at?: string | null;
+  },
+>(matches: T[]): PublicSuspiciousSource[] {
   const byUrl = new Map<string, PublicSuspiciousSource>();
   for (const match of matches) {
     const mapped = mapMatchToSuspiciousSource(match);
@@ -362,6 +359,8 @@ export function countSuspiciousSourceStates(sources: PublicSuspiciousSource[]): 
   return counts;
 }
 
-export function suspiciousSourcesDiagnosticLine(counts: ReturnType<typeof countSuspiciousSourceStates>): string {
+export function suspiciousSourcesDiagnosticLine(
+  counts: ReturnType<typeof countSuspiciousSourceStates>,
+): string {
   return `Suspicious sources: ${counts.new_confirmed} new confirmed, ${counts.historical_reconfirmed} historical reconfirmed, ${counts.historical_unreachable} historical unreachable, ${counts.historical_requires_review} requiring review.`;
 }

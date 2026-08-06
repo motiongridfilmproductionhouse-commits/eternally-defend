@@ -34,10 +34,7 @@ import {
   shouldShowAnalysisBanner,
 } from "./scan-scope";
 import { isStaleOfficialMonitoredSource } from "./stale-official.server";
-import {
-  evaluateTelegramPublicEvidence,
-  isPublicTelegramMessageUrl,
-} from "./telegram-evidence";
+import { evaluateTelegramPublicEvidence, isPublicTelegramMessageUrl } from "./telegram-evidence";
 import { hasExactTitleIdentity } from "./title-identity";
 import { explainZeroMatchFunnel } from "./scan-diagnostics";
 
@@ -83,7 +80,11 @@ test("1. selecting Unmadham never surfaces Spider-Man findings", () => {
     { id: "m1", source_url: "https://youtube.com/watch?v=sp", page_title: "Spider-Man" },
   ];
   const unmadhamMatches = [
-    { id: "m2", source_url: "https://ogomovies1.com.pk/movies/unmadham-2026/", page_title: "Unmadham" },
+    {
+      id: "m2",
+      source_url: "https://ogomovies1.com.pk/movies/unmadham-2026/",
+      page_title: "Unmadham",
+    },
   ];
 
   assert.deepEqual(
@@ -248,7 +249,10 @@ test("6. known URL capacity reserved when providers exceed page cap", () => {
   assert.equal(slots.knownSlots, 3);
   assert.equal(slots.providerSlots, 5);
   const ordered = prioritizeKnownUrlLeadsWithReservation(known, provider, 8);
-  assert.equal(ordered.slice(0, 3).every((l) => l.query === "known_url_seed"), true);
+  assert.equal(
+    ordered.slice(0, 3).every((l) => l.query === "known_url_seed"),
+    true,
+  );
   assert.equal(ordered.length, 8);
   assert.ok(ordered.some((l) => l.url.includes("movie-0")));
 });
@@ -278,9 +282,7 @@ test("8. network/render failure is not content rejection", () => {
     pageInspected: false,
   });
   assert.equal(failed.clientVisible, false);
-  assert.ok(
-    failed.classification === "UNVERIFIED_LEAD" || failed.classification === "UNRELATED",
-  );
+  assert.ok(failed.classification === "UNVERIFIED_LEAD" || failed.classification === "UNRELATED");
   // Funnel must explain retrieval failure distinctly from title/access rejection.
   const lines = explainZeroMatchFunnel({
     known_urls_submitted: 1,
@@ -360,10 +362,10 @@ test("10. title-only / poster-only / synopsis-only pages remain rejected", () =>
       titleOnly.classification === "CATALOG_OR_LISTING",
   );
 
-  const identity = hasExactTitleIdentity(
-    "Unmadham (2026) Malayalam movie poster",
-    ["Unmadham movie malayalam", "Unmadham"],
-  );
+  const identity = hasExactTitleIdentity("Unmadham (2026) Malayalam movie poster", [
+    "Unmadham movie malayalam",
+    "Unmadham",
+  ]);
   assert.equal(identity.match, true);
 });
 

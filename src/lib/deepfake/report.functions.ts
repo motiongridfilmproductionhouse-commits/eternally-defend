@@ -22,10 +22,8 @@ export const getDeepfakeReportUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => ScopeInput.parse(raw))
   .handler(async ({ data, context }) => {
-    const {
-      generateAndStoreDeepfakeReport,
-      signDeepfakeReportUrl,
-    } = await import("@/lib/deepfake/report.server");
+    const { generateAndStoreDeepfakeReport, signDeepfakeReportUrl } =
+      await import("@/lib/deepfake/report.server");
     const { supabase, userId } = context;
 
     const report = await generateAndStoreDeepfakeReport(supabase, userId, {
@@ -63,9 +61,7 @@ export const listDeepfakeReports = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { listDeepfakeReportHistory } = await import(
-      "@/lib/deepfake/report.server"
-    );
+    const { listDeepfakeReportHistory } = await import("@/lib/deepfake/report.server");
     return listDeepfakeReportHistory(context.supabase, context.userId, {
       scanId: data.scanId,
       profileId: data.profileId,
@@ -75,14 +71,10 @@ export const listDeepfakeReports = createServerFn({ method: "POST" })
 /** Download an existing report history PDF by id. */
 export const downloadDeepfakeReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) =>
-    z.object({ historyId: z.string().uuid() }).parse(raw),
-  )
+  .inputValidator((raw) => z.object({ historyId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const {
-      downloadDeepfakeReportByHistoryId,
-      signDeepfakeReportUrl,
-    } = await import("@/lib/deepfake/report.server");
+    const { downloadDeepfakeReportByHistoryId, signDeepfakeReportUrl } =
+      await import("@/lib/deepfake/report.server");
 
     const report = await downloadDeepfakeReportByHistoryId(
       context.supabase,

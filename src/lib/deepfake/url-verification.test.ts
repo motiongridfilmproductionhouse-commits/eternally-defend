@@ -41,8 +41,7 @@ test("broken URLs are rejected", () => {
 
 test("redirected URLs store final_url and can verify the destination content page", () => {
   const discovered = "https://tracker.example/out?u=maya";
-  const finalUrl =
-    "https://abuse.example/watch/maya-kapoor-deepfake-face-swap-99";
+  const finalUrl = "https://abuse.example/watch/maya-kapoor-deepfake-face-swap-99";
 
   const result = evaluateUrlVerification({
     discovered_url: discovered,
@@ -63,10 +62,7 @@ test("redirected URLs store final_url and can verify the destination content pag
   assert.equal(result.url_verification_status, "URL_VERIFIED");
   assert.equal(result.discovered_url, discovered);
   assert.equal(result.final_url, finalUrl);
-  assert.equal(
-    result.canonical_url,
-    normalizeCanonicalUrl(finalUrl),
-  );
+  assert.equal(result.canonical_url, normalizeCanonicalUrl(finalUrl));
   assert.deepEqual(result.redirect_chain, [discovered, finalUrl]);
   assert.equal(result.http_status, 200);
   assert.ok(result.crawled_at);
@@ -108,10 +104,7 @@ test("redirect-only destinations that land on empty shells are rejected", () => 
     discovered_url: "https://tracker.example/r/1",
     final_url: "https://site.example/",
     http_status: 200,
-    redirect_chain: [
-      "https://tracker.example/r/1",
-      "https://site.example/",
-    ],
+    redirect_chain: ["https://tracker.example/r/1", "https://site.example/"],
     crawled_title: null,
     crawled_page_text: "",
     page_inspected: false,
@@ -179,26 +172,20 @@ test("identity only in recommendations or comments is rejected", () => {
   });
 
   assert.equal(result.url_verification_status, "URL_REJECTED");
-  assert.match(
-    result.rejection_reason ?? "",
-    /recommendations|comments|navigation/i,
-  );
+  assert.match(result.rejection_reason ?? "", /recommendations|comments|navigation/i);
 });
 
 test("duplicate canonical URLs normalize equivalently after redirects", () => {
   const a = normalizeCanonicalUrl(
     "https://www.Abuse.Example/watch/maya-kapoor-deepfake/?utm_source=x&fbclid=1",
   );
-  const b = normalizeCanonicalUrl(
-    "https://abuse.example/watch/maya-kapoor-deepfake",
-  );
+  const b = normalizeCanonicalUrl("https://abuse.example/watch/maya-kapoor-deepfake");
 
   assert.equal(a, b);
 });
 
 test("accurate content URLs are verified with crawled title and primary content", () => {
-  const finalUrl =
-    "https://abuse.example/watch/maya-kapoor-deepfake-ai-nude-55";
+  const finalUrl = "https://abuse.example/watch/maya-kapoor-deepfake-ai-nude-55";
 
   const result = evaluateUrlVerification({
     discovered_url: finalUrl,
@@ -219,9 +206,7 @@ test("accurate content URLs are verified with crawled title and primary content"
   assert.equal(result.url_verification_status, "URL_VERIFIED");
   assert.equal(result.rejection_reason, null);
   assert.equal(result.page_title, "Maya Kapoor deepfake AI nude");
-  assert.ok(
-    extractPrimaryContent(result.page_text).toLowerCase().includes("maya kapoor"),
-  );
+  assert.ok(extractPrimaryContent(result.page_text).toLowerCase().includes("maya kapoor"));
   assert.equal(result.verified_domain, "abuse.example");
 });
 

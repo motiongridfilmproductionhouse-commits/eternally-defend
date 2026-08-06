@@ -1,25 +1,10 @@
 import { useMemo, useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronDown,
-  Circle,
-  Globe,
-  MinusCircle,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, Circle, Globe, MinusCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -122,9 +107,7 @@ export function ChipMultiSelect({
 }) {
   const [custom, setCustom] = useState("");
   const toggle = (code: string) => {
-    onChange(
-      selected.includes(code) ? selected.filter((c) => c !== code) : [...selected, code],
-    );
+    onChange(selected.includes(code) ? selected.filter((c) => c !== code) : [...selected, code]);
   };
   return (
     <div>
@@ -297,7 +280,8 @@ export function useReleaseProtectionReadiness(input: {
   const missing: string[] = [];
   if (!input.primaryPosterReady) missing.push("primary poster");
   const visualsNeeded = Math.max(0, 2 - input.additionalVisualCount);
-  if (visualsNeeded > 0) missing.push(`${visualsNeeded} more visual reference${visualsNeeded > 1 ? "s" : ""}`);
+  if (visualsNeeded > 0)
+    missing.push(`${visualsNeeded} more visual reference${visualsNeeded > 1 ? "s" : ""}`);
   if (input.videoReferenceCount < 1) missing.push("trailer or video reference");
   if (input.form.enabled && !input.form.release_date) missing.push("release date");
   if (input.form.enabled && !input.form.release_timezone) missing.push("release timezone");
@@ -365,9 +349,7 @@ export function ProtectionReadinessPanel({
       label: "Cast context",
       status: form.studio && form.distributor ? "complete" : "partial",
     },
-    ...readiness.checklist.filter((c) =>
-      ["Visual diversity"].includes(c.label),
-    ),
+    ...readiness.checklist.filter((c) => ["Visual diversity"].includes(c.label)),
   ];
 
   const statusIcon = (status: string) => {
@@ -432,7 +414,9 @@ export function ProtectionReadinessPanel({
         </div>
       )}
 
-      <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">{MONITORING_DISCLAIMER}</p>
+      <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
+        {MONITORING_DISCLAIMER}
+      </p>
     </div>
   );
 }
@@ -454,9 +438,7 @@ export function ReleaseProtectionCenterForm({
 }) {
   const countries = parseCsv(form.release_countries);
   const languages = parseCsv(form.languages);
-  const monitoringWindow = form.release_date
-    ? computeMonitoringWindow(form.release_date)
-    : null;
+  const monitoringWindow = form.release_date ? computeMonitoringWindow(form.release_date) : null;
 
   return (
     <div className="space-y-5">
@@ -696,7 +678,8 @@ export function ReleaseProtectionCenterForm({
                   />
                 </div>
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  Display preference only — scans use configured public discovery channels. {MONITORING_DISCLAIMER}
+                  Display preference only — scans use configured public discovery channels.{" "}
+                  {MONITORING_DISCLAIMER}
                 </p>
               </div>
             </div>

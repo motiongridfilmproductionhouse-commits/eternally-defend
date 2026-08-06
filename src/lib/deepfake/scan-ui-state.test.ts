@@ -46,15 +46,30 @@ test("in-flight scan auto-selects its own running row, never an older scan", () 
     { id: "other", status: "running", target_name: "Someone Else" },
   ];
   assert.equal(
-    pickLiveScanId({ scans, targetName: " ada lovelace ", selectedScanId: null, requestPending: true }),
+    pickLiveScanId({
+      scans,
+      targetName: " ada lovelace ",
+      selectedScanId: null,
+      requestPending: true,
+    }),
     "new",
   );
   assert.equal(
-    pickLiveScanId({ scans, targetName: "Ada Lovelace", selectedScanId: "old", requestPending: true }),
+    pickLiveScanId({
+      scans,
+      targetName: "Ada Lovelace",
+      selectedScanId: "old",
+      requestPending: true,
+    }),
     null,
   );
   assert.equal(
-    pickLiveScanId({ scans, targetName: "Ada Lovelace", selectedScanId: null, requestPending: false }),
+    pickLiveScanId({
+      scans,
+      targetName: "Ada Lovelace",
+      selectedScanId: null,
+      requestPending: false,
+    }),
     null,
   );
 });
@@ -75,12 +90,35 @@ test("stall warning fires only after 15s without progress while running", () => 
 });
 
 test("progress signature changes when metrics or findings change", () => {
-  const a = scanProgressSignature({ status: "running", metrics: { verified: 1 }, findingCount: 0, discoveryCount: 3 });
-  const b = scanProgressSignature({ status: "running", metrics: { verified: 2 }, findingCount: 0, discoveryCount: 3 });
-  const c = scanProgressSignature({ status: "running", metrics: { verified: 2 }, findingCount: 1, discoveryCount: 3 });
+  const a = scanProgressSignature({
+    status: "running",
+    metrics: { verified: 1 },
+    findingCount: 0,
+    discoveryCount: 3,
+  });
+  const b = scanProgressSignature({
+    status: "running",
+    metrics: { verified: 2 },
+    findingCount: 0,
+    discoveryCount: 3,
+  });
+  const c = scanProgressSignature({
+    status: "running",
+    metrics: { verified: 2 },
+    findingCount: 1,
+    discoveryCount: 3,
+  });
   assert.notEqual(a, b);
   assert.notEqual(b, c);
-  assert.equal(a, scanProgressSignature({ status: "running", metrics: { verified: 1 }, findingCount: 0, discoveryCount: 3 }));
+  assert.equal(
+    a,
+    scanProgressSignature({
+      status: "running",
+      metrics: { verified: 1 },
+      findingCount: 0,
+      discoveryCount: 3,
+    }),
+  );
 });
 
 test("scan history hides failed scans and keeps partial/completed/running", () => {

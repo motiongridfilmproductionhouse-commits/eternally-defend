@@ -1,10 +1,5 @@
 export type ReleaseTiming =
-  | "same_day"
-  | "next_day"
-  | "first_week"
-  | "first_month"
-  | "later"
-  | "unknown";
+  "same_day" | "next_day" | "first_week" | "first_month" | "later" | "unknown";
 
 /** Release timing bucket from the number of days between release and now. */
 export function releaseTimingFor(releaseDate: string | null | undefined): {

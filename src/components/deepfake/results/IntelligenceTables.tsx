@@ -66,9 +66,7 @@ export function TopVerifiedDomainsTable({
                       type="button"
                       className="text-cyan-300 hover:underline"
                       onClick={() =>
-                        onSelectDomain(
-                          selectedDomain === row.domain ? null : row.domain,
-                        )
+                        onSelectDomain(selectedDomain === row.domain ? null : row.domain)
                       }
                     >
                       {row.domain}
@@ -91,19 +89,13 @@ export function TopVerifiedDomainsTable({
             key={row.domain}
             data-domain-row={row.domain}
             className={`rounded-lg border bg-black/20 p-3 ${
-              selectedDomain === row.domain
-                ? "border-cyan-400/40"
-                : "border-white/10"
+              selectedDomain === row.domain ? "border-cyan-400/40" : "border-white/10"
             }`}
           >
             <button
               type="button"
               className="text-sm font-medium text-cyan-300"
-              onClick={() =>
-                onSelectDomain(
-                  selectedDomain === row.domain ? null : row.domain,
-                )
-              }
+              onClick={() => onSelectDomain(selectedDomain === row.domain ? null : row.domain)}
             >
               {row.domain}
             </button>
@@ -133,10 +125,7 @@ export function VerifiedFindingsTable({
   onSort: (key: FindingsSortKey) => void;
   onSelectFinding: (id: string) => void;
 }) {
-  const header = (
-    key: FindingsSortKey,
-    label: string,
-  ) => (
+  const header = (key: FindingsSortKey, label: string) => (
     <th className="py-2 pr-3 font-medium">
       <button
         type="button"
@@ -204,9 +193,7 @@ export function VerifiedFindingsTable({
                         finding,
                       })}
                     </td>
-                    <td className="py-2.5 pr-3">
-                      {formatDash(finding.http_status)}
-                    </td>
+                    <td className="py-2.5 pr-3">{formatDash(finding.http_status)}</td>
                     <td className="py-2.5">
                       {evidence.kind === "link" ? (
                         <a
@@ -234,10 +221,7 @@ export function VerifiedFindingsTable({
         {findings.map((finding) => {
           const evidence = evidenceLinkProps(finding);
           return (
-            <li
-              key={finding.id}
-              className="rounded-lg border border-white/10 bg-black/20 p-3"
-            >
+            <li key={finding.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
               <button
                 type="button"
                 className="text-left text-sm font-medium text-white"
@@ -260,9 +244,7 @@ export function VerifiedFindingsTable({
                   <ExternalLink className="size-3" /> Open verified evidence page
                 </a>
               ) : (
-                <p className="mt-2 text-[11px] text-slate-500">
-                  Evidence URL unavailable.
-                </p>
+                <p className="mt-2 text-[11px] text-slate-500">Evidence URL unavailable.</p>
               )}
             </li>
           );
@@ -286,9 +268,7 @@ export function ResultsFilterBar({
   search: string;
   onSearchChange: (value: string) => void;
   classificationFilter: "ALL" | "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE";
-  onClassificationChange: (
-    value: "ALL" | "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE",
-  ) => void;
+  onClassificationChange: (value: "ALL" | "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE") => void;
   domainFilter: string | null;
   domains: string[];
   onDomainChange: (value: string | null) => void;
@@ -334,9 +314,7 @@ export function ResultsFilterBar({
       </select>
       <select
         value={riskFilter}
-        onChange={(event) =>
-          onRiskChange(event.target.value as "ALL" | RiskLevel)
-        }
+        onChange={(event) => onRiskChange(event.target.value as "ALL" | RiskLevel)}
         aria-label="Risk filter"
         className="h-9 rounded-md border border-white/10 bg-black/30 px-2 text-[12px] text-slate-100"
       >

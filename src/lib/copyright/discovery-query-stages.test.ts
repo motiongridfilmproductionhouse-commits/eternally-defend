@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  buildStagedDiscoveryQueries,
-  flattenStagedQueries,
-} from "./discovery-query-stages";
+import { buildStagedDiscoveryQueries, flattenStagedQueries } from "./discovery-query-stages";
 import { hasBroadDiscoveryCoverage, buildCoverageStateFromPageKeys } from "./discovery-saturation";
 import { TARGET_DISCOVERY_CANDIDATES } from "./discovery-config";
 import type { ReferenceAnalysis } from "./discover.server";

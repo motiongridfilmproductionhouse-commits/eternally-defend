@@ -38,7 +38,9 @@ export interface GeneratedCopyrightReport {
 }
 
 function hashOf(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
+  return createHash("sha256")
+    .update(JSON.stringify(value ?? null))
+    .digest("hex");
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -52,7 +54,8 @@ function screenshotKeyFor(match: ReportMatchRow): string | null {
   const dist = rec(ev.distribution);
   const candidates = [dist.evidence_screenshot, ev.evidence_screenshot, ev.reference_key];
   for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate && !candidate.startsWith("http")) return candidate;
+    if (typeof candidate === "string" && candidate && !candidate.startsWith("http"))
+      return candidate;
   }
   return null;
 }
@@ -214,7 +217,11 @@ export async function attachReportToScanStats(
   scanId: string,
   report: GeneratedCopyrightReport,
 ): Promise<void> {
-  const { data } = await supabase.from("copyright_scans").select("stats").eq("id", scanId).maybeSingle();
+  const { data } = await supabase
+    .from("copyright_scans")
+    .select("stats")
+    .eq("id", scanId)
+    .maybeSingle();
   const stats = rec(rec(data).stats);
   await supabase
     .from("copyright_scans")

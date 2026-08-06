@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Film,
-  Globe,
-  Image as ImageIcon,
-  Loader2,
-  Play,
-  Radar,
-  Search,
-} from "lucide-react";
+import { Film, Globe, Image as ImageIcon, Loader2, Play, Radar, Search } from "lucide-react";
 import {
   parseWebsiteActivity,
   providerDisplayLabel,
@@ -93,9 +85,7 @@ function channelStatusTone(status: SourceActivityStatus | string): string {
 }
 
 function materialTypeLabel(type: string): string {
-  return type
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function materialToCard(m: ReferenceMaterial): ReelCard | null {
@@ -338,10 +328,7 @@ export function ReferenceMaterialReel({
 
   const materials = useMemo(() => parseReferenceMaterials(stats), [stats]);
   const channels = useMemo(() => parseSourceActivity(stats), [stats]);
-  const websites = useMemo(
-    () => parseWebsiteActivity(stats).slice(0, 8),
-    [stats],
-  );
+  const websites = useMemo(() => parseWebsiteActivity(stats).slice(0, 8), [stats]);
 
   const baseCards = useMemo(
     () =>

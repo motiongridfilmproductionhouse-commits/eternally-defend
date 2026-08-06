@@ -22,11 +22,21 @@ export const Route = createFileRoute("/privacy")({
   component: PrivacyPage,
 });
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="scroll-mt-24">
       <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
-      <div className="mt-4 space-y-4 text-[15px] leading-relaxed text-muted-foreground">{children}</div>
+      <div className="mt-4 space-y-4 text-[15px] leading-relaxed text-muted-foreground">
+        {children}
+      </div>
     </section>
   );
 }
@@ -62,8 +72,8 @@ function PrivacyPage() {
               Eterna AI provides digital protection, reputation monitoring, threat intelligence,
               copyright monitoring, impersonation detection, deepfake detection, evidence
               collection, and enforcement support services to individuals, brands, and
-              organizations. Our platform helps authorized users identify, document, and respond
-              to online risks that may harm their reputation, intellectual property, identity, or
+              organizations. Our platform helps authorized users identify, document, and respond to
+              online risks that may harm their reputation, intellectual property, identity, or
               digital safety.
             </p>
             <p>
@@ -89,14 +99,13 @@ function PrivacyPage() {
               </li>
               <li>
                 <strong className="text-foreground">Protected assets submitted by users</strong> —
-                names, handles, brand identifiers, URLs, images, videos, documents, and other
-                assets that users designate for monitoring.
+                names, handles, brand identifiers, URLs, images, videos, documents, and other assets
+                that users designate for monitoring.
               </li>
               <li>
                 <strong className="text-foreground">Publicly available online content</strong> —
                 metadata and content retrieved from public websites, search engines, social
-                platforms, news sources, forums, archives, and publicly available YouTube
-                content.
+                platforms, news sources, forums, archives, and publicly available YouTube content.
               </li>
               <li>
                 <strong className="text-foreground">Usage and analytics data</strong> — feature
@@ -104,8 +113,8 @@ function PrivacyPage() {
               </li>
               <li>
                 <strong className="text-foreground">Device and browser information</strong> — IP
-                address, browser type, operating system, device identifiers, language, and
-                referral URLs.
+                address, browser type, operating system, device identifiers, language, and referral
+                URLs.
               </li>
             </ul>
           </Section>
@@ -125,15 +134,15 @@ function PrivacyPage() {
 
           <Section id="public-content" title="4. Public Content Monitoring">
             <p>
-              Eterna AI may analyze publicly available content from websites, search engines,
-              social media platforms, news sites, forums, public archives, and publicly available
-              YouTube content for authorized monitoring purposes. We do not access private
-              accounts, private messages, or content protected by authentication controls without
-              explicit authorization from the account holder.
+              Eterna AI may analyze publicly available content from websites, search engines, social
+              media platforms, news sites, forums, public archives, and publicly available YouTube
+              content for authorized monitoring purposes. We do not access private accounts, private
+              messages, or content protected by authentication controls without explicit
+              authorization from the account holder.
             </p>
             <p>
-              All monitoring activity is performed on behalf of authorized users for lawful
-              purposes such as protecting their reputation, intellectual property, or identity.
+              All monitoring activity is performed on behalf of authorized users for lawful purposes
+              such as protecting their reputation, intellectual property, or identity.
             </p>
           </Section>
 
@@ -143,8 +152,8 @@ function PrivacyPage() {
               and content information for monitoring and reporting purposes.
             </p>
             <p>
-              By using features that interact with YouTube services, users acknowledge and agree
-              to be bound by the{" "}
+              By using features that interact with YouTube services, users acknowledge and agree to
+              be bound by the{" "}
               <a
                 href="https://www.youtube.com/t/terms"
                 target="_blank"
@@ -186,10 +195,9 @@ function PrivacyPage() {
             <p>
               Evidence, reports, scan history, and monitoring data are retained securely for the
               duration necessary to provide the Services, comply with legal obligations, resolve
-              disputes, and enforce agreements. Retention periods vary by data type and are
-              designed to preserve forensic integrity for evidentiary and enforcement purposes.
-              Users may request deletion of their data subject to legal and operational
-              obligations.
+              disputes, and enforce agreements. Retention periods vary by data type and are designed
+              to preserve forensic integrity for evidentiary and enforcement purposes. Users may
+              request deletion of their data subject to legal and operational obligations.
             </p>
           </Section>
 
@@ -206,19 +214,19 @@ function PrivacyPage() {
               </li>
               <li>When explicitly requested or authorized by the user.</li>
               <li>
-                In connection with a merger, acquisition, or asset transfer, subject to
-                equivalent privacy protections.
+                In connection with a merger, acquisition, or asset transfer, subject to equivalent
+                privacy protections.
               </li>
             </ul>
           </Section>
 
           <Section id="security" title="8. Security">
             <p>
-              We implement industry-standard safeguards to protect information, including
-              encryption in transit and at rest, role-based access controls, audit logging,
-              secure cloud storage, isolated production environments, and periodic security
-              reviews. Despite these measures, no method of electronic storage or transmission is
-              completely secure, and we cannot guarantee absolute security.
+              We implement industry-standard safeguards to protect information, including encryption
+              in transit and at rest, role-based access controls, audit logging, secure cloud
+              storage, isolated production environments, and periodic security reviews. Despite
+              these measures, no method of electronic storage or transmission is completely secure,
+              and we cannot guarantee absolute security.
             </p>
           </Section>
 
@@ -246,18 +254,17 @@ function PrivacyPage() {
           <Section id="international" title="10. International Data Transfers">
             <p>
               Eterna AI operates globally, and information may be processed and stored in
-              jurisdictions other than the user's country of residence. Where required, we rely
-              on appropriate safeguards such as standard contractual clauses to protect
-              cross-border transfers.
+              jurisdictions other than the user's country of residence. Where required, we rely on
+              appropriate safeguards such as standard contractual clauses to protect cross-border
+              transfers.
             </p>
           </Section>
 
           <Section id="cookies" title="11. Cookies and Analytics">
             <p>
               We use cookies, similar technologies, and analytics tools to authenticate sessions,
-              remember preferences, measure engagement, and improve the Services. Users may
-              control cookies through their browser settings; disabling cookies may limit
-              functionality.
+              remember preferences, measure engagement, and improve the Services. Users may control
+              cookies through their browser settings; disabling cookies may limit functionality.
             </p>
           </Section>
 
@@ -271,16 +278,16 @@ function PrivacyPage() {
               <li>Communication providers (email, notifications, support).</li>
             </ul>
             <p>
-              Each third party operates under its own privacy policy, which governs its
-              collection and use of information.
+              Each third party operates under its own privacy policy, which governs its collection
+              and use of information.
             </p>
           </Section>
 
           <Section id="children" title="13. Children's Privacy">
             <p>
               The Services are not intended for children under the age of 13, and we do not
-              knowingly collect personal information from children under 13. If we become aware
-              that such data has been collected, we will delete it promptly.
+              knowingly collect personal information from children under 13. If we become aware that
+              such data has been collected, we will delete it promptly.
             </p>
           </Section>
 
@@ -288,8 +295,8 @@ function PrivacyPage() {
             <p>
               We may update this Privacy Policy from time to time to reflect changes in our
               practices, technologies, legal requirements, or Services. Material changes will be
-              communicated through the platform or by email, and the "Last updated" date at the
-              top of this page will be revised accordingly.
+              communicated through the platform or by email, and the "Last updated" date at the top
+              of this page will be revised accordingly.
             </p>
           </Section>
 

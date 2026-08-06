@@ -20,10 +20,15 @@ export function PendingSetupCard() {
 
   const status = data?.status;
   const isDeferred = status === "DEFERRED";
-  const isMissing = status === "NOT_STARTED" || status === "CONSENT_REQUIRED" || status === "CAMERA_PERMISSION_REQUIRED" || status === "LIVENESS_FAILED";
+  const isMissing =
+    status === "NOT_STARTED" ||
+    status === "CONSENT_REQUIRED" ||
+    status === "CAMERA_PERMISSION_REQUIRED" ||
+    status === "LIVENESS_FAILED";
 
   // Completely suppress for demo account — clean dashboard for presentation.
-  const isDemoUser = DEMO_MODE && DEMO_USER_EMAIL && session?.user?.email?.toLowerCase() === DEMO_USER_EMAIL;
+  const isDemoUser =
+    DEMO_MODE && DEMO_USER_EMAIL && session?.user?.email?.toLowerCase() === DEMO_USER_EMAIL;
   if (isDemoUser) return null;
 
   if (!isDeferred && !isMissing) return null;
@@ -34,9 +39,13 @@ export function PendingSetupCard() {
         <Info className="size-4 text-blue-500" />
       </div>
       <div className="flex-1 min-w-0">
-        <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">Face Protection enrollment pending</span>
+        <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+          Face Protection enrollment pending
+        </span>
         <span className="text-xs text-blue-600/70 dark:text-blue-400/70 ml-2">
-          {isDeferred ? "Deferred — finish when ready." : "Not completed — deepfake detection is inactive."}
+          {isDeferred
+            ? "Deferred — finish when ready."
+            : "Not completed — deepfake detection is inactive."}
         </span>
       </div>
       <button

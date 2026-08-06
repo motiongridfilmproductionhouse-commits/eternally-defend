@@ -61,7 +61,9 @@ export function enrichLinksFromHtml(html: string, baseUrl: string): string[] {
   for (const m of html.matchAll(/<iframe[^>]+src=["']([^"']+)["']/gi)) {
     pushUrl(out, m[1], baseUrl);
   }
-  for (const m of html.matchAll(/<(?:video|source|embed)[^>]+(?:src|data-src)=["']([^"']+)["']/gi)) {
+  for (const m of html.matchAll(
+    /<(?:video|source|embed)[^>]+(?:src|data-src)=["']([^"']+)["']/gi,
+  )) {
     pushUrl(out, m[1], baseUrl);
   }
   for (const m of html.matchAll(/\bdata-(?:src|lazy-src|video-src)=["']([^"']+)["']/gi)) {

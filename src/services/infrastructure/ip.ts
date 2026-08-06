@@ -7,9 +7,7 @@ export async function lookupIP(ip: string): Promise<IpResult> {
     throw new Error("Missing IPINFO_TOKEN environment variable");
   }
 
-  const response = await fetch(
-    `https://ipinfo.io/${ip}?token=${TOKEN}`
-  );
+  const response = await fetch(`https://ipinfo.io/${ip}?token=${TOKEN}`);
 
   if (!response.ok) {
     throw new Error(`IPInfo request failed (${response.status})`);

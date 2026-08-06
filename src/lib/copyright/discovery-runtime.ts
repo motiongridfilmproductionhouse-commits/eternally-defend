@@ -19,10 +19,7 @@ export const FIRECRAWL_BATCH_DELAY_JITTER_MS = 800;
  */
 export const DISCOVERY_EARLY_STOP_UNIQUE_PAGES = Number.MAX_SAFE_INTEGER;
 
-export type CircuitTripCategory =
-  | "rate_limited"
-  | "provider_unavailable"
-  | "insufficient_credits";
+export type CircuitTripCategory = "rate_limited" | "provider_unavailable" | "insufficient_credits";
 
 export interface DiscoveryCircuitState {
   consecutiveTripFailures: number;
@@ -52,9 +49,7 @@ export function isCircuitTripCategory(
   );
 }
 
-export function circuitOperatorAction(
-  category: CircuitTripCategory | null,
-): string {
+export function circuitOperatorAction(category: CircuitTripCategory | null): string {
   if (category === "rate_limited") {
     return "Firecrawl rate limit tripped — wait and retry the scan, or rely on SerpApi fallback / known URLs.";
   }
@@ -233,7 +228,7 @@ export async function runBatchedDiscovery<TPlan, TAttempt extends ProviderSearch
 
   const earlyStopAt = options.earlyStopUniquePages ?? DISCOVERY_EARLY_STOP_UNIQUE_PAGES;
 
-  for (let offset = 0; offset < options.plans.length; ) {
+  for (let offset = 0; offset < options.plans.length;) {
     if (options.signal?.aborted) {
       throw options.signal.reason ?? new DOMException("Aborted", "AbortError");
     }

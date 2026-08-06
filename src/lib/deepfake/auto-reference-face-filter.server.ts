@@ -5,10 +5,7 @@
 
 import { compareAgainstReferences } from "./face-match.server";
 import { downloadFaceImage } from "./face-match.server";
-import {
-  assertNotAborted,
-  isAbortError,
-} from "./scan-runtime.server";
+import { assertNotAborted, isAbortError } from "./scan-runtime.server";
 import type { CollectedReferenceImage } from "./reference-images";
 import type { FaceFilterCandidate, FaceVerifiedCandidate } from "./face-filter.server";
 
@@ -75,10 +72,7 @@ export async function filterCandidatesByAutoReferences(input: {
 }> {
   assertNotAborted(input.signal);
 
-  const referenceBytes = await loadAutoReferenceBytes(
-    input.referenceImages,
-    input.signal,
-  );
+  const referenceBytes = await loadAutoReferenceBytes(input.referenceImages, input.signal);
 
   if (referenceBytes.length < 1) {
     return { matched: [], rejected: [], errors: [], comparisons: 0 };

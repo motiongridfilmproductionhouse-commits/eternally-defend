@@ -3,12 +3,7 @@
  * No scan pipeline / API / persistence logic lives here.
  */
 
-export type IdentityScanVizStatus =
-  | "idle"
-  | "running"
-  | "partial"
-  | "completed"
-  | "failed";
+export type IdentityScanVizStatus = "idle" | "running" | "partial" | "completed" | "failed";
 
 export type IdentityScanVizMode = IdentityScanVizStatus | "empty";
 
@@ -152,9 +147,7 @@ export function identityModelReadyCopy(enrolledCount: number): {
   const count = Math.max(0, Math.floor(enrolledCount));
   return {
     enrollmentLine:
-      count === 1
-        ? "1 reference photo enrolled"
-        : `${count} reference photos enrolled`,
+      count === 1 ? "1 reference photo enrolled" : `${count} reference photos enrolled`,
     modelLine: count >= 3 ? "Identity model ready." : null,
   };
 }
@@ -167,10 +160,7 @@ export function identityScanProgressMetrics(input: {
   threatsSaved?: number | null;
 }): Array<{ key: string; label: string; value: number }> {
   const out: Array<{ key: string; label: string; value: number }> = [];
-  if (
-    typeof input.executedQueries === "number" &&
-    Number.isFinite(input.executedQueries)
-  ) {
+  if (typeof input.executedQueries === "number" && Number.isFinite(input.executedQueries)) {
     out.push({
       key: "queries",
       label:
@@ -182,20 +172,14 @@ export function identityScanProgressMetrics(input: {
       value: input.executedQueries,
     });
   }
-  if (
-    typeof input.pagesVerified === "number" &&
-    Number.isFinite(input.pagesVerified)
-  ) {
+  if (typeof input.pagesVerified === "number" && Number.isFinite(input.pagesVerified)) {
     out.push({
       key: "pages",
       label: `${input.pagesVerified} pages verified`,
       value: input.pagesVerified,
     });
   }
-  if (
-    typeof input.threatsSaved === "number" &&
-    Number.isFinite(input.threatsSaved)
-  ) {
+  if (typeof input.threatsSaved === "number" && Number.isFinite(input.threatsSaved)) {
     out.push({
       key: "threats",
       label: `${input.threatsSaved} threats saved`,
@@ -237,11 +221,13 @@ export function pickPrimaryReferenceFace<T extends { created_at?: string | null 
   faces: T[] | null | undefined,
 ): T | null {
   if (!faces?.length) return null;
-  return [...faces].sort((a, b) => {
-    const aAt = a.created_at ? Date.parse(a.created_at) : 0;
-    const bAt = b.created_at ? Date.parse(b.created_at) : 0;
-    return aAt - bAt;
-  })[0] ?? null;
+  return (
+    [...faces].sort((a, b) => {
+      const aAt = a.created_at ? Date.parse(a.created_at) : 0;
+      const bAt = b.created_at ? Date.parse(b.created_at) : 0;
+      return aAt - bAt;
+    })[0] ?? null
+  );
 }
 
 /** True when a history scan row should drive this profile's visualization. */

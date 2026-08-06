@@ -11,12 +11,7 @@ import {
 import { dispatchGoogleImagesWorker } from "./google-images-worker-dispatch.server";
 
 export type GoogleImagesJobStatus =
-  | "queued"
-  | "running"
-  | "partial"
-  | "completed"
-  | "failed"
-  | "retryable";
+  "queued" | "running" | "partial" | "completed" | "failed" | "retryable";
 
 export type GoogleImagesJobRow = {
   id: string;
@@ -185,10 +180,7 @@ export async function releaseGoogleImagesJobLease(input: {
   }
 }
 
-export async function countGoogleImagesJobs(input: {
-  supabase: any;
-  scanId: string;
-}): Promise<{
+export async function countGoogleImagesJobs(input: { supabase: any; scanId: string }): Promise<{
   total: number;
   queued: number;
   running: number;
@@ -217,7 +209,11 @@ export async function countGoogleImagesJobs(input: {
 }
 
 export function aggregateGoogleImagesDiagnostics(
-  jobs: Array<{ metrics?: Record<string, unknown>; diagnostics?: Record<string, unknown>; status?: string }>,
+  jobs: Array<{
+    metrics?: Record<string, unknown>;
+    diagnostics?: Record<string, unknown>;
+    status?: string;
+  }>,
   queriesPlanned: number,
 ): GoogleImagesInvestigationDiagnostics {
   const base = emptyGoogleImagesDiagnostics();
@@ -246,8 +242,7 @@ export function aggregateGoogleImagesDiagnostics(
     base.rejected_identities += n("rejected_identities");
     base.viewer_urls_discovered += n("viewer_urls_discovered");
     base.original_source_pages_extracted += n("original_source_pages_extracted");
-    base.source_pages_crawled +=
-      n("source_pages_crawled") || n("candidate_pages_crawled");
+    base.source_pages_crawled += n("source_pages_crawled") || n("candidate_pages_crawled");
     base.images_extracted_from_sources += n("images_extracted_from_sources");
     base.gallery_pages_followed += n("gallery_pages_followed");
 
@@ -257,11 +252,7 @@ export function aggregateGoogleImagesDiagnostics(
     if (diag.playwright_fallback_used === true) {
       base.playwright_fallback_used = true;
     }
-    if (
-      !base.failure_reason &&
-      typeof diag.failure === "string" &&
-      diag.failure.trim()
-    ) {
+    if (!base.failure_reason && typeof diag.failure === "string" && diag.failure.trim()) {
       base.failure_reason = diag.failure;
     }
   }
@@ -332,9 +323,7 @@ export async function syncGoogleImagesScanMetrics(input: {
     google_images_jobs_queued: counts.queued,
     google_images_progress_percent: progressPercent,
     investigation_stage:
-      input.backgroundStatus === "running"
-        ? "searching_google"
-        : existing.investigation_stage,
+      input.backgroundStatus === "running" ? "searching_google" : existing.investigation_stage,
     ...(input.extraMetrics ?? {}),
   };
 
@@ -375,9 +364,7 @@ export async function queueAndDispatchGoogleImagesInvestigation(input: {
   if (result.queued > 0) {
     const dispatch = await dispatchGoogleImagesWorker({ scanId: input.scanId });
     if (!dispatch.dispatched) {
-      const { executeGoogleImagesWorkerBatch } = await import(
-        "./google-images-worker.server"
-      );
+      const { executeGoogleImagesWorkerBatch } = await import("./google-images-worker.server");
       void executeGoogleImagesWorkerBatch({
         supabase: input.supabase,
         scanId: input.scanId,

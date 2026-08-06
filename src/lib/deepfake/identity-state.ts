@@ -4,7 +4,10 @@ export type IdentityStateSource = {
 };
 
 export function normalizeIdentityName(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 }
 
 export function resolveActiveIdentityName(input: {

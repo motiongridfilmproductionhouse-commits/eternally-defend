@@ -92,15 +92,9 @@ export function isUsableIdentityPhrase(phrase: string): boolean {
  * Generic single-token aliases/handles are dropped.
  */
 export function getIdentityPhrases(target: IdentityTarget): string[] {
-  const raw = [
-    target.name,
-    ...(target.aliases ?? []),
-    ...(target.handles ?? []),
-  ];
+  const raw = [target.name, ...(target.aliases ?? []), ...(target.handles ?? [])];
 
-  const phrases = raw
-    .map(normalizeIdentityText)
-    .filter(isUsableIdentityPhrase);
+  const phrases = raw.map(normalizeIdentityText).filter(isUsableIdentityPhrase);
 
   return Array.from(new Set(phrases));
 }
@@ -109,10 +103,7 @@ export function getIdentityPhrases(target: IdentityTarget): string[] {
  * True when text contains a usable full identity phrase for the selected target.
  * Partial token hits (only "honey" or only "rose" for "Honey Rose") return false.
  */
-export function matchesSelectedIdentity(
-  text: string,
-  target: IdentityTarget,
-): boolean {
+export function matchesSelectedIdentity(text: string, target: IdentityTarget): boolean {
   const normalized = normalizeIdentityText(text);
   if (!normalized) return false;
 
@@ -129,10 +120,7 @@ export function matchesSelectedIdentity(
  * True when text contains only a generic token from the target name and not
  * the full selected identity (e.g. "wild honey recipe" for target Honey Rose).
  */
-export function isGenericTokenOnlyMention(
-  text: string,
-  target: IdentityTarget,
-): boolean {
+export function isGenericTokenOnlyMention(text: string, target: IdentityTarget): boolean {
   if (matchesSelectedIdentity(text, target)) return false;
 
   const normalized = normalizeIdentityText(text);

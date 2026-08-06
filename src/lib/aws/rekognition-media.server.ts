@@ -20,19 +20,29 @@ function usable(bytes: Uint8Array): boolean {
   return bytes.length > 1024 && bytes.length <= MAX_BYTES;
 }
 
-export interface RekLabel { name: string; confidence: number; categories: string[] }
+export interface RekLabel {
+  name: string;
+  confidence: number;
+  categories: string[];
+}
 
 export async function detectLabels(bytes: Uint8Array, maxLabels = 30): Promise<RekLabel[]> {
   if (!usable(bytes)) return [];
   try {
-    const out = await getRekognition().send(new DetectLabelsCommand({
-      Image: { Bytes: bytes }, MaxLabels: maxLabels, MinConfidence: 60,
-    }));
-    return (out.Labels ?? []).map((l) => ({
-      name: l.Name ?? "",
-      confidence: Math.round(l.Confidence ?? 0),
-      categories: (l.Categories ?? []).map((c) => c.Name ?? "").filter(Boolean),
-    })).filter((l) => l.name);
+    const out = await getRekognition().send(
+      new DetectLabelsCommand({
+        Image: { Bytes: bytes },
+        MaxLabels: maxLabels,
+        MinConfidence: 60,
+      }),
+    );
+    return (out.Labels ?? [])
+      .map((l) => ({
+        name: l.Name ?? "",
+        confidence: Math.round(l.Confidence ?? 0),
+        categories: (l.Categories ?? []).map((c) => c.Name ?? "").filter(Boolean),
+      }))
+      .filter((l) => l.name);
   } catch (e) {
     console.warn("[rek-media] detectLabels", (e as Error).name);
     return [];
@@ -54,17 +64,27 @@ export async function detectText(bytes: Uint8Array): Promise<string[]> {
   }
 }
 
-export interface RekCelebrity { name: string; confidence: number; urls: string[] }
+export interface RekCelebrity {
+  name: string;
+  confidence: number;
+  urls: string[];
+}
 
-export async function recognizeCelebrities(bytes: Uint8Array): Promise<{ celebrities: RekCelebrity[]; faces: number }> {
+export async function recognizeCelebrities(
+  bytes: Uint8Array,
+): Promise<{ celebrities: RekCelebrity[]; faces: number }> {
   if (!usable(bytes)) return { celebrities: [], faces: 0 };
   try {
-    const out = await getRekognition().send(new RecognizeCelebritiesCommand({ Image: { Bytes: bytes } }));
-    const celebrities = (out.CelebrityFaces ?? []).map((c) => ({
-      name: c.Name ?? "",
-      confidence: Math.round(c.MatchConfidence ?? 0),
-      urls: (c.Urls ?? []).slice(0, 3),
-    })).filter((c) => c.name);
+    const out = await getRekognition().send(
+      new RecognizeCelebritiesCommand({ Image: { Bytes: bytes } }),
+    );
+    const celebrities = (out.CelebrityFaces ?? [])
+      .map((c) => ({
+        name: c.Name ?? "",
+        confidence: Math.round(c.MatchConfidence ?? 0),
+        urls: (c.Urls ?? []).slice(0, 3),
+      }))
+      .filter((c) => c.name);
     const faces = (out.CelebrityFaces?.length ?? 0) + (out.UnrecognizedFaces?.length ?? 0);
     return { celebrities, faces };
   } catch (e) {
@@ -81,12 +101,14 @@ export async function compareFaceSimilarity(
 ): Promise<number> {
   if (!usable(referenceBytes) || !usable(candidateBytes)) return 0;
   try {
-    const out = await getRekognition().send(new CompareFacesCommand({
-      SourceImage: { Bytes: referenceBytes },
-      TargetImage: { Bytes: candidateBytes },
-      SimilarityThreshold: threshold,
-      QualityFilter: "AUTO",
-    }));
+    const out = await getRekognition().send(
+      new CompareFacesCommand({
+        SourceImage: { Bytes: referenceBytes },
+        TargetImage: { Bytes: candidateBytes },
+        SimilarityThreshold: threshold,
+        QualityFilter: "AUTO",
+      }),
+    );
     return Math.round(Math.max(0, ...(out.FaceMatches ?? []).map((m) => m.Similarity ?? 0)));
   } catch (e) {
     const name = (e as Error).name;
@@ -98,10 +120,16 @@ export async function compareFaceSimilarity(
 export async function detectModeration(bytes: Uint8Array): Promise<string[]> {
   if (!usable(bytes)) return [];
   try {
-    const out = await getRekognition().send(new DetectModerationLabelsCommand({
-      Image: { Bytes: bytes }, MinConfidence: 70,
-    }));
-    return (out.ModerationLabels ?? []).map((l) => l.Name ?? "").filter(Boolean).slice(0, 10);
+    const out = await getRekognition().send(
+      new DetectModerationLabelsCommand({
+        Image: { Bytes: bytes },
+        MinConfidence: 70,
+      }),
+    );
+    return (out.ModerationLabels ?? [])
+      .map((l) => l.Name ?? "")
+      .filter(Boolean)
+      .slice(0, 10);
   } catch {
     return [];
   }

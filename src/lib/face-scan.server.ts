@@ -19,7 +19,10 @@ export async function analyzeHitForFaces(opts: {
 }): Promise<{ ok: boolean; matches?: number; reason?: string }> {
   try {
     const { data: col } = await opts.supabase
-      .from("rekognition_collections").select("collection_id").eq("user_id", opts.userId).maybeSingle();
+      .from("rekognition_collections")
+      .select("collection_id")
+      .eq("user_id", opts.userId)
+      .maybeSingle();
     if (!col?.collection_id) return { ok: false, reason: "no_collection" };
 
     const { fetchImageBytes, putObject, getBucket } = await import("./aws/s3.server");
@@ -29,18 +32,28 @@ export async function analyzeHitForFaces(opts: {
     if (!img) return { ok: false, reason: "fetch_failed" };
 
     const { matches, searchedFaceConfidence, searchedFaceBoundingBox } = await searchFacesByImage({
-      collectionId: col.collection_id, bytes: img.bytes, threshold: 80, maxFaces: 5,
+      collectionId: col.collection_id,
+      bytes: img.bytes,
+      threshold: 80,
+      maxFaces: 5,
     });
     if (matches.length === 0) return { ok: true, matches: 0 };
 
     const now = new Date();
     const key = `clients/${opts.userId}/scan-images/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${crypto.randomUUID()}`;
     const bucket = getBucket();
-    try { await putObject({ key, body: img.bytes, contentType: img.contentType }); } catch { /* ignore */ }
+    try {
+      await putObject({ key, body: img.bytes, contentType: img.contentType });
+    } catch {
+      /* ignore */
+    }
 
     const faceIds = matches.map((m) => m.faceId);
     const { data: prot } = await opts.supabase
-      .from("protected_faces").select("id,face_id,asset_id").in("face_id", faceIds).eq("user_id", opts.userId);
+      .from("protected_faces")
+      .select("id,face_id,asset_id")
+      .in("face_id", faceIds)
+      .eq("user_id", opts.userId);
     const byFace = new Map((prot ?? []).map((p) => [p.face_id, p]));
 
     for (const m of matches) {
@@ -69,7 +82,15 @@ export async function analyzeHitForFaces(opts: {
   }
 }
 
-export function pickScanImageUrl(hit: { thumbnail_url?: string | null; permalink?: string | null; canonical_url?: string | null; source?: string | null }): { url: string; type: "youtube_thumb" | "profile" | "news" | "website" | "screenshot" | "other" } | null {
+export function pickScanImageUrl(hit: {
+  thumbnail_url?: string | null;
+  permalink?: string | null;
+  canonical_url?: string | null;
+  source?: string | null;
+}): {
+  url: string;
+  type: "youtube_thumb" | "profile" | "news" | "website" | "screenshot" | "other";
+} | null {
   const yt = youtubeThumbFromUrl(hit.permalink) ?? youtubeThumbFromUrl(hit.canonical_url);
   if (yt) return { url: yt, type: "youtube_thumb" };
   if (isValidImageUrl(hit.thumbnail_url)) {

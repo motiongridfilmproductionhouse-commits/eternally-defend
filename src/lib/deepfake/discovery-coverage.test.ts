@@ -9,10 +9,7 @@ import {
   discoveredCandidateKey,
   mergeDiscoveredCandidates,
 } from "./discovery-plan.server";
-import {
-  setTestDnsLookupAll,
-  setTestPinnedHttpFetch,
-} from "./url-safety.server";
+import { setTestDnsLookupAll, setTestPinnedHttpFetch } from "./url-safety.server";
 
 type FetchLike = typeof globalThis.fetch;
 
@@ -43,12 +40,17 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function installVerificationFetch(pages: Record<string, {
-  title: string;
-  body: string;
-  links?: string[];
-  redirectTo?: string;
-}>): void {
+function installVerificationFetch(
+  pages: Record<
+    string,
+    {
+      title: string;
+      body: string;
+      links?: string[];
+      redirectTo?: string;
+    }
+  >,
+): void {
   process.env.FIRECRAWL_API_KEY = "fc-test";
   // Reserved .example hosts do not resolve in CI; stub public A records so
   // pre-fetch DNS validation can run while fetch remains mocked.
@@ -56,11 +58,7 @@ function installVerificationFetch(pages: Record<string, {
 
   globalThis.fetch = (async (input, init) => {
     const url =
-      typeof input === "string"
-        ? input
-        : input instanceof URL
-          ? input.toString()
-          : input.url;
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
     if (url.includes("/v2/scrape")) {
       const body = JSON.parse(String(init?.body ?? "{}")) as { url: string };
@@ -119,19 +117,15 @@ test("generated query plan stays in the 40-84 focused query range", () => {
 
   assert.ok(queries.length >= 40);
   assert.ok(queries.length <= 84);
-  assert.ok(queries.every((query) => query.includes('"Maya Kapoor"') || query.includes('"M Kapoor"')));
+  assert.ok(
+    queries.every((query) => query.includes('"Maya Kapoor"') || query.includes('"M Kapoor"')),
+  );
   assert.ok(!queries.some((query) => query.includes("not-used-as-identity")));
 });
 
 test("imported queries preserve priority but cannot exceed max_queries", () => {
-  const importedQueries = Array.from(
-    { length: 12 },
-    (_, index) => `imported ${index}`,
-  );
-  const generatedQueries = Array.from(
-    { length: 60 },
-    (_, index) => `generated ${index}`,
-  );
+  const importedQueries = Array.from({ length: 12 }, (_, index) => `imported ${index}`);
+  const generatedQueries = Array.from({ length: 60 }, (_, index) => `generated ${index}`);
 
   const plan = buildExecutedQueryPlan({
     importedQueries,
@@ -201,10 +195,7 @@ test("web hit plus image hit for one page creates one crawl", () => {
 
   assert.equal(merged.length, 1);
   assert.equal(merged[0]?.url, pageUrl);
-  assert.equal(
-    merged[0]?.image_url,
-    "https://cdn.example/media/maya-kapoor.jpg",
-  );
+  assert.equal(merged[0]?.image_url, "https://cdn.example/media/maya-kapoor.jpg");
 });
 
 test("multiple thumbnails for one page create one crawl", () => {
@@ -250,8 +241,7 @@ test("merged candidate retains media provider and query metadata", () => {
     {
       url: "https://www.abuse.example/post/maya-kapoor-deepfake/",
       title: "Longer Maya Kapoor deepfake copied title",
-      description:
-        "Longer snippet describing Maya Kapoor AI nude face swap content",
+      description: "Longer snippet describing Maya Kapoor AI nude face swap content",
       query: "query two",
       source: "firecrawl_image",
       image_url: "https://cdn.example/media/maya-kapoor.jpg",
@@ -261,22 +251,13 @@ test("merged candidate retains media provider and query metadata", () => {
   ]);
 
   assert.equal(merged.length, 1);
-  assert.equal(
-    merged[0]?.title,
-    "Longer Maya Kapoor deepfake copied title",
-  );
+  assert.equal(merged[0]?.title, "Longer Maya Kapoor deepfake copied title");
   assert.equal(
     merged[0]?.description,
     "Longer snippet describing Maya Kapoor AI nude face swap content",
   );
-  assert.deepEqual(merged[0]?.query_provenance, [
-    "query one",
-    "query two",
-  ]);
-  assert.deepEqual(merged[0]?.source_provenance, [
-    "firecrawl_web",
-    "firecrawl_image",
-  ]);
+  assert.deepEqual(merged[0]?.query_provenance, ["query one", "query two"]);
+  assert.deepEqual(merged[0]?.source_provenance, ["firecrawl_web", "firecrawl_image"]);
   assert.equal(merged[0]?.query, "query one | query two");
   assert.equal(merged[0]?.source, "firecrawl_web | firecrawl_image");
   assert.equal(merged[0]?.is_sensitive, true);
@@ -299,13 +280,10 @@ test("two distinct page URLs remain separate before crawling", () => {
   ]);
 
   assert.equal(merged.length, 2);
-  assert.deepEqual(
-    merged.map((item) => item.url).sort(),
-    [
-      "https://abuse.example/post/maya-kapoor-deepfake-a",
-      "https://abuse.example/post/maya-kapoor-deepfake-b",
-    ],
-  );
+  assert.deepEqual(merged.map((item) => item.url).sort(), [
+    "https://abuse.example/post/maya-kapoor-deepfake-a",
+    "https://abuse.example/post/maya-kapoor-deepfake-b",
+  ]);
 });
 
 test("URL-less media candidates use safe fallback behavior", () => {
@@ -332,15 +310,8 @@ test("URL-less media candidates use safe fallback behavior", () => {
   ]);
 
   assert.equal(merged.length, 1);
-  assert.equal(
-    merged[0]?.url,
-    "https://cdn.example/media/maya-kapoor.jpg?utm_source=x",
-  );
-  assert.deepEqual(merged[0]?.query_provenance, [
-    "first",
-    "second",
-    "third",
-  ]);
+  assert.equal(merged[0]?.url, "https://cdn.example/media/maya-kapoor.jpg?utm_source=x");
+  assert.deepEqual(merged[0]?.query_provenance, ["first", "second", "third"]);
   assert.deepEqual(merged[0]?.thumbnail_url_provenance, [
     "https://cdn.example/thumbs/one.jpg",
     "https://cdn.example/thumbs/two.jpg",
@@ -357,15 +328,17 @@ test("verification retains more than three valid URLs across repeated and distin
     "https://archive.example/item/maya-kapoor-face-swap",
   ];
 
-  installVerificationFetch(Object.fromEntries(
-    urls.map((url, index) => [
-      url,
-      {
-        title: `Maya Kapoor deepfake evidence ${index + 1}`,
-        body: targetBody("Maya Kapoor", String(index + 1)),
-      },
-    ]),
-  ));
+  installVerificationFetch(
+    Object.fromEntries(
+      urls.map((url, index) => [
+        url,
+        {
+          title: `Maya Kapoor deepfake evidence ${index + 1}`,
+          body: targetBody("Maya Kapoor", String(index + 1)),
+        },
+      ]),
+    ),
+  );
 
   try {
     const result = await verifyCandidateUrls(
@@ -394,10 +367,8 @@ test("verification retains more than three valid URLs across repeated and distin
 });
 
 test("identical content on two domains keeps both canonical URLs", async () => {
-  const first =
-    "https://abuse.example/post/maya-kapoor-deepfake-copy";
-  const second =
-    "https://mirror.example/post/maya-kapoor-deepfake-copy";
+  const first = "https://abuse.example/post/maya-kapoor-deepfake-copy";
+  const second = "https://mirror.example/post/maya-kapoor-deepfake-copy";
   const copiedBody = targetBody("Maya Kapoor", "copied-body");
 
   installVerificationFetch({
@@ -434,10 +405,8 @@ test("identical content on two domains keeps both canonical URLs", async () => {
 });
 
 test("identical content on one domain with two canonical URLs keeps both", async () => {
-  const first =
-    "https://abuse.example/post/maya-kapoor-deepfake-copy-a";
-  const second =
-    "https://abuse.example/post/maya-kapoor-deepfake-copy-b";
+  const first = "https://abuse.example/post/maya-kapoor-deepfake-copy-a";
+  const second = "https://abuse.example/post/maya-kapoor-deepfake-copy-b";
   const copiedBody = targetBody("Maya Kapoor", "same-domain-copy");
 
   installVerificationFetch({
@@ -474,10 +443,8 @@ test("identical content on one domain with two canonical URLs keeps both", async
 });
 
 test("redirect aliases to one canonical URL deduplicate", async () => {
-  const canonical =
-    "https://abuse.example/post/maya-kapoor-deepfake-canonical";
-  const alias =
-    "https://short.example/r/maya-kapoor-deepfake";
+  const canonical = "https://abuse.example/post/maya-kapoor-deepfake-canonical";
+  const alias = "https://short.example/r/maya-kapoor-deepfake";
 
   installVerificationFetch({
     [alias]: {
@@ -506,18 +473,14 @@ test("redirect aliases to one canonical URL deduplicate", async () => {
     assert.equal(result.verified.length, 1);
     assert.equal(result.verified[0]?.canonical_url, canonical);
     assert.equal(result.rejected.length, 1);
-    assert.match(
-      result.rejected[0]?.rejection_reason ?? "",
-      /Duplicate canonical URL/,
-    );
+    assert.match(result.rejected[0]?.rejection_reason ?? "", /Duplicate canonical URL/);
   } finally {
     restoreGlobals();
   }
 });
 
 test("exact duplicate canonical URL deduplicates", async () => {
-  const canonical =
-    "https://abuse.example/post/maya-kapoor-deepfake-duplicate";
+  const canonical = "https://abuse.example/post/maya-kapoor-deepfake-duplicate";
 
   installVerificationFetch({
     [canonical]: {
@@ -540,30 +503,24 @@ test("exact duplicate canonical URL deduplicates", async () => {
 
     assert.equal(result.verified.length, 1);
     assert.equal(result.rejected.length, 1);
-    assert.match(
-      result.rejected[0]?.rejection_reason ?? "",
-      /Duplicate canonical URL/,
-    );
+    assert.match(result.rejected[0]?.rejection_reason ?? "", /Duplicate canonical URL/);
   } finally {
     restoreGlobals();
   }
 });
 
 test("one failed provider query does not cancel the batch", async () => {
-  const result = await searchQueriesWithBoundedConcurrency(
-    ["one", "fail", "two"],
-    {
-      concurrency: 2,
-      provider: "test",
-      search: async (query) => {
-        if (query === "fail") {
-          throw new Error("temporary 500");
-        }
+  const result = await searchQueriesWithBoundedConcurrency(["one", "fail", "two"], {
+    concurrency: 2,
+    provider: "test",
+    search: async (query) => {
+      if (query === "fail") {
+        throw new Error("temporary 500");
+      }
 
-        return [{ query }];
-      },
+      return [{ query }];
     },
-  );
+  });
 
   assert.equal(result.queriesExecuted, 3);
   assert.equal(result.failures.length, 1);
@@ -576,35 +533,35 @@ test("YouTube discovery continues through provider pagination", async () => {
 
   globalThis.fetch = (async (input) => {
     const rawUrl =
-      typeof input === "string"
-        ? input
-        : input instanceof URL
-          ? input.toString()
-          : input.url;
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     const url = new URL(rawUrl);
     requestedPageTokens.push(url.searchParams.get("pageToken"));
 
     if (!url.searchParams.get("pageToken")) {
       return jsonResponse({
         nextPageToken: "next-page",
-        items: [{
-          id: { videoId: "first" },
-          snippet: {
-            title: "Maya Kapoor deepfake",
-            description: "AI face swap",
+        items: [
+          {
+            id: { videoId: "first" },
+            snippet: {
+              title: "Maya Kapoor deepfake",
+              description: "AI face swap",
+            },
           },
-        }],
+        ],
       });
     }
 
     return jsonResponse({
-      items: [{
-        id: { videoId: "second" },
-        snippet: {
-          title: "Maya Kapoor AI nude",
-          description: "deepfake discussion",
+      items: [
+        {
+          id: { videoId: "second" },
+          snippet: {
+            title: "Maya Kapoor AI nude",
+            description: "deepfake discussion",
+          },
         },
-      }],
+      ],
     });
   }) as FetchLike;
 

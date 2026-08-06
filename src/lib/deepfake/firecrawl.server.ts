@@ -18,7 +18,6 @@ export interface FirecrawlSearchHit {
   is_sensitive?: boolean;
 }
 
-
 interface FirecrawlWebResult {
   url?: string;
   title?: string;
@@ -76,9 +75,7 @@ export async function searchQueriesWithBoundedConcurrency<T>(
     assertNotAborted(options.signal);
 
     const batch = queries.slice(i, i + concurrency);
-    const results = await Promise.allSettled(
-      batch.map((query) => options.search(query)),
-    );
+    const results = await Promise.allSettled(batch.map((query) => options.search(query)));
 
     for (let index = 0; index < results.length; index++) {
       const query = batch[index] ?? "";
@@ -93,10 +90,7 @@ export async function searchQueriesWithBoundedConcurrency<T>(
         failures.push({
           query,
           provider: options.provider,
-          error:
-            result.reason instanceof Error
-              ? result.reason.message
-              : String(result.reason),
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
         });
       }
     }
@@ -123,10 +117,7 @@ function looksSensitive(text: string): boolean {
   );
 }
 
-function isTransientFirecrawlFailure(
-  response: Response | null,
-  error?: unknown,
-): boolean {
+function isTransientFirecrawlFailure(response: Response | null, error?: unknown): boolean {
   if (error instanceof DOMException && error.name === "TimeoutError") {
     return true;
   }
@@ -162,11 +153,7 @@ export async function firecrawlSearch(
     assertNotAborted(options?.signal);
     let requestError: unknown = null;
 
-    const requestTimeoutMs = boundTimeoutMs(
-      20_000,
-      options?.signal,
-      options?.softDeadlineMs,
-    );
+    const requestTimeoutMs = boundTimeoutMs(20_000, options?.signal, options?.softDeadlineMs);
 
     try {
       response = await firecrawlFetch(
@@ -209,22 +196,18 @@ export async function firecrawlSearch(
       throw new Error(
         requestError instanceof Error
           ? requestError.message
-          : `Firecrawl search failed (${response?.status ?? "unknown"}): ` +
-              rawBody.slice(0, 500),
+          : `Firecrawl search failed (${response?.status ?? "unknown"}): ` + rawBody.slice(0, 500),
       );
     }
 
-    const retryAfterHeader =
-      response?.headers.get("retry-after");
+    const retryAfterHeader = response?.headers.get("retry-after");
 
     const retrySeconds = retryAfterHeader
       ? Number.parseInt(retryAfterHeader, 10)
       : 4 * (attempt + 1);
 
     const safeDelayMs = boundTimeoutMs(
-      Number.isFinite(retrySeconds)
-        ? Math.min(Math.max(retrySeconds, 2), 12) * 1_000
-        : 4_000,
+      Number.isFinite(retrySeconds) ? Math.min(Math.max(retrySeconds, 2), 12) * 1_000 : 4_000,
       options?.signal,
       options?.softDeadlineMs,
     );
@@ -240,8 +223,7 @@ export async function firecrawlSearch(
 
   if (!response?.ok) {
     throw new Error(
-      `Firecrawl search failed (${response?.status ?? "unknown"}): ` +
-        rawBody.slice(0, 500),
+      `Firecrawl search failed (${response?.status ?? "unknown"}): ` + rawBody.slice(0, 500),
     );
   }
 
@@ -258,10 +240,7 @@ export async function firecrawlSearch(
   }
 
   const webHits: FirecrawlSearchHit[] = (data.data?.web ?? [])
-    .filter(
-      (result): result is FirecrawlWebResult & { url: string } =>
-        Boolean(result.url),
-    )
+    .filter((result): result is FirecrawlWebResult & { url: string } => Boolean(result.url))
     .map((result) => ({
       url: result.url,
       title: result.title ?? "",
@@ -277,11 +256,7 @@ export async function firecrawlSearch(
   const imageHits: FirecrawlSearchHit[] = (data.data?.images ?? [])
     .map((result) => {
       const pageUrl = result.sourceUrl ?? result.url ?? "";
-      const imageUrl =
-        result.imageUrl ??
-        result.url ??
-        result.thumbnailUrl ??
-        "";
+      const imageUrl = result.imageUrl ?? result.url ?? result.thumbnailUrl ?? "";
 
       return {
         url: pageUrl || imageUrl,

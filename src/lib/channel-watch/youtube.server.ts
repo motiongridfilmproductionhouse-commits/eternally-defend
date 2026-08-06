@@ -10,9 +10,7 @@ const YT = "https://www.googleapis.com/youtube/v3";
 function key(): string {
   const k = process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY;
   if (!k) {
-    throw new Error(
-      "YouTube API key is not configured. Set YOUTUBE_API_KEY or GOOGLE_API_KEY.",
-    );
+    throw new Error("YouTube API key is not configured. Set YOUTUBE_API_KEY or GOOGLE_API_KEY.");
   }
   return k;
 }
@@ -50,7 +48,7 @@ function parseIsoDuration(iso: string | undefined): number | null {
   if (!iso) return null;
   const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
   if (!m) return null;
-  return +((m[1] ?? 0)) * 3600 + +((m[2] ?? 0)) * 60 + +((m[3] ?? 0));
+  return +(m[1] ?? 0) * 3600 + +(m[2] ?? 0) * 60 + +(m[3] ?? 0);
 }
 
 async function ytGet<T>(path: string, params: Record<string, string>): Promise<T> {
@@ -70,11 +68,18 @@ async function ytGet<T>(path: string, params: Record<string, string>): Promise<T
     err.body = text;
     throw err;
   }
-  try { return JSON.parse(text) as T; }
-  catch { throw new Error(`YouTube ${path} returned non-JSON`); }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`YouTube ${path} returned non-JSON`);
+  }
 }
 
-function extractIdOrHandle(input: string): { channelId?: string; handle?: string; freeform?: string } {
+function extractIdOrHandle(input: string): {
+  channelId?: string;
+  handle?: string;
+  freeform?: string;
+} {
   const raw = input.trim();
   if (!raw) return {};
   // Direct channel ID (UC...)
@@ -99,13 +104,19 @@ function extractIdOrHandle(input: string): { channelId?: string; handle?: string
   }
 }
 
-async function fetchRecentThumbnails(uploadsPlaylistId: string | undefined, count = 4): Promise<string[]> {
+async function fetchRecentThumbnails(
+  uploadsPlaylistId: string | undefined,
+  count = 4,
+): Promise<string[]> {
   if (!uploadsPlaylistId) return [];
   try {
-    const j = await ytGet<{ items?: Array<{ snippet?: { thumbnails?: Record<string, { url?: string }> } }> }>(
-      "/playlistItems",
-      { part: "snippet", playlistId: uploadsPlaylistId, maxResults: String(count) },
-    );
+    const j = await ytGet<{
+      items?: Array<{ snippet?: { thumbnails?: Record<string, { url?: string }> } }>;
+    }>("/playlistItems", {
+      part: "snippet",
+      playlistId: uploadsPlaylistId,
+      maxResults: String(count),
+    });
     return (j.items ?? [])
       .map((it) => it.snippet?.thumbnails?.medium?.url ?? it.snippet?.thumbnails?.default?.url)
       .filter((x): x is string => !!x);
@@ -134,7 +145,9 @@ async function hydrateChannels(ids: string[]): Promise<ResolvedChannel[]> {
       handle: customUrl?.startsWith("@") ? customUrl : undefined,
       description: sn.description ?? undefined,
       avatarUrl: thumbs.high?.url ?? thumbs.medium?.url ?? thumbs.default?.url,
-      subscriberCount: st.hiddenSubscriberCount ? undefined : Number(st.subscriberCount ?? 0) || undefined,
+      subscriberCount: st.hiddenSubscriberCount
+        ? undefined
+        : Number(st.subscriberCount ?? 0) || undefined,
       videoCount: Number(st.videoCount ?? 0) || undefined,
       uploadsPlaylistId: uploads,
       hiddenSubscriberCount: !!st.hiddenSubscriberCount,
@@ -241,7 +254,11 @@ export async function fetchVideoDetails(videoIds: string[]): Promise<YoutubeVide
         videoId: id,
         title: sn.title ?? "Untitled",
         description: sn.description ?? "",
-        thumbnailUrl: thumbs.maxres?.url ?? thumbs.high?.url ?? thumbs.medium?.url ?? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+        thumbnailUrl:
+          thumbs.maxres?.url ??
+          thumbs.high?.url ??
+          thumbs.medium?.url ??
+          `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
         publishedAt: sn.publishedAt ?? new Date().toISOString(),
         durationSeconds: parseIsoDuration(cd.duration),
         viewCount: st.viewCount ? Number(st.viewCount) : null,
@@ -272,9 +289,13 @@ export async function fetchVideoDetails(videoIds: string[]): Promise<YoutubeVide
 export function priorityToIntervalMinutes(p: "critical" | "high" | "standard" | "low"): number {
   // Conservative defaults to protect YouTube quota; user can Scan Now for immediate polls.
   switch (p) {
-    case "critical": return 30;
-    case "high": return 60;
-    case "standard": return 240;
-    case "low": return 720;
+    case "critical":
+      return 30;
+    case "high":
+      return 60;
+    case "standard":
+      return 240;
+    case "low":
+      return 720;
   }
 }

@@ -15,9 +15,7 @@ export interface EvidenceUrlFields {
 }
 
 /** True only for non-empty http:// or https:// absolute URLs. */
-export function isAllowedHttpUrl(
-  value: string | null | undefined,
-): value is string {
+export function isAllowedHttpUrl(value: string | null | undefined): value is string {
   if (typeof value !== "string") return false;
   const trimmed = value.trim();
   if (!trimmed) return false;
@@ -31,9 +29,7 @@ export function isAllowedHttpUrl(
 }
 
 /** Returns a trimmed http(s) URL, or null when empty/undefined/rejected protocol. */
-export function sanitizeEvidenceUrl(
-  value: string | null | undefined,
-): string | null {
+export function sanitizeEvidenceUrl(value: string | null | undefined): string | null {
   if (!isAllowedHttpUrl(value)) return null;
   return value.trim();
 }
@@ -42,18 +38,12 @@ export function sanitizeEvidenceUrl(
  * Prefer final_url, then canonical_url.
  * Never returns empty, undefined, rejected-status, or non-http(s) URLs.
  */
-export function resolveVerifiedEvidenceHref(
-  fields: EvidenceUrlFields,
-): string | null {
+export function resolveVerifiedEvidenceHref(fields: EvidenceUrlFields): string | null {
   if (fields.url_verification_status === "URL_REJECTED") {
     return null;
   }
 
-  return (
-    sanitizeEvidenceUrl(fields.final_url) ??
-    sanitizeEvidenceUrl(fields.canonical_url) ??
-    null
-  );
+  return sanitizeEvidenceUrl(fields.final_url) ?? sanitizeEvidenceUrl(fields.canonical_url) ?? null;
 }
 
 export function resolveVerifiedEvidenceDomain(
@@ -98,9 +88,7 @@ export type VerifiedEvidenceLink =
  * UI mapping for the verified evidence anchor.
  * Use only when rendering "Open verified evidence page".
  */
-export function buildVerifiedEvidenceLink(
-  fields: EvidenceUrlFields,
-): VerifiedEvidenceLink {
+export function buildVerifiedEvidenceLink(fields: EvidenceUrlFields): VerifiedEvidenceLink {
   const href = resolveVerifiedEvidenceHref(fields);
   const domain = resolveVerifiedEvidenceDomain(fields, href);
 
@@ -141,6 +129,6 @@ export function projectClientEvidenceUrls<T extends EvidenceUrlFields>(
     ...finding,
     final_url: finalUrl,
     canonical_url: canonicalUrl,
-    url: evidenceHref ?? (sanitizeEvidenceUrl(finding.url) ?? finding.url ?? ""),
+    url: evidenceHref ?? sanitizeEvidenceUrl(finding.url) ?? finding.url ?? "",
   };
 }

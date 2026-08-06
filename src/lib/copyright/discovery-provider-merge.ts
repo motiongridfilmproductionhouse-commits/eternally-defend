@@ -72,9 +72,7 @@ export function mergeProviderPageLeads(
   }
 
   const leads = [...byUrl.values()];
-  const domains = new Set(
-    leads.map((l) => hostOf(l.url)).filter((h): h is string => Boolean(h)),
-  );
+  const domains = new Set(leads.map((l) => hostOf(l.url)).filter((h): h is string => Boolean(h)));
 
   return {
     leads,

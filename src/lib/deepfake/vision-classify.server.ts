@@ -63,15 +63,8 @@ async function analyseImage(
   options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<VisionVerdict | null> {
   assertNotAborted(options?.signal);
-  const timeoutMs = boundTimeoutMs(
-    30_000,
-    options?.signal,
-    options?.softDeadlineMs,
-  );
-  const signal = mergeAbortSignals(
-    options?.signal,
-    AbortSignal.timeout(timeoutMs),
-  );
+  const timeoutMs = boundTimeoutMs(30_000, options?.signal, options?.softDeadlineMs);
+  const signal = mergeAbortSignals(options?.signal, AbortSignal.timeout(timeoutMs));
 
   const res = await fetch(GATEWAY, {
     method: "POST",
@@ -125,11 +118,7 @@ async function analyseImage(
   }
 }
 
-function toClassified(
-  hit: RawHit,
-  mediaUrl: string,
-  verdict: VisionVerdict,
-): ClassifiedHit {
+function toClassified(hit: RawHit, mediaUrl: string, verdict: VisionVerdict): ClassifiedHit {
   const synthetic = verdict.synthetic_score;
   const explicit = verdict.explicit_score;
 
@@ -210,20 +199,14 @@ export async function classifyHitsWithVision(
         }
 
         try {
-          const verdict = await analyseImage(
-            mediaUrl,
-            hit,
-            apiKey,
-            options,
-          );
+          const verdict = await analyseImage(mediaUrl, hit, apiKey, options);
           if (!verdict) throw new Error("unparsable model response");
           return toClassified(hit, mediaUrl, verdict);
         } catch (error) {
           if (isAbortError(error)) {
             throw error;
           }
-          const message =
-            error instanceof Error ? error.message : String(error);
+          const message = error instanceof Error ? error.message : String(error);
           console.warn("[DEEPFAKE:VISION] analysis failed:", {
             url: hit.url,
             mediaUrl,
@@ -251,8 +234,7 @@ export async function classifyHitsWithVision(
 
   console.log("[DEEPFAKE:VISION] Summary:", {
     submitted: hits.length,
-    analysed: output.filter((i) => i.classification_status === "completed")
-      .length,
+    analysed: output.filter((i) => i.classification_status === "completed").length,
     flagged: output.filter((i) => i.visibility === "primary").length,
   });
 

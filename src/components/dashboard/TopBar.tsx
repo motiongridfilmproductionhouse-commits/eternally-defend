@@ -1,7 +1,17 @@
 import { useRouterState, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Search, Bell, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2, PanelLeft, PanelLeftClose, FlaskConical } from "lucide-react";
+import {
+  Search,
+  Bell,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldQuestion,
+  Loader2,
+  PanelLeft,
+  PanelLeftClose,
+  FlaskConical,
+} from "lucide-react";
 import { AuthorizationBadge } from "@/components/AuthorizationBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
@@ -11,16 +21,27 @@ import { getNotifications } from "@/lib/command-center.functions";
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 const DEMO_USER_EMAIL = (import.meta.env.VITE_DEMO_USER_EMAIL ?? "").trim().toLowerCase();
 
-
 const titles: Record<string, { title: string; sub: string }> = {
   "/": { title: "Eterna Command Center", sub: "Mission control for digital reputation protection" },
   "/assets": { title: "Protected Assets", sub: "Register, monitor and manage your digital assets" },
   "/scan": { title: "Web Scan", sub: "Deep, surface and social web reconnaissance" },
-  "/threat-radar": { title: "Threat Radar", sub: "Live threat stream across every monitored surface" },
-  "/threat-monitoring": { title: "Threat Monitoring", sub: "Continuous AI monitoring across platforms" },
+  "/threat-radar": {
+    title: "Threat Radar",
+    sub: "Live threat stream across every monitored surface",
+  },
+  "/threat-monitoring": {
+    title: "Threat Monitoring",
+    sub: "Continuous AI monitoring across platforms",
+  },
   "/intelligence": { title: "Evidence Analysis", sub: "AI insights and predictive risk analytics" },
-  "/narrative-intelligence": { title: "Narrative Intelligence", sub: "Coordinated claims and narrative spread" },
-  "/enforcement": { title: "Enforcement Center", sub: "Automated takedowns, reports and legal escalations" },
+  "/narrative-intelligence": {
+    title: "Narrative Intelligence",
+    sub: "Coordinated claims and narrative spread",
+  },
+  "/enforcement": {
+    title: "Enforcement Center",
+    sub: "Automated takedowns, reports and legal escalations",
+  },
   "/cases": { title: "Case Management", sub: "Track and coordinate active protection cases" },
   "/removals": { title: "Removal Center", sub: "Submitted takedowns and removal status" },
   "/reports": { title: "Reports", sub: "Exportable protection and enforcement reports" },
@@ -40,8 +61,14 @@ export function TopBar() {
     queryFn: async () => {
       const [assets, threats, cases] = await Promise.all([
         supabase.from("protected_assets").select("id", { count: "exact", head: true }),
-        supabase.from("scan_hits").select("id", { count: "exact", head: true }).in("severity", ["Critical", "High"] as never),
-        supabase.from("cases").select("id", { count: "exact", head: true }).eq("status", "open" as never),
+        supabase
+          .from("scan_hits")
+          .select("id", { count: "exact", head: true })
+          .in("severity", ["Critical", "High"] as never),
+        supabase
+          .from("cases")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "open" as never),
       ]);
       return {
         assets: assets.count ?? 0,
@@ -66,7 +93,9 @@ export function TopBar() {
         {hidden ? <PanelLeft className="size-4" /> : <PanelLeftClose className="size-4" />}
       </button>
       <div className="min-w-0">
-        <h1 className="text-[22px] font-display font-bold tracking-tight text-foreground">{meta.title}</h1>
+        <h1 className="text-[22px] font-display font-bold tracking-tight text-foreground">
+          {meta.title}
+        </h1>
         <p className="text-xs text-muted-foreground mt-0.5">{meta.sub}</p>
       </div>
 
@@ -110,7 +139,10 @@ function NotificationsBell() {
   });
   const unread = q.data?.unread ?? 0;
   return (
-    <Link to="/notifications" className="relative size-10 grid place-items-center rounded-xl border border-border bg-card hover:border-primary/30 transition shadow-sm">
+    <Link
+      to="/notifications"
+      className="relative size-10 grid place-items-center rounded-xl border border-border bg-card hover:border-primary/30 transition shadow-sm"
+    >
       <Bell className="size-4 text-foreground/70" />
       {unread > 0 && (
         <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[10px] font-bold grid place-items-center">
@@ -121,12 +153,17 @@ function NotificationsBell() {
   );
 }
 
+type Status = {
+  level: "protected" | "monitoring" | "at-risk" | "critical" | "unknown";
+  label: string;
+};
 
-type Status = { level: "protected" | "monitoring" | "at-risk" | "critical" | "unknown"; label: string };
-
-function protectionStatus(data: { assets: number; criticalThreats: number; openCases: number } | undefined): Status {
+function protectionStatus(
+  data: { assets: number; criticalThreats: number; openCases: number } | undefined,
+): Status {
   if (!data) return { level: "unknown", label: "Loading" };
-  if (data.criticalThreats > 5 || data.openCases > 3) return { level: "critical", label: "Action Required" };
+  if (data.criticalThreats > 5 || data.openCases > 3)
+    return { level: "critical", label: "Action Required" };
   if (data.criticalThreats > 0 || data.openCases > 0) return { level: "at-risk", label: "At Risk" };
   if (data.assets > 0) return { level: "protected", label: "Protected" };
   return { level: "monitoring", label: "Monitoring" };
@@ -138,12 +175,18 @@ function StatusPill({ status, loading }: { status: Status; loading: boolean }) {
     monitoring: { color: "text-info", bg: "bg-info/15 border-info/30", icon: ShieldQuestion },
     "at-risk": { color: "text-warning", bg: "bg-warning/15 border-warning/30", icon: ShieldAlert },
     critical: { color: "text-danger", bg: "bg-danger/15 border-danger/40", icon: ShieldAlert },
-    unknown: { color: "text-muted-foreground", bg: "bg-muted/40 border-border", icon: ShieldQuestion },
+    unknown: {
+      color: "text-muted-foreground",
+      bg: "bg-muted/40 border-border",
+      icon: ShieldQuestion,
+    },
   } as const;
   const c = map[status.level];
   const Icon = c.icon;
   return (
-    <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-semibold ${c.bg} ${c.color}`}>
+    <div
+      className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-semibold ${c.bg} ${c.color}`}
+    >
       {loading ? <Loader2 className="size-3.5 animate-spin" /> : <Icon className="size-3.5" />}
       <span className="uppercase tracking-wider">{status.label}</span>
     </div>

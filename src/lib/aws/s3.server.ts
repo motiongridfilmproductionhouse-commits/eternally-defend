@@ -24,11 +24,17 @@ export async function putObject(opts: {
 }
 
 export async function getSignedGetUrl(key: string, expiresInSeconds = 300) {
-  return getSignedUrl(getS3(), new GetObjectCommand({ Bucket: getBucket(), Key: key }), { expiresIn: expiresInSeconds });
+  return getSignedUrl(getS3(), new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
+    expiresIn: expiresInSeconds,
+  });
 }
 
 export async function getSignedPutUrl(key: string, contentType: string, expiresInSeconds = 300) {
-  return getSignedUrl(getS3(), new PutObjectCommand({ Bucket: getBucket(), Key: key, ContentType: contentType }), { expiresIn: expiresInSeconds });
+  return getSignedUrl(
+    getS3(),
+    new PutObjectCommand({ Bucket: getBucket(), Key: key, ContentType: contentType }),
+    { expiresIn: expiresInSeconds },
+  );
 }
 
 export async function headObject(key: string) {
@@ -40,13 +46,20 @@ export async function headObject(key: string) {
 }
 
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  const ab = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
   const buf = await crypto.subtle.digest("SHA-256", ab);
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /** Download a remote URL to bytes. Returns null on failure so callers can skip gracefully. */
-export async function fetchImageBytes(url: string): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+export async function fetchImageBytes(
+  url: string,
+): Promise<{ bytes: Uint8Array; contentType: string } | null> {
   try {
     const res = await fetch(url, { redirect: "follow" });
     if (!res.ok) return null;

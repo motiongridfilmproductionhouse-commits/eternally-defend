@@ -55,9 +55,24 @@ function RemovalsPage() {
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="TOTAL SUBMITTED" value={rows.length} sub="All removal requests" />
-        <StatCard label="APPROVED" value={rows.filter((r) => r.status === "Approved").length} sub="Successfully taken down" accent="oklch(0.68 0.16 155)" />
-        <StatCard label="IN FLIGHT" value={rows.filter((r) => r.status === "Sent" || r.status === "Queued").length} sub="Awaiting platform" accent="oklch(0.65 0.18 240)" />
-        <StatCard label="REJECTED" value={rows.filter((r) => r.status === "Rejected").length} sub="Escalate to legal" accent="oklch(0.63 0.24 25)" />
+        <StatCard
+          label="APPROVED"
+          value={rows.filter((r) => r.status === "Approved").length}
+          sub="Successfully taken down"
+          accent="oklch(0.68 0.16 155)"
+        />
+        <StatCard
+          label="IN FLIGHT"
+          value={rows.filter((r) => r.status === "Sent" || r.status === "Queued").length}
+          sub="Awaiting platform"
+          accent="oklch(0.65 0.18 240)"
+        />
+        <StatCard
+          label="REJECTED"
+          value={rows.filter((r) => r.status === "Rejected").length}
+          sub="Escalate to legal"
+          accent="oklch(0.63 0.24 25)"
+        />
       </div>
 
       <PageCard title="REMOVAL REQUESTS" sub="Live queue and history">
@@ -67,7 +82,11 @@ function RemovalsPage() {
           </div>
         ) : rows.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
-            No removal requests yet. Queue one from <Link to="/enforcement" className="text-primary font-semibold">Enforcement</Link>.
+            No removal requests yet. Queue one from{" "}
+            <Link to="/enforcement" className="text-primary font-semibold">
+              Enforcement
+            </Link>
+            .
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -85,14 +104,33 @@ function RemovalsPage() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className="border-b border-border/60 hover:bg-accent/30">
-                    <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">{r.id.slice(0, 8)}</td>
+                    <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">
+                      {r.id.slice(0, 8)}
+                    </td>
                     <td className="py-3 pr-4 font-medium truncate max-w-[280px]">
-                      {r.target_url ? <a className="text-primary" href={r.target_url} target="_blank" rel="noreferrer">{r.target_url}</a> : "—"}
+                      {r.target_url ? (
+                        <a
+                          className="text-primary"
+                          href={r.target_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {r.target_url}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="py-3 pr-4 text-muted-foreground">{r.platform}</td>
                     <td className="py-3 pr-4 text-muted-foreground">{r.method}</td>
-                    <td className="py-3 pr-4 text-muted-foreground text-xs">{new Date(r.created_at).toLocaleString()}</td>
-                    <td className="py-3 pr-4"><Pill color={statusColor[r.status] ?? "oklch(0.55 0.03 275)"}>{r.status}</Pill></td>
+                    <td className="py-3 pr-4 text-muted-foreground text-xs">
+                      {new Date(r.created_at).toLocaleString()}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <Pill color={statusColor[r.status] ?? "oklch(0.55 0.03 275)"}>
+                        {r.status}
+                      </Pill>
+                    </td>
                   </tr>
                 ))}
               </tbody>

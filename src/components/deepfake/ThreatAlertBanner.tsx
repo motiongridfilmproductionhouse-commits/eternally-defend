@@ -35,9 +35,7 @@ export function ThreatAlertBanner({
   continuePending = false,
   continueDisabled = false,
 }: ThreatAlertBannerProps) {
-  const [reducedMotion, setReducedMotion] = useState(
-    prefersReducedMotion ?? false,
-  );
+  const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion ?? false);
   useEffect(() => {
     if (typeof prefersReducedMotion === "boolean") {
       setReducedMotion(prefersReducedMotion);
@@ -54,11 +52,9 @@ export function ThreatAlertBanner({
   if (!shouldShowThreatAlertBanner(summary)) return null;
 
   const lines = threatAlertCountLines(summary);
-  const headline =
-    threatAlertHeadline(summary.tone) || "Multiple threats detected";
+  const headline = threatAlertHeadline(summary.tone) || "Multiple threats detected";
   const isRed = summary.tone === "red";
-  const showContinue =
-    scanStatus === "partial" && typeof onContinueScan === "function";
+  const showContinue = scanStatus === "partial" && typeof onContinueScan === "function";
 
   return (
     <div
@@ -80,9 +76,7 @@ export function ThreatAlertBanner({
     >
       <div className="flex items-start gap-3">
         <AlertTriangle
-          className={`mt-0.5 size-4 shrink-0 ${
-            isRed ? "text-red-300" : "text-orange-300"
-          }`}
+          className={`mt-0.5 size-4 shrink-0 ${isRed ? "text-red-300" : "text-orange-300"}`}
           aria-hidden
         />
         <div className="min-w-0 flex-1 space-y-2">

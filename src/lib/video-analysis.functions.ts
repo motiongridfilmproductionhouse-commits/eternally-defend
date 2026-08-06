@@ -77,19 +77,27 @@ export const analyzeYoutubeVideo = createServerFn({ method: "POST" })
       await supabase
         .from("video_analysis_jobs")
         .update({
-          captions_state: cap.reason === "no_caption_tracks" ? "captions_unavailable" : "metadata_only",
+          captions_state:
+            cap.reason === "no_caption_tracks" ? "captions_unavailable" : "metadata_only",
           analysis_state: "completed",
           error: cap.reason,
           completed_at: new Date().toISOString(),
         } as never)
         .eq("id", jobId);
-      return { jobId, captionsState: "metadata_only", transcriptSegmentCount: 0, findingCount: 0, reason: cap.reason };
+      return {
+        jobId,
+        captionsState: "metadata_only",
+        transcriptSegmentCount: 0,
+        findingCount: 0,
+        reason: cap.reason,
+      };
     }
 
     // 2) Enrich creator (best-effort).
     let creatorProfileId: string | null = null;
     if (data.channelId) {
-      const { fetchYoutubeChannel, computeCreatorIntelligence } = await import("@/lib/mm/youtube-channel.server");
+      const { fetchYoutubeChannel, computeCreatorIntelligence } =
+        await import("@/lib/mm/youtube-channel.server");
       const info = (await fetchYoutubeChannel(data.channelId)) ?? {
         channelId: data.channelId,
         channelUrl: data.channelUrl ?? `https://www.youtube.com/channel/${data.channelId}`,
@@ -157,7 +165,10 @@ export const analyzeYoutubeVideo = createServerFn({ method: "POST" })
     const insertedIds: string[] = [];
     for (let i = 0; i < segmentRows.length; i += 500) {
       const slice = segmentRows.slice(i, i + 500);
-      const ins = await supabase.from("video_transcript_segments").insert(slice as never).select("id, start_seconds");
+      const ins = await supabase
+        .from("video_transcript_segments")
+        .insert(slice as never)
+        .select("id, start_seconds");
       if (ins.error) throw new Error(`segments insert: ${ins.error.message}`);
       for (const r of ins.data ?? []) insertedIds.push((r as { id: string }).id);
     }
@@ -176,7 +187,8 @@ export const analyzeYoutubeVideo = createServerFn({ method: "POST" })
     (dbRows.data ?? []).forEach((row, idx) => segIndexToDbId.set(idx, (row as { id: string }).id));
 
     // 4) Classify with Gemini.
-    const { classifyTranscriptSegments, formatTimeDisplay } = await import("@/lib/mm/video-classify.server");
+    const { classifyTranscriptSegments, formatTimeDisplay } =
+      await import("@/lib/mm/video-classify.server");
     const { findings } = await classifyTranscriptSegments(
       orderedSegments.map((s, i) => ({ ...s, index: i })),
       data.entityTerms,
@@ -194,7 +206,8 @@ export const analyzeYoutubeVideo = createServerFn({ method: "POST" })
     const findingRows = findings.map((f) => {
       const seg = orderedSegments[f.segmentIndex];
       const prev = f.segmentIndex > 0 ? orderedSegments[f.segmentIndex - 1] : null;
-      const next = f.segmentIndex < orderedSegments.length - 1 ? orderedSegments[f.segmentIndex + 1] : null;
+      const next =
+        f.segmentIndex < orderedSegments.length - 1 ? orderedSegments[f.segmentIndex + 1] : null;
       const startSec = seg?.startSeconds ?? 0;
       const endSec = seg?.endSeconds ?? startSec;
       return {
@@ -206,7 +219,9 @@ export const analyzeYoutubeVideo = createServerFn({ method: "POST" })
         video_id: videoId,
         video_url: `https://www.youtube.com/watch?v=${videoId}`,
         channel_id: data.channelId ?? null,
-        channel_url: data.channelUrl ?? (data.channelId ? `https://www.youtube.com/channel/${data.channelId}` : null),
+        channel_url:
+          data.channelUrl ??
+          (data.channelId ? `https://www.youtube.com/channel/${data.channelId}` : null),
         channel_name: data.channelName ?? null,
         segment_id: segIndexToDbId.get(f.segmentIndex) ?? null,
         start_seconds: startSec,
@@ -253,14 +268,16 @@ export const analyzeYoutubeVideo = createServerFn({ method: "POST" })
       .eq("id", jobId);
 
     if (creatorProfileId) {
-      const criticalCount = findingRows.filter((f) => f.severity === "critical" || f.severity === "high").length;
+      const criticalCount = findingRows.filter(
+        (f) => f.severity === "critical" || f.severity === "high",
+      ).length;
       // Bump counters (best-effort; ignore errors).
       await supabase.rpc; // no-op reference
       const now = new Date().toISOString();
       await supabase
         .from("video_creator_profiles")
         .update({
-          findings_count: (findingRows.length),
+          findings_count: findingRows.length,
           critical_findings_count: criticalCount,
           latest_detected_at: now,
         } as never)
@@ -301,7 +318,9 @@ export const listVideoTimestampFindings = createServerFn({ method: "GET" })
         .order("start_seconds", { ascending: true }),
       supabase
         .from("video_analysis_jobs")
-        .select("captions_state, analysis_state, transcript_segment_count, finding_count, caption_language, error")
+        .select(
+          "captions_state, analysis_state, transcript_segment_count, finding_count, caption_language, error",
+        )
         .eq("user_id", userId)
         .eq("platform", "youtube")
         .eq("video_id", data.videoId)
@@ -355,7 +374,9 @@ export const getCreatorProfile = createServerFn({ method: "GET" })
         .maybeSingle(),
       supabase
         .from("video_timestamp_findings")
-        .select("id, video_id, video_url, start_seconds, watch_exact_moment_url, severity, context_type, claim_summary, matched_entity, original_text")
+        .select(
+          "id, video_id, video_url, start_seconds, watch_exact_moment_url, severity, context_type, claim_summary, matched_entity, original_text",
+        )
         .eq("user_id", userId)
         .eq("platform", "youtube")
         .eq("channel_id", data.channelId)
@@ -367,7 +388,9 @@ export const getCreatorProfile = createServerFn({ method: "GET" })
 
 export const setCreatorMonitoring = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ channelId: z.string(), enabled: z.boolean() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z.object({ channelId: z.string(), enabled: z.boolean() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { error } = await supabase

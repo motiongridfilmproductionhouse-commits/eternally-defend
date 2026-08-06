@@ -108,12 +108,8 @@ function ActivityRow({
   animateEntry: boolean;
   reducedMotion: boolean;
 }) {
-  const entryClass =
-    animateEntry && !reducedMotion
-      ? "animate-[activityEnter_0.45s_ease-out]"
-      : "";
-  const pulseClass =
-    pulse && !reducedMotion ? "animate-[threatPulse_0.9s_ease-out_once]" : "";
+  const entryClass = animateEntry && !reducedMotion ? "animate-[activityEnter_0.45s_ease-out]" : "";
+  const pulseClass = pulse && !reducedMotion ? "animate-[threatPulse_0.9s_ease-out_once]" : "";
 
   return (
     <li
@@ -164,10 +160,7 @@ export function LiveWebsiteInvestigation({
 }: LiveWebsiteInvestigationProps) {
   const reducedMotion = usePrefersReducedMotion();
   const tabVisible = useTabVisible();
-  const events = useMemo(
-    () => sortActivityNewestFirst(parseWebsiteActivity(stats)),
-    [stats],
-  );
+  const events = useMemo(() => sortActivityNewestFirst(parseWebsiteActivity(stats)), [stats]);
 
   const seenRef = useRef<SeenActivityThreatState | null>(null);
   const knownIdsRef = useRef<Set<string>>(new Set());
@@ -206,7 +199,8 @@ export function LiveWebsiteInvestigation({
     }
   }, [scanId]);
 
-  const scanning = isScanning ?? (scanStatus === "queued" || scanStatus === "running" || scanStatus === "pending");
+  const scanning =
+    isScanning ?? (scanStatus === "queued" || scanStatus === "running" || scanStatus === "pending");
   const bootstrapActive = stats?.scan_bootstrap === true;
   const emptyMessage = scanning
     ? bootstrapActive

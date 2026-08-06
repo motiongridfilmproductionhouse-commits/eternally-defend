@@ -128,10 +128,7 @@ const GLOW_CLASS = {
   muted: "",
 } as const;
 
-function lineStroke(
-  active: boolean,
-  tone: ThreatAlertSummary["tone"],
-): string {
+function lineStroke(active: boolean, tone: ThreatAlertSummary["tone"]): string {
   if (!active) return "rgba(148,163,184,0.18)";
   if (tone === "red") return "rgba(248,113,113,0.65)";
   if (tone === "orange") return "rgba(251,146,60,0.6)";
@@ -139,10 +136,7 @@ function lineStroke(
   return "rgba(56,189,248,0.45)";
 }
 
-function nodeToneClasses(
-  active: boolean,
-  tone: ThreatAlertSummary["tone"],
-): string {
+function nodeToneClasses(active: boolean, tone: ThreatAlertSummary["tone"]): string {
   if (!active) return "border-white/10 bg-slate-900/70 text-slate-400";
   if (tone === "red") return "border-red-300/50 bg-red-500/15 text-red-100";
   if (tone === "orange") {
@@ -208,10 +202,7 @@ export function IdentityScanVisualization({
   const elevated = isElevatedThreatTone(tone);
   const red = isRedThreatTone(tone);
   const activeNodes = useMemo(
-    () =>
-      new Set(
-        activeIdentityScanNodeIds(stage, mode === "empty" ? "idle" : mode),
-      ),
+    () => new Set(activeIdentityScanNodeIds(stage, mode === "empty" ? "idle" : mode)),
     [stage, mode],
   );
   const stageMessage = threatAwareStatusCopy({
@@ -219,9 +210,7 @@ export function IdentityScanVisualization({
     tone,
     stage,
     stageMessage:
-      mode === "running"
-        ? identityScanStageMessage(stage) ?? "Searching public sources"
-        : null,
+      mode === "running" ? (identityScanStageMessage(stage) ?? "Searching public sources") : null,
     statusHeadline: identityScanStatusHeadline(mode),
   });
   const threatLines = elevated ? threatAlertCountLines(summary) : [];
@@ -301,18 +290,10 @@ export function IdentityScanVisualization({
       setRevealedCount((value) => Math.min(3, value + 1));
     }, 380);
     return () => window.clearTimeout(timer);
-  }, [
-    domainLabelsKey,
-    domainLabels.length,
-    prefersReducedMotion,
-    revealedCount,
-    scanId,
-  ]);
+  }, [domainLabelsKey, domainLabels.length, prefersReducedMotion, revealedCount, scanId]);
 
   const showPhoto = Boolean(thumbnailUrl) && !imageFailed;
-  const sizeClass = compact
-    ? "min-h-[280px] max-w-md mx-auto"
-    : "min-h-[420px] lg:min-h-[520px]";
+  const sizeClass = compact ? "min-h-[280px] max-w-md mx-auto" : "min-h-[420px] lg:min-h-[520px]";
   const badgeLabel = threatAlertBadgeLabel({ mode, tone });
   const badgeClass =
     tone === "red"
@@ -330,41 +311,40 @@ export function IdentityScanVisualization({
                 : "border-sky-400/40 bg-sky-500/10 text-sky-300";
 
   const ringPulse = pulseIds.length > 0 && !prefersReducedMotion;
-  const outerRingAnimation =
-    ringPulse
-      ? {
-          transformOrigin: "50% 50%" as const,
-          transformBox: "fill-box" as const,
-          animation: "identityNewThreatPulse 1.4s ease-out 1",
-        }
-      : animate && elevated
-        ? mode === "running"
+  const outerRingAnimation = ringPulse
+    ? {
+        transformOrigin: "50% 50%" as const,
+        transformBox: "fill-box" as const,
+        animation: "identityNewThreatPulse 1.4s ease-out 1",
+      }
+    : animate && elevated
+      ? mode === "running"
+        ? {
+            transformOrigin: "50% 50%" as const,
+            transformBox: "fill-box" as const,
+            animation: "identityThreatRadar 4.8s ease-in-out infinite",
+          }
+        : {
+            transformOrigin: "50% 50%" as const,
+            transformBox: "fill-box" as const,
+            animation: "identityThreatBreath 3.8s ease-in-out infinite",
+          }
+      : animate && mode === "running"
+        ? {
+            transformOrigin: "50% 50%" as const,
+            transformBox: "fill-box" as const,
+            animation: "identityRingSpin 10s linear infinite",
+          }
+        : animate
           ? {
               transformOrigin: "50% 50%" as const,
               transformBox: "fill-box" as const,
-              animation: "identityThreatRadar 4.8s ease-in-out infinite",
+              animation: "identityBreath 3.6s ease-in-out infinite",
             }
           : {
               transformOrigin: "50% 50%" as const,
               transformBox: "fill-box" as const,
-              animation: "identityThreatBreath 3.8s ease-in-out infinite",
-            }
-        : animate && mode === "running"
-          ? {
-              transformOrigin: "50% 50%" as const,
-              transformBox: "fill-box" as const,
-              animation: "identityRingSpin 10s linear infinite",
-            }
-          : animate
-            ? {
-                transformOrigin: "50% 50%" as const,
-                transformBox: "fill-box" as const,
-                animation: "identityBreath 3.6s ease-in-out infinite",
-              }
-            : {
-                transformOrigin: "50% 50%" as const,
-                transformBox: "fill-box" as const,
-              };
+            };
 
   const innerRingAnimation =
     animate && elevated
@@ -444,9 +424,7 @@ export function IdentityScanVisualization({
               {artistName || "Protected identity"}
             </h2>
             <p className="mt-1 text-xs text-slate-300/90">{enrollmentLine}</p>
-            {modelLine && (
-              <p className="text-xs font-medium text-emerald-300/90">{modelLine}</p>
-            )}
+            {modelLine && <p className="text-xs font-medium text-emerald-300/90">{modelLine}</p>}
           </div>
           <div
             className={`max-w-[9.5rem] rounded-full border px-2.5 py-1 text-center text-[9px] font-semibold uppercase leading-tight tracking-[0.12em] sm:text-[10px] ${badgeClass}`}
@@ -511,10 +489,7 @@ export function IdentityScanVisualization({
               );
             })}
 
-            {(mode === "running" ||
-              mode === "idle" ||
-              mode === "completed" ||
-              tone !== "cyan") &&
+            {(mode === "running" || mode === "idle" || mode === "completed" || tone !== "cyan") &&
               MESH_EDGES.map(([a, b], index) => {
                 const [x1, y1] = MESH_POINTS[a]!;
                 const [x2, y2] = MESH_POINTS[b]!;
@@ -564,9 +539,7 @@ export function IdentityScanVisualization({
                 aria-label="No reference thumbnail available"
               >
                 <UserRound className="size-12 opacity-70" strokeWidth={1.25} />
-                <span className="text-[10px] uppercase tracking-[0.18em]">
-                  No thumbnail
-                </span>
+                <span className="text-[10px] uppercase tracking-[0.18em]">No thumbnail</span>
               </div>
             )}
 
@@ -635,9 +608,7 @@ export function IdentityScanVisualization({
                     : "border-orange-400/45 bg-orange-950/80 text-orange-100"
                 }`}
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                onClick={() =>
-                  onSelectThreatDomain?.(label.filterKey || label.domain)
-                }
+                onClick={() => onSelectThreatDomain?.(label.filterKey || label.domain)}
               >
                 <span className="block truncate">{label.chipLabel}</span>
                 <span className="mt-0.5 block truncate text-[8px] font-medium normal-case tracking-normal opacity-80">

@@ -27,9 +27,7 @@ export function isCrawl4AiConfigured(): boolean {
 
 function crawlerServiceBase(): string | null {
   const raw =
-    process.env.CRAWLER_SERVICE_URL?.trim() ||
-    process.env.CRAWL4AI_SERVICE_URL?.trim() ||
-    "";
+    process.env.CRAWLER_SERVICE_URL?.trim() || process.env.CRAWL4AI_SERVICE_URL?.trim() || "";
   if (!raw) return null;
   return raw.replace(/\/$/, "");
 }

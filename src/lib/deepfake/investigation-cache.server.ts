@@ -15,11 +15,7 @@ export function getInvestigationCache<T>(key: string): T | null {
   return row.value as T;
 }
 
-export function setInvestigationCache<T>(
-  key: string,
-  value: T,
-  ttlMs = 3_600_000,
-): void {
+export function setInvestigationCache<T>(key: string, value: T, ttlMs = 3_600_000): void {
   cache.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
 

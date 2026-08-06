@@ -128,9 +128,7 @@ function ownershipFilter(query: any, ownership: ScanOwnership) {
 }
 
 function isMissingColumnError(message: string, column: string): boolean {
-  return new RegExp(`${column}|column .* does not exist|schema cache`, "i").test(
-    message,
-  );
+  return new RegExp(`${column}|column .* does not exist|schema cache`, "i").test(message);
 }
 
 /**
@@ -174,31 +172,19 @@ async function applyOwnedUpdate(input: {
     const message = error.message ?? "";
     let stripped = false;
 
-    if (
-      "scan_checkpoint" in patch &&
-      isMissingColumnError(message, "scan_checkpoint")
-    ) {
+    if ("scan_checkpoint" in patch && isMissingColumnError(message, "scan_checkpoint")) {
       delete patch.scan_checkpoint;
       stripped = true;
     }
-    if (
-      "discovery_metrics" in patch &&
-      isMissingColumnError(message, "discovery_metrics")
-    ) {
+    if ("discovery_metrics" in patch && isMissingColumnError(message, "discovery_metrics")) {
       delete patch.discovery_metrics;
       stripped = true;
     }
-    if (
-      "heartbeat_at" in patch &&
-      isMissingColumnError(message, "heartbeat_at")
-    ) {
+    if ("heartbeat_at" in patch && isMissingColumnError(message, "heartbeat_at")) {
       delete patch.heartbeat_at;
       stripped = true;
     }
-    if (
-      "lease_expires_at" in patch &&
-      isMissingColumnError(message, "lease_expires_at")
-    ) {
+    if ("lease_expires_at" in patch && isMissingColumnError(message, "lease_expires_at")) {
       delete patch.lease_expires_at;
       stripped = true;
     }
@@ -209,9 +195,7 @@ async function applyOwnedUpdate(input: {
      * safety requires the token column from the ownership migration.
      */
     if (isMissingColumnError(message, "scan_run_token")) {
-      throw new Error(
-        "deepfake_scans.scan_run_token is required for ownership-safe writes",
-      );
+      throw new Error("deepfake_scans.scan_run_token is required for ownership-safe writes");
     }
 
     if (!stripped) {
@@ -234,8 +218,7 @@ export async function touchScanProgress(input: {
   leaseTtlMs?: number;
 }): Promise<void> {
   const nowMs = input.nowMs ?? Date.now();
-  const leaseTtlMs =
-    input.leaseTtlMs ?? input.ownership.runtime.leaseTtlMs;
+  const leaseTtlMs = input.leaseTtlMs ?? input.ownership.runtime.leaseTtlMs;
   const heartbeatPatch: Record<string, unknown> = {
     heartbeat_at: new Date(nowMs).toISOString(),
     lease_expires_at: leaseExpiresAtIso(leaseTtlMs, nowMs),
@@ -250,9 +233,7 @@ export async function touchScanProgress(input: {
 
   if (affected === 0) {
     if (!input.ownership.runtime.controller.signal.aborted) {
-      input.ownership.runtime.controller.abort(
-        new ScanOwnershipLostError(),
-      );
+      input.ownership.runtime.controller.abort(new ScanOwnershipLostError());
     }
     throw new ScanOwnershipLostError();
   }
@@ -313,10 +294,7 @@ export async function finalizeScanStatus(input: {
     return { applied: false };
   }
 
-  if (
-    row?.scan_run_token &&
-    row.scan_run_token !== input.ownership.scanRunToken
-  ) {
+  if (row?.scan_run_token && row.scan_run_token !== input.ownership.scanRunToken) {
     return { applied: false };
   }
 
@@ -333,11 +311,7 @@ export function decideTerminalStatus(input: {
   status: TerminalScanStatus;
   reason: string | null;
 } {
-  if (
-    !input.errorMessage &&
-    !input.abortedByDeadline &&
-    !input.checkpointPause
-  ) {
+  if (!input.errorMessage && !input.abortedByDeadline && !input.checkpointPause) {
     return { status: "completed", reason: null };
   }
 
@@ -353,8 +327,7 @@ export function decideTerminalStatus(input: {
     }
     return {
       status: "failed",
-      reason:
-        "Scan reached the time budget deadline before any verified progress could be saved.",
+      reason: "Scan reached the time budget deadline before any verified progress could be saved.",
     };
   }
 
@@ -362,8 +335,7 @@ export function decideTerminalStatus(input: {
     return {
       status: "partial",
       reason:
-        (input.errorMessage ??
-          "Scan stopped early after saving verified progress.") +
+        (input.errorMessage ?? "Scan stopped early after saving verified progress.") +
         " Partial results are available.",
     };
   }
@@ -393,10 +365,7 @@ export function hasValidScanProgress(input: {
   findingCount?: number;
   clientVisibleCount?: number;
 }): boolean {
-  return (
-    (input.findingCount ?? 0) > 0 ||
-    (input.discoveryCount ?? 0) > 0
-  );
+  return (input.findingCount ?? 0) > 0 || (input.discoveryCount ?? 0) > 0;
 }
 
 /**
@@ -452,9 +421,7 @@ export async function recoverExpiredScanLease(input: {
 
   if (error) {
     if (
-      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(
-        error.message,
-      )
+      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(error.message)
     ) {
       return { recovered: false };
     }
@@ -496,9 +463,7 @@ export async function recoverExpiredScansForUser(input: {
   }
 
   const eligibleIds = (candidates ?? [])
-    .filter((row: ScanLeaseRow) =>
-      isScanEligibleForStaleRecovery(row, nowMs),
-    )
+    .filter((row: ScanLeaseRow) => isScanEligibleForStaleRecovery(row, nowMs))
     .map((row: { id: string }) => row.id);
 
   if (!eligibleIds.length) return 0;
@@ -520,9 +485,7 @@ export async function recoverExpiredScansForUser(input: {
 
   if (error) {
     if (
-      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(
-        error.message,
-      )
+      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(error.message)
     ) {
       return 0;
     }

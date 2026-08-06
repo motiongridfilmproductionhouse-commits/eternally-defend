@@ -36,14 +36,21 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ results: PackageResult[] }> => {
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { buildEvidencePdf, buildAuthorizationPdf, buildComplaintPdf } = await import("./enforcement/pdf.server");
+    const { buildEvidencePdf, buildAuthorizationPdf, buildComplaintPdf } =
+      await import("./enforcement/pdf.server");
     const { buildComplaint } = await import("./enforcement/platform-templates.server");
 
     const [{ data: profile }, { data: auth }] = await Promise.all([
-      supabase.from("client_profiles").select("full_name,company_name,email,country,client_type").eq("user_id", userId).maybeSingle(),
+      supabase
+        .from("client_profiles")
+        .select("full_name,company_name,email,country,client_type")
+        .eq("user_id", userId)
+        .maybeSingle(),
       supabase
         .from("authorization_records")
-        .select("legal_name,signature_text,signed_at,signature_hash,authorization_level,ip_address,user_agent")
+        .select(
+          "legal_name,signature_text,signed_at,signature_hash,authorization_level,ip_address,user_agent",
+        )
         .eq("user_id", userId)
         .eq("active", true)
         .order("signed_at", { ascending: false })
@@ -51,15 +58,22 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
     ]);
 
     if (!data.dryRun && !auth) {
-      throw new Error("No active authorization on file. Complete onboarding before submitting enforcement requests.");
+      throw new Error(
+        "No active authorization on file. Complete onboarding before submitting enforcement requests.",
+      );
     }
 
     const complainantName =
-      auth?.legal_name || profile?.full_name || profile?.company_name || "Authorized Representative";
+      auth?.legal_name ||
+      profile?.full_name ||
+      profile?.company_name ||
+      "Authorized Representative";
 
     const { data: hits, error: hitsErr } = await supabase
       .from("scan_hits")
-      .select("id,title,description,permalink,canonical_url,source,source_type,author,published_at,severity,threat_score,narrative_claim")
+      .select(
+        "id,title,description,permalink,canonical_url,source,source_type,author,published_at,severity,threat_score,narrative_claim",
+      )
       .eq("user_id", userId)
       .in("id", data.scanHitIds);
     if (hitsErr) throw hitsErr;
@@ -90,26 +104,46 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
             .limit(25),
         ]);
 
-        const timestamps = ((vtsRes.data ?? []) as Array<{
-          start_seconds: number | null;
-          end_seconds: number | null;
-          original_text: string | null;
-          translated_text: string | null;
-          severity: string | null;
-        }>).map((r) => ({
+        const timestamps = (
+          (vtsRes.data ?? []) as Array<{
+            start_seconds: number | null;
+            end_seconds: number | null;
+            original_text: string | null;
+            translated_text: string | null;
+            severity: string | null;
+          }>
+        ).map((r) => ({
           startSeconds: r.start_seconds ?? 0,
           endSeconds: r.end_seconds ?? null,
           excerpt: r.translated_text || r.original_text || "",
           severity: r.severity,
         }));
 
-        const claims = ((claimsRes.data ?? []) as Array<{
-          extracted_claim: string; claimant: string | null; fact_check_status: string | null;
-        }>).map((c) => ({ extracted: c.extracted_claim, claimant: c.claimant, status: c.fact_check_status }));
+        const claims = (
+          (claimsRes.data ?? []) as Array<{
+            extracted_claim: string;
+            claimant: string | null;
+            fact_check_status: string | null;
+          }>
+        ).map((c) => ({
+          extracted: c.extracted_claim,
+          claimant: c.claimant,
+          status: c.fact_check_status,
+        }));
 
-        const factChecks = ((fcRes.data ?? []) as Array<{
-          publisher_name: string; review_title: string; review_url: string; textual_rating: string | null;
-        }>).map((f) => ({ publisher: f.publisher_name, title: f.review_title, url: f.review_url, rating: f.textual_rating }));
+        const factChecks = (
+          (fcRes.data ?? []) as Array<{
+            publisher_name: string;
+            review_title: string;
+            review_url: string;
+            textual_rating: string | null;
+          }>
+        ).map((f) => ({
+          publisher: f.publisher_name,
+          title: f.review_title,
+          url: f.review_url,
+          rating: f.textual_rating,
+        }));
 
         const capturedAt = new Date().toISOString();
         const contentHash = await sha256Hex(`${hit.id}|${targetUrl}|${capturedAt}`);
@@ -195,7 +229,10 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
             method: data.method,
             target_url: targetUrl || null,
             status: "Queued",
-            metadata: { evidence_strength: complaint.evidenceStrength, complaint_kind: complaint.kind },
+            metadata: {
+              evidence_strength: complaint.evidenceStrength,
+              complaint_kind: complaint.kind,
+            },
           })
           .select("id")
           .single();
@@ -226,9 +263,28 @@ export const generateEnforcementPackages = createServerFn({ method: "POST" })
           .eq("id", reqId);
 
         await supabase.from("enforcement_package_items").insert([
-          { user_id: userId, enforcement_request_id: reqId, kind: "evidence", storage_path: evidencePath, sha256: contentHash, bytes: evidenceBytes.byteLength },
-          { user_id: userId, enforcement_request_id: reqId, kind: "authorization", storage_path: authPath, bytes: authorizationBytes.byteLength },
-          { user_id: userId, enforcement_request_id: reqId, kind: "platform_complaint", storage_path: complaintPath, bytes: complaintBytes.byteLength },
+          {
+            user_id: userId,
+            enforcement_request_id: reqId,
+            kind: "evidence",
+            storage_path: evidencePath,
+            sha256: contentHash,
+            bytes: evidenceBytes.byteLength,
+          },
+          {
+            user_id: userId,
+            enforcement_request_id: reqId,
+            kind: "authorization",
+            storage_path: authPath,
+            bytes: authorizationBytes.byteLength,
+          },
+          {
+            user_id: userId,
+            enforcement_request_id: reqId,
+            kind: "platform_complaint",
+            storage_path: complaintPath,
+            bytes: complaintBytes.byteLength,
+          },
         ]);
 
         results.push({
@@ -280,5 +336,7 @@ async function uploadPdf(admin: SupabaseClient, path: string, bytes: Uint8Array)
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }

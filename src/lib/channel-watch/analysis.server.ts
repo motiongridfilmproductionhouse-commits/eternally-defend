@@ -34,7 +34,10 @@ interface AliasHit {
 
 /** Normalize Latin text for case/diacritic-insensitive substring match. */
 function normLatin(s: string): string {
-  return s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return s
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 /**
@@ -73,26 +76,22 @@ function scanAliases(text: string, aliases: string[]): AliasHit[] {
 
     if (
       norm.includes(latinNeedle) ||
-      (
-        compactNeedle.length >= 3 &&
-        compactText.includes(compactNeedle)
-      )
+      (compactNeedle.length >= 3 && compactText.includes(compactNeedle))
     ) {
       out.push({ alias, where: "title", script: "latin" });
       continue;
     }
     for (const v of manglishVariants(alias)) {
-      if (norm.includes(v)) { out.push({ alias, where: "title", script: "manglish" }); break; }
+      if (norm.includes(v)) {
+        out.push({ alias, where: "title", script: "manglish" });
+        break;
+      }
     }
   }
   return out;
 }
 
-async function loadAliases(
-  supabase: Supa,
-  userId: string,
-  watchId: string,
-): Promise<string[]> {
+async function loadAliases(supabase: Supa, userId: string, watchId: string): Promise<string[]> {
   const { data: watch } = await supabase
     .from("channel_watches")
     .select("reason")
@@ -128,11 +127,11 @@ async function loadAliases(
   return Array.from(aliases);
 }
 
-function classify(input: {
-  aliasHits: AliasHit[];
-  faceMatches: number;
-  isBaseline: boolean;
-}): { classification: Classification; risk: number; requiresReview: boolean } {
+function classify(input: { aliasHits: AliasHit[]; faceMatches: number; isBaseline: boolean }): {
+  classification: Classification;
+  risk: number;
+  requiresReview: boolean;
+} {
   const { aliasHits, faceMatches, isBaseline } = input;
   if (aliasHits.length === 0 && faceMatches === 0) {
     return { classification: "not_relevant", risk: 0, requiresReview: false };
@@ -164,7 +163,9 @@ function classify(input: {
 export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Promise<void> {
   const { data: v, error } = await supabase
     .from("channel_watch_videos")
-    .select("id, user_id, watch_id, video_id, title, description, thumbnail_url, url, is_baseline, analysis_status")
+    .select(
+      "id, user_id, watch_id, video_id, title, description, thumbnail_url, url, is_baseline, analysis_status",
+    )
     .eq("id", videoRowId)
     .maybeSingle();
   if (error || !v) throw new Error("video row not found");
@@ -178,10 +179,7 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
 
   // Analyze real captions/spoken content with exact timestamps.
   const { analyzeChannelWatchCaptions } = await import("./captions.server");
-  const captionAnalysis = await analyzeChannelWatchCaptions(
-    v.video_id,
-    aliases,
-  );
+  const captionAnalysis = await analyzeChannelWatchCaptions(v.video_id, aliases);
 
   // Best-effort face match — reuses existing helper so we stay consistent with
   // the rest of the scan pipeline.
@@ -193,7 +191,10 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
       // just call the underlying Rekognition helpers directly. To avoid a fake
       // scan_hit_id we call the low-level helpers here.
       const { data: col } = await supabase
-        .from("rekognition_collections").select("collection_id").eq("user_id", v.user_id).maybeSingle();
+        .from("rekognition_collections")
+        .select("collection_id")
+        .eq("user_id", v.user_id)
+        .maybeSingle();
       if (col?.collection_id) {
         const [{ fetchImageBytes }, { searchFacesByImage }] = await Promise.all([
           import("@/lib/aws/s3.server"),
@@ -202,7 +203,10 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
         const img = await fetchImageBytes(v.thumbnail_url);
         if (img) {
           const { matches } = await searchFacesByImage({
-            collectionId: col.collection_id, bytes: img.bytes, threshold: 80, maxFaces: 5,
+            collectionId: col.collection_id,
+            bytes: img.bytes,
+            threshold: 80,
+            maxFaces: 5,
           });
           faceMatches = matches.length;
         }
@@ -229,10 +233,7 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
       risk: captionAnalysis.maxRisk,
       requiresReview: captionAnalysis.maxRisk >= 55,
     };
-  } else if (
-    captionAnalysis.mentionCount > 0 &&
-    decision.classification === "not_relevant"
-  ) {
+  } else if (captionAnalysis.mentionCount > 0 && decision.classification === "not_relevant") {
     decision = {
       classification: "informational",
       risk: 20,
@@ -240,26 +241,31 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
     };
   }
 
-  await supabase.from("channel_watch_videos").update({
-    analysis_status: "completed",
-    analysis_error: null,
-    classification: decision.classification,
-    risk_score: decision.risk,
-    review_status: decision.requiresReview ? "pending" : "not_required",
-    mention_match: {
-      hits: aliasHits,
-      alias_count: aliases.length,
-      transcript_analysis_version: 3,
-      caption_state: captionAnalysis.state,
-      caption_language: captionAnalysis.language,
-      caption_source: captionAnalysis.source,
-      caption_segment_count: captionAnalysis.segmentCount,
-      transcript_mention_count: captionAnalysis.mentionCount,
-      timestamp_findings: captionAnalysis.findings,
-      caption_error: captionAnalysis.reason ?? null,
-    } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["mention_match"],
-    protected_asset_similarity: { face_matches: faceMatches } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["protected_asset_similarity"],
-  }).eq("id", v.id);
+  await supabase
+    .from("channel_watch_videos")
+    .update({
+      analysis_status: "completed",
+      analysis_error: null,
+      classification: decision.classification,
+      risk_score: decision.risk,
+      review_status: decision.requiresReview ? "pending" : "not_required",
+      mention_match: {
+        hits: aliasHits,
+        alias_count: aliases.length,
+        transcript_analysis_version: 3,
+        caption_state: captionAnalysis.state,
+        caption_language: captionAnalysis.language,
+        caption_source: captionAnalysis.source,
+        caption_segment_count: captionAnalysis.segmentCount,
+        transcript_mention_count: captionAnalysis.mentionCount,
+        timestamp_findings: captionAnalysis.findings,
+        caption_error: captionAnalysis.reason ?? null,
+      } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["mention_match"],
+      protected_asset_similarity: {
+        face_matches: faceMatches,
+      } as unknown as Database["public"]["Tables"]["channel_watch_videos"]["Update"]["protected_asset_similarity"],
+    })
+    .eq("id", v.id);
 
   // Capture an automatic metadata evidence snapshot for every relevant item.
   // This is preserved even when the risk does not meet enforcement thresholds.
@@ -358,10 +364,10 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
   }
 
   await supabase.from("channel_watch_events").insert({
-    user_id: v.user_id, watch_id: v.watch_id, video_id: v.id,
-    event_type: enforcementRequestId
-      ? "enforcement_draft_created"
-      : "analysis_completed",
+    user_id: v.user_id,
+    watch_id: v.watch_id,
+    video_id: v.id,
+    event_type: enforcementRequestId ? "enforcement_draft_created" : "analysis_completed",
     payload: {
       classification: decision.classification,
       risk_score: decision.risk,

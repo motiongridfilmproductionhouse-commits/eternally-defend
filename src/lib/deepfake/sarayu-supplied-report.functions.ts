@@ -1,14 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 
-export const getSarayuSuppliedEvidenceReportData = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const { getSarayuSuppliedEvidenceReportData: buildReportData } = await import("./sarayu-supplied-report.server");
+export const getSarayuSuppliedEvidenceReportData = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { getSarayuSuppliedEvidenceReportData: buildReportData } =
+      await import("./sarayu-supplied-report.server");
     return buildReportData();
-  });
+  },
+);
 
-export const downloadSarayuSuppliedEvidenceReport = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const { buildSarayuSuppliedEvidencePdf, getSarayuSuppliedEvidenceReportData: buildReportData } = await import("./sarayu-supplied-report.server");
+export const downloadSarayuSuppliedEvidenceReport = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { buildSarayuSuppliedEvidencePdf, getSarayuSuppliedEvidenceReportData: buildReportData } =
+      await import("./sarayu-supplied-report.server");
     const data = buildReportData();
     const output = await buildSarayuSuppliedEvidencePdf(data);
     return {
@@ -20,4 +23,5 @@ export const downloadSarayuSuppliedEvidenceReport = createServerFn({ method: "GE
       mimeType: "application/pdf",
       link_count: data.links.length,
     };
-  });
+  },
+);

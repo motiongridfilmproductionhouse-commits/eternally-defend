@@ -17,9 +17,7 @@ export function resolveWorkerProgressUiState(input: {
   if (input.status !== "running") return "running_unknown";
   const metrics = input.discoveryMetrics ?? {};
   const workerStatus =
-    typeof metrics.worker_execution_status === "string"
-      ? metrics.worker_execution_status
-      : null;
+    typeof metrics.worker_execution_status === "string" ? metrics.worker_execution_status : null;
   const executed = input.queriesExecuted ?? 0;
 
   if (executed > 0 || workerStatus === "progressing") {
@@ -28,10 +26,7 @@ export function resolveWorkerProgressUiState(input: {
   if (workerStatus === "worker_started_but_query_claim_failed") {
     return "worker_started_but_query_claim_failed";
   }
-  if (
-    workerStatus === "accepted_but_not_started" ||
-    workerStatus === "watchdog_redispatched"
-  ) {
+  if (workerStatus === "accepted_but_not_started" || workerStatus === "watchdog_redispatched") {
     return "accepted_but_not_started";
   }
 

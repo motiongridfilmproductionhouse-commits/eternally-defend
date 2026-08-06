@@ -46,10 +46,7 @@ export function buildAdaptiveQuerySchedule(input: {
   initialCount?: number;
 }): string[] {
   const prioritized = prioritizeDeepfakeQueries(input.queries);
-  const initial = Math.max(
-    1,
-    Math.min(input.initialCount ?? 15, prioritized.length),
-  );
+  const initial = Math.max(1, Math.min(input.initialCount ?? 15, prioritized.length));
   // Full prioritized list is retained; callers slice by next_query_index.
   // initialCount only documents the preferred first wave size.
   void initial;

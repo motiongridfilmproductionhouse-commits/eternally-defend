@@ -6,10 +6,7 @@
  * distribution-access evidence gates.
  */
 
-import {
-  assertSafePublicUrlForFetch,
-  isSafePublicHttpUrl,
-} from "@/lib/deepfake/url-safety.server";
+import { assertSafePublicUrlForFetch, isSafePublicHttpUrl } from "@/lib/deepfake/url-safety.server";
 import { canonicalUrl, hostOf } from "./url.server";
 
 export const MAX_KNOWN_URLS = 10;
@@ -51,9 +48,7 @@ export function parseKnownUrlInputs(raw: unknown): string[] {
  * Validate known URLs for investigation. Does not crawl.
  * Rejects non-http(s), private/reserved hosts, and duplicates after canonicalization.
  */
-export async function validateKnownUrlSeeds(
-  inputs: string[],
-): Promise<KnownUrlSeed[]> {
+export async function validateKnownUrlSeeds(inputs: string[]): Promise<KnownUrlSeed[]> {
   const out: KnownUrlSeed[] = [];
   const seen = new Set<string>();
 

@@ -53,7 +53,9 @@ export const addEvidenceForHit = createServerFn({ method: "POST" })
 
     const { data: hit, error: hitErr } = await supabase
       .from("scan_hits")
-      .select("id,title,description,permalink,canonical_url,source,source_type,author,published_at,severity,threat_score,reach,engagement,thumbnail_url,narrative_claim,risk_type,detected_at")
+      .select(
+        "id,title,description,permalink,canonical_url,source,source_type,author,published_at,severity,threat_score,reach,engagement,thumbnail_url,narrative_claim,risk_type,detected_at",
+      )
       .eq("id", data.scanHitId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -113,9 +115,13 @@ export const addEvidenceForHit = createServerFn({ method: "POST" })
     };
 
     // SHA-256 of the payload for tamper-evident evidence
-    const enc = new TextEncoder().encode(JSON.stringify({ hit_id: hit.id, url: targetUrl, payload }));
+    const enc = new TextEncoder().encode(
+      JSON.stringify({ hit_id: hit.id, url: targetUrl, payload }),
+    );
     const buf = await crypto.subtle.digest("SHA-256", enc);
-    const hash = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const hash = Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
 
     const { error: evErr } = await supabase.from("enforcement_evidence").insert({
       user_id: userId,
@@ -172,7 +178,9 @@ export const createEnforcementRequest = createServerFn({ method: "POST" })
 /** Counts evidence rows and current enforcement status for a set of scan_hit ids. */
 export const listEvidenceStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ scanHitIds: z.array(z.string().uuid()).min(1).max(200) }).parse(d))
+  .inputValidator((d: unknown) =>
+    z.object({ scanHitIds: z.array(z.string().uuid()).min(1).max(200) }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: reqs, error } = await supabase
@@ -193,8 +201,12 @@ export const listEvidenceStatus = createServerFn({ method: "POST" })
         evByReq.set(e.enforcement_request_id, (evByReq.get(e.enforcement_request_id) ?? 0) + 1);
       }
     }
-    const byHit: Record<string, { evidenceCount: number; status: string | null; requestId: string | null }> = {};
-    for (const hid of data.scanHitIds) byHit[hid] = { evidenceCount: 0, status: null, requestId: null };
+    const byHit: Record<
+      string,
+      { evidenceCount: number; status: string | null; requestId: string | null }
+    > = {};
+    for (const hid of data.scanHitIds)
+      byHit[hid] = { evidenceCount: 0, status: null, requestId: null };
     for (const r of reqs ?? []) {
       if (!r.scan_hit_id) continue;
       const cur = byHit[r.scan_hit_id];

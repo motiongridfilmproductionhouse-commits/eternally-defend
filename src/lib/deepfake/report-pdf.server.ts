@@ -5,7 +5,15 @@
  * `DeepfakeReportModel` only — never invents findings or evidence.
  */
 
-import { PDFDocument, PDFName, PDFString, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import {
+  PDFDocument,
+  PDFName,
+  PDFString,
+  rgb,
+  type PDFFont,
+  type PDFPage,
+  type RGB,
+} from "pdf-lib";
 import {
   embedUnicodeFontStack,
   drawUnicodeText,
@@ -65,12 +73,7 @@ function measure(text: string, size: number, fonts: PDFFont[]): number {
   }
 }
 
-export function wrapText(
-  text: string,
-  size: number,
-  fonts: PDFFont[],
-  width: number,
-): string[] {
+export function wrapText(text: string, size: number, fonts: PDFFont[], width: number): string[] {
   const words = sanitize(text).replace(/\s+/g, " ").split(" ").filter(Boolean);
   const out: string[] = [];
   let current = "";
@@ -122,17 +125,13 @@ function newPage(ctx: Ctx, withChrome = true): void {
       height: 26,
       color: PANEL,
     });
-    drawUnicodeText(
-      ctx.page,
-      sanitize("ETERNA · DEEPFAKE THREAT INTELLIGENCE"),
-      {
-        x: MARGIN,
-        y: A4[1] - 18,
-        size: 7.5,
-        stack: ctx.stack.bold,
-        color: MUTED,
-      },
-    );
+    drawUnicodeText(ctx.page, sanitize("ETERNA · DEEPFAKE THREAT INTELLIGENCE"), {
+      x: MARGIN,
+      y: A4[1] - 18,
+      size: 7.5,
+      stack: ctx.stack.bold,
+      color: MUTED,
+    });
     const right = sanitize(`CONFIDENTIAL · ${ctx.model.reportId}`);
     drawUnicodeText(ctx.page, right, {
       x: A4[0] - MARGIN - measure(right, 7.5, ctx.stack.regular),
@@ -153,17 +152,13 @@ function drawFooter(ctx: Ctx): void {
     thickness: 0.5,
     color: BORDER,
   });
-  drawUnicodeText(
-    ctx.page,
-    sanitize("Evidence only — no takedown submitted automatically."),
-    {
-      x: MARGIN,
-      y: 22,
-      size: 7,
-      stack: ctx.stack.regular,
-      color: MUTED,
-    },
-  );
+  drawUnicodeText(ctx.page, sanitize("Evidence only — no takedown submitted automatically."), {
+    x: MARGIN,
+    y: 22,
+    size: 7,
+    stack: ctx.stack.regular,
+    color: MUTED,
+  });
   const label = sanitize(`Page ${ctx.pageNumber}`);
   drawUnicodeText(ctx.page, label, {
     x: A4[0] - MARGIN - measure(label, 7, ctx.stack.regular),
@@ -372,17 +367,13 @@ function drawCover(ctx: Ctx): void {
     stack: ctx.stack.bold,
     color: TEXT,
   });
-  drawUnicodeText(
-    ctx.page,
-    sanitize("CYBER INTELLIGENCE & REPUTATION PROTECTION"),
-    {
-      x: MARGIN,
-      y: A4[1] - 128,
-      size: 8,
-      stack: ctx.stack.regular,
-      color: ACCENT,
-    },
-  );
+  drawUnicodeText(ctx.page, sanitize("CYBER INTELLIGENCE & REPUTATION PROTECTION"), {
+    x: MARGIN,
+    y: A4[1] - 128,
+    size: 8,
+    stack: ctx.stack.regular,
+    color: ACCENT,
+  });
 
   drawUnicodeText(ctx.page, sanitize("DEEPFAKE THREAT"), {
     x: MARGIN,
@@ -451,8 +442,7 @@ function drawCover(ctx: Ctx): void {
       stack: ctx.stack.bold,
       color: MUTED,
     });
-    const wrapped =
-      wrapText(value, 9, ctx.stack.regular, CONTENT_W - 190)[0] ?? "";
+    const wrapped = wrapText(value, 9, ctx.stack.regular, CONTENT_W - 190)[0] ?? "";
     drawUnicodeText(ctx.page, wrapped, {
       x: MARGIN + 170,
       y,
@@ -472,17 +462,13 @@ function drawCover(ctx: Ctx): void {
     borderColor: CRITICAL,
     borderWidth: 0.7,
   });
-  drawUnicodeText(
-    ctx.page,
-    sanitize("CONFIDENTIAL — AUTHORIZED REVIEW USE ONLY"),
-    {
-      x: MARGIN + 14,
-      y: 100,
-      size: 9,
-      stack: ctx.stack.bold,
-      color: CRITICAL,
-    },
-  );
+  drawUnicodeText(ctx.page, sanitize("CONFIDENTIAL — AUTHORIZED REVIEW USE ONLY"), {
+    x: MARGIN + 14,
+    y: 100,
+    size: 9,
+    stack: ctx.stack.bold,
+    color: CRITICAL,
+  });
   drawUnicodeText(
     ctx.page,
     sanitize(
@@ -538,10 +524,7 @@ function drawIdentity(ctx: Ctx): void {
       ["Target name", id.targetName],
       ["Authorization status", shown(id.authorizationStatus)],
       ["Reference faces enrolled", String(id.referenceFaceCount)],
-      [
-        "Face collection",
-        id.faceCollectionConfigured ? "Configured" : "Not configured",
-      ],
+      ["Face collection", id.faceCollectionConfigured ? "Configured" : "Not configured"],
       ["Aliases", id.aliases.length ? id.aliases.join(", ") : "None recorded"],
       ["Handles", id.handles.length ? id.handles.join(", ") : "None recorded"],
     ],
@@ -598,13 +581,7 @@ function drawFindingsTable(ctx: Ctx): void {
       color: TEXT,
     });
     let bx = box.x + 10;
-    bx += badge(
-      ctx,
-      finding.riskLevel,
-      severityColor(finding.riskLevel),
-      bx,
-      ctx.y - 30,
-    );
+    bx += badge(ctx, finding.riskLevel, severityColor(finding.riskLevel), bx, ctx.y - 30);
     bx += badge(
       ctx,
       finding.classificationLabel.toUpperCase(),
@@ -612,8 +589,7 @@ function drawFindingsTable(ctx: Ctx): void {
       bx,
       ctx.y - 30,
     );
-    const conf =
-      finding.confidence === null ? "n/a" : `${finding.confidence}%`;
+    const conf = finding.confidence === null ? "n/a" : `${finding.confidence}%`;
     drawUnicodeText(ctx.page, sanitize(conf), {
       x: box.x + CONTENT_W - 54,
       y: ctx.y - 14,
@@ -636,18 +612,12 @@ function drawFindingDetail(ctx: Ctx, finding: DeepfakeReportFinding): void {
       ["Confidence", shown(finding.confidence === null ? null : `${finding.confidence}%`)],
       [
         "Identity confidence",
-        shown(
-          finding.identityConfidence === null
-            ? null
-            : `${finding.identityConfidence}%`,
-        ),
+        shown(finding.identityConfidence === null ? null : `${finding.identityConfidence}%`),
       ],
       [
         "Synthetic confidence",
         shown(
-          finding.syntheticMediaConfidence === null
-            ? null
-            : `${finding.syntheticMediaConfidence}%`,
+          finding.syntheticMediaConfidence === null ? null : `${finding.syntheticMediaConfidence}%`,
         ),
       ],
       ["URL verification", shown(finding.urlVerificationStatus)],
@@ -657,17 +627,11 @@ function drawFindingDetail(ctx: Ctx, finding: DeepfakeReportFinding): void {
       ["Face referenced", finding.faceReferenced ? "Yes" : "No"],
       [
         "Target face match",
-        finding.targetFaceMatch === null
-          ? "Not available"
-          : finding.targetFaceMatch
-            ? "Yes"
-            : "No",
+        finding.targetFaceMatch === null ? "Not available" : finding.targetFaceMatch ? "Yes" : "No",
       ],
       [
         "Face similarity",
-        shown(
-          finding.faceSimilarity === null ? null : `${finding.faceSimilarity}`,
-        ),
+        shown(finding.faceSimilarity === null ? null : `${finding.faceSimilarity}`),
       ],
       ["Detected at", finding.detectedAt],
       ["Crawled at", shown(finding.crawledAt)],
@@ -772,13 +736,7 @@ function drawDomains(ctx: Ctx): void {
       stack: ctx.stack.bold,
       color: TEXT,
     });
-    badge(
-      ctx,
-      domain.highestRisk,
-      severityColor(domain.highestRisk),
-      box.x + 220,
-      ctx.y - 16,
-    );
+    badge(ctx, domain.highestRisk, severityColor(domain.highestRisk), box.x + 220, ctx.y - 16);
     drawUnicodeText(
       ctx.page,
       sanitize(
@@ -851,9 +809,7 @@ function drawDisclaimer(ctx: Ctx): void {
   );
 }
 
-export async function renderDeepfakeReportPdf(
-  model: DeepfakeReportModel,
-): Promise<Uint8Array> {
+export async function renderDeepfakeReportPdf(model: DeepfakeReportModel): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(
     `Eterna Deepfake Threat ${model.reportMode === "interim" ? "Interim " : ""}Report — ${sanitize(model.protectedIdentity)}`,

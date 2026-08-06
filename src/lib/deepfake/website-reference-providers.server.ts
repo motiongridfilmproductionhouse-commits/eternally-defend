@@ -21,10 +21,7 @@ import type { ReferenceImageHit } from "./image-discovery-providers.server";
 import type { ReferenceImageProviderId } from "./reference-images";
 
 export type WebsiteReferenceCategory =
-  | "public_website"
-  | "news_website"
-  | "official_website"
-  | "social_public";
+  "public_website" | "news_website" | "official_website" | "social_public";
 
 const CATEGORY_SITE_HINTS: Record<WebsiteReferenceCategory, string[]> = {
   public_website: ["imdb.com", "wikipedia.org", "wikidata.org", "filmibeat.com"],
@@ -107,10 +104,11 @@ async function searchWebForImages(input: {
   const signal = mergeAbortSignals(input.signal, timeoutController.signal);
 
   try {
-    const response = await fetch(
-      `https://serpapi.com/search.json?${params.toString()}`,
-      { method: "GET", headers: { Accept: "application/json" }, signal },
-    );
+    const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal,
+    });
     assertNotAborted(input.signal);
 
     if (!isAllowedJsonMime(response.headers.get("content-type"))) {
@@ -127,9 +125,7 @@ async function searchWebForImages(input: {
       return { hits: [], failure: `Web search HTTP ${response.status}` };
     }
 
-    const organic = Array.isArray(payload?.organic_results)
-      ? payload.organic_results
-      : [];
+    const organic = Array.isArray(payload?.organic_results) ? payload.organic_results : [];
     const hits: ReferenceImageHit[] = [];
     const seen = new Set<string>();
 
@@ -137,16 +133,12 @@ async function searchWebForImages(input: {
       if (!raw || typeof raw !== "object") continue;
       const item = raw as Record<string, unknown>;
       const pageUrl =
-        typeof item.link === "string" && isSafePublicHttpUrl(item.link)
-          ? item.link.trim()
-          : null;
+        typeof item.link === "string" && isSafePublicHttpUrl(item.link) ? item.link.trim() : null;
       const imageUrl = extractImageFromResult(item);
       if (!pageUrl || !imageUrl || seen.has(imageUrl)) continue;
       seen.add(imageUrl);
 
-      const provider = input.site
-        ? categoryForSite(input.site)
-        : categoryForUrl(pageUrl);
+      const provider = input.site ? categoryForSite(input.site) : categoryForUrl(pageUrl);
 
       hits.push({
         image_url: imageUrl,
@@ -200,11 +192,7 @@ export async function collectWebsiteReferenceImages(input: {
   if (!identity) return { hits: [], images_found: 0, failures: 0 };
 
   const quoted = `"${identity.replaceAll('"', "").trim()}"`;
-  const queries = [
-    `${quoted} photos`,
-    `${quoted} portrait`,
-    `${quoted} actor`,
-  ];
+  const queries = [`${quoted} photos`, `${quoted} portrait`, `${quoted} actor`];
 
   const siteTargets = [
     ...CATEGORY_SITE_HINTS.public_website.slice(0, 2),

@@ -3,17 +3,10 @@
  */
 
 export type ReleaseType =
-  | "theatrical"
-  | "festival"
-  | "streaming"
-  | "television"
-  | "direct-to-video";
+  "theatrical" | "festival" | "streaming" | "television" | "direct-to-video";
 
 export type AlertThreshold =
-  | "critical_only"
-  | "high_and_critical"
-  | "all_verified"
-  | "daily_summary";
+  "critical_only" | "high_and_critical" | "all_verified" | "daily_summary";
 
 export type CadenceProfile = "default" | "custom";
 
@@ -197,9 +190,12 @@ export function validateReleaseProtectionSettings(
 ): string[] {
   const errors: string[] = [];
   if (!settings.enabled) return errors;
-  if (!settings.release_date?.trim()) errors.push("Release date is required when automatic monitoring is enabled.");
-  if (!settings.release_timezone?.trim()) errors.push("Release timezone is required when automatic monitoring is enabled.");
-  if (!settings.release_type) errors.push("Release type is required when automatic monitoring is enabled.");
+  if (!settings.release_date?.trim())
+    errors.push("Release date is required when automatic monitoring is enabled.");
+  if (!settings.release_timezone?.trim())
+    errors.push("Release timezone is required when automatic monitoring is enabled.");
+  if (!settings.release_type)
+    errors.push("Release type is required when automatic monitoring is enabled.");
   if (!settings.release_countries?.length) errors.push("At least one release country is required.");
   if (!settings.primary_language?.trim()) errors.push("Primary language is required.");
   if (!settings.languages?.length) errors.push("At least one language is required.");
@@ -214,7 +210,9 @@ export function validateReleaseProtectionSettings(
   if (settings.cadence_profile === "custom" && settings.custom_cadence_minutes != null) {
     const clamped = clampCadence(settings.custom_cadence_minutes);
     if (clamped !== settings.custom_cadence_minutes) {
-      errors.push(`Custom cadence must be between ${MIN_CADENCE_MINUTES} and ${MAX_CADENCE_MINUTES} minutes.`);
+      errors.push(
+        `Custom cadence must be between ${MIN_CADENCE_MINUTES} and ${MAX_CADENCE_MINUTES} minutes.`,
+      );
     }
   }
   return errors;
@@ -293,10 +291,7 @@ export function meetsAutomaticMonitoringReferenceMinimum(pkg: ReferencePackage):
   return visuals >= 3 && pkg.video_reference_keys.filter(Boolean).length >= 1;
 }
 
-export function buildPreReleaseLeakQueries(
-  title: string,
-  altTitles: string[] = [],
-): string[] {
+export function buildPreReleaseLeakQueries(title: string, altTitles: string[] = []): string[] {
   const bases = [title, ...altTitles].filter(Boolean);
   const out = new Set<string>();
   for (const base of bases) {
@@ -355,7 +350,8 @@ export function classifyYoutubeLeakCandidate(input: {
       : false;
 
   if (OFFICIAL_EXCLUSION_PATTERNS.some((p) => p.test(text))) {
-    if (/\btrailer\b/i.test(text)) return { classification: "official_trailer", risk: "contextual" };
+    if (/\btrailer\b/i.test(text))
+      return { classification: "official_trailer", risk: "contextual" };
     if (/\bteaser\b/i.test(text)) return { classification: "teaser", risk: "contextual" };
     if (/\breview\b/i.test(text)) return { classification: "review", risk: "contextual" };
     if (/\breaction\b/i.test(text)) return { classification: "reaction", risk: "contextual" };
@@ -379,7 +375,10 @@ export function classifyYoutubeLeakCandidate(input: {
   }
 
   if (censor) {
-    return { classification: "suspected_leaked_footage", risk: beforeRelease ? "critical" : "high" };
+    return {
+      classification: "suspected_leaked_footage",
+      risk: beforeRelease ? "critical" : "high",
+    };
   }
 
   if (theatre) {
@@ -413,8 +412,7 @@ export function classifyWebLeakCandidate(input: {
 }): { risk: LeakRiskLevel; labels: string[] } {
   const text = `${input.pageTitle ?? ""} ${input.pageText ?? ""}`;
   const labels: string[] = [];
-  const beforeRelease =
-    input.releaseDate != null ? daysUntilRelease(input.releaseDate) > 0 : false;
+  const beforeRelease = input.releaseDate != null ? daysUntilRelease(input.releaseDate) > 0 : false;
 
   if (input.isOfficialDomain) {
     return { risk: "contextual", labels: ["official_domain"] };
@@ -443,10 +441,7 @@ export function classifyWebLeakCandidate(input: {
   return { risk: "low", labels };
 }
 
-export function shouldAlertForIncident(
-  risk: LeakRiskLevel,
-  threshold: AlertThreshold,
-): boolean {
+export function shouldAlertForIncident(risk: LeakRiskLevel, threshold: AlertThreshold): boolean {
   switch (threshold) {
     case "critical_only":
       return risk === "critical";
@@ -497,17 +492,13 @@ export function computeMonitoringWindow(releaseDateIso: string): {
   };
 }
 
-export function incidentDedupKey(
-  sourceUrl: string,
-  incidentType: string,
-): string {
+export function incidentDedupKey(sourceUrl: string, incidentType: string): string {
   return `${incidentType}::${sourceUrl}`;
 }
 
-export function mergeIncidentRecurrence<T extends { recurrence_count: number; last_seen_at: string }>(
-  existing: T,
-  seenAt: string,
-): T {
+export function mergeIncidentRecurrence<
+  T extends { recurrence_count: number; last_seen_at: string },
+>(existing: T, seenAt: string): T {
   return {
     ...existing,
     recurrence_count: existing.recurrence_count + 1,
@@ -526,7 +517,7 @@ export function isPrivateOrUnsafeMonitorUrl(url: string): boolean {
       /^127\./.test(host) ||
       /^10\./.test(host) ||
       /^192\.168\./.test(host) ||
-      host.includes("drive.google.com") && parsed.pathname.includes("/folders/")
+      (host.includes("drive.google.com") && parsed.pathname.includes("/folders/"))
     ) {
       return true;
     }

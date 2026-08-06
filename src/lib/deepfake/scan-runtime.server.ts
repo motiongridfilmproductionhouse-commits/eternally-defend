@@ -24,9 +24,7 @@ export class ScanDeadlineError extends Error {
 export class ScanOwnershipLostError extends Error {
   readonly code = "SCAN_OWNERSHIP_LOST" as const;
 
-  constructor(
-    message = "Scan ownership was lost; this invocation must abort.",
-  ) {
+  constructor(message = "Scan ownership was lost; this invocation must abort.") {
     super(message);
     this.name = "ScanOwnershipLostError";
   }
@@ -50,19 +48,14 @@ export type ScanRuntime = {
   leaseTtlMs: number;
 };
 
-export function resolveHardTimeoutMs(
-  env: NodeJS.ProcessEnv = process.env,
-): number {
+export function resolveHardTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
   const explicit = Number(env.DEEPFAKE_SCAN_HARD_TIMEOUT_MS);
   if (Number.isFinite(explicit) && explicit > SCAN_DEADLINE_BUFFER_MS + 5_000) {
     return Math.floor(explicit);
   }
 
   const vercelSeconds = Number(env.VERCEL_FUNCTION_MAX_DURATION);
-  if (
-    Number.isFinite(vercelSeconds) &&
-    vercelSeconds * 1_000 > SCAN_DEADLINE_BUFFER_MS + 5_000
-  ) {
+  if (Number.isFinite(vercelSeconds) && vercelSeconds * 1_000 > SCAN_DEADLINE_BUFFER_MS + 5_000) {
     return Math.floor(vercelSeconds * 1_000);
   }
 
@@ -84,11 +77,7 @@ export function createScanRuntime(options?: {
   const remainingToSoft = Math.max(softDeadlineMs - startedAtMs, 1_000);
   const timer = setTimeout(() => {
     if (!controller.signal.aborted) {
-      controller.abort(
-        new ScanDeadlineError(
-          "Scan reached its internal execution deadline.",
-        ),
-      );
+      controller.abort(new ScanDeadlineError("Scan reached its internal execution deadline."));
     }
   }, remainingToSoft);
 
@@ -163,9 +152,7 @@ export function isDeadlineOrTimeoutError(error: unknown): boolean {
   if (error instanceof ScanDeadlineError) return true;
   if (
     error instanceof Error &&
-    /\b(?:timeout|timed out|deadline|aborted due to timeout)\b/i.test(
-      error.message,
-    )
+    /\b(?:timeout|timed out|deadline|aborted due to timeout)\b/i.test(error.message)
   ) {
     return true;
   }
@@ -179,9 +166,7 @@ export function isDeadlineOrTimeoutError(error: unknown): boolean {
 export class ScanCheckpointPauseError extends Error {
   readonly code = "SCAN_CHECKPOINT_PAUSE" as const;
 
-  constructor(
-    message = "Scan paused at the time budget with a resumable checkpoint.",
-  ) {
+  constructor(message = "Scan paused at the time budget with a resumable checkpoint.") {
     super(message);
     this.name = "ScanCheckpointPauseError";
   }
@@ -196,15 +181,11 @@ export function boundTimeoutMs(
 ): number {
   assertNotAborted(signal);
   const remaining =
-    typeof softDeadlineMs === "number"
-      ? Math.max(0, softDeadlineMs - nowMs)
-      : requestedMs;
+    typeof softDeadlineMs === "number" ? Math.max(0, softDeadlineMs - nowMs) : requestedMs;
   return Math.max(1, Math.min(requestedMs, remaining));
 }
 
-export function mergeAbortSignals(
-  ...signals: Array<AbortSignal | null | undefined>
-): AbortSignal {
+export function mergeAbortSignals(...signals: Array<AbortSignal | null | undefined>): AbortSignal {
   const active = signals.filter((s): s is AbortSignal => Boolean(s));
   if (active.length === 0) {
     return new AbortController().signal;
@@ -236,10 +217,7 @@ export function mergeAbortSignals(
   return controller.signal;
 }
 
-export async function abortableSleep(
-  ms: number,
-  signal?: AbortSignal | null,
-): Promise<void> {
+export async function abortableSleep(ms: number, signal?: AbortSignal | null): Promise<void> {
   assertNotAborted(signal);
   if (ms <= 0) return;
 
@@ -335,10 +313,7 @@ export async function readResponseText(
   return decoder.decode(merged);
 }
 
-export function leaseExpiresAtIso(
-  leaseTtlMs: number,
-  nowMs = Date.now(),
-): string {
+export function leaseExpiresAtIso(leaseTtlMs: number, nowMs = Date.now()): string {
   return new Date(nowMs + leaseTtlMs).toISOString();
 }
 

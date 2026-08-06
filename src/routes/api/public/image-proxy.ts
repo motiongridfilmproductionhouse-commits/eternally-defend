@@ -1,8 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  assertSafePublicUrlForFetch,
-  fetchPublicHttpUrl,
-} from "@/lib/deepfake/url-safety.server";
+import { assertSafePublicUrlForFetch, fetchPublicHttpUrl } from "@/lib/deepfake/url-safety.server";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 8_000;

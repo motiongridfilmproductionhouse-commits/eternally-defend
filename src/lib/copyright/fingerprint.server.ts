@@ -39,8 +39,26 @@ export interface MovieFingerprint {
 }
 
 const STOP = new Set([
-  "the", "and", "for", "with", "from", "movie", "film", "full", "hd", "official",
-  "trailer", "new", "day", "watch", "online", "download", "free", "a", "of", "in",
+  "the",
+  "and",
+  "for",
+  "with",
+  "from",
+  "movie",
+  "film",
+  "full",
+  "hd",
+  "official",
+  "trailer",
+  "new",
+  "day",
+  "watch",
+  "online",
+  "download",
+  "free",
+  "a",
+  "of",
+  "in",
 ]);
 
 export function normalizeTokens(text: string): string[] {
@@ -52,9 +70,7 @@ export function normalizeTokens(text: string): string[] {
 }
 
 function topLabels(labels: RekLabel[]): string[] {
-  return labels
-    .filter((l) => l.confidence >= 70)
-    .map((l) => l.name);
+  return labels.filter((l) => l.confidence >= 70).map((l) => l.name);
 }
 
 /** Build the reference fingerprint from the uploaded frames. */
@@ -63,20 +79,29 @@ export async function buildMovieFingerprint(
   workTitle: string,
 ): Promise<MovieFingerprint> {
   const empty: MovieFingerprint = {
-    available: false, frames, labels: [], sceneCategories: [], ocrLines: [],
-    ocrTokens: normalizeTokens(workTitle), celebrities: [], faceCount: 0, watermarkHints: [],
+    available: false,
+    frames,
+    labels: [],
+    sceneCategories: [],
+    ocrLines: [],
+    ocrTokens: normalizeTokens(workTitle),
+    celebrities: [],
+    faceCount: 0,
+    watermarkHints: [],
   };
   if (!isRekognitionConfigured() || frames.length === 0) return empty;
 
   try {
-    const perFrame = await Promise.all(frames.slice(0, 4).map(async (bytes) => {
-      const [labels, text, celeb] = await Promise.all([
-        detectLabels(bytes),
-        detectText(bytes),
-        recognizeCelebrities(bytes),
-      ]);
-      return { labels, text, celeb };
-    }));
+    const perFrame = await Promise.all(
+      frames.slice(0, 4).map(async (bytes) => {
+        const [labels, text, celeb] = await Promise.all([
+          detectLabels(bytes),
+          detectText(bytes),
+          recognizeCelebrities(bytes),
+        ]);
+        return { labels, text, celeb };
+      }),
+    );
 
     const labels = new Set<string>();
     const cats = new Set<string>();
@@ -93,9 +118,9 @@ export async function buildMovieFingerprint(
     }
 
     const uniqueLines = [...new Set(ocrLines)].slice(0, 60);
-    const watermarkHints = uniqueLines.filter(
-      (l) => l.length <= 24 && /^[A-Z0-9 .·|@#\-_/]+$/.test(l) && /[A-Z]{3,}/.test(l),
-    ).slice(0, 8);
+    const watermarkHints = uniqueLines
+      .filter((l) => l.length <= 24 && /^[A-Z0-9 .·|@#\-_/]+$/.test(l) && /[A-Z]{3,}/.test(l))
+      .slice(0, 8);
 
     return {
       available: true,
@@ -103,7 +128,9 @@ export async function buildMovieFingerprint(
       labels: [...labels].slice(0, 40),
       sceneCategories: [...cats].slice(0, 12),
       ocrLines: uniqueLines,
-      ocrTokens: [...new Set([...normalizeTokens(workTitle), ...normalizeTokens(uniqueLines.join(" "))])].slice(0, 80),
+      ocrTokens: [
+        ...new Set([...normalizeTokens(workTitle), ...normalizeTokens(uniqueLines.join(" "))]),
+      ].slice(0, 80),
       celebrities: [...celebrities].slice(0, 8),
       faceCount,
       watermarkHints,
@@ -129,8 +156,15 @@ export interface FingerprintMatch {
 }
 
 export const EMPTY_MATCH: FingerprintMatch = {
-  score: 0, faceSimilarity: 0, celebrityMatches: [], sceneOverlap: 0,
-  matchedLabels: [], ocrTitleMatch: false, matchedOcrText: [], watermarkMatch: null, signals: [],
+  score: 0,
+  faceSimilarity: 0,
+  celebrityMatches: [],
+  sceneOverlap: 0,
+  matchedLabels: [],
+  ocrTitleMatch: false,
+  matchedOcrText: [],
+  watermarkMatch: null,
+  signals: [],
 };
 
 /** Compare a discovered candidate image against the reference fingerprint. */
@@ -145,8 +179,12 @@ export async function matchCandidateAgainstFingerprint(
     const [labels, text, celeb, faceSim] = await Promise.all([
       detectLabels(candidateBytes, 25),
       detectText(candidateBytes),
-      fp.celebrities.length || fp.faceCount ? recognizeCelebrities(candidateBytes) : Promise.resolve({ celebrities: [], faces: 0 }),
-      fp.faceCount && fp.frames[0] ? compareFaceSimilarity(fp.frames[0], candidateBytes, 80) : Promise.resolve(0),
+      fp.celebrities.length || fp.faceCount
+        ? recognizeCelebrities(candidateBytes)
+        : Promise.resolve({ celebrities: [], faces: 0 }),
+      fp.faceCount && fp.frames[0]
+        ? compareFaceSimilarity(fp.frames[0], candidateBytes, 80)
+        : Promise.resolve(0),
     ]);
 
     const refLabels = new Set(fp.labels.map((l) => l.toLowerCase()));
@@ -159,10 +197,14 @@ export async function matchCandidateAgainstFingerprint(
     const titleTokens = normalizeTokens(workTitle);
     const candTokens = new Set(normalizeTokens(text.join(" ")));
     const hitTokens = titleTokens.filter((t) => candTokens.has(t));
-    const ocrTitleMatch = titleTokens.length > 0 && hitTokens.length >= Math.max(1, Math.ceil(titleTokens.length * 0.6));
+    const ocrTitleMatch =
+      titleTokens.length > 0 &&
+      hitTokens.length >= Math.max(1, Math.ceil(titleTokens.length * 0.6));
 
     const refOcr = new Set(fp.ocrLines.map((l) => l.toLowerCase()));
-    const matchedOcrText = text.filter((l) => l.length > 3 && refOcr.has(l.toLowerCase())).slice(0, 8);
+    const matchedOcrText = text
+      .filter((l) => l.length > 3 && refOcr.has(l.toLowerCase()))
+      .slice(0, 8);
 
     const refCelebs = new Set(fp.celebrities.map((c) => c.toLowerCase()));
     const celebrityMatches = celeb.celebrities
@@ -170,17 +212,38 @@ export async function matchCandidateAgainstFingerprint(
       .map((c) => c.name);
 
     const candUpper = text.map((l) => l.toUpperCase());
-    const watermarkMatch = fp.watermarkHints.find((w) => candUpper.some((l) => l.includes(w.toUpperCase()))) ?? null;
+    const watermarkMatch =
+      fp.watermarkHints.find((w) => candUpper.some((l) => l.includes(w.toUpperCase()))) ?? null;
 
     const signals: string[] = [];
     let score = 0;
-    if (faceSim >= 80) { score += 28; signals.push(`face_match_${faceSim}%`); }
-    if (celebrityMatches.length) { score += 20; signals.push(`actor_match:${celebrityMatches.slice(0, 2).join(", ")}`); }
-    if (ocrTitleMatch) { score += 22; signals.push("ocr_title_match"); }
-    if (matchedOcrText.length) { score += 12; signals.push("ocr_text_overlap"); }
-    if (sceneOverlap >= 50) { score += 18; signals.push(`scene_similarity_${sceneOverlap}%`); }
-    else if (sceneOverlap >= 30) { score += 9; signals.push(`scene_similarity_${sceneOverlap}%`); }
-    if (watermarkMatch) { score += 15; signals.push(`watermark_match:${watermarkMatch}`); }
+    if (faceSim >= 80) {
+      score += 28;
+      signals.push(`face_match_${faceSim}%`);
+    }
+    if (celebrityMatches.length) {
+      score += 20;
+      signals.push(`actor_match:${celebrityMatches.slice(0, 2).join(", ")}`);
+    }
+    if (ocrTitleMatch) {
+      score += 22;
+      signals.push("ocr_title_match");
+    }
+    if (matchedOcrText.length) {
+      score += 12;
+      signals.push("ocr_text_overlap");
+    }
+    if (sceneOverlap >= 50) {
+      score += 18;
+      signals.push(`scene_similarity_${sceneOverlap}%`);
+    } else if (sceneOverlap >= 30) {
+      score += 9;
+      signals.push(`scene_similarity_${sceneOverlap}%`);
+    }
+    if (watermarkMatch) {
+      score += 15;
+      signals.push(`watermark_match:${watermarkMatch}`);
+    }
 
     return {
       score: Math.min(100, score),

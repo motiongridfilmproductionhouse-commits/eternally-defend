@@ -24,9 +24,16 @@ interface WatchRow {
   status: "active" | "paused" | "error";
 }
 
-export async function pollOneWatch(supabase: Supa, watchId: string, opts: { baseline?: boolean; baselineCount?: number } = {}) {
+export async function pollOneWatch(
+  supabase: Supa,
+  watchId: string,
+  opts: { baseline?: boolean; baselineCount?: number } = {},
+) {
   const { data: w, error: e1 } = await supabase
-    .from("channel_watches").select("*").eq("id", watchId).maybeSingle();
+    .from("channel_watches")
+    .select("*")
+    .eq("id", watchId)
+    .maybeSingle();
   if (e1 || !w) throw new Error(`watch not found: ${watchId}`);
   const watch = w as WatchRow;
 
@@ -34,19 +41,31 @@ export async function pollOneWatch(supabase: Supa, watchId: string, opts: { base
   if (!watch.uploads_playlist_id) throw new Error("watch missing uploads_playlist_id");
 
   const isBaseline = opts.baseline === true;
-  const since = isBaseline ? undefined : watch.last_video_published_at ?? undefined;
+  const since = isBaseline ? undefined : (watch.last_video_published_at ?? undefined);
   const max = isBaseline ? Math.max(1, Math.min(200, opts.baselineCount ?? 25)) : 50;
 
   let videos;
   try {
-    videos = await fetchUploadsSince({ uploadsPlaylistId: watch.uploads_playlist_id, sinceIso: since ?? undefined, max });
+    videos = await fetchUploadsSince({
+      uploadsPlaylistId: watch.uploads_playlist_id,
+      sinceIso: since ?? undefined,
+      max,
+    });
   } catch (err) {
     const msg = (err as Error).message ?? String(err);
-    await supabase.from("channel_watches").update({
-      status: "error", last_error: msg, last_checked_at: new Date().toISOString(),
-    }).eq("id", watch.id);
+    await supabase
+      .from("channel_watches")
+      .update({
+        status: "error",
+        last_error: msg,
+        last_checked_at: new Date().toISOString(),
+      })
+      .eq("id", watch.id);
     await supabase.from("channel_watch_events").insert({
-      user_id: watch.user_id, watch_id: watch.id, event_type: "poll_failed", payload: { error: msg },
+      user_id: watch.user_id,
+      watch_id: watch.id,
+      event_type: "poll_failed",
+      payload: { error: msg },
     });
     throw err;
   }
@@ -72,74 +91,86 @@ export async function pollOneWatch(supabase: Supa, watchId: string, opts: { base
       .maybeSingle();
     if (existing) {
       const previous = (existing.mention_match ?? {}) as Record<string, unknown>;
-      const alreadyAnalyzed =
-        previous.transcript_analysis_version === 3;
+      const alreadyAnalyzed = previous.transcript_analysis_version === 3;
 
       if (isBaseline && !alreadyAnalyzed && analyzed < analysisBudget) {
         try {
           await analyzeWatchVideo(supabase, existing.id);
           analyzed += 1;
         } catch (err) {
-          await supabase.from("channel_watch_videos").update({
-            analysis_status: "failed",
-            analysis_error: (err as Error).message ?? String(err),
-          }).eq("id", existing.id);
+          await supabase
+            .from("channel_watch_videos")
+            .update({
+              analysis_status: "failed",
+              analysis_error: (err as Error).message ?? String(err),
+            })
+            .eq("id", existing.id);
         }
       }
       continue;
     }
 
-    const { data: ins, error: eIns } = await supabase.from("channel_watch_videos").insert({
-      user_id: watch.user_id,
-      watch_id: watch.id,
-      video_id: v.videoId,
-      title: v.title,
-      description: v.description,
-      thumbnail_url: v.thumbnailUrl,
-      url: `https://www.youtube.com/watch?v=${v.videoId}`,
-      published_at: v.publishedAt,
-      detected_at: nowIso,
-      is_baseline: isBaseline,
-      duration_seconds: v.durationSeconds,
-      view_count: v.viewCount,
-      like_count: v.likeCount,
-      comment_count: v.commentCount,
-      analysis_status: v.isPrivateOrDeleted ? "skipped" : "pending",
-      analysis_error: v.isPrivateOrDeleted ? "Video is private, deleted or unavailable." : null,
-    }).select("id").single();
+    const { data: ins, error: eIns } = await supabase
+      .from("channel_watch_videos")
+      .insert({
+        user_id: watch.user_id,
+        watch_id: watch.id,
+        video_id: v.videoId,
+        title: v.title,
+        description: v.description,
+        thumbnail_url: v.thumbnailUrl,
+        url: `https://www.youtube.com/watch?v=${v.videoId}`,
+        published_at: v.publishedAt,
+        detected_at: nowIso,
+        is_baseline: isBaseline,
+        duration_seconds: v.durationSeconds,
+        view_count: v.viewCount,
+        like_count: v.likeCount,
+        comment_count: v.commentCount,
+        analysis_status: v.isPrivateOrDeleted ? "skipped" : "pending",
+        analysis_error: v.isPrivateOrDeleted ? "Video is private, deleted or unavailable." : null,
+      })
+      .select("id")
+      .single();
     if (eIns || !ins) continue;
     inserted += 1;
 
     await supabase.from("channel_watch_events").insert({
-      user_id: watch.user_id, watch_id: watch.id, video_id: ins.id,
+      user_id: watch.user_id,
+      watch_id: watch.id,
+      video_id: ins.id,
       event_type: isBaseline ? "baseline_video_fetched" : "new_video_detected",
       payload: { video_id: v.videoId, title: v.title, published_at: v.publishedAt },
     });
 
-    if (
-      !v.isPrivateOrDeleted &&
-      (!isBaseline || analyzed < analysisBudget)
-    ) {
+    if (!v.isPrivateOrDeleted && (!isBaseline || analyzed < analysisBudget)) {
       // Best-effort inline analysis; failures are recorded per-row, never silent.
       try {
         await analyzeWatchVideo(supabase, ins.id);
         analyzed += 1;
       } catch (err) {
-        await supabase.from("channel_watch_videos").update({
-          analysis_status: "failed", analysis_error: (err as Error).message ?? String(err),
-        }).eq("id", ins.id);
+        await supabase
+          .from("channel_watch_videos")
+          .update({
+            analysis_status: "failed",
+            analysis_error: (err as Error).message ?? String(err),
+          })
+          .eq("id", ins.id);
       }
     }
   }
 
   const nextMs = Date.now() + priorityToIntervalMinutes(watch.priority) * 60_000;
-  await supabase.from("channel_watches").update({
-    status: "active",
-    last_error: null,
-    last_checked_at: nowIso,
-    next_check_at: new Date(nextMs).toISOString(),
-    last_video_published_at: latestPublished,
-  }).eq("id", watch.id);
+  await supabase
+    .from("channel_watches")
+    .update({
+      status: "active",
+      last_error: null,
+      last_checked_at: nowIso,
+      next_check_at: new Date(nextMs).toISOString(),
+      last_video_published_at: latestPublished,
+    })
+    .eq("id", watch.id);
 
   return {
     inserted,

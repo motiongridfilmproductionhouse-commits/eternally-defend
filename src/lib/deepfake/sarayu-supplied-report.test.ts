@@ -13,9 +13,15 @@ test("Sarayu supplied report data is exactly six immutable links", () => {
   assert.equal(data.report_scope, SARAYU_SUPPLIED_REPORT_SCOPE);
   assert.equal(data.links.length, 6);
   assert.equal(new Set(data.links.map((link) => link.submitted_url)).size, 6);
-  assert.deepEqual(data.links.map((link) => link.submitted_url), [...SARAYU_SUPPLIED_EVIDENCE_URLS]);
+  assert.deepEqual(
+    data.links.map((link) => link.submitted_url),
+    [...SARAYU_SUPPLIED_EVIDENCE_URLS],
+  );
   assert.equal(data.links.filter((link) => link.submitted_url.includes("#sv=")).length, 5);
-  assert.equal(data.links.some((link) => link.submitted_url.endsWith("#sv=")), false);
+  assert.equal(
+    data.links.some((link) => link.submitted_url.endsWith("#sv=")),
+    false,
+  );
   assert.equal(data.summary.verified_deepfakes, 0);
   assert.equal(data.summary.confirmed_identity_matches, 0);
   assert.equal(data.summary.pending_verification, 6);

@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  filterClientDiscoveries,
-  filterClientFindings,
-} from "./client-results.server";
+import { filterClientDiscoveries, filterClientFindings } from "./client-results.server";
 import {
   buildSerpApiExactIdentityQueries,
   isSerpApiConfigured,
@@ -60,8 +57,17 @@ test("exact-name query construction rejects single-token identities", () => {
     aliases: ["Ada", "Augusta Ada King"],
   });
   assert.ok(queries.length <= SERPAPI_MAX_REQUESTS_PER_SCAN);
-  assert.ok(queries.every((query) => query.includes('"Ada Lovelace"') || query.includes('"Augusta Ada King"')));
-  assert.ok(queries.every((query) => !/"Ada"/.test(query) || query.includes("Ada Lovelace") || query.includes("Augusta")));
+  assert.ok(
+    queries.every(
+      (query) => query.includes('"Ada Lovelace"') || query.includes('"Augusta Ada King"'),
+    ),
+  );
+  assert.ok(
+    queries.every(
+      (query) =>
+        !/"Ada"/.test(query) || query.includes("Ada Lovelace") || query.includes("Augusta"),
+    ),
+  );
   assert.ok(!queries.some((query) => query === '"Ada" deepfake'));
   assert.ok(queries.some((query) => /deepfake|face swap|fake nude/.test(query)));
 });
@@ -223,10 +229,7 @@ test("candidate caps, dedupe and private URLs are enforced", async () => {
   assert.ok(result.hits.length <= SERPAPI_MAX_CANDIDATES_PER_REQUEST);
   assert.ok(result.hits.every((hit) => hit.source === "serpapi_google_images"));
   assert.ok(result.hits.every((hit) => isSafePublicHttpUrl(hit.url)));
-  assert.equal(
-    new Set(result.hits.map((hit) => hit.url)).size,
-    result.hits.length,
-  );
+  assert.equal(new Set(result.hits.map((hit) => hit.url)).size, result.hits.length);
   assert.equal(result.creditsUsed, 1);
   restoreEnv();
 });
@@ -306,10 +309,7 @@ test("checkpoint resume skips completed SerpApi queries and does not rebill", as
   checkpoint.serpapi_seen_page_urls = first.seenPageUrls;
   const parsed = parseScanCheckpoint(checkpoint);
   assert.ok(parsed);
-  assert.deepEqual(
-    parsed!.serpapi_completed_query_ids,
-    first.completedQueryIds,
-  );
+  assert.deepEqual(parsed!.serpapi_completed_query_ids, first.completedQueryIds);
   restoreEnv();
 });
 
@@ -396,11 +396,7 @@ test("unique-page cap drains remaining queries so checkpoints cannot stall", asy
     (_, index) => `https://seen.example.com/${index}`,
   );
   const result = await searchSerpApiQueriesBounded({
-    queries: [
-      '"Ada Lovelace" deepfake',
-      '"Ada Lovelace" face swap',
-      '"Ada Lovelace" fake nude',
-    ],
+    queries: ['"Ada Lovelace" deepfake', '"Ada Lovelace" face swap', '"Ada Lovelace" fake nude'],
     maxRequests: 5,
     alreadySeenPages: alreadySeen,
   });
@@ -613,9 +609,7 @@ test("bracketed and IPv4-mapped private IPv6 URLs are rejected", () => {
 test("private DNS resolution is rejected before fetch", async () => {
   await assert.rejects(
     () =>
-      resolvePublicAddresses("evil.example.test", async () => [
-        { address: "10.0.0.8", family: 4 },
-      ]),
+      resolvePublicAddresses("evil.example.test", async () => [{ address: "10.0.0.8", family: 4 }]),
     /private|reserved/i,
   );
   await assert.rejects(
@@ -626,10 +620,7 @@ test("private DNS resolution is rejected before fetch", async () => {
     /private|reserved/i,
   );
   await assert.rejects(
-    () =>
-      resolvePublicAddresses("loop.example.test", async () => [
-        { address: "::1", family: 6 },
-      ]),
+    () => resolvePublicAddresses("loop.example.test", async () => [{ address: "::1", family: 6 }]),
     /private|reserved/i,
   );
 });
@@ -696,8 +687,7 @@ test("serpapi_face_rejected only attributes explicit face/identity outcomes", ()
   const rejected = [
     {
       discovered_url: "https://cdn.example.com/a",
-      rejection_reason:
-        "Final page title and primary content do not match the selected identity.",
+      rejection_reason: "Final page title and primary content do not match the selected identity.",
     },
     {
       discovered_url: "https://cdn.example.com/b",
@@ -705,8 +695,7 @@ test("serpapi_face_rejected only attributes explicit face/identity outcomes", ()
     },
     {
       discovered_url: "https://other.example.com/c",
-      rejection_reason:
-        "Final page title and primary content do not match the selected identity.",
+      rejection_reason: "Final page title and primary content do not match the selected identity.",
     },
   ];
   let faceRejected = 0;
@@ -743,10 +732,7 @@ test("checkpoint bounds keep newest SerpApi seen pages", () => {
     parsed!.serpapi_seen_page_urls[0],
     `https://pages.example.com/${total - CHECKPOINT_MAX_SERPAPI_PAGES}`,
   );
-  assert.equal(
-    parsed!.serpapi_seen_page_urls.at(-1),
-    `https://pages.example.com/${total - 1}`,
-  );
+  assert.equal(parsed!.serpapi_seen_page_urls.at(-1), `https://pages.example.com/${total - 1}`);
 });
 
 test("checkpoint Continue preserves actual SerpApi request and credit counts", async () => {
@@ -817,10 +803,7 @@ test("checkpoint Continue preserves actual SerpApi request and credit counts", a
   assert.equal(parsed!.metrics.serpapi_requests, 3);
   assert.equal(parsed!.metrics.serpapi_credits_used, first.creditsUsed);
 
-  const remaining = Math.max(
-    0,
-    SERPAPI_MAX_REQUESTS_PER_SCAN - parsed!.metrics.serpapi_requests,
-  );
+  const remaining = Math.max(0, SERPAPI_MAX_REQUESTS_PER_SCAN - parsed!.metrics.serpapi_requests);
   assert.equal(remaining, 2);
 
   const continued = await searchSerpApiQueriesBounded({
@@ -837,13 +820,7 @@ test("checkpoint Continue preserves actual SerpApi request and credit counts", a
   parsed!.metrics.serpapi_requests += continued.httpAttempts;
   parsed!.metrics.serpapi_credits_used += continued.creditsUsed;
   const roundTrip = parseScanCheckpoint(parsed!);
-  assert.equal(
-    roundTrip!.metrics.serpapi_requests,
-    3 + continued.httpAttempts,
-  );
-  assert.equal(
-    roundTrip!.metrics.serpapi_credits_used,
-    first.creditsUsed + continued.creditsUsed,
-  );
+  assert.equal(roundTrip!.metrics.serpapi_requests, 3 + continued.httpAttempts);
+  assert.equal(roundTrip!.metrics.serpapi_credits_used, first.creditsUsed + continued.creditsUsed);
   restoreEnv();
 });

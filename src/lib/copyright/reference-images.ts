@@ -192,10 +192,7 @@ export function referenceImageFromBrightDataHit(input: {
   };
 }
 
-function metaImage(
-  metadata: Record<string, unknown>,
-  keys: string[],
-): string | null {
+function metaImage(metadata: Record<string, unknown>, keys: string[]): string | null {
   for (const key of keys) {
     const value = str(metadata[key]);
     if (value) return value;
@@ -354,11 +351,7 @@ export class ReferenceImageRecorder {
 /** Client-side safe image proxy path (never forwards secrets). */
 export function proxiedReferenceImageUrl(remoteUrl: string): string {
   if (!remoteUrl) return remoteUrl;
-  if (
-    remoteUrl.startsWith("blob:") ||
-    remoteUrl.startsWith("data:") ||
-    remoteUrl.startsWith("/")
-  ) {
+  if (remoteUrl.startsWith("blob:") || remoteUrl.startsWith("data:") || remoteUrl.startsWith("/")) {
     return remoteUrl;
   }
   return `/api/public/image-proxy?url=${encodeURIComponent(remoteUrl)}`;

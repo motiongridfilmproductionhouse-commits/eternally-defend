@@ -98,9 +98,7 @@ export function deepfakeScanWorkerDispatchDiagnostic(
       worker_url_path: `${parsed.pathname}${parsed.search}`,
       worker_secret_present: secretPresent,
       failure_category: secretPresent ? null : "worker_secret_not_configured",
-      failure_label: secretPresent
-        ? null
-        : startupErrorLabel("worker_secret_not_configured"),
+      failure_label: secretPresent ? null : startupErrorLabel("worker_secret_not_configured"),
     };
   }
 
@@ -112,14 +110,9 @@ export function deepfakeScanWorkerDispatchDiagnostic(
     ["PUBLIC_APP_URL", env.PUBLIC_APP_URL],
     ["VITE_SITE_URL", env.VITE_SITE_URL],
     env.VERCEL_PROJECT_PRODUCTION_URL
-      ? [
-          "VERCEL_PROJECT_PRODUCTION_URL",
-          `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`,
-        ]
+      ? ["VERCEL_PROJECT_PRODUCTION_URL", `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`]
       : ["VERCEL_PROJECT_PRODUCTION_URL", undefined],
-    env.VERCEL_URL
-      ? ["VERCEL_URL", `https://${env.VERCEL_URL}`]
-      : ["VERCEL_URL", undefined],
+    env.VERCEL_URL ? ["VERCEL_URL", `https://${env.VERCEL_URL}`] : ["VERCEL_URL", undefined],
   ];
 
   for (const [source, candidate] of candidates) {
@@ -135,9 +128,7 @@ export function deepfakeScanWorkerDispatchDiagnostic(
       worker_url_path: HOOK_PATH,
       worker_secret_present: secretPresent,
       failure_category: secretPresent ? null : "worker_secret_not_configured",
-      failure_label: secretPresent
-        ? null
-        : startupErrorLabel("worker_secret_not_configured"),
+      failure_label: secretPresent ? null : startupErrorLabel("worker_secret_not_configured"),
     };
   }
 
@@ -166,9 +157,7 @@ export type DeepfakeScanWorkerDispatchResult = {
   duration_ms?: number | null;
 };
 
-export function resolveDeepfakeScanWorkerUrl(
-  env: NodeJS.ProcessEnv = process.env,
-): string | null {
+export function resolveDeepfakeScanWorkerUrl(env: NodeJS.ProcessEnv = process.env): string | null {
   const diagnostic = deepfakeScanWorkerDispatchDiagnostic(env);
   if (diagnostic.worker_url_valid && diagnostic.worker_url) {
     return diagnostic.worker_url;
@@ -192,17 +181,13 @@ export function assertDeepfakeStartupWorkerConfig(
 ): DeepfakeScanWorkerDispatchDiagnostic {
   const diagnostic = deepfakeScanWorkerDispatchDiagnostic(env);
   if (!diagnostic.worker_url_valid || !diagnostic.worker_url) {
-    const category =
-      diagnostic.failure_category ?? "worker_url_not_configured";
+    const category = diagnostic.failure_category ?? "worker_url_not_configured";
     const error = new Error(startupErrorLabel(category));
-    (error as Error & { startupCategory?: StartupNetworkErrorCategory }).startupCategory =
-      category;
+    (error as Error & { startupCategory?: StartupNetworkErrorCategory }).startupCategory = category;
     throw error;
   }
   if (!diagnostic.worker_secret_present) {
-    const error = new Error(
-      startupErrorLabel("worker_secret_not_configured"),
-    );
+    const error = new Error(startupErrorLabel("worker_secret_not_configured"));
     (error as Error & { startupCategory?: StartupNetworkErrorCategory }).startupCategory =
       "worker_secret_not_configured";
     throw error;
@@ -228,9 +213,7 @@ export async function dispatchNextWorker(input: {
     worker_url: workerUrl,
     worker_url_source: diagnostic.worker_url_source,
     worker_secret_present: diagnostic.worker_secret_present,
-    authentication: diagnostic.worker_secret_present
-      ? "hmac_configured"
-      : "missing_secret",
+    authentication: diagnostic.worker_secret_present ? "hmac_configured" : "missing_secret",
     worker_execution_id: workerExecutionId,
     startup_correlation_id: input.startupCorrelationId ?? null,
   });
@@ -266,9 +249,7 @@ export async function dispatchNextWorker(input: {
   };
 
   try {
-    const { signCopyrightScanWorkerRequest } = await import(
-      "@/lib/copyright/worker-auth.server"
-    );
+    const { signCopyrightScanWorkerRequest } = await import("@/lib/copyright/worker-auth.server");
     const signed = await signCopyrightScanWorkerRequest(body);
     headers["x-eterna-timestamp"] = signed.timestamp;
     headers["x-eterna-signature"] = signed.signature;
@@ -277,10 +258,7 @@ export async function dispatchNextWorker(input: {
     return {
       dispatched: false,
       reason: "worker_secret_not_configured",
-      category:
-        category === "network_failed"
-          ? "worker_secret_not_configured"
-          : category,
+      category: category === "network_failed" ? "worker_secret_not_configured" : category,
       worker_url: workerUrl,
     };
   }

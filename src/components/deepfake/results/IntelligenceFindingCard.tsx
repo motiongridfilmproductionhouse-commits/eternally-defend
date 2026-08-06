@@ -143,10 +143,7 @@ export function IntelligenceFindingCard({
               })}
             </span>
             <span>Page · {formatDash(finding.page_type?.replace(/_/g, " "))}</span>
-            <span>
-              Verified ·{" "}
-              {formatTimestamp(finding.crawled_at || finding.created_at)}
-            </span>
+            <span>Verified · {formatTimestamp(finding.crawled_at || finding.created_at)}</span>
           </div>
 
           {evidence.kind === "link" ? (
@@ -166,9 +163,7 @@ export function IntelligenceFindingCard({
               ) : null}
             </div>
           ) : (
-            <p className="mt-2 text-[11px] text-slate-500">
-              Evidence URL unavailable.
-            </p>
+            <p className="mt-2 text-[11px] text-slate-500">Evidence URL unavailable.</p>
           )}
         </div>
 
@@ -178,11 +173,7 @@ export function IntelligenceFindingCard({
           aria-label={expanded ? "Collapse finding" : "Expand finding"}
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? (
-            <ChevronUp className="size-4" />
-          ) : (
-            <ChevronDown className="size-4" />
-          )}
+          {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </button>
       </div>
 

@@ -40,9 +40,8 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
           return new Response("Invalid body", { status: 400 });
         }
 
-        const { verifyCopyrightScanWorkerRequestDetailed } = await import(
-          "@/lib/copyright/worker-auth.server"
-        );
+        const { verifyCopyrightScanWorkerRequestDetailed } =
+          await import("@/lib/copyright/worker-auth.server");
         const verification = await verifyCopyrightScanWorkerRequestDetailed(
           raw,
           request.headers.get("x-eterna-timestamp"),
@@ -67,14 +66,10 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
           );
         }
 
-        const workerExecutionId =
-          parsed.worker_execution_id?.trim() || randomUUID();
-        const startupCorrelationId =
-          parsed.startup_correlation_id?.trim() || null;
+        const workerExecutionId = parsed.worker_execution_id?.trim() || randomUUID();
+        const startupCorrelationId = parsed.startup_correlation_id?.trim() || null;
 
-        const { supabaseAdmin } = await import(
-          "@/integrations/supabase/client.server"
-        );
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         await persistDeepfakeWorkerEvent({
           supabase: supabaseAdmin,
@@ -110,9 +105,7 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
 
         // Direct waitUntil pattern — create the promise, register it, then 202.
         // Do NOT wrap in setImmediate/setTimeout.
-        const { executeDeepfakeScanById } = await import(
-          "@/lib/deepfake-intel.functions"
-        );
+        const { executeDeepfakeScanById } = await import("@/lib/deepfake-intel.functions");
         const executionPromise = executeDeepfakeScanById({
           supabase: supabaseAdmin,
           scanId: parsed.scan_id,
@@ -128,8 +121,7 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
             requestId,
             eventName: "worker_execution_failed",
             errorCategory: "worker_execution_failed",
-            errorMessage:
-              error instanceof Error ? error.message : String(error),
+            errorMessage: error instanceof Error ? error.message : String(error),
             metadata: {
               stack: error instanceof Error ? error.stack : null,
             },

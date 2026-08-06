@@ -90,11 +90,12 @@ export async function classifyTranscriptSegments(
 
   const kept = new Set<number>();
   if (nameRe) {
-    for (const s of segments) if (nameRe.test(s.text)) {
-      kept.add(s.index);
-      if (s.index > 0) kept.add(s.index - 1);
-      if (s.index < segments.length - 1) kept.add(s.index + 1);
-    }
+    for (const s of segments)
+      if (nameRe.test(s.text)) {
+        kept.add(s.index);
+        if (s.index > 0) kept.add(s.index - 1);
+        if (s.index < segments.length - 1) kept.add(s.index + 1);
+      }
   } else {
     // No entity terms → send a small sample to avoid over-classification.
     segments.slice(0, 40).forEach((s) => kept.add(s.index));
@@ -143,7 +144,11 @@ export async function classifyTranscriptSegments(
       const j = (await res.json()) as GeminiResponse;
       const content = j.choices?.[0]?.message?.content ?? "{}";
       let parsed: unknown;
-      try { parsed = JSON.parse(content); } catch { continue; }
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        continue;
+      }
       const arr = (parsed as { findings?: unknown[] })?.findings;
       if (!Array.isArray(arr)) continue;
       for (const f of arr) {
@@ -158,12 +163,14 @@ export async function classifyTranscriptSegments(
           matchedEntity: String(r.matchedEntity ?? "").slice(0, 160),
           claimSummary: String(r.claimSummary ?? "").slice(0, 500),
           contextType,
-          speakerStance: (String(r.speakerStance ?? "neutral") as SpeakerStance),
+          speakerStance: String(r.speakerStance ?? "neutral") as SpeakerStance,
           riskCategory: String(r.riskCategory ?? "unspecified").slice(0, 80),
-          severity: (String(r.severity ?? "low").toLowerCase() as Severity),
+          severity: String(r.severity ?? "low").toLowerCase() as Severity,
           confidence: Math.max(0, Math.min(100, Number(r.confidence ?? 0))),
           translatedText: r.translatedText ? String(r.translatedText).slice(0, 1000) : undefined,
-          translationLanguage: r.translationLanguage ? String(r.translationLanguage).slice(0, 8) : undefined,
+          translationLanguage: r.translationLanguage
+            ? String(r.translationLanguage).slice(0, 8)
+            : undefined,
         });
       }
     } catch (e) {

@@ -78,21 +78,14 @@ function hostOf(value?: string | null): string | null {
   if (!value) return null;
 
   try {
-    return new URL(value).hostname
-      .replace(/^www\./, "")
-      .toLowerCase();
+    return new URL(value).hostname.replace(/^www\./, "").toLowerCase();
   } catch {
     return null;
   }
 }
 
-function mediaUrlOf(
-  candidate: EvidenceCandidate,
-): string | null {
-  return (
-    normaliseUrl(candidate.media_url) ??
-    normaliseUrl(candidate.image_url)
-  );
+function mediaUrlOf(candidate: EvidenceCandidate): string | null {
+  return normaliseUrl(candidate.media_url) ?? normaliseUrl(candidate.image_url);
 }
 
 function determineEvidenceStatus(
@@ -102,10 +95,7 @@ function determineEvidenceStatus(
   if (
     candidate.target_face_match &&
     hash &&
-    (
-      candidate.risk_level === "CRITICAL" ||
-      candidate.risk_level === "HIGH"
-    )
+    (candidate.risk_level === "CRITICAL" || candidate.risk_level === "HIGH")
   ) {
     return "ready_for_takedown";
   }
@@ -135,39 +125,24 @@ async function fetchAndHash(
   sha256: string | null;
 }> {
   assertNotAborted(options?.signal);
-  const timeoutMs = boundTimeoutMs(
-    FETCH_TIMEOUT_MS,
-    options?.signal,
-    options?.softDeadlineMs,
-  );
-  const signal = mergeAbortSignals(
-    options?.signal,
-    AbortSignal.timeout(timeoutMs),
-  );
+  const timeoutMs = boundTimeoutMs(FETCH_TIMEOUT_MS, options?.signal, options?.softDeadlineMs);
+  const signal = mergeAbortSignals(options?.signal, AbortSignal.timeout(timeoutMs));
 
   const response = await fetch(targetUrl, {
     method: "GET",
     redirect: "follow",
     headers: {
-      "user-agent":
-        "EternaEvidenceBot/1.0 (+https://eternasentinel.com)",
-      accept:
-        "image/*,video/*,text/html;q=0.8,*/*;q=0.5",
+      "user-agent": "EternaEvidenceBot/1.0 (+https://eternasentinel.com)",
+      accept: "image/*,video/*,text/html;q=0.8,*/*;q=0.5",
     },
     signal,
   });
 
-  const contentType =
-    response.headers.get("content-type");
+  const contentType = response.headers.get("content-type");
 
-  const declaredLength = Number.parseInt(
-    response.headers.get("content-length") ?? "",
-    10,
-  );
+  const declaredLength = Number.parseInt(response.headers.get("content-length") ?? "", 10);
 
-  const contentLength = Number.isFinite(declaredLength)
-    ? declaredLength
-    : null;
+  const contentLength = Number.isFinite(declaredLength) ? declaredLength : null;
 
   if (!response.ok) {
     return {
@@ -178,10 +153,7 @@ async function fetchAndHash(
     };
   }
 
-  if (
-    contentLength !== null &&
-    contentLength > MAX_HASH_BYTES
-  ) {
+  if (contentLength !== null && contentLength > MAX_HASH_BYTES) {
     return {
       status: response.status,
       contentType,
@@ -190,9 +162,7 @@ async function fetchAndHash(
     };
   }
 
-  const bytes = new Uint8Array(
-    await response.arrayBuffer(),
-  );
+  const bytes = new Uint8Array(await response.arrayBuffer());
   assertNotAborted(options?.signal);
 
   if (!bytes.length || bytes.length > MAX_HASH_BYTES) {
@@ -204,9 +174,7 @@ async function fetchAndHash(
     };
   }
 
-  const sha256 = createHash("sha256")
-    .update(bytes)
-    .digest("hex");
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
 
   return {
     status: response.status,
@@ -220,9 +188,7 @@ export async function captureEvidenceCandidate(
   candidate: EvidenceCandidate,
   options?: { signal?: AbortSignal; softDeadlineMs?: number },
 ): Promise<CaptureResult> {
-  const findingUrl =
-    normaliseUrl(candidate.evidence_page_url) ??
-    normaliseUrl(candidate.url);
+  const findingUrl = normaliseUrl(candidate.evidence_page_url) ?? normaliseUrl(candidate.url);
 
   const directMediaUrl = mediaUrlOf(candidate);
 
@@ -243,28 +209,20 @@ export async function captureEvidenceCandidate(
     };
   }
 
-  const captureTarget =
-    directMediaUrl ?? findingUrl;
+  const captureTarget = directMediaUrl ?? findingUrl;
 
   try {
     assertNotAborted(options?.signal);
     const capture = await fetchAndHash(captureTarget, options);
 
-    const evidenceStatus = determineEvidenceStatus(
-      candidate,
-      capture.sha256,
-    );
+    const evidenceStatus = determineEvidenceStatus(candidate, capture.sha256);
 
     return {
       finding_url: findingUrl,
       canonical_url: findingUrl,
-      evidence_page_url:
-        normaliseUrl(candidate.evidence_page_url) ??
-        findingUrl,
+      evidence_page_url: normaliseUrl(candidate.evidence_page_url) ?? findingUrl,
       direct_media_url: directMediaUrl,
-      media_type:
-        candidate.media_type ??
-        (directMediaUrl ? "image" : "page"),
+      media_type: candidate.media_type ?? (directMediaUrl ? "image" : "page"),
       source_host: hostOf(findingUrl),
       http_status: capture.status,
       content_type: capture.contentType,
@@ -272,9 +230,7 @@ export async function captureEvidenceCandidate(
       media_sha256: capture.sha256,
       evidence_status: evidenceStatus,
       capture_error:
-        capture.status >= 400
-          ? `Evidence request returned HTTP ${capture.status}`
-          : null,
+        capture.status >= 400 ? `Evidence request returned HTTP ${capture.status}` : null,
     };
   } catch (error) {
     if (isAbortError(error)) {
@@ -283,13 +239,9 @@ export async function captureEvidenceCandidate(
     return {
       finding_url: findingUrl,
       canonical_url: findingUrl,
-      evidence_page_url:
-        normaliseUrl(candidate.evidence_page_url) ??
-        findingUrl,
+      evidence_page_url: normaliseUrl(candidate.evidence_page_url) ?? findingUrl,
       direct_media_url: directMediaUrl,
-      media_type:
-        candidate.media_type ??
-        (directMediaUrl ? "image" : "page"),
+      media_type: candidate.media_type ?? (directMediaUrl ? "image" : "page"),
       source_host: hostOf(findingUrl),
       http_status: null,
       content_type: null,
@@ -297,9 +249,7 @@ export async function captureEvidenceCandidate(
       media_sha256: null,
       evidence_status: "capture_failed",
       capture_error:
-        error instanceof Error
-          ? error.message.slice(0, 500)
-          : "Unknown evidence capture error",
+        error instanceof Error ? error.message.slice(0, 500) : "Unknown evidence capture error",
     };
   }
 }
@@ -318,16 +268,9 @@ export async function captureAndStoreEvidence(input: {
   const evidenceRows: Record<string, unknown>[] = [];
   const batchSize = 3;
 
-  for (
-    let start = 0;
-    start < input.candidates.length;
-    start += batchSize
-  ) {
+  for (let start = 0; start < input.candidates.length; start += batchSize) {
     assertNotAborted(input.signal);
-    const batch = input.candidates.slice(
-      start,
-      start + batchSize,
-    );
+    const batch = input.candidates.slice(start, start + batchSize);
 
     const results = await Promise.all(
       batch.map((candidate) =>
@@ -354,37 +297,25 @@ export async function captureAndStoreEvidence(input: {
 
         source_host: result.source_host,
         page_title: candidate.title ?? null,
-        page_description:
-          candidate.description ?? null,
+        page_description: candidate.description ?? null,
 
         http_status: result.http_status,
         content_type: result.content_type,
         content_length: result.content_length,
         media_sha256: result.media_sha256,
 
-        face_match:
-          candidate.target_face_match ?? false,
-        face_similarity:
-          candidate.face_similarity ?? null,
-        matched_face_id:
-          candidate.matched_face_id ?? null,
+        face_match: candidate.target_face_match ?? false,
+        face_similarity: candidate.face_similarity ?? null,
+        matched_face_id: candidate.matched_face_id ?? null,
 
-        risk_level:
-          candidate.risk_level ?? null,
-        content_category:
-          candidate.content_category ?? null,
-        confidence:
-          candidate.confidence ?? null,
+        risk_level: candidate.risk_level ?? null,
+        content_category: candidate.content_category ?? null,
+        confidence: candidate.confidence ?? null,
 
-        evidence_status:
-          result.evidence_status,
-        capture_error:
-          result.capture_error,
+        evidence_status: result.evidence_status,
+        capture_error: result.capture_error,
         last_verified_at:
-          result.http_status &&
-          result.http_status < 400
-            ? new Date().toISOString()
-            : null,
+          result.http_status && result.http_status < 400 ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
       });
     }
@@ -397,26 +328,16 @@ export async function captureAndStoreEvidence(input: {
     };
   }
 
-  const { error } = await input.supabase
-    .from("deepfake_evidence")
-    .upsert(evidenceRows, {
-      onConflict: "scan_id,finding_url",
-    });
+  const { error } = await input.supabase.from("deepfake_evidence").upsert(evidenceRows, {
+    onConflict: "scan_id,finding_url",
+  });
 
   if (error) {
-    throw new Error(
-      `Evidence storage failed: ${error.message}`,
-    );
+    throw new Error(`Evidence storage failed: ${error.message}`);
   }
 
   return {
-    captured: evidenceRows.filter(
-      (row) =>
-        row.evidence_status !== "capture_failed",
-    ).length,
-    failed: evidenceRows.filter(
-      (row) =>
-        row.evidence_status === "capture_failed",
-    ).length,
+    captured: evidenceRows.filter((row) => row.evidence_status !== "capture_failed").length,
+    failed: evidenceRows.filter((row) => row.evidence_status === "capture_failed").length,
   };
 }

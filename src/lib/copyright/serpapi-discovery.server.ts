@@ -49,7 +49,9 @@ export function isCopyrightSerpApiConfigured(): boolean {
   return Boolean(process.env.SERPAPI_API_KEY?.trim());
 }
 
-export function createSerpApiHttpBudget(max = COPYRIGHT_SERPAPI_MAX_HTTP_ATTEMPTS): SerpApiHttpBudget {
+export function createSerpApiHttpBudget(
+  max = COPYRIGHT_SERPAPI_MAX_HTTP_ATTEMPTS,
+): SerpApiHttpBudget {
   return { remaining: max, used: 0 };
 }
 
@@ -70,10 +72,11 @@ export function buildCopyrightSerpApiQueries(
 ): string[] {
   const primary = (analysis.title || workTitle).trim();
   if (!primary) return [];
-  const names = queryTitleVariants(primary, [workTitle, analysis.title ?? "", ...analysis.altTitles]).slice(
-    0,
-    4,
-  );
+  const names = queryTitleVariants(primary, [
+    workTitle,
+    analysis.title ?? "",
+    ...analysis.altTitles,
+  ]).slice(0, 4);
   const phrases = [
     "watch full movie online",
     "download full movie",
@@ -137,10 +140,15 @@ async function searchSerpApiOnce(
   }
   const timeoutMs = Math.min(
     COPYRIGHT_SERPAPI_REQUEST_TIMEOUT_MS,
-    typeof deadlineAt === "number" ? Math.max(1_000, deadlineAt - Date.now()) : COPYRIGHT_SERPAPI_REQUEST_TIMEOUT_MS,
+    typeof deadlineAt === "number"
+      ? Math.max(1_000, deadlineAt - Date.now())
+      : COPYRIGHT_SERPAPI_REQUEST_TIMEOUT_MS,
   );
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new DOMException("Timeout", "TimeoutError")), timeoutMs);
+  const timer = setTimeout(
+    () => controller.abort(new DOMException("Timeout", "TimeoutError")),
+    timeoutMs,
+  );
   const onParentAbort = () => controller.abort(signal?.reason);
   signal?.addEventListener("abort", onParentAbort, { once: true });
 
@@ -167,7 +175,12 @@ async function searchSerpApiOnce(
     try {
       return { ok: true, payload: JSON.parse(text), status: res.status, error: null };
     } catch {
-      return { ok: false, payload: text, status: res.status, error: "SerpApi returned invalid JSON" };
+      return {
+        ok: false,
+        payload: text,
+        status: res.status,
+        error: "SerpApi returned invalid JSON",
+      };
     }
   } catch (error) {
     if (isAbortError(error)) throw error;
@@ -253,7 +266,10 @@ export async function runCopyrightSerpApiDiscovery(input: {
         ok = true;
         break;
       }
-      if (attempt < COPYRIGHT_SERPAPI_MAX_RETRIES && isTransientSerpApiFailure(result.status, result.error)) {
+      if (
+        attempt < COPYRIGHT_SERPAPI_MAX_RETRIES &&
+        isTransientSerpApiFailure(result.status, result.error)
+      ) {
         const retryAfter =
           result.payload && typeof result.payload === "object" && !Array.isArray(result.payload)
             ? parseRetryAfterMs(

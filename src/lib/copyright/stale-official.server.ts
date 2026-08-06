@@ -5,7 +5,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { isAuthorizedCatalogHost, isNeverMonitoredDomain, isYouTubeHost } from "./official-platforms";
+import {
+  isAuthorizedCatalogHost,
+  isNeverMonitoredDomain,
+  isYouTubeHost,
+} from "./official-platforms";
 import { hostOf } from "./url.server";
 
 type DB = SupabaseClient<Database>;
@@ -123,7 +127,8 @@ export async function deactivateStaleOfficialSources(
             ...ev,
             active: false,
             deactivated_at: nowIso,
-            deactivation_reason: "Parent source deactivated as stale official/catalog false positive.",
+            deactivation_reason:
+              "Parent source deactivated as stale official/catalog false positive.",
           } as Database["public"]["Tables"]["distribution_incidents"]["Update"]["evidence"],
         })
         .eq("id", inc.id);

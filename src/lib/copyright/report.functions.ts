@@ -7,11 +7,8 @@ export const getCopyrightReportUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const {
-      generateAndStoreCopyrightReport,
-      attachReportToScanStats,
-      signReportUrl,
-    } = await import("@/lib/copyright/report.server");
+    const { generateAndStoreCopyrightReport, attachReportToScanStats, signReportUrl } =
+      await import("@/lib/copyright/report.server");
     const { supabase, userId } = context;
 
     const { data: scan, error } = await supabase
@@ -28,7 +25,8 @@ export const getCopyrightReportUrl = createServerFn({ method: "POST" })
     if (storageKey) {
       return {
         url: await signReportUrl(storageKey),
-        fileName: typeof existing?.file_name === "string" ? existing.file_name : "eterna-report.pdf",
+        fileName:
+          typeof existing?.file_name === "string" ? existing.file_name : "eterna-report.pdf",
         generatedAt: typeof existing?.generated_at === "string" ? existing.generated_at : null,
       };
     }

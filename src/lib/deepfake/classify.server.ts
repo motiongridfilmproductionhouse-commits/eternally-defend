@@ -1,8 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import {
-  assertNotAborted,
-  isAbortError,
-} from "./scan-runtime.server";
+import { assertNotAborted, isAbortError } from "./scan-runtime.server";
 
 // Cautious classifier for deepfake / synthetic-media search hits.
 // Uses Google Gemini directly via GOOGLE_API_KEY.
@@ -142,8 +139,7 @@ export async function classifyHits(
             parts: [
               {
                 text:
-                  `${SYSTEM}\n\nClassify all of these search results:\n` +
-                  JSON.stringify(payload),
+                  `${SYSTEM}\n\nClassify all of these search results:\n` + JSON.stringify(payload),
               },
             ],
           },
@@ -151,9 +147,7 @@ export async function classifyHits(
         config: {
           responseMimeType: "application/json",
           temperature: 0.1,
-          ...(options?.signal
-            ? { abortSignal: options.signal }
-            : {}),
+          ...(options?.signal ? { abortSignal: options.signal } : {}),
         },
       });
 
@@ -198,9 +192,7 @@ export async function classifyHits(
         out.push({
           ...hit,
           risk_level: riskLevel,
-          content_category: String(
-            result.content_category ?? "unclassified",
-          ).slice(0, 60),
+          content_category: String(result.content_category ?? "unclassified").slice(0, 60),
           confidence: clampConfidence(result.confidence),
           is_synthetic: result.is_synthetic === true,
           face_referenced: result.face_referenced === true,

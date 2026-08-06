@@ -6,11 +6,7 @@
  * → Images extracted → Gallery pages followed → Faces compared → Evidence packages
  */
 
-export type GoogleImagesProviderStatus =
-  | "success"
-  | "degraded"
-  | "unavailable"
-  | "not_started";
+export type GoogleImagesProviderStatus = "success" | "degraded" | "unavailable" | "not_started";
 
 export interface GoogleImagesInvestigationDiagnostics {
   queries_executed: number;
@@ -114,13 +110,11 @@ export function parseGoogleImagesDiagnostics(
     viewer_urls_discovered: n("viewer_urls_discovered"),
     original_source_pages_extracted:
       n("original_source_pages_extracted") || n("source_pages_discovered"),
-    source_pages_crawled:
-      n("source_pages_crawled") || n("candidate_pages_crawled"),
+    source_pages_crawled: n("source_pages_crawled") || n("candidate_pages_crawled"),
     images_extracted_from_sources: n("images_extracted_from_sources"),
     gallery_pages_followed: n("gallery_pages_followed"),
     provider_status: providerStatus,
-    failure_reason:
-      typeof d.failure_reason === "string" ? d.failure_reason : null,
+    failure_reason: typeof d.failure_reason === "string" ? d.failure_reason : null,
     used_browser: d.used_browser === true,
     browser_available: d.browser_available === true,
     playwright_fallback_used: d.playwright_fallback_used === true,
@@ -131,27 +125,22 @@ export function googleImagesBackgroundStatus(
   metrics: Record<string, unknown> | null | undefined,
 ): "queued" | "running" | "completed" | "failed" | null {
   const raw = metrics?.google_images_background_status;
-  if (
-    raw === "queued" ||
-    raw === "running" ||
-    raw === "completed" ||
-    raw === "failed"
-  ) {
+  if (raw === "queued" || raw === "running" || raw === "completed" || raw === "failed") {
     return raw;
   }
   return null;
 }
 
-export function googleImagesBackgroundProgress(metrics: Record<string, unknown> | null | undefined): {
+export function googleImagesBackgroundProgress(
+  metrics: Record<string, unknown> | null | undefined,
+): {
   completed: number;
   total: number;
   percent: number;
   running: boolean;
 } {
   const total =
-    typeof metrics?.google_images_jobs_total === "number"
-      ? metrics.google_images_jobs_total
-      : 0;
+    typeof metrics?.google_images_jobs_total === "number" ? metrics.google_images_jobs_total : 0;
   const completed =
     typeof metrics?.google_images_jobs_completed === "number"
       ? metrics.google_images_jobs_completed

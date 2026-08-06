@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  isNeverDisplayHost,
-  verifyIllegalDistribution,
-} from "./verified-distribution";
+import { isNeverDisplayHost, verifyIllegalDistribution } from "./verified-distribution";
 
 const verifiedEvidence = {
   client_visible: true,

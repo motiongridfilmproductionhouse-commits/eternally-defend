@@ -2,26 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-  shouldShowHistoryEmpty,
-  shouldShowHistoryLoading,
-} from "./scan-ui-state";
+import { shouldShowHistoryEmpty, shouldShowHistoryLoading } from "./scan-ui-state";
 import { resolveDeepfakeScanWorkerUrl } from "./scan-worker-dispatch.server";
 
-const FUNCTIONS_PATH = resolve(
-  process.cwd(),
-  "src/lib/deepfake-intel.functions.ts",
-);
+const FUNCTIONS_PATH = resolve(process.cwd(), "src/lib/deepfake-intel.functions.ts");
 const UI_PATH = resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx");
 const WORKER_PATH = resolve(process.cwd(), "src/lib/deepfake/scan-worker.server.ts");
 const ORCHESTRATION_PATH = resolve(
   process.cwd(),
   "src/lib/deepfake/scan-worker-orchestration.server.ts",
 );
-const HOOK_PATH = resolve(
-  process.cwd(),
-  "src/routes/api/public/hooks/deepfake-scan-execute.ts",
-);
+const HOOK_PATH = resolve(process.cwd(), "src/routes/api/public/hooks/deepfake-scan-execute.ts");
 const OWNER_PROGRESS_MIGRATION = resolve(
   process.cwd(),
   "supabase/migrations/20260801094500_deepfake_scan_runtime_write_allow_owner_progress.sql",
@@ -120,20 +111,14 @@ test("worker dispatch resolves same-origin hook URL", () => {
   const url = resolveDeepfakeScanWorkerUrl({
     SITE_URL: "https://eternally-defend.vercel.app",
   });
-  assert.equal(
-    url,
-    "https://eternally-defend.vercel.app/api/public/hooks/deepfake-scan-execute",
-  );
+  assert.equal(url, "https://eternally-defend.vercel.app/api/public/hooks/deepfake-scan-execute");
 });
 
 test("worker dispatch normalizes bare explicit worker origins", () => {
   const url = resolveDeepfakeScanWorkerUrl({
     DEEPFAKE_SCAN_WORKER_URL: "https://eternally-defend.vercel.app/",
   });
-  assert.equal(
-    url,
-    "https://eternally-defend.vercel.app/api/public/hooks/deepfake-scan-execute",
-  );
+  assert.equal(url, "https://eternally-defend.vercel.app/api/public/hooks/deepfake-scan-execute");
 });
 
 test("runDeepfakeScan validates worker config before insert", () => {

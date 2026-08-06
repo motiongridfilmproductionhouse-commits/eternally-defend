@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  aggregateGoogleImagesDiagnostics,
-} from "./google-images-jobs.server";
+import { aggregateGoogleImagesDiagnostics } from "./google-images-jobs.server";
 import { resolveGoogleImagesWorkerUrl } from "./google-images-worker-dispatch.server";
 import {
   googleImagesBackgroundProgress,

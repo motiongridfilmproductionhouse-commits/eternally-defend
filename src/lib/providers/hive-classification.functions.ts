@@ -7,11 +7,11 @@ import { z } from "zod";
 function getHiveConfig() {
   const accessKeyId = process.env.HIVE_ACCESS_KEY_ID;
   const secretKey = process.env.HIVE_SECRET_KEY;
-  
+
   if (!accessKeyId || !secretKey) {
     return { error: "Hive AI credentials (HIVE_ACCESS_KEY_ID or HIVE_SECRET_KEY) not configured." };
   }
-  
+
   const baseUrl = process.env.HIVE_BASE_URL ?? "https://api.thehive.ai";
   // Some Hive configurations use a combined token, or just Basic Auth. We'll format as requested
   // but ensure both are validated. We use a generic token format or basic auth combining them.
@@ -21,19 +21,21 @@ function getHiveConfig() {
 
 export const submitAsyncClassification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { url: string; scanJobId: string; resultId: string }) => 
-    z.object({ url: z.string().url(), scanJobId: z.string().uuid(), resultId: z.string().uuid() }).parse(d)
+  .inputValidator((d: { url: string; scanJobId: string; resultId: string }) =>
+    z
+      .object({ url: z.string().url(), scanJobId: z.string().uuid(), resultId: z.string().uuid() })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const config = getHiveConfig();
-    
+
     if (config.error) {
       return { ok: false, error: config.error };
     }
-    
+
     const { authHeader, baseUrl } = config;
-    
+
     // We expect the webhook to hit this app URL
     const callbackUrl = `${process.env.PUBLIC_APP_URL}/api/public/hive-webhook`;
 
@@ -41,14 +43,14 @@ export const submitAsyncClassification = createServerFn({ method: "POST" })
       const response = await fetch(`${baseUrl}/api/v2/task/async`, {
         method: "POST",
         headers: {
-          "authorization": authHeader,
+          authorization: authHeader,
           "content-type": "application/json",
-          "accept": "application/json"
+          accept: "application/json",
         },
         body: JSON.stringify({
           url: data.url,
           callback_url: callbackUrl,
-        })
+        }),
       });
 
       if (!response.ok) {
@@ -57,7 +59,7 @@ export const submitAsyncClassification = createServerFn({ method: "POST" })
 
       const result = await response.json();
       const taskId = result.task_id ?? result.id;
-      
+
       await supabase.from("hive_provider_tasks").insert({
         scan_job_id: data.scanJobId,
         result_id: data.resultId,
@@ -81,29 +83,31 @@ export const submitAsyncClassification = createServerFn({ method: "POST" })
 
 export const classifyImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { url: string; scanJobId: string; resultId: string }) => 
-    z.object({ url: z.string().url(), scanJobId: z.string().uuid(), resultId: z.string().uuid() }).parse(d)
+  .inputValidator((d: { url: string; scanJobId: string; resultId: string }) =>
+    z
+      .object({ url: z.string().url(), scanJobId: z.string().uuid(), resultId: z.string().uuid() })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const config = getHiveConfig();
-    
+
     if (config.error) {
       return { ok: false, error: config.error };
     }
-    
+
     const { authHeader, baseUrl } = config;
-    
+
     const startTime = Date.now();
     try {
       const response = await fetch(`${baseUrl}/api/v2/task/sync`, {
         method: "POST",
         headers: {
-          "authorization": authHeader,
+          authorization: authHeader,
           "content-type": "application/json",
-          "accept": "application/json"
+          accept: "application/json",
         },
-        body: JSON.stringify({ url: data.url })
+        body: JSON.stringify({ url: data.url }),
       });
 
       const latency = Date.now() - startTime;
@@ -114,7 +118,7 @@ export const classifyImage = createServerFn({ method: "POST" })
 
       const result = await response.json();
       const taskId = result.task_id ?? result.id ?? `sync-${Date.now()}`;
-      
+
       const normalized = normalizeHiveResponse(result);
 
       await supabase.from("hive_provider_tasks").insert({
@@ -124,11 +128,11 @@ export const classifyImage = createServerFn({ method: "POST" })
         request_type: "sync_image",
         provider_status: "completed",
         latency_ms: latency,
-        raw_result_private_reference: JSON.stringify(result) // Limited scope logic for now
+        raw_result_private_reference: JSON.stringify(result), // Limited scope logic for now
       });
 
       await supabase.from("sensitive_scan_results").update(normalized).eq("id", data.resultId);
-      
+
       // We would run calculateSensitiveScores() here, but in real architecture, Rekognition should run too.
       return { ok: true, normalized };
     } catch (error: any) {
@@ -147,7 +151,7 @@ export const classifyImage = createServerFn({ method: "POST" })
 export function normalizeHiveResponse(raw: any) {
   // Mock normalization, in reality inspect raw.status[0].response.output
   // mapping 'yes_nsfw' -> explicit_content_score etc.
-  
+
   let explicit_content_score = 0;
   let nudity_score = 0;
   let sexual_content_score = 0;
@@ -158,15 +162,20 @@ export function normalizeHiveResponse(raw: any) {
   try {
     const classes = raw?.status?.[0]?.response?.output?.[0]?.classes ?? [];
     for (const c of classes) {
-      if (c.class === "yes_nsfw") explicit_content_score = Math.max(explicit_content_score, c.score);
-      if (c.class === "general_nsfw") explicit_content_score = Math.max(explicit_content_score, c.score);
+      if (c.class === "yes_nsfw")
+        explicit_content_score = Math.max(explicit_content_score, c.score);
+      if (c.class === "general_nsfw")
+        explicit_content_score = Math.max(explicit_content_score, c.score);
       if (c.class === "nudity") nudity_score = Math.max(nudity_score, c.score);
-      if (c.class === "sexual_activity") sexual_content_score = Math.max(sexual_content_score, c.score);
-      if (c.class === "suggestive") suggestive_content_score = Math.max(suggestive_content_score, c.score);
+      if (c.class === "sexual_activity")
+        sexual_content_score = Math.max(sexual_content_score, c.score);
+      if (c.class === "suggestive")
+        suggestive_content_score = Math.max(suggestive_content_score, c.score);
       if (c.class === "ai_generated") ai_generated_score = Math.max(ai_generated_score, c.score);
-      if (c.class === "deepfake" || c.class === "face_swap") deepfake_score = Math.max(deepfake_score, c.score);
+      if (c.class === "deepfake" || c.class === "face_swap")
+        deepfake_score = Math.max(deepfake_score, c.score);
     }
-  } catch(e) {
+  } catch (e) {
     // Ignore formatting errors from dummy provider response
   }
 
@@ -181,7 +190,10 @@ export function normalizeHiveResponse(raw: any) {
 }
 
 export function calculateRiskLevel(
-  explicit: number, deepfake: number, faceSimilarity: number, duplicateCount: number
+  explicit: number,
+  deepfake: number,
+  faceSimilarity: number,
+  duplicateCount: number,
 ): "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" {
   if (explicit > 0.9 && faceSimilarity > 0.9) return "CRITICAL";
   if (explicit > 0.8 && deepfake > 0.8) return "HIGH";
@@ -195,7 +207,7 @@ export const getHiveDiagnostics = createServerFn({ method: "GET" })
     const { supabase } = context;
     const accessKeyId = process.env.HIVE_ACCESS_KEY_ID;
     const secretKey = process.env.HIVE_SECRET_KEY;
-    
+
     const configured = !!(accessKeyId && secretKey);
 
     const { data: stats } = await supabase
@@ -213,16 +225,16 @@ export const getHiveDiagnostics = createServerFn({ method: "GET" })
     if (stats) {
       requestsProcessed = stats.length;
       for (const row of stats) {
-        if (row.provider_status === 'completed' || row.provider_status === 'failed') {
+        if (row.provider_status === "completed" || row.provider_status === "failed") {
           if (row.latency_ms) {
             totalLatency += row.latency_ms;
             latencyCount++;
           }
         }
-        if (!lastSuccess && row.provider_status === 'completed') {
+        if (!lastSuccess && row.provider_status === "completed") {
           lastSuccess = row.completed_at;
         }
-        if (!lastError && row.provider_status === 'failed' && row.error_message) {
+        if (!lastError && row.provider_status === "failed" && row.error_message) {
           lastError = row.error_message;
         }
       }
@@ -234,6 +246,6 @@ export const getHiveDiagnostics = createServerFn({ method: "GET" })
       averageLatency: latencyCount > 0 ? Math.round(totalLatency / latencyCount) : 0,
       requestsProcessed,
       lastSuccess,
-      lastError
+      lastError,
     };
   });

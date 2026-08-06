@@ -120,8 +120,8 @@ test("restored historical source cannot disappear without a terminal recheck sta
         client_visible: false,
       },
     });
-  const mapped = mapMatchToSuspiciousSource(row);
-  assert.ok(mapped, `expected visible mapping for ${recheck_status}`);
+    const mapped = mapMatchToSuspiciousSource(row);
+    assert.ok(mapped, `expected visible mapping for ${recheck_status}`);
   }
 });
 

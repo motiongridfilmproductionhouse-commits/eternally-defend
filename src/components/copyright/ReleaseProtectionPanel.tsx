@@ -1,13 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  CalendarClock,
-  Loader2,
-  Pause,
-  Play,
-  Radar,
-  Shield,
-} from "lucide-react";
+import { CalendarClock, Loader2, Pause, Play, Radar, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -84,13 +77,9 @@ export function ReleaseProtectionPanel({ protectionId }: { protectionId?: string
   }
 
   const settings = protection.settings;
-  const countdownDays = settings.release_date
-    ? daysUntilRelease(settings.release_date)
-    : null;
+  const countdownDays = settings.release_date ? daysUntilRelease(settings.release_date) : null;
   const cadenceMinutes =
-    typeof protection.stats.cadence_minutes === "number"
-      ? protection.stats.cadence_minutes
-      : null;
+    typeof protection.stats.cadence_minutes === "number" ? protection.stats.cadence_minutes : null;
   const runs = query.data?.runs ?? [];
   const incidents = query.data?.incidents ?? [];
   const verified = incidents.filter((i) =>
@@ -178,9 +167,18 @@ export function ReleaseProtectionPanel({ protectionId }: { protectionId?: string
         <Stat label="Verified incidents" value={verified.length} />
         <Stat
           label="Pre-release incidents"
-          value={incidents.filter((i) => (i as { release_timing?: string }).release_timing === "pre_release").length}
+          value={
+            incidents.filter(
+              (i) => (i as { release_timing?: string }).release_timing === "pre_release",
+            ).length
+          }
         />
-        <Stat label="Candidates (last run)" value={runs[0] ? String((runs[0] as { candidates_found?: number }).candidates_found ?? 0) : "0"} />
+        <Stat
+          label="Candidates (last run)"
+          value={
+            runs[0] ? String((runs[0] as { candidates_found?: number }).candidates_found ?? 0) : "0"
+          }
+        />
       </div>
 
       {incidents.length > 0 && (
@@ -216,15 +214,7 @@ export function ReleaseProtectionPanel({ protectionId }: { protectionId?: string
   );
 }
 
-function Metric({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
+function Metric({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border/40 bg-background/30 px-3 py-2">
       <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">

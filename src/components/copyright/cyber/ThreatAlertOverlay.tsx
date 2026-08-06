@@ -119,15 +119,11 @@ export function ThreatAlertOverlay({
           <ol className="relative space-y-1.5 font-mono text-xs text-red-200">
             {visibleSteps.map((label, index) => (
               <li key={label} className="cyber-stream-row flex items-center gap-2">
-                <span className="text-red-400">
-                  {index === LOCK_STEPS.length - 1 ? "✓" : "↓"}
-                </span>
+                <span className="text-red-400">{index === LOCK_STEPS.length - 1 ? "✓" : "↓"}</span>
                 <span>{label}</span>
               </li>
             ))}
-            {step < LOCK_STEPS.length && (
-              <li className="animate-pulse text-red-400/70">▌</li>
-            )}
+            {step < LOCK_STEPS.length && <li className="animate-pulse text-red-400/70">▌</li>}
           </ol>
         </div>
 

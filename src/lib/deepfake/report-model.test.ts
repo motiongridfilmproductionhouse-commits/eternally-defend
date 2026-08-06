@@ -10,12 +10,12 @@ import {
 } from "./report-model";
 
 function hash(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
+  return createHash("sha256")
+    .update(JSON.stringify(value ?? null))
+    .digest("hex");
 }
 
-function finding(
-  overrides: Partial<ReportFindingInput> & { id: string },
-): ReportFindingInput {
+function finding(overrides: Partial<ReportFindingInput> & { id: string }): ReportFindingInput {
   return {
     url: "https://example.com/post/1",
     final_url: "https://example.com/post/1",
@@ -140,11 +140,7 @@ describe("buildDeepfakeReportModel", () => {
       model.findings[0]?.recommendedNextStep ?? "",
       /guilty|liable|illegal|criminal/i,
     );
-    assert.ok(
-      model.disclaimer.some((line) =>
-        /not legal determinations/i.test(line),
-      ),
-    );
+    assert.ok(model.disclaimer.some((line) => /not legal determinations/i.test(line)));
     assert.ok(model.diagnostics.some((d) => d.key === "queries_executed"));
   });
 
@@ -166,10 +162,7 @@ describe("buildDeepfakeReportModel", () => {
     assert.equal(model.findings.length, 0);
     assert.equal(model.riskScore, 0);
     assert.equal(model.threatLevel, "LOW");
-    assert.match(
-      model.summary.immediateReviewItems[0] ?? "",
-      /No client-visible/i,
-    );
+    assert.match(model.summary.immediateReviewItems[0] ?? "", /No client-visible/i);
   });
   it("marks interim reports distinctly without inventing findings", () => {
     const model = buildDeepfakeReportModel({
@@ -197,9 +190,6 @@ describe("priority helpers", () => {
   it("maps risk to operational priorities only", () => {
     assert.equal(priorityForRisk("CRITICAL"), "immediate_review");
     assert.equal(priorityForRisk("LOW"), "no_action");
-    assert.match(
-      recommendedNextStepFor("MEDIUM", "PROBABLE_DEEPFAKE"),
-      /monitoring/i,
-    );
+    assert.match(recommendedNextStepFor("MEDIUM", "PROBABLE_DEEPFAKE"), /monitoring/i);
   });
 });

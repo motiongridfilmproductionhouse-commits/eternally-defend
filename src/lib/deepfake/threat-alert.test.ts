@@ -32,9 +32,7 @@ const DOMAINS = [
   "delta.example.io",
 ] as const;
 
-function finding(
-  partial: Partial<ClientFinding> & { id: string },
-): ClientFinding {
+function finding(partial: Partial<ClientFinding> & { id: string }): ClientFinding {
   return {
     url_verification_status: "URL_VERIFIED",
     finding_classification: "PROBABLE_DEEPFAKE",
@@ -91,10 +89,7 @@ test("0 findings → cyan normal state", () => {
   const summary = buildThreatAlertSummary([]);
   assert.equal(summary.tone, "cyan");
   assert.equal(summary.total, 0);
-  assert.equal(
-    resolveThreatAwareRingTone({ mode: "idle", tone: "cyan" }),
-    "cyan",
-  );
+  assert.equal(resolveThreatAwareRingTone({ mode: "idle", tone: "cyan" }), "cyan");
   assert.equal(threatAlertHeadline("cyan"), null);
 });
 
@@ -102,10 +97,7 @@ test("1 qualifying finding → amber", () => {
   const summary = buildThreatAlertSummary([finding({ id: "1" })]);
   assert.equal(summary.tone, "amber");
   assert.equal(summary.total, 1);
-  assert.equal(
-    resolveThreatAwareRingTone({ mode: "running", tone: "amber" }),
-    "amber",
-  );
+  assert.equal(resolveThreatAwareRingTone({ mode: "running", tone: "amber" }), "amber");
 });
 
 test("2–4 threats → orange multiple", () => {
@@ -116,10 +108,7 @@ test("2–4 threats → orange multiple", () => {
   ]);
   assert.equal(summary.tone, "orange");
   assert.equal(summary.total, 3);
-  assert.equal(
-    resolveThreatAwareRingTone({ mode: "partial", tone: "orange" }),
-    "orange",
-  );
+  assert.equal(resolveThreatAwareRingTone({ mode: "partial", tone: "orange" }), "orange");
   assert.equal(threatAlertHeadline("orange"), "Multiple threats detected");
 });
 
@@ -150,10 +139,7 @@ test("production PARTIAL fixture with 12 probable findings renders RED", () => {
   assert.equal(summary.verified, 0);
   assert.equal(summary.domains, 4);
   assert.equal(summary.tone, "red");
-  assert.equal(
-    resolveThreatAwareRingTone({ mode: "partial", tone: summary.tone }),
-    "red",
-  );
+  assert.equal(resolveThreatAwareRingTone({ mode: "partial", tone: summary.tone }), "red");
   assert.equal(
     threatAlertBadgeLabel({ mode: "partial", tone: "red" }),
     "PAUSED — HIGH THREAT VOLUME",
@@ -173,10 +159,7 @@ test("production PARTIAL fixture with 12 probable findings renders RED", () => {
     }),
     false,
   );
-  assert.equal(
-    threatAlertHeadline("red"),
-    "HIGH-VOLUME DEEPFAKE THREAT ACTIVITY",
-  );
+  assert.equal(threatAlertHeadline("red"), "HIGH-VOLUME DEEPFAKE THREAT ACTIVITY");
   assert.match(
     threatAlertBannerMessage(summary),
     /Eterna identified 12 distinct client-visible threat pages across 4 verified domains/,
@@ -331,10 +314,7 @@ test("filtering/pagination must not reduce alert totals — full findings array"
   const page = buildThreatAlertSummary(fixture.findings.slice(0, 3));
   assert.equal(full.total, 12);
   assert.equal(page.total, 3);
-  const ui = readFileSync(
-    resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx"),
-    "utf8",
-  );
+  const ui = readFileSync(resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx"), "utf8");
   assert.match(ui, /buildThreatAlertSummary\(\s*findings\s*\)/);
   assert.doesNotMatch(ui, /buildThreatAlertSummary\(\s*paged/);
   assert.doesNotMatch(ui, /buildThreatAlertSummary\(\s*filtered/);
@@ -360,14 +340,8 @@ test("rejected/unverified results do not count", () => {
 });
 
 test("PARTIAL does not override red threat colour", () => {
-  assert.equal(
-    resolveThreatAwareRingTone({ mode: "partial", tone: "red" }),
-    "red",
-  );
-  assert.notEqual(
-    resolveThreatAwareRingTone({ mode: "partial", tone: "red" }),
-    "amber",
-  );
+  assert.equal(resolveThreatAwareRingTone({ mode: "partial", tone: "red" }), "red");
+  assert.notEqual(resolveThreatAwareRingTone({ mode: "partial", tone: "red" }), "amber");
 });
 
 test("duplicate URLs count once", () => {
@@ -416,10 +390,7 @@ test("evidence links remain clickable for counted findings", () => {
 });
 
 test("route keeps Continue and wires threatSummary from complete findings", () => {
-  const ui = readFileSync(
-    resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx"),
-    "utf8",
-  );
+  const ui = readFileSync(resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx"), "utf8");
   assert.match(ui, /threatSummary=\{threatSummary\}/);
   assert.match(ui, /threatFindings=\{findings\}/);
   assert.match(ui, /isElevatedThreatTone/);
@@ -460,9 +431,7 @@ test("crossing into elevated tone announces once", () => {
 });
 
 test("production fixture summary type includes findingIds", () => {
-  const summary: ThreatAlertSummary = buildThreatAlertSummary(
-    productionPartialFixture().findings,
-  );
+  const summary: ThreatAlertSummary = buildThreatAlertSummary(productionPartialFixture().findings);
   assert.equal(summary.findingIds.length, 12);
 });
 

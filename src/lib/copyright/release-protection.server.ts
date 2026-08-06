@@ -58,7 +58,11 @@ export async function createReleaseProtectionRecord(
     metadataComplete: Boolean(input.settings.studio && input.settings.distributor),
   });
 
-  if (input.settings.enabled && readiness.level !== "strong" && readiness.level !== "high_confidence") {
+  if (
+    input.settings.enabled &&
+    readiness.level !== "strong" &&
+    readiness.level !== "high_confidence"
+  ) {
     throw new Error(
       `Protection readiness is ${readiness.level} (${readiness.score}%). Strong reference package required for automatic monitoring.`,
     );
@@ -66,9 +70,7 @@ export async function createReleaseProtectionRecord(
 
   const window = computeMonitoringWindow(input.settings.release_date);
   const customMinutes =
-    input.settings.cadence_profile === "custom"
-      ? input.settings.custom_cadence_minutes
-      : undefined;
+    input.settings.cadence_profile === "custom" ? input.settings.custom_cadence_minutes : undefined;
   const nextScanAt = input.settings.enabled
     ? computeNextScanAt(input.settings.release_date, Date.now(), customMinutes)
     : null;
@@ -101,7 +103,8 @@ export async function createReleaseProtectionRecord(
     .select("*")
     .single();
 
-  if (error || !data) throw new Error(error?.message ?? "Could not create release protection record.");
+  if (error || !data)
+    throw new Error(error?.message ?? "Could not create release protection record.");
   return data as unknown as ReleaseProtectionRow;
 }
 

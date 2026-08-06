@@ -30,12 +30,16 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const [jobsRes, findingsRes] = await Promise.all([
       supabase
         .from("multimedia_analysis_jobs")
-        .select("id, source_kind, source_ref, target_name, status, reputation_score, risk_scores, created_at, source_metadata")
+        .select(
+          "id, source_kind, source_ref, target_name, status, reputation_score, risk_scores, created_at, source_metadata",
+        )
         .order("created_at", { ascending: false })
         .limit(200),
       supabase
         .from("timestamp_findings")
-        .select("id, job_id, finding_type, severity, title, description, confidence, created_at, review_status")
+        .select(
+          "id, job_id, finding_type, severity, title, description, confidence, created_at, review_status",
+        )
         .order("created_at", { ascending: false })
         .limit(500),
     ]);
@@ -55,17 +59,32 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       return s + (isFinite(v) ? v : 0);
     }, 0);
     const avgRep =
-      jobs.filter((j) => j.reputation_score != null).reduce((s, j) => s + Number(j.reputation_score), 0) /
+      jobs
+        .filter((j) => j.reputation_score != null)
+        .reduce((s, j) => s + Number(j.reputation_score), 0) /
       Math.max(jobs.filter((j) => j.reputation_score != null).length, 1);
     const reputationImpact = Number.isFinite(avgRep) ? Math.round(avgRep - 100) : 0;
-    const criticals = findings.filter((f) => f.severity === "critical" || f.severity === "high").length;
-    const trustLoss = criticals >= 10 ? "High" : criticals >= 3 ? "Medium" : criticals > 0 ? "Low" : "None";
+    const criticals = findings.filter(
+      (f) => f.severity === "critical" || f.severity === "high",
+    ).length;
+    const trustLoss =
+      criticals >= 10 ? "High" : criticals >= 3 ? "Medium" : criticals > 0 ? "Low" : "None";
     const severityLabel =
-      exposure >= 8 ? "Critical" : exposure >= 6 ? "High Severity" : exposure >= 4 ? "Medium" : exposure > 0 ? "Low" : "No Data";
+      exposure >= 8
+        ? "Critical"
+        : exposure >= 6
+          ? "High Severity"
+          : exposure >= 4
+            ? "Medium"
+            : exposure > 0
+              ? "Low"
+              : "No Data";
 
     // -------- Unauthorized Usage --------
     const unauthorizedFindings = findings.filter((f) =>
-      ["copyright_match", "logo_match", "unauthorized_ad", "impersonation"].includes(f.finding_type ?? ""),
+      ["copyright_match", "logo_match", "unauthorized_ad", "impersonation"].includes(
+        f.finding_type ?? "",
+      ),
     );
     const platformCounts = new Map<string, number>();
     for (const f of unauthorizedFindings) {
@@ -91,11 +110,21 @@ export const getDashboardStats = createServerFn({ method: "GET" })
         : Math.round(
             (subset.reduce((s, f) => s + Number(f.confidence ?? 0), 0) / subset.length) * 100,
           );
-    const faceMatch = avgConf(deepfakes.filter((f) => f.finding_type === "face_swap" || f.finding_type === "deepfake"));
+    const faceMatch = avgConf(
+      deepfakes.filter((f) => f.finding_type === "face_swap" || f.finding_type === "deepfake"),
+    );
     const voiceMatch = avgConf(deepfakes.filter((f) => f.finding_type === "voice_clone"));
     const deepfakeProb = avgConf(deepfakes);
     const deepfakeRisk =
-      deepfakeProb >= 80 ? "Critical" : deepfakeProb >= 60 ? "High" : deepfakeProb >= 40 ? "Medium" : deepfakeProb > 0 ? "Low" : "None";
+      deepfakeProb >= 80
+        ? "Critical"
+        : deepfakeProb >= 60
+          ? "High"
+          : deepfakeProb >= 40
+            ? "Medium"
+            : deepfakeProb > 0
+              ? "Low"
+              : "None";
 
     // -------- Top Active Threats --------
     const byJob = new Map<string, { count: number; maxSev: number; latest: string }>();
@@ -164,7 +193,9 @@ export const getDashboardStats = createServerFn({ method: "GET" })
         for (const f of findings) {
           const job = jobs.find((j) => j.id === f.job_id);
           const meta = (job?.source_metadata as any) ?? {};
-          const country = (meta.country || meta.country_code || meta.region || "").toString().trim();
+          const country = (meta.country || meta.country_code || meta.region || "")
+            .toString()
+            .trim();
           if (!country) continue;
           const cat = CATEGORY[f.finding_type ?? ""] ?? "News Attacks";
           const cur = byCountry.get(country) ?? { count: 0, category: cat };

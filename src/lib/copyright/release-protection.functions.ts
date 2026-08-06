@@ -7,7 +7,10 @@ import {
   scheduleReleaseProtectionScanNow,
   setReleaseProtectionPaused,
 } from "@/lib/copyright/release-protection.server";
-import { MONITORING_DISCLAIMER, type ReleaseProtectionSettings } from "@/lib/copyright/release-protection";
+import {
+  MONITORING_DISCLAIMER,
+  type ReleaseProtectionSettings,
+} from "@/lib/copyright/release-protection";
 
 function serializeProtectionRow(row: {
   id: string;
@@ -72,9 +75,7 @@ export const getReleaseProtection = createServerFn({ method: "GET" })
       data.protectionId,
     );
     return {
-      protections: (dashboard.protections ?? []).map((row) =>
-        serializeProtectionRow(row as never),
-      ),
+      protections: (dashboard.protections ?? []).map((row) => serializeProtectionRow(row as never)),
       runs: dashboard.runs ?? [],
       incidents: dashboard.incidents ?? [],
       disclaimer: MONITORING_DISCLAIMER,
@@ -107,9 +108,7 @@ export const pauseReleaseProtection = createServerFn({ method: "POST" })
 
 export const runReleaseProtectionNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) =>
-    z.object({ protectionId: z.string().uuid() }).parse(raw),
-  )
+  .inputValidator((raw) => z.object({ protectionId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const result = await scheduleReleaseProtectionScanNow(context.supabase, {
       userId: context.userId,

@@ -58,13 +58,15 @@ export function DomainIntelCard({
   onEscalate,
 }: DomainIntelCardProps) {
   const enrichFn = useServerFn(getDomainIntel);
-  const host = domain ?? (() => {
-    try {
-      return new URL(url).hostname.replace(/^www\./, "");
-    } catch {
-      return url;
-    }
-  })();
+  const host =
+    domain ??
+    (() => {
+      try {
+        return new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        return url;
+      }
+    })();
 
   const query = useQuery<DomainIntel>({
     queryKey: ["copyright-domain-intel", url],
@@ -117,9 +119,7 @@ export function DomainIntelCard({
               </Badge>
             )}
           </div>
-          <p className="mt-1 truncate text-[11px] text-slate-400">
-            {inv?.pageTitle ?? url}
-          </p>
+          <p className="mt-1 truncate text-[11px] text-slate-400">{inv?.pageTitle ?? url}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Button size="sm" variant="outline" asChild>
               <a href={url} target="_blank" rel="noopener noreferrer">
@@ -182,7 +182,9 @@ export function DomainIntelCard({
             <Field label="WAF" value={intelValue(inv.waf)} />
             <Field
               label="Nameservers"
-              value={inv.whoisNameservers.length ? inv.whoisNameservers.join(", ") : "Not available"}
+              value={
+                inv.whoisNameservers.length ? inv.whoisNameservers.join(", ") : "Not available"
+              }
             />
             <Field label="DNS / reverse IP" value={intelValue(intel.reverseIpHost)} />
             <Field label="SSL issuer / status" value={intelValue(inv.sslStatus)} />
@@ -194,7 +196,9 @@ export function DomainIntelCard({
             <Field
               label="Historical domains"
               value={
-                intel.historicalDomains.length ? intel.historicalDomains.join(", ") : "None recorded"
+                intel.historicalDomains.length
+                  ? intel.historicalDomains.join(", ")
+                  : "None recorded"
               }
             />
             <Field label="Threat category" value={intel.threatCategory} />

@@ -5,8 +5,7 @@ export const LEGACY_ONBOARDING_VERSION = "v1" as const;
 export const ACCOUNT_TYPE_ONBOARDING_VERSION = "v2" as const;
 
 export type OnboardingVersion =
-  | typeof LEGACY_ONBOARDING_VERSION
-  | typeof ACCOUNT_TYPE_ONBOARDING_VERSION;
+  typeof LEGACY_ONBOARDING_VERSION | typeof ACCOUNT_TYPE_ONBOARDING_VERSION;
 
 type AppSupabase = SupabaseClient<Database>;
 

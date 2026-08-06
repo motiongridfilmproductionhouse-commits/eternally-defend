@@ -10,7 +10,9 @@ function verify(body: string, ts: string | null, sig: string | null): boolean {
   if (!ts || !sig) return false;
   const tsn = Number(ts);
   if (!Number.isFinite(tsn) || Math.abs(Date.now() - tsn) > 5 * 60 * 1000) return false;
-  const expected = createHmac("sha256", config.AUTOMATION_WORKER_SECRET).update(`${tsn}.${body}`).digest("hex");
+  const expected = createHmac("sha256", config.AUTOMATION_WORKER_SECRET)
+    .update(`${tsn}.${body}`)
+    .digest("hex");
   const a = Buffer.from(expected);
   const b = Buffer.from(sig);
   return a.length === b.length && timingSafeEqual(a, b);
@@ -33,7 +35,11 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === "POST" && req.url === "/run") {
     const body = await readBody(req);
-    const ok = verify(body, req.headers["x-eterna-timestamp"] as string | undefined ?? null, req.headers["x-eterna-signature"] as string | undefined ?? null);
+    const ok = verify(
+      body,
+      (req.headers["x-eterna-timestamp"] as string | undefined) ?? null,
+      (req.headers["x-eterna-signature"] as string | undefined) ?? null,
+    );
     if (!ok) {
       res.writeHead(401);
       res.end("Invalid signature");
@@ -61,5 +67,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(config.PORT, () => {
-  log.info({ port: config.PORT, workerId: config.WORKER_ID }, "Eterna enforcement worker listening");
+  log.info(
+    { port: config.PORT, workerId: config.WORKER_ID },
+    "Eterna enforcement worker listening",
+  );
 });

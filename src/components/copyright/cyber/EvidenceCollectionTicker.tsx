@@ -19,7 +19,10 @@ export type EvidenceCollectionTickerProps = {
 };
 
 /** Non-blocking evidence-collection ticker shown while enrichment runs. */
-export function EvidenceCollectionTicker({ active, compact = false }: EvidenceCollectionTickerProps) {
+export function EvidenceCollectionTicker({
+  active,
+  compact = false,
+}: EvidenceCollectionTickerProps) {
   const [visible, setVisible] = useState(0);
 
   useEffect(() => {

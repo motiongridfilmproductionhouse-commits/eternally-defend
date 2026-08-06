@@ -31,8 +31,7 @@ export type CrawlFailureCategory = (typeof CRAWL_FAILURE_CATEGORIES)[number];
 
 export function isCrawlFailureCategory(value: unknown): value is CrawlFailureCategory {
   return (
-    typeof value === "string" &&
-    (CRAWL_FAILURE_CATEGORIES as readonly string[]).includes(value)
+    typeof value === "string" && (CRAWL_FAILURE_CATEGORIES as readonly string[]).includes(value)
   );
 }
 
@@ -75,9 +74,10 @@ export function mapSafeFetchToCrawlFailure(
 }
 
 export function emptyCrawlFailureCounts(): Record<CrawlFailureCategory, number> {
-  return Object.fromEntries(
-    CRAWL_FAILURE_CATEGORIES.map((c) => [c, 0]),
-  ) as Record<CrawlFailureCategory, number>;
+  return Object.fromEntries(CRAWL_FAILURE_CATEGORIES.map((c) => [c, 0])) as Record<
+    CrawlFailureCategory,
+    number
+  >;
 }
 
 export function bumpCrawlFailure(

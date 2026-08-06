@@ -12,7 +12,9 @@ export function extractYoutubeId(url: string): string | null {
     if (v) return v;
     const m = u.pathname.match(/\/(shorts|embed|live)\/([^/?#]+)/);
     return m ? m[2] : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export interface YoutubeMetadata {
@@ -38,10 +40,12 @@ export interface YoutubeMetadata {
 function parseIsoDuration(iso: string): number | null {
   const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
   if (!m) return null;
-  return (+((m[1] ?? 0)) * 3600) + (+((m[2] ?? 0)) * 60) + +((m[3] ?? 0));
+  return +(m[1] ?? 0) * 3600 + +(m[2] ?? 0) * 60 + +(m[3] ?? 0);
 }
 
-export async function fetchYoutubeMetadata(videoId: string): Promise<ProviderResult<YoutubeMetadata>> {
+export async function fetchYoutubeMetadata(
+  videoId: string,
+): Promise<ProviderResult<YoutubeMetadata>> {
   const key = process.env.GOOGLE_API_KEY;
   if (key) {
     const url = new URL("https://www.googleapis.com/youtube/v3/videos");
@@ -67,7 +71,11 @@ export async function fetchYoutubeMetadata(videoId: string): Promise<ProviderRes
           channel: sn.channelTitle ?? null,
           channel_id: sn.channelId ?? null,
           description: sn.description ?? "",
-          thumbnail: thumbs.maxres?.url ?? thumbs.high?.url ?? thumbs.medium?.url ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          thumbnail:
+            thumbs.maxres?.url ??
+            thumbs.high?.url ??
+            thumbs.medium?.url ??
+            `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
           thumbnail_maxres: thumbs.maxres?.url ?? null,
           duration_seconds: parseIsoDuration(cd.duration ?? ""),
           published_at: sn.publishedAt ?? null,
@@ -87,9 +95,11 @@ export async function fetchYoutubeMetadata(videoId: string): Promise<ProviderRes
   }
   // oEmbed fallback (no key needed, no stats)
   try {
-    const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`);
+    const r = await fetch(
+      `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`,
+    );
     if (!r.ok) return unavailable(`YouTube oEmbed [${r.status}]`);
-    const j = await r.json() as { title?: string; author_name?: string; thumbnail_url?: string };
+    const j = (await r.json()) as { title?: string; author_name?: string; thumbnail_url?: string };
     return ok({
       video_id: videoId,
       title: j.title ?? "YouTube video",
@@ -100,8 +110,12 @@ export async function fetchYoutubeMetadata(videoId: string): Promise<ProviderRes
       thumbnail_maxres: null,
       duration_seconds: null,
       published_at: null,
-      view_count: null, like_count: null, comment_count: null,
-      captions_available: null, embeddable: null, privacy_status: null,
+      view_count: null,
+      like_count: null,
+      comment_count: null,
+      captions_available: null,
+      embeddable: null,
+      privacy_status: null,
       tags: [],
       source: "oembed",
     });

@@ -45,9 +45,7 @@ function hostPath(value: string): string {
 
 function validIso(value: unknown): string {
   const date = new Date(String(value ?? ""));
-  return Number.isNaN(date.getTime())
-    ? new Date().toISOString()
-    : date.toISOString();
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
 type GroupFinding = {
@@ -100,10 +98,7 @@ function addToGroup(
   group.sources.add(input.finding.sourceRef);
 
   if (!group.reachBySource.has(input.finding.sourceRef)) {
-    group.reachBySource.set(
-      input.finding.sourceRef,
-      input.finding.reach,
-    );
+    group.reachBySource.set(input.finding.sourceRef, input.finding.reach);
   }
 
   group.hostCounts.set(
@@ -119,24 +114,15 @@ export const clusterFindings = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
-    const [
-      jobsResult,
-      findingsResult,
-      channelVideosResult,
-      watchesResult,
-    ] = await Promise.all([
+    const [jobsResult, findingsResult, channelVideosResult, watchesResult] = await Promise.all([
       supabase
         .from("multimedia_analysis_jobs")
-        .select(
-          "id,source_ref,source_kind,source_metadata,target_name",
-        )
+        .select("id,source_ref,source_kind,source_metadata,target_name")
         .eq("user_id", userId),
 
       supabase
         .from("timestamp_findings")
-        .select(
-          "id,job_id,title,extracted_claim_id,severity,created_at,confidence",
-        )
+        .select("id,job_id,title,extracted_claim_id,severity,created_at,confidence")
         .eq("user_id", userId),
 
       supabase
@@ -146,10 +132,7 @@ export const clusterFindings = createServerFn({ method: "POST" })
         )
         .eq("user_id", userId)
         .eq("analysis_status", "completed")
-        .in("classification", [
-          "potential_harm",
-          "potential_impersonation",
-        ])
+        .in("classification", ["potential_harm", "potential_impersonation"])
         .neq("review_status", "dismissed")
         .limit(1000),
 
@@ -171,13 +154,9 @@ export const clusterFindings = createServerFn({ method: "POST" })
     const channelVideos = channelVideosResult.data ?? [];
     const watches = watchesResult.data ?? [];
 
-    const jobMap = new Map(
-      jobs.map((job: any) => [job.id, job]),
-    );
+    const jobMap = new Map(jobs.map((job: any) => [job.id, job]));
 
-    const watchMap = new Map(
-      watches.map((watch: any) => [watch.id, watch]),
-    );
+    const watchMap = new Map(watches.map((watch: any) => [watch.id, watch]));
 
     const groups = new Map<string, Group>();
 
@@ -194,10 +173,7 @@ export const clusterFindings = createServerFn({ method: "POST" })
           : `multimedia:${job.id}`);
 
       const summary = String(
-        finding.title ??
-        metadata.title ??
-        job.target_name ??
-        "Unverified narrative",
+        finding.title ?? metadata.title ?? job.target_name ?? "Unverified narrative",
       );
 
       const key = finding.extracted_claim_id
@@ -244,63 +220,49 @@ export const clusterFindings = createServerFn({ method: "POST" })
       if (!watch) continue;
 
       const mentionMatch =
-        video.mention_match &&
-        typeof video.mention_match === "object"
-          ? video.mention_match as Record<string, unknown>
+        video.mention_match && typeof video.mention_match === "object"
+          ? (video.mention_match as Record<string, unknown>)
           : {};
 
-      const timestampFindings = Array.isArray(
-        mentionMatch.timestamp_findings,
-      )
-        ? mentionMatch.timestamp_findings as Array<Record<string, unknown>>
+      const timestampFindings = Array.isArray(mentionMatch.timestamp_findings)
+        ? (mentionMatch.timestamp_findings as Array<Record<string, unknown>>)
         : [];
 
-      const sourceRef =
-        video.url ||
-        `https://www.youtube.com/watch?v=${video.video_id}`;
+      const sourceRef = video.url || `https://www.youtube.com/watch?v=${video.video_id}`;
 
-      const sourceName =
-        watch.channel_title ??
-        watch.handle ??
-        "YouTube Channel Watch";
+      const sourceName = watch.channel_title ?? watch.handle ?? "YouTube Channel Watch";
 
-      const target =
-        watch.reason ??
-        "Protected subject";
+      const target = watch.reason ?? "Protected subject";
 
       const fallbackSummary =
-        video.title ??
-        video.description ??
-        `Potential risk concerning ${target}`;
+        video.title ?? video.description ?? `Potential risk concerning ${target}`;
 
       const eligibleFindings =
         timestampFindings.length > 0
           ? timestampFindings
-          : [{
-              claimSummary: fallbackSummary,
-              severity:
-                Number(video.risk_score ?? 0) >= 85
-                  ? "critical"
-                  : Number(video.risk_score ?? 0) >= 70
-                    ? "high"
-                    : Number(video.risk_score ?? 0) >= 40
-                      ? "medium"
-                      : "low",
-              confidence: 0,
-            }];
+          : [
+              {
+                claimSummary: fallbackSummary,
+                severity:
+                  Number(video.risk_score ?? 0) >= 85
+                    ? "critical"
+                    : Number(video.risk_score ?? 0) >= 70
+                      ? "high"
+                      : Number(video.risk_score ?? 0) >= 40
+                        ? "medium"
+                        : "low",
+                confidence: 0,
+              },
+            ];
 
-      for (
-        let findingIndex = 0;
-        findingIndex < eligibleFindings.length;
-        findingIndex += 1
-      ) {
+      for (let findingIndex = 0; findingIndex < eligibleFindings.length; findingIndex += 1) {
         const finding = eligibleFindings[findingIndex];
 
         const summary = String(
           (finding as Record<string, unknown>).claimSummary ??
-          (finding as Record<string, unknown>).translatedText ??
-          (finding as Record<string, unknown>).text ??
-          fallbackSummary,
+            (finding as Record<string, unknown>).translatedText ??
+            (finding as Record<string, unknown>).text ??
+            fallbackSummary,
         ).trim();
 
         if (!summary) continue;
@@ -314,21 +276,13 @@ export const clusterFindings = createServerFn({ method: "POST" })
             id: `${video.id}:${findingIndex}`,
             origin: "channel_watch",
             title: summary,
-            createdAt: validIso(
-              video.detected_at ??
-              video.published_at,
-            ),
+            createdAt: validIso(video.detected_at ?? video.published_at),
             sourceRef,
             sourceName,
             reach: Number(video.view_count ?? 0),
             target,
             severity: String(
-              finding.severity ??
-              (
-                Number(video.risk_score ?? 0) >= 70
-                  ? "high"
-                  : "medium"
-              ),
+              finding.severity ?? (Number(video.risk_score ?? 0) >= 70 ? "high" : "medium"),
             ),
             confidence: Number(finding.confidence ?? 0),
           },
@@ -345,9 +299,7 @@ export const clusterFindings = createServerFn({ method: "POST" })
 
     const channelSourceRefs = new Set(
       (channelVideos as any[]).map(
-        (video) =>
-          video.url ||
-          `https://www.youtube.com/watch?v=${video.video_id}`,
+        (video) => video.url || `https://www.youtube.com/watch?v=${video.video_id}`,
       ),
     );
 
@@ -367,14 +319,10 @@ export const clusterFindings = createServerFn({ method: "POST" })
           return false;
         }
 
-        const existingSources = Array.isArray(existing.sources)
-          ? existing.sources
-          : [];
+        const existingSources = Array.isArray(existing.sources) ? existing.sources : [];
 
         return existingSources.some(
-          (source: unknown) =>
-            typeof source === "string" &&
-            channelSourceRefs.has(source),
+          (source: unknown) => typeof source === "string" && channelSourceRefs.has(source),
         );
       })
       .map((existing: any) => existing.id);
@@ -404,17 +352,15 @@ export const clusterFindings = createServerFn({ method: "POST" })
       if (times.length === 0) continue;
 
       const firstDetected = new Date(times[0]).toISOString();
-      const latestDetected = new Date(
-        times[times.length - 1],
-      ).toISOString();
+      const latestDetected = new Date(times[times.length - 1]).toISOString();
 
       const dominantSource =
-        [...group.hostCounts.entries()]
-          .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+        [...group.hostCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
-      const combinedReach =
-        [...group.reachBySource.values()]
-          .reduce((sum, reach) => sum + reach, 0);
+      const combinedReach = [...group.reachBySource.values()].reduce(
+        (sum, reach) => sum + reach,
+        0,
+      );
 
       const payload = {
         user_id: userId,
@@ -463,10 +409,7 @@ export const clusterFindings = createServerFn({ method: "POST" })
           .single();
 
         if (insertResult.error || !insertResult.data) {
-          throw new Error(
-            insertResult.error?.message ??
-            "Unable to create narrative cluster",
-          );
+          throw new Error(insertResult.error?.message ?? "Unable to create narrative cluster");
         }
 
         clusterId = insertResult.data.id;
@@ -474,14 +417,8 @@ export const clusterFindings = createServerFn({ method: "POST" })
       }
 
       const multimediaIds = group.findings
-        .filter(
-          (finding) =>
-            finding.origin === "multimedia" &&
-            finding.multimediaFindingId,
-        )
-        .map(
-          (finding) => finding.multimediaFindingId as string,
-        );
+        .filter((finding) => finding.origin === "multimedia" && finding.multimediaFindingId)
+        .map((finding) => finding.multimediaFindingId as string);
 
       if (multimediaIds.length > 0) {
         const linkResult = await supabase
@@ -524,10 +461,7 @@ export const listNarrativeClusters = createServerFn({ method: "GET" })
     const clusters = (result.data ?? []).map((cluster: any) => {
       const ageDays = Math.max(
         1,
-        (
-          Date.now() -
-          new Date(cluster.first_detected_at).getTime()
-        ) / 86400000,
+        (Date.now() - new Date(cluster.first_detected_at).getTime()) / 86400000,
       );
 
       const velocity = cluster.source_count / ageDays;
@@ -536,10 +470,8 @@ export const listNarrativeClusters = createServerFn({ method: "GET" })
         100,
         Math.round(
           velocity * 10 +
-          Math.log10(
-            Math.max(1, cluster.combined_reach),
-          ) * 8 +
-          cluster.source_count * 3,
+            Math.log10(Math.max(1, cluster.combined_reach)) * 8 +
+            cluster.source_count * 3,
         ),
       );
 
@@ -556,9 +488,11 @@ export const listNarrativeClusters = createServerFn({ method: "GET" })
 export const getClusterDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
-    z.object({
-      clusterId: z.string().uuid(),
-    }).parse(raw),
+    z
+      .object({
+        clusterId: z.string().uuid(),
+      })
+      .parse(raw),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -595,10 +529,7 @@ export const getClusterDetail = createServerFn({ method: "GET" })
     }
 
     const sources = Array.isArray(cluster.sources)
-      ? cluster.sources.filter(
-          (source: unknown): source is string =>
-            typeof source === "string",
-        )
+      ? cluster.sources.filter((source: unknown): source is string => typeof source === "string")
       : [];
 
     let channelWatchFindings: any[] = [];
@@ -619,9 +550,8 @@ export const getClusterDetail = createServerFn({ method: "GET" })
 
       channelWatchFindings = (channelResult.data ?? []).map((finding: any) => {
         const mention =
-          finding.mention_match &&
-          typeof finding.mention_match === "object"
-            ? finding.mention_match as Record<string, unknown>
+          finding.mention_match && typeof finding.mention_match === "object"
+            ? (finding.mention_match as Record<string, unknown>)
             : {};
 
         const timestamps = Array.isArray(mention.timestamp_findings)
@@ -629,9 +559,7 @@ export const getClusterDetail = createServerFn({ method: "GET" })
           : [];
 
         const hasTranscript =
-          Boolean(mention.transcript) ||
-          Boolean(mention.transcript_text) ||
-          timestamps.length > 0;
+          Boolean(mention.transcript) || Boolean(mention.transcript_text) || timestamps.length > 0;
 
         const hasSubjectMatch =
           Boolean(mention.matched) ||
@@ -639,19 +567,16 @@ export const getClusterDetail = createServerFn({ method: "GET" })
           Boolean(mention.match_count) ||
           timestamps.length > 0;
 
-        const riskScore = Math.max(
-          0,
-          Math.min(100, Number(finding.risk_score ?? 0)),
-        );
+        const riskScore = Math.max(0, Math.min(100, Number(finding.risk_score ?? 0)));
 
         const evidenceStrength = Math.min(
           100,
           Math.round(
             riskScore * 0.45 +
-            (hasSubjectMatch ? 20 : 0) +
-            (hasTranscript ? 15 : 0) +
-            (finding.url ? 10 : 0) +
-            (finding.review_status === "approved" ? 10 : 0),
+              (hasSubjectMatch ? 20 : 0) +
+              (hasTranscript ? 15 : 0) +
+              (finding.url ? 10 : 0) +
+              (finding.review_status === "approved" ? 10 : 0),
           ),
         );
 
@@ -677,11 +602,7 @@ export const getClusterDetail = createServerFn({ method: "GET" })
 
 const NarrativeReviewInput = z.object({
   videoId: z.string().uuid(),
-  decision: z.enum([
-    "approved",
-    "dismissed",
-    "escalated",
-  ]),
+  decision: z.enum(["approved", "dismissed", "escalated"]),
 });
 
 export const reviewNarrativeFinding = createServerFn({ method: "POST" })
@@ -737,9 +658,7 @@ export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
     if (!video) throw new Error("Channel Watch finding not found");
 
     if (video.review_status !== "approved") {
-      throw new Error(
-        "Human confirmation is required before creating a removal draft",
-      );
+      throw new Error("Human confirmation is required before creating a removal draft");
     }
 
     const watchResult = await supabase
@@ -754,21 +673,14 @@ export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
     }
 
     const watch: any = watchResult.data;
-    const targetUrl =
-      video.url ||
-      `https://www.youtube.com/watch?v=${video.video_id}`;
+    const targetUrl = video.url || `https://www.youtube.com/watch?v=${video.video_id}`;
 
     const existingResult = await supabase
       .from("enforcement_requests")
       .select("id,status")
       .eq("user_id", userId)
       .eq("target_url", targetUrl)
-      .in("status", [
-        "Draft",
-        "Evidence Review",
-        "Authorization Pending",
-        "Ready for Approval",
-      ])
+      .in("status", ["Draft", "Evidence Review", "Authorization Pending", "Ready for Approval"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -807,10 +719,7 @@ export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
         .single();
 
       if (requestResult.error || !requestResult.data) {
-        throw new Error(
-          requestResult.error?.message ??
-          "Unable to create Removal Center draft",
-        );
+        throw new Error(requestResult.error?.message ?? "Unable to create Removal Center draft");
       }
 
       requestId = requestResult.data.id;
@@ -838,9 +747,7 @@ export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
       protected_subject: watch?.reason ?? null,
     };
 
-    const bytes = new TextEncoder().encode(
-      JSON.stringify(evidencePayload),
-    );
+    const bytes = new TextEncoder().encode(JSON.stringify(evidencePayload));
 
     const digest = await crypto.subtle.digest("SHA-256", bytes);
 
@@ -848,18 +755,16 @@ export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("");
 
-    const evidenceResult = await supabase
-      .from("enforcement_evidence")
-      .insert({
-        user_id: userId,
-        enforcement_request_id: requestId,
-        evidence_type: "channel_watch_narrative",
-        reference: targetUrl,
-        payload: {
-          ...evidencePayload,
-          sha256,
-        },
-      } as any);
+    const evidenceResult = await supabase.from("enforcement_evidence").insert({
+      user_id: userId,
+      enforcement_request_id: requestId,
+      evidence_type: "channel_watch_narrative",
+      reference: targetUrl,
+      payload: {
+        ...evidencePayload,
+        sha256,
+      },
+    } as any);
 
     if (evidenceResult.error) {
       throw new Error(evidenceResult.error.message);
@@ -872,4 +777,3 @@ export const createNarrativeRemovalDraft = createServerFn({ method: "POST" })
       submissionStatus: "not_submitted",
     };
   });
-

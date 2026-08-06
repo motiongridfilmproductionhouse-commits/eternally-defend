@@ -49,9 +49,7 @@ export function extractClientVisibleFindings(
   return displayableFindings(normalizeClientFindings(list));
 }
 
-export function shouldMountResultsIntelligenceConsole(
-  input: ResultsConsoleMountInput,
-): boolean {
+export function shouldMountResultsIntelligenceConsole(input: ResultsConsoleMountInput): boolean {
   return decideResultsConsoleMount(input).mount;
 }
 
@@ -95,9 +93,7 @@ export function explainResultsConsoleMountDecision(
 }
 
 /** True when the legacy FindingCard list must stay disabled. */
-export function shouldRenderLegacyFindingCards(input: {
-  consoleMounted: boolean;
-}): boolean {
+export function shouldRenderLegacyFindingCards(input: { consoleMounted: boolean }): boolean {
   // Legacy cards are retired once the intelligence console path exists.
   void input.consoleMounted;
   return false;
@@ -118,10 +114,7 @@ export function emptyFindingsStatusMessage(input: {
     return input.errorMessage || "Scan failed before verified progress was saved.";
   }
 
-  const explained = explainNoDeepfakeResults(
-    input.discoveryMetrics ?? null,
-    input.status,
-  );
+  const explained = explainNoDeepfakeResults(input.discoveryMetrics ?? null, input.status);
   if (explained.reasons.length) {
     return `${explained.headline}: ${explained.reasons[0]}`;
   }

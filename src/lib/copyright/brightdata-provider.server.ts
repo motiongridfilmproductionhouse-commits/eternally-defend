@@ -17,11 +17,7 @@
 import { queryTitleVariants } from "./title-identity";
 import type { ReferenceAnalysis, PageLead } from "./discover.server";
 import { canonicalUrl, isExcludedHost } from "./url.server";
-import {
-  isAbortError,
-  isPastDiscoveryDeadline,
-  sleepWithAbort,
-} from "./discovery-runtime";
+import { isAbortError, isPastDiscoveryDeadline, sleepWithAbort } from "./discovery-runtime";
 import {
   bumpProviderFailure,
   emptyProviderFailureCounts,
@@ -62,7 +58,6 @@ export interface BrightDataDiscoveryHit {
   provider: "bright_data";
   discoveredAt: string;
 }
-
 
 export interface BrightDataDiscoveryResult {
   provider: "brightdata";
@@ -120,7 +115,6 @@ export function brightDataDiagnostic(): BrightDataDiagnostic {
     endpoint: BRIGHTDATA_ENDPOINT,
   };
 }
-
 
 /**
  * Exact quoted-title distribution queries only — never bare tokens.
@@ -207,8 +201,6 @@ export const PIRACY_SITE_CLUSTERS: readonly string[][] = [
   ["doodstream", "streamtape", "filemoon", "mixdrop", "vidmoly", "mega.nz"],
 ];
 
-
-
 function searchUrlFor(query: string): string {
   const params = new URLSearchParams({ q: query, num: "20", brd_json: "1" });
   return `https://www.google.com/search?${params.toString()}`;
@@ -278,9 +270,7 @@ export function brightDataHitsFromPayload(
         ? (item.rich_snippet as Record<string, unknown>).image
         : null);
     const imageUrl =
-      typeof thumbRaw === "string" && thumbRaw.trim().startsWith("http")
-        ? thumbRaw.trim()
-        : null;
+      typeof thumbRaw === "string" && thumbRaw.trim().startsWith("http") ? thumbRaw.trim() : null;
     hits.push({
       url: key,
       title,
@@ -297,7 +287,6 @@ export function brightDataHitsFromPayload(
   return hits;
 }
 
-
 export function classifyBrightDataFailure(opts: {
   status?: number | null;
   bodyText?: string | null;
@@ -308,7 +297,9 @@ export function classifyBrightDataFailure(opts: {
   const status = opts.status ?? 0;
   const body = (opts.bodyText ?? "").toLowerCase();
 
-  if (/insufficient|not enough (?:funds|credits)|balance|payment required|quota exceeded/.test(body)) {
+  if (
+    /insufficient|not enough (?:funds|credits)|balance|payment required|quota exceeded/.test(body)
+  ) {
     return "insufficient_credits";
   }
   if (status === 402) return "insufficient_credits";
@@ -336,7 +327,9 @@ export function classifyBrightDataFailure(opts: {
 }
 
 function isTransient(category: ProviderFailureCategory): boolean {
-  return category === "rate_limited" || category === "provider_unavailable" || category === "timeout";
+  return (
+    category === "rate_limited" || category === "provider_unavailable" || category === "timeout"
+  );
 }
 
 interface SingleSearch {
@@ -404,7 +397,13 @@ async function searchOnce(
       };
     }
     try {
-      return { ok: true, payload: JSON.parse(text), status: res.status, bodyText: null, error: null };
+      return {
+        ok: true,
+        payload: JSON.parse(text),
+        status: res.status,
+        bodyText: null,
+        error: null,
+      };
     } catch {
       return {
         ok: false,
@@ -476,7 +475,6 @@ export async function runBrightDataDiscovery(input: {
       uniqueUrls: number;
     };
   }) => void | Promise<void>;
-
 }): Promise<BrightDataDiscoveryResult> {
   const failuresByCategory = emptyProviderFailureCounts();
   const failureSamples: BrightDataDiscoveryResult["failureSamples"] = [];

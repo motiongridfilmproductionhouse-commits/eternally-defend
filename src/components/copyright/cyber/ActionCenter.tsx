@@ -1,12 +1,4 @@
-import {
-  CheckCircle2,
-  Copy,
-  Download,
-  ExternalLink,
-  FileText,
-  Gavel,
-  Scale,
-} from "lucide-react";
+import { CheckCircle2, Copy, Download, ExternalLink, FileText, Gavel, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {

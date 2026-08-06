@@ -9,7 +9,12 @@ export type ThreatGaugeProps = {
 };
 
 /** Animated threat gauge with green → yellow → orange → red transitions. */
-export function ThreatGauge({ score, label = "Threat level", size = 132, caption }: ThreatGaugeProps) {
+export function ThreatGauge({
+  score,
+  label = "Threat level",
+  size = 132,
+  caption,
+}: ThreatGaugeProps) {
   const target = Math.max(0, Math.min(100, Math.round(score)));
   const [display, setDisplay] = useState(0);
 
@@ -36,7 +41,13 @@ export function ThreatGauge({ score, label = "Threat level", size = 132, caption
 
   return (
     <div className="flex flex-col items-center" style={{ width: size }}>
-      <svg width={size} height={size * 0.78} viewBox={`0 0 ${size} ${size * 0.78}`} role="img" aria-label={`${label} ${display}%`}>
+      <svg
+        width={size}
+        height={size * 0.78}
+        viewBox={`0 0 ${size} ${size * 0.78}`}
+        role="img"
+        aria-label={`${label} ${display}%`}
+      >
         <path
           d={`M 10 ${size * 0.62} A ${radius} ${radius} 0 1 1 ${size - 10} ${size * 0.62}`}
           fill="none"

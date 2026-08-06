@@ -33,10 +33,7 @@ export type DiscoveredSource = {
   } | null;
 };
 
-const STATUS: Record<
-  DiscoveredSource["status"],
-  { label: string; cls: string }
-> = {
+const STATUS: Record<DiscoveredSource["status"], { label: string; cls: string }> = {
   verified_piracy: {
     label: "Verified unauthorized",
     cls: "border-destructive/50 text-destructive",
@@ -155,9 +152,7 @@ export function AllSourcesPanel({ sources }: { sources: DiscoveredSource[] }) {
                   ? ` Access evidence: ${s.access_evidence.slice(0, 2).join(" ")}.`
                   : ""}
               </p>
-              {s.reason && (
-                <p className="mt-1 text-[11px] text-muted-foreground">{s.reason}</p>
-              )}
+              {s.reason && <p className="mt-1 text-[11px] text-muted-foreground">{s.reason}</p>}
 
               <div className="mt-2 space-y-1 rounded-md border border-border/50 bg-background/40 p-2">
                 <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -173,11 +168,7 @@ export function AllSourcesPanel({ sources }: { sources: DiscoveredSource[] }) {
                     ]
                       .filter(([, v]) => typeof v === "number" && v !== 0)
                       .map(([label, v]) => (
-                        <Badge
-                          key={String(label)}
-                          variant="outline"
-                          className="text-[10px]"
-                        >
+                        <Badge key={String(label)} variant="outline" className="text-[10px]">
                           {label}: {(v as number) > 0 ? "+" : ""}
                           {v as number}
                         </Badge>

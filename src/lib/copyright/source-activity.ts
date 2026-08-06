@@ -4,12 +4,7 @@
  */
 
 export type SourceActivityStatus =
-  | "starting"
-  | "queued"
-  | "searching"
-  | "completed"
-  | "failed"
-  | "no_results";
+  "starting" | "queued" | "searching" | "completed" | "failed" | "no_results";
 
 export interface SourceActivityEntry {
   provider: string;
@@ -56,7 +51,9 @@ export function mergeSourceActivityIntoStats(
     source_activity_updated_at: entries.reduce(
       (max, e) => (e.updated_at > max ? e.updated_at : max),
       entries[0]?.updated_at ??
-        (typeof stats.last_progress_at === "string" ? stats.last_progress_at : new Date().toISOString()),
+        (typeof stats.last_progress_at === "string"
+          ? stats.last_progress_at
+          : new Date().toISOString()),
     ),
   };
 }
@@ -133,9 +130,7 @@ export class SourceActivityRecorder {
   }
 
   mergeToStats(stats: Record<string, unknown>): Record<string, unknown> {
-    const entries = [...this.entries.values()].sort((a, b) =>
-      a.label.localeCompare(b.label),
-    );
+    const entries = [...this.entries.values()].sort((a, b) => a.label.localeCompare(b.label));
     return mergeSourceActivityIntoStats(stats, entries);
   }
 

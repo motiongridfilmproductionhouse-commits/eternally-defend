@@ -93,10 +93,23 @@ export function isNeverMonitoredDomain(url: string): boolean {
 }
 
 export type OfficialPlatformDecision =
-  | { kind: "authorized_catalog"; classification: "OFFICIAL_OR_AUTHORIZED" | "CATALOG_OR_LISTING"; reason: string }
-  | { kind: "youtube_non_watch"; classification: "OFFICIAL_OR_AUTHORIZED" | "TRAILER_OR_PROMO"; reason: string }
+  | {
+      kind: "authorized_catalog";
+      classification: "OFFICIAL_OR_AUTHORIZED" | "CATALOG_OR_LISTING";
+      reason: string;
+    }
+  | {
+      kind: "youtube_non_watch";
+      classification: "OFFICIAL_OR_AUTHORIZED" | "TRAILER_OR_PROMO";
+      reason: string;
+    }
   | { kind: "youtube_promo"; classification: "TRAILER_OR_PROMO"; reason: string }
-  | { kind: "youtube_internal_reupload"; classification: "VIDEO_HOST_REUPLOAD"; reason: string; clientVisible: false }
+  | {
+      kind: "youtube_internal_reupload";
+      classification: "VIDEO_HOST_REUPLOAD";
+      reason: string;
+      clientVisible: false;
+    }
   | { kind: "youtube_insufficient"; classification: "UNVERIFIED_LEAD"; reason: string }
   | null;
 

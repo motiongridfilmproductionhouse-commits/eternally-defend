@@ -17,18 +17,12 @@ import {
   type ClientFinding,
   type RiskLevel,
 } from "./results-dashboard";
-import {
-  resolveVerifiedEvidenceHref,
-  sanitizeEvidenceUrl,
-} from "./evidence-url";
+import { resolveVerifiedEvidenceHref, sanitizeEvidenceUrl } from "./evidence-url";
 
 export const DEEPFAKE_REPORT_VERSION = "v1.0";
 
 export type DeepfakeReportPriority =
-  | "immediate_review"
-  | "priority_review"
-  | "monitor"
-  | "no_action";
+  "immediate_review" | "priority_review" | "monitor" | "no_action";
 
 export interface DeepfakeReportFinding {
   index: number;
@@ -245,12 +239,8 @@ export function recommendedNextStepFor(
   return "No enforcement action is recommended at this confidence/risk level.";
 }
 
-function classificationLabel(
-  classification: "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE",
-): string {
-  return classification === "VERIFIED_DEEPFAKE"
-    ? "Verified deepfake"
-    : "Probable deepfake";
+function classificationLabel(classification: "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE"): string {
+  return classification === "VERIFIED_DEEPFAKE" ? "Verified deepfake" : "Probable deepfake";
 }
 
 function analystSummaryFor(finding: ReportFindingInput): string {
@@ -280,8 +270,7 @@ function analystSummaryFor(finding: ReportFindingInput): string {
     parts.push(`URL status ${finding.url_verification_status}`);
   }
 
-  const explanation =
-    str(finding.classification_explanation) ?? str(finding.ai_reasoning);
+  const explanation = str(finding.classification_explanation) ?? str(finding.ai_reasoning);
   const base =
     parts.length > 0
       ? `Finding ${parts.join("; ")}.`
@@ -292,9 +281,7 @@ function analystSummaryFor(finding: ReportFindingInput): string {
 }
 
 /** Only client-visible verified/probable findings with a usable evidence URL or stable id. */
-export function selectReportFindings(
-  findings: ReportFindingInput[],
-): ReportFindingInput[] {
+export function selectReportFindings(findings: ReportFindingInput[]): ReportFindingInput[] {
   const byKey = new Map<string, ReportFindingInput>();
 
   for (const finding of findings) {
@@ -302,16 +289,10 @@ export function selectReportFindings(
     if (!isClientVisibleClassification(classification)) continue;
     if (finding.review_status === "dismissed") continue;
 
-    const href =
-      resolveVerifiedEvidenceHref(finding) ??
-      sanitizeEvidenceUrl(finding.url) ??
-      null;
+    const href = resolveVerifiedEvidenceHref(finding) ?? sanitizeEvidenceUrl(finding.url) ?? null;
     const key = href ?? finding.id;
     const existing = byKey.get(key);
-    if (
-      !existing ||
-      (finding.confidence ?? 0) > (existing.confidence ?? 0)
-    ) {
+    if (!existing || (finding.confidence ?? 0) > (existing.confidence ?? 0)) {
       byKey.set(key, finding);
     }
   }
@@ -325,24 +306,16 @@ export function selectReportFindings(
 
   return [...byKey.values()].sort(
     (a, b) =>
-      (riskRank[asRiskLevel(b.risk_level)] ?? 0) -
-        (riskRank[asRiskLevel(a.risk_level)] ?? 0) ||
+      (riskRank[asRiskLevel(b.risk_level)] ?? 0) - (riskRank[asRiskLevel(a.risk_level)] ?? 0) ||
       (b.confidence ?? 0) - (a.confidence ?? 0),
   );
 }
 
-function buildFinding(
-  finding: ReportFindingInput,
-  index: number,
-): DeepfakeReportFinding {
-  const classification = normalizeClassification(
-    finding.finding_classification,
-  ) as "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE";
+function buildFinding(finding: ReportFindingInput, index: number): DeepfakeReportFinding {
+  const classification = normalizeClassification(finding.finding_classification) as
+    "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE";
   const risk = asRiskLevel(finding.risk_level);
-  const href =
-    resolveVerifiedEvidenceHref(finding) ??
-    sanitizeEvidenceUrl(finding.url) ??
-    null;
+  const href = resolveVerifiedEvidenceHref(finding) ?? sanitizeEvidenceUrl(finding.url) ?? null;
 
   return {
     index,
@@ -360,12 +333,9 @@ function buildFinding(
     pageType: str(finding.page_type),
     faceReferenced: Boolean(finding.face_referenced),
     targetFaceMatch:
-      typeof finding.target_face_match === "boolean"
-        ? finding.target_face_match
-        : null,
+      typeof finding.target_face_match === "boolean" ? finding.target_face_match : null,
     faceSimilarity: num(finding.face_similarity),
-    isSynthetic:
-      typeof finding.is_synthetic === "boolean" ? finding.is_synthetic : null,
+    isSynthetic: typeof finding.is_synthetic === "boolean" ? finding.is_synthetic : null,
     httpStatus: num(finding.http_status),
     urlVerificationStatus: str(finding.url_verification_status),
     matchedEvidence: list(finding.matched_evidence).slice(0, 12),
@@ -375,9 +345,7 @@ function buildFinding(
     query: str(finding.query),
     reviewStatus: str(finding.review_status),
     takedownRecommended:
-      typeof finding.takedown_recommended === "boolean"
-        ? finding.takedown_recommended
-        : null,
+      typeof finding.takedown_recommended === "boolean" ? finding.takedown_recommended : null,
     detectedAt: iso(finding.created_at),
     crawledAt: finding.crawled_at ? iso(finding.crawled_at) : null,
     redirectChain: list(finding.redirect_chain).slice(0, 8),
@@ -387,9 +355,7 @@ function buildFinding(
   };
 }
 
-function buildDomains(
-  findings: DeepfakeReportFinding[],
-): DeepfakeReportDomainRow[] {
+function buildDomains(findings: DeepfakeReportFinding[]): DeepfakeReportDomainRow[] {
   const map = new Map<string, DeepfakeReportDomainRow>();
   const riskRank: Record<RiskLevel, number> = {
     CRITICAL: 4,
@@ -409,9 +375,7 @@ function buildDomains(
     current.findingCount += 1;
     if (finding.classification === "VERIFIED_DEEPFAKE") current.verified += 1;
     else current.probable += 1;
-    if (
-      (riskRank[finding.riskLevel] ?? 0) > (riskRank[current.highestRisk] ?? 0)
-    ) {
+    if ((riskRank[finding.riskLevel] ?? 0) > (riskRank[current.highestRisk] ?? 0)) {
       current.highestRisk = finding.riskLevel;
     }
     map.set(finding.domain, current);
@@ -458,10 +422,7 @@ function extractDiagnostics(
   return out;
 }
 
-function threatLevelFromFindings(
-  findings: DeepfakeReportFinding[],
-  riskScore: number,
-): RiskLevel {
+function threatLevelFromFindings(findings: DeepfakeReportFinding[], riskScore: number): RiskLevel {
   if (findings.some((f) => f.riskLevel === "CRITICAL") || riskScore >= 80) {
     return "CRITICAL";
   }
@@ -474,23 +435,15 @@ function threatLevelFromFindings(
   return "LOW";
 }
 
-export function buildDeepfakeReportModel(
-  input: BuildDeepfakeReportInput,
-): DeepfakeReportModel {
+export function buildDeepfakeReportModel(input: BuildDeepfakeReportInput): DeepfakeReportModel {
   const selected = selectReportFindings(input.findings);
-  const findings = selected.map((finding, index) =>
-    buildFinding(finding, index + 1),
-  );
+  const findings = selected.map((finding, index) => buildFinding(finding, index + 1));
   const domains = buildDomains(findings);
   const metrics = rec(input.scan.discovery_metrics);
   const diagnostics = extractDiagnostics(metrics);
 
-  const verified = findings.filter(
-    (f) => f.classification === "VERIFIED_DEEPFAKE",
-  ).length;
-  const probable = findings.filter(
-    (f) => f.classification === "PROBABLE_DEEPFAKE",
-  ).length;
+  const verified = findings.filter((f) => f.classification === "VERIFIED_DEEPFAKE").length;
+  const probable = findings.filter((f) => f.classification === "PROBABLE_DEEPFAKE").length;
   const critical = findings.filter((f) => f.riskLevel === "CRITICAL").length;
   const high = findings.filter((f) => f.riskLevel === "HIGH").length;
   const medium = findings.filter((f) => f.riskLevel === "MEDIUM").length;
@@ -499,14 +452,7 @@ export function buildDeepfakeReportModel(
   const riskScore = findings.length
     ? Math.min(
         100,
-        Math.round(
-          critical * 20 +
-            high * 10 +
-            medium * 4 +
-            low * 1 +
-            verified * 4 +
-            probable * 2,
-        ),
+        Math.round(critical * 20 + high * 10 + medium * 4 + low * 1 + verified * 4 + probable * 2),
       )
     : 0;
 
@@ -532,9 +478,7 @@ export function buildDeepfakeReportModel(
   const aliases = list(input.scan.aliases);
   const handles = list(input.scan.handles);
   const protectedIdentity =
-    str(input.profile?.target_name) ??
-    str(input.scan.target_name) ??
-    "Protected identity";
+    str(input.profile?.target_name) ?? str(input.scan.target_name) ?? "Protected identity";
 
   const timeline: DeepfakeReportTimelineEntry[] = [
     {
@@ -543,8 +487,7 @@ export function buildDeepfakeReportModel(
     },
   ];
 
-  const queriesExecuted =
-    num(metrics.queries_executed) ?? num(input.scan.total_queries);
+  const queriesExecuted = num(metrics.queries_executed) ?? num(input.scan.total_queries);
   if (queriesExecuted !== null) {
     timeline.push({
       time: iso(input.scan.started_at ?? input.scan.created_at),
@@ -608,9 +551,7 @@ export function buildDeepfakeReportModel(
       queriesPlanned: num(metrics.queries_generated),
       queriesExecuted,
       pagesVerified:
-        num(metrics.verified) ??
-        num(metrics.serpapi_verified) ??
-        num(metrics.client_visible),
+        num(metrics.verified) ?? num(metrics.serpapi_verified) ?? num(metrics.client_visible),
       clientVisibleFindings: findings.length,
       verifiedDeepfakes: verified,
       probableDeepfakes: probable,
@@ -630,9 +571,7 @@ export function buildDeepfakeReportModel(
       handles,
       authorizationStatus: str(input.profile?.authorization_status),
       referenceFaceCount: input.profile?.reference_face_count ?? 0,
-      faceCollectionConfigured: Boolean(
-        input.profile?.rekognition_collection_id,
-      ),
+      faceCollectionConfigured: Boolean(input.profile?.rekognition_collection_id),
     },
     diagnostics,
     findings,

@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  classifyCopyrightPage,
-  extractTitleMatchedDetailLinks,
-} from "./page-classify.server";
+import { classifyCopyrightPage, extractTitleMatchedDetailLinks } from "./page-classify.server";
 import {
   crawlMetricsFromStats,
   explainZeroMatchFunnel,

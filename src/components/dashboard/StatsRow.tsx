@@ -26,12 +26,23 @@ function ReputationRing({ value }: { value: number | null }) {
           </linearGradient>
         </defs>
         <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="rgba(15,27,51,0.08)" fill="none" />
-        <circle cx="70" cy="70" r={r} strokeWidth="12" stroke="url(#ringGrad)" fill="none"
-          strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" />
+        <circle
+          cx="70"
+          cy="70"
+          r={r}
+          strokeWidth="12"
+          stroke="url(#ringGrad)"
+          fill="none"
+          strokeDasharray={c}
+          strokeDashoffset={off}
+          strokeLinecap="round"
+        />
       </svg>
       <div className="absolute inset-0 grid place-items-center">
         <div className="text-center">
-          <div className="text-3xl font-bold font-display leading-none">{value === null ? "—" : v}</div>
+          <div className="text-3xl font-bold font-display leading-none">
+            {value === null ? "—" : v}
+          </div>
           <div className="text-[10px] text-muted-foreground mt-1">/100</div>
         </div>
       </div>
@@ -57,8 +68,15 @@ export function StatsRow() {
     queryFn: async (): Promise<Counts> => {
       const [assetsRes, casesRes, takedownsRes] = await Promise.all([
         supabase.from("protected_assets").select("id", { count: "exact", head: true }),
-        supabase.from("cases").select("id", { count: "exact", head: true }).in("status", ["Open", "In Progress", "Escalated"]).in("priority", ["Critical", "High"]),
-        supabase.from("enforcement_requests").select("id", { count: "exact", head: true }).neq("status", "Queued"),
+        supabase
+          .from("cases")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["Open", "In Progress", "Escalated"])
+          .in("priority", ["Critical", "High"]),
+        supabase
+          .from("enforcement_requests")
+          .select("id", { count: "exact", head: true })
+          .neq("status", "Queued"),
       ]);
       return {
         assets: assetsRes.count ?? 0,
@@ -70,27 +88,72 @@ export function StatsRow() {
   });
 
   const activeThreats = dash.data?.totals.findings ?? 0;
-  const reputation = dash.data?.exposure.score != null && dash.data.totals.findings > 0
-    ? Math.max(0, Math.min(100, Math.round(100 - dash.data.exposure.score * 10)))
-    : null;
+  const reputation =
+    dash.data?.exposure.score != null && dash.data.totals.findings > 0
+      ? Math.max(0, Math.min(100, Math.round(100 - dash.data.exposure.score * 10)))
+      : null;
 
-  const stats: { icon: typeof Shield; label: string; value: string | number; sub: string; color: string }[] = [
-    { icon: Shield, label: "PROTECTED ASSETS", value: counts.data?.assets ?? 0, sub: "Assets registered", color: "#A78BFA" },
-    { icon: AlertTriangle, label: "ACTIVE THREATS", value: activeThreats, sub: "Findings across platforms", color: "#F87171" },
-    { icon: Clock, label: "CRITICAL CASES", value: counts.data?.criticalCases ?? 0, sub: "High-priority cases open", color: "#FB923C" },
-    { icon: Send, label: "TAKEDOWNS SENT", value: counts.data?.takedowns ?? 0, sub: "Submitted requests", color: "#3B82F6" },
+  const stats: {
+    icon: typeof Shield;
+    label: string;
+    value: string | number;
+    sub: string;
+    color: string;
+  }[] = [
+    {
+      icon: Shield,
+      label: "PROTECTED ASSETS",
+      value: counts.data?.assets ?? 0,
+      sub: "Assets registered",
+      color: "#A78BFA",
+    },
+    {
+      icon: AlertTriangle,
+      label: "ACTIVE THREATS",
+      value: activeThreats,
+      sub: "Findings across platforms",
+      color: "#F87171",
+    },
+    {
+      icon: Clock,
+      label: "CRITICAL CASES",
+      value: counts.data?.criticalCases ?? 0,
+      sub: "High-priority cases open",
+      color: "#FB923C",
+    },
+    {
+      icon: Send,
+      label: "TAKEDOWNS SENT",
+      value: counts.data?.takedowns ?? 0,
+      sub: "Submitted requests",
+      color: "#3B82F6",
+    },
   ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
       <div className="card-surface p-5 flex flex-col items-center">
-        <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">REPUTATION SCORE</div>
-        <div className="my-2"><ReputationRing value={reputation} /></div>
+        <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">
+          REPUTATION SCORE
+        </div>
+        <div className="my-2">
+          <ReputationRing value={reputation} />
+        </div>
         <div className="text-sm font-semibold" style={{ color: "#3B82F6" }}>
-          {reputation === null ? "No data yet" : reputation >= 80 ? "Excellent" : reputation >= 60 ? "Healthy" : reputation >= 40 ? "At Risk" : "Critical"}
+          {reputation === null
+            ? "No data yet"
+            : reputation >= 80
+              ? "Excellent"
+              : reputation >= 60
+                ? "Healthy"
+                : reputation >= 40
+                  ? "At Risk"
+                  : "Critical"}
         </div>
         <div className="text-xs text-muted-foreground mt-1">
-          {reputation === null ? "Run your first scan" : `From ${dash.data?.totals.findings ?? 0} findings`}
+          {reputation === null
+            ? "Run your first scan"
+            : `From ${dash.data?.totals.findings ?? 0} findings`}
         </div>
       </div>
 
@@ -99,10 +162,18 @@ export function StatsRow() {
         return (
           <div key={s.label} className="card-surface p-5 flex flex-col">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl grid place-items-center" style={{ background: `color-mix(in oklab, ${s.color} 20%, transparent)`, color: s.color }}>
+              <div
+                className="size-10 rounded-xl grid place-items-center"
+                style={{
+                  background: `color-mix(in oklab, ${s.color} 20%, transparent)`,
+                  color: s.color,
+                }}
+              >
                 <Icon className="size-5" />
               </div>
-              <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">{s.label}</div>
+              <div className="text-[10px] tracking-[0.18em] font-semibold text-muted-foreground">
+                {s.label}
+              </div>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
               <div className="text-4xl font-bold font-display">{s.value}</div>

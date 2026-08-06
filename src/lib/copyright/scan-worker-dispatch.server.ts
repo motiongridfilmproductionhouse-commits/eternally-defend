@@ -37,11 +37,13 @@ function normalizeOrigin(raw: string): string | null {
 }
 
 /** Public for tests — returns explicit worker URL or derived same-origin hook URL. */
-export function resolveCopyrightScanWorkerUrl(
-  env: NodeJS.ProcessEnv = process.env,
-): string | null {
+export function resolveCopyrightScanWorkerUrl(env: NodeJS.ProcessEnv = process.env): string | null {
   const diagnostic = copyrightScanWorkerDispatchDiagnostic(env);
-  if (diagnostic.worker_url_configured && diagnostic.worker_url_origin && diagnostic.worker_url_path) {
+  if (
+    diagnostic.worker_url_configured &&
+    diagnostic.worker_url_origin &&
+    diagnostic.worker_url_path
+  ) {
     return `${diagnostic.worker_url_origin}${diagnostic.worker_url_path}`;
   }
   return null;

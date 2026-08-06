@@ -6,11 +6,7 @@ import {
   isSarayuDemoTarget,
   seedSarayuDemoFindings,
 } from "./sarayu-demo-findings";
-import {
-  buildDomainRows,
-  displayableFindings,
-  paginateFindings,
-} from "./results-dashboard";
+import { buildDomainRows, displayableFindings, paginateFindings } from "./results-dashboard";
 import { filterClientFindings } from "./client-results.server";
 
 test("Sarayu demo target matching is isolated and normalized", () => {
@@ -27,7 +23,10 @@ test("Sarayu demo rows preserve the supplied URLs and verified finding fields", 
   });
   const expectedUrls = [...new Set(SARAYU_DEMO_FINDING_URLS)];
 
-  assert.deepEqual(rows.map((row) => row.url), expectedUrls);
+  assert.deepEqual(
+    rows.map((row) => row.url),
+    expectedUrls,
+  );
   assert.equal(rows.length, 7);
   for (const row of rows) {
     assert.equal(row.risk_level, "HIGH");
@@ -74,11 +73,7 @@ test("all seven unique Sarayu findings stay visible across domains and paginatio
     userId: "user-id",
     now: "2026-08-04T00:00:00.000Z",
   }).map((row, index) => ({ ...row, id: `finding-${index}` }));
-  const visible = filterClientFindings(
-    rows as any,
-    { name: "Sarayu Mohan" },
-    "scan-id",
-  );
+  const visible = filterClientFindings(rows as any, { name: "Sarayu Mohan" }, "scan-id");
   const displayable = displayableFindings(visible as any);
   const page = paginateFindings(displayable, 1, 20);
   const domains = buildDomainRows(displayable);
@@ -90,9 +85,6 @@ test("all seven unique Sarayu findings stay visible across domains and paginatio
   assert.equal(domains.length, 3);
   assert.equal(domains.find((row) => row.domain === "imgfy.net")?.verified_pages, 3);
   assert.equal(domains.find((row) => row.domain === "desifakes.com")?.verified_pages, 3);
-  assert.equal(
-    domains.find((row) => row.domain === "desifakes-com.zproxy.org")?.verified_pages,
-    1,
-  );
+  assert.equal(domains.find((row) => row.domain === "desifakes-com.zproxy.org")?.verified_pages, 1);
   assert.equal(new Set(page.items.map((finding) => finding.url)).size, 7);
 });

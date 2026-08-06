@@ -15,31 +15,15 @@ const actress = {
   handles: [],
 };
 
-const longPageBody = (
-  text: string,
-) => `${text} ${"Additional page body content confirming this is a full crawled article page with enough text for exact-page evidence requirements. ".repeat(2)}`;
+const longPageBody = (text: string) =>
+  `${text} ${"Additional page body content confirming this is a full crawled article page with enough text for exact-page evidence requirements. ".repeat(2)}`;
 
 test("detectPageType excludes search, tag, category, performer-index and listing URLs", () => {
-  assert.equal(
-    detectPageType("https://adult.example/search?q=Maya+Kapoor"),
-    "search",
-  );
-  assert.equal(
-    detectPageType("https://adult.example/tags/maya-kapoor"),
-    "tag",
-  );
-  assert.equal(
-    detectPageType("https://adult.example/category/celebrities"),
-    "category",
-  );
-  assert.equal(
-    detectPageType("https://adult.example/pornstar/maya-kapoor"),
-    "performer_index",
-  );
-  assert.equal(
-    detectPageType("https://adult.example/browse/newest"),
-    "listing",
-  );
+  assert.equal(detectPageType("https://adult.example/search?q=Maya+Kapoor"), "search");
+  assert.equal(detectPageType("https://adult.example/tags/maya-kapoor"), "tag");
+  assert.equal(detectPageType("https://adult.example/category/celebrities"), "category");
+  assert.equal(detectPageType("https://adult.example/pornstar/maya-kapoor"), "performer_index");
+  assert.equal(detectPageType("https://adult.example/browse/newest"), "listing");
   assert.equal(
     detectPageType(
       "https://adult.example/video/maya-kapoor-deepfake-face-swap-123",
@@ -258,9 +242,7 @@ test("candidate pre-filter rejects adult search listing URLs before crawl", () =
     "https://abuse.example/video/maya-kapoor-deepfake-ai-nude",
   );
   assert.ok(
-    filtered.rejected.some((item) =>
-      /listing page excluded/i.test(item.rejection_reason ?? ""),
-    ),
+    filtered.rejected.some((item) => /listing page excluded/i.test(item.rejection_reason ?? "")),
   );
 });
 
@@ -279,10 +261,7 @@ test("explicit name mention without synthetic signal goes to triage, not accept"
 
   assert.equal(filtered.accepted.length, 0);
   assert.equal(filtered.triage.length, 1);
-  assert.match(
-    filtered.triage[0]?.rejection_reason ?? "",
-    /without synthetic/i,
-  );
+  assert.match(filtered.triage[0]?.rejection_reason ?? "", /without synthetic/i);
 });
 
 test("ADULT_NAME_MENTION and UNRELATED_ADULT_CONTENT are not persisted findings", () => {

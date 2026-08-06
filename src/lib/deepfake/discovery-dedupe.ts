@@ -57,18 +57,13 @@ function compareNewestThenId(a: DiscoveryDedupeRow, b: DiscoveryDedupeRow): numb
   return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
 }
 
-export function compareDiscoveryRowsForKeep(
-  a: DiscoveryDedupeRow,
-  b: DiscoveryDedupeRow,
-): number {
+export function compareDiscoveryRowsForKeep(a: DiscoveryDedupeRow, b: DiscoveryDedupeRow): number {
   const scoreDiff = discoveryEvidenceScore(b) - discoveryEvidenceScore(a);
   if (scoreDiff !== 0) return scoreDiff;
   return compareNewestThenId(a, b);
 }
 
-export function isIndexableDiscoveryPageUrl(
-  pageUrl: string | null | undefined,
-): boolean {
+export function isIndexableDiscoveryPageUrl(pageUrl: string | null | undefined): boolean {
   return Boolean(pageUrl && pageUrl.trim());
 }
 
@@ -77,9 +72,7 @@ export function isIndexableDiscoveryPageUrl(
  * deepfake_discoveries_unique_page. NULL/empty page_url rows are never
  * collapsed unless they share an identical non-empty page_url key (they don't).
  */
-export function selectRedundantDiscoveryIds(
-  rows: DiscoveryDedupeRow[],
-): string[] {
+export function selectRedundantDiscoveryIds(rows: DiscoveryDedupeRow[]): string[] {
   const groups = new Map<string, DiscoveryDedupeRow[]>();
 
   for (const row of rows) {

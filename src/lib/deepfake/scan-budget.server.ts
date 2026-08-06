@@ -21,12 +21,7 @@ export const MIN_PROVIDER_TIME_MS = 8_000;
 export const TARGET_FIRST_VERIFY_MS = 40_000;
 
 export type ScanStage =
-  | "discovering"
-  | "verifying"
-  | "classifying"
-  | "saving"
-  | "checkpoint"
-  | "done";
+  "discovering" | "verifying" | "classifying" | "saving" | "checkpoint" | "done";
 
 export type ScanBudget = {
   startedAtMs: number;
@@ -54,30 +49,18 @@ export function createScanBudget(runtime: ScanRuntime, nowMs = Date.now()): Scan
 }
 
 export function discoveryBudgetRemaining(budget: ScanBudget, nowMs = Date.now()): number {
-  const wallRemaining = remainingMs(
-    { softDeadlineMs: budget.softDeadlineMs },
-    nowMs,
-  );
+  const wallRemaining = remainingMs({ softDeadlineMs: budget.softDeadlineMs }, nowMs);
   const discoveryLeft = budget.discoveryBudgetMs - budget.discoverySpentMs;
   // Keep cleanup/verification reserve intact.
   const reservedForLater =
-    budget.verificationBudgetMs +
-    budget.cleanupBudgetMs -
-    budget.verificationSpentMs;
+    budget.verificationBudgetMs + budget.cleanupBudgetMs - budget.verificationSpentMs;
   const wallAfterReserve = wallRemaining - Math.max(reservedForLater, 0);
   return Math.max(0, Math.min(discoveryLeft, wallAfterReserve));
 }
 
-export function verificationBudgetRemaining(
-  budget: ScanBudget,
-  nowMs = Date.now(),
-): number {
-  const wallRemaining = remainingMs(
-    { softDeadlineMs: budget.softDeadlineMs },
-    nowMs,
-  );
-  const verificationLeft =
-    budget.verificationBudgetMs - budget.verificationSpentMs;
+export function verificationBudgetRemaining(budget: ScanBudget, nowMs = Date.now()): number {
+  const wallRemaining = remainingMs({ softDeadlineMs: budget.softDeadlineMs }, nowMs);
+  const verificationLeft = budget.verificationBudgetMs - budget.verificationSpentMs;
   const cleanupReserve = Math.max(
     budget.cleanupBudgetMs * 0.5,
     budget.cleanupBudgetMs - (nowMs - budget.startedAtMs) * 0.05,
@@ -93,10 +76,7 @@ export function canStartProviderCall(
   return discoveryBudgetRemaining(budget, nowMs) >= Math.max(estimatedMs, MIN_PROVIDER_TIME_MS);
 }
 
-export function canStartVerification(
-  budget: ScanBudget,
-  nowMs = Date.now(),
-): boolean {
+export function canStartVerification(budget: ScanBudget, nowMs = Date.now()): boolean {
   return verificationBudgetRemaining(budget, nowMs) >= MIN_PROVIDER_TIME_MS;
 }
 

@@ -23,15 +23,20 @@ export async function runJob(jobId: string): Promise<void> {
   if (!adapter) throw new Error(`Unknown adapter: ${job.adapter}`);
 
   const startedAt = nowMs();
-  const audit = (event: string, payload?: Record<string, unknown>, extra: Partial<Parameters<typeof eterna.event>[0]> = {}) =>
-    eterna.event({ job_id: job.job_id, event, payload, ...extra });
+  const audit = (
+    event: string,
+    payload?: Record<string, unknown>,
+    extra: Partial<Parameters<typeof eterna.event>[0]> = {},
+  ) => eterna.event({ job_id: job.job_id, event, payload, ...extra });
 
   await audit("browser_started", { adapter: job.adapter }, { status: "running", result: "ok" });
 
   const profileDir = path.join(config.PROFILE_DIR, job.user_id, job.platform);
   await mkdir(profileDir, { recursive: true });
 
-  const storageState = job.credential?.storage_state_json ? JSON.parse(job.credential.storage_state_json) : undefined;
+  const storageState = job.credential?.storage_state_json
+    ? JSON.parse(job.credential.storage_state_json)
+    : undefined;
 
   let context: BrowserContext | null = null;
   try {
@@ -54,11 +59,15 @@ export async function runJob(jobId: string): Promise<void> {
 
     const authState = await adapter.authenticate(ctx);
     if (authState === "login_required") {
-      await audit("auth_required", { credential_status: job.credential?.status ?? null }, {
-        status: "failed",
-        result: "error",
-        error: { code: "login_required", message: "Platform session missing or expired" },
-      });
+      await audit(
+        "auth_required",
+        { credential_status: job.credential?.status ?? null },
+        {
+          status: "failed",
+          result: "error",
+          error: { code: "login_required", message: "Platform session missing or expired" },
+        },
+      );
       return;
     }
     await audit("auth_restored", {}, { result: "ok" });
@@ -78,17 +87,25 @@ export async function runJob(jobId: string): Promise<void> {
     await audit("validation_completed", { ok: validation.ok, issues: validation.issues });
 
     const summary = await adapter.generateReviewSummary(ctx);
-    await audit("review_generated", {}, {
-      status: "review_ready",
-      result: "ok",
-      review_summary: summary as unknown as Record<string, unknown>,
-      duration_ms: nowMs() - startedAt,
-    });
+    await audit(
+      "review_generated",
+      {},
+      {
+        status: "review_ready",
+        result: "ok",
+        review_summary: summary as unknown as Record<string, unknown>,
+        duration_ms: nowMs() - startedAt,
+      },
+    );
   } catch (e) {
     await audit(
       "error",
       { message: e instanceof Error ? e.message : String(e) },
-      { status: "failed", result: "error", error: { message: e instanceof Error ? e.message : String(e) } },
+      {
+        status: "failed",
+        result: "error",
+        error: { message: e instanceof Error ? e.message : String(e) },
+      },
     );
   } finally {
     if (context) await context.close();

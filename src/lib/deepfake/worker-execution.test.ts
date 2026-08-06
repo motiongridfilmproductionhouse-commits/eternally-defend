@@ -7,30 +7,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-  resolveWorkerProgressUiState,
-  workerProgressUiCopy,
-} from "./worker-progress-ui";
+import { resolveWorkerProgressUiState, workerProgressUiCopy } from "./worker-progress-ui";
 import { hasWorkerEvent } from "./worker-events.server";
 
 const ROOT = process.cwd();
-const SCAN_HOOK = resolve(
-  ROOT,
-  "src/routes/api/public/hooks/deepfake-scan-execute.ts",
-);
-const GI_HOOK = resolve(
-  ROOT,
-  "src/routes/api/public/hooks/deepfake-google-images-worker.ts",
-);
+const SCAN_HOOK = resolve(ROOT, "src/routes/api/public/hooks/deepfake-scan-execute.ts");
+const GI_HOOK = resolve(ROOT, "src/routes/api/public/hooks/deepfake-google-images-worker.ts");
 const NETWORK = resolve(ROOT, "src/lib/deepfake/startup-network.server.ts");
 const WORKER = resolve(ROOT, "src/lib/deepfake/scan-worker.server.ts");
 const FUNCTIONS = resolve(ROOT, "src/lib/deepfake-intel.functions.ts");
 const WATCHDOG = resolve(ROOT, "src/lib/deepfake/worker-watchdog.server.ts");
 const VALIDATE = resolve(ROOT, "scripts/validate-deepfake-startup-env.mjs");
-const PREFLIGHT = resolve(
-  ROOT,
-  "src/lib/deepfake/worker-schema-preflight.server.ts",
-);
+const PREFLIGHT = resolve(ROOT, "src/lib/deepfake/worker-schema-preflight.server.ts");
 
 test("direct waitUntil(executionPromise) executes without setImmediate", () => {
   const hook = readFileSync(SCAN_HOOK, "utf8");

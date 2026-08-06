@@ -51,10 +51,7 @@ type IngestContext = {
   softDeadlineMs?: number;
 };
 
-async function ingestHit(
-  hit: ReferenceImageHit,
-  ctx: IngestContext,
-): Promise<void> {
+async function ingestHit(hit: ReferenceImageHit, ctx: IngestContext): Promise<void> {
   ctx.stats.images_downloaded += 1;
   const sha = sha256Of(hit.image_url);
   const phash = simplePhash(hit.image_url);
@@ -196,9 +193,7 @@ export async function collectReferenceImages(input: {
     softDeadlineMs: input.softDeadlineMs,
   };
 
-  const hasAnyProvider =
-    isReferenceImageProviderConfigured() ||
-    isBraveImageSearchConfigured();
+  const hasAnyProvider = isReferenceImageProviderConfigured() || isBraveImageSearchConfigured();
 
   if (!hasAnyProvider) {
     return {
@@ -226,12 +221,7 @@ export async function collectReferenceImages(input: {
         const stats = providerStatsMap.get("google_images")!;
         stats.images_found += googleResult.images_found;
         if (googleResult.failure) stats.failures += 1;
-        await ingestHits(
-          googleResult.hits,
-          stats,
-          ingestCtx,
-          REFERENCE_IMAGE_MAX_STORED,
-        );
+        await ingestHits(googleResult.hits, stats, ingestCtx, REFERENCE_IMAGE_MAX_STORED);
       })(),
     );
 
@@ -336,9 +326,7 @@ export async function collectReferenceImages(input: {
     final_reference_count: accepted.length,
     aliases_generated: variants.length,
     investigation_stage:
-      accepted.length > 0
-        ? "reference_images_collected"
-        : "reference_images_unavailable",
+      accepted.length > 0 ? "reference_images_collected" : "reference_images_unavailable",
   };
 
   if (accepted.length >= Math.min(REFERENCE_IMAGE_TARGET_MIN, 50)) {

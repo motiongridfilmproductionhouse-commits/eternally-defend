@@ -44,8 +44,7 @@ export function isPublicTelegramMessageUrl(url: string): boolean {
 const ACCESS_SIGNAL_RE =
   /\b(download|magnet:|\.torrent|mega\.nz|mediafire|gofile|pixeldrain|full\s*movie|watch\s*online|stream\s*now|\.mkv|\.mp4|file\s*host|mirror\s*\d)\b/i;
 
-const GENERIC_FREE_RE =
-  /\b(free\s*movies?|movie\s*channel|films?\s*free|hollywood\s*hub)\b/i;
+const GENERIC_FREE_RE = /\b(free\s*movies?|movie\s*channel|films?\s*free|hollywood\s*hub)\b/i;
 
 /**
  * Evaluate a retrieved public Telegram message page.

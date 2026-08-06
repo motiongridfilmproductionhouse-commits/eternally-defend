@@ -1,18 +1,8 @@
 import { createHash } from "node:crypto";
-import {
-  captureEvidenceCandidate,
-} from "./evidence-capture.server";
-import {
-  filterCandidatesByTargetFace,
-} from "./face-filter.server";
-import {
-  finalizeDeepfakeFinding,
-  isClientVisibleClassification,
-} from "./page-evidence.server";
-import {
-  normalizeCanonicalUrl,
-  verifyCandidateUrls,
-} from "./url-verification.server";
+import { captureEvidenceCandidate } from "./evidence-capture.server";
+import { filterCandidatesByTargetFace } from "./face-filter.server";
+import { finalizeDeepfakeFinding, isClientVisibleClassification } from "./page-evidence.server";
+import { normalizeCanonicalUrl, verifyCandidateUrls } from "./url-verification.server";
 
 export const MANUAL_LEAD_STATES = [
   "submitted",
@@ -41,10 +31,7 @@ export const MANUAL_CLASSIFICATIONS = [
 ] as const;
 
 export type ManualEvidenceUrlKind =
-  | "google_images_search"
-  | "google_images_viewer"
-  | "source_page"
-  | "direct_image";
+  "google_images_search" | "google_images_viewer" | "source_page" | "direct_image";
 
 export type ManualEvidenceDiagnostics = {
   manual_urls_submitted: number;
@@ -99,8 +86,7 @@ type ManualProcessTarget = {
   handles: string[];
 };
 
-const DIRECT_IMAGE_RE =
-  /\.(?:avif|bmp|gif|jpe?g|png|webp)(?:[?#].*)?$/i;
+const DIRECT_IMAGE_RE = /\.(?:avif|bmp|gif|jpe?g|png|webp)(?:[?#].*)?$/i;
 
 const HOOK_PATH = "/api/public/hooks/deepfake-manual-evidence-execute";
 
@@ -125,12 +111,10 @@ function isGoogleHost(hostname: string): boolean {
 function isGoogleImagesSearchUrl(url: URL): boolean {
   return (
     isGoogleHost(url.hostname) &&
-    (
-      url.pathname.includes("/search") ||
+    (url.pathname.includes("/search") ||
       url.pathname.includes("/imgres") ||
       url.searchParams.get("tbm") === "isch" ||
-      url.searchParams.get("udm") === "2"
-    )
+      url.searchParams.get("udm") === "2")
   );
 }
 
@@ -167,18 +151,14 @@ export function classifyManualEvidenceUrl(input: string): {
   if (isGoogleImagesSearchUrl(url)) {
     const fragment = url.hash ? url.hash.slice(1) : null;
     return {
-      kind: fragment?.includes("sv=")
-        ? "google_images_viewer"
-        : "google_images_search",
+      kind: fragment?.includes("sv=") ? "google_images_viewer" : "google_images_search",
       selectedResultFragment: fragment,
       exactSubmittedUrl: value,
     };
   }
 
   return {
-    kind: DIRECT_IMAGE_RE.test(url.pathname)
-      ? "direct_image"
-      : "source_page",
+    kind: DIRECT_IMAGE_RE.test(url.pathname) ? "direct_image" : "source_page",
     selectedResultFragment: null,
     exactSubmittedUrl: value,
   };
@@ -261,8 +241,7 @@ export function extractGoogleUrlHints(submittedUrl: string): {
       unwrapGoogleRedirect(hashParams.get("ru")) ??
       unwrapGoogleRedirect(hashParams.get("url")),
     imageUrl:
-      decodeMaybeUrl(hashParams.get("imgurl")) ??
-      decodeMaybeUrl(hashParams.get("mediaurl")),
+      decodeMaybeUrl(hashParams.get("imgurl")) ?? decodeMaybeUrl(hashParams.get("mediaurl")),
   };
   if (fromHash.sourcePageUrl || fromHash.imageUrl) {
     return {
@@ -346,15 +325,16 @@ async function resolveWithPlaywright(submittedUrl: string): Promise<{
       const anchors = Array.from(document.querySelectorAll("a"));
       const visitAnchor =
         anchors.find((a) => /\bvisit\b/i.test(a.textContent ?? "")) ??
-        anchors.find((a) => /imgrefurl=|[?&]url=|[?&]q=|[?&]ru=/i.test(a.getAttribute("href") ?? ""));
+        anchors.find((a) =>
+          /imgrefurl=|[?&]url=|[?&]q=|[?&]ru=/i.test(a.getAttribute("href") ?? ""),
+        );
       const sourcePageUrl = asUrl(visitAnchor?.getAttribute("href"));
       const selectedImg =
         document.querySelector("[aria-selected='true'] img") ??
         document.querySelector("img[src^='http']") ??
         document.querySelector("img[data-src^='http']");
       const imageUrl =
-        asUrl(selectedImg?.getAttribute("src")) ??
-        asUrl(selectedImg?.getAttribute("data-src"));
+        asUrl(selectedImg?.getAttribute("src")) ?? asUrl(selectedImg?.getAttribute("data-src"));
       return { sourcePageUrl, imageUrl };
     });
 
@@ -436,9 +416,7 @@ export async function resolveSubmittedManualUrl(submittedUrl: string): Promise<{
     sourcePageUrl: null,
     imageUrl: null,
     googleScreenshotPath: rendered.googleScreenshotHash,
-    errorReason:
-      rendered.error ??
-      "Source page could not be resolved automatically.",
+    errorReason: rendered.error ?? "Source page could not be resolved automatically.",
   };
 }
 
@@ -561,19 +539,13 @@ function findingRowFromManual(input: {
       ? input.lead.face_similarity_score >= 88
       : false,
     face_similarity: input.lead.face_similarity_score ?? null,
-    ai_reasoning:
-      "Manual evidence lead. Verified-deepfake status requires human review.",
+    ai_reasoning: "Manual evidence lead. Verified-deepfake status requires human review.",
     finding_classification: classification,
     page_type: input.classification.page_type,
     identity_confidence: input.classification.identity_confidence,
-    synthetic_media_confidence:
-      input.classification.synthetic_media_confidence,
-    matched_evidence: [
-      ...input.classification.matched_evidence,
-      "discovery:manual-lead",
-    ],
-    classification_explanation:
-      input.classification.classification_explanation,
+    synthetic_media_confidence: input.classification.synthetic_media_confidence,
+    matched_evidence: [...input.classification.matched_evidence, "discovery:manual-lead"],
+    classification_explanation: input.classification.classification_explanation,
     discovered_url: input.lead.submitted_url,
     final_url: input.url,
     canonical_url: normalizeCanonicalUrl(input.url),
@@ -599,10 +571,7 @@ export async function processManualEvidenceLead(input: {
   if (!leadRow) throw new Error("Manual lead not found.");
 
   const lead = leadRow as ManualEvidenceLeadRecord & { id: string };
-  const discoveryPath = [
-    ...((lead.discovery_path as string[] | undefined) ?? []),
-    "manual_lead",
-  ];
+  const discoveryPath = [...((lead.discovery_path as string[] | undefined) ?? []), "manual_lead"];
 
   try {
     await updateLead({
@@ -615,20 +584,19 @@ export async function processManualEvidenceLead(input: {
       },
     });
 
-    const existingOverrideSource =
-      lead.reviewer_source_page_url ?? lead.source_page_url ?? null;
-    const existingOverrideImage =
-      lead.reviewer_image_url ?? lead.original_image_url ?? null;
-    const resolved = existingOverrideSource || existingOverrideImage
-      ? {
-          kind: lead.submitted_url_kind,
-          selectedResultFragment: lead.selected_result_fragment ?? null,
-          sourcePageUrl: existingOverrideSource,
-          imageUrl: existingOverrideImage,
-          googleScreenshotPath: lead.google_result_screenshot_path ?? null,
-          errorReason: null,
-        }
-      : await resolveSubmittedManualUrl(lead.submitted_url);
+    const existingOverrideSource = lead.reviewer_source_page_url ?? lead.source_page_url ?? null;
+    const existingOverrideImage = lead.reviewer_image_url ?? lead.original_image_url ?? null;
+    const resolved =
+      existingOverrideSource || existingOverrideImage
+        ? {
+            kind: lead.submitted_url_kind,
+            selectedResultFragment: lead.selected_result_fragment ?? null,
+            sourcePageUrl: existingOverrideSource,
+            imageUrl: existingOverrideImage,
+            googleScreenshotPath: lead.google_result_screenshot_path ?? null,
+            errorReason: null,
+          }
+        : await resolveSubmittedManualUrl(lead.submitted_url);
     if (
       resolved.kind.startsWith("google_images") &&
       resolved.selectedResultFragment?.includes("sv=")
@@ -647,9 +615,7 @@ export async function processManualEvidenceLead(input: {
           selected_result_fragment: resolved.selectedResultFragment,
           google_result_screenshot_path: resolved.googleScreenshotPath,
           processing_status: "failed",
-          error_reason:
-            resolved.errorReason ??
-            "Source page could not be resolved automatically.",
+          error_reason: resolved.errorReason ?? "Source page could not be resolved automatically.",
           classification: "requires human review",
           discovery_path: discoveryPath,
         },
@@ -706,17 +672,13 @@ export async function processManualEvidenceLead(input: {
           error_reason: duplicateOf
             ? "Duplicate manual lead after source resolution."
             : "Direct image lead requires face comparison or reviewer source-page override.",
-          classification: duplicateOf
-            ? "unrelated result"
-            : "requires human review",
+          classification: duplicateOf ? "unrelated result" : "requires human review",
           discovery_path: [...discoveryPath, "direct_image"],
         },
       });
       return {
         status: duplicateOf ? "rejected" : "identity_check_pending",
-        reason: duplicateOf
-          ? "Duplicate manual lead after source resolution."
-          : null,
+        reason: duplicateOf ? "Duplicate manual lead after source resolution." : null,
       };
     }
 
@@ -814,11 +776,7 @@ export async function processManualEvidenceLead(input: {
       ];
       faceSimilarity = Math.max(
         0,
-        ...[
-          ...faceResults.matched,
-          ...faceResults.rejected,
-          ...faceResults.errors,
-        ].map((item) =>
+        ...[...faceResults.matched, ...faceResults.rejected, ...faceResults.errors].map((item) =>
           typeof item.face_similarity === "number" ? item.face_similarity : 0,
         ),
       );
@@ -866,15 +824,9 @@ export async function processManualEvidenceLead(input: {
       url: primary.final_url,
       evidence_page_url: primary.final_url,
       image_url:
-        (candidate as any).image_url ??
-        (candidate as any).media_url ??
-        imageUrl ??
-        undefined,
+        (candidate as any).image_url ?? (candidate as any).media_url ?? imageUrl ?? undefined,
       media_url:
-        (candidate as any).media_url ??
-        (candidate as any).image_url ??
-        imageUrl ??
-        undefined,
+        (candidate as any).media_url ?? (candidate as any).image_url ?? imageUrl ?? undefined,
       media_type: "image",
       target_face_match: faceMatched,
       face_similarity: faceSimilarity || null,
@@ -885,10 +837,7 @@ export async function processManualEvidenceLead(input: {
     const pHash = perceptualHashFromSha256(capture.media_sha256);
     const resolvedKey = manualLeadResolvedDedupeKey({
       sourcePageUrl: primary.final_url,
-      imageUrl:
-        (candidate as any).image_url ??
-        (candidate as any).media_url ??
-        imageUrl,
+      imageUrl: (candidate as any).image_url ?? (candidate as any).media_url ?? imageUrl,
       perceptualHash: pHash,
     });
     const duplicateOf = await markDuplicateAfterResolution({
@@ -898,27 +847,25 @@ export async function processManualEvidenceLead(input: {
     });
 
     if (lead.scan_id) {
-      const { error: discoveryError } = await input.supabase
-        .from("deepfake_discoveries")
-        .upsert(
-          {
-            user_id: lead.user_id,
-            scan_id: lead.scan_id,
-            source: "manual_evidence",
-            search_query: "manual evidence",
-            page_url: primary.final_url,
-            canonical_url: primary.canonical_url,
-            source_host: primary.verified_domain ?? hostOf(primary.final_url),
-            page_title: primary.page_title,
-            snippet: primary.page_description,
-            image_url: imageUrl,
-            thumbnail_url: imageUrl,
-            media_type: imageUrl ? "image" : null,
-            analysis_status: "url_verified",
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "scan_id,page_url" },
-        );
+      const { error: discoveryError } = await input.supabase.from("deepfake_discoveries").upsert(
+        {
+          user_id: lead.user_id,
+          scan_id: lead.scan_id,
+          source: "manual_evidence",
+          search_query: "manual evidence",
+          page_url: primary.final_url,
+          canonical_url: primary.canonical_url,
+          source_host: primary.verified_domain ?? hostOf(primary.final_url),
+          page_title: primary.page_title,
+          snippet: primary.page_description,
+          image_url: imageUrl,
+          thumbnail_url: imageUrl,
+          media_type: imageUrl ? "image" : null,
+          analysis_status: "url_verified",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "scan_id,page_url" },
+      );
       if (discoveryError) {
         console.warn("[DEEPFAKE:MANUAL] discovery upsert failed:", discoveryError.message);
       }
@@ -944,14 +891,13 @@ export async function processManualEvidenceLead(input: {
       }
     }
 
-    const humanClassification =
-      duplicateOf
-        ? "unrelated result"
-        : faceMatched
-          ? "identity match confirmed"
-          : isClientVisibleClassification(finalized.finding_classification)
-            ? "probable deepfake"
-            : "requires human review";
+    const humanClassification = duplicateOf
+      ? "unrelated result"
+      : faceMatched
+        ? "identity match confirmed"
+        : isClientVisibleClassification(finalized.finding_classification)
+          ? "probable deepfake"
+          : "requires human review";
     const finalState: ManualLeadState = duplicateOf
       ? "rejected"
       : humanClassification === "requires human review" ||
@@ -972,9 +918,7 @@ export async function processManualEvidenceLead(input: {
         face_similarity_score: faceSimilarity || null,
         identity_confidence_score: finalized.identity_confidence,
         classification: humanClassification,
-        error_reason: duplicateOf
-          ? "Duplicate manual lead after source resolution."
-          : null,
+        error_reason: duplicateOf ? "Duplicate manual lead after source resolution." : null,
       },
     });
 
@@ -1040,9 +984,7 @@ export function resolveManualEvidenceWorkerUrl(
     env.APP_URL,
     env.PUBLIC_APP_URL,
     env.VITE_SITE_URL,
-    env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : undefined,
+    env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined,
     env.VERCEL_URL ? `https://${env.VERCEL_URL}` : undefined,
   ];
   for (const candidate of candidates) {
@@ -1054,8 +996,7 @@ export function resolveManualEvidenceWorkerUrl(
 
 function manualWorkerSecret(env: NodeJS.ProcessEnv = process.env): string {
   const value =
-    env.DEEPFAKE_MANUAL_EVIDENCE_WORKER_SECRET?.trim() ??
-    env.COPYRIGHT_SCAN_WORKER_SECRET?.trim();
+    env.DEEPFAKE_MANUAL_EVIDENCE_WORKER_SECRET?.trim() ?? env.COPYRIGHT_SCAN_WORKER_SECRET?.trim();
   if (!value) {
     throw new Error("DEEPFAKE_MANUAL_EVIDENCE_WORKER_SECRET is not configured.");
   }
@@ -1071,11 +1012,7 @@ async function hmacSha256Hex(secret: string, message: string): Promise<string> {
     false,
     ["sign"],
   );
-  const signature = await globalThis.crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(message),
-  );
+  const signature = await globalThis.crypto.subtle.sign("HMAC", key, encoder.encode(message));
   return Array.from(new Uint8Array(signature))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");

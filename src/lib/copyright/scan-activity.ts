@@ -25,15 +25,10 @@ export const COPYRIGHT_WORKFLOW_STAGES = [
   { key: "saving_report", label: "Generating report…" },
 ] as const;
 
-export type CopyrightWorkflowStageKey =
-  (typeof COPYRIGHT_WORKFLOW_STAGES)[number]["key"];
+export type CopyrightWorkflowStageKey = (typeof COPYRIGHT_WORKFLOW_STAGES)[number]["key"];
 
 export type ScanActivityProvider =
-  | "known_url"
-  | "firecrawl"
-  | "brightdata"
-  | "serpapi"
-  | "telegram";
+  "known_url" | "firecrawl" | "brightdata" | "serpapi" | "telegram";
 
 export type ScanActivityStage =
   | "discovered"
@@ -123,9 +118,7 @@ export function scanActivityThreatLabel(threat: ScanActivityThreat): string {
   return THREAT_LABELS[threat] ?? threat;
 }
 
-export function sanitizeActivityHostname(
-  value: string | null | undefined,
-): string | null {
+export function sanitizeActivityHostname(value: string | null | undefined): string | null {
   if (!value || typeof value !== "string") return null;
   const trimmed = value.trim().toLowerCase();
   if (!trimmed) return null;
@@ -161,9 +154,7 @@ export function sanitizeActivityPageLabel(
     text
       .replace(/\bBearer\s+\S+/gi, "[redacted]")
       .replace(/\b(?:fc|lovc|sk|api)[-_][A-Za-z0-9]{8,}\b/gi, "[redacted]")
-      .replace(/\b[A-Za-z0-9_-]{20,}\b/g, (m) =>
-        /^(?:fc|lovc|sk)/i.test(m) ? "[redacted]" : m,
-      );
+      .replace(/\b[A-Za-z0-9_-]{20,}\b/g, (m) => (/^(?:fc|lovc|sk)/i.test(m) ? "[redacted]" : m));
 
   if (typeof value === "string" && value.trim()) {
     const cleaned = scrubSecrets(value.replace(/[\r\n\t]+/g, " ").trim()).slice(0, 120);
@@ -189,9 +180,7 @@ export function providerDisplayLabel(provider: ScanActivityProvider | string): s
   return publicCapabilityLabel(provider);
 }
 
-export function workflowStageIndex(
-  key: CopyrightWorkflowStageKey | null | undefined,
-): number {
+export function workflowStageIndex(key: CopyrightWorkflowStageKey | null | undefined): number {
   if (!key) return 0;
   const idx = COPYRIGHT_WORKFLOW_STAGES.findIndex((s) => s.key === key);
   return idx >= 0 ? idx : 0;
@@ -241,11 +230,7 @@ export function classifyDistributionThreat(input: {
   if (EXCLUDED_CLASSIFICATIONS.has(cls)) {
     return { stage: "excluded_official", threat: "excluded" };
   }
-  if (
-    input.clientVisible &&
-    input.strongEvidence &&
-    isActionablePiracy(cls)
-  ) {
+  if (input.clientVisible && input.strongEvidence && isActionablePiracy(cls)) {
     return { stage: "saved_finding", threat: "verified_finding" };
   }
   if (input.strongEvidence && !input.clientVisible) {
@@ -284,20 +269,13 @@ export function parseRecentActivity(
       provider,
       stage,
       stage_label:
-        typeof r.stage_label === "string"
-          ? r.stage_label
-          : scanActivityStageLabel(stage),
+        typeof r.stage_label === "string" ? r.stage_label : scanActivityStageLabel(stage),
       threat,
       threat_label:
-        typeof r.threat_label === "string"
-          ? r.threat_label
-          : scanActivityThreatLabel(threat),
-      classification:
-        typeof r.classification === "string" ? r.classification : null,
+        typeof r.threat_label === "string" ? r.threat_label : scanActivityThreatLabel(threat),
+      classification: typeof r.classification === "string" ? r.classification : null,
       evidence_href:
-        typeof r.evidence_href === "string"
-          ? sanitizeEvidenceUrl(r.evidence_href)
-          : null,
+        typeof r.evidence_href === "string" ? sanitizeEvidenceUrl(r.evidence_href) : null,
       occurred_at: occurredAt,
     });
   }
@@ -316,12 +294,8 @@ export function parseWebsiteActivity(
 }
 
 /** Newest-first ordering for UI. */
-export function sortActivityNewestFirst(
-  events: ScanActivityEvent[],
-): ScanActivityEvent[] {
-  return [...events].sort(
-    (a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at),
-  );
+export function sortActivityNewestFirst(events: ScanActivityEvent[]): ScanActivityEvent[] {
+  return [...events].sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at));
 }
 
 export type ScanActivityCounters = {
@@ -344,9 +318,7 @@ export function activityCountersFromStats(
   const potentialFromEvents = events.filter(
     (e) => e.threat === "potential" || e.threat === "high_risk",
   ).length;
-  const verifiedFromEvents = events.filter(
-    (e) => e.threat === "verified_finding",
-  ).length;
+  const verifiedFromEvents = events.filter((e) => e.threat === "verified_finding").length;
   return {
     // Query progress can come from the crawl phase (`queries_executed`) or,
     // earlier in the run, from live search-sweep telemetry.
@@ -363,35 +335,15 @@ export function activityCountersFromStats(
       n("brightdata_unique_urls"),
       n("brightdata_candidates"),
     ),
-    websites_checked:
-      Math.max(
-        n("websites_checked"),
-        n("pages_crawled"),
-      ),
-    potential_threats:
-      n("potential_threats") ||
-      potentialFromEvents ||
-      n("access_evidence_pages"),
-    verified_findings:
-      n("client_visible_findings") ||
-      n("verified_findings") ||
-      verifiedFromEvents,
-    provider_failures: Math.max(
-      n("provider_failures"),
-      n("brightdata_failures"),
-    ),
+    websites_checked: Math.max(n("websites_checked"), n("pages_crawled")),
+    potential_threats: n("potential_threats") || potentialFromEvents || n("access_evidence_pages"),
+    verified_findings: n("client_visible_findings") || n("verified_findings") || verifiedFromEvents,
+    provider_failures: Math.max(n("provider_failures"), n("brightdata_failures")),
   };
-
 }
 
 export type BrightDataProviderStatus =
-  | "not_configured"
-  | "pending"
-  | "idle"
-  | "running"
-  | "completed"
-  | "error";
-
+  "not_configured" | "pending" | "idle" | "running" | "completed" | "error";
 
 export type BrightDataTelemetry = {
   configured: boolean;
@@ -446,14 +398,15 @@ export function brightDataTelemetryFromStats(
     configuredRaw === true || (typeof diagConfigured === "boolean" && diagConfigured === true);
   // Before the first Bright Data activity push there is no provider state yet —
   // that is "pending", not "missing API key".
-  const unknownConfig =
-    typeof configuredRaw !== "boolean" && typeof diagConfigured !== "boolean";
-  const scanRunning = scanStatus === "running" || scanStatus === "queued" || scanStatus === "pending";
+  const unknownConfig = typeof configuredRaw !== "boolean" && typeof diagConfigured !== "boolean";
+  const scanRunning =
+    scanStatus === "running" || scanStatus === "queued" || scanStatus === "pending";
   const running = stats?.["brightdata_running"] === true && scanRunning;
 
-  const byCategory = (stats?.["brightdata_failures_by_category"] ?? null) as
-    | Record<string, unknown>
-    | null;
+  const byCategory = (stats?.["brightdata_failures_by_category"] ?? null) as Record<
+    string,
+    unknown
+  > | null;
   const errors: string[] = [];
   if (byCategory) {
     for (const [category, count] of Object.entries(byCategory)) {
@@ -515,13 +468,7 @@ export function brightDataTelemetryFromStats(
 }
 
 export type CopyrightThreatBadgeTone =
-  | "scanning"
-  | "potential"
-  | "multiple"
-  | "verified"
-  | "provider_limited"
-  | "failed"
-  | "partial";
+  "scanning" | "potential" | "multiple" | "verified" | "provider_limited" | "failed" | "partial";
 
 export function resolveCopyrightThreatBadge(input: {
   scanStatus?: string | null;
@@ -540,9 +487,7 @@ export function resolveCopyrightThreatBadge(input: {
         : typeof stats.matches === "number"
           ? stats.matches
           : 0);
-  const potential =
-    input.potentialFindings ??
-    activityCountersFromStats(stats).potential_threats;
+  const potential = input.potentialFindings ?? activityCountersFromStats(stats).potential_threats;
 
   if (status === "failed") {
     const category =
@@ -602,9 +547,7 @@ export function resolveNewVerifiedActivityPulse(input: {
   isInitialSeed: boolean;
   next: SeenActivityThreatState;
 } {
-  const verifiedIds = input.events
-    .filter((e) => e.threat === "verified_finding")
-    .map((e) => e.id);
+  const verifiedIds = input.events.filter((e) => e.threat === "verified_finding").map((e) => e.id);
   const scanId = input.scanId;
   const previous = input.previous;
 
@@ -634,10 +577,7 @@ export function resolveNewVerifiedActivityPulse(input: {
   };
 }
 
-export function formatRelativeActivityTime(
-  iso: string,
-  nowMs: number = Date.now(),
-): string {
+export function formatRelativeActivityTime(iso: string, nowMs: number = Date.now()): string {
   const ts = Date.parse(iso);
   if (!Number.isFinite(ts)) return "";
   const delta = Math.max(0, nowMs - ts);
@@ -665,10 +605,7 @@ export class ScanActivityRecorder {
   }
 
   private upsert(event: ScanActivityEvent): boolean {
-    const key = activityDedupeKey(
-      event.id.split("::")[0] ?? event.id,
-      event.stage,
-    );
+    const key = activityDedupeKey(event.id.split("::")[0] ?? event.id, event.stage);
     const existingId = this.dedupe.get(key);
     if (existingId) {
       const idx = this.events.findIndex((e) => e.id === existingId);
@@ -717,9 +654,7 @@ export class ScanActivityRecorder {
       threat: input.threat,
       threat_label: scanActivityThreatLabel(input.threat),
       classification: input.classification ?? null,
-      evidence_href: input.evidenceHref
-        ? sanitizeEvidenceUrl(input.evidenceHref)
-        : null,
+      evidence_href: input.evidenceHref ? sanitizeEvidenceUrl(input.evidenceHref) : null,
       occurred_at: (input.at ?? new Date()).toISOString(),
     };
   }
@@ -731,8 +666,7 @@ export class ScanActivityRecorder {
     stage?: ScanActivityStage;
     leadQuery?: string | null;
   }): void {
-    const provider =
-      input.provider ?? resolveActivityProvider(input.leadQuery ?? null);
+    const provider = input.provider ?? resolveActivityProvider(input.leadQuery ?? null);
     const event = this.baseEvent({
       url: input.url,
       pageTitle: input.pageTitle,
@@ -760,11 +694,7 @@ export class ScanActivityRecorder {
     );
   }
 
-  recordBlocked(input: {
-    url: string;
-    pageTitle?: string | null;
-    reason?: string | null;
-  }): void {
+  recordBlocked(input: { url: string; pageTitle?: string | null; reason?: string | null }): void {
     this.upsert(
       this.baseEvent({
         url: input.url,
@@ -798,8 +728,7 @@ export class ScanActivityRecorder {
       identityEvidence: input.identityEvidence,
       blocked: input.blocked,
     });
-    const evidenceHref =
-      threat === "verified_finding" ? sanitizeEvidenceUrl(input.url) : null;
+    const evidenceHref = threat === "verified_finding" ? sanitizeEvidenceUrl(input.url) : null;
     const isNew = this.upsert(
       this.baseEvent({
         url: input.url,
@@ -874,9 +803,7 @@ export class ScanActivityRecorder {
       verified_findings: Math.max(
         this.verifiedFindings,
         typeof stats.verified_findings === "number" ? stats.verified_findings : 0,
-        typeof stats.client_visible_findings === "number"
-          ? stats.client_visible_findings
-          : 0,
+        typeof stats.client_visible_findings === "number" ? stats.client_visible_findings : 0,
       ),
       last_progress_at: new Date().toISOString(),
       website_activity: this.events.map((e) => ({
@@ -900,9 +827,7 @@ export class ScanActivityRecorder {
     this.events = sortActivityNewestFirst(existing).slice(0, SCAN_ACTIVITY_MAX_EVENTS);
     this.dedupe.clear();
     for (const event of this.events) {
-      const urlKey = event.id.includes("::")
-        ? event.id.split("::")[0]!
-        : event.hostname;
+      const urlKey = event.id.includes("::") ? event.id.split("::")[0]! : event.hostname;
       this.dedupe.set(activityDedupeKey(urlKey, event.stage), event.id);
     }
     const wf = stats?.activity_workflow_stage;
@@ -910,8 +835,7 @@ export class ScanActivityRecorder {
       const idx = COPYRIGHT_WORKFLOW_STAGES.findIndex((s) => s.key === wf);
       if (idx >= 0) this.workflowStage = COPYRIGHT_WORKFLOW_STAGES[idx]!.key;
     }
-    this.websitesChecked =
-      typeof stats?.websites_checked === "number" ? stats.websites_checked : 0;
+    this.websitesChecked = typeof stats?.websites_checked === "number" ? stats.websites_checked : 0;
     this.potentialThreats =
       typeof stats?.potential_threats === "number" ? stats.potential_threats : 0;
     this.verifiedFindings =
@@ -960,9 +884,7 @@ export function cleanActivityLabel(event: ScanActivityEvent): string {
  * Keep only verified distribution events on hosts that may be displayed.
  * Everything else remains internal telemetry.
  */
-export function filterDisplayableActivity(
-  events: ScanActivityEvent[],
-): ScanActivityEvent[] {
+export function filterDisplayableActivity(events: ScanActivityEvent[]): ScanActivityEvent[] {
   return events.filter((event) => {
     if (event.threat !== "verified_finding" || event.stage !== "saved_finding") return false;
     if (isNeverDisplayHost(event.hostname)) return false;

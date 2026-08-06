@@ -113,9 +113,7 @@ export function hasNonEmptySourceActivity(
   return parseSourceActivity(stats ?? {}).length > 0;
 }
 
-export function hasRealSourceActivity(
-  stats: Record<string, unknown> | null | undefined,
-): boolean {
+export function hasRealSourceActivity(stats: Record<string, unknown> | null | undefined): boolean {
   const entries = parseSourceActivity(stats ?? {});
   return entries.some((e) => e.status !== "starting");
 }
@@ -126,9 +124,7 @@ export function hasNonEmptyWebsiteActivity(
   return parseWebsiteActivity(stats ?? {}).length > 0;
 }
 
-export function hasRealWebsiteActivity(
-  stats: Record<string, unknown> | null | undefined,
-): boolean {
+export function hasRealWebsiteActivity(stats: Record<string, unknown> | null | undefined): boolean {
   return parseWebsiteActivity(stats ?? {}).some((e) => !e.id.startsWith("bootstrap:"));
 }
 
@@ -207,12 +203,8 @@ export function mergeActiveScanStats(input: {
   const bootstrapStats = input.bootstrap ? bootstrapStatsFromState(input.bootstrap) : null;
   const lastKnown = input.lastKnown ?? null;
 
-  const bootstrapProviders = bootstrapStats
-    ? parseSourceActivity(bootstrapStats)
-    : [];
-  const bootstrapWebsites = bootstrapStats
-    ? parseWebsiteActivity(bootstrapStats)
-    : [];
+  const bootstrapProviders = bootstrapStats ? parseSourceActivity(bootstrapStats) : [];
+  const bootstrapWebsites = bootstrapStats ? parseWebsiteActivity(bootstrapStats) : [];
 
   let sourceTelemetry: Record<string, unknown> | null = null;
   if (hasRealSourceActivity(polled)) {
@@ -268,8 +260,8 @@ export function mergeActiveScanStats(input: {
     ...(websiteTelemetry ?? {}),
     scan_bootstrap: Boolean(
       bootstrapStats &&
-        !hasRealSourceActivity(polled) &&
-        !(lastKnown && hasRealSourceActivity(lastKnown)),
+      !hasRealSourceActivity(polled) &&
+      !(lastKnown && hasRealSourceActivity(lastKnown)),
     ),
   };
 
@@ -285,9 +277,7 @@ export function isActiveScanStatus(status: string | null | undefined): boolean {
   return status === "queued" || status === "running" || status === "pending";
 }
 
-export function bootstrapReelOperationalCards(
-  providers: ScanBootstrapProvider[],
-): Array<{
+export function bootstrapReelOperationalCards(providers: ScanBootstrapProvider[]): Array<{
   key: string;
   title: string;
   subtitle: string;

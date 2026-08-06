@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import InvestigationTerminal from "./InvestigationTerminal";
 import InvestigationReportView from "./InvestigationReportView";
-import {
-  getWebsiteInvestigation,
-  runWebsiteInvestigation,
-} from "@/lib/investigation.functions";
+import { getWebsiteInvestigation, runWebsiteInvestigation } from "@/lib/investigation.functions";
 import {
   normalizeInvestigationResponse,
   pollInvestigationJob,
@@ -27,10 +24,10 @@ export default function InvestigationModal({ open, onOpenChange, match }: Props)
   const runInvestigationFn = useServerFn(runWebsiteInvestigation);
   const getInvestigationFn = useServerFn(getWebsiteInvestigation);
 
-  const [modalState, setModalState] =
-    useState<WebsiteInvestigationModalState>("idle");
-  const [investigationResult, setInvestigationResult] =
-    useState<WebsiteInvestigationResult | null>(null);
+  const [modalState, setModalState] = useState<WebsiteInvestigationModalState>("idle");
+  const [investigationResult, setInvestigationResult] = useState<WebsiteInvestigationResult | null>(
+    null,
+  );
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -125,8 +122,7 @@ export default function InvestigationModal({ open, onOpenChange, match }: Props)
       finishWithResult(outcome.result);
     } catch (error) {
       if (runId !== runIdRef.current) return;
-      const message =
-        error instanceof Error ? error.message : "Investigation failed.";
+      const message = error instanceof Error ? error.message : "Investigation failed.";
       setErrorMessage(message);
       setModalState("failed");
     }
@@ -167,9 +163,7 @@ export default function InvestigationModal({ open, onOpenChange, match }: Props)
         </div>
 
         <div className="p-6">
-          {modalState === "investigating" && (
-            <InvestigationTerminal active progress={progress} />
-          )}
+          {modalState === "investigating" && <InvestigationTerminal active progress={progress} />}
 
           {modalState === "completed" && investigationResult && (
             <InvestigationReportView result={investigationResult} onClose={closeModal} />

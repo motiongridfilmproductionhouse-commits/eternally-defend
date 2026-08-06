@@ -37,9 +37,7 @@ export interface PageEvidenceResult {
   };
 }
 
-export function buildPageEvidenceResult(
-  dist: DistributionAnalysis,
-): PageEvidenceResult {
+export function buildPageEvidenceResult(dist: DistributionAnalysis): PageEvidenceResult {
   const identityMatched = dist.identityEvidence.length > 0;
   const embeddedPlayerDetected = dist.indicatorKeys.includes("embedded_player");
   const strongSignals = dist.accessEvidence.length > 0 && dist.strongEvidence;
@@ -98,9 +96,7 @@ export function buildPageEvidenceResult(
     embeddedPlayerDetected,
     suspectedReview,
     clientVisibleFinding:
-      dist.clientVisible &&
-      dist.strongEvidence &&
-      isActionablePiracy(dist.classification),
+      dist.clientVisible && dist.strongEvidence && isActionablePiracy(dist.classification),
     accessDiagnostics: {
       embeddedPlayersFound: embeddedPlayerDetected ? 1 : 0,
       watchButtonsFound: dist.indicatorKeys.includes("watch_now_cta") ? 1 : 0,

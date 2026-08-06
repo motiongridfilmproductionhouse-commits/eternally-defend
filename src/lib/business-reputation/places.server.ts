@@ -44,7 +44,11 @@ function domainOf(url: string | null | undefined): string | null {
   }
 }
 
-function splitAddress(address: string): { city: string | null; region: string | null; country: string | null } {
+function splitAddress(address: string): {
+  city: string | null;
+  region: string | null;
+  country: string | null;
+} {
   const parts = address
     .split(",")
     .map((p) => p.trim())
@@ -123,7 +127,8 @@ export async function searchBusinessListings(query: string): Promise<{
   provider: "google_places" | "sample";
 }> {
   const trimmed = query.trim();
-  if (trimmed.length < 2) return { listings: [], provider: placesConfigured() ? "google_places" : "sample" };
+  if (trimmed.length < 2)
+    return { listings: [], provider: placesConfigured() ? "google_places" : "sample" };
 
   if (!placesConfigured()) {
     return { listings: sampleListings(trimmed), provider: "sample" };

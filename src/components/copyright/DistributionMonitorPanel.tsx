@@ -14,8 +14,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  Radar, RefreshCw, ExternalLink, AlertTriangle, Loader2, Pause, Play,
-  Globe, Send, MessageSquare, Server, Files, Magnet, Clock, ShieldAlert,
+  Radar,
+  RefreshCw,
+  ExternalLink,
+  AlertTriangle,
+  Loader2,
+  Pause,
+  Play,
+  Globe,
+  Send,
+  MessageSquare,
+  Server,
+  Files,
+  Magnet,
+  Clock,
+  ShieldAlert,
 } from "lucide-react";
 
 const RISK: Record<string, string> = {
@@ -91,10 +104,7 @@ export function DistributionMonitorPanel() {
 
   const allSources = monitor.data?.sources ?? [];
   // Active monitor never shows deactivated YouTube/Plex FPs — audit rows remain in DB only.
-  const sources = useMemo(
-    () => allSources.filter((s) => s.status !== "deactivated"),
-    [allSources],
-  );
+  const sources = useMemo(() => allSources.filter((s) => s.status !== "deactivated"), [allSources]);
   const incidents = (monitor.data?.incidents ?? []).filter((i) => {
     const ev = (i.evidence ?? {}) as Record<string, unknown>;
     return ev.active !== false;
@@ -132,14 +142,24 @@ export function DistributionMonitorPanel() {
           <div>
             <h2 className="text-sm font-semibold">{PREVIOUSLY_MONITORED_SOURCES_LABEL}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Global history across prior scans — not findings for the selected scan.
-              Each source shows the work/title and originating scan that registered it.
+              Global history across prior scans — not findings for the selected scan. Each source
+              shows the work/title and originating scan that registered it.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" className="shrink-0" onClick={() => sweep.mutate({})} disabled={sweep.isPending}>
-            {sweep.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            onClick={() => sweep.mutate({})}
+            disabled={sweep.isPending}
+          >
+            {sweep.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
             Run monitor now
           </Button>
         </div>
@@ -156,18 +176,23 @@ export function DistributionMonitorPanel() {
         ].map((s) => (
           <div key={s.label} className="rounded-lg border border-border/50 bg-background/30 p-3">
             <div className="text-lg font-semibold">{s.value}</div>
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              {s.label}
+            </div>
           </div>
         ))}
       </div>
 
       {monitor.isLoading && (
-        <p className="text-xs text-muted-foreground"><Loader2 className="mr-1 inline h-3 w-3 animate-spin" />Loading monitored sources…</p>
+        <p className="text-xs text-muted-foreground">
+          <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
+          Loading monitored sources…
+        </p>
       )}
       {!monitor.isLoading && !sources.length && (
         <p className="text-sm text-muted-foreground">
-          No previously monitored unauthorized distribution sources. Sources are added only when a scan finds hard
-          distribution evidence for a specific work.
+          No previously monitored unauthorized distribution sources. Sources are added only when a
+          scan finds hard distribution evidence for a specific work.
         </p>
       )}
 
@@ -185,7 +210,10 @@ export function DistributionMonitorPanel() {
           const deactivated = s.status === "deactivated";
 
           return (
-            <article key={s.id} className={`overflow-hidden rounded-xl border border-border/60 bg-card/40 backdrop-blur ${deactivated ? "opacity-60" : ""}`}>
+            <article
+              key={s.id}
+              className={`overflow-hidden rounded-xl border border-border/60 bg-card/40 backdrop-blur ${deactivated ? "opacity-60" : ""}`}
+            >
               <div className="flex flex-col gap-3 p-4 md:flex-row">
                 {s.screenshot_url ? (
                   <img
@@ -204,15 +232,31 @@ export function DistributionMonitorPanel() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Icon className="h-4 w-4 text-muted-foreground" />
                     <span className="truncate text-sm font-semibold">{s.domain}</span>
-                    <Badge variant="outline" className={`text-[10px] uppercase ${RISK[s.risk_level] ?? RISK.low}`}>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] uppercase ${RISK[s.risk_level] ?? RISK.low}`}
+                    >
                       {s.risk_level} risk · {s.risk_score}
                     </Badge>
-                    <Badge variant="outline" className="text-[10px]">{label(s.source_kind)}</Badge>
-                    <Badge variant="outline" className="text-[10px]">{label(s.content_type)}</Badge>
-                    <Badge variant="outline" className="text-[10px]"><Clock className="mr-1 h-3 w-3" />{TIMING_LABEL[timing] ?? timing}</Badge>
-                    {deactivated && <Badge variant="outline" className="text-[10px]">Deactivated</Badge>}
+                    <Badge variant="outline" className="text-[10px]">
+                      {label(s.source_kind)}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      {label(s.content_type)}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      <Clock className="mr-1 h-3 w-3" />
+                      {TIMING_LABEL[timing] ?? timing}
+                    </Badge>
+                    {deactivated && (
+                      <Badge variant="outline" className="text-[10px]">
+                        Deactivated
+                      </Badge>
+                    )}
                     {s.status !== "active" && s.status !== "deactivated" && (
-                      <Badge variant="outline" className="text-[10px]">{label(s.status)}</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {label(s.status)}
+                      </Badge>
                     )}
                   </div>
 
@@ -227,14 +271,20 @@ export function DistributionMonitorPanel() {
                     {attribution.originatingScanId
                       ? attribution.originatingScanId.slice(0, 8) + "…"
                       : "unknown"}
-                    {" · "}Registered from a prior scan — not a result of the currently selected scan.
+                    {" · "}Registered from a prior scan — not a result of the currently selected
+                    scan.
                   </p>
 
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{(ev.reason as string) ?? s.page_title ?? s.url}</p>
+                  <p className="line-clamp-2 text-xs text-muted-foreground">
+                    {(ev.reason as string) ?? s.page_title ?? s.url}
+                  </p>
 
                   <div className="flex flex-wrap gap-1">
                     {indicators.slice(0, 6).map((i) => (
-                      <span key={i} className="rounded border border-border/50 bg-background/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      <span
+                        key={i}
+                        className="rounded border border-border/50 bg-background/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                      >
                         {label(i)}
                       </span>
                     ))}
@@ -242,31 +292,56 @@ export function DistributionMonitorPanel() {
 
                   <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                     <span>Tracked titles: {(s.tracked_titles ?? []).join(", ") || "—"}</span>
-                    <span>Checked {ago(s.last_checked_at)} · {s.check_count} run(s)</span>
+                    <span>
+                      Checked {ago(s.last_checked_at)} · {s.check_count} run(s)
+                    </span>
                     <span>{srcIncidents.length} active incident(s)</span>
                   </div>
 
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <Button size="sm" variant="outline" onClick={() => setOpenId(open ? null : s.id)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setOpenId(open ? null : s.id)}
+                    >
                       {open ? "Hide" : "History & evidence"}
                     </Button>
                     {!deactivated && (
                       <>
-                        <Button size="sm" variant="outline" onClick={() => sweep.mutate({ sourceId: s.id })} disabled={sweep.isPending}>
-                          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />Re-crawl
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => sweep.mutate({ sourceId: s.id })}
+                          disabled={sweep.isPending}
+                        >
+                          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                          Re-crawl
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => toggle.mutate({ sourceId: s.id, monitorEnabled: !s.monitor_enabled })}
+                          onClick={() =>
+                            toggle.mutate({ sourceId: s.id, monitorEnabled: !s.monitor_enabled })
+                          }
                         >
-                          {s.monitor_enabled ? <><Pause className="mr-1.5 h-3.5 w-3.5" />Pause</> : <><Play className="mr-1.5 h-3.5 w-3.5" />Resume</>}
+                          {s.monitor_enabled ? (
+                            <>
+                              <Pause className="mr-1.5 h-3.5 w-3.5" />
+                              Pause
+                            </>
+                          ) : (
+                            <>
+                              <Play className="mr-1.5 h-3.5 w-3.5" />
+                              Resume
+                            </>
+                          )}
                         </Button>
                       </>
                     )}
                     <Button size="sm" variant="ghost" asChild>
                       <a href={s.url} target="_blank" rel="noreferrer noopener">
-                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" />Open source
+                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                        Open source
                       </a>
                     </Button>
                   </div>
@@ -276,28 +351,48 @@ export function DistributionMonitorPanel() {
               {open && (
                 <div className="grid gap-4 border-t border-border/50 bg-background/20 p-4 lg:grid-cols-3">
                   <div className="space-y-2">
-                    <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Incidents</h4>
-                    {!srcIncidents.length && <p className="text-xs text-muted-foreground">No active incidents.</p>}
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Incidents
+                    </h4>
+                    {!srcIncidents.length && (
+                      <p className="text-xs text-muted-foreground">No active incidents.</p>
+                    )}
                     {srcIncidents.slice(0, 8).map((i) => (
-                      <div key={i.id} className="rounded-lg border border-border/50 bg-card/40 p-2.5">
+                      <div
+                        key={i.id}
+                        className="rounded-lg border border-border/50 bg-card/40 p-2.5"
+                      >
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="h-3.5 w-3.5 text-orange-400" />
                           <span className="text-xs font-medium">{label(i.incident_type)}</span>
-                          <Badge variant="outline" className={`text-[10px] ${RISK[i.severity] ?? RISK.low}`}>{i.severity}</Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${RISK[i.severity] ?? RISK.low}`}
+                          >
+                            {i.severity}
+                          </Badge>
                         </div>
                         <p className="mt-1 text-[11px] text-muted-foreground">{i.summary}</p>
                         <p className="mt-1 text-[10px] text-muted-foreground/70">
-                          {i.work_title ? `${i.work_title} · ` : ""}{new Date(i.detected_at).toLocaleString()}
+                          {i.work_title ? `${i.work_title} · ` : ""}
+                          {new Date(i.detected_at).toLocaleString()}
                         </p>
                       </div>
                     ))}
                   </div>
 
                   <div className="space-y-2">
-                    <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Monitoring history</h4>
-                    {!srcRuns.length && <p className="text-xs text-muted-foreground">No monitoring runs yet.</p>}
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Monitoring history
+                    </h4>
+                    {!srcRuns.length && (
+                      <p className="text-xs text-muted-foreground">No monitoring runs yet.</p>
+                    )}
                     {srcRuns.slice(0, 8).map((r) => (
-                      <div key={r.id} className="rounded-lg border border-border/50 bg-card/40 p-2.5 text-[11px]">
+                      <div
+                        key={r.id}
+                        className="rounded-lg border border-border/50 bg-card/40 p-2.5 text-[11px]"
+                      >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">{label(r.run_type)}</span>
                           <span className={r.reachable ? "text-emerald-400" : "text-red-400"}>
@@ -305,25 +400,44 @@ export function DistributionMonitorPanel() {
                           </span>
                         </div>
                         <p className="mt-0.5 text-muted-foreground">
-                          {((r.changes as string[] | null) ?? []).map(label).join(", ") || "no change"} · {r.incidents_created} incident(s)
+                          {((r.changes as string[] | null) ?? []).map(label).join(", ") ||
+                            "no change"}{" "}
+                          · {r.incidents_created} incident(s)
                         </p>
-                        <p className="text-muted-foreground/70">{new Date(r.started_at).toLocaleString()}</p>
+                        <p className="text-muted-foreground/70">
+                          {new Date(r.started_at).toLocaleString()}
+                        </p>
                       </div>
                     ))}
                   </div>
 
                   <div className="space-y-2">
-                    <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Evidence</h4>
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Evidence
+                    </h4>
                     <div className="rounded-lg border border-border/50 bg-card/40 p-2.5 text-[11px] text-muted-foreground">
-                      <p><ShieldAlert className="mr-1 inline h-3 w-3" />Quality tags: {((ev.quality_tags as string[] | undefined) ?? []).join(", ") || "—"}</p>
-                      <p className="mt-1">Linked hosts: {((ev.link_domains as string[] | undefined) ?? []).slice(0, 6).join(", ") || "—"}</p>
+                      <p>
+                        <ShieldAlert className="mr-1 inline h-3 w-3" />
+                        Quality tags:{" "}
+                        {((ev.quality_tags as string[] | undefined) ?? []).join(", ") || "—"}
+                      </p>
+                      <p className="mt-1">
+                        Linked hosts:{" "}
+                        {((ev.link_domains as string[] | undefined) ?? []).slice(0, 6).join(", ") ||
+                          "—"}
+                      </p>
                       {typeof ev.deactivation_reason === "string" && (
                         <p className="mt-1 text-amber-500/90">{ev.deactivation_reason}</p>
                       )}
                     </div>
                     {links.slice(0, 6).map((l) => (
-                      <a key={l} href={l} target="_blank" rel="noreferrer noopener"
-                        className="block truncate rounded border border-border/50 bg-card/40 px-2 py-1 text-[11px] text-primary hover:underline">
+                      <a
+                        key={l}
+                        href={l}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="block truncate rounded border border-border/50 bg-card/40 px-2 py-1 text-[11px] text-primary hover:underline"
+                      >
                         {l}
                       </a>
                     ))}

@@ -7,11 +7,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { selectV2AccountType } from "@/lib/onboarding/v2-profile.functions";
 import type { V2AccountType } from "@/lib/onboarding/v2-config";
 
-const OPTIONS: Array<{ value: V2AccountType; title: string; description: string; icon: typeof UserRound }> = [
-  { value: "celebrity", title: "Celebrity", description: "Public figures, artists and recognized personalities.", icon: Camera },
-  { value: "individual", title: "Individual", description: "Personal identity, reputation and likeness protection.", icon: UserRound },
-  { value: "enterprise", title: "Enterprise", description: "Registered businesses and corporate organizations.", icon: Building2 },
-  { value: "production_house", title: "Production House", description: "Studios, labels and rights-holding production teams.", icon: UsersRound },
+const OPTIONS: Array<{
+  value: V2AccountType;
+  title: string;
+  description: string;
+  icon: typeof UserRound;
+}> = [
+  {
+    value: "celebrity",
+    title: "Celebrity",
+    description: "Public figures, artists and recognized personalities.",
+    icon: Camera,
+  },
+  {
+    value: "individual",
+    title: "Individual",
+    description: "Personal identity, reputation and likeness protection.",
+    icon: UserRound,
+  },
+  {
+    value: "enterprise",
+    title: "Enterprise",
+    description: "Registered businesses and corporate organizations.",
+    icon: Building2,
+  },
+  {
+    value: "production_house",
+    title: "Production House",
+    description: "Studios, labels and rights-holding production teams.",
+    icon: UsersRound,
+  },
 ];
 
 export function AccountTypeStep({ onSelected }: { onSelected: () => Promise<void> | void }) {
@@ -37,7 +62,9 @@ export function AccountTypeStep({ onSelected }: { onSelected: () => Promise<void
     <Card className="border-white/10 bg-[#0A1128] text-white shadow-2xl">
       <CardHeader>
         <CardTitle className="text-xl">Choose your protection account</CardTitle>
-        <CardDescription className="text-white/60">Your selection creates a verification path matched to the rights you need to protect.</CardDescription>
+        <CardDescription className="text-white/60">
+          Your selection creates a verification path matched to the rights you need to protect.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -53,14 +80,21 @@ export function AccountTypeStep({ onSelected }: { onSelected: () => Promise<void
               >
                 <Icon className={`mb-4 size-6 ${active ? "text-blue-300" : "text-white/50"}`} />
                 <div className="font-semibold">{option.title}</div>
-                <div className="mt-1 text-xs leading-relaxed text-white/55">{option.description}</div>
+                <div className="mt-1 text-xs leading-relaxed text-white/55">
+                  {option.description}
+                </div>
               </button>
             );
           })}
         </div>
         <div className="flex justify-end border-t border-white/10 pt-4">
-          <Button onClick={handleContinue} disabled={!selected || busy} className="bg-blue-600 text-white hover:bg-blue-500">
-            {busy && <Loader2 className="mr-2 size-4 animate-spin" />} Continue <ChevronRight className="ml-1 size-4" />
+          <Button
+            onClick={handleContinue}
+            disabled={!selected || busy}
+            className="bg-blue-600 text-white hover:bg-blue-500"
+          >
+            {busy && <Loader2 className="mr-2 size-4 animate-spin" />} Continue{" "}
+            <ChevronRight className="ml-1 size-4" />
           </Button>
         </div>
       </CardContent>

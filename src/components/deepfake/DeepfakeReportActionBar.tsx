@@ -71,9 +71,7 @@ export function DeepfakeReportActionBar({
   const busy = generatingFinal || generatingInterim || downloading;
   const latest = history[0] ?? null;
   const canDownload =
-    typeof canDownloadProp === "boolean"
-      ? canDownloadProp
-      : Boolean(latest?.storageKey);
+    typeof canDownloadProp === "boolean" ? canDownloadProp : Boolean(latest?.storageKey);
   const interimEnabled = canGenerateInterimReport({
     scanStatus,
     findingCount,
@@ -96,9 +94,8 @@ export function DeepfakeReportActionBar({
             Generate or download an evidence report for this identity
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground break-words">
-            Uses saved scan findings, diagnostics, and identity verification
-            only. Does not invent URLs, confidence scores, screenshots, or legal
-            conclusions.
+            Uses saved scan findings, diagnostics, and identity verification only. Does not invent
+            URLs, confidence scores, screenshots, or legal conclusions.
             {findingCount > 0
               ? ` ${findingCount} client-visible finding${findingCount === 1 ? "" : "s"} available.`
               : " No client-visible findings yet — report can still document diagnostics."}
@@ -234,12 +231,10 @@ export function DeepfakeReportActionBar({
                     className="flex min-w-0 flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">
-                        {row.name}
-                      </div>
+                      <div className="truncate text-sm font-medium">{row.name}</div>
                       <div className="text-[11px] text-muted-foreground break-words">
-                        {row.reportMode === "interim" ? "Interim" : "Final"} ·{" "}
-                        {row.findingsCount} finding
+                        {row.reportMode === "interim" ? "Interim" : "Final"} · {row.findingsCount}{" "}
+                        finding
                         {row.findingsCount === 1 ? "" : "s"} ·{" "}
                         {formatWhen(row.generatedAt ?? row.createdAt)}
                         {row.reportId ? ` · ${row.reportId}` : ""}

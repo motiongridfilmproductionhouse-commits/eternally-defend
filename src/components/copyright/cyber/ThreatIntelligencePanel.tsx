@@ -45,18 +45,20 @@ export function ThreatIntelligencePanel({ rows }: { rows: ThreatResultRow[] }) {
           { label: "High", value: summary.high, tone: "text-orange-300" },
           { label: "Medium", value: summary.medium, tone: "text-amber-200" },
           { label: "Low", value: summary.low, tone: "text-sky-200" },
-          { label: "Verified", value: summary.verified, icon: CheckCircle2, tone: "text-emerald-300" },
+          {
+            label: "Verified",
+            value: summary.verified,
+            icon: CheckCircle2,
+            tone: "text-emerald-300",
+          },
           { label: "Pending Review", value: summary.pendingReview, icon: Clock3 },
           { label: "False Positive", value: summary.falsePositive },
         ].map((item) => (
-          <div
-            key={item.label}
-            className="cyber-panel rounded-xl px-3 py-2.5"
-          >
-            <div className="text-[10px] uppercase tracking-wider text-slate-400">
-              {item.label}
-            </div>
-            <div className={`mt-1 text-xl font-semibold tabular-nums ${item.tone ?? "text-slate-100"}`}>
+          <div key={item.label} className="cyber-panel rounded-xl px-3 py-2.5">
+            <div className="text-[10px] uppercase tracking-wider text-slate-400">{item.label}</div>
+            <div
+              className={`mt-1 text-xl font-semibold tabular-nums ${item.tone ?? "text-slate-100"}`}
+            >
               {item.value}
             </div>
           </div>

@@ -65,10 +65,7 @@ export function hasBroadDiscoveryCoverage(state: DiscoveryCoverageState): boolea
 }
 
 /** Stage 2/3 expansion is unnecessary once target is met AND coverage is broad. */
-export function shouldSkipStageExpansion(
-  stage: 1 | 2 | 3,
-  state: DiscoveryCoverageState,
-): boolean {
+export function shouldSkipStageExpansion(stage: 1 | 2 | 3, state: DiscoveryCoverageState): boolean {
   if (stage === 1) return false;
   const mode = resolveDiscoveryMode(state.uniqueCandidateUrls);
   if (mode === "full") return false;
@@ -133,12 +130,7 @@ export function expandPlansForDiscoveryMode(
   for (const plan of basePlans) {
     plans.push({ ...plan, page: plan.page ?? 1 });
     if (!plan.priority) continue;
-    const maxPage =
-      mode === "full"
-        ? priorityQueryPages
-        : mode === "coverage"
-          ? 1
-          : 1;
+    const maxPage = mode === "full" ? priorityQueryPages : mode === "coverage" ? 1 : 1;
     for (let page = 2; page <= maxPage; page++) {
       plans.push({ ...plan, page });
     }
@@ -163,8 +155,7 @@ export function buildCoverageStateFromPageKeys(
     }
   }
   const targetReachedAt =
-    prior.targetReachedAt ??
-    (count >= TARGET_DISCOVERY_CANDIDATES ? Date.now() : null);
+    prior.targetReachedAt ?? (count >= TARGET_DISCOVERY_CANDIDATES ? Date.now() : null);
   return {
     ...prior,
     uniqueCandidateUrls: count,

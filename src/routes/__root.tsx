@@ -11,9 +11,6 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 
-
-
-
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -41,7 +38,6 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     console.error("[Eterna] root error:", error);
-
   }, [error]);
 
   return (
@@ -81,19 +77,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Eterna Sentinel — Digital Protection" },
-      { name: "description", content: "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures." },
+      {
+        name: "description",
+        content:
+          "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
+      },
       { name: "theme-color", content: "#6B21A8" },
       { name: "application-name", content: "Eterna Sentinel" },
       // Open Graph
       { property: "og:site_name", content: "Eterna Sentinel" },
       { property: "og:title", content: "Eterna Sentinel — Digital Protection" },
-      { property: "og:description", content: "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures." },
+      {
+        property: "og:description",
+        content:
+          "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:image", content: "/eterna-icon-512.png" },
       // Twitter / X
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Eterna Sentinel — Digital Protection" },
-      { name: "twitter:description", content: "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures." },
+      {
+        name: "twitter:description",
+        content:
+          "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
+      },
       { name: "twitter:image", content: "/eterna-icon-512.png" },
     ],
     links: [
@@ -107,7 +115,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Fonts
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,

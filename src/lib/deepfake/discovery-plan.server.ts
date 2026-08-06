@@ -10,10 +10,7 @@ export function buildExecutedQueryPlan(input: {
   const seen = new Set<string>();
   const output: string[] = [];
 
-  for (const query of [
-    ...input.importedQueries,
-    ...input.generatedQueries,
-  ]) {
+  for (const query of [...input.importedQueries, ...input.generatedQueries]) {
     const trimmed = query.trim();
     if (!trimmed) continue;
 
@@ -109,9 +106,7 @@ function normalizedHttpUrl(value?: string | null): string | null {
 }
 
 function isLikelyDirectMediaUrl(parsed: URL): boolean {
-  return /\.(?:avif|bmp|gif|jpe?g|m3u8|m4v|mkv|mov|mp4|png|svg|webm|webp)$/i.test(
-    parsed.pathname,
-  );
+  return /\.(?:avif|bmp|gif|jpe?g|m3u8|m4v|mkv|mov|mp4|png|svg|webm|webp)$/i.test(parsed.pathname);
 }
 
 function normalizedPageUrl(value?: string | null): string | null {
@@ -162,10 +157,7 @@ function addUnique(values: string[], value?: string | null): void {
   }
 }
 
-function strongestText(
-  current: string | undefined,
-  next?: string | null,
-): string | undefined {
+function strongestText(current: string | undefined, next?: string | null): string | undefined {
   const trimmed = trimNonEmpty(next);
   if (!trimmed) return current;
   if (!current) return trimmed;
@@ -224,12 +216,9 @@ export function mergeDiscoveredCandidates(
       const title = trimNonEmpty(hit.title) ?? undefined;
       const description = trimNonEmpty(hit.description) ?? undefined;
       const source = trimNonEmpty(hit.source) ?? undefined;
-      const imageUrl =
-        originalHttpUrl(hit.image_url, { allowDirectMedia: true }) ??
-        undefined;
+      const imageUrl = originalHttpUrl(hit.image_url, { allowDirectMedia: true }) ?? undefined;
       const thumbnailUrl =
-        originalHttpUrl(hit.thumbnail_url, { allowDirectMedia: true }) ??
-        undefined;
+        originalHttpUrl(hit.thumbnail_url, { allowDirectMedia: true }) ?? undefined;
 
       merged.set(key, {
         url: crawlUrl,
@@ -258,23 +247,16 @@ export function mergeDiscoveredCandidates(
     addUnique(existing.thumbnail_url_provenance, hit.thumbnail_url);
 
     existing.title = strongestText(existing.title, hit.title);
-    existing.description = strongestText(
-      existing.description,
-      hit.description,
-    );
-    existing.query =
-      joinProvenance(existing.query_provenance) ?? defaultQuery;
+    existing.description = strongestText(existing.description, hit.description);
+    existing.query = joinProvenance(existing.query_provenance) ?? defaultQuery;
     existing.source = joinProvenance(existing.source_provenance);
     existing.image_url =
-      existing.image_url ??
-      originalHttpUrl(hit.image_url, { allowDirectMedia: true }) ??
-      undefined;
+      existing.image_url ?? originalHttpUrl(hit.image_url, { allowDirectMedia: true }) ?? undefined;
     existing.thumbnail_url =
       existing.thumbnail_url ??
       originalHttpUrl(hit.thumbnail_url, { allowDirectMedia: true }) ??
       undefined;
-    existing.is_sensitive =
-      Boolean(existing.is_sensitive) || Boolean(hit.is_sensitive);
+    existing.is_sensitive = Boolean(existing.is_sensitive) || Boolean(hit.is_sensitive);
   }
 
   return Array.from(merged.values());

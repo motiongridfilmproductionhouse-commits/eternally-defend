@@ -14,9 +14,8 @@ export const Route = createFileRoute("/api/public/hooks/release-protection-monit
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { runReleaseProtectionSweep } = await import(
-          "@/lib/copyright/release-protection.server"
-        );
+        const { runReleaseProtectionSweep } =
+          await import("@/lib/copyright/release-protection.server");
 
         const result = await runReleaseProtectionSweep(supabaseAdmin, { limit: 15 });
         return Response.json({

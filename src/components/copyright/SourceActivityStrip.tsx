@@ -27,9 +27,7 @@ function statusClasses(status: SourceActivityStatus): string {
 
 function Chip({ entry }: { entry: SourceActivityEntry }) {
   return (
-    <div
-      className={`rounded-md border px-2.5 py-1.5 text-[10px] ${statusClasses(entry.status)}`}
-    >
+    <div className={`rounded-md border px-2.5 py-1.5 text-[10px] ${statusClasses(entry.status)}`}>
       <div className="flex items-center gap-2">
         <span className="font-semibold">{entry.label}</span>
         <span className="uppercase tracking-wide opacity-80">{entry.status}</span>

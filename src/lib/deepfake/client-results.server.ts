@@ -5,14 +5,9 @@
  * off-target identities must never reach public leads / history / polling.
  */
 
-import {
-  isClientVisibleClassification,
-} from "./page-evidence.server";
+import { isClientVisibleClassification } from "./page-evidence.server";
 import { isUrlVerified } from "./url-verification.server";
-import {
-  matchesSelectedIdentity,
-  type IdentityTarget,
-} from "./identity.server";
+import { matchesSelectedIdentity, type IdentityTarget } from "./identity.server";
 import { projectClientEvidenceUrls } from "./evidence-url";
 
 export interface ClientFindingRow {
@@ -100,11 +95,7 @@ export function isClientVisibleDiscovery(
     return false;
   }
 
-  const identityText = [
-    lead.page_title ?? "",
-    lead.snippet ?? "",
-    lead.page_url,
-  ].join(" ");
+  const identityText = [lead.page_title ?? "", lead.snippet ?? "", lead.page_url].join(" ");
 
   return matchesSelectedIdentity(identityText, target);
 }
@@ -114,14 +105,10 @@ export function filterClientDiscoveries<T extends ClientDiscoveryRow>(
   target: IdentityTarget,
   scanId?: string,
 ): T[] {
-  return discoveries.filter((lead) =>
-    isClientVisibleDiscovery(lead, target, scanId),
-  );
+  return discoveries.filter((lead) => isClientVisibleDiscovery(lead, target, scanId));
 }
 
-export function isInternalOnlyClassification(
-  classification: string | null | undefined,
-): boolean {
+export function isInternalOnlyClassification(classification: string | null | undefined): boolean {
   return (
     classification === "UNVERIFIED_LEAD" ||
     classification === "ADULT_NAME_MENTION" ||
@@ -129,8 +116,6 @@ export function isInternalOnlyClassification(
   );
 }
 
-export function isRejectedUrlStatus(
-  status: string | null | undefined,
-): boolean {
+export function isRejectedUrlStatus(status: string | null | undefined): boolean {
   return status === "URL_REJECTED";
 }

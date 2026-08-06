@@ -43,8 +43,7 @@ export function InvestigationCenter({
   onReview,
   onDismiss,
 }: InvestigationCenterProps) {
-  const scanning =
-    scanStatus === "queued" || scanStatus === "running" || scanStatus === "pending";
+  const scanning = scanStatus === "queued" || scanStatus === "running" || scanStatus === "pending";
   // Radar, timeline and map only ever receive verified distribution findings.
   const events = useMemo(
     () => filterDisplayableActivity(sortActivityNewestFirst(parseWebsiteActivity(stats))),
@@ -109,10 +108,7 @@ export function InvestigationCenter({
     return Math.round(Math.max(...scores));
   }, [intelByUrl, sources]);
 
-  const threatRows = useMemo(
-    () => buildThreatResultRows({ suspicious: sources }),
-    [sources],
-  );
+  const threatRows = useMemo(() => buildThreatResultRows({ suspicious: sources }), [sources]);
 
   return (
     <div className="space-y-4">
@@ -169,10 +165,7 @@ export function InvestigationCenter({
             },
             {
               label: "Rejected",
-              value:
-                typeof stats?.candidates_rejected === "number"
-                  ? stats.candidates_rejected
-                  : 0,
+              value: typeof stats?.candidates_rejected === "number" ? stats.candidates_rejected : 0,
             },
             {
               label: "Budget skipped",

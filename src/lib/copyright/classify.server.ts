@@ -94,14 +94,34 @@ function clampScore(v: unknown): number {
 }
 
 const TYPES = new Set<DetectionType>([
-  "reuploaded_artwork", "poster_copy", "movie_screenshot", "trailer_copy",
-  "video_clip", "cam_recording", "ripped_copy", "edited_derivative", "unrelated",
-  "DUPLICATE_ARTWORK_ONLY", "TRAILER_OR_PROMO", "CINEMA_OR_SHOWTIME", "REVIEW_OR_NEWS",
-  "CAST_OR_INFORMATION", "SOCIAL_DISCUSSION", "UNVERIFIED_LEAD", "UNRELATED",
-  "VERIFIED_UNAUTHORIZED_STREAM", "PROBABLE_UNAUTHORIZED_STREAM", "DOWNLOAD_PAGE",
-  "FILE_HOST_DISTRIBUTION", "TORRENT_OR_MAGNET", "VIDEO_HOST_REUPLOAD",
-  "THEATRE_PRINT_DISTRIBUTION", "MIRROR_OR_REDIRECT", "OFFICIAL_OR_AUTHORIZED",
-  "CATALOG_OR_LISTING", "INVESTIGATION_LEAD",
+  "reuploaded_artwork",
+  "poster_copy",
+  "movie_screenshot",
+  "trailer_copy",
+  "video_clip",
+  "cam_recording",
+  "ripped_copy",
+  "edited_derivative",
+  "unrelated",
+  "DUPLICATE_ARTWORK_ONLY",
+  "TRAILER_OR_PROMO",
+  "CINEMA_OR_SHOWTIME",
+  "REVIEW_OR_NEWS",
+  "CAST_OR_INFORMATION",
+  "SOCIAL_DISCUSSION",
+  "UNVERIFIED_LEAD",
+  "UNRELATED",
+  "VERIFIED_UNAUTHORIZED_STREAM",
+  "PROBABLE_UNAUTHORIZED_STREAM",
+  "DOWNLOAD_PAGE",
+  "FILE_HOST_DISTRIBUTION",
+  "TORRENT_OR_MAGNET",
+  "VIDEO_HOST_REUPLOAD",
+  "THEATRE_PRINT_DISTRIBUTION",
+  "MIRROR_OR_REDIRECT",
+  "OFFICIAL_OR_AUTHORIZED",
+  "CATALOG_OR_LISTING",
+  "INVESTIGATION_LEAD",
 ]);
 
 export async function gradeCandidate(opts: {
@@ -116,7 +136,6 @@ export async function gradeCandidate(opts: {
   referenceOcrText?: string | null;
   referenceWatermark?: string | null;
 }): Promise<GradedMatch | null> {
-
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return null;
 
@@ -154,11 +173,18 @@ export async function gradeCandidate(opts: {
     });
 
     if (!res.ok) {
-      console.error("[copyright-grade]", res.status, (await res.text().catch(() => "")).slice(0, 200));
+      console.error(
+        "[copyright-grade]",
+        res.status,
+        (await res.text().catch(() => "")).slice(0, 200),
+      );
       return null;
     }
     const json = (await res.json()) as GatewayResponse;
-    const parsed = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
+    const parsed = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<
+      string,
+      unknown
+    >;
 
     const detectionType = String(parsed.detectionType ?? "unrelated") as DetectionType;
     return {

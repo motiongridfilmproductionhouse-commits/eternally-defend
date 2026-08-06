@@ -17,9 +17,13 @@ export type RiskType =
 
 export const severityColor = (s: Severity): string => {
   switch (s) {
-    case "Critical": return "oklch(0.63 0.24 25)";
-    case "High": return "oklch(0.7 0.2 35)";
-    case "Medium": return "oklch(0.75 0.16 70)";
-    case "Low": return "oklch(0.68 0.16 155)";
+    case "Critical":
+      return "oklch(0.63 0.24 25)";
+    case "High":
+      return "oklch(0.7 0.2 35)";
+    case "Medium":
+      return "oklch(0.75 0.16 70)";
+    case "Low":
+      return "oklch(0.68 0.16 155)";
   }
 };

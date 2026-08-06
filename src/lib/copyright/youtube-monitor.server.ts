@@ -34,7 +34,8 @@ export interface YtVideo {
   matchedQuery: string;
 }
 
-export type CopyrightUsage = "none" | "poster_or_screenshot" | "trailer_footage" | "movie_footage" | "promotional_material";
+export type CopyrightUsage =
+  "none" | "poster_or_screenshot" | "trailer_footage" | "movie_footage" | "promotional_material";
 export type Sentiment = "positive" | "neutral" | "negative";
 
 export interface VideoIntel {
@@ -48,8 +49,13 @@ export interface VideoIntel {
 }
 
 const KEYWORDS = [
-  "review", "reaction", "first review", "first reaction",
-  "movie review", "movie explained", "ending explained",
+  "review",
+  "reaction",
+  "first review",
+  "first reaction",
+  "movie review",
+  "movie explained",
+  "ending explained",
 ];
 
 function apiKey(): string {
@@ -62,7 +68,7 @@ function parseIsoDuration(iso?: string): number | null {
   if (!iso) return null;
   const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
   if (!m) return null;
-  return (+(m[1] ?? 0)) * 86400 + (+(m[2] ?? 0)) * 3600 + (+(m[3] ?? 0)) * 60 + (+(m[4] ?? 0));
+  return +(m[1] ?? 0) * 86400 + +(m[2] ?? 0) * 3600 + +(m[3] ?? 0) * 60 + +(m[4] ?? 0);
 }
 
 async function ytFetch(path: string, params: Record<string, string>): Promise<any> {
@@ -85,9 +91,15 @@ export function buildYoutubeQueries(meta: {
   studio?: string | null;
   language?: string | null;
 }): string[] {
-  const names = [...new Set([meta.title, ...(meta.altTitles ?? [])].map((t) => (t ?? "").trim()).filter(Boolean))].slice(0, 3);
+  const names = [
+    ...new Set(
+      [meta.title, ...(meta.altTitles ?? [])].map((t) => (t ?? "").trim()).filter(Boolean),
+    ),
+  ].slice(0, 3);
   const queries: string[] = [];
-  const push = (q: string) => { if (q.trim() && !queries.includes(q)) queries.push(q); };
+  const push = (q: string) => {
+    if (q.trim() && !queries.includes(q)) queries.push(q);
+  };
 
   for (const name of names) {
     push(`"${name}"`);
@@ -218,7 +230,13 @@ Report strictly as JSON:
 Judge copyright usage from the visuals only; do not assume usage from the title alone.
 If the thumbnail is unrelated to the reference work, copyrightUsage must be "none".`;
 
-const USAGES: CopyrightUsage[] = ["none", "poster_or_screenshot", "trailer_footage", "movie_footage", "promotional_material"];
+const USAGES: CopyrightUsage[] = [
+  "none",
+  "poster_or_screenshot",
+  "trailer_footage",
+  "movie_footage",
+  "promotional_material",
+];
 
 export async function analyzeYoutubeVideo(opts: {
   video: YtVideo;
@@ -228,18 +246,22 @@ export async function analyzeYoutubeVideo(opts: {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return null;
   try {
-    const content: any[] = [{
-      type: "text",
-      text:
-        `Protected work: ${opts.workTitle}\n` +
-        `Video title: ${opts.video.title}\n` +
-        `Channel: ${opts.video.channelTitle ?? "unknown"}\n` +
-        `Published: ${opts.video.publishedAt ?? "unknown"}\n` +
-        `Views: ${opts.video.viewCount ?? "unknown"}\n` +
-        `Description: ${opts.video.description.slice(0, 1200)}\n\n` +
-        `First image = REFERENCE work. Second image = video THUMBNAIL.`,
-    }, { type: "image_url", image_url: { url: opts.referenceDataUrl } }];
-    if (opts.video.thumbnailUrl) content.push({ type: "image_url", image_url: { url: opts.video.thumbnailUrl } });
+    const content: any[] = [
+      {
+        type: "text",
+        text:
+          `Protected work: ${opts.workTitle}\n` +
+          `Video title: ${opts.video.title}\n` +
+          `Channel: ${opts.video.channelTitle ?? "unknown"}\n` +
+          `Published: ${opts.video.publishedAt ?? "unknown"}\n` +
+          `Views: ${opts.video.viewCount ?? "unknown"}\n` +
+          `Description: ${opts.video.description.slice(0, 1200)}\n\n` +
+          `First image = REFERENCE work. Second image = video THUMBNAIL.`,
+      },
+      { type: "image_url", image_url: { url: opts.referenceDataUrl } },
+    ];
+    if (opts.video.thumbnailUrl)
+      content.push({ type: "image_url", image_url: { url: opts.video.thumbnailUrl } });
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -250,12 +272,19 @@ export async function analyzeYoutubeVideo(opts: {
       },
       body: JSON.stringify({
         model: "google/gemini-3.6-flash",
-        messages: [{ role: "system", content: SYSTEM }, { role: "user", content }],
+        messages: [
+          { role: "system", content: SYSTEM },
+          { role: "user", content },
+        ],
         response_format: { type: "json_object" },
       }),
     });
     if (!res.ok) {
-      console.warn("[yt-monitor] gateway", res.status, (await res.text().catch(() => "")).slice(0, 200));
+      console.warn(
+        "[yt-monitor] gateway",
+        res.status,
+        (await res.text().catch(() => "")).slice(0, 200),
+      );
       return null;
     }
     const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -266,11 +295,17 @@ export async function analyzeYoutubeVideo(opts: {
     return {
       contentCategory: String(p.contentCategory ?? "unrelated").slice(0, 40),
       copyrightUsage: USAGES.includes(usage) ? usage : "none",
-      copyrightSignals: Array.isArray(p.copyrightSignals) ? p.copyrightSignals.map((s) => String(s).slice(0, 48)).slice(0, 10) : [],
-      sentiment: (["positive", "neutral", "negative"].includes(sentiment) ? sentiment : "neutral") as Sentiment,
+      copyrightSignals: Array.isArray(p.copyrightSignals)
+        ? p.copyrightSignals.map((s) => String(s).slice(0, 48)).slice(0, 10)
+        : [],
+      sentiment: (["positive", "neutral", "negative"].includes(sentiment)
+        ? sentiment
+        : "neutral") as Sentiment,
       sentimentScore: Number.isFinite(score) ? Math.max(-100, Math.min(100, Math.round(score))) : 0,
       summary: String(p.summary ?? "").slice(0, 500),
-      reputationRisk: Array.isArray(p.reputationRisk) ? p.reputationRisk.map((s) => String(s).slice(0, 48)).slice(0, 8) : [],
+      reputationRisk: Array.isArray(p.reputationRisk)
+        ? p.reputationRisk.map((s) => String(s).slice(0, 48)).slice(0, 8)
+        : [],
     };
   } catch (e) {
     console.warn("[yt-monitor] analyze failed", (e as Error).message);
@@ -279,7 +314,11 @@ export async function analyzeYoutubeVideo(opts: {
 }
 
 const USAGE_WEIGHT: Record<CopyrightUsage, number> = {
-  none: 0, poster_or_screenshot: 22, promotional_material: 18, trailer_footage: 28, movie_footage: 45,
+  none: 0,
+  poster_or_screenshot: 22,
+  promotional_material: 18,
+  trailer_footage: 28,
+  movie_footage: 45,
 };
 
 export function scoreVideo(opts: {
@@ -291,7 +330,8 @@ export function scoreVideo(opts: {
   let score = 0;
   if (opts.intel) {
     score += USAGE_WEIGHT[opts.intel.copyrightUsage];
-    if (opts.intel.sentiment === "negative") score += Math.min(25, Math.round(Math.abs(opts.intel.sentimentScore) / 4));
+    if (opts.intel.sentiment === "negative")
+      score += Math.min(25, Math.round(Math.abs(opts.intel.sentimentScore) / 4));
     score += Math.min(15, opts.intel.reputationRisk.length * 7);
   }
   score += Math.round(opts.rekScore * 0.25);
@@ -307,7 +347,14 @@ export function scoreVideo(opts: {
 export async function corroborateThumbnail(
   fp: MovieFingerprint,
   thumbnailUrl: string | null,
-): Promise<{ score: number; signals: string[]; faceSimilarity: number; celebrityMatches: string[]; sceneOverlap: number; ocrTitleMatch: boolean } | null> {
+): Promise<{
+  score: number;
+  signals: string[];
+  faceSimilarity: number;
+  celebrityMatches: string[];
+  sceneOverlap: number;
+  ocrTitleMatch: boolean;
+} | null> {
   if (!fp.available || !thumbnailUrl) return null;
   try {
     const { fetchImageBytes } = await import("@/lib/aws/s3.server");
@@ -334,8 +381,13 @@ export { buildMovieFingerprint };
  * ------------------------------------------------------------------ */
 
 export type ReviewType =
-  | "same_day_release" | "first_reaction" | "early_access" | "influencer_critic"
-  | "regional_language" | "general_review" | "not_a_review";
+  | "same_day_release"
+  | "first_reaction"
+  | "early_access"
+  | "influencer_critic"
+  | "regional_language"
+  | "general_review"
+  | "not_a_review";
 export type ReputationImpact = "high" | "medium" | "low";
 
 export interface KeyStatement {
@@ -361,8 +413,11 @@ export interface ReleaseReviewIntel {
 export async function fetchVideoComments(videoId: string, max = 12): Promise<string[]> {
   try {
     const json = await ytFetch("commentThreads", {
-      part: "snippet", videoId, maxResults: String(Math.min(max, 50)),
-      order: "relevance", textFormat: "plainText",
+      part: "snippet",
+      videoId,
+      maxResults: String(Math.min(max, 50)),
+      order: "relevance",
+      textFormat: "plainText",
     });
     return ((json.items ?? []) as any[])
       .map((it) => String(it?.snippet?.topLevelComment?.snippet?.textDisplay ?? "").trim())
@@ -403,19 +458,26 @@ export async function analyzeReleaseReview(opts: {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return null;
   try {
-    const content: any[] = [{
-      type: "text",
-      text:
-        `Protected work: ${opts.workTitle}\n` +
-        `Video title: ${opts.video.title}\n` +
-        `Channel: ${opts.video.channelTitle ?? "unknown"}\n` +
-        `Published: ${opts.video.publishedAt ?? "unknown"}\n` +
-        `Views: ${opts.video.viewCount ?? "unknown"} · Likes: ${opts.video.likeCount ?? "unknown"} · Comments: ${opts.video.commentCount ?? "unknown"}\n` +
-        `Description: ${opts.video.description.slice(0, 1500)}\n\n` +
-        `Public comments sample:\n${opts.comments.map((c) => `- ${c}`).join("\n").slice(0, 2500)}\n\n` +
-        `First image = REFERENCE work. Second image = video THUMBNAIL.`,
-    }, { type: "image_url", image_url: { url: opts.referenceDataUrl } }];
-    if (opts.video.thumbnailUrl) content.push({ type: "image_url", image_url: { url: opts.video.thumbnailUrl } });
+    const content: any[] = [
+      {
+        type: "text",
+        text:
+          `Protected work: ${opts.workTitle}\n` +
+          `Video title: ${opts.video.title}\n` +
+          `Channel: ${opts.video.channelTitle ?? "unknown"}\n` +
+          `Published: ${opts.video.publishedAt ?? "unknown"}\n` +
+          `Views: ${opts.video.viewCount ?? "unknown"} · Likes: ${opts.video.likeCount ?? "unknown"} · Comments: ${opts.video.commentCount ?? "unknown"}\n` +
+          `Description: ${opts.video.description.slice(0, 1500)}\n\n` +
+          `Public comments sample:\n${opts.comments
+            .map((c) => `- ${c}`)
+            .join("\n")
+            .slice(0, 2500)}\n\n` +
+          `First image = REFERENCE work. Second image = video THUMBNAIL.`,
+      },
+      { type: "image_url", image_url: { url: opts.referenceDataUrl } },
+    ];
+    if (opts.video.thumbnailUrl)
+      content.push({ type: "image_url", image_url: { url: opts.video.thumbnailUrl } });
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -426,12 +488,19 @@ export async function analyzeReleaseReview(opts: {
       },
       body: JSON.stringify({
         model: "google/gemini-3.6-flash",
-        messages: [{ role: "system", content: REVIEW_SYSTEM }, { role: "user", content }],
+        messages: [
+          { role: "system", content: REVIEW_SYSTEM },
+          { role: "user", content },
+        ],
         response_format: { type: "json_object" },
       }),
     });
     if (!res.ok) {
-      console.warn("[yt-release-review] gateway", res.status, (await res.text().catch(() => "")).slice(0, 200));
+      console.warn(
+        "[yt-release-review] gateway",
+        res.status,
+        (await res.text().catch(() => "")).slice(0, 200),
+      );
       return null;
     }
     const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -443,22 +512,32 @@ export async function analyzeReleaseReview(opts: {
     return {
       isReview: p.isReview !== false,
       reviewType: String(p.reviewType ?? "general_review").slice(0, 32) as ReviewType,
-      sentiment: (["positive", "neutral", "negative"].includes(sentiment) ? sentiment : "neutral") as Sentiment,
+      sentiment: (["positive", "neutral", "negative"].includes(sentiment)
+        ? sentiment
+        : "neutral") as Sentiment,
       sentimentScore: Number.isFinite(score) ? Math.max(-100, Math.min(100, Math.round(score))) : 0,
       keyStatements: Array.isArray(p.keyStatements)
-        ? p.keyStatements.slice(0, 6).map((s: any) => ({
-            statement: String(s?.statement ?? "").slice(0, 300),
-            kind: (kinds.includes(String(s?.kind)) ? String(s.kind) : "opinion") as KeyStatement["kind"],
-            timestamp: s?.timestamp ? String(s.timestamp).slice(0, 12) : null,
-          })).filter((s: KeyStatement) => s.statement)
+        ? p.keyStatements
+            .slice(0, 6)
+            .map((s: any) => ({
+              statement: String(s?.statement ?? "").slice(0, 300),
+              kind: (kinds.includes(String(s?.kind))
+                ? String(s.kind)
+                : "opinion") as KeyStatement["kind"],
+              timestamp: s?.timestamp ? String(s.timestamp).slice(0, 12) : null,
+            }))
+            .filter((s: KeyStatement) => s.statement)
         : [],
       misleadingSignals: Array.isArray(p.misleadingSignals)
-        ? p.misleadingSignals.map((s: unknown) => String(s).slice(0, 48)).slice(0, 8) : [],
+        ? p.misleadingSignals.map((s: unknown) => String(s).slice(0, 48)).slice(0, 8)
+        : [],
       copyrightUsage: USAGES.includes(usage) ? usage : "none",
       copyrightSignals: Array.isArray(p.copyrightSignals)
-        ? p.copyrightSignals.map((s: unknown) => String(s).slice(0, 48)).slice(0, 10) : [],
+        ? p.copyrightSignals.map((s: unknown) => String(s).slice(0, 48)).slice(0, 10)
+        : [],
       evidenceTimestamps: Array.isArray(p.evidenceTimestamps)
-        ? p.evidenceTimestamps.map((s: unknown) => String(s).slice(0, 12)).slice(0, 10) : [],
+        ? p.evidenceTimestamps.map((s: unknown) => String(s).slice(0, 12)).slice(0, 10)
+        : [],
       summary: String(p.summary ?? "").slice(0, 600),
     };
   } catch (e) {
@@ -481,21 +560,27 @@ export function scoreReputationImpact(opts: {
   else if (views >= 10_000) reach = 12;
   else reach = 5;
 
-  const negativity = opts.intel.sentiment === "negative"
-    ? Math.min(30, Math.round(Math.abs(opts.intel.sentimentScore) * 0.3))
-    : 0;
+  const negativity =
+    opts.intel.sentiment === "negative"
+      ? Math.min(30, Math.round(Math.abs(opts.intel.sentimentScore) * 0.3))
+      : 0;
 
   const misleading = Math.min(25, opts.intel.misleadingSignals.length * 9);
-  const claims = Math.min(10, opts.intel.keyStatements.filter(
-    (s) => s.kind === "misleading" || s.kind === "fact_claim" || s.kind === "exaggerated",
-  ).length * 4);
+  const claims = Math.min(
+    10,
+    opts.intel.keyStatements.filter(
+      (s) => s.kind === "misleading" || s.kind === "fact_claim" || s.kind === "exaggerated",
+    ).length * 4,
+  );
   const timing = opts.sameDayRelease ? 8 : 0;
 
   const score = Math.max(0, Math.min(100, reach + negativity + misleading + claims + timing));
   const highReach = views >= 100_000;
   const impact: ReputationImpact =
-    highReach && negativity > 0 && (misleading > 0 || score >= 75) ? "high"
-      : negativity > 0 || misleading > 0 ? "medium"
+    highReach && negativity > 0 && (misleading > 0 || score >= 75)
+      ? "high"
+      : negativity > 0 || misleading > 0
+        ? "medium"
         : "low";
   return { score, impact };
 }
@@ -507,14 +592,26 @@ export function buildReleaseReviewQueries(meta: {
   actors?: string[];
   language?: string | null;
 }): string[] {
-  const names = [...new Set([meta.title, ...(meta.altTitles ?? [])].map((t) => (t ?? "").trim()).filter(Boolean))].slice(0, 3);
+  const names = [
+    ...new Set(
+      [meta.title, ...(meta.altTitles ?? [])].map((t) => (t ?? "").trim()).filter(Boolean),
+    ),
+  ].slice(0, 3);
   const kws = [
     ...KEYWORDS,
-    "public review", "audience review", "honest review", "first day first show",
-    "early review", "premiere review", "critic review", "spoiler review",
+    "public review",
+    "audience review",
+    "honest review",
+    "first day first show",
+    "early review",
+    "premiere review",
+    "critic review",
+    "spoiler review",
   ];
   const queries: string[] = [];
-  const push = (q: string) => { if (q.trim() && !queries.includes(q)) queries.push(q); };
+  const push = (q: string) => {
+    if (q.trim() && !queries.includes(q)) queries.push(q);
+  };
   for (const name of names) {
     for (const kw of kws) push(`"${name}" ${kw}`);
     if (meta.language) {
@@ -522,6 +619,7 @@ export function buildReleaseReviewQueries(meta: {
       push(`"${name}" ${meta.language} reaction`);
     }
   }
-  for (const actor of (meta.actors ?? []).slice(0, 2)) push(`"${names[0] ?? meta.title}" ${actor} review`);
+  for (const actor of (meta.actors ?? []).slice(0, 2))
+    push(`"${names[0] ?? meta.title}" ${actor} review`);
   return queries.slice(0, 20);
 }

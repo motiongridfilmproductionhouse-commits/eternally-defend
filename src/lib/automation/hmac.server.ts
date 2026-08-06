@@ -15,12 +15,19 @@ function secret(): string {
   return s;
 }
 
-export function signAutomationRequest(body: string, ts: number = Date.now()): { signature: string; timestamp: string } {
+export function signAutomationRequest(
+  body: string,
+  ts: number = Date.now(),
+): { signature: string; timestamp: string } {
   const signature = createHmac("sha256", secret()).update(`${ts}.${body}`).digest("hex");
   return { signature, timestamp: String(ts) };
 }
 
-export function verifyAutomationRequest(rawBody: string, timestampHeader: string | null, signatureHeader: string | null): boolean {
+export function verifyAutomationRequest(
+  rawBody: string,
+  timestampHeader: string | null,
+  signatureHeader: string | null,
+): boolean {
   if (!timestampHeader || !signatureHeader) return false;
   const ts = Number(timestampHeader);
   if (!Number.isFinite(ts)) return false;

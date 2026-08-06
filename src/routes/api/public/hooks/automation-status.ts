@@ -12,7 +12,9 @@ import { z } from "zod";
 const EventSchema = z.object({
   job_id: z.string().uuid(),
   event: z.string().min(1).max(64),
-  status: z.enum(["queued", "running", "review_ready", "submitted", "failed", "cancelled"]).optional(),
+  status: z
+    .enum(["queued", "running", "review_ready", "submitted", "failed", "cancelled"])
+    .optional(),
   result: z.string().max(32).optional(),
   duration_ms: z.number().int().nonnegative().optional(),
   payload: z.record(z.unknown()).optional(),
@@ -42,7 +44,9 @@ export const Route = createFileRoute("/api/public/hooks/automation-status")({
         try {
           parsed = EventSchema.parse(JSON.parse(raw));
         } catch (e) {
-          return new Response(`Invalid body: ${e instanceof Error ? e.message : String(e)}`, { status: 400 });
+          return new Response(`Invalid body: ${e instanceof Error ? e.message : String(e)}`, {
+            status: 400,
+          });
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -58,8 +62,14 @@ export const Route = createFileRoute("/api/public/hooks/automation-status")({
         // Update job row when relevant fields are present.
         const patch: Record<string, unknown> = {};
         if (parsed.status) patch.status = parsed.status;
-        if (parsed.status === "running" && parsed.event === "browser_started") patch.started_at = new Date().toISOString();
-        if (parsed.status === "review_ready" || parsed.status === "submitted" || parsed.status === "failed" || parsed.status === "cancelled") {
+        if (parsed.status === "running" && parsed.event === "browser_started")
+          patch.started_at = new Date().toISOString();
+        if (
+          parsed.status === "review_ready" ||
+          parsed.status === "submitted" ||
+          parsed.status === "failed" ||
+          parsed.status === "cancelled"
+        ) {
           patch.completed_at = new Date().toISOString();
         }
         if (parsed.review_summary) patch.review_summary_json = parsed.review_summary;
@@ -72,7 +82,10 @@ export const Route = createFileRoute("/api/public/hooks/automation-status")({
 
         if (Object.keys(patch).length > 0) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await supabaseAdmin.from("automation_jobs").update(patch as any).eq("id", job.id);
+          await supabaseAdmin
+            .from("automation_jobs")
+            .update(patch as any)
+            .eq("id", job.id);
           if (parsed.status) {
             await supabaseAdmin
               .from("enforcement_requests")

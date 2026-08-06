@@ -91,10 +91,13 @@ test("verified and probable findings appear; rejected/raw never appear", () => {
   ];
   const visible = displayableFindings(findings);
   assert.equal(visible.length, 2);
-  assert.ok(visible.every((item) =>
-    item.finding_classification === "VERIFIED_DEEPFAKE" ||
-    item.finding_classification === "PROBABLE_DEEPFAKE",
-  ));
+  assert.ok(
+    visible.every(
+      (item) =>
+        item.finding_classification === "VERIFIED_DEEPFAKE" ||
+        item.finding_classification === "PROBABLE_DEEPFAKE",
+    ),
+  );
 });
 
 test("normalizes production snake_case and tolerant verification status", () => {
@@ -192,10 +195,7 @@ test("verified evidence link remains clickable; unsafe/missing is not", () => {
 
 test("sensitive preview stays blocked for third-party thumbnails", () => {
   const allowed = "proj.supabase.co";
-  assert.equal(
-    isSafeStoredThumbnail("https://cdn.evil.example/thumb.jpg", allowed),
-    false,
-  );
+  assert.equal(isSafeStoredThumbnail("https://cdn.evil.example/thumb.jpg", allowed), false);
   assert.equal(
     isSafeStoredThumbnail(
       "https://proj.supabase.co/storage/v1/object/public/thumbs/a.jpg",
@@ -204,24 +204,12 @@ test("sensitive preview stays blocked for third-party thumbnails", () => {
     true,
   );
   assert.equal(
-    isSafeStoredThumbnail(
-      "https://attacker.supabase.co/storage/v1/object/public/x.jpg",
-      allowed,
-    ),
+    isSafeStoredThumbnail("https://attacker.supabase.co/storage/v1/object/public/x.jpg", allowed),
     false,
   );
+  assert.equal(isSafeStoredThumbnail("https://proj.supabase.co/not-storage/a.jpg", allowed), false);
   assert.equal(
-    isSafeStoredThumbnail(
-      "https://proj.supabase.co/not-storage/a.jpg",
-      allowed,
-    ),
-    false,
-  );
-  assert.equal(
-    isSafeStoredThumbnail(
-      "https://proj.supabase.co/storage/v1/object/public/a.jpg",
-      null,
-    ),
+    isSafeStoredThumbnail("https://proj.supabase.co/storage/v1/object/public/a.jpg", null),
     false,
   );
 

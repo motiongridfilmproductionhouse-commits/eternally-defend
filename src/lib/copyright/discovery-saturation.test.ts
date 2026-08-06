@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  MAX_DISCOVERY_CANDIDATES,
-  TARGET_DISCOVERY_CANDIDATES,
-} from "./discovery-config";
+import { MAX_DISCOVERY_CANDIDATES, TARGET_DISCOVERY_CANDIDATES } from "./discovery-config";
 import {
   buildCoverageStateFromPageKeys,
   expandPlansForDiscoveryMode,
@@ -109,8 +106,7 @@ test("runBatchedDiscovery finishes active wave after target while skipping new l
   const executed: string[] = [];
   const result = await runBatchedDiscovery({
     plans: ["high-a", "low-b", "high-c", "low-d"],
-    uniquePageCount: () =>
-      executed.length >= 2 ? TARGET_DISCOVERY_CANDIDATES : executed.length,
+    uniquePageCount: () => (executed.length >= 2 ? TARGET_DISCOVERY_CANDIDATES : executed.length),
     shouldIssuePlan: (plan) => !String(plan).startsWith("low"),
     execute: async (plan) => {
       executed.push(String(plan));

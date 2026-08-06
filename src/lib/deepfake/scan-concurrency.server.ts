@@ -6,34 +6,32 @@
  */
 
 /** Sentinel UUID used when profile_id is NULL in the active-scan unique index. */
-export const NULL_PROFILE_SENTINEL =
-  "00000000-0000-0000-0000-000000000000";
+export const NULL_PROFILE_SENTINEL = "00000000-0000-0000-0000-000000000000";
 
 export function normalizeScanTargetName(targetName: string): string {
   return targetName.trim().toLowerCase();
 }
 
-export function normalizeProfileIdForIndex(
-  profileId: string | null | undefined,
-): string {
+export function normalizeProfileIdForIndex(profileId: string | null | undefined): string {
   return profileId ?? NULL_PROFILE_SENTINEL;
 }
 
-export function sameActiveScanIdentity(a: {
-  user_id: string;
-  profile_id?: string | null;
-  target_name: string;
-}, b: {
-  user_id: string;
-  profile_id?: string | null;
-  target_name: string;
-}): boolean {
+export function sameActiveScanIdentity(
+  a: {
+    user_id: string;
+    profile_id?: string | null;
+    target_name: string;
+  },
+  b: {
+    user_id: string;
+    profile_id?: string | null;
+    target_name: string;
+  },
+): boolean {
   return (
     a.user_id === b.user_id &&
-    normalizeProfileIdForIndex(a.profile_id) ===
-      normalizeProfileIdForIndex(b.profile_id) &&
-    normalizeScanTargetName(a.target_name) ===
-      normalizeScanTargetName(b.target_name)
+    normalizeProfileIdForIndex(a.profile_id) === normalizeProfileIdForIndex(b.profile_id) &&
+    normalizeScanTargetName(a.target_name) === normalizeScanTargetName(b.target_name)
   );
 }
 
@@ -41,9 +39,7 @@ export function isUniqueViolation(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const record = error as { code?: string; message?: string };
   if (record.code === "23505") return true;
-  return /duplicate key|unique constraint|deepfake_scans_one_active/i.test(
-    record.message ?? "",
-  );
+  return /duplicate key|unique constraint|deepfake_scans_one_active/i.test(record.message ?? "");
 }
 
 export type ActiveScanRow = {

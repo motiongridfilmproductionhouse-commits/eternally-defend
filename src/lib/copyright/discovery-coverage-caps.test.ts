@@ -6,10 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-  DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
-  runBatchedDiscovery,
-} from "./discovery-runtime";
+import { DISCOVERY_EARLY_STOP_UNIQUE_PAGES, runBatchedDiscovery } from "./discovery-runtime";
 import { DEFAULT_PAGE_CAP, SCAN_TOTAL_BUDGET_MS } from "./crawl-budget";
 import { TARGET_DISCOVERY_CANDIDATES } from "./discovery-config";
 import { prioritizeKnownUrlLeads } from "./known-urls.server";
@@ -82,10 +79,7 @@ test("search expansion includes platform-specific site queries", () => {
 });
 
 test("executor has no hard 3-match or 20-lead truncations", () => {
-  const src = readFileSync(
-    resolve(process.cwd(), "src/lib/copyright.functions.ts"),
-    "utf8",
-  );
+  const src = readFileSync(resolve(process.cwd(), "src/lib/copyright.functions.ts"), "utf8");
   assert.doesNotMatch(src, /MAX_RESULTS\s*=\s*3/);
   assert.doesNotMatch(src, /verified\.slice\(0,\s*3\)/);
   assert.doesNotMatch(src, /candidate_limit\s*=\s*20/);

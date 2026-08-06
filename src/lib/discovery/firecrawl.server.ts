@@ -46,10 +46,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   if (!res.ok) {
     throw new Error(`Firecrawl ${path} [${res.status}]: ${text.slice(0, 400)}`);
   }
-  try { return JSON.parse(text) as T; }
-  catch { throw new Error(`Firecrawl ${path} returned non-JSON`); }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Firecrawl ${path} returned non-JSON`);
+  }
 }
-
 
 export interface CandidateSeed {
   platform: Platform;
@@ -68,7 +70,11 @@ function queryForPlatform(subject: string, platform: Platform): string {
 }
 
 /** Search a single platform for candidate profiles. */
-export async function searchPlatform(subject: string, platform: Platform, limit = 6): Promise<CandidateSeed[]> {
+export async function searchPlatform(
+  subject: string,
+  platform: Platform,
+  limit = 6,
+): Promise<CandidateSeed[]> {
   if (platform === "website") return [];
   const res = await post<FirecrawlSearchResponse>("/search", {
     query: queryForPlatform(subject, platform),
@@ -90,7 +96,9 @@ export async function searchPlatform(subject: string, platform: Platform, limit 
     try {
       const host = new URL(u).hostname.replace(/^www\./, "").toLowerCase();
       if (!host.endsWith(PLATFORM_HOST[platform])) continue;
-    } catch { continue; }
+    } catch {
+      continue;
+    }
     out.push({
       platform,
       url: u,
@@ -118,15 +126,26 @@ export async function scrapeOfficialSite(url: string): Promise<{
     const inner = res.data ?? res;
     const links = Array.isArray(inner.links) ? inner.links : [];
     const outboundLinks = links.filter((l): l is string => typeof l === "string");
-    const outboundHosts = Array.from(new Set(
-      outboundLinks.map((l) => {
-        try { return new URL(l).hostname.replace(/^www\./, "").toLowerCase(); }
-        catch { return ""; }
-      }).filter(Boolean),
-    ));
+    const outboundHosts = Array.from(
+      new Set(
+        outboundLinks
+          .map((l) => {
+            try {
+              return new URL(l).hostname.replace(/^www\./, "").toLowerCase();
+            } catch {
+              return "";
+            }
+          })
+          .filter(Boolean),
+      ),
+    );
     const md = (inner.metadata ?? {}) as Record<string, unknown>;
-    const logoUrl = typeof md["ogImage"] === "string" ? (md["ogImage"] as string)
-      : typeof md["og:image"] === "string" ? (md["og:image"] as string) : undefined;
+    const logoUrl =
+      typeof md["ogImage"] === "string"
+        ? (md["ogImage"] as string)
+        : typeof md["og:image"] === "string"
+          ? (md["og:image"] as string)
+          : undefined;
     const title = typeof md["title"] === "string" ? (md["title"] as string) : undefined;
     return { outboundHosts, outboundLinks, logoUrl, title };
   } catch (e) {
@@ -153,7 +172,9 @@ export async function scrapeProfile(url: string): Promise<{
     });
     const inner = res.data ?? res;
     const md = (inner.metadata ?? {}) as Record<string, unknown>;
-    const links = Array.isArray(inner.links) ? inner.links.filter((l): l is string => typeof l === "string") : [];
+    const links = Array.isArray(inner.links)
+      ? inner.links.filter((l): l is string => typeof l === "string")
+      : [];
     const displayName = str(md["title"]) ?? str(md["og:title"]);
     const bio = str(md["description"]) ?? str(md["og:description"]);
     const profileImageUrl = str(md["ogImage"]) ?? str(md["og:image"]) ?? str(md["twitter:image"]);
@@ -164,17 +185,23 @@ export async function scrapeProfile(url: string): Promise<{
         if (!h) return false;
         // Drop links to the same social platform host (usually navigation)
         return !PROVIDER_HOSTS.some((p) => h.endsWith(p));
-      } catch { return false; }
+      } catch {
+        return false;
+      }
     });
 
     const text = `${inner.markdown ?? ""}\n${bio ?? ""}`.toLowerCase();
     // Very rough follower parser: e.g. "12.3M followers", "245K subscribers"
     const followerCount = parseCount(text);
     // Verified badge hints — extremely rough, best-effort:
-    const platformVerified = /"is_verified"\s*:\s*true|verified\s*(account|badge|user)/i.test(inner.html ?? inner.markdown ?? "");
+    const platformVerified = /"is_verified"\s*:\s*true|verified\s*(account|badge|user)/i.test(
+      inner.html ?? inner.markdown ?? "",
+    );
 
     return {
-      displayName, bio, profileImageUrl,
+      displayName,
+      bio,
+      profileImageUrl,
       websiteLinks: Array.from(new Set(websiteLinks)),
       platformVerified,
       followerCount,
@@ -187,8 +214,16 @@ export async function scrapeProfile(url: string): Promise<{
 }
 
 const PROVIDER_HOSTS = [
-  "youtube.com", "youtu.be", "instagram.com", "facebook.com", "fb.com",
-  "tiktok.com", "x.com", "twitter.com", "linkedin.com", "reddit.com",
+  "youtube.com",
+  "youtu.be",
+  "instagram.com",
+  "facebook.com",
+  "fb.com",
+  "tiktok.com",
+  "x.com",
+  "twitter.com",
+  "linkedin.com",
+  "reddit.com",
 ];
 
 function str(v: unknown): string | undefined {

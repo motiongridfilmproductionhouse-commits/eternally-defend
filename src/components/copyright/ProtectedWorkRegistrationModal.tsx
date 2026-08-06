@@ -124,10 +124,7 @@ export function ProtectedWorkRegistrationModal({
       .length === 0;
 
   const activateDisabled =
-    isSubmitting ||
-    !file ||
-    !title.trim() ||
-    (releaseProtectionForm.enabled && !canActivate);
+    isSubmitting || !file || !title.trim() || (releaseProtectionForm.enabled && !canActivate);
 
   const activateHint = useMemo(() => {
     if (!file) return "Upload a primary reference file.";
@@ -366,7 +363,9 @@ export function ProtectedWorkRegistrationModal({
                   </p>
                   <div className="space-y-4">
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium">Protected work title *</label>
+                      <label className="mb-1.5 block text-xs font-medium">
+                        Protected work title *
+                      </label>
                       <Input
                         className="h-11 rounded-lg"
                         value={title}
@@ -513,7 +512,9 @@ export function ProtectedWorkRegistrationModal({
                       <>
                         <div>
                           <dt className="text-xs text-muted-foreground">Release date</dt>
-                          <dd className="font-medium">{releaseProtectionForm.release_date || "—"}</dd>
+                          <dd className="font-medium">
+                            {releaseProtectionForm.release_date || "—"}
+                          </dd>
                         </div>
                         <div>
                           <dt className="text-xs text-muted-foreground">Timezone</dt>
@@ -599,12 +600,7 @@ export function ProtectedWorkRegistrationModal({
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
               ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={activateDisabled}
-                  onClick={onSubmit}
-                >
+                <Button type="button" size="sm" disabled={activateDisabled} onClick={onSubmit}>
                   {releaseProtectionForm.enabled ? "Activate protection" : "Run detection"}
                 </Button>
               )}

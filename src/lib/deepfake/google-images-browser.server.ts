@@ -52,14 +52,11 @@ export interface GoogleImagesBrowserResult {
   failures: string[];
 }
 
-const IMAGE_URL_PATTERN =
-  /https?:\/\/[^\s"'<>]+?\.(?:jpe?g|png|webp|avif)(?:\?[^\s"'<>]*)?/gi;
+const IMAGE_URL_PATTERN = /https?:\/\/[^\s"'<>]+?\.(?:jpe?g|png|webp|avif)(?:\?[^\s"'<>]*)?/gi;
 
 function crawlerServiceBase(): string | null {
   const raw =
-    process.env.CRAWLER_SERVICE_URL?.trim() ||
-    process.env.CRAWL4AI_SERVICE_URL?.trim() ||
-    "";
+    process.env.CRAWLER_SERVICE_URL?.trim() || process.env.CRAWL4AI_SERVICE_URL?.trim() || "";
   if (!raw) return null;
   return raw.replace(/\/$/, "");
 }
@@ -91,9 +88,7 @@ function extractImageUrlsFromContent(
     if (/\.gif(?:$|[?#])/i.test(row.image_url)) continue;
     if (seen.has(row.image_url)) continue;
     seen.add(row.image_url);
-    const source = isUsableSourceWebsiteUrl(row.source_website_url)
-      ? row.source_website_url
-      : null;
+    const source = isUsableSourceWebsiteUrl(row.source_website_url) ? row.source_website_url : null;
     out.push({
       image_url: row.image_url,
       thumbnail_url: row.thumbnail_url ?? row.image_url,
@@ -156,8 +151,7 @@ async function collectViaCrawlerService(input: {
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({
         queries: input.queries.slice(0, GOOGLE_BROWSER_MAX_QUERIES),
-        max_images_per_query:
-          input.maxImagesPerQuery ?? GOOGLE_BROWSER_MAX_IMAGES_PER_QUERY,
+        max_images_per_query: input.maxImagesPerQuery ?? GOOGLE_BROWSER_MAX_IMAGES_PER_QUERY,
         max_queries: GOOGLE_BROWSER_MAX_QUERIES,
       }),
       signal,
@@ -192,35 +186,22 @@ async function collectViaCrawlerService(input: {
       const source = resolveGoogleImagesSourceWebsite({
         href: typeof row.href === "string" ? row.href : null,
         imgurl: imageUrl,
-        imgrefurl:
-          typeof row.imgrefurl === "string" ? row.imgrefurl : null,
+        imgrefurl: typeof row.imgrefurl === "string" ? row.imgrefurl : null,
         ru: typeof row.ru === "string" ? row.ru : null,
-        explicitSource:
-          typeof row.source_website_url === "string"
-            ? row.source_website_url
-            : null,
+        explicitSource: typeof row.source_website_url === "string" ? row.source_website_url : null,
       });
       hits.push({
         image_url: imageUrl,
-        thumbnail_url:
-          typeof row.thumbnail_url === "string" ? row.thumbnail_url : null,
+        thumbnail_url: typeof row.thumbnail_url === "string" ? row.thumbnail_url : null,
         source_website_url: source,
         google_result_url:
           typeof row.google_result_url === "string"
             ? row.google_result_url
-            : buildGoogleImagesSearchUrl(
-                typeof row.query === "string" ? row.query : "",
-              ),
+            : buildGoogleImagesSearchUrl(typeof row.query === "string" ? row.query : ""),
         query: typeof row.query === "string" ? row.query : "",
         title: typeof row.title === "string" ? row.title : null,
-        hostname:
-          typeof row.hostname === "string"
-            ? row.hostname
-            : hostnameOfSourceUrl(source),
-        surrounding_text:
-          typeof row.surrounding_text === "string"
-            ? row.surrounding_text
-            : null,
+        hostname: typeof row.hostname === "string" ? row.hostname : hostnameOfSourceUrl(source),
+        surrounding_text: typeof row.surrounding_text === "string" ? row.surrounding_text : null,
         width: typeof row.width === "number" ? row.width : null,
         height: typeof row.height === "number" ? row.height : null,
       });
@@ -235,9 +216,7 @@ async function collectViaCrawlerService(input: {
       browser_available: true,
       failure: hits.length ? null : "Google Images browser returned no images",
       provider_status: hits.length ? "success" : "degraded",
-      failures: Array.isArray(payload?.failures)
-        ? payload.failures.map(String)
-        : [],
+      failures: Array.isArray(payload?.failures) ? payload.failures.map(String) : [],
     };
   } catch (error) {
     if (input.signal?.aborted || isAbortError(error)) throw error;
@@ -329,9 +308,7 @@ async function collectViaSerpApiEngine(input: {
     for (const hit of settled.value.hits) {
       if (seen.has(hit.image_url)) continue;
       seen.add(hit.image_url);
-      const source = isUsableSourceWebsiteUrl(hit.page_url)
-        ? hit.page_url
-        : null;
+      const source = isUsableSourceWebsiteUrl(hit.page_url) ? hit.page_url : null;
       allHits.push({
         image_url: hit.image_url,
         thumbnail_url: hit.image_url,
@@ -378,16 +355,13 @@ async function collectViaAlternateImageProviders(input: {
       }
     } catch (error) {
       if (input.signal?.aborted || isAbortError(error)) throw error;
-      failures.push(
-        `${engine}:${error instanceof Error ? error.message : String(error)}`,
-      );
+      failures.push(`${engine}:${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   try {
-    const { searchBraveImagesBatch, isBraveImageSearchConfigured } = await import(
-      "./brave-images.server"
-    );
+    const { searchBraveImagesBatch, isBraveImageSearchConfigured } =
+      await import("./brave-images.server");
     if (isBraveImageSearchConfigured()) {
       const brave = await searchBraveImagesBatch({
         queries: input.queries.slice(0, 6),
@@ -399,9 +373,7 @@ async function collectViaAlternateImageProviders(input: {
         for (const hit of brave.hits) {
           if (seen.has(hit.image_url)) continue;
           seen.add(hit.image_url);
-          const source = isUsableSourceWebsiteUrl(hit.page_url)
-            ? hit.page_url
-            : null;
+          const source = isUsableSourceWebsiteUrl(hit.page_url) ? hit.page_url : null;
           allHits.push({
             image_url: hit.image_url,
             thumbnail_url: hit.image_url,
@@ -419,9 +391,7 @@ async function collectViaAlternateImageProviders(input: {
     }
   } catch (error) {
     if (input.signal?.aborted || isAbortError(error)) throw error;
-    failures.push(
-      `brave_images:${error instanceof Error ? error.message : String(error)}`,
-    );
+    failures.push(`brave_images:${error instanceof Error ? error.message : String(error)}`);
   }
 
   return { hits: allHits, providers, failures };
@@ -473,8 +443,7 @@ export async function collectGoogleImagesMandatory(input: {
 
   // Requirement: never fail the investigation when Google Images is unavailable.
   if (!result.hits.length) {
-    const googleFailure =
-      result.failure ?? "Google Images returned no discoverable image results";
+    const googleFailure = result.failure ?? "Google Images returned no discoverable image results";
     const alternate = await collectViaAlternateImageProviders({
       queries: input.queries,
       signal: input.signal,
@@ -482,11 +451,7 @@ export async function collectGoogleImagesMandatory(input: {
     });
     result.hits = alternate.hits;
     result.images_discovered = alternate.hits.length;
-    result.failures = [
-      ...result.failures,
-      googleFailure,
-      ...alternate.failures,
-    ];
+    result.failures = [...result.failures, googleFailure, ...alternate.failures];
     if (alternate.hits.length) {
       result.failure = `Google Images unavailable (${googleFailure}); continued via ${alternate.providers.join(", ") || "alternate providers"}`;
       result.provider_status = "degraded";

@@ -23,10 +23,7 @@ import {
   emptyProviderFailureCounts,
   sanitizeProviderFailureDetail,
 } from "./provider-failures";
-import {
-  scopedScanMatches,
-  PREVIOUSLY_MONITORED_SOURCES_LABEL,
-} from "./scan-scope";
+import { scopedScanMatches, PREVIOUSLY_MONITORED_SOURCES_LABEL } from "./scan-scope";
 import { isStaleOfficialMonitoredSource } from "./stale-official.server";
 import { classifyCopyrightPage } from "./page-classify.server";
 import { evaluateTelegramPublicEvidence } from "./telegram-evidence";
@@ -247,10 +244,7 @@ test("summarizeProviderFailures formats category breakdown", () => {
 });
 
 test("copyright discovery batches Firecrawl searches", () => {
-  const src = readFileSync(
-    resolve(process.cwd(), "src/lib/copyright/discover.server.ts"),
-    "utf8",
-  );
+  const src = readFileSync(resolve(process.cwd(), "src/lib/copyright/discover.server.ts"), "utf8");
   assert.match(src, /runBatchedDiscovery/);
   assert.match(src, /FIRECRAWL_MAX_RETRIES/);
   assert.doesNotMatch(src, /DISCOVERY_SEARCH_MAX_ATTEMPTS/);
@@ -302,10 +296,7 @@ test("public Telegram failure isolation", () => {
   });
   assert.equal(privateFail.eligible, false);
 
-  const src = readFileSync(
-    resolve(process.cwd(), "src/lib/copyright/discover.server.ts"),
-    "utf8",
-  );
+  const src = readFileSync(resolve(process.cwd(), "src/lib/copyright/discover.server.ts"), "utf8");
   assert.match(src, /telegramFailures/);
   assert.match(src, /telegramPlans/);
   // Telegram failures must not throw / abort web discovery path.
@@ -391,7 +382,10 @@ test("executor claims queued scans atomically and duplicate invocation does not 
   assert.match(claimBlock, /\.eq\("status", "queued"\)/);
   assert.match(claimBlock, /\.select\("\*"\)/);
   assert.match(claimBlock, /if \(!claimedScan\)/);
-  assert.match(claimBlock, /return \{\s*scanId: existing\.id as string,\s*status: existing\.status,/s);
+  assert.match(
+    claimBlock,
+    /return \{\s*scanId: existing\.id as string,\s*status: existing\.status,/s,
+  );
 });
 
 test("terminal updates require exactly one active row or idempotent same terminal state", () => {
@@ -406,7 +400,10 @@ test("terminal updates require exactly one active row or idempotent same termina
   assert.match(terminalBlock, /\.select\("id,status"\)/);
   assert.match(terminalBlock, /\.maybeSingle\(\)/);
   assert.match(terminalBlock, /if \(data\?\.id === scanId\) return/);
-  assert.match(terminalBlock, /inspectCopyrightScanTerminalState\(supabase, scanId, update\.status\)/);
+  assert.match(
+    terminalBlock,
+    /inspectCopyrightScanTerminalState\(supabase, scanId, update\.status\)/,
+  );
 
   const inspectBlock = src.slice(
     src.indexOf("async function inspectCopyrightScanTerminalState"),
@@ -420,7 +417,10 @@ test("terminal updates require exactly one active row or idempotent same termina
 test("terminal status transient failures retry and permanent failures surface", () => {
   const src = functionsSource();
   const writerStart = src.indexOf("export async function writeCopyrightTerminalStatus");
-  const writerBlock = src.slice(writerStart, src.indexOf("async function dispatchCopyrightScanExecution", writerStart));
+  const writerBlock = src.slice(
+    writerStart,
+    src.indexOf("async function dispatchCopyrightScanExecution", writerStart),
+  );
   assert.match(writerBlock, /TERMINAL_STATUS_RETRY_DELAYS_MS/);
   assert.match(writerBlock, /console\.error\("copyright_scan_terminal_update_failed"/);
   assert.match(writerBlock, /copyright_scan_terminal_fallback_failed/);
@@ -430,7 +430,10 @@ test("terminal status transient failures retry and permanent failures surface", 
 test("stale recovery uses guarded terminal transition", () => {
   const src = functionsSource();
   const watchdogStart = src.indexOf("async function applyExecutorWatchdog");
-  const watchdogBlock = src.slice(watchdogStart, src.indexOf("export const listCopyrightScans", watchdogStart));
+  const watchdogBlock = src.slice(
+    watchdogStart,
+    src.indexOf("export const listCopyrightScans", watchdogStart),
+  );
   assert.match(watchdogBlock, /isExecutorWatchdogExpired/);
   assert.match(watchdogBlock, /writeCopyrightTerminalStatus\(supabase, row\.id as string/);
   assert.doesNotMatch(watchdogBlock, /\.update\(\{\s*status: "failed"/);

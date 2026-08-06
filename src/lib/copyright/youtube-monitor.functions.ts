@@ -11,22 +11,36 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const [{ readStoredObject, bytesToDataUrl }, { analyzeReference }, { buildMovieFingerprint }, ytm] =
-      await Promise.all([
-        import("@/lib/copyright/storage.server"),
-        import("@/lib/copyright/discover.server"),
-        import("@/lib/copyright/fingerprint.server"),
-        import("@/lib/copyright/youtube-monitor.server"),
-      ]);
-    const { analyzeYoutubeVideo, buildYoutubeQueries, corroborateThumbnail, discoverYoutubeVideos, scoreVideo } = ytm;
+    const [
+      { readStoredObject, bytesToDataUrl },
+      { analyzeReference },
+      { buildMovieFingerprint },
+      ytm,
+    ] = await Promise.all([
+      import("@/lib/copyright/storage.server"),
+      import("@/lib/copyright/discover.server"),
+      import("@/lib/copyright/fingerprint.server"),
+      import("@/lib/copyright/youtube-monitor.server"),
+    ]);
+    const {
+      analyzeYoutubeVideo,
+      buildYoutubeQueries,
+      corroborateThumbnail,
+      discoverYoutubeVideos,
+      scoreVideo,
+    } = ytm;
     const { supabase, userId } = context;
 
     const { data: scan, error } = await supabase
-      .from("copyright_scans").select("*").eq("id", data.scanId).single();
+      .from("copyright_scans")
+      .select("*")
+      .eq("id", data.scanId)
+      .single();
     if (error || !scan) throw new Error(error?.message ?? "Scan not found.");
 
     const framePaths = (Array.isArray(scan.frame_paths) ? scan.frame_paths : [scan.storage_path])
-      .filter(Boolean).slice(0, 3) as string[];
+      .filter(Boolean)
+      .slice(0, 3) as string[];
     const frames: Uint8Array[] = [];
     for (const key of framePaths) {
       const bytes = await readStoredObject(key).catch(() => new Uint8Array());
@@ -62,17 +76,24 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
     const rows: VideoInsert[] = [];
     for (let i = 0; i < videos.length; i += 4) {
       const batch = videos.slice(i, i + 4);
-      const analysed = await Promise.all(batch.map(async (video) => {
-        const [intel, rek] = await Promise.all([
-          analyzeYoutubeVideo({ video, workTitle: scan.title, referenceDataUrl }),
-          corroborateThumbnail(fingerprint, video.thumbnailUrl),
-        ]);
-        return { video, intel, rek };
-      }));
+      const analysed = await Promise.all(
+        batch.map(async (video) => {
+          const [intel, rek] = await Promise.all([
+            analyzeYoutubeVideo({ video, workTitle: scan.title, referenceDataUrl }),
+            corroborateThumbnail(fingerprint, video.thumbnailUrl),
+          ]);
+          return { video, intel, rek };
+        }),
+      );
 
       for (const { video, intel, rek } of analysed) {
         const isSameDay = sameDay(video.publishedAt, analysis.releaseDate);
-        const risk = scoreVideo({ intel, video, rekScore: rek?.score ?? 0, sameDayRelease: isSameDay });
+        const risk = scoreVideo({
+          intel,
+          video,
+          rekScore: rek?.score ?? 0,
+          sameDayRelease: isSameDay,
+        });
         // Keep only videos with copyright usage, reputation risk or a strong visual match.
         const keep =
           (intel && intel.copyrightUsage !== "none") ||
@@ -100,7 +121,8 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
           matched_query: video.matchedQuery,
           content_category: intel?.contentCategory ?? "unknown",
           copyright_usage: intel?.copyrightUsage ?? "none",
-          copyright_signals: (intel?.copyrightSignals ?? []) as unknown as VideoInsert["copyright_signals"],
+          copyright_signals: (intel?.copyrightSignals ??
+            []) as unknown as VideoInsert["copyright_signals"],
           sentiment: intel?.sentiment ?? "neutral",
           sentiment_score: intel?.sentimentScore ?? 0,
           risk_score: risk,
@@ -130,7 +152,8 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
 
     if (rows.length) {
       const { error: upErr } = await supabase
-        .from("copyright_youtube_videos").upsert(rows, { onConflict: "scan_id,video_id" });
+        .from("copyright_youtube_videos")
+        .upsert(rows, { onConflict: "scan_id,video_id" });
       if (upErr) throw new Error(upErr.message);
     }
 
@@ -148,7 +171,8 @@ export const listYoutubeMonitor = createServerFn({ method: "GET" })
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
-      .from("copyright_youtube_videos").select("*")
+      .from("copyright_youtube_videos")
+      .select("*")
       .eq("scan_id", data.scanId)
       .order("risk_score", { ascending: false });
     if (error) throw new Error(error.message);
@@ -157,13 +181,19 @@ export const listYoutubeMonitor = createServerFn({ method: "GET" })
 
 export const updateYoutubeMonitorReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({
-    videoRowId: z.string().uuid(),
-    reviewStatus: z.enum(["pending", "evidence_ready", "dismissed"]),
-  }).parse(raw))
+  .inputValidator((raw) =>
+    z
+      .object({
+        videoRowId: z.string().uuid(),
+        reviewStatus: z.enum(["pending", "evidence_ready", "dismissed"]),
+      })
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
-      .from("copyright_youtube_videos").update({ review_status: data.reviewStatus }).eq("id", data.videoRowId);
+      .from("copyright_youtube_videos")
+      .update({ review_status: data.reviewStatus })
+      .eq("id", data.videoRowId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -179,18 +209,27 @@ export const runReleaseDayReviewAnalysis = createServerFn({ method: "POST" })
       import("@/lib/copyright/youtube-monitor.server"),
     ]);
     const {
-      buildReleaseReviewQueries, discoverYoutubeVideos, fetchVideoComments,
-      analyzeReleaseReview, scoreReputationImpact,
+      buildReleaseReviewQueries,
+      discoverYoutubeVideos,
+      fetchVideoComments,
+      analyzeReleaseReview,
+      scoreReputationImpact,
     } = ytm;
     const { supabase, userId } = context;
 
     const { data: scan, error } = await supabase
-      .from("copyright_scans").select("*").eq("id", data.scanId).single();
+      .from("copyright_scans")
+      .select("*")
+      .eq("id", data.scanId)
+      .single();
     if (error || !scan) throw new Error(error?.message ?? "Scan not found.");
 
     const framePaths = (Array.isArray(scan.frame_paths) ? scan.frame_paths : [scan.storage_path])
-      .filter(Boolean).slice(0, 1) as string[];
-    const bytes = framePaths[0] ? await readStoredObject(framePaths[0]).catch(() => new Uint8Array()) : new Uint8Array();
+      .filter(Boolean)
+      .slice(0, 1) as string[];
+    const bytes = framePaths[0]
+      ? await readStoredObject(framePaths[0]).catch(() => new Uint8Array())
+      : new Uint8Array();
     if (!bytes.length) throw new Error("Reference material for this scan could not be read.");
     const referenceDataUrl = bytesToDataUrl(bytes, guessType(framePaths[0]));
 
@@ -214,18 +253,27 @@ export const runReleaseDayReviewAnalysis = createServerFn({ method: "POST" })
 
     for (let i = 0; i < videos.length; i += 3) {
       const batch = videos.slice(i, i + 3);
-      const analysed = await Promise.all(batch.map(async (video) => {
-        const comments = await fetchVideoComments(video.videoId, 12);
-        const intel = await analyzeReleaseReview({
-          video, workTitle: scan.title, referenceDataUrl, comments,
-        });
-        return { video, intel, comments };
-      }));
+      const analysed = await Promise.all(
+        batch.map(async (video) => {
+          const comments = await fetchVideoComments(video.videoId, 12);
+          const intel = await analyzeReleaseReview({
+            video,
+            workTitle: scan.title,
+            referenceDataUrl,
+            comments,
+          });
+          return { video, intel, comments };
+        }),
+      );
 
       for (const { video, intel, comments } of analysed) {
         if (!intel || !intel.isReview || intel.reviewType === "not_a_review") continue;
         const isSameDay = sameDay(video.publishedAt, analysis.releaseDate);
-        const { score, impact } = scoreReputationImpact({ intel, video, sameDayRelease: isSameDay });
+        const { score, impact } = scoreReputationImpact({
+          intel,
+          video,
+          sameDayRelease: isSameDay,
+        });
 
         rows.push({
           scan_id: scan.id,
@@ -257,9 +305,11 @@ export const runReleaseDayReviewAnalysis = createServerFn({ method: "POST" })
           reputation_impact: impact,
           reputation_impact_score: score,
           key_statements: intel.keyStatements as unknown as VideoInsert["key_statements"],
-          misleading_signals: intel.misleadingSignals as unknown as VideoInsert["misleading_signals"],
+          misleading_signals:
+            intel.misleadingSignals as unknown as VideoInsert["misleading_signals"],
           comment_samples: comments.slice(0, 8) as unknown as VideoInsert["comment_samples"],
-          evidence_timestamps: intel.evidenceTimestamps as unknown as VideoInsert["evidence_timestamps"],
+          evidence_timestamps:
+            intel.evidenceTimestamps as unknown as VideoInsert["evidence_timestamps"],
           evidence: {
             mode: "release_day_review",
             release_date: analysis.releaseDate,
@@ -272,7 +322,8 @@ export const runReleaseDayReviewAnalysis = createServerFn({ method: "POST" })
 
     if (rows.length) {
       const { error: upErr } = await supabase
-        .from("copyright_youtube_videos").upsert(rows, { onConflict: "scan_id,video_id" });
+        .from("copyright_youtube_videos")
+        .upsert(rows, { onConflict: "scan_id,video_id" });
       if (upErr) throw new Error(upErr.message);
     }
 
@@ -289,7 +340,8 @@ export const listReleaseDayReviews = createServerFn({ method: "GET" })
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
-      .from("copyright_youtube_videos").select("*")
+      .from("copyright_youtube_videos")
+      .select("*")
       .eq("scan_id", data.scanId)
       .eq("is_release_review", true)
       .order("reputation_impact_score", { ascending: false });

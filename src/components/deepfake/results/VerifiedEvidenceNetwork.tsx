@@ -1,8 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import {
-  boundNetworkGraph,
-  type NetworkGraph,
-} from "@/lib/deepfake/results-dashboard";
+import { boundNetworkGraph, type NetworkGraph } from "@/lib/deepfake/results-dashboard";
 
 type Props = {
   graph: NetworkGraph;
@@ -48,8 +45,7 @@ export function VerifiedEvidenceNetwork({
   const findingRadius = 168;
 
   const domainPositions = visible.domains.map((domain, index) => {
-    const angle =
-      (Math.PI * 2 * index) / Math.max(visible.domains.length, 1) - Math.PI / 2;
+    const angle = (Math.PI * 2 * index) / Math.max(visible.domains.length, 1) - Math.PI / 2;
     return {
       domain,
       x: cx + Math.cos(angle) * domainRadius,
@@ -63,8 +59,7 @@ export function VerifiedEvidenceNetwork({
       <section className="rounded-xl border border-sky-500/20 bg-[#07111f] p-4 text-slate-200">
         <h3 className="text-sm font-semibold text-white">Verified Evidence Network</h3>
         <p className="mt-2 text-sm text-slate-400">
-          {emptyMessage ||
-            "Network visualization appears when verified findings are saved."}
+          {emptyMessage || "Network visualization appears when verified findings are saved."}
         </p>
       </section>
     );
@@ -77,10 +72,7 @@ export function VerifiedEvidenceNetwork({
     >
       <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3
-            id="evidence-network-heading"
-            className="text-sm font-semibold text-white"
-          >
+          <h3 id="evidence-network-heading" className="text-sm font-semibold text-white">
             Verified Evidence Network
           </h3>
           <p className="mt-1 text-[12px] text-slate-400">
@@ -131,10 +123,19 @@ export function VerifiedEvidenceNetwork({
                 className={reduceMotion ? undefined : "transition-all duration-300"}
               />
               {domain.findings.map((finding, findingIndex) => {
-                const spread =
-                  ((findingIndex - (domain.findings.length - 1) / 2) * 0.22);
-                const fx = cx + Math.cos(domainPositions.find((d) => d.domain.domain === domain.domain)!.angle + spread) * findingRadius;
-                const fy = cy + Math.sin(domainPositions.find((d) => d.domain.domain === domain.domain)!.angle + spread) * findingRadius;
+                const spread = (findingIndex - (domain.findings.length - 1) / 2) * 0.22;
+                const fx =
+                  cx +
+                  Math.cos(
+                    domainPositions.find((d) => d.domain.domain === domain.domain)!.angle + spread,
+                  ) *
+                    findingRadius;
+                const fy =
+                  cy +
+                  Math.sin(
+                    domainPositions.find((d) => d.domain.domain === domain.domain)!.angle + spread,
+                  ) *
+                    findingRadius;
                 return (
                   <line
                     key={`edge-${finding.id}`}
@@ -153,14 +154,7 @@ export function VerifiedEvidenceNetwork({
 
           {/* Center identity */}
           <g>
-            <circle
-              cx={cx}
-              cy={cy}
-              r={34}
-              fill="#0b1c33"
-              stroke="#38bdf8"
-              strokeWidth={2}
-            />
+            <circle cx={cx} cy={cy} r={34} fill="#0b1c33" stroke="#38bdf8" strokeWidth={2} />
             {centerThumbnailUrl ? (
               <image
                 href={centerThumbnailUrl}
@@ -183,13 +177,7 @@ export function VerifiedEvidenceNetwork({
                 ID
               </text>
             )}
-            <text
-              x={cx}
-              y={cy + 52}
-              textAnchor="middle"
-              fill="#cbd5e1"
-              fontSize={11}
-            >
+            <text x={cx} y={cy + 52} textAnchor="middle" fill="#cbd5e1" fontSize={11}>
               {graph.centerLabel.length > 28
                 ? `${graph.centerLabel.slice(0, 28)}…`
                 : graph.centerLabel}
@@ -203,15 +191,11 @@ export function VerifiedEvidenceNetwork({
                 cy={y}
                 r={selectedDomain === domain.domain ? 18 : 15}
                 fill="#10233d"
-                stroke={
-                  selectedDomain === domain.domain ? "#22d3ee" : "#60a5fa"
-                }
+                stroke={selectedDomain === domain.domain ? "#22d3ee" : "#60a5fa"}
                 strokeWidth={selectedDomain === domain.domain ? 2 : 1.4}
                 className="cursor-pointer"
                 onClick={() =>
-                  onSelectDomain(
-                    selectedDomain === domain.domain ? null : domain.domain,
-                  )
+                  onSelectDomain(selectedDomain === domain.domain ? null : domain.domain)
                 }
                 role="button"
                 tabIndex={0}
@@ -219,26 +203,15 @@ export function VerifiedEvidenceNetwork({
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    onSelectDomain(
-                      selectedDomain === domain.domain ? null : domain.domain,
-                    );
+                    onSelectDomain(selectedDomain === domain.domain ? null : domain.domain);
                   }
                 }}
               />
-              <text
-                x={x}
-                y={y + 30}
-                textAnchor="middle"
-                fill="#94a3b8"
-                fontSize={9}
-              >
-                {domain.domain.length > 18
-                  ? `${domain.domain.slice(0, 18)}…`
-                  : domain.domain}
+              <text x={x} y={y + 30} textAnchor="middle" fill="#94a3b8" fontSize={9}>
+                {domain.domain.length > 18 ? `${domain.domain.slice(0, 18)}…` : domain.domain}
               </text>
               {domain.findings.map((finding, findingIndex) => {
-                const spread =
-                  ((findingIndex - (domain.findings.length - 1) / 2) * 0.22);
+                const spread = (findingIndex - (domain.findings.length - 1) / 2) * 0.22;
                 const fx = cx + Math.cos(angle + spread) * findingRadius;
                 const fy = cy + Math.sin(angle + spread) * findingRadius;
                 const selected = selectedFindingId === finding.id;
@@ -273,22 +246,15 @@ export function VerifiedEvidenceNetwork({
 
       {/* Accessible / mobile fallback */}
       <div className="md:hidden">
-        <p className="mb-2 text-[11px] text-slate-400">
-          Domain list fallback for smaller screens.
-        </p>
+        <p className="mb-2 text-[11px] text-slate-400">Domain list fallback for smaller screens.</p>
         <ul className="space-y-2">
           {visible.domains.map((domain) => (
-            <li
-              key={domain.domain}
-              className="rounded-lg border border-white/10 bg-black/20 p-3"
-            >
+            <li key={domain.domain} className="rounded-lg border border-white/10 bg-black/20 p-3">
               <button
                 type="button"
                 className="text-left text-sm font-medium text-cyan-300"
                 onClick={() =>
-                  onSelectDomain(
-                    selectedDomain === domain.domain ? null : domain.domain,
-                  )
+                  onSelectDomain(selectedDomain === domain.domain ? null : domain.domain)
                 }
               >
                 {domain.domain}

@@ -105,9 +105,7 @@ async function loadReferenceBytes(
 }
 
 function threatKeywordHit(query: string): boolean {
-  return /\b(?:deepfake|face\s*swap|fake\s*nude|ai\s*generated|synthetic|morphed)\b/i.test(
-    query,
-  );
+  return /\b(?:deepfake|face\s*swap|fake\s*nude|ai\s*generated|synthetic|morphed)\b/i.test(query);
 }
 
 function classificationForMatch(input: {
@@ -134,9 +132,7 @@ function toCandidate(
   },
   opts?: { pageCrawled?: boolean },
 ): GoogleImagesInvestigationCandidate | null {
-  const pageUrl = isUsableSourceWebsiteUrl(hit.source_website_url)
-    ? hit.source_website_url
-    : null;
+  const pageUrl = isUsableSourceWebsiteUrl(hit.source_website_url) ? hit.source_website_url : null;
   if (!pageUrl) return null;
 
   const pageCrawled = Boolean(opts?.pageCrawled);
@@ -167,14 +163,12 @@ function toCandidate(
   };
 }
 
-function pushUniqueImageUrl(
-  out: string[],
-  seen: Set<string>,
-  raw: string,
-  pageUrl: string,
-): void {
+function pushUniqueImageUrl(out: string[], seen: Set<string>, raw: string, pageUrl: string): void {
   if (out.length >= GOOGLE_IMAGES_SOURCE_PAGE_IMAGE_LIMIT) return;
-  let absolute = raw.replace(/\\u003d/g, "=").replace(/\\u0026/g, "&").trim();
+  let absolute = raw
+    .replace(/\\u003d/g, "=")
+    .replace(/\\u0026/g, "&")
+    .trim();
   if (!absolute) return;
   try {
     absolute = new URL(absolute, pageUrl).toString();
@@ -183,11 +177,7 @@ function pushUniqueImageUrl(
   }
   if (!isSafePublicHttpUrl(absolute)) return;
   if (isGoogleImagesViewerUrl(absolute)) return;
-  if (
-    /googleusercontent\.com|gstatic\.com|sprite|logo|icon|pixel|tracking/i.test(
-      absolute,
-    )
-  ) {
+  if (/googleusercontent\.com|gstatic\.com|sprite|logo|icon|pixel|tracking/i.test(absolute)) {
     return;
   }
   if (/\.gif(?:$|[?#])/i.test(absolute)) return;
@@ -200,8 +190,7 @@ function pushUniqueImageUrl(
 function extractPageImageUrls(html: string, pageUrl: string): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
-  const pattern =
-    /https?:\/\/[^\s"'<>]+?\.(?:jpe?g|png|webp|avif)(?:\?[^\s"'<>]*)?/gi;
+  const pattern = /https?:\/\/[^\s"'<>]+?\.(?:jpe?g|png|webp|avif)(?:\?[^\s"'<>]*)?/gi;
   for (const raw of html.match(pattern) ?? []) {
     pushUniqueImageUrl(out, seen, raw, pageUrl);
   }
@@ -213,10 +202,7 @@ function extractPageImageUrls(html: string, pageUrl: string): string[] {
   ];
   for (const re of attrPatterns) {
     let match: RegExpExecArray | null;
-    while (
-      (match = re.exec(html)) &&
-      out.length < GOOGLE_IMAGES_SOURCE_PAGE_IMAGE_LIMIT
-    ) {
+    while ((match = re.exec(html)) && out.length < GOOGLE_IMAGES_SOURCE_PAGE_IMAGE_LIMIT) {
       const value = match[1] ?? "";
       // srcset may contain "url 1x, url 2x"
       for (const part of value.split(",")) {
@@ -283,8 +269,7 @@ async function investigateSourcePage(input: {
   };
 }> {
   const maxPages =
-    input.maxPages ??
-    GOOGLE_IMAGES_SOURCE_PAGE_LIMIT + GOOGLE_IMAGES_GALLERY_PAGE_LIMIT;
+    input.maxPages ?? GOOGLE_IMAGES_SOURCE_PAGE_LIMIT + GOOGLE_IMAGES_GALLERY_PAGE_LIMIT;
   const metrics = {
     pages_crawled: 0,
     images_discovered: 0,
@@ -410,9 +395,7 @@ async function investigateSourcePage(input: {
             screenshotUrl: null,
             evidenceStatus: "captured",
             crawlMetadata: {
-              provider: next.isGallery
-                ? "google_images_gallery_page"
-                : "google_images_source_page",
+              provider: next.isGallery ? "google_images_gallery_page" : "google_images_source_page",
               crawled_page_url: next.url,
               used_browser: true,
               gallery_follow: next.isGallery,
@@ -427,17 +410,12 @@ async function investigateSourcePage(input: {
 
     // Continue crawling same-domain gallery / media / album pages until limits.
     if (metrics.pages_crawled < maxPages) {
-      const galleryLinks = extractGalleryLinks(
-        rendered.html,
-        next.url,
-        rendered.links ?? [],
-      );
+      const galleryLinks = extractGalleryLinks(rendered.html, next.url, rendered.links ?? []);
       for (const link of galleryLinks) {
         if (input.crawledPages.has(link)) continue;
         if (queue.some((q) => q.url === link)) continue;
         if (
-          metrics.gallery_pages_followed +
-            queue.filter((q) => q.isGallery).length >=
+          metrics.gallery_pages_followed + queue.filter((q) => q.isGallery).length >=
           GOOGLE_IMAGES_GALLERY_PAGE_LIMIT
         ) {
           break;
@@ -446,8 +424,7 @@ async function investigateSourcePage(input: {
         relatedCandidates.push({
           url: link,
           title: `Related media page for ${input.query}`,
-          description:
-            "Related gallery/media page discovered from Google Images source",
+          description: "Related gallery/media page discovered from Google Images source",
           query: input.query,
           source: "google_images_investigation",
           evidence_page_url: link,
@@ -507,8 +484,7 @@ export async function processGoogleImagesQuery(input: {
     gallery_pages_followed: 0,
   };
   const candidates: GoogleImagesInvestigationCandidate[] = [];
-  const evidence_packages: ReturnType<typeof buildGoogleImagesEvidencePackage>[] =
-    [];
+  const evidence_packages: ReturnType<typeof buildGoogleImagesEvidencePackage>[] = [];
   const crawledPages = new Set<string>();
 
   let collection;
@@ -544,10 +520,7 @@ export async function processGoogleImagesQuery(input: {
     };
   }
 
-  const references = await loadReferenceBytes(
-    input.referenceImages,
-    input.signal,
-  );
+  const references = await loadReferenceBytes(input.referenceImages, input.signal);
 
   for (const hit of collection.hits) {
     assertNotAborted(input.signal);
@@ -556,10 +529,7 @@ export async function processGoogleImagesQuery(input: {
     if (isGoogleImagesViewerUrl(hit.google_result_url)) {
       metrics.viewer_urls_discovered += 1;
     }
-    if (
-      hit.source_website_url &&
-      isGoogleImagesViewerUrl(hit.source_website_url)
-    ) {
+    if (hit.source_website_url && isGoogleImagesViewerUrl(hit.source_website_url)) {
       metrics.viewer_urls_discovered += 1;
       hit.source_website_url = null;
     }
@@ -677,21 +647,15 @@ export async function processGoogleImagesQuery(input: {
         metrics.candidate_pages_crawled += pageResult.metrics.pages_crawled;
         metrics.source_pages_crawled += pageResult.metrics.pages_crawled;
         metrics.images_discovered += pageResult.metrics.images_discovered;
-        metrics.images_extracted_from_sources +=
-          pageResult.metrics.images_extracted_from_sources;
-        metrics.gallery_pages_followed +=
-          pageResult.metrics.gallery_pages_followed;
+        metrics.images_extracted_from_sources += pageResult.metrics.images_extracted_from_sources;
+        metrics.gallery_pages_followed += pageResult.metrics.gallery_pages_followed;
         metrics.images_downloaded += pageResult.metrics.images_downloaded;
         metrics.face_comparisons += pageResult.metrics.face_comparisons;
-        metrics.high_confidence_matches +=
-          pageResult.metrics.high_confidence_matches;
-        metrics.evidence_packages_created +=
-          pageResult.metrics.evidence_packages_created;
+        metrics.high_confidence_matches += pageResult.metrics.high_confidence_matches;
+        metrics.evidence_packages_created += pageResult.metrics.evidence_packages_created;
         metrics.failed_downloads += pageResult.metrics.failed_downloads;
         candidates.push(
-          ...pageResult.relatedCandidates.filter(
-            (c) => !isGoogleImagesViewerUrl(c.url),
-          ),
+          ...pageResult.relatedCandidates.filter((c) => !isGoogleImagesViewerUrl(c.url)),
         );
         evidence_packages.push(...pageResult.evidence);
       }
@@ -756,8 +720,7 @@ export async function runMandatoryGoogleImagesInvestigation(input: {
 }): Promise<GoogleImagesInvestigationResult> {
   const diagnostics = emptyGoogleImagesDiagnostics();
   const candidates: GoogleImagesInvestigationCandidate[] = [];
-  const evidence_packages: ReturnType<typeof buildGoogleImagesEvidencePackage>[] =
-    [];
+  const evidence_packages: ReturnType<typeof buildGoogleImagesEvidencePackage>[] = [];
   const seenImageUrls = new Set<string>();
   const seenSha = new Set<string>();
   const seenPhash = new Set<string>();
@@ -788,31 +751,21 @@ export async function runMandatoryGoogleImagesInvestigation(input: {
     diagnostics.images_downloaded += result.metrics.images_downloaded;
     diagnostics.duplicate_images += result.metrics.duplicate_images;
     diagnostics.valid_faces += result.metrics.valid_faces;
-    diagnostics.high_confidence_matches +=
-      result.metrics.high_confidence_matches;
-    diagnostics.candidate_pages_crawled +=
-      result.metrics.candidate_pages_crawled;
-    diagnostics.source_pages_discovered +=
-      result.metrics.source_pages_discovered ?? 0;
-    diagnostics.evidence_packages_created +=
-      result.metrics.evidence_packages_created;
+    diagnostics.high_confidence_matches += result.metrics.high_confidence_matches;
+    diagnostics.candidate_pages_crawled += result.metrics.candidate_pages_crawled;
+    diagnostics.source_pages_discovered += result.metrics.source_pages_discovered ?? 0;
+    diagnostics.evidence_packages_created += result.metrics.evidence_packages_created;
     diagnostics.failed_downloads += result.metrics.failed_downloads;
     diagnostics.face_comparisons += result.metrics.face_comparisons;
     diagnostics.rejected_identities += result.metrics.rejected_identities;
-    diagnostics.viewer_urls_discovered +=
-      result.metrics.viewer_urls_discovered ?? 0;
+    diagnostics.viewer_urls_discovered += result.metrics.viewer_urls_discovered ?? 0;
     diagnostics.original_source_pages_extracted +=
       result.metrics.original_source_pages_extracted ?? 0;
-    diagnostics.source_pages_crawled +=
-      result.metrics.source_pages_crawled ?? 0;
-    diagnostics.images_extracted_from_sources +=
-      result.metrics.images_extracted_from_sources ?? 0;
-    diagnostics.gallery_pages_followed +=
-      result.metrics.gallery_pages_followed ?? 0;
-    diagnostics.used_browser =
-      diagnostics.used_browser || result.used_browser;
-    diagnostics.browser_available =
-      diagnostics.browser_available || result.browser_available;
+    diagnostics.source_pages_crawled += result.metrics.source_pages_crawled ?? 0;
+    diagnostics.images_extracted_from_sources += result.metrics.images_extracted_from_sources ?? 0;
+    diagnostics.gallery_pages_followed += result.metrics.gallery_pages_followed ?? 0;
+    diagnostics.used_browser = diagnostics.used_browser || result.used_browser;
+    diagnostics.browser_available = diagnostics.browser_available || result.browser_available;
     if (result.failure && !diagnostics.failure_reason) {
       diagnostics.failure_reason = result.failure;
     }
@@ -837,15 +790,12 @@ export function findingRowFromGoogleImagesCandidate(input: {
 }): Record<string, unknown> | null {
   if (isGoogleImagesViewerUrl(input.candidate.url)) return null;
   if (isGoogleImagesViewerUrl(input.candidate.evidence_page_url)) return null;
-  const pageUrl = isUsableSourceWebsiteUrl(input.candidate.url)
-    ? input.candidate.url
-    : null;
+  const pageUrl = isUsableSourceWebsiteUrl(input.candidate.url) ? input.candidate.url : null;
   if (!pageUrl) return null;
   if (input.candidate.url_verification_status !== "URL_VERIFIED") return null;
 
   const similarity = input.candidate.face_similarity ?? 0;
-  const classification =
-    input.candidate.finding_classification ?? "PROBABLE_DEEPFAKE";
+  const classification = input.candidate.finding_classification ?? "PROBABLE_DEEPFAKE";
 
   return {
     scan_id: input.scanId,
@@ -862,14 +812,8 @@ export function findingRowFromGoogleImagesCandidate(input: {
     snippet: input.candidate.description ?? null,
     query: input.candidate.query,
     risk_level:
-      classification === "VERIFIED_DEEPFAKE"
-        ? similarity >= 95
-          ? "CRITICAL"
-          : "HIGH"
-        : "MEDIUM",
-    content_category: threatKeywordHit(input.candidate.query)
-      ? "deepfake_porn"
-      : "face_swap",
+      classification === "VERIFIED_DEEPFAKE" ? (similarity >= 95 ? "CRITICAL" : "HIGH") : "MEDIUM",
+    content_category: threatKeywordHit(input.candidate.query) ? "deepfake_porn" : "face_swap",
     confidence: Math.round(similarity),
     is_synthetic: threatKeywordHit(input.candidate.query),
     face_referenced: true,
@@ -885,12 +829,8 @@ export function findingRowFromGoogleImagesCandidate(input: {
     synthetic_media_confidence: threatKeywordHit(input.candidate.query)
       ? Math.min(95, Math.round(similarity))
       : Math.round(similarity * 0.7),
-    matched_evidence: [
-      "google_images_face_match",
-      ...(input.candidate.threat_signals ?? []),
-    ],
-    classification_explanation:
-      "Face-matched Google Images result with crawled source webpage.",
+    matched_evidence: ["google_images_face_match", ...(input.candidate.threat_signals ?? [])],
+    classification_explanation: "Face-matched Google Images result with crawled source webpage.",
     discovered_url: pageUrl,
     final_url: pageUrl,
     canonical_url: pageUrl,

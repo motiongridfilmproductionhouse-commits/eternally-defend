@@ -6,7 +6,10 @@ const SourceType = z.enum(["youtube_thumb", "profile", "news", "website", "scree
 
 const AnalyzeInput = z.object({
   scanHitId: z.string().uuid().optional(),
-  images: z.array(z.object({ url: z.string().url(), type: SourceType.default("other") })).min(1).max(10),
+  images: z
+    .array(z.object({ url: z.string().url(), type: SourceType.default("other") }))
+    .min(1)
+    .max(10),
 });
 
 /** Server-side face scan of one or more image URLs against the user's Rekognition collection. */
@@ -37,15 +40,32 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
     for (const img of data.images) {
       const bytes = await fetchImageBytes(img.url);
       if (!bytes) {
-        results.push({ sourceUrl: img.url, sourceType: img.type, matches: 0, topSimilarity: null, eventIds: [] });
+        results.push({
+          sourceUrl: img.url,
+          sourceType: img.type,
+          matches: 0,
+          topSimilarity: null,
+          eventIds: [],
+        });
         continue;
       }
-      const { matches, searchedFaceConfidence, searchedFaceBoundingBox } = await searchFacesByImage({
-        collectionId: col.collection_id, bytes: bytes.bytes, threshold: 80, maxFaces: 5,
-      });
+      const { matches, searchedFaceConfidence, searchedFaceBoundingBox } = await searchFacesByImage(
+        {
+          collectionId: col.collection_id,
+          bytes: bytes.bytes,
+          threshold: 80,
+          maxFaces: 5,
+        },
+      );
 
       if (matches.length === 0) {
-        results.push({ sourceUrl: img.url, sourceType: img.type, matches: 0, topSimilarity: null, eventIds: [] });
+        results.push({
+          sourceUrl: img.url,
+          sourceType: img.type,
+          matches: 0,
+          topSimilarity: null,
+          eventIds: [],
+        });
         continue;
       }
 
@@ -53,8 +73,15 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
       const now = new Date();
       const key = `clients/${userId}/scan-images/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${crypto.randomUUID()}`;
       try {
-        await putObject({ key, body: bytes.bytes, contentType: bytes.contentType, metadata: { source: img.url.slice(0, 512) } });
-      } catch { /* keep going; S3 failure shouldn't drop matches */ }
+        await putObject({
+          key,
+          body: bytes.bytes,
+          contentType: bytes.contentType,
+          metadata: { source: img.url.slice(0, 512) },
+        });
+      } catch {
+        /* keep going; S3 failure shouldn't drop matches */
+      }
 
       // Look up the protected_faces rows for the matched face_ids
       const faceIds = matches.map((m) => m.faceId);
@@ -64,7 +91,10 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
         .in("face_id", faceIds)
         .eq("user_id", userId);
 
-      const byFace = new Map<string, typeof protectedRows extends null ? never : NonNullable<typeof protectedRows>[number]>();
+      const byFace = new Map<
+        string,
+        typeof protectedRows extends null ? never : NonNullable<typeof protectedRows>[number]
+      >();
       for (const p of protectedRows ?? []) byFace.set(p.face_id, p);
 
       const eventIds: string[] = [];
@@ -118,7 +148,9 @@ export const listFaceMatches = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     let q = supabase
       .from("face_match_events")
-      .select("id,similarity,face_confidence,source_url,source_type,scan_hit_id,image_s3_bucket,image_s3_key,review_status,threat_category,context_notes,created_at,matched_face_id,matched_protected_face_id,matched_asset_id,enforcement_request_id")
+      .select(
+        "id,similarity,face_confidence,source_url,source_type,scan_hit_id,image_s3_bucket,image_s3_key,review_status,threat_category,context_notes,created_at,matched_face_id,matched_protected_face_id,matched_asset_id,enforcement_request_id",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(data.limit);
@@ -132,8 +164,14 @@ export const listFaceMatches = createServerFn({ method: "POST" })
       const { getSignedGetUrl } = await import("./aws/s3.server");
       for (const r of rows) {
         if (r.image_s3_key) {
-          try { (r as unknown as { signed_url: string }).signed_url = await getSignedGetUrl(r.image_s3_key, 300); }
-          catch { /* ignore */ }
+          try {
+            (r as unknown as { signed_url: string }).signed_url = await getSignedGetUrl(
+              r.image_s3_key,
+              300,
+            );
+          } catch {
+            /* ignore */
+          }
         }
       }
     }
@@ -143,7 +181,15 @@ export const listFaceMatches = createServerFn({ method: "POST" })
 const ReviewInput = z.object({
   id: z.string().uuid(),
   decision: z.enum(["authorized", "harmless", "threat_created", "dismissed"]),
-  category: z.enum(["impersonation", "fake_endorsement", "unauthorized_image", "face_misuse", "celebrity_detection"]).optional(),
+  category: z
+    .enum([
+      "impersonation",
+      "fake_endorsement",
+      "unauthorized_image",
+      "face_misuse",
+      "celebrity_detection",
+    ])
+    .optional(),
   notes: z.string().min(1).max(2000),
 });
 
@@ -155,13 +201,16 @@ export const reviewFaceMatch = createServerFn({ method: "POST" })
     const { data: ev, error } = await supabase
       .from("face_match_events")
       .select("id,similarity,source_url,source_type,scan_hit_id,matched_asset_id")
-      .eq("id", data.id).eq("user_id", userId).maybeSingle();
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .maybeSingle();
     if (error) throw error;
     if (!ev) throw new Error("Event not found");
 
     if (data.decision === "threat_created") {
       if (!data.category) throw new Error("Category is required to create a threat");
-      if ((ev.similarity ?? 0) < 80) throw new Error("Similarity below 80 — cannot create threat from this match alone");
+      if ((ev.similarity ?? 0) < 80)
+        throw new Error("Similarity below 80 — cannot create threat from this match alone");
     }
 
     let enforcementId: string | null = null;
@@ -175,21 +224,30 @@ export const reviewFaceMatch = createServerFn({ method: "POST" })
           method: `face_${data.category}`,
           target_url: ev.source_url,
           status: "Draft",
-          metadata: { created_from: "face_match_review", face_match_event_id: ev.id, category: data.category },
+          metadata: {
+            created_from: "face_match_review",
+            face_match_event_id: ev.id,
+            category: data.category,
+          },
         })
-        .select("id").single();
+        .select("id")
+        .single();
       if (erErr || !er) throw erErr ?? new Error("Failed to create enforcement request");
       enforcementId = er.id;
     }
 
-    const { error: upErr } = await supabase.from("face_match_events").update({
-      review_status: data.decision,
-      threat_category: data.decision === "threat_created" ? data.category : null,
-      context_notes: data.notes,
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: userId,
-      enforcement_request_id: enforcementId,
-    }).eq("id", ev.id).eq("user_id", userId);
+    const { error: upErr } = await supabase
+      .from("face_match_events")
+      .update({
+        review_status: data.decision,
+        threat_category: data.decision === "threat_created" ? data.category : null,
+        context_notes: data.notes,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: userId,
+        enforcement_request_id: enforcementId,
+      })
+      .eq("id", ev.id)
+      .eq("user_id", userId);
     if (upErr) throw upErr;
 
     return { ok: true, enforcementRequestId: enforcementId };
@@ -203,13 +261,33 @@ export const getFaceProtectionStats = createServerFn({ method: "GET" })
     const week = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
     const [faces, matches24h, impersonation, fakeEndorse, evidenceCount] = await Promise.all([
-      supabase.from("protected_faces").select("id", { count: "exact", head: true }).eq("user_id", userId),
-      supabase.from("face_match_events").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", day),
-      supabase.from("face_match_events").select("id", { count: "exact", head: true })
-        .eq("user_id", userId).eq("threat_category", "impersonation").eq("review_status", "threat_created").gte("created_at", week),
-      supabase.from("face_match_events").select("id", { count: "exact", head: true })
-        .eq("user_id", userId).eq("threat_category", "fake_endorsement").eq("review_status", "threat_created").gte("created_at", week),
-      supabase.from("evidence_vault_items").select("id", { count: "exact", head: true }).eq("user_id", userId),
+      supabase
+        .from("protected_faces")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId),
+      supabase
+        .from("face_match_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("created_at", day),
+      supabase
+        .from("face_match_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("threat_category", "impersonation")
+        .eq("review_status", "threat_created")
+        .gte("created_at", week),
+      supabase
+        .from("face_match_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("threat_category", "fake_endorsement")
+        .eq("review_status", "threat_created")
+        .gte("created_at", week),
+      supabase
+        .from("evidence_vault_items")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId),
     ]);
 
     return {

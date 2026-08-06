@@ -88,9 +88,7 @@ export async function persistBatchProgress(
   return { lastProgressTimestamp };
 }
 
-export async function releaseCompletedQueryLeases(
-  state: WorkerBatchState,
-): Promise<void> {
+export async function releaseCompletedQueryLeases(state: WorkerBatchState): Promise<void> {
   for (const queryId of state.claimedQueryIds) {
     const normalized = queryId.trim().toLowerCase();
     if (!state.checkpoint.completed_query_ids.includes(normalized)) {

@@ -12,10 +12,7 @@ import {
 
 export type RiskLevel = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
-export type FindingClassification =
-  | "VERIFIED_DEEPFAKE"
-  | "PROBABLE_DEEPFAKE"
-  | string;
+export type FindingClassification = "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE" | string;
 
 export type ClientFinding = EvidenceUrlFields & {
   id: string;
@@ -94,13 +91,7 @@ export type NetworkGraph = {
 };
 
 export type FindingsSortKey =
-  | "risk"
-  | "title"
-  | "domain"
-  | "identity"
-  | "synthetic"
-  | "http"
-  | "classification";
+  "risk" | "title" | "domain" | "identity" | "synthetic" | "http" | "classification";
 
 const RISK_RANK: Record<RiskLevel, number> = {
   CRITICAL: 4,
@@ -125,17 +116,13 @@ export function findingDomain(finding: ClientFinding): string {
   );
 }
 
-export function normalizeClassification(
-  value: unknown,
-): string | null {
+export function normalizeClassification(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase().replace(/\s+/g, "_");
   return normalized || null;
 }
 
-export function normalizeUrlVerificationStatus(
-  value: unknown,
-): string | null {
+export function normalizeUrlVerificationStatus(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase().replace(/\s+/g, "_");
   if (!normalized) return null;
@@ -149,16 +136,10 @@ export function isClientVisibleClassification(
   value: string | null | undefined,
 ): value is "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE" {
   const normalized = normalizeClassification(value);
-  return (
-    normalized === "VERIFIED_DEEPFAKE" || normalized === "PROBABLE_DEEPFAKE"
-  );
+  return normalized === "VERIFIED_DEEPFAKE" || normalized === "PROBABLE_DEEPFAKE";
 }
 
-function readField(
-  row: Record<string, unknown>,
-  snake: string,
-  camel: string,
-): unknown {
+function readField(row: Record<string, unknown>, snake: string, camel: string): unknown {
   if (snake in row) return row[snake];
   if (camel in row) return row[camel];
   return undefined;
@@ -186,12 +167,9 @@ export function normalizeClientFinding(row: unknown): ClientFinding | null {
     typeof value === "string" ? value : value == null ? null : String(value);
   const asNumber = (value: unknown): number | null =>
     typeof value === "number" && Number.isFinite(value) ? value : null;
-  const asBoolean = (value: unknown): boolean | null =>
-    typeof value === "boolean" ? value : null;
+  const asBoolean = (value: unknown): boolean | null => (typeof value === "boolean" ? value : null);
   const asStringArray = (value: unknown): string[] | null =>
-    Array.isArray(value)
-      ? value.filter((item): item is string => typeof item === "string")
-      : null;
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : null;
 
   return {
     id: idRaw,
@@ -201,14 +179,10 @@ export function normalizeClientFinding(row: unknown): ClientFinding | null {
     snippet: asString(readField(source, "snippet", "snippet")),
     query: asString(readField(source, "query", "query")),
     risk_level: asString(readField(source, "risk_level", "riskLevel")),
-    content_category: asString(
-      readField(source, "content_category", "contentCategory"),
-    ),
+    content_category: asString(readField(source, "content_category", "contentCategory")),
     confidence: asNumber(readField(source, "confidence", "confidence")),
     is_synthetic: asBoolean(readField(source, "is_synthetic", "isSynthetic")),
-    face_referenced: asBoolean(
-      readField(source, "face_referenced", "faceReferenced"),
-    ),
+    face_referenced: asBoolean(readField(source, "face_referenced", "faceReferenced")),
     takedown_recommended: asBoolean(
       readField(source, "takedown_recommended", "takedownRecommended"),
     ),
@@ -216,39 +190,21 @@ export function normalizeClientFinding(row: unknown): ClientFinding | null {
     review_status: asString(readField(source, "review_status", "reviewStatus")),
     finding_classification: classification,
     page_type: asString(readField(source, "page_type", "pageType")),
-    identity_confidence: asNumber(
-      readField(source, "identity_confidence", "identityConfidence"),
-    ),
+    identity_confidence: asNumber(readField(source, "identity_confidence", "identityConfidence")),
     synthetic_media_confidence: asNumber(
-      readField(
-        source,
-        "synthetic_media_confidence",
-        "syntheticMediaConfidence",
-      ),
+      readField(source, "synthetic_media_confidence", "syntheticMediaConfidence"),
     ),
-    matched_evidence: asStringArray(
-      readField(source, "matched_evidence", "matchedEvidence"),
-    ),
+    matched_evidence: asStringArray(readField(source, "matched_evidence", "matchedEvidence")),
     classification_explanation: asString(
-      readField(
-        source,
-        "classification_explanation",
-        "classificationExplanation",
-      ),
+      readField(source, "classification_explanation", "classificationExplanation"),
     ),
     url_verification_status: urlStatus,
     final_url: asString(readField(source, "final_url", "finalUrl")),
     canonical_url: asString(readField(source, "canonical_url", "canonicalUrl")),
-    discovered_url: asString(
-      readField(source, "discovered_url", "discoveredUrl"),
-    ),
-    verified_domain: asString(
-      readField(source, "verified_domain", "verifiedDomain"),
-    ),
+    discovered_url: asString(readField(source, "discovered_url", "discoveredUrl")),
+    verified_domain: asString(readField(source, "verified_domain", "verifiedDomain")),
     http_status: asNumber(readField(source, "http_status", "httpStatus")),
-    redirect_chain: asStringArray(
-      readField(source, "redirect_chain", "redirectChain"),
-    ),
+    redirect_chain: asStringArray(readField(source, "redirect_chain", "redirectChain")),
     crawled_at: asString(readField(source, "crawled_at", "crawledAt")),
     created_at: asString(readField(source, "created_at", "createdAt")),
   };
@@ -272,9 +228,7 @@ export function isDisplayableFinding(finding: ClientFinding): boolean {
   if (!isClientVisibleClassification(finding.finding_classification)) {
     return false;
   }
-  const status = normalizeUrlVerificationStatus(
-    finding.url_verification_status,
-  );
+  const status = normalizeUrlVerificationStatus(finding.url_verification_status);
   // Missing status is allowed: getDeepfakeScan already applied server filters.
   if (status && status !== "URL_VERIFIED") {
     return false;
@@ -292,12 +246,8 @@ export function buildOverviewMetrics(input: {
 }): OverviewMetrics {
   const findings = displayableFindings(input.findings);
   const domains = new Set(findings.map(findingDomain));
-  const verified = findings.filter(
-    (f) => f.finding_classification === "VERIFIED_DEEPFAKE",
-  ).length;
-  const probable = findings.filter(
-    (f) => f.finding_classification === "PROBABLE_DEEPFAKE",
-  ).length;
+  const verified = findings.filter((f) => f.finding_classification === "VERIFIED_DEEPFAKE").length;
+  const probable = findings.filter((f) => f.finding_classification === "PROBABLE_DEEPFAKE").length;
   const diagnostics = input.diagnostics ?? {};
 
   return {
@@ -325,8 +275,7 @@ export function buildFunnelChartData(input: {
 }): FunnelChartPoint[] {
   const findings = displayableFindings(input.findings);
   const d = input.diagnostics ?? {};
-  const discovered =
-    Number(d.unique_candidates ?? d.provider_candidates ?? 0) || 0;
+  const discovered = Number(d.unique_candidates ?? d.provider_candidates ?? 0) || 0;
   const crawled = Number(d.crawl_succeeded ?? 0) || 0;
   const identityMatched = findings.length;
   const evidenceVerified = findings.length;
@@ -374,10 +323,7 @@ export function buildDomainRows(findings: ClientFinding[]): DomainRow[] {
     const reviews = new Set(list.map((f) => f.review_status ?? "new"));
     let status: DomainRow["status"] = "active";
     if (reviews.size === 1 && reviews.has("reviewed")) status = "reviewed";
-    else if (
-      reviews.size === 1 &&
-      (reviews.has("dismissed") || reviews.has("queued_takedown"))
-    ) {
+    else if (reviews.size === 1 && (reviews.has("dismissed") || reviews.has("queued_takedown"))) {
       status = "reviewed";
     } else if (reviews.size > 1) status = "mixed";
 
@@ -426,16 +372,11 @@ export function buildNetworkGraph(input: {
   const domains: NetworkDomainNode[] = [...byDomain.entries()]
     .map(([domain, nodes]) => ({
       domain,
-      verifiedCount: nodes.filter((n) => n.classification === "VERIFIED_DEEPFAKE")
-        .length,
-      probableCount: nodes.filter((n) => n.classification === "PROBABLE_DEEPFAKE")
-        .length,
+      verifiedCount: nodes.filter((n) => n.classification === "VERIFIED_DEEPFAKE").length,
+      probableCount: nodes.filter((n) => n.classification === "PROBABLE_DEEPFAKE").length,
       findings: nodes,
     }))
-    .sort(
-      (a, b) =>
-        b.findings.length - a.findings.length || a.domain.localeCompare(b.domain),
-    );
+    .sort((a, b) => b.findings.length - a.findings.length || a.domain.localeCompare(b.domain));
 
   return {
     centerLabel: input.centerLabel.trim() || "Protected identity",
@@ -480,9 +421,7 @@ export function formatConfidence(value: number | null | undefined): string {
 function hasVisualConfirmation(finding: ClientFinding): boolean {
   return (
     finding.finding_classification === "VERIFIED_DEEPFAKE" ||
-    (finding.matched_evidence ?? []).some((item) =>
-      /\b(?:hive|face-match)\b/i.test(item),
-    )
+    (finding.matched_evidence ?? []).some((item) => /\b(?:hive|face-match)\b/i.test(item))
   );
 }
 
@@ -496,9 +435,7 @@ export function formatEvidenceConfidence(input: {
     input.finding.finding_classification === "PROBABLE_DEEPFAKE" &&
     !hasVisualConfirmation(input.finding)
   ) {
-    return input.kind === "synthetic"
-      ? "synth text evidence"
-      : "id text evidence";
+    return input.kind === "synthetic" ? "synth text evidence" : "id text evidence";
   }
   return formatConfidence(input.value);
 }
@@ -526,16 +463,11 @@ export function sortFindings(
       case "identity":
         return (a.identity_confidence ?? -1) - (b.identity_confidence ?? -1);
       case "synthetic":
-        return (
-          (a.synthetic_media_confidence ?? -1) -
-          (b.synthetic_media_confidence ?? -1)
-        );
+        return (a.synthetic_media_confidence ?? -1) - (b.synthetic_media_confidence ?? -1);
       case "http":
         return (a.http_status ?? -1) - (b.http_status ?? -1);
       case "classification":
-        return (a.finding_classification ?? "").localeCompare(
-          b.finding_classification ?? "",
-        );
+        return (a.finding_classification ?? "").localeCompare(b.finding_classification ?? "");
       default:
         return 0;
     }
@@ -552,16 +484,18 @@ export function filterFindings(input: {
 }): ClientFinding[] {
   const query = input.search?.trim().toLowerCase() ?? "";
   return displayableFindings(input.findings).filter((finding) => {
-    if (
-      input.riskFilter &&
-      input.riskFilter !== "ALL" &&
-      finding.risk_level !== input.riskFilter
-    ) {
+    if (input.riskFilter && input.riskFilter !== "ALL" && finding.risk_level !== input.riskFilter) {
       return false;
     }
     if (input.domainFilter) {
-      const wanted = input.domainFilter.trim().toLowerCase().replace(/^www\./, "");
-      const actual = findingDomain(finding).trim().toLowerCase().replace(/^www\./, "");
+      const wanted = input.domainFilter
+        .trim()
+        .toLowerCase()
+        .replace(/^www\./, "");
+      const actual = findingDomain(finding)
+        .trim()
+        .toLowerCase()
+        .replace(/^www\./, "");
       if (actual !== wanted) return false;
     }
     if (
@@ -608,8 +542,8 @@ function configuredSupabaseHost(): string | null {
   try {
     const raw =
       (typeof import.meta !== "undefined" &&
-        (import.meta as ImportMeta & { env?: Record<string, string | undefined> })
-          .env?.VITE_SUPABASE_URL) ||
+        (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
+          ?.VITE_SUPABASE_URL) ||
       process.env.VITE_SUPABASE_URL ||
       process.env.SUPABASE_URL ||
       null;
@@ -653,7 +587,11 @@ export function resolveSafeFindingThumbnail(input: {
   const discoveries = input.discoveries ?? [];
   const evidence = buildVerifiedEvidenceLink(input.finding);
   const targets = new Set(
-    [evidence.kind === "link" ? evidence.href : null, input.finding.final_url, input.finding.canonical_url]
+    [
+      evidence.kind === "link" ? evidence.href : null,
+      input.finding.final_url,
+      input.finding.canonical_url,
+    ]
       .filter(Boolean)
       .map((value) => String(value).trim()),
   );

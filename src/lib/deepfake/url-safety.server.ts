@@ -21,7 +21,6 @@ function loadUndici(): Promise<UndiciModule> {
   return undiciModulePromise;
 }
 
-
 export const MAX_SAFE_RESPONSE_BYTES = 1_500_000;
 export const MAX_SAFE_TEXT_LEN = 500;
 /** Bound for fallback drain when body.cancel() is unavailable. */
@@ -37,10 +36,7 @@ export type SafeFetchFailureCategory =
   | "network_failed"
   | "url_safety_rejected";
 
-export function sanitizeProviderText(
-  value: unknown,
-  maxLen = MAX_SAFE_TEXT_LEN,
-): string {
+export function sanitizeProviderText(value: unknown, maxLen = MAX_SAFE_TEXT_LEN): string {
   if (typeof value !== "string") return "";
   return value
     .replace(/[\u0000-\u001f\u007f]/g, " ")
@@ -188,11 +184,7 @@ export function isAllowedImageMime(contentType: string | null | undefined): bool
 export function isAllowedJsonMime(contentType: string | null | undefined): boolean {
   if (!contentType) return true;
   const base = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
-  return (
-    base === "application/json" ||
-    base === "text/json" ||
-    base.endsWith("+json")
-  );
+  return base === "application/json" || base === "text/json" || base.endsWith("+json");
 }
 
 export type DnsLookupAll = (
@@ -257,21 +249,14 @@ function defaultDnsLookupAll(
   return dnsPromises.lookup(hostname, options);
 }
 
-async function withAbortSignal<T>(
-  promise: Promise<T>,
-  signal?: AbortSignal,
-): Promise<T> {
+async function withAbortSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return promise;
   if (signal.aborted) {
-    throw signal.reason instanceof Error
-      ? signal.reason
-      : new Error("Aborted");
+    throw signal.reason instanceof Error ? signal.reason : new Error("Aborted");
   }
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => {
-      reject(
-        signal.reason instanceof Error ? signal.reason : new Error("Aborted"),
-      );
+      reject(signal.reason instanceof Error ? signal.reason : new Error("Aborted"));
     };
     signal.addEventListener("abort", onAbort, { once: true });
     promise.then(
@@ -300,22 +285,15 @@ export function preferIpv4Addresses(addresses: string[]): string[] {
  * - otherwise → callback(null, address, family)
  * Always returns the pre-validated public address (DNS-rebinding safe).
  */
-export function createPinnedLookup(
-  pinned: string,
-  family: 4 | 6,
-): PinnedLookupCallback {
+export function createPinnedLookup(pinned: string, family: 4 | 6): PinnedLookupCallback {
   if (isPrivateOrReservedIpAddress(pinned)) {
-    throw Object.assign(
-      new Error(`Refusing to pin private/reserved address: ${pinned}`),
-      { failureCategory: "private_address_rejected" as const },
-    );
+    throw Object.assign(new Error(`Refusing to pin private/reserved address: ${pinned}`), {
+      failureCategory: "private_address_rejected" as const,
+    });
   }
 
   return (_hostname, options, callback) => {
-    const opts =
-      typeof options === "object" && options
-        ? (options as { all?: boolean })
-        : {};
+    const opts = typeof options === "object" && options ? (options as { all?: boolean }) : {};
     if (opts.all) {
       callback(null, [{ address: pinned, family }]);
       return;
@@ -344,10 +322,7 @@ export async function resolvePublicAddresses(
 
   let records: dns.LookupAddress[];
   try {
-    records = await withAbortSignal(
-      lookupAll(host, { all: true, verbatim: true }),
-      signal,
-    );
+    records = await withAbortSignal(lookupAll(host, { all: true, verbatim: true }), signal);
   } catch (error) {
     if (signal?.aborted) throw error;
     const message = error instanceof Error ? error.message : String(error);
@@ -364,9 +339,7 @@ export async function resolvePublicAddresses(
   );
 
   if (!publicAddresses.length) {
-    const err = new Error(
-      `DNS for ${host} resolved only to private/reserved addresses`,
-    );
+    const err = new Error(`DNS for ${host} resolved only to private/reserved addresses`);
     (err as Error & { failureCategory?: SafeFetchFailureCategory }).failureCategory =
       "private_address_rejected";
     throw err;
@@ -389,11 +362,7 @@ export async function assertSafePublicUrlForFetch(
     throw err;
   }
   const parsed = new URL(url);
-  const addresses = await resolvePublicAddresses(
-    parsed.hostname,
-    lookupAll,
-    signal,
-  );
+  const addresses = await resolvePublicAddresses(parsed.hostname, lookupAll, signal);
   return { parsed, addresses };
 }
 
@@ -401,12 +370,9 @@ export async function assertSafePublicUrlForFetch(
  * Classify network/DNS/TLS failures into safe diagnostic categories.
  * Never includes secrets, raw bodies, or provider payloads.
  */
-export function classifySafeFetchFailure(
-  error: unknown,
-): SafeFetchFailureCategory {
+export function classifySafeFetchFailure(error: unknown): SafeFetchFailureCategory {
   if (error && typeof error === "object") {
-    const tagged = (error as { failureCategory?: SafeFetchFailureCategory })
-      .failureCategory;
+    const tagged = (error as { failureCategory?: SafeFetchFailureCategory }).failureCategory;
     if (tagged) return tagged;
   }
 
@@ -422,9 +388,7 @@ export function classifySafeFetchFailure(
   if (/dns resolution failed|enotfound|eai_again|getaddrinfo/i.test(lower)) {
     return "dns_resolution_failed";
   }
-  if (
-    /cert|ssl|tls|sni|handshake|err_tls|unable to verify|altname/i.test(lower)
-  ) {
+  if (/cert|ssl|tls|sni|handshake|err_tls|unable to verify|altname/i.test(lower)) {
     return "tls_connection_failed";
   }
   if (/timeout|timed out|etimedout|abort.*timeout/i.test(lower)) {
@@ -445,15 +409,12 @@ function tagFetchError(error: unknown): Error {
     error instanceof Error
       ? error
       : new Error(typeof error === "string" ? error : "Pinned fetch failed");
-  (wrapped as Error & { failureCategory?: SafeFetchFailureCategory }).failureCategory =
-    category;
+  (wrapped as Error & { failureCategory?: SafeFetchFailureCategory }).failureCategory = category;
   return wrapped;
 }
 
 function abortError(signal?: AbortSignal | null): Error {
-  return signal?.reason instanceof Error
-    ? signal.reason
-    : new Error("Aborted");
+  return signal?.reason instanceof Error ? signal.reason : new Error("Aborted");
 }
 
 /** Max wait for probe-body cancel/drain so cleanup cannot stall a hop forever. */
@@ -606,10 +567,9 @@ async function pinnedPublicHttpFetch(
         const addr = Array.isArray(result) ? result[0]?.address : undefined;
         if (!addr || isPrivateOrReservedIpAddress(addr)) {
           reject(
-            Object.assign(
-              new Error("Pinned lookup refused private/reserved address"),
-              { failureCategory: "private_address_rejected" as const },
-            ),
+            Object.assign(new Error("Pinned lookup refused private/reserved address"), {
+              failureCategory: "private_address_rejected" as const,
+            }),
           );
           return;
         }
@@ -643,7 +603,6 @@ async function pinnedPublicHttpFetch(
   try {
     // Never fall back to unpinned global fetch if this throws.
     return (await undiciFetch(requestUrl, {
-
       method: requestInit.method,
       headers: requestInit.headers as any,
       body: requestInit.body as any,

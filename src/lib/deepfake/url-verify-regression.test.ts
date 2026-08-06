@@ -22,10 +22,7 @@ import {
   setTestDnsLookupAll,
   setTestPinnedHttpFetch,
 } from "./url-safety.server";
-import {
-  resolveRedirectChain,
-  verifyCandidateUrls,
-} from "./url-verification.server";
+import { resolveRedirectChain, verifyCandidateUrls } from "./url-verification.server";
 import { decideTerminalStatus } from "./scan-ownership.server";
 import { searchSerpApiGoogleImages } from "./serpapi-images.server";
 import { firecrawlFetch } from "@/lib/firecrawl-client.server";
@@ -155,10 +152,9 @@ test("DNS result changes between validation and connection cannot reach a privat
     return new Response(null, { status: 200 });
   });
 
-  const response = await fetchValidatedPublicHttpUrl(
-    "https://rebinding.example/page",
-    { method: "GET" },
-  );
+  const response = await fetchValidatedPublicHttpUrl("https://rebinding.example/page", {
+    method: "GET",
+  });
   assert.equal(response.status, 200);
   assert.equal(dnsCalls, 1);
   assert.equal(connectLookups, 1);
@@ -187,10 +183,9 @@ test("mixed/rebinding DNS cannot bypass pinning", async () => {
     return new Response(null, { status: 200 });
   });
 
-  const response = await fetchValidatedPublicHttpUrl(
-    "https://mixed.example/safe",
-    { method: "HEAD" },
-  );
+  const response = await fetchValidatedPublicHttpUrl("https://mixed.example/safe", {
+    method: "HEAD",
+  });
   assert.equal(response.status, 200);
 });
 
@@ -318,17 +313,18 @@ test("private/reserved DNS and unsafe redirects remain rejected", async () => {
   assert.equal(privateDns.failure_category, "private_address_rejected");
 
   setTestDnsLookupAll(async () => [{ address: "93.184.216.34", family: 4 }]);
-  setTestPinnedHttpFetch(async () =>
-    new Response(null, {
-      status: 302,
-      headers: { location: "http://192.168.0.1/admin" },
-    }),
+  setTestPinnedHttpFetch(
+    async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: "http://192.168.0.1/admin" },
+      }),
   );
 
-  const unsafeRedirect = await resolveRedirectChain(
-    "https://example.com/safe",
-    { timeoutMs: 3_000, softDeadlineMs: Date.now() + 5_000 },
-  );
+  const unsafeRedirect = await resolveRedirectChain("https://example.com/safe", {
+    timeoutMs: 3_000,
+    softDeadlineMs: Date.now() + 5_000,
+  });
   assert.equal(unsafeRedirect.ok, false);
   assert.equal(unsafeRedirect.failure_category, "redirect_rejected");
 });
@@ -367,19 +363,14 @@ test("network failures record distinct categories, not blanket url_rejected", as
 
   assert.equal(
     classifySafeFetchFailure(
-      new DOMException(
-        "The operation was aborted due to timeout",
-        "TimeoutError",
-      ),
+      new DOMException("The operation was aborted due to timeout", "TimeoutError"),
     ),
     "request_timeout",
   );
 
   setTestDnsLookupAll(async () => [{ address: "93.184.216.34", family: 4 }]);
   setTestPinnedHttpFetch(async () => {
-    throw new Error(
-      "TLS handshake failed: unable to verify the first certificate",
-    );
+    throw new Error("TLS handshake failed: unable to verify the first certificate");
   });
 
   const tlsFail = await resolveRedirectChain("https://example.com/tls", {
@@ -428,10 +419,10 @@ test("SerpApi failure does not affect Firecrawl verification path", async () => 
 
   setTestDnsLookupAll(async () => [{ address: "93.184.216.34", family: 4 }]);
   setTestPinnedHttpFetch(async () => new Response(null, { status: 200 }));
-  const firecrawlPath = await resolveRedirectChain(
-    "https://example.com/post/ada-deepfake",
-    { timeoutMs: 5_000, softDeadlineMs: Date.now() + 10_000 },
-  );
+  const firecrawlPath = await resolveRedirectChain("https://example.com/post/ada-deepfake", {
+    timeoutMs: 5_000,
+    softDeadlineMs: Date.now() + 10_000,
+  });
   assert.equal(firecrawlPath.ok, true);
   assert.equal(firecrawlPath.http_status, 200);
 });
@@ -446,10 +437,10 @@ test("Firecrawl-only scan unchanged when SerpApi is absent", async () => {
 
   setTestDnsLookupAll(async () => [{ address: "93.184.216.34", family: 4 }]);
   setTestPinnedHttpFetch(async () => new Response(null, { status: 200 }));
-  const resolved = await resolveRedirectChain(
-    "https://cdn.example.com/watch/123",
-    { timeoutMs: 5_000, softDeadlineMs: Date.now() + 10_000 },
-  );
+  const resolved = await resolveRedirectChain("https://cdn.example.com/watch/123", {
+    timeoutMs: 5_000,
+    softDeadlineMs: Date.now() + 10_000,
+  });
   assert.equal(resolved.ok, true);
 });
 
@@ -458,10 +449,7 @@ test("provider timeout remains bounded", async () => {
   let attempts = 0;
   setTestPinnedHttpFetch(async () => {
     attempts += 1;
-    throw new DOMException(
-      "The operation was aborted due to timeout",
-      "TimeoutError",
-    );
+    throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
   });
 
   const started = Date.now();
@@ -477,10 +465,11 @@ test("provider timeout remains bounded", async () => {
 });
 
 test("prefer IPv4 for dual-stack hosts (Vercel-friendly)", () => {
-  assert.deepEqual(
-    preferIpv4Addresses(["2001:db8::1", "93.184.216.34", "2001:db8::2"]),
-    ["93.184.216.34", "2001:db8::1", "2001:db8::2"],
-  );
+  assert.deepEqual(preferIpv4Addresses(["2001:db8::1", "93.184.216.34", "2001:db8::2"]), [
+    "93.184.216.34",
+    "2001:db8::1",
+    "2001:db8::2",
+  ]);
 });
 
 test("zero verified progress still ends FAILED; saved progress ends PARTIAL", () => {
@@ -513,8 +502,5 @@ test("classifySafeFetchFailure never leaks raw provider payloads", () => {
 });
 
 test("createPinnedLookup refuses private addresses", () => {
-  assert.throws(
-    () => createPinnedLookup("127.0.0.1", 4),
-    /private|reserved/i,
-  );
+  assert.throws(() => createPinnedLookup("127.0.0.1", 4), /private|reserved/i);
 });

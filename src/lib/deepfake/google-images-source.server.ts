@@ -8,8 +8,7 @@
 
 import { isSafePublicHttpUrl } from "./url-safety.server";
 
-const GOOGLE_HOST_RE =
-  /(?:^|\.)(?:google|gstatic|googleusercontent|ggpht|googleapis)\./i;
+const GOOGLE_HOST_RE = /(?:^|\.)(?:google|gstatic|googleusercontent|ggpht|googleapis)\./i;
 
 export function isGoogleOwnedHost(hostname: string): boolean {
   const host = hostname.replace(/^www\./i, "").toLowerCase();
@@ -20,9 +19,7 @@ export function isGoogleOwnedHost(hostname: string): boolean {
  * Google Images viewer / SERP pages — including tbnid, udm=2 rimg, #sv= fragments.
  * These must never be stored as evidence or source webpage URLs.
  */
-export function isGoogleImagesViewerUrl(
-  value: string | null | undefined,
-): boolean {
+export function isGoogleImagesViewerUrl(value: string | null | undefined): boolean {
   if (!value || typeof value !== "string") return false;
   try {
     const parsed = new URL(value.trim());
@@ -45,9 +42,7 @@ export function isGoogleImagesViewerUrl(
 }
 
 /** True when a URL can be used as a candidate source webpage (not Google SERP/viewer). */
-export function isUsableSourceWebsiteUrl(
-  value: string | null | undefined,
-): value is string {
+export function isUsableSourceWebsiteUrl(value: string | null | undefined): value is string {
   if (!isSafePublicHttpUrl(value)) return false;
   if (isGoogleImagesViewerUrl(value)) return false;
   try {
@@ -81,11 +76,7 @@ export function resolveGoogleImagesSourceWebsite(input: {
   ru?: string | null;
   explicitSource?: string | null;
 }): string | null {
-  const candidates = [
-    input.explicitSource,
-    input.imgrefurl,
-    input.ru,
-  ];
+  const candidates = [input.explicitSource, input.imgrefurl, input.ru];
 
   for (const candidate of candidates) {
     if (isUsableSourceWebsiteUrl(candidate)) return candidate.trim();
@@ -174,10 +165,8 @@ export function extractGoogleImagesMetaFromHtml(html: string): Array<{
   };
 
   // Explicit ou→ru and ru→ou pairs
-  const ouThenRu =
-    /"ou"\s*:\s*"(https?:[^"\\]+)"[^{}\[\]]*?"ru"\s*:\s*"(https?:[^"\\]+)"/gi;
-  const ruThenOu =
-    /"ru"\s*:\s*"(https?:[^"\\]+)"[^{}\[\]]*?"ou"\s*:\s*"(https?:[^"\\]+)"/gi;
+  const ouThenRu = /"ou"\s*:\s*"(https?:[^"\\]+)"[^{}\[\]]*?"ru"\s*:\s*"(https?:[^"\\]+)"/gi;
+  const ruThenOu = /"ru"\s*:\s*"(https?:[^"\\]+)"[^{}\[\]]*?"ou"\s*:\s*"(https?:[^"\\]+)"/gi;
   let match: RegExpExecArray | null;
   while ((match = ouThenRu.exec(html))) {
     upsert(match[1] ?? "", match[2] ?? null);
@@ -187,14 +176,12 @@ export function extractGoogleImagesMetaFromHtml(html: string): Array<{
   }
 
   // imgurl / imgrefurl in anchor hrefs embedded in HTML
-  const hrefRe =
-    /href=["']([^"']*(?:imgurl|imgrefurl|imgres)[^"']*)["']/gi;
+  const hrefRe = /href=["']([^"']*(?:imgurl|imgrefurl|imgres)[^"']*)["']/gi;
   while ((match = hrefRe.exec(html))) {
     const href = decodeGoogleJsonUrl(match[1] ?? "");
     try {
       const parsed = new URL(href, "https://www.google.com");
-      const imgurl =
-        parsed.searchParams.get("imgurl") || parsed.searchParams.get("url");
+      const imgurl = parsed.searchParams.get("imgurl") || parsed.searchParams.get("url");
       const imgrefurl =
         parsed.searchParams.get("imgrefurl") ||
         parsed.searchParams.get("imgref") ||
@@ -212,8 +199,7 @@ export function extractGoogleImagesMetaFromHtml(html: string): Array<{
   }
 
   // Titles near ou blocks
-  const ouTitleRe =
-    /"ou"\s*:\s*"(https?:[^"\\]+)"[^{}\[\]]*?"pt"\s*:\s*"([^"\\]+)"/gi;
+  const ouTitleRe = /"ou"\s*:\s*"(https?:[^"\\]+)"[^{}\[\]]*?"pt"\s*:\s*"([^"\\]+)"/gi;
   while ((match = ouTitleRe.exec(html))) {
     upsert(match[1] ?? "", null, { title: decodeGoogleJsonUrl(match[2] ?? "") });
   }
@@ -230,9 +216,7 @@ export function extractGoogleImagesMetaFromHtml(html: string): Array<{
   return out;
 }
 
-export function hostnameOfSourceUrl(
-  value: string | null | undefined,
-): string | null {
+export function hostnameOfSourceUrl(value: string | null | undefined): string | null {
   if (!isUsableSourceWebsiteUrl(value)) return null;
   try {
     return new URL(value).hostname.replace(/^www\./i, "").toLowerCase();
@@ -242,10 +226,7 @@ export function hostnameOfSourceUrl(
 }
 
 /** Same-domain gallery / media / album page heuristic. */
-export function isSameDomainGalleryLink(
-  link: string,
-  basePageUrl: string,
-): boolean {
+export function isSameDomainGalleryLink(link: string, basePageUrl: string): boolean {
   if (!isUsableSourceWebsiteUrl(link)) return false;
   try {
     const base = new URL(basePageUrl);

@@ -18,10 +18,7 @@ import type { DistributionAnalysis } from "./distribution.server";
 
 const TITLES = ["Balan", "Balan 2024 Full Movie"];
 
-function lead(
-  url: string,
-  origin: CandidateUnionEntry["origin"],
-): CandidateUnionEntry {
+function lead(url: string, origin: CandidateUnionEntry["origin"]): CandidateUnionEntry {
   return {
     url,
     title: "Balan",
@@ -87,10 +84,7 @@ test("historical candidate wins dedup over fresh discovery for same URL", () => 
 });
 
 test("site-scoped queries are generated from stored domains without hardcoding", () => {
-  const queries = buildSiteScopedDiscoveryQueries(
-    ["movies.example", "stream.example"],
-    TITLES,
-  );
+  const queries = buildSiteScopedDiscoveryQueries(["movies.example", "stream.example"], TITLES);
   assert.ok(queries.some((q) => q.includes('site:movies.example "Balan"')));
   assert.ok(queries.some((q) => q.includes("watch")));
   assert.ok(!queries.some((q) => /ogomovies/i.test(q)));
@@ -113,15 +107,17 @@ test("detail follow recorder queues title-matched links and logs skips", () => {
   const stats = recorder.stats();
   assert.equal(stats.detail_pages_queued, 1);
   assert.ok(
-    recorder.getLogs().some(
-      (l) =>
-        l.event === "candidate_skipped" &&
-        (l.reason === "duplicate" ||
-          l.reason === "duplicate_url" ||
-          l.reason === "already_crawled" ||
-          l.reason === "cross_domain" ||
-          l.reason === "cross_domain_not_allowed"),
-    ),
+    recorder
+      .getLogs()
+      .some(
+        (l) =>
+          l.event === "candidate_skipped" &&
+          (l.reason === "duplicate" ||
+            l.reason === "duplicate_url" ||
+            l.reason === "already_crawled" ||
+            l.reason === "cross_domain" ||
+            l.reason === "cross_domain_not_allowed"),
+      ),
   );
 });
 
@@ -129,8 +125,7 @@ test("exact-title detail page with embedded full-work player yields strong acces
   const classified = classifyCopyrightPage({
     url: "https://stream.example/watch/balan",
     pageTitle: "Balan Watch Full Movie Online",
-    markdown:
-      "Watch Balan full movie online free streaming. Balan 2024 complete film HD.",
+    markdown: "Watch Balan full movie online free streaming. Balan 2024 complete film HD.",
     html: '<iframe src="https://embed.example/e/abc123"></iframe>',
     links: ["https://embed.example/e/abc123"],
     titles: TITLES,

@@ -117,10 +117,7 @@ export function ResultsIntelligenceConsole({
     cardRefs.current.clear();
   }, [scanId]);
 
-  const visibleFindings = useMemo(
-    () => displayableFindings(findings),
-    [findings],
-  );
+  const visibleFindings = useMemo(() => displayableFindings(findings), [findings]);
 
   useEffect(() => {
     const next = new Set(visibleFindings.map((finding) => finding.id));
@@ -137,10 +134,7 @@ export function ResultsIntelligenceConsole({
       if (!knownIdsRef.current.has(id)) newcomers.add(id);
     }
     knownIdsRef.current = next;
-    if (
-      newcomers.size &&
-      (scanStatus === "running" || scanStatus === "partial")
-    ) {
+    if (newcomers.size && (scanStatus === "running" || scanStatus === "partial")) {
       setNewIds(newcomers);
       if (!reduceMotion) {
         const timer = window.setTimeout(() => setNewIds(new Set()), 4_000);
@@ -188,10 +182,7 @@ export function ResultsIntelligenceConsole({
   );
   const networkFindings = scopedFindings;
 
-  const domainRows = useMemo(
-    () => buildDomainRows(networkFindings),
-    [networkFindings],
-  );
+  const domainRows = useMemo(() => buildDomainRows(networkFindings), [networkFindings]);
   const network = useMemo(
     () =>
       buildNetworkGraph({
@@ -210,13 +201,7 @@ export function ResultsIntelligenceConsole({
         classificationFilter,
         search,
       }),
-    [
-      visibleFindings,
-      riskFilter,
-      domainFilter,
-      classificationFilter,
-      search,
-    ],
+    [visibleFindings, riskFilter, domainFilter, classificationFilter, search],
   );
 
   const sorted = useMemo(() => {
@@ -227,10 +212,7 @@ export function ResultsIntelligenceConsole({
   }, [filtered, sortKey, sortDirection, redAlert]);
 
   const pageSize = 20;
-  const paged = useMemo(
-    () => paginateFindings(sorted, page, pageSize),
-    [sorted, page],
-  );
+  const paged = useMemo(() => paginateFindings(sorted, page, pageSize), [sorted, page]);
 
   useEffect(() => {
     setPage(1);
@@ -239,9 +221,7 @@ export function ResultsIntelligenceConsole({
   // Drop a stale domain filter when risk/classification no longer includes it.
   useEffect(() => {
     if (!domainFilter) return;
-    const stillPresent = networkFindings.some(
-      (finding) => findingDomain(finding) === domainFilter,
-    );
+    const stillPresent = networkFindings.some((finding) => findingDomain(finding) === domainFilter);
     if (!stillPresent) {
       setDomainFilter(null);
     }
@@ -255,10 +235,7 @@ export function ResultsIntelligenceConsole({
     }
   }, [selectedFindingId, sorted]);
 
-  const selectFinding = (
-    findingId: string,
-    options?: { syncDomain?: boolean },
-  ) => {
+  const selectFinding = (findingId: string, options?: { syncDomain?: boolean }) => {
     const target = networkFindings.find((item) => item.id === findingId);
     if (!target) return;
     setSelectedFindingId(findingId);
@@ -306,9 +283,7 @@ export function ResultsIntelligenceConsole({
       id="results-intelligence-console"
       className={[
         "space-y-4 rounded-xl",
-        redAlert
-          ? "border border-red-500/45 p-1 shadow-[0_0_36px_-12px_rgba(239,68,68,0.55)]"
-          : "",
+        redAlert ? "border border-red-500/45 p-1 shadow-[0_0_36px_-12px_rgba(239,68,68,0.55)]" : "",
         countPulse ? "animate-pulse" : "",
       ].join(" ")}
       data-testid="results-intelligence-console"
@@ -345,8 +320,8 @@ export function ResultsIntelligenceConsole({
                 className="rounded-xl border border-sky-500/25 bg-[#07111f] p-4 text-sm text-slate-300"
                 data-testid="verified-threat-overview-fallback"
               >
-                Verified Threat Overview unavailable — {overview.client_visible}{" "}
-                client-visible finding
+                Verified Threat Overview unavailable — {overview.client_visible} client-visible
+                finding
                 {overview.client_visible === 1 ? "" : "s"} still listed below.
               </div>
             }
@@ -366,8 +341,7 @@ export function ResultsIntelligenceConsole({
                 className="rounded-xl border border-sky-500/20 bg-[#07111f] p-4 text-sm text-slate-300"
                 data-testid="evidence-network-fallback"
               >
-                Evidence Network unavailable — domain and finding tables remain
-                below.
+                Evidence Network unavailable — domain and finding tables remain below.
               </div>
             }
           >
@@ -377,9 +351,7 @@ export function ResultsIntelligenceConsole({
               selectedDomain={domainFilter}
               selectedFindingId={selectedFindingId}
               onSelectDomain={setDomainFilter}
-              onSelectFinding={(findingId) =>
-                selectFinding(findingId, { syncDomain: true })
-              }
+              onSelectFinding={(findingId) => selectFinding(findingId, { syncDomain: true })}
               reduceMotion={reduceMotion}
               emptyMessage={
                 visibleFindings.length > 0
@@ -411,8 +383,7 @@ export function ResultsIntelligenceConsole({
                 onRiskChange={onRiskFilterChange}
               />
               <div className="text-[11px] text-slate-500">
-                Table + cards share pagination · showing {paged.items.length} of{" "}
-                {sorted.length}
+                Table + cards share pagination · showing {paged.items.length} of {sorted.length}
               </div>
               <VerifiedFindingsTable
                 findings={paged.items}
@@ -441,10 +412,7 @@ export function ResultsIntelligenceConsole({
         </div>
       ) : sorted.length === 0 ? (
         <div className="rounded-xl border border-sky-500/20 bg-[#07111f] p-10 text-center text-sm text-slate-400">
-          {riskFilter !== "ALL" &&
-          !domainFilter &&
-          classificationFilter === "ALL" &&
-          !search.trim()
+          {riskFilter !== "ALL" && !domainFilter && classificationFilter === "ALL" && !search.trim()
             ? emptyMessage || "No findings at this risk level."
             : "No findings match the current filters."}
         </div>
@@ -455,10 +423,7 @@ export function ResultsIntelligenceConsole({
           data-testid="intelligence-finding-cards"
         >
           <div className="flex items-center justify-between gap-2">
-            <h3
-              id="finding-cards-heading"
-              className="text-sm font-semibold text-slate-100"
-            >
+            <h3 id="finding-cards-heading" className="text-sm font-semibold text-slate-100">
               Finding cards
             </h3>
             <span className="text-[11px] text-slate-500">

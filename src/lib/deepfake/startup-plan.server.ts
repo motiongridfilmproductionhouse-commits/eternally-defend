@@ -8,18 +8,9 @@ import { generateDeepfakeQueries } from "./query-generator.server";
 import { buildExecutedQueryPlan } from "./discovery-plan.server";
 import { buildAdaptiveQuerySchedule } from "./query-priority.server";
 import { INITIAL_PRIORITY_QUERY_COUNT } from "./scan-budget.server";
-import {
-  createEmptyCheckpoint,
-  type ScanCheckpoint,
-} from "./scan-checkpoint.server";
-import {
-  createDiscoveryFunnelMetrics,
-  type DiscoveryFunnelMetrics,
-} from "./scan-ownership.server";
-import {
-  createImportedImageQueries,
-  parseGoogleImagesUrl,
-} from "./google-images-import.server";
+import { createEmptyCheckpoint, type ScanCheckpoint } from "./scan-checkpoint.server";
+import { createDiscoveryFunnelMetrics, type DiscoveryFunnelMetrics } from "./scan-ownership.server";
+import { createImportedImageQueries, parseGoogleImagesUrl } from "./google-images-import.server";
 
 export type DeepfakeStartupPlan = {
   aliases: string[];
@@ -67,24 +58,15 @@ export function buildStartupQueryList(input: {
     generatedQueries,
     maxQueries: input.maxQueries,
   });
-  const importedKeys = new Set(
-    importedQueries.map((query) => query.toLowerCase()),
-  );
-  const importedHead = merged.filter((query) =>
-    importedKeys.has(query.toLowerCase()),
-  );
-  const remainder = merged.filter(
-    (query) => !importedKeys.has(query.toLowerCase()),
-  );
+  const importedKeys = new Set(importedQueries.map((query) => query.toLowerCase()));
+  const importedHead = merged.filter((query) => importedKeys.has(query.toLowerCase()));
+  const remainder = merged.filter((query) => !importedKeys.has(query.toLowerCase()));
   const scheduledRemainder = buildAdaptiveQuerySchedule({
     queries: remainder,
     initialCount: INITIAL_PRIORITY_QUERY_COUNT,
   });
 
-  return uniqueStrings([...importedHead, ...scheduledRemainder]).slice(
-    0,
-    input.maxQueries,
-  );
+  return uniqueStrings([...importedHead, ...scheduledRemainder]).slice(0, input.maxQueries);
 }
 
 export function prepareDeepfakeStartupPlan(input: {
@@ -103,10 +85,7 @@ export function prepareDeepfakeStartupPlan(input: {
     aliases: input.aliases,
     handles: input.handles,
   });
-  const aliases = uniqueStrings([
-    ...(input.aliases ?? []),
-    ...autoAliases,
-  ]).slice(0, 48);
+  const aliases = uniqueStrings([...(input.aliases ?? []), ...autoAliases]).slice(0, 48);
 
   const queries = buildStartupQueryList({
     name: input.name,

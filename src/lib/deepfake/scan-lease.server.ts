@@ -3,14 +3,8 @@
  * batch-based Deepfake Intelligence workers.
  */
 
-import {
-  leaseExpiresAtIso,
-  type ScanRuntime,
-} from "./scan-runtime.server";
-import {
-  touchScanProgress,
-  type ScanOwnership,
-} from "./scan-ownership.server";
+import { leaseExpiresAtIso, type ScanRuntime } from "./scan-runtime.server";
+import { touchScanProgress, type ScanOwnership } from "./scan-ownership.server";
 
 /** Active worker lease — must exceed a single worker budget plus provider slack. */
 export const WORKER_LEASE_TTL_MS = 180_000;
@@ -49,10 +43,7 @@ function parseTimestamp(value: unknown): number | null {
  * Returns true only when a running scan's lease is expired beyond grace and
  * there is no evidence of an in-flight worker or recent continuation handoff.
  */
-export function isScanEligibleForStaleRecovery(
-  row: ScanLeaseRow,
-  nowMs = Date.now(),
-): boolean {
+export function isScanEligibleForStaleRecovery(row: ScanLeaseRow, nowMs = Date.now()): boolean {
   if (row.status && row.status !== "running") return false;
 
   const leaseExpiry = parseTimestamp(row.lease_expires_at);
@@ -65,35 +56,23 @@ export function isScanEligibleForStaleRecovery(
   const metrics = objectish(row.discovery_metrics);
   if (metrics) {
     const continuationAt = parseTimestamp(metrics.continuation_scheduled_at);
-    if (
-      continuationAt != null &&
-      nowMs - continuationAt < CONTINUATION_SCHEDULED_GRACE_MS
-    ) {
+    if (continuationAt != null && nowMs - continuationAt < CONTINUATION_SCHEDULED_GRACE_MS) {
       return false;
     }
 
     const workerLastBatchAt = parseTimestamp(metrics.worker_last_batch_at);
-    if (
-      workerLastBatchAt != null &&
-      nowMs - workerLastBatchAt < STALE_RECOVERY_GRACE_MS
-    ) {
+    if (workerLastBatchAt != null && nowMs - workerLastBatchAt < STALE_RECOVERY_GRACE_MS) {
       return false;
     }
 
     const workerHeartbeatAt = parseTimestamp(metrics.worker_heartbeat_at);
-    if (
-      workerHeartbeatAt != null &&
-      nowMs - workerHeartbeatAt < STALE_RECOVERY_GRACE_MS
-    ) {
+    if (workerHeartbeatAt != null && nowMs - workerHeartbeatAt < STALE_RECOVERY_GRACE_MS) {
       return false;
     }
   }
 
   const heartbeatAt = parseTimestamp(row.heartbeat_at);
-  if (
-    heartbeatAt != null &&
-    nowMs - heartbeatAt < STALE_RECOVERY_GRACE_MS
-  ) {
+  if (heartbeatAt != null && nowMs - heartbeatAt < STALE_RECOVERY_GRACE_MS) {
     return false;
   }
 
@@ -112,8 +91,7 @@ export async function renewScanLease(input: {
   nowMs?: number;
 }): Promise<{ lease_expires_at: string }> {
   const nowMs = input.nowMs ?? Date.now();
-  const leaseTtlMs =
-    input.leaseTtlMs ?? input.ownership.runtime.leaseTtlMs;
+  const leaseTtlMs = input.leaseTtlMs ?? input.ownership.runtime.leaseTtlMs;
   const leaseExpiresAt = leaseExpiresAtIso(leaseTtlMs, nowMs);
 
   await touchScanProgress({

@@ -34,20 +34,14 @@ test("resolveCopyrightScanWorkerUrl derives same-origin hook from SITE_URL", () 
   const url = resolveCopyrightScanWorkerUrl({
     SITE_URL: "https://eternasentinel.com",
   } as NodeJS.ProcessEnv);
-  assert.equal(
-    url,
-    "https://eternasentinel.com/api/public/hooks/copyright-scan-execute",
-  );
+  assert.equal(url, "https://eternasentinel.com/api/public/hooks/copyright-scan-execute");
 });
 
 test("resolveCopyrightScanWorkerUrl derives hook from VERCEL_URL", () => {
   const url = resolveCopyrightScanWorkerUrl({
     VERCEL_URL: "eternally-defend.vercel.app",
   } as NodeJS.ProcessEnv);
-  assert.equal(
-    url,
-    "https://eternally-defend.vercel.app/api/public/hooks/copyright-scan-execute",
-  );
+  assert.equal(url, "https://eternally-defend.vercel.app/api/public/hooks/copyright-scan-execute");
 });
 
 test("resolveCopyrightScanWorkerUrl returns null when no base URL is known", () => {

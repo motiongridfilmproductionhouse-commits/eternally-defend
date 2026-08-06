@@ -158,7 +158,13 @@ export interface CopyrightReportModel {
     activeSources: number;
     removedSources: number;
     enforcementWorkload: string;
-    topTargets: Array<{ rank: number; domain: string; severity: ThreatSeverity; confidence: number; action: string }>;
+    topTargets: Array<{
+      rank: number;
+      domain: string;
+      severity: ThreatSeverity;
+      confidence: number;
+      action: string;
+    }>;
   };
 }
 
@@ -188,7 +194,9 @@ function iso(value: unknown): string {
   const raw = typeof value === "string" ? value : null;
   if (!raw) return NA;
   const date = new Date(raw);
-  return Number.isNaN(date.getTime()) ? raw : date.toISOString().replace("T", " ").slice(0, 19) + " UTC";
+  return Number.isNaN(date.getTime())
+    ? raw
+    : date.toISOString().replace("T", " ").slice(0, 19) + " UTC";
 }
 function hostOfUrl(url: string): string {
   try {
@@ -291,11 +299,7 @@ export interface BuildReportInput {
 
 /* ------------------------------------------------------------- builders */
 
-function buildThreat(
-  match: ReportMatchRow,
-  index: number,
-  input: BuildReportInput,
-): ReportThreat {
+function buildThreat(match: ReportMatchRow, index: number, input: BuildReportInput): ReportThreat {
   const ev = rec(match.evidence);
   const dist = rec(ev.distribution);
   const pageEvidence = rec(ev.page_evidence);
@@ -303,7 +307,10 @@ function buildThreat(
   const url = match.source_url;
   const domain = str(dist.domain) ?? str(ev.host) ?? hostOfUrl(url);
   const classification =
-    str(dist.classification) ?? str(ev.prior_classification) ?? str(match.detection_type) ?? "UNVERIFIED_LEAD";
+    str(dist.classification) ??
+    str(ev.prior_classification) ??
+    str(match.detection_type) ??
+    "UNVERIFIED_LEAD";
   const confidence = Math.round(num(match.confidence) ?? 0);
   const categoryKey = classifyThreatCategory({
     domain,
@@ -320,7 +327,9 @@ function buildThreat(
   const removed = match.review_status === "removed";
   const status: ReportThreat["status"] = removed ? "removed" : crawlFailed ? "offline" : "active";
 
-  const distributionLinks = unique(list(dist.distribution_links).concat(list(ev.distribution_links)));
+  const distributionLinks = unique(
+    list(dist.distribution_links).concat(list(ev.distribution_links)),
+  );
   const embedSources = unique(list(dist.embed_sources).concat(list(ev.embed_sources)));
   const directFileUrls = distributionLinks.filter((link) =>
     /\.(mp4|mkv|avi|m3u8|torrent|zip)(\?|$)/i.test(link),
@@ -334,17 +343,22 @@ function buildThreat(
         })
         .filter((v): v is string => Boolean(v))
     : [];
-  const accessEvidence = unique(list(rec(pageEvidence.accessEvidence).signals).concat(list(dist.access_evidence)));
+  const accessEvidence = unique(
+    list(rec(pageEvidence.accessEvidence).signals).concat(list(dist.access_evidence)),
+  );
   const identityEvidence = unique(list(dist.identity_evidence).concat(list(ev.identity_evidence)));
   const qualityTags = unique(list(dist.quality_tags));
-  const downloadButtonDetected = accessEvidence.concat(indicatorDetails).some((signal) =>
-    /download|magnet|torrent|\.mp4|\.mkv/i.test(signal),
-  );
-  const embeddedPlayerDetected = embedSources.length > 0 ||
+  const downloadButtonDetected = accessEvidence
+    .concat(indicatorDetails)
+    .some((signal) => /download|magnet|torrent|\.mp4|\.mkv/i.test(signal));
+  const embeddedPlayerDetected =
+    embedSources.length > 0 ||
     accessEvidence.concat(indicatorDetails).some((signal) => /iframe|embed/i.test(signal));
   const streamingPlayerDetected =
     /STREAM/i.test(classification) ||
-    accessEvidence.concat(indicatorDetails).some((signal) => /player|stream|watch online|m3u8/i.test(signal));
+    accessEvidence
+      .concat(indicatorDetails)
+      .some((signal) => /player|stream|watch online|m3u8/i.test(signal));
 
   const intel = input.domainIntel?.[domain];
   const investigation = intel?.investigation;
@@ -394,13 +408,15 @@ function buildThreat(
           },
         ]
       : []),
-    ...unique(intel?.mirrorDomains ?? []).slice(0, 4).map((mirror) => ({
-      label: "Mirror URL",
-      url: mirror.startsWith("http") ? mirror : `https://${mirror}`,
-      httpStatus: "Resolved from infrastructure intelligence",
-      verifiedAt: iso(intel?.cachedAt),
-      live: "Unverified" as const,
-    })),
+    ...unique(intel?.mirrorDomains ?? [])
+      .slice(0, 4)
+      .map((mirror) => ({
+        label: "Mirror URL",
+        url: mirror.startsWith("http") ? mirror : `https://${mirror}`,
+        httpStatus: "Resolved from infrastructure intelligence",
+        verifiedAt: iso(intel?.cachedAt),
+        live: "Unverified" as const,
+      })),
   ];
 
   const aiSummaryParts: string[] = [];
@@ -415,10 +431,13 @@ function buildThreat(
   if (distributionLinks.length) {
     aiSummaryParts.push(`${distributionLinks.length} distribution link(s) were captured`);
   }
-  if (qualityTags.length) aiSummaryParts.push(`release quality markers (${qualityTags.slice(0, 3).join(", ")})`);
+  if (qualityTags.length)
+    aiSummaryParts.push(`release quality markers (${qualityTags.slice(0, 3).join(", ")})`);
   const aiSummary =
     `Classified as ${classificationLabel(classification).toLowerCase()} at ${confidence}% confidence because ` +
-    (aiSummaryParts.length ? aiSummaryParts.join(", ") + "." : "unauthorized distribution indicators were verified on the page.") +
+    (aiSummaryParts.length
+      ? aiSummaryParts.join(", ") + "."
+      : "unauthorized distribution indicators were verified on the page.") +
     (str(match.reason) ? ` Analyst note: ${str(match.reason)}` : "") +
     " Evidence was captured and verified during this investigation; no takedown was submitted automatically.";
 
@@ -460,7 +479,8 @@ function buildThreat(
         ["Retrieval method", shown(str(ev.retrieval_method) ?? str(dist.retrieval_method))],
       ],
       ocrResult: str(match.ocr_text) ?? str(recognition.matched_ocr_text),
-      visualFingerprintScore: num(recognition.scene_similarity) ?? num(recognition.corroboration_score),
+      visualFingerprintScore:
+        num(recognition.scene_similarity) ?? num(recognition.corroboration_score),
       videoFingerprintScore: num(recognition.face_similarity),
       qualityTags,
       indicators: indicatorDetails.slice(0, 8),
@@ -479,7 +499,9 @@ function buildThreat(
       cloudProvider: shown(investigation?.cdn ?? investigation?.waf ?? null),
       ssl: shown(investigation?.sslStatus ?? null),
       nameservers: shown((investigation?.whoisNameservers ?? []).slice(0, 4).join(", ") || null),
-      whoisStatus: removal?.whoisPrivacy ? "Privacy protected" : shown(removal?.whoisContact ?? null),
+      whoisStatus: removal?.whoisPrivacy
+        ? "Privacy protected"
+        : shown(removal?.whoisContact ?? null),
     },
     enforcement: {
       hostingProvider: shown(removal?.hostingCompany ?? investigation?.hostingProvider),
@@ -487,7 +509,9 @@ function buildThreat(
       hostingComplaintUrl: shown(removal?.hostingAbuseForm ?? str(contact.reportUrl)),
       registrarAbuseEmail: shown(removal?.registrarAbuseEmail),
       registrarComplaintUrl: shown(removal?.registrarComplaintUrl),
-      dmcaContact: shown(removal?.dmcaPageUrl ?? removal?.copyrightComplaintUrl ?? str(contact.reportUrl)),
+      dmcaContact: shown(
+        removal?.dmcaPageUrl ?? removal?.copyrightComplaintUrl ?? str(contact.reportUrl),
+      ),
       legalContact: shown(removal?.legalContact),
       jurisdiction: shown(removal?.jurisdiction ?? country),
       priority: priorityForSeverity(severity),
@@ -498,7 +522,9 @@ function buildThreat(
       collectionTime: collectedAt,
       verificationTime: verifiedAt,
       sha256: evidenceHash,
-      status: crawlFailed ? "Preserved — source unreachable at verification" : "Verified and preserved",
+      status: crawlFailed
+        ? "Preserved — source unreachable at verification"
+        : "Verified and preserved",
       chainOfCustody: [
         `Discovered by Eterna discovery engine (${shown(str(ev.discovery))})`,
         "Page retrieved and rendered by the investigation runtime",
@@ -514,7 +540,11 @@ function buildThreat(
       embeddedPlayers: embedSources.slice(0, 6),
       downloadServers: unique(distributionLinks.map(hostOfUrl)).slice(0, 6),
       relatedInfrastructure: unique(
-        [intel?.reverseIpHost ?? "", investigation?.cdn ?? "", investigation?.hostingProvider ?? ""].filter(Boolean),
+        [
+          intel?.reverseIpHost ?? "",
+          investigation?.cdn ?? "",
+          investigation?.hostingProvider ?? "",
+        ].filter(Boolean),
       ),
     },
     geography: {
@@ -570,7 +600,10 @@ export function buildCopyrightReportModel(input: BuildReportInput): CopyrightRep
     ? Math.min(
         100,
         Math.round(
-          critical * 18 + high * 9 + Math.max(0, threats.length - critical - high) * 3 + (active ? 10 : 0),
+          critical * 18 +
+            high * 9 +
+            Math.max(0, threats.length - critical - high) * 3 +
+            (active ? 10 : 0),
         ),
       )
     : 0;
@@ -580,16 +613,23 @@ export function buildCopyrightReportModel(input: BuildReportInput): CopyrightRep
     .slice(0, 6)
     .map((t) => `Send hosting + DMCA complaint for ${t.domain} (${t.confidence}% confidence).`);
   if (!immediateActions.length && threats.length) {
-    immediateActions.push("Review the verified sources below and file complaints in priority order.");
+    immediateActions.push(
+      "Review the verified sources below and file complaints in priority order.",
+    );
   }
   if (!threats.length) {
-    immediateActions.push("No verified unauthorized distribution was found in this investigation cycle.");
+    immediateActions.push(
+      "No verified unauthorized distribution was found in this investigation cycle.",
+    );
   }
 
   const geoCounts = new Map<string, { sources: number; region: string }>();
   for (const threat of threats) {
     const key = threat.geography.hostingCountry;
-    const current = geoCounts.get(key) ?? { sources: 0, region: threat.geography.distributionRegion };
+    const current = geoCounts.get(key) ?? {
+      sources: 0,
+      region: threat.geography.distributionRegion,
+    };
     current.sources += 1;
     geoCounts.set(key, current);
   }
@@ -597,14 +637,24 @@ export function buildCopyrightReportModel(input: BuildReportInput): CopyrightRep
   const timeline: ReportTimelineEntry[] = [
     { time: iso(input.scan.created_at), label: "Investigation started" },
     ...(num(stats.provider_queries) || num(stats.queries)
-      ? [{ time: iso(input.scan.created_at), label: `Discovery completed — ${num(stats.provider_queries) ?? num(stats.queries)} search sweeps` }]
+      ? [
+          {
+            time: iso(input.scan.created_at),
+            label: `Discovery completed — ${num(stats.provider_queries) ?? num(stats.queries)} search sweeps`,
+          },
+        ]
       : []),
     ...(input.timelineEvents ?? []).slice(0, 12).map((event) => ({
       time: iso(event.occurred_at),
       label: event.label,
     })),
     ...(threats.length
-      ? [{ time: iso(input.scan.completed_at ?? input.scan.updated_at), label: `Evidence captured for ${threats.length} verified source(s)` }]
+      ? [
+          {
+            time: iso(input.scan.completed_at ?? input.scan.updated_at),
+            label: `Evidence captured for ${threats.length} verified source(s)`,
+          },
+        ]
       : []),
     { time: iso(input.generatedAt), label: "Threat intelligence report generated" },
   ];

@@ -6,9 +6,7 @@
  * as page evidence.
  */
 
-import {
-  matchesSelectedIdentity,
-} from "./identity.server";
+import { matchesSelectedIdentity } from "./identity.server";
 import { createHash } from "node:crypto";
 import {
   detectPageType,
@@ -101,9 +99,7 @@ export function normalizeCanonicalUrl(url: string): string {
     parsed.hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
 
     for (const key of [...parsed.searchParams.keys()]) {
-      if (
-        /^(?:utm_|fbclid$|gclid$|ref$|source$|si$|feature$)/i.test(key)
-      ) {
+      if (/^(?:utm_|fbclid$|gclid$|ref$|source$|si$|feature$)/i.test(key)) {
         parsed.searchParams.delete(key);
       }
     }
@@ -119,10 +115,7 @@ export function contentFingerprint(input: {
   title?: string | null;
   page_text?: string | null;
 }): string | null {
-  const normalized = [
-    input.title ?? "",
-    input.page_text ?? "",
-  ]
+  const normalized = [input.title ?? "", input.page_text ?? ""]
     .join(" ")
     .toLowerCase()
     .replace(/\s+/g, " ")
@@ -132,9 +125,7 @@ export function contentFingerprint(input: {
     return null;
   }
 
-  return createHash("sha256")
-    .update(normalized.slice(0, 8_000))
-    .digest("hex");
+  return createHash("sha256").update(normalized.slice(0, 8_000)).digest("hex");
 }
 
 export function hostOf(url: string): string | null {
@@ -179,10 +170,7 @@ export function isRedirectOnlyResult(input: {
   return false;
 }
 
-export function containsTargetName(
-  text: string,
-  target: UrlVerificationTarget,
-): boolean {
+export function containsTargetName(text: string, target: UrlVerificationTarget): boolean {
   return matchesSelectedIdentity(text, target);
 }
 
@@ -276,16 +264,12 @@ export function identityInPrimaryContent(input: {
  * Pure verification decision from already-resolved + crawled page data.
  * Network I/O lives in resolveRedirectChain / verifyCandidateUrls.
  */
-export function evaluateUrlVerification(
-  input: UrlVerificationInput,
-): UrlVerificationResult {
+export function evaluateUrlVerification(input: UrlVerificationInput): UrlVerificationResult {
   const discovered = input.discovered_url.trim();
   const finalUrl = (input.final_url ?? discovered).trim();
   const canonical = normalizeCanonicalUrl(finalUrl);
   const crawledAt = input.crawled_at ?? new Date().toISOString();
-  const redirectChain = input.redirect_chain?.length
-    ? input.redirect_chain
-    : [discovered];
+  const redirectChain = input.redirect_chain?.length ? input.redirect_chain : [discovered];
 
   const base = {
     discovered_url: discovered,
@@ -313,20 +297,14 @@ export function evaluateUrlVerification(
 
   const status = input.http_status ?? 0;
   if (!status || status < 200 || status >= 400) {
-    return reject(
-      `Broken or unreachable URL (HTTP ${status || "unknown"}).`,
-    );
+    return reject(`Broken or unreachable URL (HTTP ${status || "unknown"}).`);
   }
 
   if (isHomepageUrl(finalUrl)) {
     return reject("Homepage URLs are not exact evidence pages.");
   }
 
-  const pageType = detectPageType(
-    finalUrl,
-    input.crawled_title,
-    input.crawled_page_text,
-  );
+  const pageType = detectPageType(finalUrl, input.crawled_title, input.crawled_page_text);
 
   if (isExcludedListingPageType(pageType)) {
     return reject(
@@ -389,9 +367,7 @@ export function evaluateUrlVerification(
       );
     }
 
-    return reject(
-      "Final page title and primary content do not match the selected identity.",
-    );
+    return reject("Final page title and primary content do not match the selected identity.");
   }
 
   return {
@@ -402,9 +378,7 @@ export function evaluateUrlVerification(
   };
 }
 
-export function isUrlVerified(
-  status: UrlVerificationStatus | string | null | undefined,
-): boolean {
+export function isUrlVerified(status: UrlVerificationStatus | string | null | undefined): boolean {
   return status === "URL_VERIFIED";
 }
 
@@ -479,15 +453,8 @@ export async function resolveRedirectChain(
 
     for (let attempt = 0; attempt < 3; attempt++) {
       assertNotAborted(options?.signal);
-      const hopTimeout = boundTimeoutMs(
-        timeoutMs,
-        options?.signal,
-        options?.softDeadlineMs,
-      );
-      const signal = mergeAbortSignals(
-        options?.signal,
-        AbortSignal.timeout(hopTimeout),
-      );
+      const hopTimeout = boundTimeoutMs(timeoutMs, options?.signal, options?.softDeadlineMs);
+      const signal = mergeAbortSignals(options?.signal, AbortSignal.timeout(hopTimeout));
 
       let response: Response | null = null;
 
@@ -530,10 +497,7 @@ export async function resolveRedirectChain(
           if (options?.signal?.aborted) {
             throw headError;
           }
-          if (
-            isAbortError(headError) &&
-            !isDeadlineOrTimeoutError(headError)
-          ) {
+          if (isAbortError(headError) && !isDeadlineOrTimeoutError(headError)) {
             throw headError;
           }
           response = await fetchValidatedPublicHttpUrl(current, {
@@ -649,11 +613,7 @@ export async function resolveRedirectChain(
           await releaseCompletedProbeBody(response, signal, options?.signal);
           response = null;
           await abortableSleep(
-            boundTimeoutMs(
-              (attempt + 1) * 1_000,
-              options?.signal,
-              options?.softDeadlineMs,
-            ),
+            boundTimeoutMs((attempt + 1) * 1_000, options?.signal, options?.softDeadlineMs),
             options?.signal,
           );
           continue;
@@ -687,16 +647,10 @@ export async function resolveRedirectChain(
           attempt < 2 &&
           (isDeadlineOrTimeoutError(error) ||
             (error instanceof Error &&
-              /\b(?:timeout|timed out|econnreset|etimedout)\b/i.test(
-                error.message,
-              )))
+              /\b(?:timeout|timed out|econnreset|etimedout)\b/i.test(error.message)))
         ) {
           await abortableSleep(
-            boundTimeoutMs(
-              (attempt + 1) * 1_000,
-              options?.signal,
-              options?.softDeadlineMs,
-            ),
+            boundTimeoutMs((attempt + 1) * 1_000, options?.signal, options?.softDeadlineMs),
             options?.signal,
           );
           continue;
@@ -708,8 +662,7 @@ export async function resolveRedirectChain(
           http_status: 0,
           redirect_chain: chain,
           ok: false,
-          error:
-            error instanceof Error ? error.message : String(error),
+          error: error instanceof Error ? error.message : String(error),
           failure_category: classifySafeFetchFailure(error),
         };
       }
@@ -974,10 +927,7 @@ export async function verifyCandidateUrls(
           },
         );
 
-        const pageRecord =
-          scraped.find((item) => item.page_inspected) ??
-          scraped[0] ??
-          null;
+        const pageRecord = scraped.find((item) => item.page_inspected) ?? scraped[0] ?? null;
 
         const crawledAt = new Date().toISOString();
         const pageInspected = Boolean(pageRecord?.page_inspected);
@@ -996,9 +946,7 @@ export async function verifyCandidateUrls(
           crawled_at: crawledAt,
         });
 
-        const providerScrapeFailed = scraped.some(
-          (item) => item.provider_scrape_failed,
-        );
+        const providerScrapeFailed = scraped.some((item) => item.provider_scrape_failed);
         const crawlFailedClosed =
           providerScrapeFailed &&
           !pageInspected &&
@@ -1023,8 +971,7 @@ export async function verifyCandidateUrls(
       const { hit, verification, media } = item;
       const networkFailureCategory =
         "networkFailureCategory" in item
-          ? (item as { networkFailureCategory?: SafeFetchFailureCategory })
-              .networkFailureCategory
+          ? (item as { networkFailureCategory?: SafeFetchFailureCategory }).networkFailureCategory
           : undefined;
 
       if (verification.url_verification_status !== "URL_VERIFIED") {
@@ -1040,9 +987,7 @@ export async function verifyCandidateUrls(
         } else {
           metrics.url_rejected++;
           if (
-            /\b(?:identity|protected identity|target)\b/i.test(
-              verification.rejection_reason ?? "",
-            )
+            /\b(?:identity|protected identity|target)\b/i.test(verification.rejection_reason ?? "")
           ) {
             metrics.identity_rejected++;
           }
@@ -1065,8 +1010,7 @@ export async function verifyCandidateUrls(
         rejected.push({
           ...verification,
           url_verification_status: "URL_REJECTED",
-          rejection_reason:
-            "Duplicate canonical URL after redirect normalization.",
+          rejection_reason: "Duplicate canonical URL after redirect normalization.",
         });
         continue;
       }

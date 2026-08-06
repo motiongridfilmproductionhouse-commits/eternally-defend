@@ -2,38 +2,27 @@ import { whoisDomain } from "whoiser";
 import { WhoisResult } from "./types";
 
 export async function lookupWhois(domain: string): Promise<WhoisResult> {
- try {
- const result = await whoisDomain(domain);
+  try {
+    const result = await whoisDomain(domain);
 
-  const record = Object.values(result)[0] as any;
+    const record = Object.values(result)[0] as any;
 
-  return {
-    registrar:
-      record?.registrar ||
-      record?.Registrar ||
-      "Unknown",
+    return {
+      registrar: record?.registrar || record?.Registrar || "Unknown",
 
-    createdAt:
-      record?.creationDate ||
-      record?.CreationDate,
+      createdAt: record?.creationDate || record?.CreationDate,
 
-    updatedAt:
-      record?.updatedDate ||
-      record?.UpdatedDate,
+      updatedAt: record?.updatedDate || record?.UpdatedDate,
 
-    expiresAt:
-      record?.registryExpiryDate ||
-      record?.RegistryExpiryDate,
+      expiresAt: record?.registryExpiryDate || record?.RegistryExpiryDate,
 
-    abuseEmail:
-      record?.abuseContactEmail ||
-      record?.RegistrarAbuseContactEmail,
+      abuseEmail: record?.abuseContactEmail || record?.RegistrarAbuseContactEmail,
 
-    nameservers: Array.isArray(record?.nameServer)
-      ? record.nameServer
-      : Array.isArray(record?.NameServer)
-      ? record.NameServer
-      : [],
+      nameservers: Array.isArray(record?.nameServer)
+        ? record.nameServer
+        : Array.isArray(record?.NameServer)
+          ? record.NameServer
+          : [],
     };
   } catch (error) {
     console.warn("WHOIS lookup failed:", error);

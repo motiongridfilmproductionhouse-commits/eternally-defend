@@ -10,10 +10,7 @@ import {
 } from "./worker-events.server";
 import { dispatchNextWorker } from "./scan-worker-dispatch.server";
 
-export async function runFirstWorkerWatchdog(input: {
-  supabase: any;
-  scanId: string;
-}): Promise<{
+export async function runFirstWorkerWatchdog(input: { supabase: any; scanId: string }): Promise<{
   action:
     | "ok_started"
     | "ok_progressing"
@@ -59,10 +56,7 @@ export async function runFirstWorkerWatchdog(input: {
 
   const eventNames = events.map((e) => e.event_name);
   const started = hasWorkerEvent(events, "worker_execution_started");
-  const claimFailed = hasWorkerEvent(
-    events,
-    "worker_started_but_query_claim_failed",
-  );
+  const claimFailed = hasWorkerEvent(events, "worker_started_but_query_claim_failed");
   const claimCompleted = hasWorkerEvent(events, "query_claim_completed");
   const claimed =
     claimCompleted &&

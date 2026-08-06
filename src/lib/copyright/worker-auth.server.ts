@@ -69,11 +69,7 @@ async function hmacSha256Hex(secret: string, message: string): Promise<string> {
     false,
     ["sign"],
   );
-  const signature = await globalThis.crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(message),
-  );
+  const signature = await globalThis.crypto.subtle.sign("HMAC", key, encoder.encode(message));
   return bytesToHex(signature);
 }
 
@@ -90,11 +86,8 @@ export async function verifyCopyrightScanWorkerRequest(
   timestampHeader: string | null,
   signatureHeader: string | null,
 ): Promise<boolean> {
-  return (await verifyCopyrightScanWorkerRequestDetailed(
-    rawBody,
-    timestampHeader,
-    signatureHeader,
-  )).ok;
+  return (await verifyCopyrightScanWorkerRequestDetailed(rawBody, timestampHeader, signatureHeader))
+    .ok;
 }
 
 export async function verifyCopyrightScanWorkerRequestDetailed(

@@ -39,14 +39,16 @@ export async function indexFace(opts: {
   bytes: Uint8Array;
   externalImageId: string;
 }): Promise<IndexedFace[]> {
-  const out = await getRekognition().send(new IndexFacesCommand({
-    CollectionId: opts.collectionId,
-    Image: { Bytes: opts.bytes },
-    ExternalImageId: opts.externalImageId,
-    DetectionAttributes: ["ALL"],
-    QualityFilter: "AUTO",
-    MaxFaces: 1,
-  }));
+  const out = await getRekognition().send(
+    new IndexFacesCommand({
+      CollectionId: opts.collectionId,
+      Image: { Bytes: opts.bytes },
+      ExternalImageId: opts.externalImageId,
+      DetectionAttributes: ["ALL"],
+      QualityFilter: "AUTO",
+      MaxFaces: 1,
+    }),
+  );
 
   if (!out.FaceRecords || out.FaceRecords.length === 0) {
     let reason = "No valid face detected or image quality was too low.";
@@ -54,7 +56,15 @@ export async function indexFace(opts: {
       const reasons = (out.UnindexedFaces[0].Reasons || []) as string[];
       if (reasons.includes("EXCEEDS_MAX_FACES")) {
         reason = "Multiple faces detected. Please ensure only you are in the frame.";
-      } else if (reasons.some((r) => r === "LOW_QUALITY" || r === "LOW_CONFIDENCE" || r === "LOW_SHARPNESS" || r === "LOW_BRIGHTNESS")) {
+      } else if (
+        reasons.some(
+          (r) =>
+            r === "LOW_QUALITY" ||
+            r === "LOW_CONFIDENCE" ||
+            r === "LOW_SHARPNESS" ||
+            r === "LOW_BRIGHTNESS",
+        )
+      ) {
         reason = "Image quality is too low (excessive blur, poor lighting, or poor pose).";
       }
     }
@@ -65,9 +75,11 @@ export async function indexFace(opts: {
   const detail = faceRecord.FaceDetail;
   if (detail) {
     const pose = detail.Pose;
-    const quality = (detail as unknown as { ImageQuality?: { Sharpness?: number; Brightness?: number } }).ImageQuality;
+    const quality = (
+      detail as unknown as { ImageQuality?: { Sharpness?: number; Brightness?: number } }
+    ).ImageQuality;
     const confidence = detail.Confidence ?? 0;
-    
+
     if (confidence < 90) {
       throw new Error("Face detection confidence too low.");
     }
@@ -91,13 +103,15 @@ export async function indexFace(opts: {
     }
   }
 
-  return (out.FaceRecords ?? []).map((r) => ({
-    faceId: r.Face?.FaceId ?? "",
-    imageId: r.Face?.ImageId,
-    confidence: r.Face?.Confidence,
-    boundingBox: r.Face?.BoundingBox,
-    externalImageId: r.Face?.ExternalImageId,
-  })).filter((f) => f.faceId);
+  return (out.FaceRecords ?? [])
+    .map((r) => ({
+      faceId: r.Face?.FaceId ?? "",
+      imageId: r.Face?.ImageId,
+      confidence: r.Face?.Confidence,
+      boundingBox: r.Face?.BoundingBox,
+      externalImageId: r.Face?.ExternalImageId,
+    }))
+    .filter((f) => f.faceId);
 }
 
 export interface FaceMatch {
@@ -111,21 +125,29 @@ export async function searchFacesByImage(opts: {
   bytes: Uint8Array;
   threshold?: number;
   maxFaces?: number;
-}): Promise<{ matches: FaceMatch[]; searchedFaceConfidence?: number; searchedFaceBoundingBox?: unknown }> {
+}): Promise<{
+  matches: FaceMatch[];
+  searchedFaceConfidence?: number;
+  searchedFaceBoundingBox?: unknown;
+}> {
   try {
-    const out = await getRekognition().send(new SearchFacesByImageCommand({
-      CollectionId: opts.collectionId,
-      Image: { Bytes: opts.bytes },
-      FaceMatchThreshold: opts.threshold ?? 80,
-      MaxFaces: opts.maxFaces ?? 5,
-      QualityFilter: "AUTO",
-    }));
+    const out = await getRekognition().send(
+      new SearchFacesByImageCommand({
+        CollectionId: opts.collectionId,
+        Image: { Bytes: opts.bytes },
+        FaceMatchThreshold: opts.threshold ?? 80,
+        MaxFaces: opts.maxFaces ?? 5,
+        QualityFilter: "AUTO",
+      }),
+    );
     return {
-      matches: (out.FaceMatches ?? []).map((m) => ({
-        faceId: m.Face?.FaceId ?? "",
-        similarity: m.Similarity ?? 0,
-        externalImageId: m.Face?.ExternalImageId,
-      })).filter((m) => m.faceId),
+      matches: (out.FaceMatches ?? [])
+        .map((m) => ({
+          faceId: m.Face?.FaceId ?? "",
+          similarity: m.Similarity ?? 0,
+          externalImageId: m.Face?.ExternalImageId,
+        }))
+        .filter((m) => m.faceId),
       searchedFaceConfidence: out.SearchedFaceConfidence,
       searchedFaceBoundingBox: out.SearchedFaceBoundingBox,
     };
@@ -140,5 +162,7 @@ export async function searchFacesByImage(opts: {
 }
 
 export async function deleteFace(collectionId: string, faceId: string) {
-  await getRekognition().send(new DeleteFacesCommand({ CollectionId: collectionId, FaceIds: [faceId] }));
+  await getRekognition().send(
+    new DeleteFacesCommand({ CollectionId: collectionId, FaceIds: [faceId] }),
+  );
 }

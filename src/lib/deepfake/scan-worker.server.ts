@@ -17,14 +17,8 @@ import {
   parseScanCheckpoint,
   type ScanCheckpoint,
 } from "./scan-checkpoint.server";
-import {
-  createDiscoveryFunnelMetrics,
-  type ScanOwnership,
-} from "./scan-ownership.server";
-import {
-  executeInterleavedDeepfakePipeline,
-  type PipelineResult,
-} from "./scan-pipeline.server";
+import { createDiscoveryFunnelMetrics, type ScanOwnership } from "./scan-ownership.server";
+import { executeInterleavedDeepfakePipeline, type PipelineResult } from "./scan-pipeline.server";
 import { finalizeWorkerBatchContinuation } from "./scan-worker-orchestration.server";
 import { logDeepfakeScanWorkerEvent } from "./scan-worker-telemetry.server";
 import {
@@ -79,8 +73,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   const workerExecutionId = input.workerExecutionId ?? randomUUID();
   const requestId = input.requestId ?? null;
   const budgetMs = input.budgetMs ?? DEEPFAKE_SCAN_WORKER_BUDGET_MS;
-  const maxQueryBatches =
-    input.maxQueryBatches ?? DEEPFAKE_SCAN_WORKER_MAX_QUERY_BATCHES;
+  const maxQueryBatches = input.maxQueryBatches ?? DEEPFAKE_SCAN_WORKER_MAX_QUERY_BATCHES;
   const batchStartedAt = new Date().toISOString();
   let batchNumber = 0;
   const claimedQueryIds: string[] = [];
@@ -137,15 +130,10 @@ export async function executeDeepfakeScanWorkerBatch(input: {
     } catch {
       /* best effort */
     }
-    throw new Error(
-      `database_schema_incomplete: ${schema.missing.join("; ")}`,
-    );
+    throw new Error(`database_schema_incomplete: ${schema.missing.join("; ")}`);
   }
 
-  let query = input.supabase
-    .from("deepfake_scans")
-    .select("*")
-    .eq("id", input.scanId);
+  let query = input.supabase.from("deepfake_scans").select("*").eq("id", input.scanId);
   if (input.userId) {
     query = query.eq("user_id", input.userId);
   }
@@ -213,12 +201,9 @@ export async function executeDeepfakeScanWorkerBatch(input: {
       requestId,
       eventName: "worker_execution_failed",
       errorCategory: "lease_not_available",
-      errorMessage:
-        "Scan ownership token is missing — cannot run worker without lease.",
+      errorMessage: "Scan ownership token is missing — cannot run worker without lease.",
     });
-    throw new Error(
-      "Scan ownership token is missing — cannot run worker without lease.",
-    );
+    throw new Error("Scan ownership token is missing — cannot run worker without lease.");
   }
 
   const runtime = createScanRuntime({
@@ -236,10 +221,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   const resumeCheckpoint = parseScanCheckpoint(scan.scan_checkpoint);
   const queryRowsCounted = resumeCheckpoint?.queries.length ?? 0;
   const pendingBefore = resumeCheckpoint
-    ? Math.max(
-        0,
-        resumeCheckpoint.queries.length - resumeCheckpoint.next_query_index,
-      )
+    ? Math.max(0, resumeCheckpoint.queries.length - resumeCheckpoint.next_query_index)
     : 0;
 
   await persistDeepfakeWorkerEvent({
@@ -256,8 +238,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   });
 
   let stopHeartbeat = () => {};
-  let activeLeaseExpiry =
-    typeof scan.lease_expires_at === "string" ? scan.lease_expires_at : null;
+  let activeLeaseExpiry = typeof scan.lease_expires_at === "string" ? scan.lease_expires_at : null;
 
   try {
     const renewed = await renewScanLease({
@@ -295,14 +276,12 @@ export async function executeDeepfakeScanWorkerBatch(input: {
       requestId,
       eventName: "worker_execution_failed",
       errorCategory: "lease_not_available",
-      errorMessage:
-        renewError instanceof Error ? renewError.message : String(renewError),
+      errorMessage: renewError instanceof Error ? renewError.message : String(renewError),
     });
     console.warn("[DEEPFAKE] Worker lease renewal at start failed:", {
       scan_id: scan.id,
       worker_execution_id: workerExecutionId,
-      error:
-        renewError instanceof Error ? renewError.message : String(renewError),
+      error: renewError instanceof Error ? renewError.message : String(renewError),
     });
   }
 
@@ -319,9 +298,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   });
 
   const existingBatchNumber =
-    typeof metrics?.worker_batch_number === "number"
-      ? metrics.worker_batch_number
-      : 0;
+    typeof metrics?.worker_batch_number === "number" ? metrics.worker_batch_number : 0;
   batchNumber = existingBatchNumber;
 
   logDeepfakeScanWorkerEvent({
@@ -335,13 +312,9 @@ export async function executeDeepfakeScanWorkerBatch(input: {
     lease_expiry: activeLeaseExpiry,
     batch_start_time: batchStartedAt,
     pending_query_count: resumeCheckpoint
-      ? Math.max(
-          0,
-          resumeCheckpoint.queries.length - resumeCheckpoint.next_query_index,
-        )
+      ? Math.max(0, resumeCheckpoint.queries.length - resumeCheckpoint.next_query_index)
       : undefined,
-    last_progress_timestamp:
-      typeof scan.heartbeat_at === "string" ? scan.heartbeat_at : null,
+    last_progress_timestamp: typeof scan.heartbeat_at === "string" ? scan.heartbeat_at : null,
   });
 
   let pipelineResult: PipelineResult | null = null;
@@ -357,9 +330,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
         requestId,
         eventName: "first_query_started",
         metadata: {
-          query:
-            resumeCheckpoint?.queries[resumeCheckpoint.next_query_index] ??
-            null,
+          query: resumeCheckpoint?.queries[resumeCheckpoint.next_query_index] ?? null,
           next_query_index: resumeCheckpoint?.next_query_index ?? 0,
         },
       });
@@ -381,14 +352,9 @@ export async function executeDeepfakeScanWorkerBatch(input: {
         typeof startOptions?.google_images_url === "string"
           ? startOptions.google_images_url
           : undefined,
-      maxQueries:
-        typeof startOptions?.max_queries === "number"
-          ? startOptions.max_queries
-          : 56,
+      maxQueries: typeof startOptions?.max_queries === "number" ? startOptions.max_queries : 56,
       perQueryLimit:
-        typeof startOptions?.per_query_limit === "number"
-          ? startOptions.per_query_limit
-          : 20,
+        typeof startOptions?.per_query_limit === "number" ? startOptions.per_query_limit : 20,
       runtime,
       resumeCheckpoint: resumeCheckpoint ?? undefined,
       workerLimits: {
@@ -414,8 +380,8 @@ export async function executeDeepfakeScanWorkerBatch(input: {
 
   const checkpoint =
     pipelineResult?.checkpoint ??
-    ((pipelineError as { checkpoint?: ScanCheckpoint } | null)?.checkpoint ??
-      resumeCheckpoint);
+    (pipelineError as { checkpoint?: ScanCheckpoint } | null)?.checkpoint ??
+    resumeCheckpoint;
 
   // Checkpoint model: "claim" = advancing next_query_index / batch callbacks.
   const indexBefore = resumeCheckpoint?.next_query_index ?? 0;
@@ -441,10 +407,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
     if (!resumeCheckpoint) claimFailureCategory = "query_status_mismatch";
     else if (!scanRunToken) claimFailureCategory = "lease_not_available";
     else if (pipelineError) {
-      const msg =
-        pipelineError instanceof Error
-          ? pipelineError.message
-          : String(pipelineError);
+      const msg = pipelineError instanceof Error ? pipelineError.message : String(pipelineError);
       if (/row.level.security|permission|rls|42501/i.test(msg)) {
         claimFailureCategory = "RLS_denied";
       } else if (/could not find the function|does not exist|pgrst202/i.test(msg)) {
@@ -547,11 +510,7 @@ export async function executeDeepfakeScanWorkerBatch(input: {
   const pendingWork = checkpoint ? checkpointHasPendingWork(checkpoint) : false;
   const queryBatchesProcessed = pipelineResult?.queryBatchesProcessed ?? 0;
 
-  if (
-    pipelineResult?.completed &&
-    !pipelineError &&
-    !pendingWork
-  ) {
+  if (pipelineResult?.completed && !pipelineError && !pendingWork) {
     if (!input.finalize) {
       throw new Error("Worker finalize handler is required to complete scans.");
     }
@@ -609,11 +568,8 @@ export async function executeDeepfakeScanWorkerBatch(input: {
           ...(pipelineResult?.metrics ?? checkpoint.metrics ?? {}),
         },
         clientVisibleCount:
-          pipelineResult?.clientVisibleCount ??
-          checkpoint.client_visible_count ??
-          0,
-        riskCounts:
-          pipelineResult?.riskCounts ??
+          pipelineResult?.clientVisibleCount ?? checkpoint.client_visible_count ?? 0,
+        riskCounts: pipelineResult?.riskCounts ??
           checkpoint.risk_counts ?? {
             critical: 0,
             high: 0,

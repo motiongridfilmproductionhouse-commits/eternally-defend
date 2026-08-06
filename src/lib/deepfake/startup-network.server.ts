@@ -43,12 +43,7 @@ export interface InstrumentedFetchResult {
   category: StartupNetworkErrorCategory | null;
 }
 
-const SECRET_HEADER_KEYS = new Set([
-  "authorization",
-  "cookie",
-  "x-eterna-signature",
-  "x-api-key",
-]);
+const SECRET_HEADER_KEYS = new Set(["authorization", "cookie", "x-eterna-signature", "x-api-key"]);
 
 export function redactHeaders(
   headers: Record<string, string> | Headers | undefined,
@@ -56,9 +51,7 @@ export function redactHeaders(
   const out: Record<string, string> = {};
   if (!headers) return out;
   const entries =
-    headers instanceof Headers
-      ? Array.from(headers.entries())
-      : Object.entries(headers);
+    headers instanceof Headers ? Array.from(headers.entries()) : Object.entries(headers);
   for (const [key, value] of entries) {
     const lower = key.toLowerCase();
     out[key] = SECRET_HEADER_KEYS.has(lower) ? "[redacted]" : value;
@@ -66,12 +59,9 @@ export function redactHeaders(
   return out;
 }
 
-export function classifyStartupNetworkError(
-  error: unknown,
-): StartupNetworkErrorCategory {
+export function classifyStartupNetworkError(error: unknown): StartupNetworkErrorCategory {
   if (error && typeof error === "object") {
-    const tagged = (error as { startupCategory?: StartupNetworkErrorCategory })
-      .startupCategory;
+    const tagged = (error as { startupCategory?: StartupNetworkErrorCategory }).startupCategory;
     if (tagged) return tagged;
   }
 
@@ -159,10 +149,7 @@ export function formatStartupUserError(input: {
   ].join("\n");
 }
 
-export function logStartupStage(
-  stage: StartupStage,
-  fields: Record<string, unknown>,
-): void {
+export function logStartupStage(stage: StartupStage, fields: Record<string, unknown>): void {
   console.info("deepfake_startup_stage", { stage, ...fields });
 }
 
@@ -231,9 +218,7 @@ export async function instrumentedWorkerFetch(input: {
       ok: response.ok,
       status: response.status,
       response_preview: preview,
-      network_error: response.ok
-        ? null
-        : `worker_http_${response.status}`,
+      network_error: response.ok ? null : `worker_http_${response.status}`,
       category: response.ok
         ? null
         : response.status === 401 || response.status === 403
@@ -242,8 +227,7 @@ export async function instrumentedWorkerFetch(input: {
     };
   } catch (error) {
     const category = classifyStartupNetworkError(error);
-    const networkError =
-      error instanceof Error ? error.message : String(error);
+    const networkError = error instanceof Error ? error.message : String(error);
     const durationMs = Date.now() - started;
 
     console.error("deepfake_startup_fetch_failed", {
@@ -255,10 +239,7 @@ export async function instrumentedWorkerFetch(input: {
       duration_ms: durationMs,
       network_error: networkError,
       category,
-      cause:
-        error instanceof Error && error.cause
-          ? String(error.cause)
-          : null,
+      cause: error instanceof Error && error.cause ? String(error.cause) : null,
     });
 
     return {
@@ -279,20 +260,12 @@ export async function instrumentedWorkerFetch(input: {
   }
 }
 
-export function isVercelWaitUntilRuntime(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
+export function isVercelWaitUntilRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.VERCEL === "1" || env.VERCEL_ENV != null;
 }
 
-export function isProductionDeepfakeRuntime(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
-  return (
-    env.VERCEL === "1" ||
-    env.NODE_ENV === "production" ||
-    env.VERCEL_ENV === "production"
-  );
+export function isProductionDeepfakeRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.VERCEL === "1" || env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
 }
 
 /**
@@ -320,9 +293,9 @@ export function keepBackgroundWorkAlive(work: Promise<unknown>): {
  * request lifecycle. The promise must already be running (not deferred via
  * setImmediate) so Vercel can retain it.
  */
-export function registerWaitUntilExecution(
-  executionPromise: Promise<unknown>,
-): { wait_until_used: boolean } {
+export function registerWaitUntilExecution(executionPromise: Promise<unknown>): {
+  wait_until_used: boolean;
+} {
   const kept = keepBackgroundWorkAlive(executionPromise);
   console.info("deepfake_worker_wait_until_registered", {
     wait_until_used: kept.wait_until_used,
@@ -335,9 +308,10 @@ export function registerWaitUntilExecution(
  * @deprecated Prefer registerWaitUntilExecution(executionPromise) with a
  * promise created in the same tick as waitUntil — no setImmediate.
  */
-export function runAcceptedBackgroundWork(
-  factory: () => Promise<unknown>,
-): { wait_until_used: boolean; deferred: true } {
+export function runAcceptedBackgroundWork(factory: () => Promise<unknown>): {
+  wait_until_used: boolean;
+  deferred: true;
+} {
   const executionPromise = factory();
   const kept = registerWaitUntilExecution(executionPromise);
   return { wait_until_used: kept.wait_until_used, deferred: true };

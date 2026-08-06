@@ -25,10 +25,7 @@ import { releaseTimingFor, type ReleaseTiming } from "./release-timing";
 import { isLikelyListingPage } from "./page-extract.server";
 import type { DetailFollowRecorder } from "./detail-follow.server";
 import type { CopyrightClassification } from "./taxonomy";
-import {
-  extractReferenceImagesFromPage,
-  type ReferenceImage,
-} from "./reference-images";
+import { extractReferenceImagesFromPage, type ReferenceImage } from "./reference-images";
 
 export type { ReleaseTiming, PiracyIndicator };
 export { releaseTimingFor };
@@ -91,9 +88,7 @@ export interface DistributionAnalysis {
   pageExcerpt?: string | null;
 }
 
-function toLegacyContentType(
-  classification: CopyrightClassification,
-): DistributionContentType {
+function toLegacyContentType(classification: CopyrightClassification): DistributionContentType {
   switch (classification) {
     case "VERIFIED_UNAUTHORIZED_STREAM":
     case "PROBABLE_UNAUTHORIZED_STREAM":
@@ -306,7 +301,8 @@ export async function analyzeDistributionPage(opts: {
       }) ||
       listingByPurpose ||
       (links.length >= 10 && !classified.clientVisible) ||
-      (links.length >= 3 && /\/$|\/(search|movies|latest|category)(\/|$)/i.test(retrieved.finalUrl)));
+      (links.length >= 3 &&
+        /\/$|\/(search|movies|latest|category)(\/|$)/i.test(retrieved.finalUrl)));
 
   if (looksLikeListing) {
     opts.detailFollow?.recordListingDetected(retrieved.finalUrl, links.length);
@@ -327,10 +323,7 @@ export async function analyzeDistributionPage(opts: {
         limit: 20,
         metadata: meta,
       });
-      opts.detailFollow?.recordTitleCandidatesScored(
-        retrieved.finalUrl,
-        detailFollowUrls.length,
-      );
+      opts.detailFollow?.recordTitleCandidatesScored(retrieved.finalUrl, detailFollowUrls.length);
       if (!detailFollowUrls.length) {
         opts.detailFollow?.recordSkipped(
           retrieved.finalUrl,
@@ -346,10 +339,7 @@ export async function analyzeDistributionPage(opts: {
       .slice(0, 12);
     if (detailFollowUrls.length) {
       opts.detailFollow?.recordLinksExtracted(retrieved.finalUrl, detailFollowUrls.length);
-      opts.detailFollow?.recordTitleCandidatesScored(
-        retrieved.finalUrl,
-        detailFollowUrls.length,
-      );
+      opts.detailFollow?.recordTitleCandidatesScored(retrieved.finalUrl, detailFollowUrls.length);
     }
   } else if (opts.forceDetailFollow && opts.detailFollow) {
     opts.detailFollow.recordSkipped(

@@ -14,8 +14,13 @@ function SensitiveProtectionDashboard() {
     <SensitiveAccessGate>
       <div className="p-8 max-w-6xl mx-auto space-y-8">
         <div>
-          <h1 className="text-2xl font-bold font-display text-white mb-2">Intimate Image & Deepfake Protection</h1>
-          <p className="text-white/60">Secure monitoring for unauthorized AI-generated explicit content, manipulated media, and deepfakes.</p>
+          <h1 className="text-2xl font-bold font-display text-white mb-2">
+            Intimate Image & Deepfake Protection
+          </h1>
+          <p className="text-white/60">
+            Secure monitoring for unauthorized AI-generated explicit content, manipulated media, and
+            deepfakes.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -26,7 +31,9 @@ function SensitiveProtectionDashboard() {
                   <Image className="size-5 text-blue-400" />
                 </div>
                 <h3 className="font-semibold text-white">Review Results</h3>
-                <p className="text-sm text-white/50 mt-1">Review discovered potential matches (blurred by default).</p>
+                <p className="text-sm text-white/50 mt-1">
+                  Review discovered potential matches (blurred by default).
+                </p>
               </CardContent>
             </Card>
           </Link>
@@ -38,7 +45,9 @@ function SensitiveProtectionDashboard() {
                   <ShieldAlert className="size-5 text-red-400" />
                 </div>
                 <h3 className="font-semibold text-white">Emergency Mode</h3>
-                <p className="text-sm text-white/50 mt-1">Activate rapid scanning and prioritize reviews.</p>
+                <p className="text-sm text-white/50 mt-1">
+                  Activate rapid scanning and prioritize reviews.
+                </p>
               </CardContent>
             </Card>
           </Link>
@@ -50,7 +59,9 @@ function SensitiveProtectionDashboard() {
                   <FileText className="size-5 text-emerald-400" />
                 </div>
                 <h3 className="font-semibold text-white">Removal Cases</h3>
-                <p className="text-sm text-white/50 mt-1">Track prepared complaints and active takedowns.</p>
+                <p className="text-sm text-white/50 mt-1">
+                  Track prepared complaints and active takedowns.
+                </p>
               </CardContent>
             </Card>
           </Link>
@@ -61,8 +72,16 @@ function SensitiveProtectionDashboard() {
                 <Settings className="size-5 text-purple-400" />
               </div>
               <h3 className="font-semibold text-white">Profile & Consent</h3>
-              <p className="text-sm text-white/50 mt-1 mb-4">Manage monitoring aliases and sensitive processing consent.</p>
-              <Button variant="outline" size="sm" className="w-full border-white/10 hover:bg-white/10 text-white">Configure</Button>
+              <p className="text-sm text-white/50 mt-1 mb-4">
+                Manage monitoring aliases and sensitive processing consent.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-white/10 hover:bg-white/10 text-white"
+              >
+                Configure
+              </Button>
             </CardContent>
           </Card>
         </div>

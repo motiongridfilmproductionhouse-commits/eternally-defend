@@ -14,10 +14,7 @@ import {
   shouldRenderLegacyFindingCards,
   type GetDeepfakeScanPayload,
 } from "./results-console-mount";
-import {
-  evidenceLinkProps,
-  normalizeClientFindings,
-} from "./results-dashboard";
+import { evidenceLinkProps, normalizeClientFindings } from "./results-dashboard";
 import { shouldShowResultsLoader } from "./scan-ui-state";
 
 const UI_PATH = resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx");
@@ -109,10 +106,7 @@ function renderConsole(payload: GetDeepfakeScanPayload) {
       targetName: payload.scan?.target_name || "Target",
       findings,
       discoveries: [],
-      diagnostics: (payload.scan?.discovery_metrics ?? null) as Record<
-        string,
-        number
-      > | null,
+      diagnostics: (payload.scan?.discovery_metrics ?? null) as Record<string, number> | null,
       riskFilter: "ALL" as const,
       onRiskFilterChange: () => {},
       onUpdateFinding: () => {},
@@ -187,21 +181,12 @@ test("zero findings shows scanner/status empty state and does not mount console"
   });
   assert.equal(decision.mount, false);
   assert.equal(decision.reason, "zero_client_visible_findings");
-  assert.match(
-    emptyFindingsStatusMessage({ status: "partial" }),
-    /Partial scan finished/,
-  );
+  assert.match(emptyFindingsStatusMessage({ status: "partial" }), /Partial scan finished/);
 });
 
 test("legacy result cards stay disabled when console mounts", () => {
-  assert.equal(
-    shouldRenderLegacyFindingCards({ consoleMounted: true }),
-    false,
-  );
-  assert.equal(
-    shouldRenderLegacyFindingCards({ consoleMounted: false }),
-    false,
-  );
+  assert.equal(shouldRenderLegacyFindingCards({ consoleMounted: true }), false);
+  assert.equal(shouldRenderLegacyFindingCards({ consoleMounted: false }), false);
 });
 
 test("production snake_case fields map into console evidence link", () => {
@@ -262,10 +247,7 @@ test("mount decision ignores completed-only / mutation / diagnostics requirement
     assert.equal(decision.mount, true, status);
   }
   // Loader only blocks before the scan row exists.
-  assert.equal(
-    shouldShowResultsLoader({ isLoading: true, hasScan: true }),
-    false,
-  );
+  assert.equal(shouldShowResultsLoader({ isLoading: true, hasScan: true }), false);
   assert.equal(
     shouldMountResultsIntelligenceConsole({
       selectedScanId: "scan",
@@ -310,17 +292,11 @@ test("route wires console mount helpers and keeps Continue for PARTIAL", () => {
 
 test("error boundaries reset when the selected scan changes", () => {
   const boundary = readFileSync(
-    resolve(
-      process.cwd(),
-      "src/components/deepfake/results/ResultsConsoleErrorBoundary.tsx",
-    ),
+    resolve(process.cwd(), "src/components/deepfake/results/ResultsConsoleErrorBoundary.tsx"),
     "utf8",
   );
   const consoleSrc = readFileSync(
-    resolve(
-      process.cwd(),
-      "src/components/deepfake/results/ResultsIntelligenceConsole.tsx",
-    ),
+    resolve(process.cwd(), "src/components/deepfake/results/ResultsIntelligenceConsole.tsx"),
     "utf8",
   );
   assert.match(boundary, /getDerivedStateFromProps/);
@@ -329,9 +305,7 @@ test("error boundaries reset when the selected scan changes", () => {
 });
 
 test("Evidence Network includes a domain node for a single finding", () => {
-  const { html } = renderConsole(
-    productionPayload({ status: "partial", findings: 1 }),
-  );
+  const { html } = renderConsole(productionPayload({ status: "partial", findings: 1 }));
   assert.match(html, /cdn\.example\.com/);
   assert.match(html, /Verified Evidence Network/);
 });

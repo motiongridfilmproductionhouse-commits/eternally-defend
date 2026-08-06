@@ -70,9 +70,7 @@ export function decideCopyrightTerminalStatus(
   if (!input.executorStarted) {
     return {
       status: "failed",
-      reason:
-        input.fatalReason ||
-        "Copyright scan executor never started (executor_not_started).",
+      reason: input.fatalReason || "Copyright scan executor never started (executor_not_started).",
     };
   }
 
@@ -110,8 +108,7 @@ export function decideCopyrightTerminalStatus(
   ) {
     return {
       status: "failed",
-      reason:
-        "Zero discovery queries were executed — provider search never ran.",
+      reason: "Zero discovery queries were executed — provider search never ran.",
     };
   }
 
@@ -121,8 +118,7 @@ export function decideCopyrightTerminalStatus(
     serpapiCandidates > 0 ||
     bdSuccesses > 0 ||
     bdCandidates > 0;
-  const anyCandidates =
-    input.providerCandidates > 0 || serpapiCandidates > 0 || bdCandidates > 0;
+  const anyCandidates = input.providerCandidates > 0 || serpapiCandidates > 0 || bdCandidates > 0;
 
   if (
     input.providerSuccesses <= 0 &&
@@ -150,22 +146,23 @@ export function decideCopyrightTerminalStatus(
 
   if (
     input.firecrawlCircuitOpened &&
-    (knownAttempted > 0 || anyCandidates || input.pagesCrawled > 0 || input.clientVisibleFindings > 0)
+    (knownAttempted > 0 ||
+      anyCandidates ||
+      input.pagesCrawled > 0 ||
+      input.clientVisibleFindings > 0)
   ) {
     return {
       status: "partial",
-      reason:
-        input.abortedByDeadline
-          ? "Scan deadline reached after partial progress — saved crawled pages and findings."
-          : "Firecrawl circuit opened after consecutive provider failures — partial discovery saved; see firecrawl_operator_action.",
+      reason: input.abortedByDeadline
+        ? "Scan deadline reached after partial progress — saved crawled pages and findings."
+        : "Firecrawl circuit opened after consecutive provider failures — partial discovery saved; see firecrawl_operator_action.",
     };
   }
 
   if (input.abortedByDeadline && (input.pagesCrawled > 0 || input.clientVisibleFindings > 0)) {
     return {
       status: "partial",
-      reason:
-        "Scan deadline reached after partial progress — saved crawled pages and findings.",
+      reason: "Scan deadline reached after partial progress — saved crawled pages and findings.",
     };
   }
 
@@ -191,7 +188,8 @@ export function isExecutorWatchdogExpired(opts: {
   now?: number;
   watchdogMs?: number;
 }): boolean {
-  if (opts.status !== "queued" && opts.status !== "running" && opts.status !== "pending") return false;
+  if (opts.status !== "queued" && opts.status !== "running" && opts.status !== "pending")
+    return false;
   if (opts.executorStartedAt) return false;
   if (!opts.createdAt) return false;
   const created = Date.parse(opts.createdAt);
@@ -200,7 +198,9 @@ export function isExecutorWatchdogExpired(opts: {
   return now - created >= (opts.watchdogMs ?? EXECUTOR_START_WATCHDOG_MS);
 }
 
-export function watchdogFailureStats(existing?: Record<string, unknown> | null): Record<string, unknown> {
+export function watchdogFailureStats(
+  existing?: Record<string, unknown> | null,
+): Record<string, unknown> {
   const providerFailures = {
     ...((existing?.provider_failures_by_category as Record<string, number> | undefined) ?? {}),
     executor_not_started:
@@ -229,8 +229,8 @@ export function isImmediateStartResponse(res: {
 }): boolean {
   return Boolean(
     res.started === true &&
-      res.scanId &&
-      (res.status === "queued" || res.status === "running" || res.status === "pending") &&
-      res.stats == null,
+    res.scanId &&
+    (res.status === "queued" || res.status === "running" || res.status === "pending") &&
+    res.stats == null,
   );
 }

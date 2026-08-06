@@ -14,8 +14,13 @@ function EmergencyProtection() {
     <SensitiveAccessGate>
       <div className="p-8 max-w-3xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold font-display text-white mb-2">Emergency Protection Mode</h1>
-          <p className="text-white/60">Activate rapid scanning and prioritize reviews if you believe a leak or deepfake is actively spreading.</p>
+          <h1 className="text-2xl font-bold font-display text-white mb-2">
+            Emergency Protection Mode
+          </h1>
+          <p className="text-white/60">
+            Activate rapid scanning and prioritize reviews if you believe a leak or deepfake is
+            actively spreading.
+          </p>
         </div>
 
         <Card className="bg-[#0A1128] border-red-500/30 shadow-[0_0_30px_-10px_rgba(239,68,68,0.2)]">
@@ -33,7 +38,9 @@ function EmergencyProtection() {
             <Button className="bg-red-600 hover:bg-red-500 text-white w-full max-w-sm h-12 text-lg font-bold tracking-wider">
               <Zap className="size-5 mr-2" /> ACTIVATE NOW
             </Button>
-            <p className="text-xs text-white/40 mt-4">Note: Emergency mode auto-expires after 72 hours.</p>
+            <p className="text-xs text-white/40 mt-4">
+              Note: Emergency mode auto-expires after 72 hours.
+            </p>
           </CardContent>
         </Card>
       </div>

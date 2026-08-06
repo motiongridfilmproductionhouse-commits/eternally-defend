@@ -35,9 +35,7 @@ function normalizeExplicitWorkerUrl(raw: string): string | null {
   }
 }
 
-export function resolveGoogleImagesWorkerUrl(
-  env: NodeJS.ProcessEnv = process.env,
-): string | null {
+export function resolveGoogleImagesWorkerUrl(env: NodeJS.ProcessEnv = process.env): string | null {
   const explicit = env.DEEPFAKE_GOOGLE_IMAGES_WORKER_URL?.trim();
   if (explicit) {
     return normalizeExplicitWorkerUrl(explicit);
@@ -49,9 +47,7 @@ export function resolveGoogleImagesWorkerUrl(
     env.APP_URL,
     env.PUBLIC_APP_URL,
     env.VITE_SITE_URL,
-    env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : undefined,
+    env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined,
     env.VERCEL_URL ? `https://${env.VERCEL_URL}` : undefined,
   ];
 
@@ -66,10 +62,7 @@ export function resolveGoogleImagesWorkerUrl(
 export function isGoogleImagesWorkerDispatchConfigured(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return Boolean(
-    resolveGoogleImagesWorkerUrl(env) &&
-      env.COPYRIGHT_SCAN_WORKER_SECRET?.trim(),
-  );
+  return Boolean(resolveGoogleImagesWorkerUrl(env) && env.COPYRIGHT_SCAN_WORKER_SECRET?.trim());
 }
 
 export async function dispatchGoogleImagesWorker(input: {
@@ -91,9 +84,7 @@ export async function dispatchGoogleImagesWorker(input: {
     scan_id: input.scanId,
     worker_url: workerUrl,
     worker_secret_present: Boolean(env.COPYRIGHT_SCAN_WORKER_SECRET?.trim()),
-    authentication: env.COPYRIGHT_SCAN_WORKER_SECRET?.trim()
-      ? "hmac_configured"
-      : "missing_secret",
+    authentication: env.COPYRIGHT_SCAN_WORKER_SECRET?.trim() ? "hmac_configured" : "missing_secret",
   });
 
   if (!workerUrl) {
@@ -112,9 +103,7 @@ export async function dispatchGoogleImagesWorker(input: {
   };
 
   try {
-    const { signCopyrightScanWorkerRequest } = await import(
-      "@/lib/copyright/worker-auth.server"
-    );
+    const { signCopyrightScanWorkerRequest } = await import("@/lib/copyright/worker-auth.server");
     const signed = await signCopyrightScanWorkerRequest(body);
     headers["x-eterna-timestamp"] = signed.timestamp;
     headers["x-eterna-signature"] = signed.signature;

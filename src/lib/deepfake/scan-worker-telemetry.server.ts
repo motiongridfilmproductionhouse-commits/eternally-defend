@@ -22,8 +22,6 @@ export type DeepfakeScanWorkerTelemetry = {
   [key: string]: unknown;
 };
 
-export function logDeepfakeScanWorkerEvent(
-  payload: DeepfakeScanWorkerTelemetry,
-): void {
+export function logDeepfakeScanWorkerEvent(payload: DeepfakeScanWorkerTelemetry): void {
   console.info(payload.event, payload);
 }

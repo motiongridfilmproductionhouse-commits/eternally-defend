@@ -55,7 +55,11 @@ export function cleanTitle(...candidates: (string | null | undefined)[]): string
     // Reject raw slugs like "undefined | renu-sudhi-saying-about-her-real-name"
     if (/^undefined\s*[|\-·]/i.test(trimmed)) {
       // Try to recover the slug portion
-      const tail = trimmed.split(/[|\-·]/).slice(1).join(" ").trim();
+      const tail = trimmed
+        .split(/[|\-·]/)
+        .slice(1)
+        .join(" ")
+        .trim();
       const recovered = readableFromSlug(tail);
       if (recovered) return recovered;
       continue;
@@ -120,7 +124,10 @@ export function youtubeIdFromUrl(url?: string | null): string | null {
  * Public YouTube CDN thumbnail — no API key required, always CORS-safe.
  * hqdefault exists for every public/unlisted video; maxresdefault is best-effort.
  */
-export function youtubeThumbFromUrl(url?: string | null, quality: "maxres" | "hq" = "hq"): string | null {
+export function youtubeThumbFromUrl(
+  url?: string | null,
+  quality: "maxres" | "hq" = "hq",
+): string | null {
   const id = youtubeIdFromUrl(url);
   if (!id) return null;
   return `https://i.ytimg.com/vi/${id}/${quality === "maxres" ? "maxresdefault" : "hqdefault"}.jpg`;

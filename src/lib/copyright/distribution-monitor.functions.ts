@@ -22,9 +22,21 @@ export const getDistributionMonitor = createServerFn({ method: "GET" })
     }).catch(() => ({ sourcesDeactivated: 0, incidentsDeactivated: 0 }));
 
     const [sources, incidents, runs] = await Promise.all([
-      supabase.from("distribution_sources").select("*").order("last_seen_at", { ascending: false }).limit(200),
-      supabase.from("distribution_incidents").select("*").order("detected_at", { ascending: false }).limit(100),
-      supabase.from("distribution_monitor_runs").select("*").order("started_at", { ascending: false }).limit(100),
+      supabase
+        .from("distribution_sources")
+        .select("*")
+        .order("last_seen_at", { ascending: false })
+        .limit(200),
+      supabase
+        .from("distribution_incidents")
+        .select("*")
+        .order("detected_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("distribution_monitor_runs")
+        .select("*")
+        .order("started_at", { ascending: false })
+        .limit(100),
     ]);
     if (sources.error) throw new Error(sources.error.message);
 
@@ -47,7 +59,8 @@ export const getDistributionMonitor = createServerFn({ method: "GET" })
         monitored: monitoredRows.length,
         due: monitoredRows.filter((s) => Date.parse(s.next_check_at) <= now).length,
         newLast24h: liveRows.filter((s) => now - Date.parse(s.first_seen_at) < 86_400_000).length,
-        incidents24h: activeIncidents.filter((i) => now - Date.parse(i.detected_at) < 86_400_000).length,
+        incidents24h: activeIncidents.filter((i) => now - Date.parse(i.detected_at) < 86_400_000)
+          .length,
         deactivated: rows.filter((s) => s.status === "deactivated").length,
       },
     };
@@ -56,10 +69,14 @@ export const getDistributionMonitor = createServerFn({ method: "GET" })
 /** Force an immediate re-crawl of one source, or a sweep of the due queue. */
 export const runDistributionMonitorNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({
-    sourceId: z.string().uuid().optional(),
-    limit: z.number().int().min(1).max(15).optional(),
-  }).parse(raw ?? {}))
+  .inputValidator((raw) =>
+    z
+      .object({
+        sourceId: z.string().uuid().optional(),
+        limit: z.number().int().min(1).max(15).optional(),
+      })
+      .parse(raw ?? {}),
+  )
   .handler(async ({ data, context }) =>
     runAutoMonitor(context.supabase, {
       userId: context.userId,
@@ -73,10 +90,14 @@ export const runDistributionMonitorNow = createServerFn({ method: "POST" })
 /** Pause / resume monitoring for a source. */
 export const setDistributionSourceMonitoring = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({
-    sourceId: z.string().uuid(),
-    monitorEnabled: z.boolean(),
-  }).parse(raw))
+  .inputValidator((raw) =>
+    z
+      .object({
+        sourceId: z.string().uuid(),
+        monitorEnabled: z.boolean(),
+      })
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("distribution_sources")

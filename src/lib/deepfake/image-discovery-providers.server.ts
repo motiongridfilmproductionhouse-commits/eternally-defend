@@ -139,10 +139,11 @@ async function fetchSerpApiImageEngine(input: {
   const signal = mergeAbortSignals(input.signal, timeoutController.signal);
 
   try {
-    const response = await fetch(
-      `https://serpapi.com/search.json?${params.toString()}`,
-      { method: "GET", headers: { Accept: "application/json" }, signal },
-    );
+    const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal,
+    });
     assertNotAborted(input.signal);
 
     if (!isAllowedJsonMime(response.headers.get("content-type"))) {

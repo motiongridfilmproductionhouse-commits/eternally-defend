@@ -35,7 +35,9 @@ export const YouTubeCopyrightAdapter: PlatformAdapter = {
     return ctx.job.credential?.storage_state_json ? "logged_in" : "login_required";
   },
   async navigateToForm(ctx) {
-    await ctx.page.goto("https://www.youtube.com/copyright_complaint_form", { waitUntil: "domcontentloaded" });
+    await ctx.page.goto("https://www.youtube.com/copyright_complaint_form", {
+      waitUntil: "domcontentloaded",
+    });
     await ctx.audit("form_opened", { url: ctx.page.url() });
   },
   async populate(ctx, _caseData) {

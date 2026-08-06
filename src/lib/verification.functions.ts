@@ -10,11 +10,16 @@ type VerRow = Database["public"]["Tables"]["account_verifications"]["Row"];
 function randomToken(): string {
   const bytes = new Uint8Array(6);
   crypto.getRandomValues(bytes);
-  return "ET-" + Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+  return (
+    "ET-" +
+    Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase()
+  );
 }
 
 type Json = Database["public"]["Tables"]["account_verifications"]["Insert"]["evidence"];
-
 
 /* ------------------------------------------------------------------ */
 /* startVerification — creates a pending record. For bio_code /       */
@@ -22,11 +27,23 @@ type Json = Database["public"]["Tables"]["account_verifications"]["Insert"]["evi
 /* ------------------------------------------------------------------ */
 export const startVerification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
-    accountId: z.string().uuid(),
-    method: z.enum(["oauth", "domain_dns", "domain_meta", "business_email", "bio_code", "document", "admin_review"]),
-    evidence: z.record(z.string(), z.unknown()).optional(),
-  }).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        accountId: z.string().uuid(),
+        method: z.enum([
+          "oauth",
+          "domain_dns",
+          "domain_meta",
+          "business_email",
+          "bio_code",
+          "document",
+          "admin_review",
+        ]),
+        evidence: z.record(z.string(), z.unknown()).optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     const { data: acct, error: aErr } = await context.supabase
       .from("discovered_accounts")
@@ -83,9 +100,13 @@ export const startVerification = createServerFn({ method: "POST" })
 /* ------------------------------------------------------------------ */
 export const checkVerification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
-    verificationId: z.string().uuid(),
-  }).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        verificationId: z.string().uuid(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     const { data: ver, error: vErr } = await context.supabase
       .from("account_verifications")
@@ -95,12 +116,25 @@ export const checkVerification = createServerFn({ method: "POST" })
     if (vErr) throw new Error(vErr.message);
     if (!ver) throw new Error("Verification not found");
 
-    const account = (ver as unknown as { discovered_accounts: { id: string; profile_url: string; user_id: string; status: Database["public"]["Enums"]["discovered_account_status"] } }).discovered_accounts;
+    const account = (
+      ver as unknown as {
+        discovered_accounts: {
+          id: string;
+          profile_url: string;
+          user_id: string;
+          status: Database["public"]["Enums"]["discovered_account_status"];
+        };
+      }
+    ).discovered_accounts;
     if (account.user_id !== context.userId) throw new Error("Forbidden");
     if (ver.state !== "pending") return ver as VerRow;
     if (ver.expires_at && new Date(ver.expires_at).getTime() < Date.now()) {
       const { data: expired } = await context.supabase
-        .from("account_verifications").update({ state: "expired" }).eq("id", ver.id).select("*").single();
+        .from("account_verifications")
+        .update({ state: "expired" })
+        .eq("id", ver.id)
+        .select("*")
+        .single();
       return expired as VerRow;
     }
 
@@ -112,7 +146,11 @@ export const checkVerification = createServerFn({ method: "POST" })
       const p = await scrapeProfile(account.profile_url);
       const haystack = `${p.bio ?? ""}\n${p.displayName ?? ""}`;
       passed = haystack.includes(ver.code);
-      evidence = { ...evidence, checkedAt: new Date().toISOString(), bio: p.bio?.slice(0, 500) ?? null };
+      evidence = {
+        ...evidence,
+        checkedAt: new Date().toISOString(),
+        bio: p.bio?.slice(0, 500) ?? null,
+      };
     } else if (ver.method === "domain_meta" && ver.code) {
       const targetUrl = (evidence as { url?: string }).url ?? account.profile_url;
       const { scrapeProfile } = await import("./discovery/firecrawl.server");
@@ -124,10 +162,13 @@ export const checkVerification = createServerFn({ method: "POST" })
       const domain = (evidence as { domain?: string }).domain;
       if (!domain) throw new Error("Missing evidence.domain for DNS check");
       // DNS-over-HTTPS via Cloudflare
-      const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=TXT`, {
-        headers: { accept: "application/dns-json" },
-      });
-      const dns = await res.json() as { Answer?: { data: string }[] };
+      const res = await fetch(
+        `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=TXT`,
+        {
+          headers: { accept: "application/dns-json" },
+        },
+      );
+      const dns = (await res.json()) as { Answer?: { data: string }[] };
       const answers = (dns.Answer ?? []).map((a) => a.data.replace(/"/g, ""));
       passed = answers.some((a) => a.includes(`eterna-verify=${ver.code}`));
       evidence = { ...evidence, checkedAt: new Date().toISOString(), answers };
@@ -142,12 +183,15 @@ export const checkVerification = createServerFn({ method: "POST" })
     const { data: updated } = await context.supabase
       .from("account_verifications")
       .update({ state: nextState, evidence: evidence as Json, verified_at: passed ? now : null })
-      .eq("id", ver.id).select("*").single();
+      .eq("id", ver.id)
+      .select("*")
+      .single();
 
     if (passed) {
       await context.supabase
         .from("discovered_accounts")
-        .update({ status: "verified" }).eq("id", account.id);
+        .update({ status: "verified" })
+        .eq("id", account.id);
       await context.supabase.from("account_audit_log").insert({
         account_id: account.id,
         actor_id: context.userId,
@@ -181,14 +225,19 @@ export const listVerifications = createServerFn({ method: "POST" })
 /* ------------------------------------------------------------------ */
 export const adminApproveVerification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
-    verificationId: z.string().uuid(),
-    approve: z.boolean(),
-    note: z.string().max(500).optional(),
-  }).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        verificationId: z.string().uuid(),
+        approve: z.boolean(),
+        note: z.string().max(500).optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId, _role: "admin",
+      _user_id: context.userId,
+      _role: "admin",
     });
     if (!isAdmin) throw new Error("Forbidden");
 
@@ -200,28 +249,47 @@ export const adminApproveVerification = createServerFn({ method: "POST" })
     if (vErr) throw new Error(vErr.message);
     if (!ver) throw new Error("Verification not found");
 
-    const account = (ver as unknown as { discovered_accounts: { id: string; status: Database["public"]["Enums"]["discovered_account_status"] } }).discovered_accounts;
+    const account = (
+      ver as unknown as {
+        discovered_accounts: {
+          id: string;
+          status: Database["public"]["Enums"]["discovered_account_status"];
+        };
+      }
+    ).discovered_accounts;
     const nextState: State = data.approve ? "passed" : "failed";
     const now = new Date().toISOString();
 
-    await context.supabase.from("account_verifications").update({
-      state: nextState, reviewer_id: context.userId, verified_at: data.approve ? now : null,
-      evidence: { ...(ver.evidence as Record<string, unknown>), reviewerNote: data.note ?? null },
-    }).eq("id", ver.id);
+    await context.supabase
+      .from("account_verifications")
+      .update({
+        state: nextState,
+        reviewer_id: context.userId,
+        verified_at: data.approve ? now : null,
+        evidence: { ...(ver.evidence as Record<string, unknown>), reviewerNote: data.note ?? null },
+      })
+      .eq("id", ver.id);
 
     if (data.approve) {
-      await context.supabase.from("discovered_accounts").update({ status: "verified" }).eq("id", account.id);
+      await context.supabase
+        .from("discovered_accounts")
+        .update({ status: "verified" })
+        .eq("id", account.id);
       await context.supabase.from("account_audit_log").insert({
-        account_id: account.id, actor_id: context.userId,
+        account_id: account.id,
+        actor_id: context.userId,
         action: `admin_approved:${ver.method}`,
-        from_status: account.status, to_status: "verified",
+        from_status: account.status,
+        to_status: "verified",
         meta: { verification_id: ver.id, note: data.note ?? null },
       });
     } else {
       await context.supabase.from("account_audit_log").insert({
-        account_id: account.id, actor_id: context.userId,
+        account_id: account.id,
+        actor_id: context.userId,
         action: `admin_rejected:${ver.method}`,
-        from_status: account.status, to_status: account.status,
+        from_status: account.status,
+        to_status: account.status,
         meta: { verification_id: ver.id, note: data.note ?? null },
       });
     }

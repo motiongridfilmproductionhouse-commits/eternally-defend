@@ -72,6 +72,10 @@ export const getClientProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data } = await supabase.from("client_profiles").select("*").eq("user_id", userId).maybeSingle();
+    const { data } = await supabase
+      .from("client_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
     return data;
   });

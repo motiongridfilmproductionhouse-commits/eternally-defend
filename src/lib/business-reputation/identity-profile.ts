@@ -39,14 +39,7 @@ export interface BusinessAlias {
 export interface GeneratedQuery {
   query: string;
   queryType:
-    | "identity"
-    | "defamation"
-    | "fraud"
-    | "impersonation"
-    | "review"
-    | "legal"
-    | "media"
-    | "social";
+    "identity" | "defamation" | "fraud" | "impersonation" | "review" | "legal" | "media" | "social";
   priority: number;
   country?: string | null;
 }
@@ -174,7 +167,11 @@ export function buildQueryPlan(input: BusinessIdentityInput): GeneratedQuery[] {
 
   const queries: GeneratedQuery[] = [];
   const seen = new Set<string>();
-  const add = (parts: Array<string | null | undefined>, queryType: GeneratedQuery["queryType"], priority: number) => {
+  const add = (
+    parts: Array<string | null | undefined>,
+    queryType: GeneratedQuery["queryType"],
+    priority: number,
+  ) => {
     const query = parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
     if (!query) return;
     const key = query.toLowerCase();
@@ -208,7 +205,9 @@ export function buildQueryPlan(input: BusinessIdentityInput): GeneratedQuery[] {
   return queries.sort((a, b) => b.priority - a.priority);
 }
 
-export function summarizeQueryPlan(queries: GeneratedQuery[]): Array<{ queryType: string; count: number }> {
+export function summarizeQueryPlan(
+  queries: GeneratedQuery[],
+): Array<{ queryType: string; count: number }> {
   const counts = new Map<string, number>();
   for (const q of queries) counts.set(q.queryType, (counts.get(q.queryType) ?? 0) + 1);
   return Array.from(counts.entries())

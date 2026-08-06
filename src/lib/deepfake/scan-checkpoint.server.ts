@@ -3,10 +3,7 @@
  * Checkpoints are server-authored and strictly validated on resume.
  */
 
-import {
-  createDiscoveryFunnelMetrics,
-  type DiscoveryFunnelMetrics,
-} from "./scan-ownership.server";
+import { createDiscoveryFunnelMetrics, type DiscoveryFunnelMetrics } from "./scan-ownership.server";
 import type { ScanStage } from "./scan-budget.server";
 
 export const SCAN_CHECKPOINT_VERSION = 1 as const;
@@ -265,28 +262,17 @@ export function parseScanCheckpoint(value: unknown): ScanCheckpoint | null {
   const queries = asStringArray(row.queries, CHECKPOINT_MAX_QUERIES);
   if (!queries.length) return null;
 
-  const plannedIds = new Set(
-    queries.map((query) => query.trim().toLowerCase()).filter(Boolean),
-  );
-  const completed = asStringArray(
-    row.completed_query_ids,
-    CHECKPOINT_MAX_COMPLETED_QUERY_IDS,
-    500,
-  )
+  const plannedIds = new Set(queries.map((query) => query.trim().toLowerCase()).filter(Boolean));
+  const completed = asStringArray(row.completed_query_ids, CHECKPOINT_MAX_COMPLETED_QUERY_IDS, 500)
     .map((id) => id.trim().toLowerCase())
     .filter((id) => plannedIds.has(id));
   const pending = asHttpUrlArray(row.pending_candidate_urls, CHECKPOINT_MAX_PENDING_URLS);
-  const verified = asHttpUrlArray(
-    row.verified_canonical_urls,
-    CHECKPOINT_MAX_VERIFIED_URLS,
-  );
+  const verified = asHttpUrlArray(row.verified_canonical_urls, CHECKPOINT_MAX_VERIFIED_URLS);
 
   let nextIndex = clampInt(row.next_query_index, 0, 0, queries.length);
   // completed_query_ids may only advance the cursor — never rewind it below
   // the number of known completed queries that match the plan prefix.
-  const completedFromPlan = queries
-    .slice(0, nextIndex)
-    .map((query) => query.trim().toLowerCase());
+  const completedFromPlan = queries.slice(0, nextIndex).map((query) => query.trim().toLowerCase());
   const completedSet = new Set(completed);
   for (const id of completedFromPlan) {
     completedSet.add(id);
@@ -308,19 +294,13 @@ export function parseScanCheckpoint(value: unknown): ScanCheckpoint | null {
     stage: asStage(row.stage),
     queries,
     next_query_index: nextIndex,
-    completed_query_ids: Array.from(completedSet).slice(
-      0,
-      CHECKPOINT_MAX_COMPLETED_QUERY_IDS,
-    ),
+    completed_query_ids: Array.from(completedSet).slice(0, CHECKPOINT_MAX_COMPLETED_QUERY_IDS),
     pending_candidate_urls: pending,
     verified_canonical_urls: verified,
     youtube_done: asBool(row.youtube_done),
     reddit_done: asBool(row.reddit_done),
     related_done: asBool(row.related_done),
-    serpapi_queries: asStringArray(
-      row.serpapi_queries,
-      CHECKPOINT_MAX_SERPAPI_QUERIES,
-    ),
+    serpapi_queries: asStringArray(row.serpapi_queries, CHECKPOINT_MAX_SERPAPI_QUERIES),
     serpapi_next_query_index: clampInt(
       row.serpapi_next_query_index,
       0,
@@ -339,9 +319,7 @@ export function parseScanCheckpoint(value: unknown): ScanCheckpoint | null {
     planned_query_count: queries.length,
     initial_wave_count: clampInt(row.initial_wave_count, 15, 1, CHECKPOINT_MAX_QUERIES),
     average_provider_latency_ms: latencyValues.length
-      ? Math.round(
-          latencyValues.reduce((sum, value) => sum + value, 0) / latencyValues.length,
-        )
+      ? Math.round(latencyValues.reduce((sum, value) => sum + value, 0) / latencyValues.length)
       : clampInt(row.average_provider_latency_ms, 0, 0, 600_000),
     provider_latencies_ms: latencies,
     risk_counts: {
@@ -390,10 +368,7 @@ export function enforceCheckpointBounds(checkpoint: ScanCheckpoint): ScanCheckpo
     verified_canonical_urls: checkpoint.verified_canonical_urls
       .filter(isHttpUrl)
       .slice(-CHECKPOINT_MAX_VERIFIED_URLS),
-    serpapi_queries: (checkpoint.serpapi_queries ?? []).slice(
-      0,
-      CHECKPOINT_MAX_SERPAPI_QUERIES,
-    ),
+    serpapi_queries: (checkpoint.serpapi_queries ?? []).slice(0, CHECKPOINT_MAX_SERPAPI_QUERIES),
     serpapi_completed_query_ids: (checkpoint.serpapi_completed_query_ids ?? []).slice(
       0,
       CHECKPOINT_MAX_SERPAPI_QUERIES,
@@ -453,8 +428,7 @@ export function enforceCheckpointBounds(checkpoint: ScanCheckpoint): ScanCheckpo
 
 export function checkpointHasPendingWork(checkpoint: ScanCheckpoint): boolean {
   const serpapiPending =
-    (checkpoint.serpapi_queries?.length ?? 0) >
-    (checkpoint.serpapi_next_query_index ?? 0);
+    (checkpoint.serpapi_queries?.length ?? 0) > (checkpoint.serpapi_next_query_index ?? 0);
   return (
     checkpoint.next_query_index < checkpoint.queries.length ||
     serpapiPending ||
@@ -465,10 +439,7 @@ export function checkpointHasPendingWork(checkpoint: ScanCheckpoint): boolean {
   );
 }
 
-export function markQueryCompleted(
-  checkpoint: ScanCheckpoint,
-  query: string,
-): void {
+export function markQueryCompleted(checkpoint: ScanCheckpoint, query: string): void {
   const id = query.trim().toLowerCase();
   if (!checkpoint.completed_query_ids.includes(id)) {
     checkpoint.completed_query_ids.push(id);

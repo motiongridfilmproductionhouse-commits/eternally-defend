@@ -93,10 +93,7 @@ export function findingsFromCaptions(
 ): CaptionFinding[] {
   const findings: CaptionFinding[] = [];
   const nameRe = nameTerms.length
-    ? new RegExp(
-        nameTerms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
-        "i",
-      )
+    ? new RegExp(nameTerms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "i")
     : null;
   for (const seg of segments) {
     if (seg.start === null) continue; // never synthesize timestamps
@@ -111,13 +108,17 @@ export function findingsFromCaptions(
     if (!isName && !matched.length) continue;
     if (isName) matched.unshift("name");
     if (matched.some((m) => ["scam", "fake", "harassment"].includes(m))) {
-      severity = "high"; type = "allegation";
+      severity = "high";
+      type = "allegation";
     } else if (matched.includes("endorsement") || matched.includes("copyright")) {
-      severity = "medium"; type = matched.includes("copyright") ? "copyright" : "endorsement";
+      severity = "medium";
+      type = matched.includes("copyright") ? "copyright" : "endorsement";
     } else if (matched.includes("denial") || matched.includes("correction")) {
-      severity = "medium"; type = "correction";
+      severity = "medium";
+      type = "correction";
     } else if (matched.includes("allegation")) {
-      severity = "medium"; type = "allegation";
+      severity = "medium";
+      type = "allegation";
     }
     findings.push({
       start_seconds: seg.start,

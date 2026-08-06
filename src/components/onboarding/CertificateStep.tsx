@@ -5,7 +5,18 @@ import { toast } from "sonner";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, ChevronRight, ChevronLeft, Download, ExternalLink, ShieldCheck, FileKey2, RefreshCw, AlertCircle, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
+  Download,
+  ExternalLink,
+  ShieldCheck,
+  FileKey2,
+  RefreshCw,
+  AlertCircle,
+  AlertTriangle,
+} from "lucide-react";
 import { getMyCertificate, getCertificateSignedUrl } from "@/lib/onboarding/certificate.functions";
 import { getAuthorizationBundle } from "@/lib/onboarding/authorization.functions";
 import { buildAuthorizationPackage } from "@/lib/onboarding/package.functions";
@@ -32,7 +43,11 @@ export function CertificateStep({
   const getCertUrl = useServerFn(getCertificateSignedUrl);
   const buildPkg = useServerFn(buildAuthorizationPackage);
 
-  const { data: cert, refetch: refetchCert, isLoading: certLoading } = useQuery({
+  const {
+    data: cert,
+    refetch: refetchCert,
+    isLoading: certLoading,
+  } = useQuery({
     queryKey: ["my_certificate"],
     queryFn: () => fetchCert(),
   });
@@ -98,7 +113,9 @@ export function CertificateStep({
   if (certLoading || authLoading) {
     return (
       <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl">
-        <CardContent className="py-12 flex justify-center"><Loader2 className="size-6 animate-spin text-blue-500" /></CardContent>
+        <CardContent className="py-12 flex justify-center">
+          <Loader2 className="size-6 animate-spin text-blue-500" />
+        </CardContent>
       </Card>
     );
   }
@@ -106,7 +123,9 @@ export function CertificateStep({
   if (!cert) {
     return (
       <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl">
-        <CardContent className="py-12 text-center text-white/50">Certificate not found.</CardContent>
+        <CardContent className="py-12 text-center text-white/50">
+          Certificate not found.
+        </CardContent>
       </Card>
     );
   }
@@ -158,26 +177,42 @@ export function CertificateStep({
               Your official Eterna Verification Certificate.
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetchCert()} className="border-white/20 text-white hover:bg-white/10">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchCert()}
+            className="border-white/20 text-white hover:bg-white/10"
+          >
             <RefreshCw className="size-4 mr-2" /> Refresh
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-
-        <div className={`p-4 border rounded-xl flex items-center justify-between ${getStatusColor()}`}>
+        <div
+          className={`p-4 border rounded-xl flex items-center justify-between ${getStatusColor()}`}
+        >
           <div className="flex items-center gap-3">
-            {isActive ? <ShieldCheck className="size-6" /> : isRevoked || isExpired ? <AlertCircle className="size-6" /> : <AlertTriangle className="size-6" />}
+            {isActive ? (
+              <ShieldCheck className="size-6" />
+            ) : isRevoked || isExpired ? (
+              <AlertCircle className="size-6" />
+            ) : (
+              <AlertTriangle className="size-6" />
+            )}
             <div>
               <div className="font-semibold">{getStatusLabel()}</div>
               <div className="text-xs opacity-70">
-                {isActive ? "Your certificate is valid and active." : "This certificate is no longer valid."}
+                {isActive
+                  ? "Your certificate is valid and active."
+                  : "This certificate is no longer valid."}
               </div>
             </div>
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold">{cert.score}/100</div>
-            <div className="text-[10px] uppercase tracking-wider opacity-70">Verification Score</div>
+            <div className="text-[10px] uppercase tracking-wider opacity-70">
+              Verification Score
+            </div>
           </div>
         </div>
 
@@ -185,25 +220,39 @@ export function CertificateStep({
           <div className="md:col-span-2 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Certificate Number</div>
+                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">
+                  Certificate Number
+                </div>
                 <div className="font-mono text-sm text-white">{cert.certificate_number}</div>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Authorization ID</div>
+                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">
+                  Authorization ID
+                </div>
                 <div className="font-mono text-sm text-white">{auth?.auth_number}</div>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Issued Date</div>
-                <div className="text-sm text-white">{cert.issued_at ? new Date(cert.issued_at).toLocaleDateString() : '-'}</div>
+                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">
+                  Issued Date
+                </div>
+                <div className="text-sm text-white">
+                  {cert.issued_at ? new Date(cert.issued_at).toLocaleDateString() : "-"}
+                </div>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Expiry Date</div>
-                <div className="text-sm text-white">{cert.expires_at ? new Date(cert.expires_at).toLocaleDateString() : '-'}</div>
+                <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">
+                  Expiry Date
+                </div>
+                <div className="text-sm text-white">
+                  {cert.expires_at ? new Date(cert.expires_at).toLocaleDateString() : "-"}
+                </div>
               </div>
             </div>
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2 text-sm">
-              <div className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Verified Claims</div>
+              <div className="text-[10px] text-white/40 uppercase tracking-wider mb-2">
+                Verified Claims
+              </div>
               {badge && (
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="size-4 text-emerald-400" /> {badge}
@@ -212,63 +261,116 @@ export function CertificateStep({
               {allowGovId && (
                 <>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className={`size-4 ${snapKyc ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    <ShieldCheck
+                      className={`size-4 ${snapKyc ? "text-emerald-400" : "text-white/30"}`}
+                    />{" "}
                     Identity Verified
                   </div>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className={`size-4 ${snapKyc ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    <ShieldCheck
+                      className={`size-4 ${snapKyc ? "text-emerald-400" : "text-white/30"}`}
+                    />{" "}
                     Government ID Verified
                   </div>
                 </>
               )}
-              {(snapFace || !accountType || accountType === "individual" || accountType === "celebrity") && (
+              {(snapFace ||
+                !accountType ||
+                accountType === "individual" ||
+                accountType === "celebrity") && (
                 <>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className={`size-4 ${snapFace ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    <ShieldCheck
+                      className={`size-4 ${snapFace ? "text-emerald-400" : "text-white/30"}`}
+                    />{" "}
                     Real Human Verified
                   </div>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className={`size-4 ${snapFace ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                    <ShieldCheck
+                      className={`size-4 ${snapFace ? "text-emerald-400" : "text-white/30"}`}
+                    />{" "}
                     Face Protected Profile Created
                   </div>
                 </>
               )}
               <div className="flex items-center gap-2">
-                <ShieldCheck className={`size-4 ${snapAsset ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                <ShieldCheck
+                  className={`size-4 ${snapAsset ? "text-emerald-400" : "text-white/30"}`}
+                />{" "}
                 Asset Ownership Verified
               </div>
               <div className="flex items-center gap-2">
-                <ShieldCheck className={`size-4 ${snapSig ? "text-emerald-400" : "text-white/30"}`} />{" "}
+                <ShieldCheck
+                  className={`size-4 ${snapSig ? "text-emerald-400" : "text-white/30"}`}
+                />{" "}
                 Authorization Signed
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white/10 border border-white/20 rounded-xl p-4 flex flex-col items-center justify-center space-y-3">
-            <div className="text-[10px] text-white/50 uppercase tracking-wider">Public Verification</div>
+            <div className="text-[10px] text-white/50 uppercase tracking-wider">
+              Public Verification
+            </div>
             <div className="bg-white p-2 rounded-lg">
-              {qrUrl ? <img src={qrUrl} alt="QR Code" className="size-32" /> : <div className="size-32 bg-white/20 animate-pulse rounded" />}
+              {qrUrl ? (
+                <img src={qrUrl} alt="QR Code" className="size-32" />
+              ) : (
+                <div className="size-32 bg-white/20 animate-pulse rounded" />
+              )}
             </div>
             <div className="text-[10px] text-center text-white/60 px-2 leading-tight">
               Scan to verify this certificate on the Eterna AI Registry
             </div>
-            <Button size="sm" variant="link" className="text-blue-400 p-0 h-auto" onClick={() => window.open(`/verify/${cert.public_slug}`, "_blank")}>
+            <Button
+              size="sm"
+              variant="link"
+              className="text-blue-400 p-0 h-auto"
+              onClick={() => window.open(`/verify/${cert.public_slug}`, "_blank")}
+            >
               Open public page <ExternalLink className="size-3 ml-1" />
             </Button>
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
-          <Button variant="outline" onClick={() => handleDownloadCert(true)} disabled={loadingUrl === cert.id} className="border-white/20 text-white hover:bg-white/10 flex-1">
-            {loadingUrl === cert.id ? <Loader2 className="size-4 animate-spin mr-2" /> : <ExternalLink className="size-4 mr-2" />}
+          <Button
+            variant="outline"
+            onClick={() => handleDownloadCert(true)}
+            disabled={loadingUrl === cert.id}
+            className="border-white/20 text-white hover:bg-white/10 flex-1"
+          >
+            {loadingUrl === cert.id ? (
+              <Loader2 className="size-4 animate-spin mr-2" />
+            ) : (
+              <ExternalLink className="size-4 mr-2" />
+            )}
             View Certificate
           </Button>
-          <Button variant="outline" onClick={() => handleDownloadCert(false)} disabled={loadingUrl === cert.id} className="border-white/20 text-white hover:bg-white/10 flex-1">
-            {loadingUrl === cert.id ? <Loader2 className="size-4 animate-spin mr-2" /> : <Download className="size-4 mr-2" />}
+          <Button
+            variant="outline"
+            onClick={() => handleDownloadCert(false)}
+            disabled={loadingUrl === cert.id}
+            className="border-white/20 text-white hover:bg-white/10 flex-1"
+          >
+            {loadingUrl === cert.id ? (
+              <Loader2 className="size-4 animate-spin mr-2" />
+            ) : (
+              <Download className="size-4 mr-2" />
+            )}
             Download Certificate
           </Button>
-          <Button variant="outline" onClick={() => handleDownloadPackage()} disabled={loadingPkg} className="border-white/20 text-white hover:bg-white/10 flex-1">
-            {loadingPkg ? <Loader2 className="size-4 animate-spin mr-2" /> : <FileKey2 className="size-4 mr-2" />}
+          <Button
+            variant="outline"
+            onClick={() => handleDownloadPackage()}
+            disabled={loadingPkg}
+            className="border-white/20 text-white hover:bg-white/10 flex-1"
+          >
+            {loadingPkg ? (
+              <Loader2 className="size-4 animate-spin mr-2" />
+            ) : (
+              <FileKey2 className="size-4 mr-2" />
+            )}
             Download Full Package
           </Button>
         </div>
@@ -278,7 +380,11 @@ export function CertificateStep({
             <ChevronLeft className="size-4 mr-1" /> Back
           </Button>
           <div className="flex items-center gap-3">
-            <Button onClick={onNext} disabled={!isActive} className="bg-blue-600 hover:bg-blue-500 text-white border-0">
+            <Button
+              onClick={onNext}
+              disabled={!isActive}
+              className="bg-blue-600 hover:bg-blue-500 text-white border-0"
+            >
               Finish Onboarding <ChevronRight className="size-4 ml-1" />
             </Button>
           </div>

@@ -5,11 +5,7 @@
 
 import { crawl4aiRenderPage, isCrawl4AiConfigured } from "@/lib/copyright/crawl4ai-render.server";
 import { isSafePublicHttpUrl } from "./url-safety.server";
-import {
-  assertNotAborted,
-  boundTimeoutMs,
-  isAbortError,
-} from "./scan-runtime.server";
+import { assertNotAborted, boundTimeoutMs, isAbortError } from "./scan-runtime.server";
 import type { ReferenceImageHit } from "./image-discovery-providers.server";
 import {
   REFERENCE_IMAGES_PER_QUERY,
@@ -21,8 +17,7 @@ import {
 } from "./google-images-source.server";
 
 export const GOOGLE_BROWSER_MAX_IMAGES = 400;
-const IMAGE_URL_PATTERN =
-  /https?:\/\/[^\s"'<>]+?\.(?:jpe?g|png|webp|avif)(?:\?[^\s"'<>]*)?/gi;
+const IMAGE_URL_PATTERN = /https?:\/\/[^\s"'<>]+?\.(?:jpe?g|png|webp|avif)(?:\?[^\s"'<>]*)?/gi;
 
 function buildGoogleImagesSearchUrl(query: string): string {
   const params = new URLSearchParams({
@@ -142,7 +137,8 @@ export async function collectGoogleImagesViaBrowser(input: {
 
     for (const settled of serpResults) {
       if (settled.status !== "fulfilled") {
-        lastFailure = settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
+        lastFailure =
+          settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
         continue;
       }
       for (const hit of settled.value.hits) {

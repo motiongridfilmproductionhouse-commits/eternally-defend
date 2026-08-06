@@ -8,9 +8,7 @@ import {
 
 const BodySchema = z.object({ scan_id: z.string().uuid() });
 
-export const Route = createFileRoute(
-  "/api/public/hooks/deepfake-google-images-worker",
-)({
+export const Route = createFileRoute("/api/public/hooks/deepfake-google-images-worker")({
   server: {
     handlers: {
       POST: async ({ request }) => {
@@ -23,9 +21,8 @@ export const Route = createFileRoute(
           return new Response("Invalid body", { status: 400 });
         }
 
-        const { verifyCopyrightScanWorkerRequestDetailed } = await import(
-          "@/lib/copyright/worker-auth.server"
-        );
+        const { verifyCopyrightScanWorkerRequestDetailed } =
+          await import("@/lib/copyright/worker-auth.server");
         const verification = await verifyCopyrightScanWorkerRequestDetailed(
           raw,
           request.headers.get("x-eterna-timestamp"),
@@ -54,12 +51,9 @@ export const Route = createFileRoute(
 
         // Direct waitUntil — promise created in-request, not via setImmediate.
         const executionPromise = (async () => {
-          const { supabaseAdmin } = await import(
-            "@/integrations/supabase/client.server"
-          );
-          const { executeGoogleImagesWorkerBatch } = await import(
-            "@/lib/deepfake/google-images-worker.server"
-          );
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { executeGoogleImagesWorkerBatch } =
+            await import("@/lib/deepfake/google-images-worker.server");
           try {
             const result = await executeGoogleImagesWorkerBatch({
               supabase: supabaseAdmin,

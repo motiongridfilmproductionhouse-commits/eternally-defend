@@ -84,7 +84,9 @@ export function CyberRadar({ events, scanning, counters = [] }: CyberRadarProps)
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-slate-100">Global investigation radar</h3>
           <p className="text-[11px] text-sky-300/80">
-            {scanning ? "Sweeping global distribution surface…" : "Radar idle — last sweep archived"}
+            {scanning
+              ? "Sweeping global distribution surface…"
+              : "Radar idle — last sweep archived"}
           </p>
         </div>
       </header>

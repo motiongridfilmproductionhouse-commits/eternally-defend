@@ -34,9 +34,21 @@ export const CLIENT_TYPES = [
 
 export const AUTHORIZATION_LEVELS = [
   { value: "monitoring", label: "Monitoring Only", desc: "Passive detection and alerts." },
-  { value: "monitoring_evidence", label: "Monitoring + Evidence Collection", desc: "We capture and preserve proof." },
-  { value: "monitoring_enforcement", label: "Monitoring + Enforcement Requests", desc: "We prepare platform reports for your review." },
-  { value: "full_protection", label: "Full Protection", desc: "Monitoring, evidence, and takedown requests." },
+  {
+    value: "monitoring_evidence",
+    label: "Monitoring + Evidence Collection",
+    desc: "We capture and preserve proof.",
+  },
+  {
+    value: "monitoring_enforcement",
+    label: "Monitoring + Enforcement Requests",
+    desc: "We prepare platform reports for your review.",
+  },
+  {
+    value: "full_protection",
+    label: "Full Protection",
+    desc: "Monitoring, evidence, and takedown requests.",
+  },
 ] as const;
 
 export const ENTERPRISE_CLIENT_TYPES = new Set(["business", "corporate", "agency"]);

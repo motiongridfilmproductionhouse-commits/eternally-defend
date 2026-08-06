@@ -60,8 +60,7 @@ export function discoveryCandidateFromDistribution(
   const classification = dist.classification ?? "";
   const player =
     keys.includes("embedded_player") || /STREAM|REUPLOAD|VIDEO_HOST/.test(classification);
-  const download =
-    classification === "DOWNLOAD_PAGE" || keys.includes("download_button");
+  const download = classification === "DOWNLOAD_PAGE" || keys.includes("download_button");
   const fileHost = classification === "FILE_HOST_DISTRIBUTION" || keys.includes("file_host");
   const archive =
     /archive\.org/i.test(dist.url) ||
@@ -81,7 +80,12 @@ export function discoveryCandidateFromDistribution(
     (torrent ? 15 : 0);
   const evidenceScore = Math.min(
     99,
-    Math.max(0, dist.confidence + accessBonus - (meta.posterSimilarity != null && meta.posterSimilarity < 30 ? 0 : 0)),
+    Math.max(
+      0,
+      dist.confidence +
+        accessBonus -
+        (meta.posterSimilarity != null && meta.posterSimilarity < 30 ? 0 : 0),
+    ),
   );
 
   return {

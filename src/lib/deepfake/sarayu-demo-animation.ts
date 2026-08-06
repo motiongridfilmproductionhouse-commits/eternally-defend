@@ -48,7 +48,10 @@ export function sarayuDemoProgressAt(elapsedMs: number): SarayuDemoProgress {
   };
 }
 
-export function sarayuDemoSessionKey(scanId: string | null, profileId: string | null): string | null {
+export function sarayuDemoSessionKey(
+  scanId: string | null,
+  profileId: string | null,
+): string | null {
   if (scanId) return `sarayu-demo-animation:${scanId}`;
   if (profileId) return `sarayu-demo-animation:profile:${profileId}`;
   return null;

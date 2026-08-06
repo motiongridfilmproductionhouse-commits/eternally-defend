@@ -45,11 +45,7 @@ export interface DetailFollowLogEntry {
   detail?: string;
 }
 
-import {
-  MAX_DEPTH,
-  MAX_DETAIL_DRAIN,
-  MAX_DETAIL_QUEUE,
-} from "./discovery-config";
+import { MAX_DEPTH, MAX_DETAIL_DRAIN, MAX_DETAIL_QUEUE } from "./discovery-config";
 
 /** Recursive listing / mirror follow — do not stall after a handful of URLs. */
 export const DETAIL_FOLLOW_MAX_QUEUE = MAX_DETAIL_QUEUE;
@@ -153,12 +149,7 @@ export class DetailFollowRecorder {
         continue;
       }
       const host = hostOf(url);
-      if (
-        pageHost &&
-        host &&
-        host !== pageHost &&
-        !isRecognizedExternalDetailHost(url, pageHost)
-      ) {
+      if (pageHost && host && host !== pageHost && !isRecognizedExternalDetailHost(url, pageHost)) {
         this.log("candidate_skipped", {
           url,
           reason: "cross_domain",
@@ -194,11 +185,7 @@ export class DetailFollowRecorder {
     this.log("candidate_crawled", { url });
   }
 
-  recordEvidenceResult(
-    url: string,
-    detail: string,
-    reason?: string,
-  ): void {
+  recordEvidenceResult(url: string, detail: string, reason?: string): void {
     this.log("evidence_result", { url, detail, reason });
   }
 

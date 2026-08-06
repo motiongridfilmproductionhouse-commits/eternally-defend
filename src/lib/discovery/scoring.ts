@@ -2,12 +2,11 @@
 // No runtime dependencies — safe to import from server functions and UI.
 
 export type Platform =
-  | "youtube" | "instagram" | "facebook" | "tiktok"
-  | "x" | "linkedin" | "reddit" | "website";
+  "youtube" | "instagram" | "facebook" | "tiktok" | "x" | "linkedin" | "reddit" | "website";
 
 export interface Signals {
-  nameSim?: number;    // 0..1
-  handleSim?: number;  // 0..1
+  nameSim?: number; // 0..1
+  handleSim?: number; // 0..1
   domainMatch?: boolean;
   inboundFromSite?: boolean;
   crossLinked?: boolean;
@@ -16,7 +15,7 @@ export interface Signals {
 }
 
 export interface ScoreResult {
-  confidence: number;      // 0..100
+  confidence: number; // 0..100
   reasons: string[];
   signals: Signals & {
     weights: Record<keyof Signals, number>;
@@ -83,12 +82,18 @@ export function jaroWinkler(a: string, b: string): number {
 /** Extract hostname from a URL string (returns "" on failure). */
 export function hostOf(url: string | null | undefined): string {
   if (!url) return "";
-  try { return new URL(url).hostname.replace(/^www\./, "").toLowerCase(); }
-  catch { return ""; }
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return "";
+  }
 }
 
 /** True when `haystack` (bio/blob) mentions the target domain. */
-export function mentionsDomain(haystack: string | null | undefined, domain: string | null | undefined): boolean {
+export function mentionsDomain(
+  haystack: string | null | undefined,
+  domain: string | null | undefined,
+): boolean {
   if (!haystack || !domain) return false;
   return haystack.toLowerCase().includes(domain.toLowerCase());
 }
@@ -100,7 +105,7 @@ export function scoreCandidate(input: {
   candidateHandle?: string | null;
   candidateBio?: string | null;
   candidateWebsiteLinks?: string[];
-  inboundFromSiteHosts?: string[];         // hosts the user's official site links out to
+  inboundFromSiteHosts?: string[]; // hosts the user's official site links out to
   candidateProfileUrl: string;
   crossLinked?: boolean;
   platformVerified?: boolean;
@@ -116,8 +121,10 @@ export function scoreCandidate(input: {
       mentionsDomain(input.candidateBio, input.subjectDomain));
 
   const profileHost = hostOf(input.candidateProfileUrl);
-  const inboundFromSite = !!(input.inboundFromSiteHosts?.includes(profileHost)) ||
-    (!!input.candidateHandle && !!input.inboundFromSiteHosts?.some((h) => h.endsWith(input.candidateHandle!.toLowerCase())));
+  const inboundFromSite =
+    !!input.inboundFromSiteHosts?.includes(profileHost) ||
+    (!!input.candidateHandle &&
+      !!input.inboundFromSiteHosts?.some((h) => h.endsWith(input.candidateHandle!.toLowerCase())));
 
   const reasons: string[] = [];
   if (nameSim >= 0.85) reasons.push(`Name matches (${Math.round(nameSim * 100)}%)`);
@@ -143,7 +150,10 @@ export function scoreCandidate(input: {
     confidence,
     reasons,
     signals: {
-      nameSim, handleSim, domainMatch, inboundFromSite,
+      nameSim,
+      handleSim,
+      domainMatch,
+      inboundFromSite,
       crossLinked: !!input.crossLinked,
       platformVerified: !!input.platformVerified,
       countryOrgMatch: !!input.countryOrgMatch,
@@ -208,5 +218,7 @@ export function handleFromUrl(url: string): string | null {
       return parts[1] ?? null;
     }
     return parts[0].startsWith("@") ? parts[0].slice(1) : parts[0];
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }

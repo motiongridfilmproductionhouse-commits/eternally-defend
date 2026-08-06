@@ -11,15 +11,24 @@ export const Route = createFileRoute("/_app/sensitive-protection/removal-cases")
 
 function SensitiveRemovalCases() {
   const mockCases = [
-    { id: "case-001", domain: "example-adult-tube.com", status: "UNDER_REVIEW", submitted: "2026-07-16" },
+    {
+      id: "case-001",
+      domain: "example-adult-tube.com",
+      status: "UNDER_REVIEW",
+      submitted: "2026-07-16",
+    },
   ];
 
   return (
     <SensitiveAccessGate>
       <div className="p-8 max-w-5xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold font-display text-white mb-2">Enforcement & Removal Cases</h1>
-          <p className="text-white/60">Track legal complaints, DMCA takedowns, and host notifications.</p>
+          <h1 className="text-2xl font-bold font-display text-white mb-2">
+            Enforcement & Removal Cases
+          </h1>
+          <p className="text-white/60">
+            Track legal complaints, DMCA takedowns, and host notifications.
+          </p>
         </div>
 
         <Card className="bg-[#0A1128] border-white/10">
@@ -33,13 +42,21 @@ function SensitiveRemovalCases() {
               <div className="text-center py-8 text-white/50 text-sm">No active removal cases.</div>
             ) : (
               <div className="space-y-4">
-                {mockCases.map(c => (
-                  <div key={c.id} className="flex justify-between items-center p-4 border border-white/10 rounded-lg bg-white/5">
+                {mockCases.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex justify-between items-center p-4 border border-white/10 rounded-lg bg-white/5"
+                  >
                     <div>
                       <div className="font-semibold text-white">{c.domain}</div>
-                      <div className="text-xs text-white/50 font-mono mt-1">Submitted: {c.submitted}</div>
+                      <div className="text-xs text-white/50 font-mono mt-1">
+                        Submitted: {c.submitted}
+                      </div>
                     </div>
-                    <Badge variant="outline" className="border-blue-500/50 text-blue-400 bg-blue-500/10">
+                    <Badge
+                      variant="outline"
+                      className="border-blue-500/50 text-blue-400 bg-blue-500/10"
+                    >
                       {c.status.replace(/_/g, " ")}
                     </Badge>
                   </div>

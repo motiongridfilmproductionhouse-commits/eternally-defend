@@ -3,7 +3,9 @@ import { config } from "./config.js";
 
 function sign(body: string): { signature: string; timestamp: string } {
   const ts = Date.now();
-  const signature = createHmac("sha256", config.AUTOMATION_WORKER_SECRET).update(`${ts}.${body}`).digest("hex");
+  const signature = createHmac("sha256", config.AUTOMATION_WORKER_SECRET)
+    .update(`${ts}.${body}`)
+    .digest("hex");
   return { signature, timestamp: String(ts) };
 }
 
@@ -47,7 +49,8 @@ export interface FetchedJob {
 }
 
 export const eterna = {
-  fetchJob: (jobId: string) => post<FetchedJob>("/api/public/hooks/automation-fetch", { job_id: jobId }),
+  fetchJob: (jobId: string) =>
+    post<FetchedJob>("/api/public/hooks/automation-fetch", { job_id: jobId }),
 
   event: (evt: {
     job_id: string;

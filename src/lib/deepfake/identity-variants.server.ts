@@ -19,14 +19,14 @@ const MAX_AUTO_ALIASES = 48;
 const KNOWN_NATIVE_VARIANTS: Record<string, string[]> = {
   "dulquer salmaan": ["ഡുൽഖർ", "ദുൽഖർ", "ദുൽഖർ സൽമാൻ", "dulquer salman", "dq"],
   "dulquer salman": ["ഡുൽഖർ", "ദുൽഖർ", "dulquer salmaan", "dq"],
-  "mohanlal": ["മോഹൻലാൽ", "lalettan"],
-  "mammootty": ["മമ്മൂട്ടി", "mammooty"],
-  "prithviraj": ["പ്രിത്വിരാജ്", "prithvi"],
+  mohanlal: ["മോഹൻലാൽ", "lalettan"],
+  mammootty: ["മമ്മൂട്ടി", "mammooty"],
+  prithviraj: ["പ്രിത്വിരാജ്", "prithvi"],
   "fahadh faasil": ["ഫഹദ് ഫാസിൽ", "fahad faasil"],
-  "nayanthara": ["നയൻതാര", "nayantara"],
+  nayanthara: ["നയൻതാര", "nayantara"],
   "deepika padukone": ["दीपिका पादुकोण", "deepika"],
   "sarayu mohan": ["സരയു മോഹൻ", "സരയു", "sarayu", "sarayumohan"],
-  "sarayu": ["സരയു", "sarayu mohan"],
+  sarayu: ["സരയു", "sarayu mohan"],
 };
 
 function uniquePreserve(items: string[]): string[] {
@@ -49,11 +49,7 @@ function initialsFrom(name: string): string[] {
   const letters = tokens.map((t) => t[0]?.toUpperCase()).filter(Boolean);
   if (letters.length < 2) return [];
   const joined = letters.join("");
-  return [
-    joined,
-    `${joined} Actor`,
-    `${joined} ${tokens[tokens.length - 1]}`,
-  ];
+  return [joined, `${joined} Actor`, `${joined} ${tokens[tokens.length - 1]}`];
 }
 
 function misspellings(name: string): string[] {
@@ -102,13 +98,7 @@ function handleVariants(handles: string[]): string[] {
 }
 
 function filmContextPhrases(name: string): string[] {
-  return [
-    `${name} actor`,
-    `${name} movie`,
-    `${name} film`,
-    `${name} photos`,
-    `${name} images`,
-  ];
+  return [`${name} actor`, `${name} movie`, `${name} film`, `${name} photos`, `${name} images`];
 }
 
 /**

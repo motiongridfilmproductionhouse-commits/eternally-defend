@@ -64,13 +64,13 @@ bun run dev
 
 ## Environment
 
-| Var                       | Purpose                                                    |
-| ------------------------- | ---------------------------------------------------------- |
-| `ETERNA_HOOK_URL`         | Base URL of the Eterna app (`https://…lovable.app`).       |
-| `AUTOMATION_WORKER_SECRET`| Shared HMAC secret. Must match Eterna's secret of the same name. |
-| `WORKER_ID`               | Human-readable id for this instance (goes into audit rows).|
-| `PROFILE_DIR`             | Path to persistent browser profile dir (recommend Fly volume). |
-| `PORT`                    | HTTP port for `/run` and `/health`. Default 8080.          |
+| Var                        | Purpose                                                          |
+| -------------------------- | ---------------------------------------------------------------- |
+| `ETERNA_HOOK_URL`          | Base URL of the Eterna app (`https://…lovable.app`).             |
+| `AUTOMATION_WORKER_SECRET` | Shared HMAC secret. Must match Eterna's secret of the same name. |
+| `WORKER_ID`                | Human-readable id for this instance (goes into audit rows).      |
+| `PROFILE_DIR`              | Path to persistent browser profile dir (recommend Fly volume).   |
+| `PORT`                     | HTTP port for `/run` and `/health`. Default 8080.                |
 
 **Never** put a Supabase service-role key on this service. It calls Eterna's
 signed hooks, and Eterna decrypts credentials for one job at a time.

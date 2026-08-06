@@ -56,9 +56,7 @@ export type SerpApiHttpAttemptBudget = {
   used: number;
 };
 
-export function claimSerpApiHttpAttempt(
-  budget: SerpApiHttpAttemptBudget | undefined,
-): boolean {
+export function claimSerpApiHttpAttempt(budget: SerpApiHttpAttemptBudget | undefined): boolean {
   if (!budget) return true;
   if (budget.remaining <= 0) return false;
   budget.remaining -= 1;
@@ -67,9 +65,7 @@ export function claimSerpApiHttpAttempt(
 }
 
 /** Face/identity rejection reasons that may increment serpapi_face_rejected. */
-export function isSerpApiFaceIdentityRejectionReason(
-  reason: string | null | undefined,
-): boolean {
+export function isSerpApiFaceIdentityRejectionReason(reason: string | null | undefined): boolean {
   return /\b(?:identity|protected identity|target|different person|face\s*mismatch|face\s*rejected)\b/i.test(
     reason ?? "",
   );
@@ -146,10 +142,7 @@ function threatSignalsFromText(text: string): string[] {
   return signals;
 }
 
-function extractHitsFromPayload(
-  payload: unknown,
-  query: string,
-): SerpApiImageHit[] {
+function extractHitsFromPayload(payload: unknown, query: string): SerpApiImageHit[] {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return [];
   }
@@ -170,10 +163,7 @@ function extractHitsFromPayload(
           : typeof item.source === "string"
             ? item.source
             : "",
-      ) ??
-      normalizeHostingPageUrl(
-        typeof item.source === "string" ? item.source : "",
-      );
+      ) ?? normalizeHostingPageUrl(typeof item.source === "string" ? item.source : "");
 
     if (!hosting) continue;
     if (seen.has(hosting)) continue;
@@ -182,15 +172,12 @@ function extractHitsFromPayload(
     const imageUrl =
       typeof item.original === "string" && isSafePublicHttpUrl(item.original)
         ? item.original.trim()
-        : typeof item.thumbnail === "string" &&
-            isSafePublicHttpUrl(item.thumbnail)
+        : typeof item.thumbnail === "string" && isSafePublicHttpUrl(item.thumbnail)
           ? item.thumbnail.trim()
           : undefined;
 
     const title = sanitizeProviderText(item.title);
-    const description = sanitizeProviderText(
-      item.snippet ?? item.source ?? item.title,
-    );
+    const description = sanitizeProviderText(item.snippet ?? item.source ?? item.title);
 
     hits.push({
       url: hosting,
@@ -199,8 +186,7 @@ function extractHitsFromPayload(
       query,
       source: "serpapi_google_images",
       thumbnail_url:
-        typeof item.thumbnail === "string" &&
-        isSafePublicHttpUrl(item.thumbnail)
+        typeof item.thumbnail === "string" && isSafePublicHttpUrl(item.thumbnail)
           ? item.thumbnail.trim()
           : undefined,
       image_url: imageUrl,
@@ -234,11 +220,7 @@ async function fetchSerpApiOnce(input: {
     ijn: "0",
   });
 
-  const timeoutMs = boundTimeoutMs(
-    SERPAPI_REQUEST_TIMEOUT_MS,
-    input.signal,
-    input.softDeadlineMs,
-  );
+  const timeoutMs = boundTimeoutMs(SERPAPI_REQUEST_TIMEOUT_MS, input.signal, input.softDeadlineMs);
   /*
    * Keep provider timeout distinct from the scan AbortSignal so a 12s
    * SerpApi stall soft-fails instead of aborting the whole scan.
@@ -249,21 +231,16 @@ async function fetchSerpApiOnce(input: {
   let timedOut = false;
   const timeoutTimer = setTimeout(() => {
     timedOut = true;
-    timeoutController.abort(
-      new Error(`SerpApi request timed out after ${timeoutMs}ms`),
-    );
+    timeoutController.abort(new Error(`SerpApi request timed out after ${timeoutMs}ms`));
   }, timeoutMs);
   const signal = mergeAbortSignals(input.signal, timeoutController.signal);
 
   try {
-    const response = await fetch(
-      `https://serpapi.com/search.json?${params.toString()}`,
-      {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        signal,
-      },
-    );
+    const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal,
+    });
 
     // Prefer scan-level abort over provider timeout when both fired.
     assertNotAborted(input.signal);
@@ -382,8 +359,7 @@ export async function searchSerpApiGoogleImages(input: {
       }
 
       if (status === 429 || status >= 500) {
-        lastFailure =
-          errorMessage || `SerpApi temporary failure (${status})`;
+        lastFailure = errorMessage || `SerpApi temporary failure (${status})`;
         const canRetry =
           attempt < SERPAPI_MAX_RETRIES &&
           (!input.httpAttemptBudget || input.httpAttemptBudget.remaining > 0);
@@ -419,8 +395,7 @@ export async function searchSerpApiGoogleImages(input: {
         skipped: false,
       };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       const providerTimeout = /timed out|timeout/i.test(message);
 
       // Scan-level abort/deadline must propagate. Provider timeouts soft-fail.
@@ -428,9 +403,7 @@ export async function searchSerpApiGoogleImages(input: {
         throw error;
       }
       if (providerTimeout || (isAbortError(error) && !input.signal?.aborted)) {
-        lastFailure = providerTimeout
-          ? message
-          : message || "SerpApi request aborted";
+        lastFailure = providerTimeout ? message : message || "SerpApi request aborted";
         return {
           hits: [],
           creditsUsed: 0,
@@ -521,18 +494,14 @@ export async function searchSerpApiQueriesBounded(input: {
     remaining: maxRequests,
     used: 0,
   };
-  const completed = new Set(
-    (input.alreadyCompletedIds ?? []).map((id) => id.trim().toLowerCase()),
-  );
+  const completed = new Set((input.alreadyCompletedIds ?? []).map((id) => id.trim().toLowerCase()));
   const seenPages = new Set<string>();
   for (const page of input.alreadySeenPages ?? []) {
     const normalized = normalizeHostingPageUrl(page);
     if (normalized) seenPages.add(normalized);
   }
 
-  const pending = input.queries.filter(
-    (query) => !completed.has(query.trim().toLowerCase()),
-  );
+  const pending = input.queries.filter((query) => !completed.has(query.trim().toLowerCase()));
   const hits: SerpApiImageHit[] = [];
   const failureMessages: string[] = [];
   const completedQueryIds: string[] = [];
@@ -556,18 +525,14 @@ export async function searchSerpApiQueriesBounded(input: {
 
   let stoppedEarly = false;
 
-  for (let i = 0; i < pending.length && httpAttemptBudget.remaining > 0; ) {
+  for (let i = 0; i < pending.length && httpAttemptBudget.remaining > 0;) {
     assertNotAborted(input.signal);
     if (seenPages.size >= SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN) {
       stoppedEarly = true;
       break;
     }
 
-    const parallel = Math.min(
-      SERPAPI_CONCURRENCY,
-      httpAttemptBudget.remaining,
-      pending.length - i,
-    );
+    const parallel = Math.min(SERPAPI_CONCURRENCY, httpAttemptBudget.remaining, pending.length - i);
     const batch = pending.slice(i, i + parallel);
     if (!batch.length) break;
 
@@ -602,9 +567,7 @@ export async function searchSerpApiQueriesBounded(input: {
         if (isAbortError(result.reason)) throw result.reason;
         failures++;
         const failure =
-          result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason);
+          result.reason instanceof Error ? result.reason.message : String(result.reason);
         failureMessages.push(failure);
         completed.add(queryId);
         completedQueryIds.push(queryId);
@@ -699,9 +662,7 @@ export async function searchSerpApiQueriesBounded(input: {
     }
   }
 
-  const allPendingCompleted = pending.every((query) =>
-    completed.has(query.trim().toLowerCase()),
-  );
+  const allPendingCompleted = pending.every((query) => completed.has(query.trim().toLowerCase()));
 
   return {
     hits,
@@ -711,9 +672,7 @@ export async function searchSerpApiQueriesBounded(input: {
     creditsUsed,
     uniquePages: seenPages.size,
     completedQueryIds,
-    seenPageUrls: Array.from(seenPages).slice(
-      -SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN,
-    ),
+    seenPageUrls: Array.from(seenPages).slice(-SERPAPI_MAX_UNIQUE_PAGES_PER_SCAN),
     failureMessages: failureMessages.slice(0, 20),
     drained: uniqueCapHit || allPendingCompleted,
   };

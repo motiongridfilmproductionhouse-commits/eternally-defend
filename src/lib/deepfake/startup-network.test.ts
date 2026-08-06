@@ -28,10 +28,7 @@ test("classifyStartupNetworkError maps fetch failed to worker endpoint unavailab
     classifyStartupNetworkError(new Error("connect ECONNREFUSED 127.0.0.1:443")),
     "connection_refused",
   );
-  assert.equal(
-    classifyStartupNetworkError(new Error("certificate has expired")),
-    "tls_failure",
-  );
+  assert.equal(classifyStartupNetworkError(new Error("certificate has expired")), "tls_failure");
   assert.equal(
     classifyStartupNetworkError(new Error("The operation was aborted due to timeout")),
     "timeout",
@@ -68,10 +65,7 @@ test("resolveDeepfakeScanWorkerUrl appends hook path to bare origins", () => {
     DEEPFAKE_SCAN_WORKER_URL: "https://example.com",
     COPYRIGHT_SCAN_WORKER_SECRET: "secret",
   } as NodeJS.ProcessEnv);
-  assert.equal(
-    url,
-    "https://example.com/api/public/hooks/deepfake-scan-execute",
-  );
+  assert.equal(url, "https://example.com/api/public/hooks/deepfake-scan-execute");
 });
 
 test("resolveDeepfakeScanWorkerUrl rejects invalid explicit URLs", () => {
@@ -106,22 +100,13 @@ test("resolveGoogleImagesWorkerUrl appends hook for bare origin", () => {
   const url = resolveGoogleImagesWorkerUrl({
     DEEPFAKE_GOOGLE_IMAGES_WORKER_URL: "https://example.com",
   } as NodeJS.ProcessEnv);
-  assert.equal(
-    url,
-    "https://example.com/api/public/hooks/deepfake-google-images-worker",
-  );
+  assert.equal(url, "https://example.com/api/public/hooks/deepfake-google-images-worker");
 });
 
 test("startupErrorLabel covers required categories", () => {
-  assert.equal(
-    startupErrorLabel("worker_endpoint_unavailable"),
-    "Worker endpoint unavailable",
-  );
+  assert.equal(startupErrorLabel("worker_endpoint_unavailable"), "Worker endpoint unavailable");
   assert.equal(startupErrorLabel("timeout"), "Timeout");
-  assert.equal(
-    startupErrorLabel("database_unavailable"),
-    "Database unavailable",
-  );
+  assert.equal(startupErrorLabel("database_unavailable"), "Database unavailable");
 });
 
 test("worker hooks acknowledge with 202 and do not await full batch inline", () => {
@@ -130,20 +115,14 @@ test("worker hooks acknowledge with 202 and do not await full batch inline", () 
     "utf8",
   );
   const giHook = readFileSync(
-    resolve(
-      process.cwd(),
-      "src/routes/api/public/hooks/deepfake-google-images-worker.ts",
-    ),
+    resolve(process.cwd(), "src/routes/api/public/hooks/deepfake-google-images-worker.ts"),
     "utf8",
   );
   assert.match(scanHook, /status: 202/);
   assert.match(scanHook, /registerWaitUntilExecution\(executionPromise\)/);
   assert.match(scanHook, /const executionPromise = executeDeepfakeScanById/);
   // 202 must not await the worker batch before responding.
-  assert.doesNotMatch(
-    scanHook,
-    /await executeDeepfakeScanById[\s\S]*status: 202/,
-  );
+  assert.doesNotMatch(scanHook, /await executeDeepfakeScanById[\s\S]*status: 202/);
   assert.doesNotMatch(scanHook, /setImmediate\s*\(/);
   assert.match(giHook, /status: 202/);
   assert.match(giHook, /registerWaitUntilExecution\(executionPromise\)/);
@@ -151,14 +130,9 @@ test("worker hooks acknowledge with 202 and do not await full batch inline", () 
 });
 
 test("dispatchDeepfakeScanExecution never awaits inline pipeline batch", () => {
-  const src = readFileSync(
-    resolve(process.cwd(), "src/lib/deepfake-intel.functions.ts"),
-    "utf8",
-  );
+  const src = readFileSync(resolve(process.cwd(), "src/lib/deepfake-intel.functions.ts"), "utf8");
   const scheduleStart = src.indexOf("function scheduleInlineWorkerExecution");
-  const dispatchStart = src.indexOf(
-    "export async function dispatchDeepfakeScanExecution",
-  );
+  const dispatchStart = src.indexOf("export async function dispatchDeepfakeScanExecution");
   const end = src.indexOf("export async function executeDeepfakeScanById");
   assert.ok(scheduleStart >= 0 && dispatchStart > scheduleStart);
   const scheduleBlock = src.slice(scheduleStart, dispatchStart);

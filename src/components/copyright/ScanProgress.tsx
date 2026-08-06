@@ -176,9 +176,7 @@ export function ScanProgress({
             )}
           </div>
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold">
-              Scanning in progress · {title}
-            </h2>
+            <h2 className="truncate text-sm font-semibold">Scanning in progress · {title}</h2>
             <p className="text-xs text-muted-foreground">{stageNote}</p>
           </div>
           <Loader2
@@ -268,7 +266,9 @@ export function ScanProgress({
                   {done ? (
                     <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                   ) : (
-                    <Icon className={`h-3.5 w-3.5 ${active && animate ? "animate-pulse text-primary" : ""}`} />
+                    <Icon
+                      className={`h-3.5 w-3.5 ${active && animate ? "animate-pulse text-primary" : ""}`}
+                    />
                   )}
                   <span className="min-w-0 truncate">{s.label}</span>
                   {active && animate && (

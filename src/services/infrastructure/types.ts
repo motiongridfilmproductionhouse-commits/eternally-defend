@@ -107,7 +107,7 @@ export interface InfrastructureReport {
   provider?: ProviderResult;
 
   risk?: RiskScore;
-contacts?: ContactDiscoveryResult;
+  contacts?: ContactDiscoveryResult;
 
   confidence: number;
 

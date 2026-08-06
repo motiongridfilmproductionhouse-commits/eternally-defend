@@ -273,10 +273,7 @@ export function classifyThreatCategory(input: {
     return "torrent";
   }
   if (matchesAny(domain, MIRROR_HINTS) || cls.includes("MIRROR")) return "mirror";
-  if (
-    matchesAny(domain, VIDEO_REUPLOAD_HOSTS) ||
-    cls.includes("VIDEO_HOST_REUPLOAD")
-  ) {
+  if (matchesAny(domain, VIDEO_REUPLOAD_HOSTS) || cls.includes("VIDEO_HOST_REUPLOAD")) {
     return "video_reupload";
   }
   if (matchesAny(domain, STREAMING_HOSTS)) return "streaming";
@@ -313,12 +310,7 @@ export function severityFor(
 
   if (domainRisk === "critical" && (verified || confidence >= 70)) return "critical";
 
-  if (
-    verified &&
-    category &&
-    criticalCategories.has(category) &&
-    confidence >= 70
-  ) {
+  if (verified && category && criticalCategories.has(category) && confidence >= 70) {
     return "critical";
   }
 
@@ -381,8 +373,7 @@ function rowFromSuspicious(source: PublicSuspiciousSource): ThreatResultRow {
   const domain = normalizeHost(source.domain, source.url);
   const confidence = Math.round(source.confidence ?? 0);
   const verified =
-    source.source_state === "new_confirmed" ||
-    source.source_state === "historical_reconfirmed";
+    source.source_state === "new_confirmed" || source.source_state === "historical_reconfirmed";
   const categoryKey = classifyThreatCategory({
     domain,
     url: source.url,
@@ -545,11 +536,7 @@ export function buildThreatResultRows(input: {
   });
 }
 
-export type ThreatFilterKey =
-  | "all"
-  | "active"
-  | "removed"
-  | ThreatCategoryKey;
+export type ThreatFilterKey = "all" | "active" | "removed" | ThreatCategoryKey;
 
 export const THREAT_FILTERS: Array<{ key: ThreatFilterKey; label: string }> = [
   { key: "all", label: "All sources" },

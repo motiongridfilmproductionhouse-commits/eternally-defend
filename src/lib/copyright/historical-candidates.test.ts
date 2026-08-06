@@ -20,14 +20,8 @@ test("scan deadlines derive from one absolute scan start", () => {
     KNOWN_URL_BUDGET_MS + PROVIDER_CRAWL_BUDGET_MS + DETAIL_FOLLOW_BUDGET_MS,
   );
   assert.equal(knownUrlDeadlineAt(started, deadline), started + KNOWN_URL_BUDGET_MS);
-  assert.equal(
-    discoveryPhaseDeadlineAt(started, deadline),
-    started + PROVIDER_CRAWL_BUDGET_MS,
-  );
-  assert.equal(
-    providerCrawlDeadlineAt(deadline),
-    deadline - DETAIL_FOLLOW_BUDGET_MS,
-  );
+  assert.equal(discoveryPhaseDeadlineAt(started, deadline), started + PROVIDER_CRAWL_BUDGET_MS);
+  assert.equal(providerCrawlDeadlineAt(deadline), deadline - DETAIL_FOLLOW_BUDGET_MS);
 });
 
 test("phase deadlines never exceed the absolute scan deadline", () => {

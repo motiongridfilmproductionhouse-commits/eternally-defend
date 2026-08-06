@@ -15,9 +15,7 @@ import {
   ScanOwnershipLostError,
   SCAN_DEADLINE_BUFFER_MS,
 } from "./scan-runtime.server";
-import {
-  STALE_RECOVERY_GRACE_MS,
-} from "./scan-lease.server";
+import { STALE_RECOVERY_GRACE_MS } from "./scan-lease.server";
 import {
   createDiscoveryFunnelMetrics,
   decideTerminalStatus,
@@ -41,10 +39,7 @@ import {
 } from "./scan-persist.server";
 import { firecrawlSearch } from "./firecrawl.server";
 import { resolveRedirectChain } from "./url-verification.server";
-import {
-  setTestDnsLookupAll,
-  setTestPinnedHttpFetch,
-} from "./url-safety.server";
+import { setTestDnsLookupAll, setTestPinnedHttpFetch } from "./url-safety.server";
 
 type FakeRow = Record<string, unknown>;
 
@@ -202,7 +197,10 @@ function createFakeSupabase(initialRows: FakeRow[] = []) {
                 patch: state.patch,
                 filters: { ...state.filters },
               });
-              return { data: matched.map((row) => ({ id: row.id, status: row.status })), error: null };
+              return {
+                data: matched.map((row) => ({ id: row.id, status: row.status })),
+                error: null,
+              };
             }
 
             let matched = rows.filter((row) => matches(row, state.filters));
@@ -269,12 +267,8 @@ test("expired lease recovery marks only expired running scans failed", async () 
     {
       id: expiredId,
       status: "running",
-      lease_expires_at: new Date(
-        now - STALE_RECOVERY_GRACE_MS - 5_000,
-      ).toISOString(),
-      heartbeat_at: new Date(
-        now - STALE_RECOVERY_GRACE_MS - 5_000,
-      ).toISOString(),
+      lease_expires_at: new Date(now - STALE_RECOVERY_GRACE_MS - 5_000).toISOString(),
+      heartbeat_at: new Date(now - STALE_RECOVERY_GRACE_MS - 5_000).toISOString(),
       scan_run_token: createScanRunToken(),
       discovery_metrics: {},
     },
@@ -574,10 +568,7 @@ test("migration succeeds with duplicate RUNNING rows ranking logic", () => {
   assert.match(sql, /deepfake_scans_one_active_per_target/);
   assert.match(sql, /ROW_NUMBER\(\) OVER/);
   assert.match(sql, /lower\(btrim\(target_name\)\)/);
-  assert.match(
-    sql,
-    /COALESCE\(profile_id, '00000000-0000-0000-0000-000000000000'::uuid\)/,
-  );
+  assert.match(sql, /COALESCE\(profile_id, '00000000-0000-0000-0000-000000000000'::uuid\)/);
   assert.match(sql, /WHERE status = 'running'/);
   assert.match(sql, /ranked\.rn > 1/);
   assert.match(sql, /prevent_terminal_revive/);
@@ -586,10 +577,7 @@ test("migration succeeds with duplicate RUNNING rows ranking logic", () => {
 test("NULL profile_id normalization is sentinel-stable", () => {
   assert.equal(normalizeProfileIdForIndex(null), NULL_PROFILE_SENTINEL);
   assert.equal(normalizeProfileIdForIndex(undefined), NULL_PROFILE_SENTINEL);
-  assert.equal(
-    normalizeScanTargetName("  Honey  Rose "),
-    "honey  rose",
-  );
+  assert.equal(normalizeScanTargetName("  Honey  Rose "), "honey  rose");
   assert.ok(
     sameActiveScanIdentity(
       { user_id: "u", profile_id: null, target_name: "Honey Rose" },
@@ -635,10 +623,7 @@ test("two same-target scans cannot remain active in fake unique index", async ()
     .single();
 
   assert.equal(isUniqueViolation(second.error), true);
-  assert.equal(
-    supabase.rows.filter((row) => row.status === "running").length,
-    1,
-  );
+  assert.equal(supabase.rows.filter((row) => row.status === "running").length, 1);
 });
 
 test("every execution path ends completed, partial or failed", async () => {
@@ -708,15 +693,9 @@ test("soft deadline leaves at least 60s before hard timeout", () => {
     hardTimeoutMs: 300_000,
     nowMs: now,
   });
-  assert.equal(
-    runtime.hardDeadlineMs - runtime.softDeadlineMs,
-    SCAN_DEADLINE_BUFFER_MS,
-  );
+  assert.equal(runtime.hardDeadlineMs - runtime.softDeadlineMs, SCAN_DEADLINE_BUFFER_MS);
   assert.ok(boundTimeoutMs(20_000, runtime.signal, runtime.softDeadlineMs, now) <= 20_000);
-  assert.ok(
-    mergeAbortSignals(runtime.signal, AbortSignal.timeout(1_000)).aborted ===
-      false,
-  );
+  assert.ok(mergeAbortSignals(runtime.signal, AbortSignal.timeout(1_000)).aborted === false);
 });
 
 test("hasValidScanProgress requires persisted discoveries or findings", async () => {
@@ -729,14 +708,8 @@ test("hasValidScanProgress requires persisted discoveries or findings", async ()
     false,
     "in-memory crawl/classification alone must not grant PARTIAL",
   );
-  assert.equal(
-    hasValidScanProgress({ metrics, discoveryCount: 1 }),
-    true,
-  );
-  assert.equal(
-    hasValidScanProgress({ metrics, findingCount: 1 }),
-    true,
-  );
+  assert.equal(hasValidScanProgress({ metrics, discoveryCount: 1 }), true);
+  assert.equal(hasValidScanProgress({ metrics, findingCount: 1 }), true);
 
   const persisted = new Set<string>();
   const upserts: unknown[] = [];
@@ -804,13 +777,8 @@ test("migration ensures discoveries unique page index for batch upserts", () => 
   );
   assert.match(sql, /deepfake_discoveries_unique_page/);
   assert.match(sql, /PARTITION BY scan_id, page_url/);
-  assert.match(
-    sql,
-    /DELETE FROM public\.deepfake_discoveries AS discoveries/,
-  );
-  const deleteAt = sql.indexOf(
-    "DELETE FROM public.deepfake_discoveries AS discoveries",
-  );
+  assert.match(sql, /DELETE FROM public\.deepfake_discoveries AS discoveries/);
+  const deleteAt = sql.indexOf("DELETE FROM public.deepfake_discoveries AS discoveries");
   const indexAt = sql.indexOf("deepfake_discoveries_unique_page");
   assert.ok(deleteAt > 0 && indexAt > deleteAt);
 });

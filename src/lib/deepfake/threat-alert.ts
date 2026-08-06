@@ -77,9 +77,7 @@ const RISK_RANK: Record<RiskLevel, number> = {
 };
 
 /** Sanitize and normalize a URL for distinct-threat deduplication. */
-export function sanitizeThreatDedupUrl(
-  value: string | null | undefined,
-): string | null {
+export function sanitizeThreatDedupUrl(value: string | null | undefined): string | null {
   const cleaned = sanitizeEvidenceUrl(value);
   if (!cleaned) return null;
   try {
@@ -179,9 +177,7 @@ export function buildThreatAlertSummary(
 }
 
 /** Hostname-only label — never a full URL or page title. */
-export function sanitizeThreatHostname(
-  value: string | null | undefined,
-): string | null {
+export function sanitizeThreatHostname(value: string | null | undefined): string | null {
   if (!value || typeof value !== "string") return null;
   const trimmed = value.trim().toLowerCase();
   if (!trimmed) return null;
@@ -252,8 +248,7 @@ export function buildThreatDomainLabels(
         return best;
       }, null) ?? "LOW";
     const hasVerified = bucket.verified > 0;
-    const tone: "red" | "orange" =
-      hasVerified || highestRisk === "CRITICAL" ? "red" : "orange";
+    const tone: "red" | "orange" = hasVerified || highestRisk === "CRITICAL" ? "red" : "orange";
     const wording = hasVerified
       ? "Verified evidence domain"
       : threatCount >= 2
@@ -274,12 +269,8 @@ export function buildThreatDomainLabels(
       highestRisk,
       hasVerified,
       tone,
-      chipLabel: `${riskWord} · ${domain} · ${threatCount} threat${
-        threatCount === 1 ? "" : "s"
-      }`,
-      detailLabel: hasVerified
-        ? `${bucket.verified} verified`
-        : `${bucket.probable} probable`,
+      chipLabel: `${riskWord} · ${domain} · ${threatCount} threat${threatCount === 1 ? "" : "s"}`,
+      detailLabel: hasVerified ? `${bucket.verified} verified` : `${bucket.probable} probable`,
       wording,
     });
   }
@@ -343,9 +334,7 @@ export function threatAlertCountLines(summary: ThreatAlertSummary): string[] {
 export function threatAlertBannerMessage(summary: ThreatAlertSummary): string {
   return `Eterna identified ${summary.total} distinct client-visible threat page${
     summary.total === 1 ? "" : "s"
-  } across ${summary.domains} verified domain${
-    summary.domains === 1 ? "" : "s"
-  }.`;
+  } across ${summary.domains} verified domain${summary.domains === 1 ? "" : "s"}.`;
 }
 
 export function shouldShowThreatAlertBanner(summary: ThreatAlertSummary): boolean {
@@ -370,9 +359,7 @@ export function resolveThreatAlertAnnouncement(input: {
 } {
   const scanId = input.scanId;
   const distinctTotal = Math.max(0, input.distinctTotal);
-  const tone =
-    input.tone ??
-    threatAlertToneFromCounts({ total: distinctTotal, verified: 0 });
+  const tone = input.tone ?? threatAlertToneFromCounts({ total: distinctTotal, verified: 0 });
   const previous = input.previous;
   const scanChanged = !previous || previous.scanId !== scanId;
   const elevated = tone === "orange" || tone === "red";
@@ -536,23 +523,15 @@ export function resolveNewThreatFindingPulse(input: {
 }
 
 /** Presentation-only ordering for the results console under red alert. */
-export function compareThreatPresentationOrder(
-  a: ClientFinding,
-  b: ClientFinding,
-): number {
+export function compareThreatPresentationOrder(a: ClientFinding, b: ClientFinding): number {
   const classRank = (finding: ClientFinding) => {
     const c = classifyThreatFinding(finding);
     if (c === "VERIFIED_DEEPFAKE") return 0;
     if (c === "PROBABLE_DEEPFAKE") return 1;
     return 2;
   };
-  const riskRank = (finding: ClientFinding) =>
-    -RISK_RANK[asRiskLevel(finding.risk_level)];
-  return (
-    classRank(a) - classRank(b) ||
-    riskRank(a) - riskRank(b) ||
-    a.id.localeCompare(b.id)
-  );
+  const riskRank = (finding: ClientFinding) => -RISK_RANK[asRiskLevel(finding.risk_level)];
+  return classRank(a) - classRank(b) || riskRank(a) - riskRank(b) || a.id.localeCompare(b.id);
 }
 
 export function isElevatedThreatTone(tone: ThreatAlertTone): boolean {

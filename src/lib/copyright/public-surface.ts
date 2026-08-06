@@ -127,9 +127,7 @@ export function publicSourceActivityStatusLabel(status: string): string {
   }
 }
 
-export function sanitizeDiscoveryQueryForClient(
-  query: string | null | undefined,
-): string | null {
+export function sanitizeDiscoveryQueryForClient(query: string | null | undefined): string | null {
   if (!query?.trim()) return null;
   const q = query.trim();
   if (q === "known_url_seed") return "Submitted URL";
@@ -156,9 +154,7 @@ export function sanitizeSourceActivityEntryForClient(
   };
 }
 
-export function sanitizeScanActivityEventForClient(
-  event: ScanActivityEvent,
-): ScanActivityEvent {
+export function sanitizeScanActivityEventForClient(event: ScanActivityEvent): ScanActivityEvent {
   const capability = mapToPublicCapabilityId(event.provider);
   return {
     ...event,
@@ -238,8 +234,7 @@ export function sanitizeCopyrightStatsForClient(
     : undefined;
 
   const providerFailuresByCategory =
-    base.provider_failures_by_category &&
-    typeof base.provider_failures_by_category === "object"
+    base.provider_failures_by_category && typeof base.provider_failures_by_category === "object"
       ? Object.fromEntries(
           Object.entries(base.provider_failures_by_category as Record<string, number>).map(
             ([k, v]) => [k.replace(/firecrawl|brightdata|serpapi/gi, "discovery"), v],
@@ -263,16 +258,11 @@ export function sanitizeCopyrightStatsForClient(
   };
 }
 
-export function sanitizeCopyrightScanRowForClient<T extends Record<string, unknown>>(
-  row: T,
-): T {
+export function sanitizeCopyrightScanRowForClient<T extends Record<string, unknown>>(row: T): T {
   const stats =
     row.stats && typeof row.stats === "object"
       ? sanitizeCopyrightStatsForClient(row.stats as Record<string, unknown>)
       : row.stats;
-  const error =
-    typeof row.error === "string"
-      ? sanitizeFunnelLine(row.error)
-      : row.error;
+  const error = typeof row.error === "string" ? sanitizeFunnelLine(row.error) : row.error;
   return { ...row, stats, error } as T;
 }

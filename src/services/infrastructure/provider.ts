@@ -8,7 +8,7 @@ export interface ProviderResult {
 export function detectProvider(
   ip?: string,
   cdn?: string,
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
 ): ProviderResult {
   const server = headers["server"]?.toLowerCase() ?? "";
 
@@ -46,4 +46,3 @@ export function detectProvider(
     hosting: "Unknown",
   };
 }
-

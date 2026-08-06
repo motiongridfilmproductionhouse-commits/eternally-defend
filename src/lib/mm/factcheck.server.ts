@@ -2,7 +2,13 @@
  * Google Fact Check Tools API client.
  * Docs: https://developers.google.com/fact-check/tools/api/reference/rest/v1alpha1/claims/search
  */
-import { getProviderConfig, ok, unavailable, failed, type ProviderResult } from "./providers.server";
+import {
+  getProviderConfig,
+  ok,
+  unavailable,
+  failed,
+  type ProviderResult,
+} from "./providers.server";
 
 export interface FactCheckReview {
   publisher: { name?: string; site?: string };

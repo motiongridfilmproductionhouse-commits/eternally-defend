@@ -40,7 +40,9 @@ function NotificationsPage() {
     <div className="space-y-5 max-w-3xl">
       <PageCard title="INBOX" sub="Latest alerts and updates">
         {q.isLoading ? (
-          <div className="py-8 grid place-items-center text-muted-foreground"><Loader2 className="size-4 animate-spin" /></div>
+          <div className="py-8 grid place-items-center text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
         ) : !q.data || q.data.notes.length === 0 ? (
           <div className="py-10 flex flex-col items-center gap-2 text-muted-foreground">
             <Inbox className="size-8 opacity-60" />
@@ -51,8 +53,17 @@ function NotificationsPage() {
             {q.data.notes.map((n) => {
               const Icon = iconFor[n.kind] ?? Sparkles;
               return (
-                <div key={n.id} className="flex gap-3 p-3 rounded-xl border border-border hover:bg-accent/30 transition">
-                  <div className="size-10 rounded-xl grid place-items-center shrink-0" style={{ background: `color-mix(in oklab, ${n.tone} 14%, white)`, color: n.tone }}>
+                <div
+                  key={n.id}
+                  className="flex gap-3 p-3 rounded-xl border border-border hover:bg-accent/30 transition"
+                >
+                  <div
+                    className="size-10 rounded-xl grid place-items-center shrink-0"
+                    style={{
+                      background: `color-mix(in oklab, ${n.tone} 14%, white)`,
+                      color: n.tone,
+                    }}
+                  >
                     <Icon className="size-5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -62,7 +73,9 @@ function NotificationsPage() {
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{n.body}</div>
                   </div>
-                  <div className="text-[11px] text-muted-foreground shrink-0">{timeAgo(n.time)}</div>
+                  <div className="text-[11px] text-muted-foreground shrink-0">
+                    {timeAgo(n.time)}
+                  </div>
                 </div>
               );
             })}

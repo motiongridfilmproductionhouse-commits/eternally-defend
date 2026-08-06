@@ -21,8 +21,7 @@ export interface ContactDiscoveryResult {
   errors: string[];
 }
 
-const EMAIL_REGEX =
-  /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
 const PATHS = [
   "",
@@ -40,9 +39,7 @@ const PATHS = [
   "/.well-known/security.txt",
 ];
 
-export async function discoverContacts(
-  inputUrl: string,
-): Promise<ContactDiscoveryResult> {
+export async function discoverContacts(inputUrl: string): Promise<ContactDiscoveryResult> {
   const result: ContactDiscoveryResult = {
     contacts: [],
     pagesScanned: [],
@@ -102,11 +99,7 @@ function classify(email: string): ContactItem["category"] {
 }
 
 function addContact(list: ContactItem[], item: ContactItem) {
-  if (
-    !list.find(
-      (c) => c.email.toLowerCase() === item.email.toLowerCase(),
-    )
-  ) {
+  if (!list.find((c) => c.email.toLowerCase() === item.email.toLowerCase())) {
     list.push(item);
   }
 }

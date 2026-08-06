@@ -27,12 +27,12 @@ export const Route = createFileRoute("/onboarding")({
       .select("onboarding_completed")
       .eq("user_id", data.user.id)
       .maybeSingle();
-    if (profile?.onboarding_completed) throw redirect({ to: "/", search: { onboarding: "complete" } as never });
+    if (profile?.onboarding_completed)
+      throw redirect({ to: "/", search: { onboarding: "complete" } as never });
     return { user: data.user };
   },
   component: OnboardingPage,
 });
-
 
 function OnboardingPage() {
   const fetchProgress = useServerFn(getProgress);
@@ -41,10 +41,12 @@ function OnboardingPage() {
   if (q.isLoading) {
     return (
       <div className="fixed inset-0 grid place-items-center bg-[#050A18] text-white/70 text-sm gap-2">
-        <div className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Loading secure onboarding…</div>
+        <div className="flex items-center gap-2">
+          <Loader2 className="size-4 animate-spin" /> Loading secure onboarding…
+        </div>
       </div>
     );
   }
-  
+
   return <OnboardingWizard initialProgress={q.data ?? null} />;
 }

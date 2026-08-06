@@ -30,13 +30,17 @@ export const enqueueAutomationJob = createServerFn({ method: "POST" })
     // Load the enforcement request and verify ownership + readiness.
     const { data: req, error: reqErr } = await supabase
       .from("enforcement_requests")
-      .select("id,user_id,platform,method,status,target_url,evidence_pdf_path,authorization_pdf_path,platform_complaint_pdf_path")
+      .select(
+        "id,user_id,platform,method,status,target_url,evidence_pdf_path,authorization_pdf_path,platform_complaint_pdf_path",
+      )
       .eq("id", data.enforcementRequestId)
       .maybeSingle();
     if (reqErr) throw reqErr;
     if (!req) throw new Error("Enforcement request not found");
     if (!req.evidence_pdf_path || !req.authorization_pdf_path) {
-      throw new Error("Enforcement package not generated yet. Generate it before running automation.");
+      throw new Error(
+        "Enforcement package not generated yet. Generate it before running automation.",
+      );
     }
 
     const platform = data.adapter.startsWith("youtube") ? "youtube" : null;
@@ -122,7 +126,9 @@ export const listAutomationJobs = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data, error } = await supabase
       .from("automation_jobs")
-      .select("id,enforcement_request_id,platform,adapter,status,attempts,started_at,completed_at,created_at,review_summary_json,error_json,last_screenshot_path,cdp_ws_url,cdp_expires_at")
+      .select(
+        "id,enforcement_request_id,platform,adapter,status,attempts,started_at,completed_at,created_at,review_summary_json,error_json,last_screenshot_path,cdp_ws_url,cdp_expires_at",
+      )
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -172,7 +178,9 @@ export const cancelAutomationJob = createServerFn({ method: "POST" })
 
 export const markHumanSubmitted = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ jobId: z.string().uuid(), notes: z.string().max(2000).optional() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z.object({ jobId: z.string().uuid(), notes: z.string().max(2000).optional() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const nowIso = new Date().toISOString();

@@ -127,7 +127,10 @@ export function platformCategoryForHost(host: string): PlatformCategory | null {
 export function platformCategoryForQuery(query: string): PlatformCategory | null {
   const siteMatches = query.matchAll(/site:([^\s)]+)/gi);
   for (const match of siteMatches) {
-    const token = match[1]?.replace(/\*/g, "").replace(/^www\./, "").toLowerCase();
+    const token = match[1]
+      ?.replace(/\*/g, "")
+      .replace(/^www\./, "")
+      .toLowerCase();
     if (!token) continue;
     const cat = platformCategoryForHost(token);
     if (cat) return cat;

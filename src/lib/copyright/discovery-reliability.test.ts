@@ -21,10 +21,7 @@ import {
   claimSerpApiHttpAttempt,
   isCopyrightSerpApiConfigured,
 } from "./serpapi-discovery.server";
-import {
-  firecrawlEnvironmentDiagnostic,
-  isFirecrawlConfigured,
-} from "../firecrawl-client.server";
+import { firecrawlEnvironmentDiagnostic, isFirecrawlConfigured } from "../firecrawl-client.server";
 import { decideCopyrightTerminalStatus } from "./scan-lifecycle";
 import { classifyCopyrightPage } from "./page-classify.server";
 import { evaluateTelegramPublicEvidence } from "./telegram-evidence";
@@ -290,7 +287,10 @@ test("dedupeCopyrightMatchRows prevents duplicate upsert keys", () => {
     },
   ]);
   assert.equal(rows.length, 2);
-  assert.equal(rows.find((r) => r.source_url.includes("example.com"))?.detection_type, "VERIFIED_UNAUTHORIZED_STREAM");
+  assert.equal(
+    rows.find((r) => r.source_url.includes("example.com"))?.detection_type,
+    "VERIFIED_UNAUTHORIZED_STREAM",
+  );
 });
 
 test("executor dedupes copyright_matches before upsert", () => {

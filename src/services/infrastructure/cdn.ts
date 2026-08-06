@@ -1,10 +1,7 @@
 export function detectCDN(headers: Headers, nameservers: string[]) {
   const server = headers.get("server")?.toLowerCase() ?? "";
 
-  if (
-    server.includes("cloudflare") ||
-    nameservers.some(ns => ns.includes("cloudflare"))
-  ) {
+  if (server.includes("cloudflare") || nameservers.some((ns) => ns.includes("cloudflare"))) {
     return "Cloudflare";
   }
 

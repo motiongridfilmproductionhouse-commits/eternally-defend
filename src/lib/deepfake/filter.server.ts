@@ -375,18 +375,23 @@ export function filterDeepfakeCandidates(
      * Preserve all candidate leads discovered for the protected identity.
      * Verification (face comparison & AI detection) will classify them later.
      */
-    if (safeReferenceHost && !threat.hasStrongExplicitSignal && !threat.hasSyntheticSignal) {
+    if (listing) {
+      decision = "rejected";
+      rejectionReason = "Search listing page excluded before crawl";
+    } else if (safeReferenceHost && !threat.hasStrongExplicitSignal && !threat.hasSyntheticSignal) {
       decision = "rejected";
       rejectionReason = "Reference page without deepfake signal (Wikipedia/IMDb)";
-    } else if (threat.hasStrongExplicitSignal || threat.hasSyntheticSignal) {
+    } else if (threat.hasStrongExplicitSignal && !threat.hasSyntheticSignal) {
+      decision = "triage";
+      rejectionReason = "Explicit name mention without synthetic signal";
+    } else if (threat.hasSyntheticSignal) {
       decision = "accepted";
     } else if (
       visibleTargetMatch ||
-      hit.image_url ||
-      hit.thumbnail_url ||
+      (hit as any).image_url ||
+      (hit as any).thumbnail_url ||
       threat.signals.length > 0
     ) {
-      // Any lead referencing the target name or containing image media is accepted for verification!
       decision = "accepted";
     } else {
       decision = "triage";

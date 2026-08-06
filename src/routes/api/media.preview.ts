@@ -13,8 +13,7 @@ async function fetchImage(url: string): Promise<Response> {
       signal: ctl.signal,
       headers: {
         // Present as a normal browser so hotlink filters don't block us.
-        "user-agent":
-          "Mozilla/5.0 (compatible; EternaAI/1.0; +https://eterna.ai)",
+        "user-agent": "Mozilla/5.0 (compatible; EternaAI/1.0; +https://eterna.ai)",
         accept: "image/*,*/*;q=0.8",
       },
     });

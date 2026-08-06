@@ -15,7 +15,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertTriangle, CheckCircle2, Flag, History, Languages, Radar, ScrollText } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Flag,
+  History,
+  Languages,
+  Radar,
+  ScrollText,
+} from "lucide-react";
 
 const STATUSES = [
   { value: "unreviewed", label: "Unreviewed" },
@@ -29,8 +37,16 @@ const STATUSES = [
 
 const SEVERITIES = ["info", "low", "medium", "high", "critical"] as const;
 
-export function ReviewWorkspace({ finding, open, onClose, onSaved }: {
-  finding: any; open: boolean; onClose: () => void; onSaved: () => void;
+export function ReviewWorkspace({
+  finding,
+  open,
+  onClose,
+  onSaved,
+}: {
+  finding: any;
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
 }) {
   const qc = useQueryClient();
   const reviewFn = useServerFn(reviewFinding);
@@ -50,15 +66,21 @@ export function ReviewWorkspace({ finding, open, onClose, onSaved }: {
   });
 
   const save = useMutation({
-    mutationFn: (opts: { escalate?: boolean }) => reviewFn({
-      data: {
-        findingId: finding.id,
-        human_review_status: status as any,
-        severity: severity as any,
-        reviewer_notes: buildNotes({ notes, entityConfirmed, translationApproved, transcriptAccurate }),
-        send_to_radar: opts.escalate,
-      },
-    }),
+    mutationFn: (opts: { escalate?: boolean }) =>
+      reviewFn({
+        data: {
+          findingId: finding.id,
+          human_review_status: status as any,
+          severity: severity as any,
+          reviewer_notes: buildNotes({
+            notes,
+            entityConfirmed,
+            translationApproved,
+            transcriptAccurate,
+          }),
+          send_to_radar: opts.escalate,
+        },
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["finding-history", finding.id] });
       qc.invalidateQueries({ queryKey: ["mm-job"] });
@@ -80,7 +102,9 @@ export function ReviewWorkspace({ finding, open, onClose, onSaved }: {
         <div className="space-y-4 text-sm">
           <div className="border border-border rounded-lg p-3 bg-muted/30">
             <div className="font-medium">{finding.title}</div>
-            {finding.description && <p className="mt-1 text-xs text-muted-foreground">{finding.description}</p>}
+            {finding.description && (
+              <p className="mt-1 text-xs text-muted-foreground">{finding.description}</p>
+            )}
             {finding.transcript_excerpt && (
               <blockquote className="mt-2 text-xs border-l-2 border-border pl-2 italic text-muted-foreground">
                 {finding.transcript_excerpt.slice(0, 300)}
@@ -90,43 +114,85 @@ export function ReviewWorkspace({ finding, open, onClose, onSaved }: {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Review status">
-              <select className="w-full border border-border rounded px-2 py-1.5 bg-background text-sm"
-                value={status} onChange={(e) => setStatus(e.target.value)}>
-                {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              <select
+                className="w-full border border-border rounded px-2 py-1.5 bg-background text-sm"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                {STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
               </select>
             </Field>
             <Field label="Severity">
-              <select className="w-full border border-border rounded px-2 py-1.5 bg-background text-sm"
-                value={severity} onChange={(e) => setSeverity(e.target.value)}>
-                {SEVERITIES.map((s) => <option key={s} value={s}>{s}</option>)}
+              <select
+                className="w-full border border-border rounded px-2 py-1.5 bg-background text-sm"
+                value={severity}
+                onChange={(e) => setSeverity(e.target.value)}
+              >
+                {SEVERITIES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </select>
             </Field>
           </div>
 
           <Field label="Reviewer notes">
-            <Textarea rows={3} placeholder="Context, action taken, references…"
-              value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Textarea
+              rows={3}
+              placeholder="Context, action taken, references…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </Field>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <TriToggle label="Entity match" icon={CheckCircle2} value={entityConfirmed} onChange={setEntityConfirmed}
-              yes="Confirmed" no="Wrong entity" />
-            <TriToggle label="Translation" icon={Languages} value={translationApproved} onChange={setTranslationApproved}
-              yes="Approved" no="Rejected" />
-            <TriToggle label="Transcript" icon={ScrollText} value={transcriptAccurate} onChange={setTranscriptAccurate}
-              yes="Accurate" no="Inaccurate" />
+            <TriToggle
+              label="Entity match"
+              icon={CheckCircle2}
+              value={entityConfirmed}
+              onChange={setEntityConfirmed}
+              yes="Confirmed"
+              no="Wrong entity"
+            />
+            <TriToggle
+              label="Translation"
+              icon={Languages}
+              value={translationApproved}
+              onChange={setTranslationApproved}
+              yes="Approved"
+              no="Rejected"
+            />
+            <TriToggle
+              label="Transcript"
+              icon={ScrollText}
+              value={transcriptAccurate}
+              onChange={setTranscriptAccurate}
+              yes="Accurate"
+              no="Inaccurate"
+            />
           </div>
 
           {history.data && (
             <div>
-              <div className="text-xs font-medium mb-1.5 flex items-center gap-1"><History className="size-3.5" /> Audit history</div>
+              <div className="text-xs font-medium mb-1.5 flex items-center gap-1">
+                <History className="size-3.5" /> Audit history
+              </div>
               <ol className="space-y-1.5 text-xs max-h-40 overflow-y-auto pr-1">
-                {(history.data.history ?? []).length === 0 && <li className="text-muted-foreground">No prior reviews.</li>}
+                {(history.data.history ?? []).length === 0 && (
+                  <li className="text-muted-foreground">No prior reviews.</li>
+                )}
                 {(history.data.history ?? []).map((h: any) => (
                   <li key={h.id} className="border border-border rounded p-2">
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{h.action}</span>
-                      <span className="text-[10px] text-muted-foreground">{new Date(h.created_at).toLocaleString()}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(h.created_at).toLocaleString()}
+                      </span>
                     </div>
                     <div className="text-[11px] text-muted-foreground">
                       {h.from_status} → <b>{h.to_status}</b>
@@ -139,19 +205,43 @@ export function ReviewWorkspace({ finding, open, onClose, onSaved }: {
             </div>
           )}
 
-          {save.error && <div className="text-xs text-destructive"><AlertTriangle className="inline size-3 mr-1" />{(save.error as Error).message}</div>}
+          {save.error && (
+            <div className="text-xs text-destructive">
+              <AlertTriangle className="inline size-3 mr-1" />
+              {(save.error as Error).message}
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
             <Button onClick={() => save.mutate({})} disabled={save.isPending}>
-              <CheckCircle2 className="size-4 mr-2" />{save.isPending ? "Saving…" : "Save review"}
+              <CheckCircle2 className="size-4 mr-2" />
+              {save.isPending ? "Saving…" : "Save review"}
             </Button>
-            <Button variant="outline" onClick={() => { setStatus("escalated"); save.mutate({ escalate: true }); }} disabled={save.isPending}>
-              <Radar className="size-4 mr-2" />Escalate to Threat Radar
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStatus("escalated");
+                save.mutate({ escalate: true });
+              }}
+              disabled={save.isPending}
+            >
+              <Radar className="size-4 mr-2" />
+              Escalate to Threat Radar
             </Button>
-            <Button variant="outline" onClick={() => { setStatus("false_positive"); save.mutate({}); }} disabled={save.isPending}>
-              <Flag className="size-4 mr-2" />Mark false positive
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStatus("false_positive");
+                save.mutate({});
+              }}
+              disabled={save.isPending}
+            >
+              <Flag className="size-4 mr-2" />
+              Mark false positive
             </Button>
-            <Button variant="ghost" onClick={onClose} className="ml-auto">Close</Button>
+            <Button variant="ghost" onClick={onClose} className="ml-auto">
+              Close
+            </Button>
           </div>
         </div>
       </DialogContent>
@@ -171,12 +261,23 @@ function Field({ label, children }: any) {
 function TriToggle({ label, icon: Icon, value, onChange, yes, no }: any) {
   return (
     <div className="border border-border rounded-lg p-2">
-      <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1"><Icon className="size-3" />{label}</div>
+      <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+        <Icon className="size-3" />
+        {label}
+      </div>
       <div className="flex gap-1 mt-1.5">
-        <button onClick={() => onChange(true)}
-          className={`flex-1 text-[11px] py-1 rounded border ${value === true ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700" : "border-border"}`}>{yes}</button>
-        <button onClick={() => onChange(false)}
-          className={`flex-1 text-[11px] py-1 rounded border ${value === false ? "bg-red-500/15 border-red-500/40 text-red-700" : "border-border"}`}>{no}</button>
+        <button
+          onClick={() => onChange(true)}
+          className={`flex-1 text-[11px] py-1 rounded border ${value === true ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700" : "border-border"}`}
+        >
+          {yes}
+        </button>
+        <button
+          onClick={() => onChange(false)}
+          className={`flex-1 text-[11px] py-1 rounded border ${value === false ? "bg-red-500/15 border-red-500/40 text-red-700" : "border-border"}`}
+        >
+          {no}
+        </button>
       </div>
     </div>
   );
@@ -203,5 +304,9 @@ export function ReviewStatusBadge({ status }: { status: string }) {
     legally_reviewed: "bg-purple-500/15 text-purple-700",
     resolved: "bg-emerald-500/20 text-emerald-700",
   };
-  return <Badge variant="outline" className={`text-[10px] ${styles[status] ?? styles.unreviewed}`}>{status.replace(/_/g, " ")}</Badge>;
+  return (
+    <Badge variant="outline" className={`text-[10px] ${styles[status] ?? styles.unreviewed}`}>
+      {status.replace(/_/g, " ")}
+    </Badge>
+  );
 }

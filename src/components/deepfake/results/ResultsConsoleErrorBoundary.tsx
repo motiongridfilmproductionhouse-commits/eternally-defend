@@ -27,10 +27,7 @@ export class ResultsConsoleErrorBoundary extends Component<Props, State> {
     return { hasError: true };
   }
 
-  static getDerivedStateFromProps(
-    props: Props,
-    state: State,
-  ): Partial<State> | null {
+  static getDerivedStateFromProps(props: Props, state: State): Partial<State> | null {
     if (props.resetKey !== state.resetKey) {
       return { hasError: false, resetKey: props.resetKey };
     }

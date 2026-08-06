@@ -35,9 +35,7 @@ export type DeepfakeWorkerEventInput = {
   errorMessage?: string | null;
 };
 
-export async function persistDeepfakeWorkerEvent(
-  input: DeepfakeWorkerEventInput,
-): Promise<void> {
+export async function persistDeepfakeWorkerEvent(input: DeepfakeWorkerEventInput): Promise<void> {
   const row = {
     scan_id: input.scanId,
     worker_execution_id: input.workerExecutionId,
@@ -45,9 +43,7 @@ export async function persistDeepfakeWorkerEvent(
     event_name: input.eventName,
     metadata: input.metadata ?? {},
     error_category: input.errorCategory ?? null,
-    error_message: input.errorMessage
-      ? String(input.errorMessage).slice(0, 2_000)
-      : null,
+    error_message: input.errorMessage ? String(input.errorMessage).slice(0, 2_000) : null,
   };
 
   console.info("deepfake_worker_event", {
@@ -56,9 +52,7 @@ export async function persistDeepfakeWorkerEvent(
   });
 
   try {
-    const { error } = await input.supabase
-      .from("deepfake_worker_events")
-      .insert(row);
+    const { error } = await input.supabase.from("deepfake_worker_events").insert(row);
     if (error) {
       console.error("deepfake_worker_event_persist_failed", {
         scan_id: input.scanId,

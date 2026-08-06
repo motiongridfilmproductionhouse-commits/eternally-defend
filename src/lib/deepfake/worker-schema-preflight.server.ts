@@ -39,9 +39,7 @@ export async function runDeepfakeWorkerSchemaPreflight(input: {
     }
   } catch (error) {
     details.deepfake_scans_runtime_columns = false;
-    missing.push(
-      `deepfake_scans:${error instanceof Error ? error.message : String(error)}`,
-    );
+    missing.push(`deepfake_scans:${error instanceof Error ? error.message : String(error)}`);
   }
 
   try {
@@ -75,22 +73,19 @@ export async function runDeepfakeWorkerSchemaPreflight(input: {
   // Continuation RPC existence — call with impossible id and accept
   // "not found"/validation errors as proof the function exists.
   try {
-    const { error } = await input.supabase.rpc(
-      "acquire_deepfake_scan_continuation",
-      { p_scan_id: "00000000-0000-4000-8000-000000000000" },
-    );
+    const { error } = await input.supabase.rpc("acquire_deepfake_scan_continuation", {
+      p_scan_id: "00000000-0000-4000-8000-000000000000",
+    });
     const message = error?.message?.toLowerCase?.() ?? "";
-    const missingFn =
-      /could not find the function|function .* does not exist|pgrst202/i.test(
-        message,
-      );
+    const missingFn = /could not find the function|function .* does not exist|pgrst202/i.test(
+      message,
+    );
     details.acquire_deepfake_scan_continuation = !missingFn;
     if (missingFn) {
       missing.push("rpc:acquire_deepfake_scan_continuation");
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message.toLowerCase() : String(error);
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error);
     const missingFn = /does not exist|could not find/i.test(message);
     details.acquire_deepfake_scan_continuation = !missingFn;
     if (missingFn) missing.push("rpc:acquire_deepfake_scan_continuation");

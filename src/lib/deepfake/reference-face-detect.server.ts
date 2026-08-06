@@ -7,10 +7,7 @@ import { DetectFacesCommand, RekognitionClient } from "@aws-sdk/client-rekogniti
 import { downloadFaceImage } from "./face-match.server";
 import { assertNotAborted } from "./scan-runtime.server";
 
-const region =
-  process.env.AWS_REKOGNITION_REGION ??
-  process.env.AWS_REGION ??
-  "eu-north-1";
+const region = process.env.AWS_REKOGNITION_REGION ?? process.env.AWS_REGION ?? "eu-north-1";
 
 const rekognition = new RekognitionClient({
   region,
@@ -33,8 +30,7 @@ export type ReferenceFaceDetection = {
 
 export function isReferenceFaceDetectionConfigured(): boolean {
   return Boolean(
-    process.env.AWS_ACCESS_KEY_ID?.trim() &&
-      process.env.AWS_SECRET_ACCESS_KEY?.trim(),
+    process.env.AWS_ACCESS_KEY_ID?.trim() && process.env.AWS_SECRET_ACCESS_KEY?.trim(),
   );
 }
 
@@ -80,9 +76,7 @@ export async function detectReferenceFace(input: {
       };
     }
 
-    const best = [...faces].sort(
-      (a, b) => (b.Confidence ?? 0) - (a.Confidence ?? 0),
-    )[0];
+    const best = [...faces].sort((a, b) => (b.Confidence ?? 0) - (a.Confidence ?? 0))[0];
     const confidence = best.Confidence ?? 0;
     const pose = best.Pose;
     const quality = best.Quality;

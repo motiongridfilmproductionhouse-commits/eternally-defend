@@ -33,7 +33,7 @@ export interface StagedDiscoveryQueries {
 }
 
 const NEG =
-  "-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -site:voxcinemas.com -site:bookmyshow.com -site:fandango.com -\"box office\" -showtimes -\"now showing\"";
+  '-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -site:voxcinemas.com -site:bookmyshow.com -site:fandango.com -"box office" -showtimes -"now showing"';
 
 const LOCAL_TERMS: Record<string, string[]> = {
   malayalam: ["മുഴുവൻ സിനിമ", "ഓൺലൈൻ", "ഡൗൺലോഡ്", "ചോർന്നു"],
@@ -107,7 +107,10 @@ function buildContext(a: ReferenceAnalysis, workTitle: string): QueryContext | n
   const age = daysSince(a.releaseDate);
   const isFresh = age !== null && age <= 30;
   const titleNoYear = base.replace(/\s*\(?\d{4}\)?\s*$/g, "").trim();
-  const titleNoPunct = base.replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  const titleNoPunct = base
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return { base, names, year, isFresh, titleNoYear, titleNoPunct, analysis: a };
 }
 
@@ -116,7 +119,11 @@ function createPlanBuilder(ctx: QueryContext, stage: 1 | 2 | 3) {
   const plans: DiscoveryQueryPlan[] = [];
   const push = (query: string, recent = ctx.isFresh, priority = false) => {
     const trimmed = query.replace(NEG, "").trim().replace(/^"|"$/g, "");
-    if (!trimmed || trimmed === ctx.base || ctx.names.some((n) => trimmed === n || trimmed === `"${n}"`)) {
+    if (
+      !trimmed ||
+      trimmed === ctx.base ||
+      ctx.names.some((n) => trimmed === n || trimmed === `"${n}"`)
+    ) {
       return;
     }
     const t = query.trim();

@@ -136,6 +136,8 @@ export async function filterCandidatesByTargetFace(input: {
   profileId: string;
   candidates: FaceFilterCandidate[];
   similarityThreshold?: number;
+  signal?: AbortSignal;
+  softDeadlineMs?: number;
 }): Promise<{
   matched: FaceVerifiedCandidate[];
   rejected: FaceVerifiedCandidate[];
