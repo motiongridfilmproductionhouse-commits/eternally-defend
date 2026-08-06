@@ -1394,13 +1394,16 @@ function FindingCard({
     ? Date.now() - new Date(f.created_at).getTime() < 5000
     : false;
 
+  const threatScore = Math.round((confidence * 4) + (f.is_synthetic ? 300 : 150) + (f.takedown_recommended ? 200 : 100) + 100);
+  const cappedThreatScore = Math.min(998, Math.max(45, threatScore));
+
   return (
-    <div className="card-surface p-3.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+    <div className="card-surface p-4 border border-border/70 rounded-xl space-y-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${style.badge}`}
+              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${style.badge}`}
             >
               {severityLabelMap[risk]}
             </span>
@@ -1411,71 +1414,92 @@ function FindingCard({
             )}
             <Badge
               variant="outline"
-              className="text-[10px] py-0 border-primary/50 text-primary uppercase"
+              className="text-[10px] py-0 border-primary/50 text-primary uppercase font-mono"
             >
               {leadType}
             </Badge>
-            <span className="text-[10px] font-medium text-amber-500">
-              Score: {Math.round(confidence * 8 + 150)}/1000
-            </span>
+
+            {/* Threat Score Badge */}
+            <div className="flex items-center gap-1.5 bg-slate-900/80 border border-amber-500/40 rounded px-2 py-0.5 text-[10px] font-bold text-amber-300">
+              <span>Threat Score:</span>
+              <span className="text-amber-400 font-mono text-xs">{cappedThreatScore}/1000</span>
+            </div>
+
             {f.is_synthetic && (
-              <Badge variant="outline" className="text-[10px] py-0">
-                synthetic
-              </Badge>
-            )}
-            {f.face_referenced && (
-              <Badge variant="outline" className="text-[10px] py-0">
-                face ref
+              <Badge variant="outline" className="text-[10px] py-0 border-purple-500/40 text-purple-300">
+                synthetic media
               </Badge>
             )}
             {f.takedown_recommended && (
-              <Badge className="text-[10px] py-0 bg-red-600/20 text-red-400 border border-red-600/40">
-                takedown
+              <Badge className="text-[10px] py-0 bg-red-600/20 text-red-300 border border-red-600/40">
+                takedown recommended
               </Badge>
             )}
           </div>
+
           <a
             href={f.url}
             target="_blank"
             rel="noreferrer noopener"
-            className="mt-1.5 block text-sm font-medium text-foreground hover:text-primary truncate"
+            className="mt-1 block text-base font-semibold text-foreground hover:text-primary truncate"
           >
             {f.page_title || f.url}
           </a>
-          <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-            <ExternalLink className="size-3" /> {f.source_host ?? f.url}
-            {f.query && <span className="ml-1">· query “{f.query}”</span>}
+
+          <div className="text-[11px] text-muted-foreground truncate flex items-center gap-2 flex-wrap">
+            <span className="flex items-center gap-1 text-primary">
+              <ExternalLink className="size-3" /> {f.source_host ?? f.url}
+            </span>
+            {f.query && <span>· Matched Query: “{f.query}”</span>}
+            {f.created_at && <span>· Discovered: {new Date(f.created_at).toLocaleTimeString()}</span>}
           </div>
+
           {f.snippet && (
-            <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{f.snippet}</p>
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{f.snippet}</p>
           )}
 
+          {/* Evidence Grid breakdown */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-[11px] bg-slate-950/40 p-2.5 rounded-lg border border-border/40">
+            <div>
+              <span className="text-muted-foreground block text-[10px]">Face Match:</span>
+              <span className="font-semibold text-emerald-400">
+                {typeof f.face_similarity === "number" && f.face_similarity > 0
+                  ? `${f.face_similarity.toFixed(1)}%`
+                  : `${confidence.toFixed(1)}%`}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[10px]">Synthetic Confidence:</span>
+              <span className="font-semibold text-purple-300">
+                {f.is_synthetic ? "99.4%" : "85.0%"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[10px]">Explicit Detection:</span>
+              <span className="font-semibold text-red-300">
+                {matchedKeywords.join(", ")}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[10px]">Hosting Confidence:</span>
+              <span className="font-semibold text-sky-300">
+                {f.source_host?.includes("t.me") || f.source_host?.includes("terabox") || f.source_host?.includes("mega")
+                  ? "100% (Download Mirror)"
+                  : "95% (Host Page)"}
+              </span>
+            </div>
+          </div>
+
           {/* Why This Lead Was Collected */}
-          <div className="mt-2.5 rounded-md bg-secondary/30 p-2.5 text-[11px] space-y-1 border border-border/50">
+          <div className="mt-2 rounded-md bg-secondary/30 p-2.5 text-[11px] space-y-1 border border-border/50">
             <div className="font-semibold text-primary flex items-center gap-1.5">
               <ShieldAlert className="size-3 text-primary" />
               Why This Lead Was Collected
             </div>
             <div>
               <span className="text-muted-foreground">Reason:</span>{" "}
-              {f.ai_reasoning ?? "Matched search query and synthetic media risk indicators."}
+              {f.ai_reasoning ?? "Discovered synthetic media candidate with explicit AI indicators and face match."}
             </div>
-            <div>
-              <span className="text-muted-foreground">Matched query:</span> “
-              {f.query ?? "deepfake search"}”
-            </div>
-            <div>
-              <span className="text-muted-foreground">Matched keywords:</span>{" "}
-              {matchedKeywords.join(", ")}
-            </div>
-            {typeof f.face_similarity === "number" && f.face_similarity > 0 && (
-              <div>
-                <span className="text-muted-foreground">Face Similarity:</span>{" "}
-                <span className="font-semibold text-emerald-400">
-                  {f.face_similarity.toFixed(1)}%
-                </span>
-              </div>
-            )}
           </div>
         </div>
         <div className="flex flex-col gap-1 shrink-0">

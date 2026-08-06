@@ -547,3 +547,62 @@ export function shouldShowPrimaryFinding(
     finding.content_category !== "unclassified"
   );
 }
+
+export type PageTypeCategory =
+  | "HOSTING_PAGE"
+  | "DOWNLOAD_PAGE"
+  | "PREVIEW_PAGE"
+  | "GALLERY_PAGE"
+  | "IMAGE_PAGE"
+  | "VIDEO_PAGE"
+  | "FORUM_THREAD"
+  | "SOCIAL_POST"
+  | "DISCUSSION"
+  | "NEWS"
+  | "BLOG"
+  | "BIOGRAPHY"
+  | "OFFICIAL"
+  | "WIKIPEDIA"
+  | "IMDB"
+  | "PRESS_RELEASE"
+  | "MOVIE_REVIEW"
+  | "SHOP"
+  | "APP_STORE"
+  | "COLLEGE"
+  | "GOVERNMENT"
+  | "DIRECTORY"
+  | "SEARCH_RESULTS";
+
+export function classifyPageType(url: string, title = ""): PageTypeCategory {
+  const urlLower = url.toLowerCase();
+  const titleLower = title.toLowerCase();
+
+  if (urlLower.includes("wikipedia.org")) return "WIKIPEDIA";
+  if (urlLower.includes("imdb.com") || urlLower.includes("rottentomatoes.com")) return "IMDB";
+  if (urlLower.includes(".edu") || urlLower.includes("/college") || urlLower.includes("/university")) return "COLLEGE";
+  if (urlLower.includes(".gov") || urlLower.includes("/government")) return "GOVERNMENT";
+  if (urlLower.includes("apps.apple.com") || urlLower.includes("play.google.com")) return "APP_STORE";
+  if (urlLower.includes("amazon.") || urlLower.includes("ebay.") || urlLower.includes("etsy.") || urlLower.includes("/shop")) return "SHOP";
+
+  if (urlLower.includes("t.me") || urlLower.includes("terabox") || urlLower.includes("mega.nz") || urlLower.includes("pixeldrain")) {
+    return "DOWNLOAD_PAGE";
+  }
+  if (urlLower.includes("mrdeepfakes") || urlLower.includes("sexcelebrity") || urlLower.includes("coomer") || urlLower.includes("nifty")) {
+    return "HOSTING_PAGE";
+  }
+
+  if (LISTING_PATTERNS.some((p) => p.test(urlLower))) return "SEARCH_RESULTS";
+  if (isLikelyNewsHost(urlLower)) return "NEWS";
+
+  if (titleLower.includes("biography") || urlLower.includes("biography")) return "BIOGRAPHY";
+  if (titleLower.includes("review") || urlLower.includes("review")) return "MOVIE_REVIEW";
+
+  if (urlLower.includes("reddit.com") || urlLower.includes("/forum") || urlLower.includes("/thread")) return "FORUM_THREAD";
+  if (urlLower.includes("x.com") || urlLower.includes("twitter.com")) return "SOCIAL_POST";
+
+  if (titleLower.includes("gallery") || urlLower.includes("gallery")) return "GALLERY_PAGE";
+  if (urlLower.includes(".jpg") || urlLower.includes(".png") || urlLower.includes(".webp")) return "IMAGE_PAGE";
+  if (urlLower.includes(".mp4") || urlLower.includes(".webm") || urlLower.includes("/video")) return "VIDEO_PAGE";
+
+  return "PREVIEW_PAGE";
+}

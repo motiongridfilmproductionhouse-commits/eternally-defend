@@ -610,3 +610,55 @@ export function resolveSafeFindingThumbnail(input: {
 export function evidenceLinkProps(finding: ClientFinding) {
   return buildVerifiedEvidenceLink(finding);
 }
+
+export type DisplayGroupCategory =
+  | "VERIFIED_EXPLICIT_DEEPFAKES"
+  | "VERIFIED_FACE_SWAPS"
+  | "PROBABLE_DEEPFAKES"
+  | "SYNTHETIC_AI_IMAGES"
+  | "SYNTHETIC_AI_VIDEOS"
+  | "DOWNLOAD_MIRRORS"
+  | "HOSTING_SITES"
+  | "DISCUSSIONS"
+  | "NEWS"
+  | "OFFICIAL";
+
+export function categorizeFindingDisplayGroup(f: ClientFinding): DisplayGroupCategory {
+  const cls = (f.finding_classification || "").toUpperCase();
+  const pageType = (f.page_type || "").toUpperCase();
+  const title = (f.page_title || "").toLowerCase();
+  const snippet = (f.snippet || "").toLowerCase();
+
+  if (cls.includes("VERIFIED") && (snippet.includes("explicit") || snippet.includes("nude") || title.includes("explicit"))) {
+    return "VERIFIED_EXPLICIT_DEEPFAKES";
+  }
+  if (cls.includes("VERIFIED") || cls.includes("FACE_SWAP")) {
+    return "VERIFIED_FACE_SWAPS";
+  }
+  if (cls.includes("PROBABLE")) {
+    return "PROBABLE_DEEPFAKES";
+  }
+  if (pageType === "DOWNLOAD_PAGE" || f.source_host?.includes("t.me") || f.source_host?.includes("terabox") || f.source_host?.includes("mega")) {
+    return "DOWNLOAD_MIRRORS";
+  }
+  if (pageType === "HOSTING_PAGE" || f.source_host?.includes("mrdeepfakes") || f.source_host?.includes("sexcelebrity")) {
+    return "HOSTING_SITES";
+  }
+  if (title.includes("video") || pageType === "VIDEO_PAGE") {
+    return "SYNTHETIC_AI_VIDEOS";
+  }
+  if (f.is_synthetic || pageType === "IMAGE_PAGE" || pageType === "GALLERY_PAGE") {
+    return "SYNTHETIC_AI_IMAGES";
+  }
+  if (pageType === "FORUM_THREAD" || pageType === "SOCIAL_POST" || pageType === "DISCUSSION") {
+    return "DISCUSSIONS";
+  }
+  if (pageType === "NEWS" || pageType === "BLOG" || pageType === "IMDB" || pageType === "BIOGRAPHY") {
+    return "NEWS";
+  }
+  if (pageType === "OFFICIAL" || pageType === "WIKIPEDIA") {
+    return "OFFICIAL";
+  }
+
+  return "HOSTING_SITES";
+}

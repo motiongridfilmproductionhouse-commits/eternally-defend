@@ -266,3 +266,77 @@ export function explainLeadCollection(
     similarity: similarity ?? 0,
   };
 }
+
+/**
+ * Calculates Hosting Confidence (0–100%) for a discovered page.
+ */
+export function calculateHostingConfidence(
+  url: string,
+  text = "",
+): {
+  confidence: number;
+  hostsMedia: boolean;
+  containsPreview: boolean;
+  containsDownload: boolean;
+  isMirror: boolean;
+  isTelegram: boolean;
+  isTerabox: boolean;
+  isMega: boolean;
+  isPixeldrain: boolean;
+  isGallery: boolean;
+} {
+  const urlLower = url.toLowerCase();
+  const textLower = text.toLowerCase();
+
+  const isTelegram = urlLower.includes("t.me") || urlLower.includes("telegram");
+  const isTerabox = urlLower.includes("terabox");
+  const isMega = urlLower.includes("mega.nz") || urlLower.includes("mega.co.nz");
+  const isPixeldrain = urlLower.includes("pixeldrain");
+  const isMediafire = urlLower.includes("mediafire");
+  const isArchive = urlLower.includes("archive.org");
+  const isMirror = isTelegram || isTerabox || isMega || isPixeldrain || isMediafire || isArchive;
+
+  const isGallery = textLower.includes("gallery") || textLower.includes("photoset") || textLower.includes("album") || urlLower.includes("gallery");
+  const containsDownload = isMirror || textLower.includes("download") || textLower.includes("zip") || textLower.includes("rar");
+  const containsPreview = textLower.includes("preview") || textLower.includes("player") || textLower.includes("video") || textLower.includes("thumb");
+  const hostsMedia = isGallery || containsPreview || isMirror || urlLower.includes("mrdeepfakes") || urlLower.includes("sexcelebrity") || urlLower.includes("coomer") || urlLower.includes("nifty");
+
+  let confidence = 30; // base score
+  if (hostsMedia) confidence += 30;
+  if (isMirror) confidence += 25;
+  if (containsDownload) confidence += 15;
+
+  return {
+    confidence: Math.min(100, confidence),
+    hostsMedia,
+    containsPreview,
+    containsDownload,
+    isMirror,
+    isTelegram,
+    isTerabox,
+    isMega,
+    isPixeldrain,
+    isGallery,
+  };
+}
+
+/**
+ * Exact 4-weight Threat Scoring Formula (0–1000):
+ * 40% Face similarity
+ * 30% Synthetic evidence
+ * 20% Hosting confidence
+ * 10% Provider confidence
+ */
+export function calculateThreatScore(input: {
+  faceSimilarity: number; // 0 - 100
+  syntheticConfidence: number; // 0 - 100
+  hostingConfidence: number; // 0 - 100
+  providerConfidence: number; // 0 - 100
+}): number {
+  const facePart = (Math.min(100, Math.max(0, input.faceSimilarity)) / 100) * 400;
+  const syntheticPart = (Math.min(100, Math.max(0, input.syntheticConfidence)) / 100) * 300;
+  const hostingPart = (Math.min(100, Math.max(0, input.hostingConfidence)) / 100) * 200;
+  const providerPart = (Math.min(100, Math.max(0, input.providerConfidence)) / 100) * 100;
+
+  return Math.min(1000, Math.max(0, Math.round(facePart + syntheticPart + hostingPart + providerPart)));
+}
