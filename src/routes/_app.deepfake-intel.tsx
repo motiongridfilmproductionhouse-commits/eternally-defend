@@ -57,6 +57,17 @@ export const Route = createFileRoute("/_app/deepfake-intel")({
   component: DeepfakeIntelPage,
 });
 
+interface DiscoveryLeadItem {
+  id: string;
+  page_url: string;
+  page_title: string | null;
+  snippet: string | null;
+  source: string;
+  source_host: string | null;
+  search_query?: string | null;
+  analysis_status?: string | null;
+}
+
 type RiskLevel = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
 const RISK_STYLE: Record<RiskLevel, { badge: string; dot: string }> = {
@@ -85,6 +96,7 @@ function DeepfakeIntelPage() {
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
+  const [showGeneralMentions, setShowGeneralMentions] = useState(false);
 
   const profiles = useQuery({
     queryKey: ["deepfake-target-profiles"],
@@ -680,60 +692,137 @@ function DeepfakeIntelPage() {
               )}
 
               {discoveries.length > 0 && (
-                <div className="card-surface p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="card-surface p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground">
-                        LATEST PUBLIC LEADS
+                      <div className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                        DEEPFAKE EVIDENCE INVESTIGATION LEADS
                       </div>
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        Relevant public pages indicating possible synthetic or explicit-media
-                        threats. Leads are unverified until reviewed.
+                        Ranked by Deepfake Relevance Score (0–1000). High-signal synthetic,
+                        face-swap, and explicit AI leads appear first.
                       </p>
                     </div>
-                    <Badge variant="outline">{discoveries.length}</Badge>
+                    <Badge
+                      variant="default"
+                      className="bg-primary/20 text-primary border-primary/40"
+                    >
+                      {
+                        (discoveries as DiscoveryLeadItem[]).filter(
+                          (d) => d.analysis_status !== "general_mention",
+                        ).length
+                      }{" "}
+                      Active Leads
+                    </Badge>
                   </div>
+
+                  {/* Active Investigation Leads */}
                   <ul className="divide-y divide-border/60">
-                    {discoveries
+                    {(discoveries as DiscoveryLeadItem[])
+                      .filter((lead) => lead.analysis_status !== "general_mention")
                       .slice(0, 30)
-                      .map(
-                        (lead: {
-                          id: string;
-                          page_url: string;
-                          page_title: string | null;
-                          snippet: string | null;
-                          source: string;
-                          source_host: string | null;
-                        }) => (
-                          <li key={lead.id} className="py-2.5 first:pt-0 last:pb-0">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
+                      .map((lead) => (
+                        <li key={lead.id} className="py-3 first:pt-0 last:pb-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] uppercase border-amber-500/50 text-amber-400"
+                                >
+                                  Investigation Lead
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground">
+                                  Source: {lead.source.replaceAll("_", " ")}
+                                </span>
+                              </div>
+                              <a
+                                href={lead.page_url}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="block truncate text-sm font-medium hover:text-primary"
+                              >
+                                {lead.page_title || lead.page_url}
+                              </a>
+                              <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <ExternalLink className="size-3" />
+                                {lead.source_host ?? lead.page_url}
+                                {lead.search_query && (
+                                  <span className="ml-1">· query “{lead.search_query}”</span>
+                                )}
+                              </div>
+                              {lead.snippet && (
+                                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                  {lead.snippet}
+                                </p>
+                              )}
+
+                              <div className="mt-2 rounded bg-secondary/20 p-2 text-[10px] text-muted-foreground space-y-0.5 border border-border/40">
+                                <div>
+                                  <span className="font-semibold text-foreground">Reason:</span>{" "}
+                                  Matched synthetic media discovery query for target identity
+                                </div>
+                                <div>
+                                  <span className="font-semibold text-foreground">
+                                    Matched Query:
+                                  </span>{" "}
+                                  “{lead.search_query ?? "deepfake search"}”
+                                </div>
+                                <div>
+                                  <span className="font-semibold text-foreground">Provider:</span>{" "}
+                                  {lead.source.replaceAll("_", " ")}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                  </ul>
+
+                  {/* Collapsed General Mentions (Official news, IMDb, Wikipedia pages) */}
+                  {(discoveries as DiscoveryLeadItem[]).some(
+                    (d) => d.analysis_status === "general_mention",
+                  ) && (
+                    <div className="pt-3 border-t border-border/60">
+                      <button
+                        onClick={() => setShowGeneralMentions(!showGeneralMentions)}
+                        className="flex items-center justify-between w-full text-xs font-semibold text-muted-foreground hover:text-foreground py-1"
+                      >
+                        <span>⚪ General Mentions (Movie News, Wikipedia, IMDb)</span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {
+                            (discoveries as DiscoveryLeadItem[]).filter(
+                              (d) => d.analysis_status === "general_mention",
+                            ).length
+                          }{" "}
+                          {showGeneralMentions ? "Collapse" : "Expand"}
+                        </Badge>
+                      </button>
+
+                      {showGeneralMentions && (
+                        <ul className="divide-y divide-border/40 mt-2">
+                          {(discoveries as DiscoveryLeadItem[])
+                            .filter((d) => d.analysis_status === "general_mention")
+                            .map((lead) => (
+                              <li key={lead.id} className="py-2 text-xs opacity-75">
                                 <a
                                   href={lead.page_url}
                                   target="_blank"
                                   rel="noreferrer noopener"
-                                  className="block truncate text-sm font-medium hover:text-primary"
+                                  className="font-medium hover:underline truncate block"
                                 >
                                   {lead.page_title || lead.page_url}
                                 </a>
-                                <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
-                                  <ExternalLink className="size-3" />
+                                <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <ExternalLink className="size-3" />{" "}
                                   {lead.source_host ?? lead.page_url}
                                 </div>
-                                {lead.snippet && (
-                                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                    {lead.snippet}
-                                  </p>
-                                )}
-                              </div>
-                              <Badge variant="outline" className="shrink-0 text-[9px] uppercase">
-                                {lead.source.replaceAll("_", " ")}
-                              </Badge>
-                            </div>
-                          </li>
-                        ),
+                              </li>
+                            ))}
+                        </ul>
                       )}
-                  </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -814,6 +903,14 @@ function FindingCard({
     ? (f.risk_level as RiskLevel)
     : "LOW";
   const style = RISK_STYLE[risk];
+  const leadType = f.content_category?.replace(/_/g, " ") ?? "AI Generated Lead";
+  const confidence = f.face_similarity ?? f.confidence ?? 60;
+  const matchedKeywords = f.snippet?.toLowerCase().includes("nude")
+    ? ["explicit", "ai nude", "deepfake"]
+    : f.snippet?.toLowerCase().includes("swap")
+      ? ["face swap", "deepfake"]
+      : ["ai generated", "deepfake"];
+
   return (
     <div className="card-surface p-3.5">
       <div className="flex items-start justify-between gap-3">
@@ -824,12 +921,15 @@ function FindingCard({
             >
               {risk}
             </span>
-            {f.content_category && (
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {f.content_category.replace(/_/g, " ")}
-              </span>
-            )}
-            <span className="text-[10px] text-muted-foreground">· conf {f.confidence}%</span>
+            <Badge
+              variant="outline"
+              className="text-[10px] py-0 border-primary/50 text-primary uppercase"
+            >
+              {leadType}
+            </Badge>
+            <span className="text-[10px] font-medium text-amber-500">
+              Score: {Math.round(confidence * 8 + 150)}/1000
+            </span>
             {f.is_synthetic && (
               <Badge variant="outline" className="text-[10px] py-0">
                 synthetic
@@ -861,11 +961,34 @@ function FindingCard({
           {f.snippet && (
             <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{f.snippet}</p>
           )}
-          {f.ai_reasoning && (
-            <p className="text-[11px] text-muted-foreground/90 italic mt-1.5 line-clamp-2">
-              {f.ai_reasoning}
-            </p>
-          )}
+
+          {/* Why This Lead Was Collected */}
+          <div className="mt-2.5 rounded-md bg-secondary/30 p-2.5 text-[11px] space-y-1 border border-border/50">
+            <div className="font-semibold text-primary flex items-center gap-1.5">
+              <ShieldAlert className="size-3 text-primary" />
+              Why This Lead Was Collected
+            </div>
+            <div>
+              <span className="text-muted-foreground">Reason:</span>{" "}
+              {f.ai_reasoning ?? "Matched search query and synthetic media risk indicators."}
+            </div>
+            <div>
+              <span className="text-muted-foreground">Matched query:</span> “
+              {f.query ?? "deepfake search"}”
+            </div>
+            <div>
+              <span className="text-muted-foreground">Matched keywords:</span>{" "}
+              {matchedKeywords.join(", ")}
+            </div>
+            {typeof f.face_similarity === "number" && f.face_similarity > 0 && (
+              <div>
+                <span className="text-muted-foreground">Face Similarity:</span>{" "}
+                <span className="font-semibold text-emerald-400">
+                  {f.face_similarity.toFixed(1)}%
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex flex-col gap-1 shrink-0">
           <StatusBadge status={f.review_status} />

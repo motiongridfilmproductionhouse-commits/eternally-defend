@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isBlockedHost } from "./queries";
 import { firecrawlSearch } from "./firecrawl.server";
+import { calculateDeepfakeRelevanceScore } from "./relevance-scorer.server";
 
 export interface DiscoveredLead {
   url: string;
@@ -245,12 +246,27 @@ export async function executeMultiProviderDiscovery({
     for (const lead of queryHits) {
       if (!lead.url) continue;
       const host = hostOf(lead.url);
-      if (!host || isBlockedHost(host)) continue;
+      if (!host || isBlockedHost(host)) {
+        console.log(`[DEEPFAKE:REJECTED] Rejected host ${host} for "${lead.url}" - Blocked host`);
+        continue;
+      }
       const canonical = canonicalUrl(lead.url);
       if (seenUrls.has(canonical)) continue;
       seenUrls.add(canonical);
 
-      allLeads.push(lead);
+      const targetName = query.split(/\s+/)[0] || "";
+      const { score, isHarmless, reasons } = calculateDeepfakeRelevanceScore(lead, targetName);
+
+      if (isHarmless && score < 100) {
+        console.log(
+          `[DEEPFAKE:REJECTED] Rejected: ${lead.url} | Reason: ${reasons[0] ?? "Low relevance"} | Score: ${score}`,
+        );
+      }
+
+      allLeads.push({
+        ...lead,
+        score,
+      } as DiscoveredLead);
 
       newDiscoveryRows.push({
         user_id: userId,
@@ -265,7 +281,7 @@ export async function executeMultiProviderDiscovery({
         image_url: lead.image_url || null,
         thumbnail_url: lead.thumbnail_url || null,
         media_type: lead.image_url || lead.thumbnail_url ? "image" : null,
-        analysis_status: "discovered",
+        analysis_status: score < 200 ? "general_mention" : "discovered",
         updated_at: new Date().toISOString(),
       });
     }

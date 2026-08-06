@@ -3,6 +3,11 @@ import test from "node:test";
 import { generateDeepfakeQueries } from "./query-generator.server";
 import { filterDeepfakeCandidates } from "./filter.server";
 import { classifyConfidenceBand } from "./face-filter.server";
+import {
+  calculateDeepfakeRelevanceScore,
+  determineLeadType,
+  explainLeadCollection,
+} from "./relevance-scorer.server";
 import { parseTelemetry, type ScanTelemetry } from "../deepfake-intel.functions";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -10,9 +15,9 @@ type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 
 test("1. Query generator generates 20+ specialized search variations", () => {
   const queries = generateDeepfakeQueries({
-    name: "John Doe",
-    aliases: ["JD"],
-    handles: ["@johndoe"],
+    name: "Dulquer Salmaan",
+    aliases: ["DQ"],
+    handles: ["@dqsalmaan"],
   });
 
   assert.equal(queries.length >= 20, true);
@@ -42,29 +47,69 @@ test("1. Query generator generates 20+ specialized search variations", () => {
   );
 });
 
-test("2. Lead-First Filter preserves candidate leads for verification", () => {
-  const hits = [
-    {
-      url: "https://example.com/gallery/123",
-      title: "John Doe Photo Gallery",
-      description: "Pictures of John Doe",
-      query: "John Doe deepfake",
-      image_url: "https://example.com/img1.jpg",
-    },
-    {
-      url: "https://pinterest.com/pin/456",
-      title: "John Doe pin",
-      description: "Discovered pin",
-      query: "John Doe face swap",
-      thumbnail_url: "https://pinterest.com/thumb.jpg",
-    },
-  ];
+test("2. Deepfake Relevance Score awards high points to synthetic & explicit media", () => {
+  const hit = {
+    url: "https://t.me/deepfake_channel/123",
+    title: "Dulquer Salmaan AI Nude face swap edit",
+    description: "Leaked explicit deepfake video",
+    query: "Dulquer Salmaan AI Nude",
+  };
 
-  const result = filterDeepfakeCandidates(hits, { name: "John Doe" });
-  assert.equal(result.accepted.length, 2);
+  const result = calculateDeepfakeRelevanceScore(hit, "Dulquer Salmaan");
+  assert.equal(result.score >= 800, true);
+  assert.equal(result.matchedKeywords.includes("deepfake"), true);
+  assert.equal(result.matchedKeywords.includes("face swap"), true);
 });
 
-test("3. Confidence bands map correctly to lead states", () => {
+test("3. Deepfake Relevance Score penalizes Wikipedia & IMDb without AI keywords", () => {
+  const imdbHit = {
+    url: "https://www.imdb.com/name/nm4839210/",
+    title: "Dulquer Salmaan - IMDb Biography & Filmography",
+    description: "Actor, producer in Indian cinema",
+    query: "Dulquer Salmaan",
+  };
+
+  const result = calculateDeepfakeRelevanceScore(imdbHit, "Dulquer Salmaan");
+  assert.equal(result.score < 200, true);
+  assert.equal(result.isHarmless, true);
+});
+
+test("4. Lead type classification maps to exact Investigation Lead types", () => {
+  assert.equal(
+    determineLeadType({
+      url: "https://example.com/item",
+      title: "Dulquer Salmaan AI Nude Photo",
+      description: "Explicit edit",
+      query: "DQ explicit",
+    }),
+    "Explicit AI Image",
+  );
+
+  assert.equal(
+    determineLeadType({
+      url: "https://t.me/channel/45",
+      title: "Dulquer Salmaan deepfake video",
+      query: "DQ telegram",
+    }),
+    "Telegram Distribution",
+  );
+});
+
+test("5. explainLeadCollection generates structured Why Collected metadata", () => {
+  const hit = {
+    url: "https://example.com/gallery",
+    title: "Dulquer Salmaan deepfake face swap",
+    description: "AI generated image",
+    query: "Dulquer Salmaan deepfake",
+  };
+
+  const explanation = explainLeadCollection(hit, "Dulquer Salmaan", 96.4);
+  assert.equal(explanation.similarity, 96.4);
+  assert.equal(explanation.reason.includes("96.4%"), true);
+  assert.equal(explanation.matchedQuery, "Dulquer Salmaan deepfake");
+});
+
+test("6. Confidence bands map correctly to lead states", () => {
   assert.deepEqual(classifyConfidenceBand(98), {
     band: "verified",
     label: "Verified Deepfake",
@@ -83,11 +128,11 @@ test("3. Confidence bands map correctly to lead states", () => {
   });
 });
 
-test("4. parseTelemetry extracts all metrics including Candidates Found & Remaining Time", () => {
+test("7. parseTelemetry extracts all metrics including Candidates Found & Remaining Time", () => {
   const mockTelemetry: ScanTelemetry = {
     stage: "face_matching",
     current_provider: "google_images",
-    current_query: "John Doe deepfake",
+    current_query: "Dulquer Salmaan deepfake",
     current_url: "https://example.com/item",
     queries_generated: 56,
     queries_executed: 28,
