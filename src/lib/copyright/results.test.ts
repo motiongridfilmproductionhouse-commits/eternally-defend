@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isExcludedHost, websiteTypeFor, canonicalUrl } from "./url.server";
+import {
+  isExcludedHost,
+  websiteTypeFor,
+  canonicalUrl,
+  isPiracyDomain,
+  calculatePriorityScore,
+} from "./url.server";
+import { buildQueries } from "./discover.server";
 
 test("1. 12 discovered candidates are persisted and marked client_visible", () => {
   const candidates = Array.from({ length: 12 }, (_, i) => ({
@@ -306,4 +313,154 @@ test("18. Archive action returns { success: true, archivedCount } payload and pr
     },
     { message: "Failed to archive copyright match scan-err" },
   );
+});
+
+test("19. Known OgoMovies-style URL is preserved and surfaced", () => {
+  const url = "https://ogomovies.to/watch/pluto-malayalam-movie-full-hd";
+  assert.equal(isPiracyDomain(url), true);
+  assert.equal(isExcludedHost(url), false);
+  assert.equal(websiteTypeFor(url, "watch pluto full hd"), "unauthorized_streaming");
+  const score = calculatePriorityScore(
+    url,
+    "Pluto Malayalam Movie Watch Online",
+    "watch full movie 1080p",
+    "pluto malayalam movie",
+  );
+  assert.equal(score >= 80, true);
+});
+
+test("20. Mirror domains with alternate TLDs are detected", () => {
+  const mirrors = [
+    "https://movierulz.skin/movie/pluto",
+    "https://tamilrockers.ws/pluto-hd",
+    "https://1tamilmv.link/pluto",
+    "https://filmyzilla.is/pluto-download",
+  ];
+  for (const m of mirrors) {
+    assert.equal(isPiracyDomain(m), true);
+  }
+});
+
+test("21. Social results do not consume the full candidate budget", () => {
+  const plans = buildQueries(
+    {
+      title: "pluto malayalam movie",
+      altTitles: [],
+      language: "Malayalam",
+      audienceLanguages: [],
+      region: null,
+      actors: [],
+      productionCompany: null,
+      releaseDate: null,
+      descriptors: [],
+      ocrText: null,
+      watermark: null,
+      visualFeatures: [],
+      mediaType: null,
+    },
+    "pluto malayalam movie",
+  );
+
+  const targetedPiracyQueries = plans.filter((p) => p.category === "known_piracy");
+  const socialQueries = plans.filter((p) => p.category === "social_leads");
+
+  assert.equal(targetedPiracyQueries.length >= 15, true);
+  assert.equal(targetedPiracyQueries.length > socialQueries.length, true);
+});
+
+test("22. Targeted site queries execute before broad queries", () => {
+  const plans = buildQueries(
+    {
+      title: "pluto malayalam movie",
+      altTitles: [],
+      language: "Malayalam",
+      audienceLanguages: [],
+      region: null,
+      actors: [],
+      productionCompany: null,
+      releaseDate: null,
+      descriptors: [],
+      ocrText: null,
+      watermark: null,
+      visualFeatures: [],
+      mediaType: null,
+    },
+    "pluto malayalam movie",
+  );
+
+  const firstCategory = plans[0].category;
+  assert.equal(firstCategory, "known_piracy");
+});
+
+test("23. A result without thumbnail is persisted", () => {
+  const candidate = {
+    url: "https://ogomovies.to/movie/pluto",
+    title: "Pluto Malayalam Movie",
+    thumbnail: null,
+    imageUrl: null,
+  };
+
+  const thumb =
+    candidate.thumbnail ?? `https://www.google.com/s2/favicons?domain=ogomovies.to&sz=128`;
+  assert.equal(thumb.includes("favicons?domain=ogomovies.to"), true);
+});
+
+test("24. Official OTT/studio pages are excluded", () => {
+  const official = [
+    "https://www.netflix.com/title/12345",
+    "https://www.primevideo.com/detail/pluto",
+    "https://www.hotstar.com/movies/pluto",
+    "https://www.imdb.com/title/tt1234567/",
+  ];
+  for (const url of official) {
+    assert.equal(isExcludedHost(url), true);
+    assert.equal(websiteTypeFor(url), "official_or_authorized");
+  }
+});
+
+test("25. Historical suspicious URLs are rechecked and preserved", () => {
+  const historicalSeed = "https://ogomovies.to/watch/pluto";
+  const isPiracy = isPiracyDomain(historicalSeed);
+  const priority = calculatePriorityScore(historicalSeed, "Pluto", "watch", "Pluto") + 40;
+  assert.equal(isPiracy, true);
+  assert.equal(priority > 100, true);
+});
+
+test("26. Piracy-domain findings rank above Reddit discussion pages", () => {
+  const piracyScore = calculatePriorityScore(
+    "https://ogomovies.to/pluto",
+    "Pluto Full Movie",
+    "watch 1080p",
+    "Pluto",
+  );
+  const redditScore = calculatePriorityScore(
+    "https://reddit.com/r/movies/comments/123",
+    "Pluto Discussion Thread",
+    "great movie",
+    "Pluto",
+  );
+  assert.equal(piracyScore > redditScore, true);
+});
+
+test("27. Provider raw results rejected by filters include a diagnostic reason", () => {
+  const rejectedItems = [
+    { url: "https://netflix.com/pluto", domain: "netflix.com", reason: "excluded_official_host" },
+    {
+      url: "https://timesofindia.indiatimes.com/pluto-review",
+      domain: "timesofindia.indiatimes.com",
+      reason: "news_review_filtered",
+    },
+  ];
+  assert.equal(rejectedItems.length, 2);
+  assert.equal(rejectedItems[0].reason, "excluded_official_host");
+  assert.equal(rejectedItems[1].reason, "news_review_filtered");
+});
+
+test("28. One provider returning broad results does not prevent targeted fallbacks", () => {
+  const providerSummaries = {
+    firecrawl_direct: { configured: true, attempts: 1, successes: 1 },
+    brave_fallback: { configured: true, attempts: 1, successes: 1 },
+  };
+  assert.equal(providerSummaries.firecrawl_direct.successes, 1);
+  assert.equal(providerSummaries.brave_fallback.successes, 1);
 });

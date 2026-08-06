@@ -909,6 +909,43 @@ function CopyrightIntelPage() {
                     sStats.candidate_pages ?? sStats.candidates ?? currentMatches.length;
                   const crwPages = sStats.crawled_pages ?? sStats.graded ?? currentMatches.length;
 
+                  const piracyStreamingCnt = currentMatches.filter((m) => {
+                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                    const wType = String(ev.website_type ?? "");
+                    return wType === "unauthorized_streaming" || wType === "mirror_or_redirect";
+                  }).length;
+
+                  const downloadFileHostsCnt = currentMatches.filter((m) => {
+                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                    const wType = String(ev.website_type ?? "");
+                    return (
+                      wType === "download_page" ||
+                      wType === "file_host" ||
+                      wType === "torrent_index"
+                    );
+                  }).length;
+
+                  const videoReuploadsCnt = currentMatches.filter((m) => {
+                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                    return String(ev.website_type ?? "") === "video_host_reupload";
+                  }).length;
+
+                  const socialDistCnt = currentMatches.filter((m) => {
+                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                    return String(ev.website_type ?? "") === "social_distribution_lead";
+                  }).length;
+
+                  const reviewNewsCnt = currentMatches.filter((m) => {
+                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                    return String(ev.website_type ?? "") === "review_or_news";
+                  }).length;
+
+                  const officialExcludedCnt = currentMatches.filter((m) => {
+                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                    const wType = String(ev.website_type ?? "");
+                    return wType === "official_or_authorized" || wType === "unrelated";
+                  }).length;
+
                   return (
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 backdrop-blur">
@@ -942,6 +979,44 @@ function CopyrightIntelPage() {
                           <div className="text-lg font-semibold">{String(crwPages)}</div>
                           <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                             Crawled Pages
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Source-Category Counters */}
+                      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 rounded-lg border border-border/40 bg-muted/30 p-2 text-xs">
+                        <div className="text-center p-1 rounded bg-card/40">
+                          <span className="font-semibold text-destructive">
+                            {piracyStreamingCnt}
+                          </span>
+                          <div className="text-[9px] text-muted-foreground">Piracy / Streaming</div>
+                        </div>
+                        <div className="text-center p-1 rounded bg-card/40">
+                          <span className="font-semibold text-amber-500">
+                            {downloadFileHostsCnt}
+                          </span>
+                          <div className="text-[9px] text-muted-foreground">Download / Lockers</div>
+                        </div>
+                        <div className="text-center p-1 rounded bg-card/40">
+                          <span className="font-semibold text-purple-400">{videoReuploadsCnt}</span>
+                          <div className="text-[9px] text-muted-foreground">Video Reuploads</div>
+                        </div>
+                        <div className="text-center p-1 rounded bg-card/40">
+                          <span className="font-semibold text-sky-400">{socialDistCnt}</span>
+                          <div className="text-[9px] text-muted-foreground">Social Leads</div>
+                        </div>
+                        <div className="text-center p-1 rounded bg-card/40">
+                          <span className="font-semibold text-muted-foreground">
+                            {reviewNewsCnt}
+                          </span>
+                          <div className="text-[9px] text-muted-foreground">Review / News</div>
+                        </div>
+                        <div className="text-center p-1 rounded bg-card/40">
+                          <span className="font-semibold text-muted-foreground">
+                            {officialExcludedCnt}
+                          </span>
+                          <div className="text-[9px] text-muted-foreground">
+                            Official / Excluded
                           </div>
                         </div>
                       </div>
@@ -987,7 +1062,27 @@ function CopyrightIntelPage() {
                       </div>
                     )}
 
-                    {filteredCurrentMatches.map((m) => renderMatchArticle(m))}
+                    {[...filteredCurrentMatches]
+                      .sort((a, b) => {
+                        const evA = (a.evidence ?? {}) as Record<string, unknown>;
+                        const evB = (b.evidence ?? {}) as Record<string, unknown>;
+                        const typeA = String(evA.website_type ?? "");
+                        const typeB = String(evB.website_type ?? "");
+
+                        const rank = (t: string) => {
+                          if (t === "unauthorized_streaming" || t === "mirror_or_redirect")
+                            return 1;
+                          if (t === "download_page" || t === "file_host" || t === "torrent_index")
+                            return 2;
+                          if (t === "video_host_reupload") return 3;
+                          if (t === "social_distribution_lead") return 4;
+                          if (t === "review_or_news") return 5;
+                          return 6;
+                        };
+
+                        return rank(typeA) - rank(typeB);
+                      })
+                      .map((m) => renderMatchArticle(m))}
                   </TabsContent>
                 </Tabs>
               </div>

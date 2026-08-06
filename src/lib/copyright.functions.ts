@@ -147,12 +147,22 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         ),
       ]);
 
-      // 2. Reverse discovery across configured providers, seeded by that analysis.
+      // 2. Fetch historical suspicious URLs for the same user/client to seed into scan recheck.
+      const { data: histMatches } = await supabase
+        .from("copyright_matches")
+        .select("source_url")
+        .eq("user_id", userId)
+        .limit(50);
+
+      const historicalUrls = (histMatches ?? []).map((m) => m.source_url).filter(Boolean);
+
+      // Reverse discovery across configured providers, seeded by analysis + historical URLs.
       const byUrl = new Map<string, DiscoveryCandidate>();
       let discovery: Awaited<ReturnType<typeof firecrawlDiscover>>;
       try {
         discovery = await firecrawlDiscover(referenceDataUrl, data.title, 0, analysis, {
           scanId: scan.id,
+          historicalUrls,
         });
       } catch (err) {
         if (err instanceof CopyrightDiscoveryError) {
@@ -194,10 +204,10 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         }
       }
 
-      // Prioritise high-signal piracy leads, keep the grading budget bounded.
+      // Prioritise high-signal piracy leads by priority score.
       const ordered = [...validCandidates]
-        .sort((a, b) => Number(b.exact) - Number(a.exact))
-        .slice(0, 40);
+        .sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
+        .slice(0, 45);
 
       // 3. Evidence grading with a multimodal comparison.
       const rows: MatchInsert[] = [];
