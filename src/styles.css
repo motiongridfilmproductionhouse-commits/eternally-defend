@@ -399,6 +399,63 @@
   animation: cyberNeonBorder 4s ease-in-out infinite;
 }
 
+/* Deepfake Identity Radar Animations */
+@keyframes identity-radar-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes identity-radar-spin-reverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes identity-radar-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.identity-radar-ring {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: identity-radar-spin 14s linear infinite;
+}
+
+.identity-radar-ring-reverse {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: identity-radar-spin-reverse 20s linear infinite;
+}
+
+.identity-radar-running .identity-radar-ring {
+  animation-duration: 4s;
+}
+
+.identity-radar-running .identity-radar-ring-reverse {
+  animation-duration: 7s;
+}
+
+.identity-radar-pulse {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: identity-radar-pulse 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cyber-radar-sweep,
   .cyber-radar-ping,
@@ -410,7 +467,10 @@
   .cyber-lock-beam,
   .cyber-node-pulse,
   .cyber-link-line,
-  .cyber-neon-border {
+  .cyber-neon-border,
+  .identity-radar-ring,
+  .identity-radar-ring-reverse,
+  .identity-radar-pulse {
     animation: none !important;
   }
 }
