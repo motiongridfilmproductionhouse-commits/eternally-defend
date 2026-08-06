@@ -607,13 +607,7 @@ export function classifyPageType(url: string, title = ""): PageTypeCategory {
   return "PREVIEW_PAGE";
 }
 
-/**
- * Strict Canonical Gate — qualifiesForExplicitThreatFeed
- * Gate A: Target Identity (face_similarity >= 85%)
- * Gate B: Explicit / Synthetic Media Evidence (media classifier confirmed)
- * Gate C: Hosting / Distribution Evidence (media host, mirror, preview, gallery)
- */
-export function qualifiesForExplicitThreatFeed(candidate: {
+export type CandidateEvidenceInput = {
   url?: string | null;
   title?: string | null;
   snippet?: string | null;
@@ -623,13 +617,36 @@ export function qualifiesForExplicitThreatFeed(candidate: {
   finding_classification?: string | null;
   page_type?: string | null;
   takedown_recommended?: boolean | null;
-}): boolean {
+  explicit_media_confirmed?: boolean | null;
+  synthetic_media_confirmed?: boolean | null;
+  hosting_or_distribution_confirmed?: boolean | null;
+  nudity_detected?: boolean | null;
+  explicit_media_detected?: boolean | null;
+  synthetic_nudity_detected?: boolean | null;
+  sexual_content_detected?: boolean | null;
+  explicit_face_swap_detected?: boolean | null;
+  deepfake_detected?: boolean | null;
+  face_swap_detected?: boolean | null;
+  synthetic_face_detected?: boolean | null;
+  ai_generated_media_detected?: boolean | null;
+  manipulation_artifacts_detected?: boolean | null;
+};
+
+/**
+ * Strict Canonical Gate — qualifiesForVerifiedExplicitFeed
+ * Returns true ONLY when ALL 4 mandatory conditions pass:
+ * Condition A: Face Verified (face_similarity >= 85%)
+ * Condition B: Explicit Content Confirmed (media classifier explicit signal)
+ * Condition C: Synthetic / Manipulation Confirmed (deepfake / face swap signal)
+ * Condition D: Media Hosting or Distribution Confirmed (host, mirror, player, download)
+ */
+export function qualifiesForVerifiedExplicitFeed(candidate: CandidateEvidenceInput): boolean {
   if (!candidate) return false;
   const urlLower = (candidate.url || "").toLowerCase();
   const titleLower = (candidate.title || "").toLowerCase();
   const cls = (candidate.finding_classification || "").toUpperCase();
 
-  // 1. HARD REJECT COLLAPSED & REJECTED HOSTS
+  // Hard reject non-explicit/news/wikipedia/biography/store hosts
   if (
     urlLower.includes("wikipedia.org") ||
     urlLower.includes("imdb.com") ||
@@ -640,33 +657,54 @@ export function qualifiesForExplicitThreatFeed(candidate: {
     urlLower.includes("play.google.com") ||
     urlLower.includes("amazon.") ||
     urlLower.includes("asianetnews.") ||
-    urlLower.includes("filmibeat.")
+    urlLower.includes("filmibeat.") ||
+    urlLower.includes("pinterest.com")
   ) {
     return false;
   }
 
-  // GATE A: Target Identity (face_similarity >= 85%)
-  const sim = candidate.face_similarity ?? candidate.confidence ?? 0;
-  const hasFaceVerified = sim >= 85 || cls.includes("VERIFIED") || cls.includes("PROBABLE");
-  if (!hasFaceVerified) {
+  // CONDITION A: Face Verified (face_similarity >= 85%)
+  const faceSim = candidate.face_similarity ?? candidate.confidence ?? null;
+  if (faceSim === null || faceSim < 85) {
     return false;
   }
 
-  // GATE B: Explicit / Synthetic Media Evidence
-  const hasMediaSignal =
-    candidate.is_synthetic === true ||
+  // CONDITION B: Explicit Content Confirmed
+  const isExplicitConfirmed =
+    candidate.explicit_media_confirmed === true ||
+    candidate.nudity_detected === true ||
+    candidate.explicit_media_detected === true ||
+    candidate.synthetic_nudity_detected === true ||
+    candidate.sexual_content_detected === true ||
+    candidate.explicit_face_swap_detected === true ||
     cls.includes("EXPLICIT") ||
-    cls.includes("SYNTHETIC") ||
-    cls.includes("FACE_SWAP") ||
-    cls.includes("DEEPFAKE") ||
-    candidate.takedown_recommended === true;
+    cls.includes("NUDITY");
 
-  if (!hasMediaSignal) {
+  if (!isExplicitConfirmed) {
     return false;
   }
 
-  // GATE C: Hosting / Distribution Evidence
+  // CONDITION C: Synthetic / Manipulation Confirmed
+  const isSyntheticConfirmed =
+    candidate.synthetic_media_confirmed === true ||
+    candidate.is_synthetic === true ||
+    candidate.deepfake_detected === true ||
+    candidate.face_swap_detected === true ||
+    candidate.synthetic_face_detected === true ||
+    candidate.ai_generated_media_detected === true ||
+    candidate.manipulation_artifacts_detected === true ||
+    cls.includes("SYNTHETIC") ||
+    cls.includes("DEEPFAKE") ||
+    cls.includes("FACE_SWAP");
+
+  if (!isSyntheticConfirmed) {
+    return false;
+  }
+
+  // CONDITION D: Media Hosting or Distribution Confirmed
   const isHost =
+    candidate.hosting_or_distribution_confirmed === true ||
+    candidate.takedown_recommended === true ||
     urlLower.includes("t.me") ||
     urlLower.includes("terabox") ||
     urlLower.includes("mega.nz") ||
@@ -682,9 +720,11 @@ export function qualifiesForExplicitThreatFeed(candidate: {
     titleLower.includes("gallery") ||
     titleLower.includes("download");
 
-  if (!isHost && !candidate.takedown_recommended) {
+  if (!isHost) {
     return false;
   }
 
   return true;
 }
+
+export const qualifiesForExplicitThreatFeed = qualifiesForVerifiedExplicitFeed;

@@ -39,7 +39,7 @@ import {
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
 import { ThreatTimeline, type TimelineEvent } from "@/components/deepfake/ThreatTimeline";
-import { buildThreatAlertSummary } from "@/lib/deepfake/threat-alert";
+import { buildThreatAlertSummary, qualifiesForVerifiedExplicitFeed } from "@/lib/deepfake/threat-alert";
 import type { ClientFinding } from "@/lib/deepfake/results-dashboard";
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
@@ -759,178 +759,120 @@ function DeepfakeIntelPage() {
                 </span>
               </div>
 
-              {/* Findings List */}
-              {selected.isLoading ? (
-                <div className="card-surface p-8 text-center text-sm text-muted-foreground">
-                  <Loader2 className="size-5 mx-auto animate-spin mb-2" /> Loading findings…
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="card-surface p-8 text-center text-sm text-muted-foreground space-y-2 border border-border/60">
-                  {scan.status === "running" ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="size-6 text-primary animate-spin" />
-                      <span>Sweep in progress — results stream as classification completes.</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 py-2">
-                      <CheckCircle2 className="size-8 text-emerald-500" strokeWidth={1.5} />
-                      <div className="font-bold text-foreground text-sm">
-                        No public synthetic-media evidence found for this identity.
-                      </div>
-                      <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                        Sweeps across Google Images, multi-provider discovery, Telegram, Reddit, and image hosts returned zero verified deepfakes or explicit synthetic media targeting this identity. Irrelevant news and biography pages were automatically filtered.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <ul className="space-y-2.5">
-                  {filtered.map((f) => (
-                    <li key={f.id}>
-                      <FindingCard
-                        f={f as any}
-                        onUpdate={(status) =>
-                          upd.mutate({ finding_id: f.id, review_status: status })
-                        }
-                        pending={upd.isPending}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {discoveries.length > 0 && (
-                <div className="card-surface p-4 space-y-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                        DEEPFAKE EVIDENCE INVESTIGATION LEADS
-                      </div>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        Ranked by Deepfake Relevance Score (0–1000). High-signal synthetic,
-                        face-swap, and explicit AI leads appear first.
-                      </p>
-                    </div>
-                    <Badge
-                      variant="default"
-                      className="bg-primary/20 text-primary border-primary/40"
-                    >
-                      {
-                        (discoveries as DiscoveryLeadItem[]).filter(
-                          (d) => d.analysis_status !== "general_mention",
-                        ).length
-                      }{" "}
-                      Active Leads
-                    </Badge>
+              {/* Main Section Header: VERIFIED EXPLICIT SYNTHETIC THREATS */}
+              <div className="card-surface p-4 space-y-4 border border-border/70 rounded-xl">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-bold tracking-wider text-foreground uppercase flex items-center gap-2">
+                      <ShieldAlert className="size-4 text-red-500" />
+                      VERIFIED EXPLICIT SYNTHETIC THREATS
+                    </h2>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Strict threat feed showing only face-verified (≥85%), explicit media confirmed, synthetic-media confirmed, and media-hosting verified evidence.
+                    </p>
                   </div>
+                  <Badge variant="default" className="bg-red-500/20 text-red-300 border-red-500/40">
+                    {findings.filter(qualifiesForVerifiedExplicitFeed).length} Verified Explicit Threats
+                  </Badge>
+                </div>
 
-                  {/* Active Investigation Leads */}
-                  <ul className="divide-y divide-border/60">
-                    {(discoveries as DiscoveryLeadItem[])
-                      .filter((lead) => lead.analysis_status !== "general_mention")
-                      .slice(0, 30)
-                      .map((lead) => (
-                        <li key={lead.id} className="py-3 first:pt-0 last:pb-0">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <Badge
-                                  variant="outline"
-                                  className="text-[9px] uppercase border-amber-500/50 text-amber-400"
-                                >
-                                  Investigation Lead
-                                </Badge>
-                                <span className="text-[10px] text-muted-foreground">
-                                  Source: {lead.source.replaceAll("_", " ")}
-                                </span>
-                              </div>
-                              <a
-                                href={lead.page_url}
-                                target="_blank"
-                                rel="noreferrer noopener"
-                                className="block truncate text-sm font-medium hover:text-primary"
-                              >
-                                {lead.page_title || lead.page_url}
-                              </a>
-                              <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
-                                <ExternalLink className="size-3" />
-                                {lead.source_host ?? lead.page_url}
-                                {lead.search_query && (
-                                  <span className="ml-1">· query “{lead.search_query}”</span>
-                                )}
-                              </div>
-                              {lead.snippet && (
-                                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                  {lead.snippet}
-                                </p>
-                              )}
-
-                              <div className="mt-2 rounded bg-secondary/20 p-2 text-[10px] text-muted-foreground space-y-0.5 border border-border/40">
-                                <div>
-                                  <span className="font-semibold text-foreground">Reason:</span>{" "}
-                                  Matched synthetic media discovery query for target identity
-                                </div>
-                                <div>
-                                  <span className="font-semibold text-foreground">
-                                    Matched Query:
-                                  </span>{" "}
-                                  “{lead.search_query ?? "deepfake search"}”
-                                </div>
-                                <div>
-                                  <span className="font-semibold text-foreground">Provider:</span>{" "}
-                                  {lead.source.replaceAll("_", " ")}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
+                {/* Primary Threat Feed List */}
+                {selected.isLoading ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    <Loader2 className="size-5 mx-auto animate-spin mb-2" /> Loading findings…
+                  </div>
+                ) : findings.filter(qualifiesForVerifiedExplicitFeed).length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground space-y-2 border border-border/60 rounded-lg bg-secondary/10">
+                    {scan.status === "running" ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="size-6 text-primary animate-spin" />
+                        <span>Verification sweep in progress — results stream as verification completes.</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 py-2">
+                        <CheckCircle2 className="size-8 text-emerald-500" strokeWidth={1.5} />
+                        <div className="font-bold text-foreground text-sm">
+                          No verified explicit synthetic-media evidence found.
+                        </div>
+                        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                          Sweeps across Google Images, multi-provider discovery, Telegram, Reddit, and image hosts returned zero verified explicit deepfakes or face-swap threats. Irrelevant news, Wikipedia, and biography pages were automatically filtered.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <ul className="space-y-2.5">
+                    {findings.filter(qualifiesForVerifiedExplicitFeed).map((f) => (
+                      <li key={f.id}>
+                        <FindingCard
+                          f={f as any}
+                          onUpdate={(status) =>
+                            upd.mutate({ finding_id: f.id, review_status: status })
+                          }
+                          pending={upd.isPending}
+                        />
+                      </li>
+                    ))}
                   </ul>
+                )}
+              </div>
 
-                  {/* Collapsed General Mentions (Official news, IMDb, Wikipedia pages) */}
-                  {(discoveries as DiscoveryLeadItem[]).some(
-                    (d) => d.analysis_status === "general_mention",
-                  ) && (
-                    <div className="pt-3 border-t border-border/60">
-                      <button
-                        onClick={() => setShowGeneralMentions(!showGeneralMentions)}
-                        className="flex items-center justify-between w-full text-xs font-semibold text-muted-foreground hover:text-foreground py-1"
-                      >
-                        <span>⚪ General Mentions (Movie News, Wikipedia, IMDb)</span>
-                        <Badge variant="outline" className="text-[10px]">
-                          {
-                            (discoveries as DiscoveryLeadItem[]).filter(
-                              (d) => d.analysis_status === "general_mention",
-                            ).length
-                          }{" "}
-                          {showGeneralMentions ? "Collapse" : "Expand"}
-                        </Badge>
-                      </button>
-
-                      {showGeneralMentions && (
-                        <ul className="divide-y divide-border/40 mt-2">
-                          {(discoveries as DiscoveryLeadItem[])
-                            .filter((d) => d.analysis_status === "general_mention")
-                            .map((lead) => (
-                              <li key={lead.id} className="py-2 text-xs opacity-75">
-                                <a
-                                  href={lead.page_url}
-                                  target="_blank"
-                                  rel="noreferrer noopener"
-                                  className="font-medium hover:underline truncate block"
-                                >
-                                  {lead.page_title || lead.page_url}
-                                </a>
-                                <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                                  <ExternalLink className="size-3" />{" "}
-                                  {lead.source_host ?? lead.page_url}
-                                </div>
-                              </li>
-                            ))}
-                        </ul>
-                      )}
+              {/* Collapsed Secondary Accordions: Raw Candidates */}
+              {discoveries.length > 0 && (
+                <div className="space-y-3">
+                  <details className="card-surface p-4 rounded-xl border border-border/60 group">
+                    <summary className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase flex items-center justify-between">
+                      <span>Verification Queue ({discoveries.filter((d: any) => d.analysis_status === "pending_verification").length})</span>
+                      <span className="text-[10px] text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="mt-3 space-y-2 text-xs text-muted-foreground divide-y divide-border/40">
+                      {discoveries
+                        .filter((d: any) => d.analysis_status === "pending_verification")
+                        .slice(0, 15)
+                        .map((d: any) => (
+                          <div key={d.id} className="pt-2 flex items-center justify-between gap-2">
+                            <span className="truncate">{d.page_title || d.page_url}</span>
+                            <span className="text-[10px] text-sky-400">verification pending</span>
+                          </div>
+                        ))}
                     </div>
-                  )}
+                  </details>
+
+                  <details className="card-surface p-4 rounded-xl border border-border/60 group">
+                    <summary className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase flex items-center justify-between">
+                      <span>General Mentions ({discoveries.filter((d: any) => d.analysis_status === "general_mention").length})</span>
+                      <span className="text-[10px] text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="mt-3 space-y-2 text-xs text-muted-foreground divide-y divide-border/40">
+                      {discoveries
+                        .filter((d: any) => d.analysis_status === "general_mention")
+                        .slice(0, 15)
+                        .map((d: any) => (
+                          <div key={d.id} className="pt-2 flex items-center justify-between gap-2">
+                            <span className="truncate">{d.page_title || d.page_url}</span>
+                            <span className="text-[10px] text-slate-400">filtered non-explicit content</span>
+                          </div>
+                        ))}
+                    </div>
+                  </details>
+
+                  <details className="card-surface p-4 rounded-xl border border-border/60 group">
+                    <summary className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase flex items-center justify-between">
+                      <span>Rejected / Filtered Hosts ({discoveries.filter((d: any) => d.analysis_status === "rejected").length})</span>
+                      <span className="text-[10px] text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="mt-3 space-y-2 text-xs text-muted-foreground divide-y divide-border/40">
+                      {discoveries
+                        .filter((d: any) => d.analysis_status === "rejected")
+                        .slice(0, 15)
+                        .map((d: any) => (
+                          <div key={d.id} className="pt-2 flex items-center justify-between gap-2">
+                            <span className="truncate">{d.page_title || d.page_url}</span>
+                            <span className="text-[10px] text-red-400">hard rejected</span>
+                          </div>
+                        ))}
+                    </div>
+                  </details>
                 </div>
               )}
             </>
