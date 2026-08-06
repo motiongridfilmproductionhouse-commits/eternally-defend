@@ -380,33 +380,49 @@ function CopyrightIntelPage() {
   const clearPreviousMutation = useMutation({
     mutationFn: async () => {
       if (!selectedScanId) throw new Error("No active scan selected.");
-      return await archivePreviousFn({ data: { keepScanId: selectedScanId } });
+      console.log("[CopyrightIntelUI] Sending archivePreviousCopyrightResults request", {
+        keepScanId: selectedScanId,
+      });
+      const res = await archivePreviousFn({ data: { keepScanId: selectedScanId } });
+      console.log("[CopyrightIntelUI] Received archivePreviousCopyrightResults response:", res);
+      return res;
     },
     onSuccess: (res) => {
+      console.log(
+        "[CopyrightIntelUI] Clear previous succeeded. Closing dialog and invalidating queries.",
+      );
       setClearDialogOpen(false);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       qc.invalidateQueries({ queryKey: ["copyright-scan"] });
       qc.invalidateQueries({ queryKey: ["all-copyright-matches"] });
-      toast.success(`Archived ${res.count} previous scan finding(s)`);
+      toast.success(`Archived ${res.archivedCount} previous scan finding(s)`);
     },
     onError: (err: Error) => {
-      toast.error(err.message);
+      console.error("[CopyrightIntelUI] Clear previous error:", err);
+      toast.error(err.message || "Failed to archive previous scan results.");
     },
   });
 
   const archiveScanMutation = useMutation({
     mutationFn: async (scanId: string) => {
-      return await archiveScanFn({ data: { scanId } });
+      console.log("[CopyrightIntelUI] Sending archiveScanCopyrightResults request", { scanId });
+      const res = await archiveScanFn({ data: { scanId } });
+      console.log("[CopyrightIntelUI] Received archiveScanCopyrightResults response:", res);
+      return res;
     },
     onSuccess: (res) => {
+      console.log(
+        "[CopyrightIntelUI] Archive scan succeeded. Closing dialog and invalidating queries.",
+      );
       setArchivingScanId(null);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       qc.invalidateQueries({ queryKey: ["copyright-scan"] });
       qc.invalidateQueries({ queryKey: ["all-copyright-matches"] });
-      toast.success(`Archived ${res.count} finding(s) for scan`);
+      toast.success(`Archived ${res.archivedCount} finding(s) for scan`);
     },
     onError: (err: Error) => {
-      toast.error(err.message);
+      console.error("[CopyrightIntelUI] Archive scan error:", err);
+      toast.error(err.message || "Failed to archive scan results.");
     },
   });
 
@@ -1046,7 +1062,10 @@ function CopyrightIntelPage() {
       </section>
 
       {/* Clear Previous Results Confirmation Dialog */}
-      <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+      <AlertDialog
+        open={clearDialogOpen}
+        onOpenChange={(open) => !clearPreviousMutation.isPending && setClearDialogOpen(open)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Clear previous copyright results?</AlertDialogTitle>
@@ -1056,13 +1075,24 @@ function CopyrightIntelPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => clearPreviousMutation.mutate()}
+            <AlertDialogCancel disabled={clearPreviousMutation.isPending}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={clearPreviousMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                clearPreviousMutation.mutate();
+              }}
             >
-              Clear Previous Results
-            </AlertDialogAction>
+              {clearPreviousMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Archiving...
+                </>
+              ) : (
+                "Clear Previous Results"
+              )}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1070,7 +1100,7 @@ function CopyrightIntelPage() {
       {/* Per-Scan Archive Confirmation Dialog */}
       <AlertDialog
         open={!!archivingScanId}
-        onOpenChange={(open) => !open && setArchivingScanId(null)}
+        onOpenChange={(open) => !archiveScanMutation.isPending && !open && setArchivingScanId(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1081,15 +1111,24 @@ function CopyrightIntelPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
+            <AlertDialogCancel disabled={archiveScanMutation.isPending}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={archiveScanMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
                 if (archivingScanId) archiveScanMutation.mutate(archivingScanId);
               }}
             >
-              Archive Results
-            </AlertDialogAction>
+              {archiveScanMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Archiving...
+                </>
+              ) : (
+                "Archive Results"
+              )}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

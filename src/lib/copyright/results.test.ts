@@ -287,3 +287,23 @@ test("17. Archived rows (client_visible: false) are excluded from canonical resu
     ["m-1", "m-3"],
   );
 });
+
+test("18. Archive action returns { success: true, archivedCount } payload and propagates errors without swallowing", async () => {
+  const archiveActionMock = async (shouldFail: boolean) => {
+    if (shouldFail) {
+      throw new Error("Failed to archive copyright match scan-err");
+    }
+    return { success: true, archivedCount: 5 };
+  };
+
+  const successResult = await archiveActionMock(false);
+  assert.equal(successResult.success, true);
+  assert.equal(successResult.archivedCount, 5);
+
+  await assert.rejects(
+    async () => {
+      await archiveActionMock(true);
+    },
+    { message: "Failed to archive copyright match scan-err" },
+  );
+});

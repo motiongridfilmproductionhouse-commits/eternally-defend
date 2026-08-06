@@ -679,13 +679,21 @@ export const archivePreviousCopyrightResults = createServerFn({ method: "POST" }
   .inputValidator((raw) => z.object({ keepScanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const userId = context.auth.user.id;
+    console.log("[archivePreviousCopyrightResults] Starting archive", {
+      userId,
+      keepScanId: data.keepScanId,
+    });
+
     const { data: matches, error: fetchErr } = await context.supabase
       .from("copyright_matches")
       .select("id, scan_id, evidence")
       .eq("user_id", userId)
       .neq("scan_id", data.keepScanId);
 
-    if (fetchErr) throw new Error(fetchErr.message);
+    if (fetchErr) {
+      console.error("[archivePreviousCopyrightResults] Fetch error:", fetchErr);
+      throw new Error(`Failed to fetch previous copyright matches: ${fetchErr.message}`);
+    }
 
     const rowsToArchive = (matches ?? []).filter((m) => {
       const ev = (m.evidence ?? {}) as Record<string, unknown>;
@@ -693,7 +701,8 @@ export const archivePreviousCopyrightResults = createServerFn({ method: "POST" }
     });
 
     if (rowsToArchive.length === 0) {
-      return { count: 0 };
+      console.log("[archivePreviousCopyrightResults] No active rows to archive.");
+      return { success: true, archivedCount: 0 };
     }
 
     const now = new Date().toISOString();
@@ -713,10 +722,20 @@ export const archivePreviousCopyrightResults = createServerFn({ method: "POST" }
         .eq("id", row.id)
         .eq("user_id", userId);
 
-      if (!updErr) updatedCount++;
+      if (updErr) {
+        console.error(
+          `[archivePreviousCopyrightResults] Update error for row_id=${row.id}:`,
+          updErr,
+        );
+        throw new Error(`Failed to archive copyright match ${row.id}: ${updErr.message}`);
+      }
+      updatedCount++;
     }
 
-    return { count: updatedCount };
+    console.log("[archivePreviousCopyrightResults] Completed successfully", {
+      archivedCount: updatedCount,
+    });
+    return { success: true, archivedCount: updatedCount };
   });
 
 export const archiveScanCopyrightResults = createServerFn({ method: "POST" })
@@ -724,13 +743,18 @@ export const archiveScanCopyrightResults = createServerFn({ method: "POST" })
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const userId = context.auth.user.id;
+    console.log("[archiveScanCopyrightResults] Starting archive", { userId, scanId: data.scanId });
+
     const { data: matches, error: fetchErr } = await context.supabase
       .from("copyright_matches")
       .select("id, evidence")
       .eq("scan_id", data.scanId)
       .eq("user_id", userId);
 
-    if (fetchErr) throw new Error(fetchErr.message);
+    if (fetchErr) {
+      console.error("[archiveScanCopyrightResults] Fetch error:", fetchErr);
+      throw new Error(`Failed to fetch scan copyright matches: ${fetchErr.message}`);
+    }
 
     const now = new Date().toISOString();
     let updatedCount = 0;
@@ -749,10 +773,17 @@ export const archiveScanCopyrightResults = createServerFn({ method: "POST" })
         .eq("id", row.id)
         .eq("user_id", userId);
 
-      if (!updErr) updatedCount++;
+      if (updErr) {
+        console.error(`[archiveScanCopyrightResults] Update error for row_id=${row.id}:`, updErr);
+        throw new Error(`Failed to archive match ${row.id}: ${updErr.message}`);
+      }
+      updatedCount++;
     }
 
-    return { count: updatedCount };
+    console.log("[archiveScanCopyrightResults] Completed successfully", {
+      archivedCount: updatedCount,
+    });
+    return { success: true, archivedCount: updatedCount };
   });
 
 export const updateCopyrightMatch = createServerFn({ method: "POST" })
