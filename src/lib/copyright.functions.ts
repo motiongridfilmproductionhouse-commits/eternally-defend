@@ -2,7 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
-import { hostOf, canonicalUrl, type DiscoveryCandidate } from "@/lib/copyright/url.server";
+import {
+  hostOf,
+  canonicalUrl,
+  isExcludedHost,
+  websiteTypeFor,
+  type DiscoveryCandidate,
+} from "@/lib/copyright/url.server";
 import {
   analyzeReference,
   firecrawlDiscover,
@@ -167,13 +173,29 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         throw err;
       }
 
+      const officialSources: DiscoveryCandidate[] = [];
+      const validCandidates: DiscoveryCandidate[] = [];
+
       for (const c of discovery.candidates) {
-        if (!byUrl.has(c.url)) byUrl.set(c.url, c);
+        const url = c.url;
+        if (!byUrl.has(url)) byUrl.set(url, c);
+        if (isExcludedHost(url)) {
+          officialSources.push(c);
+        } else {
+          validCandidates.push(c);
+        }
+      }
+
+      // Ensure every valid candidate has a thumbnail URL so no valid result is lost.
+      for (const c of validCandidates) {
+        if (!c.thumbnail && !c.imageUrl) {
+          const host = hostOf(c.url) ?? "domain";
+          c.thumbnail = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;
+        }
       }
 
       // Prioritise high-signal piracy leads, keep the grading budget bounded.
-      const ordered = [...byUrl.values()]
-        .filter((c) => c.thumbnail || c.imageUrl)
+      const ordered = [...validCandidates]
         .sort((a, b) => Number(b.exact) - Number(a.exact))
         .slice(0, 40);
 
@@ -193,26 +215,30 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         rek: FingerprintMatch = EMPTY_MATCH,
       ): MatchInsert => {
         const contact = resolveAbuseContact(candidate.url);
+        const thumb = candidate.thumbnail ?? candidate.imageUrl;
         return {
           scan_id: scan.id,
           user_id: userId,
           source_url: canonicalUrl(candidate.url),
           platform: contact.platform,
           page_title: candidate.title,
-          thumbnail_url: candidate.thumbnail ?? candidate.imageUrl,
+          thumbnail_url: thumb,
           confidence,
           confidence_band: bandFor(confidence),
           detection_type: detectionType,
           transformations,
+          review_status: "pending",
           evidence: {
+            client_visible: true,
             reference_frame_index: candidate.frameIndex,
             reference_frame_path: data.keys[candidate.frameIndex] ?? data.keys[0],
-            candidate_image_url: candidate.imageUrl ?? candidate.thumbnail,
+            candidate_image_url: thumb,
             discovery: candidate.exact ? "piracy_lead" : "visual_match",
             discovery_query: candidate.query ?? null,
             keyword_match: candidate.keywordMatch ?? candidate.query ?? null,
             piracy_category: candidate.category ?? null,
-            website_type: candidate.websiteType ?? null,
+            website_type:
+              candidate.websiteType ?? websiteTypeFor(candidate.url, candidate.title ?? ""),
             detected_language: candidate.language ?? analysis.language ?? null,
             reference_ocr_text: analysis.ocrText,
             reference_watermark: analysis.watermark,
@@ -261,7 +287,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
 
             // AWS Rekognition corroboration on the candidate image (best effort).
             let rek: FingerprintMatch = EMPTY_MATCH;
-            if (fingerprint.available) {
+            if (fingerprint.available && img && !img.includes("favicons?domain=")) {
               const fetched = await fetchImageBytes(img).catch(() => null);
               if (fetched?.bytes?.length) {
                 rek = await matchCandidateAgainstFingerprint(
@@ -325,29 +351,45 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
           }
 
           ignored++;
-          // Keep strong discovery signals as reviewable leads so a scan with
-          // real piracy signals never reports an empty result set.
-          if (
-            (candidate.exact || rek.signals.length >= 1) &&
-            !(result?.falsePositive && blended < 20)
-          ) {
-            fallbackRows.push(
-              buildRow(
-                candidate,
-                Math.max(35, Math.min(49, blended || 35)),
-                result?.detectionType && result.detectionType !== "unrelated"
-                  ? result.detectionType
-                  : "ripped_copy",
-                result?.transformations ?? [],
-                result?.ocrText ?? null,
-                result?.watermark ?? rek.watermarkMatch,
-                (result?.reason ||
-                  `Piracy-signal lead (${candidate.category ?? "web_lead"}) surfaced by "${candidate.keywordMatch ?? candidate.query ?? data.title}" — requires human review.`) +
-                  rekReason,
-                rek,
-              ),
-            );
-          }
+          fallbackRows.push(
+            buildRow(
+              candidate,
+              Math.max(35, Math.min(49, blended || 35)),
+              result?.detectionType && result.detectionType !== "unrelated"
+                ? result.detectionType
+                : "ripped_copy",
+              result?.transformations ?? [],
+              result?.ocrText ?? null,
+              result?.watermark ?? rek.watermarkMatch,
+              (result?.reason ||
+                `Piracy-signal lead (${candidate.category ?? "web_lead"}) surfaced by "${candidate.keywordMatch ?? candidate.query ?? data.title}" — requires human review.`) +
+                rekReason,
+              rek,
+            ),
+          );
+        }
+      }
+
+      // Add any remaining unverified valid candidates that were not graded into rows/fallbackRows
+      const processedUrls = new Set([
+        ...rows.map((r) => r.source_url),
+        ...fallbackRows.map((r) => r.source_url),
+      ]);
+      for (const c of validCandidates) {
+        const canon = canonicalUrl(c.url);
+        if (!processedUrls.has(canon)) {
+          fallbackRows.push(
+            buildRow(
+              c,
+              40,
+              c.websiteType === "duplicate_artwork" ? "poster_copy" : "ripped_copy",
+              [],
+              null,
+              null,
+              `Discovered candidate source (${c.category ?? "automated_lead"}) surfaced by "${c.keywordMatch ?? c.query ?? data.title}" — pending review.`,
+            ),
+          );
+          processedUrls.add(canon);
         }
       }
 
@@ -431,7 +473,9 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
                     ? "video_clip"
                     : "ripped_copy",
             transformations: dist.qualityTags.slice(0, 8),
+            review_status: "pending",
             evidence: {
+              client_visible: true,
               discovery: "distribution_site",
               discovery_query: lead.query,
               keyword_match: lead.query,
@@ -465,9 +509,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         }
       }
 
-      // 5. Auto Monitor pass: re-check already-known distribution sources that
-      //    were not crawled by this scan, so every movie scan covers the full
-      //    registered source list without duplicating crawls.
+      // 5. Auto Monitor pass: re-check already-known distribution sources.
       const monitorPass = await runAutoMonitor(supabase, {
         userId,
         limit: 8,
@@ -476,30 +518,62 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         excludeDomains: [...inspectedDomains].filter(Boolean),
       }).catch(() => ({ checked: 0, incidents: 0 }));
 
-      const leads = rows.length || distributionRows.length ? [] : fallbackRows.slice(0, 12);
-
       const seenUrls = new Set(distributionRows.map((r) => r.source_url));
       const allRows = [
         ...distributionRows,
-        ...[...rows, ...leads].filter((r) => !seenUrls.has(r.source_url)),
+        ...[...rows, ...fallbackRows].filter((r) => !seenUrls.has(r.source_url)),
       ];
 
-      if (allRows.length) {
+      if (allRows.length > 0) {
         const { error: mErr } = await supabase
           .from("copyright_matches")
           .upsert(allRows, { onConflict: "scan_id,source_url" });
         if (mErr) throw new Error(mErr.message);
       }
 
+      // Worker completion verification gate: confirm candidates are persisted before marking completed.
+      if (byUrl.size > 0 && allRows.length === 0) {
+        throw new Error(
+          `Scan completion halted: ${byUrl.size} candidate(s) discovered but 0 candidate rows persisted.`,
+        );
+      }
+
+      const pendingReviewCount = allRows.filter((r) => r.review_status === "pending").length;
+      const verifiedCount = allRows.filter(
+        (r) => (r.confidence ?? 0) >= 90 || r.confidence_band === "confirmed",
+      ).length;
+      const rejectedCount =
+        allRows.filter((r) => r.review_status === "dismissed").length + officialSources.length;
+      const crawledPagesCount = ordered.length + leadUrls.length;
+
+      const diagnostics = {
+        discovered_candidate_count: byUrl.size,
+        persisted_candidate_count: allRows.length,
+        client_visible_count: allRows.filter(
+          (r) => (r.evidence as Record<string, unknown> | null)?.client_visible !== false,
+        ).length,
+        crawl_queue_count: byUrl.size,
+        crawled_count: crawledPagesCount,
+        pending_review_count: pendingReviewCount,
+        verified_count: verifiedCount,
+        rejected_count: rejectedCount,
+        hidden_by_filter_count: officialSources.length,
+        scan_id_and_client_id_consistency: allRows.every(
+          (r) => r.scan_id === scan.id && r.user_id === userId,
+        ),
+      };
+
       const stats = {
+        candidate_pages: byUrl.size,
+        crawled_pages: crawledPagesCount,
+        pending_verification: pendingReviewCount,
+        verified_threats: verifiedCount,
+        rejected: rejectedCount,
+
         candidates: byUrl.size,
         graded: ordered.length,
-        rekognition: fingerprint.available,
-        recognized_actors: fingerprint.celebrities,
-        scene_labels: fingerprint.labels.slice(0, 12),
-        reference_faces: fingerprint.faceCount,
         matches: allRows.length,
-        leads: leads.length,
+        leads: fallbackRows.length,
         distribution_pages_inspected: leadUrls.length,
         distribution_sites: distributionRows.length,
         distribution_high_risk: distributionSummary.filter((d) => d.domain_risk === "high").length,
@@ -507,6 +581,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         monitored_sources_checked: monitorPass.checked,
         monitor_incidents: monitorPass.incidents,
         discovery_diagnostics: discovery.diagnostics,
+        diagnostics,
         admin_summary: discovery.diagnostics.adminSummary,
 
         release_timing: releaseTimingFor(releaseDate).timing,
@@ -516,7 +591,7 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         ignored,
         frames: data.keys.length,
         sha256,
-        confirmed: allRows.filter((r) => r.confidence_band === "confirmed").length,
+        confirmed: verifiedCount,
         probable: allRows.filter((r) => r.confidence_band === "probable").length,
         review: allRows.filter((r) => r.confidence_band === "review").length,
       };
