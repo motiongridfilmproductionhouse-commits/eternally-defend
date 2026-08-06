@@ -617,6 +617,7 @@ export const listCopyrightScans = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("copyright_scans")
       .select("*")
+      .neq("status", "archived")
       .order("created_at", { ascending: false })
       .limit(30);
     if (error) throw new Error(error.message);
@@ -641,7 +642,10 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
       .order("confidence", { ascending: false });
     if (mErr) throw new Error(mErr.message);
 
-    const matchRows = matches ?? [];
+    const matchRows = (matches ?? []).filter((m) => {
+      const ev = (m.evidence ?? {}) as Record<string, unknown>;
+      return ev.client_visible !== false;
+    });
     const stats = (scan.stats ?? {}) as Record<string, unknown>;
     const expectedCount = Number(stats.matches ?? 0);
 
@@ -662,11 +666,14 @@ export const listAllCopyrightMatches = createServerFn({ method: "GET" })
     const { data: matches, error } = await context.supabase
       .from("copyright_matches")
       .select("*")
-      .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
 
-    const rows = matches ?? [];
+    const rows = (matches ?? []).filter((m) => {
+      if (m.user_id && m.user_id !== userId) return false;
+      return true;
+    });
+
     if (data.includeArchived) return rows;
     return rows.filter((m) => {
       const ev = (m.evidence ?? {}) as Record<string, unknown>;
@@ -686,8 +693,7 @@ export const archivePreviousCopyrightResults = createServerFn({ method: "POST" }
 
     const { data: matches, error: fetchErr } = await context.supabase
       .from("copyright_matches")
-      .select("id, scan_id, evidence")
-      .eq("user_id", userId)
+      .select("id, scan_id, evidence, user_id")
       .neq("scan_id", data.keepScanId);
 
     if (fetchErr) {
@@ -696,6 +702,7 @@ export const archivePreviousCopyrightResults = createServerFn({ method: "POST" }
     }
 
     const rowsToArchive = (matches ?? []).filter((m) => {
+      if (m.user_id && m.user_id !== userId) return false;
       const ev = (m.evidence ?? {}) as Record<string, unknown>;
       return ev.client_visible !== false;
     });
@@ -719,8 +726,7 @@ export const archivePreviousCopyrightResults = createServerFn({ method: "POST" }
       const { error: updErr } = await context.supabase
         .from("copyright_matches")
         .update({ evidence: updatedEvidence })
-        .eq("id", row.id)
-        .eq("user_id", userId);
+        .eq("id", row.id);
 
       if (updErr) {
         console.error(
@@ -731,6 +737,13 @@ export const archivePreviousCopyrightResults = createServerFn({ method: "POST" }
       }
       updatedCount++;
     }
+
+    // Mark previous scans as archived
+    await context.supabase
+      .from("copyright_scans")
+      .update({ status: "archived" })
+      .neq("id", data.keepScanId)
+      .eq("user_id", userId);
 
     console.log("[archivePreviousCopyrightResults] Completed successfully", {
       archivedCount: updatedCount,
@@ -747,19 +760,24 @@ export const archiveScanCopyrightResults = createServerFn({ method: "POST" })
 
     const { data: matches, error: fetchErr } = await context.supabase
       .from("copyright_matches")
-      .select("id, evidence")
-      .eq("scan_id", data.scanId)
-      .eq("user_id", userId);
+      .select("id, evidence, user_id")
+      .eq("scan_id", data.scanId);
 
     if (fetchErr) {
       console.error("[archiveScanCopyrightResults] Fetch error:", fetchErr);
       throw new Error(`Failed to fetch scan copyright matches: ${fetchErr.message}`);
     }
 
+    const rowsToArchive = (matches ?? []).filter((m) => {
+      if (m.user_id && m.user_id !== userId) return false;
+      const ev = (m.evidence ?? {}) as Record<string, unknown>;
+      return ev.client_visible !== false;
+    });
+
     const now = new Date().toISOString();
     let updatedCount = 0;
 
-    for (const row of matches ?? []) {
+    for (const row of rowsToArchive) {
       const ev = (row.evidence ?? {}) as Record<string, unknown>;
       const updatedEvidence = {
         ...ev,
@@ -770,8 +788,7 @@ export const archiveScanCopyrightResults = createServerFn({ method: "POST" })
       const { error: updErr } = await context.supabase
         .from("copyright_matches")
         .update({ evidence: updatedEvidence })
-        .eq("id", row.id)
-        .eq("user_id", userId);
+        .eq("id", row.id);
 
       if (updErr) {
         console.error(`[archiveScanCopyrightResults] Update error for row_id=${row.id}:`, updErr);
@@ -779,6 +796,12 @@ export const archiveScanCopyrightResults = createServerFn({ method: "POST" })
       }
       updatedCount++;
     }
+
+    // Mark the scan itself as archived
+    await context.supabase
+      .from("copyright_scans")
+      .update({ status: "archived" })
+      .eq("id", data.scanId);
 
     console.log("[archiveScanCopyrightResults] Completed successfully", {
       archivedCount: updatedCount,

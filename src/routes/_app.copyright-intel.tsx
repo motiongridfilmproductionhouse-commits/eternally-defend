@@ -408,12 +408,15 @@ function CopyrightIntelPage() {
       console.log("[CopyrightIntelUI] Sending archiveScanCopyrightResults request", { scanId });
       const res = await archiveScanFn({ data: { scanId } });
       console.log("[CopyrightIntelUI] Received archiveScanCopyrightResults response:", res);
-      return res;
+      return { res, scanId };
     },
-    onSuccess: (res) => {
+    onSuccess: ({ res, scanId }) => {
       console.log(
         "[CopyrightIntelUI] Archive scan succeeded. Closing dialog and invalidating queries.",
       );
+      if (selectedScanId === scanId) {
+        setSelectedScanId(null);
+      }
       setArchivingScanId(null);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       qc.invalidateQueries({ queryKey: ["copyright-scan"] });
