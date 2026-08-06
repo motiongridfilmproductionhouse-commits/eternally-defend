@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
+import { ThreatTimeline, type TimelineEvent } from "@/components/deepfake/ThreatTimeline";
 import { buildThreatAlertSummary } from "@/lib/deepfake/threat-alert";
 import type { ClientFinding } from "@/lib/deepfake/results-dashboard";
 
@@ -689,6 +690,9 @@ function DeepfakeIntelPage() {
                 findingsCount={findings.length}
               />
 
+              {/* Real-Time Threat Timeline */}
+              <ThreatTimeline events={buildTimelineEvents(scan, discoveries, findings)} />
+
               {/* C. Target Info & Risk Filter Bar */}
               <div className="card-surface p-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1291,6 +1295,57 @@ function RiskChip({ level, count }: { level: RiskLevel; count: number }) {
   );
 }
 
+function buildTimelineEvents(scan: any, discoveries: any[], findings: any[]): TimelineEvent[] {
+  if (!scan) return [];
+  const telemetry = parseTelemetry(scan);
+  const events: TimelineEvent[] = [];
+  const startTime = scan.started_at
+    ? new Date(scan.started_at).toLocaleTimeString()
+    : new Date().toLocaleTimeString();
+
+  events.push({
+    id: "init",
+    time: startTime,
+    stage: "Identity Enrolled",
+    message: `Reference profile loaded for ${scan.target_name}`,
+  });
+
+  if (telemetry?.stage_logs) {
+    telemetry.stage_logs.forEach((log: string, idx: number) => {
+      const isThreat =
+        log.toLowerCase().includes("threat") ||
+        log.toLowerCase().includes("verified") ||
+        log.toLowerCase().includes("explicit") ||
+        log.toLowerCase().includes("discarded");
+      events.push({
+        id: `log-${idx}`,
+        time: startTime,
+        stage: isThreat ? "Threat Detection" : "Discovery Stage",
+        message: log,
+        threat: isThreat,
+      });
+    });
+  }
+
+  findings.forEach((f: any, idx: number) => {
+    const isHigh =
+      f.risk_level === "CRITICAL" ||
+      f.risk_level === "HIGH" ||
+      f.finding_classification === "VERIFIED_DEEPFAKE";
+    events.push({
+      id: `finding-${f.id || idx}`,
+      time: f.created_at ? new Date(f.created_at).toLocaleTimeString() : startTime,
+      stage: f.finding_classification
+        ? f.finding_classification.replace(/_/g, " ")
+        : "Evidence Classification",
+      message: `${f.page_title || f.url} (${f.source_host || "source"})`,
+      threat: isHigh,
+    });
+  });
+
+  return events.slice(-12);
+}
+
 function FindingCard({
   f,
   onUpdate,
@@ -1312,6 +1367,7 @@ function FindingCard({
     ai_reasoning: string | null;
     review_status: string;
     face_similarity?: number | null;
+    created_at?: string;
   };
   onUpdate: (s: "reviewed" | "dismissed" | "queued_takedown") => void;
   pending: boolean;
@@ -1320,6 +1376,12 @@ function FindingCard({
     ? (f.risk_level as RiskLevel)
     : "LOW";
   const style = RISK_STYLE[risk];
+  const severityLabelMap: Record<RiskLevel, string> = {
+    CRITICAL: "🚨 CRITICAL",
+    HIGH: "⚠ HIGH",
+    MEDIUM: "⚡ MEDIUM",
+    LOW: "👁 REVIEW",
+  };
   const leadType = f.content_category?.replace(/_/g, " ") ?? "AI Generated Lead";
   const confidence = f.face_similarity ?? f.confidence ?? 60;
   const matchedKeywords = f.snippet?.toLowerCase().includes("nude")
@@ -1327,6 +1389,10 @@ function FindingCard({
     : f.snippet?.toLowerCase().includes("swap")
       ? ["face swap", "deepfake"]
       : ["ai generated", "deepfake"];
+
+  const isNew = f.created_at
+    ? Date.now() - new Date(f.created_at).getTime() < 5000
+    : false;
 
   return (
     <div className="card-surface p-3.5">
@@ -1336,8 +1402,13 @@ function FindingCard({
             <span
               className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${style.badge}`}
             >
-              {risk}
+              {severityLabelMap[risk]}
             </span>
+            {isNew && (
+              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[9px] uppercase animate-pulse">
+                NEW
+              </Badge>
+            )}
             <Badge
               variant="outline"
               className="text-[10px] py-0 border-primary/50 text-primary uppercase"

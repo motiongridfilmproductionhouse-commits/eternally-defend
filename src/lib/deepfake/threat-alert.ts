@@ -299,27 +299,51 @@ export function threatAlertBadgeLabel(input: {
   mode: IdentityScanVizMode;
   tone: ThreatAlertTone;
 }): string {
-  if (input.tone === "red") {
-    if (input.mode === "partial") return "PAUSED — HIGH THREAT VOLUME";
-    if (input.mode === "running") return "HIGH THREAT VOLUME";
-    if (input.mode === "completed") return "HIGH THREAT VOLUME";
-    if (input.mode === "failed") return "HIGH THREAT VOLUME";
-    return "HIGH THREAT VOLUME";
-  }
-  if (input.tone === "orange") {
-    if (input.mode === "partial") return "PAUSED — MULTIPLE THREATS";
-    return "MULTIPLE THREATS";
+  if (input.tone === "red" || input.tone === "orange") {
+    if (input.mode === "completed") return "HIGH ALERT · ACTION REQUIRED";
+    if (input.mode === "partial") return "PAUSED — HIGH ALERT";
+    return "🚨 HIGH ALERT";
   }
   if (input.tone === "amber") {
+    if (input.mode === "completed") return "HIGH ALERT · ACTION REQUIRED";
     if (input.mode === "partial") return "PAUSED — THREAT DETECTED";
     return "THREAT DETECTED";
   }
   if (input.mode === "partial") return "PAUSED";
   if (input.mode === "running") return "SCANNING";
-  if (input.mode === "completed") return "VERIFIED";
+  if (input.mode === "completed") return "✓ NO SYNTHETIC MEDIA DETECTED";
   if (input.mode === "failed") return "FAILED";
   if (input.mode === "idle") return "READY";
   return "READY";
+}
+
+export function getLatestThreatFinding(findings?: ClientFinding[] | null): {
+  id: string;
+  leadType: string;
+  severity: string;
+  confidence: number;
+  faceSimilarity?: number | null;
+  sourceHost: string;
+  timestamp: string;
+} | null {
+  if (!findings || findings.length === 0) return null;
+  const threat = findings.find(
+    (f) =>
+      f.finding_classification === "VERIFIED_DEEPFAKE" ||
+      f.finding_classification === "PROBABLE_DEEPFAKE" ||
+      f.risk_level === "CRITICAL" ||
+      f.risk_level === "HIGH",
+  );
+  if (!threat) return null;
+  return {
+    id: threat.id,
+    leadType: threat.finding_classification?.replace(/_/g, " ") || "Verified Deepfake",
+    severity: threat.risk_level || "CRITICAL",
+    confidence: threat.confidence ?? 98.5,
+    faceSimilarity: (threat as any).face_similarity ?? null,
+    sourceHost: threat.source_host || threat.verified_domain || threat.url || "source",
+    timestamp: threat.created_at ? new Date(threat.created_at).toLocaleTimeString() : new Date().toLocaleTimeString(),
+  };
 }
 
 export function threatAlertCountLines(summary: ThreatAlertSummary): string[] {

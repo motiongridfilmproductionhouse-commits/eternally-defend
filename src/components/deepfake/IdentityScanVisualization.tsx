@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScanFace, UserRound } from "lucide-react";
+import { ScanFace, UserRound, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   IDENTITY_SCAN_NODES,
   activeIdentityScanNodeIds,
@@ -415,7 +416,33 @@ export function IdentityScanVisualization({
           </div>
         </header>
 
+        {/* Floating High Risk Alert Banner */}
+        {elevated && (
+          <div
+            data-testid="high-alert-banner"
+            className="mb-3 rounded-xl border border-red-500/40 bg-red-950/70 p-2.5 text-xs text-red-100 shadow-md backdrop-blur-sm animate-pulse"
+          >
+            <div className="flex items-center justify-between gap-2 font-bold text-red-300">
+              <span className="flex items-center gap-1.5">
+                <ScanFace className="size-4 text-red-400 shrink-0" />
+                🚨 HIGH RISK SYNTHETIC MEDIA DETECTED
+              </span>
+              <Badge className="bg-red-500/20 text-red-200 border-red-500/40 text-[9px] uppercase">
+                🚨 {red ? "CRITICAL" : "HIGH"}
+              </Badge>
+            </div>
+          </div>
+        )}
+
         <div className="relative mx-auto aspect-square w-full max-w-[360px] flex-1">
+          {ringPulse && (
+            <div
+              data-testid="threat-pulse-badge"
+              className="absolute left-1/2 top-4 -translate-x-1/2 z-20 animate-bounce rounded-full border border-red-400 bg-red-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-lg"
+            >
+              +1 Threat
+            </div>
+          )}
           <svg
             viewBox="0 0 100 100"
             className="absolute inset-0 h-full w-full"

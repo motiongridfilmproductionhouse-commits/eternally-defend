@@ -11,6 +11,7 @@ import {
   shouldAnimateThreatAwareScan,
   shouldShowThreatAwareScanBeam,
   threatAwareStatusCopy,
+  threatAlertBadgeLabel,
 } from "../../lib/deepfake/threat-alert";
 
 const COMPONENT_PATH = join(
@@ -110,4 +111,20 @@ test("6. Reduced-motion mode disables motion without hiding status information",
 
   assert.match(code, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(styles, /\.identity-radar-ring[\s\S]*animation:\s*none !important/);
+});
+
+test("7. High Alert mode renders HIGH ALERT badge, floating alert banner, and threat pulse", () => {
+  const code = readFileSync(COMPONENT_PATH, "utf8");
+  const redBadge = threatAlertBadgeLabel({ mode: "running", tone: "red" });
+  assert.equal(redBadge, "🚨 HIGH ALERT");
+
+  const completedBadge = threatAlertBadgeLabel({ mode: "completed", tone: "red" });
+  assert.equal(completedBadge, "HIGH ALERT · ACTION REQUIRED");
+
+  const cleanBadge = threatAlertBadgeLabel({ mode: "completed", tone: "cyan" });
+  assert.equal(cleanBadge, "✓ NO SYNTHETIC MEDIA DETECTED");
+
+  assert.match(code, /data-testid="high-alert-banner"/);
+  assert.match(code, /🚨 HIGH RISK SYNTHETIC MEDIA DETECTED/);
+  assert.match(code, /data-testid="threat-pulse-badge"/);
 });
