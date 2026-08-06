@@ -1480,6 +1480,7 @@ export type Database = {
           gov_id_ref: string | null
           legal_name: string | null
           official_socials: Json
+          onboarding_account_type: string | null
           onboarding_completed: boolean
           onboarding_step: number
           onboarding_version: string
@@ -1491,6 +1492,7 @@ export type Database = {
           social_profiles: Json
           updated_at: string
           user_id: string
+          verification_badge: string | null
           website: string | null
         }
         Insert: {
@@ -1515,6 +1517,7 @@ export type Database = {
           gov_id_ref?: string | null
           legal_name?: string | null
           official_socials?: Json
+          onboarding_account_type?: string | null
           onboarding_completed?: boolean
           onboarding_step?: number
           onboarding_version?: string
@@ -1526,6 +1529,7 @@ export type Database = {
           social_profiles?: Json
           updated_at?: string
           user_id: string
+          verification_badge?: string | null
           website?: string | null
         }
         Update: {
@@ -1550,6 +1554,7 @@ export type Database = {
           gov_id_ref?: string | null
           legal_name?: string | null
           official_socials?: Json
+          onboarding_account_type?: string | null
           onboarding_completed?: boolean
           onboarding_step?: number
           onboarding_version?: string
@@ -1561,6 +1566,7 @@ export type Database = {
           social_profiles?: Json
           updated_at?: string
           user_id?: string
+          verification_badge?: string | null
           website?: string | null
         }
         Relationships: []
@@ -4350,6 +4356,7 @@ export type Database = {
         Row: {
           created_at: string
           current_step: number
+          onboarding_version: string
           overall_status: Database["public"]["Enums"]["onboarding_overall_status"]
           step_states: Json
           updated_at: string
@@ -4358,6 +4365,7 @@ export type Database = {
         Insert: {
           created_at?: string
           current_step?: number
+          onboarding_version?: string
           overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
           step_states?: Json
           updated_at?: string
@@ -4366,10 +4374,59 @@ export type Database = {
         Update: {
           created_at?: string
           current_step?: number
+          onboarding_version?: string
           overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
           step_states?: Json
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      onboarding_v2_evidence: {
+        Row: {
+          created_at: string
+          evidence_type: string
+          filename: string | null
+          id: string
+          metadata: Json
+          mime_type: string | null
+          reference_value: string | null
+          status: string
+          storage_path: string | null
+          updated_at: string
+          user_id: string
+          verification_method: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          evidence_type: string
+          filename?: string | null
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          reference_value?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id: string
+          verification_method?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          evidence_type?: string
+          filename?: string | null
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          reference_value?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_method?: string | null
+          verified_at?: string | null
         }
         Relationships: []
       }
@@ -5988,6 +6045,7 @@ export type Database = {
       }
       verification_certificates: {
         Row: {
+          account_type: string | null
           authorization_id: string
           certificate_number: string
           expires_at: string | null
@@ -6000,8 +6058,11 @@ export type Database = {
           snapshot: Json | null
           status: string
           user_id: string
+          verification_badge: string | null
+          verification_method: string | null
         }
         Insert: {
+          account_type?: string | null
           authorization_id: string
           certificate_number: string
           expires_at?: string | null
@@ -6014,8 +6075,11 @@ export type Database = {
           snapshot?: Json | null
           status?: string
           user_id: string
+          verification_badge?: string | null
+          verification_method?: string | null
         }
         Update: {
+          account_type?: string | null
           authorization_id?: string
           certificate_number?: string
           expires_at?: string | null
@@ -6028,6 +6092,8 @@ export type Database = {
           snapshot?: Json | null
           status?: string
           user_id?: string
+          verification_badge?: string | null
+          verification_method?: string | null
         }
         Relationships: [
           {
