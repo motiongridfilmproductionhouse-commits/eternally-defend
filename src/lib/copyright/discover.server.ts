@@ -8,12 +8,7 @@
  * piracy indexes, forums, social platforms and video hosts.
  */
 
-import {
-  firecrawlEnvironmentDiagnostic,
-  firecrawlFetch,
-  isFirecrawlConfigured,
-  type FirecrawlEnvironmentDiagnostic,
-} from "@/lib/firecrawl-client.server";
+import { firecrawlFetch, isFirecrawlConfigured } from "@/lib/firecrawl-client.server";
 import {
   canonicalUrl,
   hostOf,
@@ -22,50 +17,6 @@ import {
   websiteTypeFor,
   type DiscoveryCandidate,
 } from "./url.server";
-import {
-  runBatchedDiscovery,
-  FIRECRAWL_MAX_RETRIES,
-  DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
-  isTransientFirecrawlFailure,
-  parseRetryAfterMs,
-  sleepWithAbort,
-  isPastDiscoveryDeadline,
-  emptyDiscoveryCircuit,
-} from "./discovery-runtime";
-import {
-  bumpProviderFailure,
-  classifyProviderFailure,
-  emptyProviderFailureCounts,
-  sanitizeProviderFailureDetail,
-  type ProviderFailureCategory,
-} from "./provider-failures";
-import {
-  DEFAULT_PAGE_CAP,
-  FIRECRAWL_PRIORITY_QUERY_PAGES,
-  FIRECRAWL_SEARCH_LIMIT,
-  FIRECRAWL_PROVIDER_BUDGET_MS,
-  MAX_DISCOVERY_CANDIDATES,
-  MAX_DISCOVERY_QUERIES_PER_SCAN,
-  MIN_DISCOVERY_QUERIES,
-} from "./discovery-config";
-import { PROVIDER_CRAWL_BUDGET_MS } from "./crawl-budget";
-import {
-  buildAllDiscoveryQueries,
-  buildStagedDiscoveryQueries,
-  type DiscoveryQueryPlan,
-} from "./discovery-query-stages";
-import {
-  buildSaturationMetrics,
-  buildCoverageStateFromPageKeys,
-  emptyDiscoveryCoverageState,
-  expandPlansForDiscoveryMode,
-  recordCompletedDiscoveryQuery,
-  recordQueryCategoryFromPlan,
-  resolveDiscoveryMode,
-  shouldIssueDiscoveryPlan,
-  shouldSkipStageExpansion,
-  type DiscoverySaturationMetrics,
-} from "./discovery-saturation";
 
 export interface ReferenceAnalysis {
   title: string | null;
@@ -168,9 +119,17 @@ export async function analyzeReference(
     });
     if (!res.ok) return fallback;
     const json = (await res.json()) as GatewayResponse;
-    const parsed = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
+    const parsed = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<
+      string,
+      unknown
+    >;
     const list = (v: unknown, n: number) =>
-      Array.isArray(v) ? v.map((d) => String(d).slice(0, 80)).filter(Boolean).slice(0, n) : [];
+      Array.isArray(v)
+        ? v
+            .map((d) => String(d).slice(0, 80))
+            .filter(Boolean)
+            .slice(0, n)
+        : [];
     const str = (v: unknown, n: number) => (v ? String(v).slice(0, n) : null);
     return {
       title: str(parsed.title, 120) ?? workTitle,
@@ -199,243 +158,453 @@ interface FcImage {
   title?: string;
   sourceUrl?: string;
 }
-interface FcWeb { url?: string; title?: string; description?: string }
+interface FcWeb {
+  url?: string;
+  title?: string;
+  description?: string;
+}
 interface FcResponse {
-  success?: boolean;
   data?: { web?: FcWeb[]; images?: FcImage[] };
   error?: string;
 }
 
-export interface ProviderSearchAttempt {
+export type CopyrightProviderId =
+  "firecrawl_direct" | "lovable_gateway" | "brave_fallback" | "serpapi_fallback";
+
+export type ProviderFailureCategory =
+  | "success"
+  | "no_results"
+  | "provider_not_configured"
+  | "provider_authentication_failed"
+  | "provider_rate_limited"
+  | "provider_timeout"
+  | "provider_unavailable";
+
+export interface ProviderAttemptLog {
+  scanId?: string;
+  provider: CopyrightProviderId;
+  queryIndex: number;
   query: string;
-  payload: FcResponse | null;
-  ok: boolean;
-  failureCategory?: ProviderFailureCategory;
-  failureDetail?: string;
-  httpStatus?: number | null;
+  configuredStatus: "configured" | "not_configured";
+  attemptNumber: number;
+  httpStatus: number | null;
+  normalizedFailureCategory: ProviderFailureCategory;
+  durationMs: number;
+  fallbackAttempted: boolean;
+  successStatus: boolean;
+  hitCount: number;
 }
 
-/** Focused query cap — discovery continues until plans exhausted or deadline. */
-export { MIN_DISCOVERY_QUERIES, MAX_DISCOVERY_QUERIES_PER_SCAN } from "./discovery-config";
-
-export interface DiscoveryProgress {
-  queriesGenerated: number;
-  queriesExecuted: number;
-  providerSuccesses: number;
-  providerFailures: number;
-  uniquePages: number;
-  /** New page leads seen in this wave (streamed to the live investigation UI). */
-  leads: Array<{ url: string; title: string | null; query: string }>;
-  /** Image-search hits with remote thumbnails for the reference carousel. */
-  referenceImages: Array<{
-    pageUrl: string;
-    imageUrl: string;
-    title: string | null;
-    query: string;
-  }>;
+export interface CopyrightDiscoveryDiagnostics {
+  providerSummaries: Record<
+    CopyrightProviderId,
+    {
+      configured: boolean;
+      attempts: number;
+      successes: number;
+      failureCategory?: ProviderFailureCategory;
+      lastErrorStatus?: number;
+    }
+  >;
+  totalQueries: number;
+  successfulQueries: number;
+  failedQueries: number;
+  fallbackUsed: boolean;
+  adminSummary: string;
+  userMessage: string;
 }
 
-export interface FirecrawlDiscoverOptions {
-  signal?: AbortSignal;
-  deadlineAt?: number;
-  analysis?: ReferenceAnalysis;
-  /** Additional leak-monitoring queries prepended before default plans. */
-  extraQueryStrings?: string[];
-  onProgress?: (progress: DiscoveryProgress) => void | Promise<void>;
+export const USER_DISCOVERY_UNAVAILABLE_MESSAGE =
+  "Public-web discovery is temporarily unavailable. Please retry shortly.";
+
+export class CopyrightDiscoveryError extends Error {
+  public readonly adminSummary: string;
+  public readonly userMessage: string;
+  public readonly diagnostics: CopyrightDiscoveryDiagnostics;
+
+  constructor(
+    adminSummary: string,
+    userMessage: string,
+    diagnostics: CopyrightDiscoveryDiagnostics,
+  ) {
+    super(userMessage);
+    this.name = "CopyrightDiscoveryError";
+    this.adminSummary = adminSummary;
+    this.userMessage = userMessage;
+    this.diagnostics = diagnostics;
+  }
 }
 
-function extractAttemptProgress(
-  attempt: ProviderSearchAttempt,
-  progressSeen: Set<string>,
-  imageSeen: Set<string>,
-): Pick<DiscoveryProgress, "leads" | "referenceImages"> {
-  const leads: DiscoveryProgress["leads"] = [];
-  const referenceImages: DiscoveryProgress["referenceImages"] = [];
-  if (!attempt.ok || !attempt.payload) return { leads, referenceImages };
+export function getCopyrightDiscoveryProviders(): CopyrightProviderId[] {
+  const providers: CopyrightProviderId[] = [];
+  const fcKey = process.env.FIRECRAWL_API_KEY?.trim();
+  const lovKey = process.env.LOVABLE_API_KEY?.trim();
+  const braveKey = process.env.BRAVE_API_KEY?.trim();
+  const serpKey = process.env.SERPAPI_API_KEY?.trim();
 
-  for (const img of attempt.payload.data?.images ?? []) {
-    const page = img.url ?? img.sourceUrl;
-    const image = img.imageUrl ?? img.thumbnailUrl;
-    if (!page || !image) continue;
-    const pageKey = canonicalUrl(page);
-    if (isExcludedHost(pageKey)) continue;
-    const imageKey = image.trim();
-    if (imageSeen.has(imageKey)) continue;
-    imageSeen.add(imageKey);
-    referenceImages.push({
-      pageUrl: pageKey,
-      imageUrl: imageKey,
-      title: img.title ?? null,
-      query: attempt.query,
-    });
+  // 1. Direct Firecrawl API key (fc-...) or explicit API key
+  if (fcKey && !fcKey.startsWith("lovc_")) {
+    providers.push("firecrawl_direct");
   }
 
-  const rows = [
-    ...(attempt.payload.data?.web ?? []).map((w) => ({
-      url: w.url,
-      title: w.title ?? null,
-    })),
-    ...(attempt.payload.data?.images ?? []).map((i) => ({
-      url: i.url ?? i.sourceUrl,
-      title: i.title ?? null,
-    })),
-  ];
-  for (const row of rows) {
-    if (!row.url) continue;
-    const key = canonicalUrl(row.url);
-    if (progressSeen.has(key) || isExcludedHost(key)) continue;
-    progressSeen.add(key);
-    leads.push({ url: key, title: row.title, query: attempt.query });
+  // Optional: Lovable Gateway if LOVABLE_API_KEY is explicitly configured
+  if (lovKey && (fcKey?.startsWith("lovc_") || !fcKey)) {
+    providers.push("lovable_gateway");
+  } else if (lovKey && fcKey) {
+    if (!providers.includes("lovable_gateway")) providers.push("lovable_gateway");
   }
 
-  return { leads, referenceImages };
+  // 2. Brave Search API fallback
+  if (braveKey) {
+    providers.push("brave_fallback");
+  }
+
+  // 3. SerpAPI fallback
+  if (serpKey) {
+    providers.push("serpapi_fallback");
+  }
+
+  return providers;
 }
 
-async function search(
+export function isCopyrightDiscoveryConfigured(): boolean {
+  return getCopyrightDiscoveryProviders().length > 0;
+}
+
+export function normalizeProviderFailureCategory(
+  status: number | null,
+  err?: unknown,
+): ProviderFailureCategory {
+  if (status === 401 || status === 403) return "provider_authentication_failed";
+  if (status === 429) return "provider_rate_limited";
+  if (
+    err instanceof Error &&
+    (err.name === "AbortError" || err.message.toLowerCase().includes("timeout"))
+  ) {
+    return "provider_timeout";
+  }
+  if (status && status >= 500) return "provider_unavailable";
+  return "provider_unavailable";
+}
+
+function logProviderAttempt(log: ProviderAttemptLog) {
+  console.info(
+    JSON.stringify({
+      tag: "[CopyrightDiscovery]",
+      scanId: log.scanId ?? "unknown",
+      provider: log.provider,
+      queryIndex: log.queryIndex,
+      configuredStatus: log.configuredStatus,
+      attemptNumber: log.attemptNumber,
+      httpStatus: log.httpStatus,
+      normalizedFailureCategory: log.normalizedFailureCategory,
+      durationMs: log.durationMs,
+      fallbackAttempted: log.fallbackAttempted,
+      successStatus: log.successStatus,
+      hitCount: log.hitCount,
+    }),
+  );
+}
+
+async function executeFirecrawlDirect(
   query: string,
   recent: boolean,
-  signal?: AbortSignal,
-  deadlineAt?: number,
-  page = 1,
-): Promise<ProviderSearchAttempt> {
-  if (!isFirecrawlConfigured()) {
+): Promise<{
+  status: number;
+  payload: FcResponse | null;
+  failureCategory?: ProviderFailureCategory;
+}> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await firecrawlFetch(
+      "/search",
+      {
+        query,
+        limit: 10,
+        sources: ["web", "images"],
+        ...(recent ? { tbs: "qdr:m" } : {}),
+      },
+      { forceDirect: true, signal: controller.signal },
+    );
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const cat = normalizeProviderFailureCategory(res.status);
+      return { status: res.status, payload: null, failureCategory: cat };
+    }
+    const payload = (await res.json()) as FcResponse;
+    const hitCount = (payload.data?.web?.length ?? 0) + (payload.data?.images?.length ?? 0);
     return {
-      query,
-      payload: null,
-      ok: false,
-      failureCategory: "missing_api_key",
-      failureDetail: "Firecrawl is not configured for copyright discovery.",
-      httpStatus: null,
+      status: 200,
+      payload,
+      failureCategory: hitCount > 0 ? "success" : "no_results",
     };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    const cat = normalizeProviderFailureCategory(null, err);
+    return { status: 0, payload: null, failureCategory: cat };
+  }
+}
+
+async function executeLovableGateway(
+  query: string,
+  recent: boolean,
+): Promise<{
+  status: number;
+  payload: FcResponse | null;
+  failureCategory?: ProviderFailureCategory;
+}> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await firecrawlFetch(
+      "/search",
+      {
+        query,
+        limit: 10,
+        sources: ["web", "images"],
+        ...(recent ? { tbs: "qdr:m" } : {}),
+      },
+      { forceGateway: true, signal: controller.signal },
+    );
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const cat = normalizeProviderFailureCategory(res.status);
+      return { status: res.status, payload: null, failureCategory: cat };
+    }
+    const payload = (await res.json()) as FcResponse;
+    const hitCount = (payload.data?.web?.length ?? 0) + (payload.data?.images?.length ?? 0);
+    return {
+      status: 200,
+      payload,
+      failureCategory: hitCount > 0 ? "success" : "no_results",
+    };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    const cat = normalizeProviderFailureCategory(null, err);
+    return { status: 0, payload: null, failureCategory: cat };
+  }
+}
+
+async function executeBraveFallback(query: string): Promise<{
+  status: number;
+  payload: FcResponse | null;
+  failureCategory?: ProviderFailureCategory;
+}> {
+  const key = process.env.BRAVE_API_KEY?.trim();
+  if (!key) {
+    return { status: 0, payload: null, failureCategory: "provider_not_configured" };
   }
 
-  let lastStatus: number | null = null;
-  let lastDetail = "Provider request failed";
-  let lastCategory: ProviderFailureCategory = "provider_unavailable";
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  try {
+    const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=10`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "X-Subscription-Token": key,
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
 
-  for (let attempt = 0; attempt <= FIRECRAWL_MAX_RETRIES; attempt++) {
-    if (signal?.aborted) {
-      throw signal.reason ?? new DOMException("Aborted", "AbortError");
+    if (!res.ok) {
+      const cat = normalizeProviderFailureCategory(res.status);
+      return { status: res.status, payload: null, failureCategory: cat };
     }
-    if (typeof deadlineAt === "number" && Date.now() >= deadlineAt) {
-      return {
-        query,
-        payload: null,
-        ok: false,
-        failureCategory: "timeout",
-        failureDetail: "Discovery deadline reached before Firecrawl search completed.",
-        httpStatus: lastStatus,
-      };
-    }
 
-    try {
-      const res = await firecrawlFetch(
-        "/search",
-        {
-          query,
-          limit: FIRECRAWL_SEARCH_LIMIT,
-          page,
-          sources: ["web", "images"],
-          ...(recent ? { tbs: "qdr:m" } : {}),
-        },
-        { signal },
-      );
-      lastStatus = res.status;
+    const json = (await res.json()) as Record<string, unknown>;
+    const web = json.web as
+      | {
+          results?: Array<{
+            title?: string;
+            url?: string;
+            description?: string;
+            snippet?: string;
+            thumbnail?: { src?: string };
+          }>;
+        }
+      | undefined;
+    const webItems = Array.isArray(web?.results) ? web.results : [];
 
-      if (!res.ok) {
-        let bodyHint = "";
-        try {
-          const errText = await res.text();
-          bodyHint = errText ? `: ${errText.slice(0, 120)}` : "";
-        } catch {
-          /* ignore */
-        }
-        lastDetail = sanitizeProviderFailureDetail(`Firecrawl search HTTP ${res.status}${bodyHint}`);
-        lastCategory = classifyProviderFailure({ status: res.status, configured: true });
-        if (attempt < FIRECRAWL_MAX_RETRIES && isTransientFirecrawlFailure(res.status)) {
-          await sleepWithAbort(
-            parseRetryAfterMs(res.headers.get("retry-after")) ??
-              (res.status === 429 ? 4_000 : 2_000),
-            signal,
-          );
-          continue;
-        }
-        return {
-          query,
-          payload: null,
-          ok: false,
-          failureCategory: lastCategory,
-          failureDetail: lastDetail,
-          httpStatus: res.status,
-        };
-      }
+    const webHits: FcWeb[] = webItems.map((item) => ({
+      url: item.url,
+      title: item.title,
+      description: item.description ?? item.snippet,
+    }));
 
-      try {
-        const payload = (await res.json()) as FcResponse;
-        if (payload.success === false) {
-          lastDetail = sanitizeProviderFailureDetail(
-            payload.error || "Firecrawl search returned success=false",
-          );
-          lastCategory = classifyProviderFailure({ error: payload.error, configured: true });
-          if (attempt < FIRECRAWL_MAX_RETRIES && isTransientFirecrawlFailure(null, payload.error)) {
-            await sleepWithAbort(2_000, signal);
-            continue;
-          }
-          return {
-            query,
-            payload: null,
-            ok: false,
-            failureCategory: lastCategory,
-            failureDetail: lastDetail,
-            httpStatus: res.status,
-          };
-        }
-        return { query, payload, ok: true, httpStatus: res.status };
-      } catch (e) {
-        lastDetail = sanitizeProviderFailureDetail(e);
-        lastCategory = "malformed_response";
-        if (attempt < FIRECRAWL_MAX_RETRIES) {
-          await sleepWithAbort(2_000, signal);
-          continue;
-        }
-        return {
-          query,
-          payload: null,
-          ok: false,
-          failureCategory: lastCategory,
-          failureDetail: lastDetail,
-          httpStatus: res.status,
-        };
-      }
-    } catch (e) {
-      if (signal?.aborted || (e instanceof DOMException && e.name === "AbortError")) {
-        throw e;
-      }
-      lastDetail = sanitizeProviderFailureDetail(e);
-      lastCategory = classifyProviderFailure({ error: e, configured: true });
-      if (attempt < FIRECRAWL_MAX_RETRIES && isTransientFirecrawlFailure(null, e)) {
-        await sleepWithAbort(2_000, signal);
-        continue;
-      }
-      return {
-        query,
-        payload: null,
-        ok: false,
-        failureCategory: lastCategory,
-        failureDetail: lastDetail,
-        httpStatus: lastStatus,
-      };
-    }
+    const imageHits: FcImage[] = webItems
+      .filter((item) => item.thumbnail?.src)
+      .map((item) => ({
+        url: item.url,
+        sourceUrl: item.url,
+        imageUrl: item.thumbnail?.src,
+        thumbnailUrl: item.thumbnail?.src,
+        title: item.title,
+      }));
+
+    const payload: FcResponse = {
+      data: {
+        web: webHits,
+        images: imageHits,
+      },
+    };
+
+    const hitCount = webHits.length + imageHits.length;
+    return {
+      status: 200,
+      payload,
+      failureCategory: hitCount > 0 ? "success" : "no_results",
+    };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    const cat = normalizeProviderFailureCategory(null, err);
+    return { status: 0, payload: null, failureCategory: cat };
+  }
+}
+
+async function executeSerpApiFallback(query: string): Promise<{
+  status: number;
+  payload: FcResponse | null;
+  failureCategory?: ProviderFailureCategory;
+}> {
+  const key = process.env.SERPAPI_API_KEY?.trim();
+  if (!key) {
+    return { status: 0, payload: null, failureCategory: "provider_not_configured" };
   }
 
-  return {
-    query,
-    payload: null,
-    ok: false,
-    failureCategory: lastCategory,
-    failureDetail: lastDetail,
-    httpStatus: lastStatus,
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  try {
+    const params = new URLSearchParams({
+      engine: "google",
+      q: query,
+      api_key: key,
+      num: "10",
+    });
+    const url = `https://serpapi.com/search.json?${params.toString()}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const cat = normalizeProviderFailureCategory(res.status);
+      return { status: res.status, payload: null, failureCategory: cat };
+    }
+
+    const json = (await res.json()) as Record<string, unknown>;
+    if (json.error) {
+      const cat = normalizeProviderFailureCategory(401);
+      return { status: 401, payload: null, failureCategory: cat };
+    }
+
+    const organic = Array.isArray(json.organic_results)
+      ? (json.organic_results as Array<{ link?: string; title?: string; snippet?: string }>)
+      : [];
+    const images = Array.isArray(json.inline_images)
+      ? (json.inline_images as Array<{
+          link?: string;
+          original?: string;
+          thumbnail?: string;
+          title?: string;
+        }>)
+      : [];
+
+    const webHits: FcWeb[] = organic.map((item) => ({
+      url: item.link,
+      title: item.title,
+      description: item.snippet,
+    }));
+
+    const imageHits: FcImage[] = images.map((item) => ({
+      url: item.link ?? item.original,
+      sourceUrl: item.link,
+      imageUrl: item.original ?? item.thumbnail,
+      thumbnailUrl: item.thumbnail,
+      title: item.title,
+    }));
+
+    const payload: FcResponse = {
+      data: {
+        web: webHits,
+        images: imageHits,
+      },
+    };
+
+    const hitCount = webHits.length + imageHits.length;
+    return {
+      status: 200,
+      payload,
+      failureCategory: hitCount > 0 ? "success" : "no_results",
+    };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    const cat = normalizeProviderFailureCategory(null, err);
+    return { status: 0, payload: null, failureCategory: cat };
+  }
+}
+
+function buildAdminSummary(
+  providerSummaries: Record<
+    CopyrightProviderId,
+    {
+      configured: boolean;
+      attempts: number;
+      successes: number;
+      failureCategory?: ProviderFailureCategory;
+      lastErrorStatus?: number;
+    }
+  >,
+  successfulQueries: number,
+  totalQueries: number,
+  fallbackUsed: boolean,
+): string {
+  const lines: string[] = [];
+  const providerNames: Record<CopyrightProviderId, string> = {
+    firecrawl_direct: "Firecrawl direct",
+    lovable_gateway: "Lovable gateway",
+    brave_fallback: "Brave fallback",
+    serpapi_fallback: "SerpAPI fallback",
   };
+
+  for (const [id, stats] of Object.entries(providerSummaries) as [
+    CopyrightProviderId,
+    (typeof providerSummaries)[CopyrightProviderId],
+  ][]) {
+    if (!stats.configured) {
+      lines.push(`${providerNames[id]}: not configured`);
+    } else if (stats.successes > 0) {
+      lines.push(
+        `${providerNames[id]}: ${stats.attempts} attempt(s) — succeeded (${stats.successes} successful query response(s))`,
+      );
+    } else if (stats.attempts > 0) {
+      const catText = stats.failureCategory
+        ? stats.failureCategory.replace("provider_", "").replace(/_/g, " ")
+        : "failed";
+      lines.push(
+        `${providerNames[id]}: ${stats.attempts} attempt(s) — ${catText}${stats.lastErrorStatus ? ` (HTTP ${stats.lastErrorStatus})` : ""}`,
+      );
+    }
+  }
+
+  if (successfulQueries > 0) {
+    if (fallbackUsed) {
+      lines.push("Copyright discovery continued using fallback provider");
+    } else {
+      lines.push("Copyright discovery succeeded using primary provider");
+    }
+  } else {
+    lines.push("All configured discovery provider requests failed");
+  }
+
+  return lines.join(" | ");
 }
 
 /** Capture a screenshot of a page so the grader has visual evidence. */
@@ -468,7 +637,7 @@ const PIRACY_HINTS =
 const LOCAL_TERMS: Record<string, string[]> = {
   malayalam: ["മുഴുവൻ സിനിമ", "ഓൺലൈൻ", "ഡൗൺലോഡ്", "ചോർന്നു"],
   tamil: ["முழு படம்", "ஆன்லைன்", "பதிவிறக்கம்", "கசிந்தது"],
-  telugu: ["పూర్తి సినిమా", "ఆన్‌లైన్", "డౌన్‌లోడ్", "లీక్"],
+  telugu: ["పూర్തി సినిమా", "ఆన్‌లైన్", "ഡൗన్‌లోഡ്", "ലീക്"],
   kannada: ["ಪೂರ್ಣ ಚಲನಚಿತ್ರ", "ಆನ್‌ಲೈನ್", "ಡೌನ್‌ಲೋಡ್"],
   hindi: ["फुल मूवी", "ऑनलाइन देखें", "डाउनलोड", "लीक"],
   bengali: ["সম্পূর্ণ সিনেমা", "অনলাইন", "ডাউনলোড"],
@@ -481,54 +650,164 @@ const LOCAL_TERMS: Record<string, string[]> = {
   english: ["full movie", "watch online free", "download"],
 };
 
-interface QueryPlan extends DiscoveryQueryPlan {}
+const PIRACY_SITE_FILTER =
+  "(site:telegram.me OR site:t.me OR site:archive.org OR site:ok.ru OR site:dailymotion.com OR site:rumble.com OR site:vk.com OR site:pastebin.com OR site:reddit.com OR site:x.com OR site:facebook.com)";
 
-/**
- * Focused exact-title piracy queries across all adaptive stages.
- * Exported for regression tests.
- */
-export function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
-  return buildAllDiscoveryQueries(a, workTitle);
+/** File lockers and embed hosts that typically carry unauthorized copies. */
+const FILE_HOST_FILTER =
+  "(site:mega.nz OR site:mediafire.com OR site:gofile.io OR site:pixeldrain.com OR site:doodstream.com OR site:streamtape.com OR site:mixdrop.co OR site:filemoon.sx OR site:1fichier.com)";
+
+/** Known unauthorized streaming / index domains. */
+const STREAM_SITE_FILTER =
+  "(site:movierulz.vc OR site:ibomma.bet OR site:tamilrockers.ws OR site:123movies.ai OR site:fmovies.to OR site:soap2day.day OR site:vegamovies.nl OR site:mp4moviez.ink OR site:9xmovies.gold) full movie";
+
+function localTermsFor(langs: string[]): string[] {
+  const out: string[] = [];
+  for (const l of langs) {
+    const terms = LOCAL_TERMS[l.trim().toLowerCase()];
+    if (terms) out.push(...terms);
+  }
+  return [...new Set(out)];
 }
 
-/**
- * Coarse discovery taxonomy for ranking leads only.
- * Never treat bare "cinema"/"theater" (showtimes) as theatre-print piracy.
- */
+function daysSince(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const t = Date.parse(dateStr);
+  if (!Number.isFinite(t)) return null;
+  return Math.floor((Date.now() - t) / 86_400_000);
+}
+
+interface QueryPlan {
+  query: string;
+  /** restrict to recent results */
+  recent: boolean;
+}
+
+function buildQueries(a: ReferenceAnalysis, workTitle: string): QueryPlan[] {
+  const base = (a.title || workTitle).trim();
+  const names = [...new Set([base, ...a.altTitles].filter(Boolean))].slice(0, 4);
+  const ocrPhrase = (a.ocrText ?? "")
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 6 && l.length < 60)[0];
+
+  const age = daysSince(a.releaseDate);
+  const isFresh = age !== null && age <= 30;
+
+  const general = [
+    "full movie",
+    "watch online",
+    "free streaming",
+    "HD print",
+    "CAM print",
+    "WEB-DL",
+    "download",
+    "torrent",
+    "movie file",
+    "online free",
+    "dubbed",
+    "language versions",
+    "online",
+    "stream online",
+    "streaming online",
+    "full video",
+    "full movie online free",
+    "movie download",
+    "movie download hd",
+    "leaked",
+    "CAM",
+    "telegram",
+    "movie file download",
+    "watch online free hd",
+    "embedded player watch",
+    "mp4 download link",
+    "google drive link",
+    "mega.nz link",
+    "index of movie",
+    "hdrip 720p",
+    "mirror links download",
+    "dual audio download",
+  ];
+  const fresh = [
+    "released today",
+    "online today",
+    "full movie leaked",
+    "theatre print",
+    "cinema recording",
+    "same day leak",
+    "day 1 print",
+    "hdcam 720p download",
+    "first day print online",
+    "leaked online day one",
+    "new release full movie download",
+    "first week download",
+  ];
+
+  // Negative terms keep licensed/news/review pages out of the result set.
+  const NEG =
+    '-site:imdb.com -site:wikipedia.org -site:rottentomatoes.com -site:netflix.com -site:primevideo.com -site:hotstar.com -review -trailer_reaction -"box office" -news';
+
+  const plans: QueryPlan[] = [];
+  const push = (query: string, recent = false) => plans.push({ query, recent });
+
+  // 1. Core piracy phrasing on the primary title.
+  for (const term of general) push(`"${base}" ${term} ${NEG}`, isFresh);
+
+  // 2. Fresh-release urgency terms.
+  if (isFresh || !a.releaseDate) for (const term of fresh) push(`"${base}" ${term} ${NEG}`, true);
+
+  // 3. Alternate / translated titles.
+  for (const n of names.slice(1)) {
+    push(`"${n}" full movie download ${NEG}`, isFresh);
+    push(`"${n}" watch online free ${NEG}`, isFresh);
+  }
+
+  // 4. Language-native piracy terms.
+  const langs = [a.language, ...a.audienceLanguages].filter(Boolean) as string[];
+  for (const term of localTermsFor(langs).slice(0, 10)) push(`${base} ${term}`, isFresh);
+  if (a.language) push(`${base} ${a.language} full movie download ${NEG}`, isFresh);
+  if (a.region) push(`${base} ${a.region} movie download hd ${NEG}`, isFresh);
+
+  // 5. Cast / studio correlation.
+  for (const actor of a.actors.slice(0, 2)) {
+    push(`${actor} "${base}" movie download ${NEG}`, isFresh);
+    push(`${actor} "${base}" watch online free ${NEG}`, isFresh);
+  }
+  if (a.productionCompany) push(`${a.productionCompany} "${base}" leaked print`);
+  if (a.releaseDate)
+    push(`"${base}" ${a.releaseDate.slice(0, 4)} full movie download ${NEG}`, isFresh);
+
+  // 6. Platform-scoped piracy hosts, forums, file lockers and social.
+  push(`${base} full movie ${PIRACY_SITE_FILTER}`, isFresh);
+  push(`${base} download link forum thread ${NEG}`, isFresh);
+  push(`${base} ${FILE_HOST_FILTER}`, isFresh);
+  push(`${base} ${STREAM_SITE_FILTER}`, isFresh);
+
+  // 7. Visual / artwork reuse.
+  push(`"${base}" poster hd image download ${NEG}`);
+  push(`${base} movie screenshot still frame`);
+  push(`${base} trailer clip mp4 download`);
+  for (const d of a.descriptors.slice(0, 3)) push(`${base} ${d}`);
+  for (const f of a.visualFeatures.slice(0, 2)) push(`${base} ${f}`);
+  if (ocrPhrase) push(`"${ocrPhrase}" ${base}`);
+  if (a.watermark) push(`${base} ${a.watermark}`);
+
+  const seen = new Set<string>();
+  return plans
+    .filter((p) => p.query.trim() && !seen.has(p.query) && seen.add(p.query))
+    .slice(0, 44);
+}
+
+/** Coarse piracy taxonomy used for evidence labelling. */
 export function piracyCategory(text: string): string {
   const t = text.toLowerCase();
-  const hasAccessSignal =
-    /(hdcam|camrip|cam[- ]?print|theatre\s*print|theater\s*print|cinema\s*recording|hdts|hq[- ]?cam|torrent|magnet|watch\s*full\s*movie|download\s*full\s*movie|free\s*stream|webrip|web[- ]?dl|mega\.nz|mediafire|\.mkv|\.torrent)/.test(
-      t,
-    );
-
-  // Soft negatives only when no access/piracy language is present.
-  if (
-    !hasAccessSignal &&
-    /\b(now\s*showing|showtimes?|book\s*tickets?|buy\s*tickets?|vox\s*cinemas)\b/.test(t)
-  ) {
-    return "cinema_or_showtime";
-  }
-  if (!hasAccessSignal && /\b(official\s*trailer|teaser\s*trailer|song\s*video)\b/.test(t)) {
-    return "trailer_or_promo";
-  }
-  if (!hasAccessSignal && /\b(movie\s*review|film\s*review|box\s*office|interview)\b/.test(t)) {
-    return "review_or_news";
-  }
-  if (/(hdcam|camrip|cam[- ]?print|theatre\s*print|theater\s*print|cinema\s*recording|hdts|hq[- ]?cam)/.test(t)) {
+  if (/(hdcam|camrip|cam[- ]?print|theatre[- ]?print|theater|cinema recording|hdts)/.test(t))
     return "cam_theatre_leak";
-  }
   if (/(torrent|magnet|1337x|yts|rarbg)/.test(t)) return "torrent";
   if (/(t\.me|telegram)/.test(t)) return "telegram_channel";
-  if (/(hdrip|webrip|web[- ]?dl|dvdrip|bluray|480p|720p|1080p|\.mkv|\.mp4)/.test(t)) {
-    return "ripped_copy";
-  }
-  if (/(watch\s*full\s*movie|free\s*stream|full\s*movie\s*online|streaming\s*server)/.test(t)) {
-    return "streaming_site";
-  }
-  if (/(download\s*full\s*movie|file\s*host|drive\.google|mega\.nz|mediafire)/.test(t)) {
-    return "file_sharing";
-  }
+  if (/(hdrip|webrip|web[- ]?dl|dvdrip|480p|720p|1080p|mkv|mp4)/.test(t)) return "ripped_copy";
+  if (/(watch online|streaming|free stream|full movie|full video)/.test(t)) return "streaming_site";
+  if (/(download|file|drive\.google|mega\.nz|mediafire)/.test(t)) return "file_sharing";
   if (/(forum|thread|community|reddit)/.test(t)) return "forum_post";
   if (/(poster|artwork|wallpaper|still|screenshot)/.test(t)) return "artwork_reupload";
   return "web_lead";
@@ -552,348 +831,258 @@ export interface PageLead {
   strong: boolean;
 }
 
+export interface DiscoveryOptions {
+  scanId?: string;
+}
+
 export interface DiscoveryResult {
   candidates: DiscoveryCandidate[];
+  /** page-level leads for distribution-site inspection */
   pageLeads: PageLead[];
-  queriesGenerated: number;
-  queriesExecuted: number;
-  providerSuccesses: number;
-  providerRequests: number;
-  providerFailures: number;
-  providerFailuresByCategory: Record<ProviderFailureCategory, number>;
-  providerFailureSamples: Array<{ query: string; category: string; detail: string }>;
-  firecrawl_requests: number;
-  firecrawl_successes: number;
-  firecrawl_failures: number;
-  firecrawl_circuit_opened: boolean;
-  firecrawl_circuit_reason: string | null;
-  firecrawl_operator_action: string | null;
-  firecrawl_stopped_early: boolean;
-  firecrawl_stopped_early_reason: string | null;
-  discovery_saturation: DiscoverySaturationMetrics;
-  candidates_by_provider: Record<string, number>;
-  telegram_queries: number;
-  telegram_posts: number;
-  telegram_candidates: number;
-  telegram_failures: number;
-  telegram_requests: number;
-  firecrawl_env_diagnostic: FirecrawlEnvironmentDiagnostic;
+  diagnostics: CopyrightDiscoveryDiagnostics;
 }
 
 /**
- * Discover candidate re-uploads with Firecrawl, seeded by the AI-vision
- * analysis of the reference frame.
+ * Discover candidate re-uploads with multi-provider discovery (Firecrawl direct,
+ * Lovable gateway, Brave fallback), seeded by the AI-vision analysis of the reference frame.
  */
 export async function firecrawlDiscover(
   referenceDataUrl: string,
   workTitle: string,
   frameIndex: number,
-  analysisOrOptions?: ReferenceAnalysis | FirecrawlDiscoverOptions,
-  maybeOptions?: FirecrawlDiscoverOptions,
+  analysis?: ReferenceAnalysis,
+  options?: DiscoveryOptions,
 ): Promise<DiscoveryResult> {
-  const options: FirecrawlDiscoverOptions =
-    analysisOrOptions && "signal" in analysisOrOptions
-      ? (analysisOrOptions as FirecrawlDiscoverOptions)
-      : (maybeOptions ?? {});
-  const analysis =
-    analysisOrOptions && !("signal" in analysisOrOptions)
-      ? (analysisOrOptions as ReferenceAnalysis)
-      : options.analysis;
+  const configuredProviders = getCopyrightDiscoveryProviders();
+  const scanId = options?.scanId;
 
-  const emptyFirecrawl = (reason: string, category: ProviderFailureCategory): DiscoveryResult => ({
-    candidates: [],
-    pageLeads: [],
-    queriesGenerated: 0,
-    queriesExecuted: 0,
-    providerSuccesses: 0,
-    providerRequests: 0,
-    providerFailures: category === "missing_api_key" ? 1 : 0,
-    providerFailuresByCategory: {
-      ...emptyProviderFailureCounts(),
-      ...(category === "missing_api_key" ? { missing_api_key: 1 } : {}),
+  const providerSummaries: Record<
+    CopyrightProviderId,
+    {
+      configured: boolean;
+      attempts: number;
+      successes: number;
+      failureCategory?: ProviderFailureCategory;
+      lastErrorStatus?: number;
+    }
+  > = {
+    firecrawl_direct: {
+      configured: configuredProviders.includes("firecrawl_direct"),
+      attempts: 0,
+      successes: 0,
     },
-    providerFailureSamples: reason
-      ? [{ query: "", category, detail: reason }]
-      : [],
-    firecrawl_requests: 0,
-    firecrawl_successes: 0,
-    firecrawl_failures: category === "missing_api_key" ? 1 : 0,
-    firecrawl_circuit_opened: false,
-    firecrawl_circuit_reason: null,
-    firecrawl_operator_action: null,
-    firecrawl_stopped_early: false,
-    firecrawl_stopped_early_reason: null,
-    discovery_saturation: buildSaturationMetrics({
-      state: emptyDiscoveryCoverageState(),
-      stoppedLowPriorityQueries: 0,
-      providersExhausted: false,
-    }),
-    candidates_by_provider: {},
-    telegram_queries: 0,
-    telegram_posts: 0,
-    telegram_candidates: 0,
-    telegram_failures: 0,
-    telegram_requests: 0,
-    firecrawl_env_diagnostic: firecrawlEnvironmentDiagnostic(),
-  });
+    lovable_gateway: {
+      configured: configuredProviders.includes("lovable_gateway"),
+      attempts: 0,
+      successes: 0,
+    },
+    brave_fallback: {
+      configured: configuredProviders.includes("brave_fallback"),
+      attempts: 0,
+      successes: 0,
+    },
+    serpapi_fallback: {
+      configured: configuredProviders.includes("serpapi_fallback"),
+      attempts: 0,
+      successes: 0,
+    },
+  };
 
-  if (!isFirecrawlConfigured()) {
-    return emptyFirecrawl(
-      "Firecrawl is not configured for copyright discovery.",
-      "missing_api_key",
-    );
+  if (configuredProviders.length === 0) {
+    const adminSummary =
+      "No Copyright discovery providers are configured (missing FIRECRAWL_API_KEY, BRAVE_API_KEY, and SERPAPI_API_KEY)";
+    const userMessage = USER_DISCOVERY_UNAVAILABLE_MESSAGE;
+    const diagnostics: CopyrightDiscoveryDiagnostics = {
+      providerSummaries,
+      totalQueries: 0,
+      successfulQueries: 0,
+      failedQueries: 0,
+      fallbackUsed: false,
+      adminSummary,
+      userMessage,
+    };
+    logProviderAttempt({
+      scanId,
+      provider: "firecrawl_direct",
+      queryIndex: 0,
+      query: "none",
+      configuredStatus: "not_configured",
+      attemptNumber: 0,
+      httpStatus: null,
+      normalizedFailureCategory: "provider_not_configured",
+      durationMs: 0,
+      fallbackAttempted: false,
+      successStatus: false,
+      hitCount: 0,
+    });
+    throw new CopyrightDiscoveryError(adminSummary, userMessage, diagnostics);
   }
 
   const a = analysis ?? (await analyzeReference(referenceDataUrl, workTitle));
-  const staged = buildStagedDiscoveryQueries(a, workTitle);
-  const extraPlans: QueryPlan[] = (options.extraQueryStrings ?? [])
-    .map((q) => q.trim())
-    .filter(Boolean)
-    .map((query) => ({
-      query,
-      recent: true,
-      stage: 2 as const,
-    }));
-  const firecrawlDeadlineAt =
-    options.deadlineAt ??
-    Math.min(Date.now() + FIRECRAWL_PROVIDER_BUDGET_MS, Date.now() + PROVIDER_CRAWL_BUDGET_MS);
+  const plans = buildQueries(a, workTitle);
 
   const seen = new Set<string>();
   const out: DiscoveryCandidate[] = [];
   const strongLeads: Array<{ url: string; title: string | null; query: string; text: string }> = [];
   const weakLeads: Array<{ url: string; title: string | null; query: string; text: string }> = [];
-  const providerFailuresByCategory = emptyProviderFailureCounts();
-  const providerFailureSamples: Array<{ query: string; category: string; detail: string }> = [];
-  let telegramQueries = 0;
-  let telegramPosts = 0;
-  let telegramCandidates = 0;
-  let telegramFailures = 0;
-  let telegramRequests = 0;
 
-  const uniquePageKeys = new Set<string>();
-  const countUniquePages = (attempts: ProviderSearchAttempt[]) => {
-    for (const attempt of attempts) {
-      if (!attempt.ok || !attempt.payload) continue;
-      for (const img of attempt.payload.data?.images ?? []) {
-        const page = img.url ?? img.sourceUrl;
-        if (page) uniquePageKeys.add(canonicalUrl(page));
+  let successfulQueries = 0;
+  let failedQueries = 0;
+  let fallbackUsed = false;
+
+  for (let qIdx = 0; qIdx < plans.length; qIdx++) {
+    const plan = plans[qIdx];
+    let querySuccess = false;
+    let payload: FcResponse | null = null;
+
+    for (let pIdx = 0; pIdx < configuredProviders.length; pIdx++) {
+      const provider = configuredProviders[pIdx];
+      const fallbackAttempted = pIdx > 0;
+      const startTime = Date.now();
+      const summary = providerSummaries[provider];
+      summary.attempts++;
+
+      let res: {
+        status: number;
+        payload: FcResponse | null;
+        failureCategory?: ProviderFailureCategory;
+      };
+
+      if (provider === "firecrawl_direct") {
+        res = await executeFirecrawlDirect(plan.query, plan.recent);
+      } else if (provider === "lovable_gateway") {
+        res = await executeLovableGateway(plan.query, plan.recent);
+      } else if (provider === "brave_fallback") {
+        res = await executeBraveFallback(plan.query);
+      } else {
+        res = await executeSerpApiFallback(plan.query);
       }
-      for (const web of attempt.payload.data?.web ?? []) {
-        if (web.url) uniquePageKeys.add(canonicalUrl(web.url));
-      }
-    }
-    return uniquePageKeys.size;
-  };
 
-  const progressSeen = new Set<string>();
-  const imageSeen = new Set<string>();
-  const emitDiscoveryProgress = async (
-    attemptSlice: ProviderSearchAttempt[],
-    totals: {
-      requests: number;
-      successes: number;
-      failures: number;
-      uniquePages: number;
-    },
-  ) => {
-    if (!options.onProgress) return;
-    const leads: DiscoveryProgress["leads"] = [];
-    const referenceImages: DiscoveryProgress["referenceImages"] = [];
-    for (const attempt of attemptSlice) {
-      const chunk = extractAttemptProgress(attempt, progressSeen, imageSeen);
-      leads.push(...chunk.leads);
-      referenceImages.push(...chunk.referenceImages);
-    }
-    await options.onProgress({
-      queriesGenerated,
-      queriesExecuted: totals.requests,
-      providerSuccesses: totals.successes,
-      providerFailures: totals.failures,
-      uniquePages: totals.uniquePages,
-      leads,
-      referenceImages,
-    });
-  };
+      const durationMs = Date.now() - startTime;
+      const isSuccess = res.status === 200;
 
-  const batchedAttempts: ProviderSearchAttempt[] = [];
-  let batchedCircuit = emptyDiscoveryCircuit();
-  let batchedStoppedEarly = false;
-  let batchedStoppedEarlyReason: string | null = null;
-  let stoppedLowPriorityQueries = 0;
-  let coverageState = emptyDiscoveryCoverageState();
-  let queriesGenerated = staged.totalUniqueQueries + extraPlans.length;
+      if (isSuccess) {
+        summary.successes++;
+        if (fallbackAttempted) fallbackUsed = true;
+        querySuccess = true;
+        payload = res.payload;
 
-  const runStageBatch = async (stagePlans: QueryPlan[], stage: 1 | 2 | 3) => {
-    if (shouldSkipStageExpansion(stage, coverageState)) return;
-    const mode = resolveDiscoveryMode(coverageState.uniqueCandidateUrls);
-    const telegramPlans = stagePlans.filter((p) => /\btelegram\b/i.test(p.query));
-    const webPlans = stagePlans.filter((p) => !/\btelegram\b/i.test(p.query));
-    const basePlans = [...webPlans, ...telegramPlans].slice(0, MAX_DISCOVERY_QUERIES_PER_SCAN);
-    const plans = expandPlansForDiscoveryMode(
-      basePlans,
-      mode,
-      FIRECRAWL_PRIORITY_QUERY_PAGES,
-    );
-    const batched = await runBatchedDiscovery({
-      plans,
-      signal: options.signal,
-      deadlineAt: firecrawlDeadlineAt,
-      earlyStopUniquePages: DISCOVERY_EARLY_STOP_UNIQUE_PAGES,
-      stopWhenUniquePagesAtLeast: MAX_DISCOVERY_CANDIDATES,
-      uniquePageCount: countUniquePages,
-      shouldIssuePlan: (plan) =>
-        shouldIssueDiscoveryPlan(plan as QueryPlan, coverageState).issue,
-      onPlanSkipped: () => {
-        stoppedLowPriorityQueries += 1;
-      },
-      execute: (plan, signal) =>
-        search(plan.query, plan.recent, signal, firecrawlDeadlineAt, plan.page ?? 1),
-      onAttempt: options.onProgress
-        ? async (attempt, totals) => {
-            await emitDiscoveryProgress([attempt], totals);
-          }
-        : undefined,
-    });
-    for (const attempt of batched.attempts) {
-      const matchedPlan = plans.find((p) => p.query === attempt.query);
-      if (matchedPlan) {
-        coverageState = recordQueryCategoryFromPlan(coverageState, matchedPlan);
-      }
-    }
-    coverageState = buildCoverageStateFromPageKeys(uniquePageKeys, coverageState);
-    for (const attempt of batched.attempts) {
-      const matchedPlan = plans.find((p) => p.query === attempt.query);
-      if (matchedPlan) {
-        coverageState = recordCompletedDiscoveryQuery(
-          coverageState,
-          matchedPlan,
-          attempt.ok,
-        );
-      }
-    }
-    batchedAttempts.push(...batched.attempts);
-    stoppedLowPriorityQueries += batched.skippedPlans;
-    batchedCircuit = batched.circuit;
-    if (batched.stoppedEarly) {
-      batchedStoppedEarly = true;
-      batchedStoppedEarlyReason = batched.stoppedEarlyReason;
-    }
-    return batched;
-  };
+        logProviderAttempt({
+          scanId,
+          provider,
+          queryIndex: qIdx,
+          query: plan.query,
+          configuredStatus: "configured",
+          attemptNumber: summary.attempts,
+          httpStatus: 200,
+          normalizedFailureCategory: res.failureCategory ?? "success",
+          durationMs,
+          fallbackAttempted,
+          successStatus: true,
+          hitCount: (payload?.data?.web?.length ?? 0) + (payload?.data?.images?.length ?? 0),
+        });
 
-  if (extraPlans.length) {
-    await runStageBatch(extraPlans, 2);
-  }
+        break;
+      } else {
+        summary.failureCategory = res.failureCategory ?? "provider_unavailable";
+        summary.lastErrorStatus = res.status || undefined;
 
-  for (const block of staged.stages) {
-    if (isPastDiscoveryDeadline(firecrawlDeadlineAt)) break;
-    if (coverageState.uniqueCandidateUrls >= MAX_DISCOVERY_CANDIDATES) break;
-    await runStageBatch(block.plans, block.stage);
-  }
-
-  coverageState = buildCoverageStateFromPageKeys(uniquePageKeys, coverageState);
-  const stopReason = batchedStoppedEarlyReason ?? "";
-  const discoverySaturation = buildSaturationMetrics({
-    state: coverageState,
-    stoppedLowPriorityQueries,
-    providersExhausted: batchedStoppedEarly
-      ? /deadline|Safety cap|circuit/i.test(stopReason)
-      : true,
-  });
-
-  const results = batchedAttempts;
-  let providerSuccesses = 0;
-  let providerFailures = 0;
-
-  for (const attempt of results) {
-    const { query, payload } = attempt;
-    const isTelegramQuery = /\btelegram\b/i.test(query);
-    if (isTelegramQuery) {
-      telegramQueries += 1;
-      telegramRequests += 1;
-    }
-
-    if (!attempt.ok) {
-      providerFailures += 1;
-      const cat = attempt.failureCategory ?? "provider_unavailable";
-      bumpProviderFailure(providerFailuresByCategory, cat);
-      if (providerFailureSamples.length < 8) {
-        providerFailureSamples.push({
-          query: query.slice(0, 120),
-          category: cat,
-          detail: attempt.failureDetail ?? "Provider request failed",
+        logProviderAttempt({
+          scanId,
+          provider,
+          queryIndex: qIdx,
+          query: plan.query,
+          configuredStatus: "configured",
+          attemptNumber: summary.attempts,
+          httpStatus: res.status || null,
+          normalizedFailureCategory: summary.failureCategory,
+          durationMs,
+          fallbackAttempted,
+          successStatus: false,
+          hitCount: 0,
         });
       }
-      if (isTelegramQuery) telegramFailures += 1;
-      continue;
     }
 
-    providerSuccesses += 1;
-    for (const img of payload?.data?.images ?? []) {
-      const page = img.url ?? img.sourceUrl;
-      const image = img.imageUrl ?? img.thumbnailUrl;
-      if (!page || !image) continue;
-      const key = canonicalUrl(page);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      // Official studios, licensed streamers, databases, news and reviews are
-      // legitimate references — never report them as unauthorized copies.
-      if (isExcludedHost(key)) continue;
-      const text = `${img.title ?? ""} ${key}`;
-      const websiteType = websiteTypeFor(key, `${text} ${query}`);
-      out.push({
-        url: key,
-        title: img.title ?? null,
-        source: hostOf(key),
-        thumbnail: img.thumbnailUrl ?? image,
-        imageUrl: image,
-        exact: PIRACY_HINTS.test(text) || isSuspiciousType(websiteType),
-        frameIndex,
-        query,
-        category: piracyCategory(`${text} ${query}`),
-        language: detectLanguage(text, a),
-        keywordMatch: query,
-        websiteType,
-      });
-    }
+    if (querySuccess && payload) {
+      successfulQueries++;
 
-    for (const web of payload?.data?.web ?? []) {
-      if (!web.url) continue;
-      const key = canonicalUrl(web.url);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      if (isExcludedHost(key)) continue;
-      const text = `${web.title ?? ""} ${web.description ?? ""} ${key}`;
-      const category = piracyCategory(`${text} ${query}`);
-      const piracySignal = PIRACY_HINTS.test(text);
-      const softNegative =
-        /(review|recap|explained|reaction|opinion|box office|interview|press release|now showing|showtimes?|book tickets?)/i.test(
-          text,
-        );
-      // Drop pure cinema/trailer/review/showtime noise, but keep mixed-signal
-      // leads (e.g. “now showing online” + cam/torrent/download language).
-      if (
-        !piracySignal &&
-        (softNegative ||
-          category === "cinema_or_showtime" ||
-          category === "trailer_or_promo" ||
-          category === "review_or_news")
-      ) {
-        continue;
+      for (const img of payload.data?.images ?? []) {
+        const page = img.url ?? img.sourceUrl;
+        const image = img.imageUrl ?? img.thumbnailUrl;
+        if (!page || !image) continue;
+        const key = canonicalUrl(page);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (isExcludedHost(key)) continue;
+        const text = `${img.title ?? ""} ${key}`;
+        const websiteType = websiteTypeFor(key, `${text} ${plan.query}`);
+        out.push({
+          url: key,
+          title: img.title ?? null,
+          source: hostOf(key),
+          thumbnail: img.thumbnailUrl ?? image,
+          imageUrl: image,
+          exact: PIRACY_HINTS.test(text) || isSuspiciousType(websiteType),
+          frameIndex,
+          query: plan.query,
+          category: piracyCategory(`${text} ${plan.query}`),
+          language: detectLanguage(text, a),
+          keywordMatch: plan.query,
+          websiteType,
+        });
       }
-      const lead = { url: key, title: web.title ?? null, query, text };
-      if (isTelegramQuery) {
-        telegramPosts += 1;
-        // Public Telegram pages only — private/joinchat filtered later at evidence gates.
-        if (!/(t\.me|telegram\.me)\//i.test(key)) {
-          // Non-telegram host from a telegram query still allowed as web lead.
+
+      for (const web of payload.data?.web ?? []) {
+        if (!web.url) continue;
+        const key = canonicalUrl(web.url);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (isExcludedHost(key)) continue;
+        const text = `${web.title ?? ""} ${web.description ?? ""} ${key}`;
+        if (
+          /(review|recap|explained|reaction|opinion|box office|interview|press release)/i.test(text)
+        )
+          continue;
+        const lead = { url: key, title: web.title ?? null, query: plan.query, text };
+        if (
+          PIRACY_HINTS.test(text) ||
+          isSuspiciousType(websiteTypeFor(key, `${text} ${plan.query}`))
+        ) {
+          strongLeads.push(lead);
         } else {
-          telegramCandidates += 1;
+          weakLeads.push(lead);
         }
       }
-      if (piracySignal || isSuspiciousType(websiteTypeFor(key, `${text} ${query}`))) strongLeads.push(lead);
-      else weakLeads.push(lead);
+    } else {
+      failedQueries++;
     }
+  }
+
+  const primaryProviderName = configuredProviders[0] ?? "firecrawl_direct";
+  const primarySummary = providerSummaries[primaryProviderName];
+  const primaryFailed = primarySummary.attempts > 0 && primarySummary.successes === 0;
+
+  const adminSummary = buildAdminSummary(
+    providerSummaries,
+    successfulQueries,
+    plans.length,
+    fallbackUsed || primaryFailed,
+  );
+  const userMessage = USER_DISCOVERY_UNAVAILABLE_MESSAGE;
+
+  const diagnostics: CopyrightDiscoveryDiagnostics = {
+    providerSummaries,
+    totalQueries: plans.length,
+    successfulQueries,
+    failedQueries,
+    fallbackUsed: fallbackUsed || (primaryFailed && successfulQueries > 0),
+    adminSummary,
+    userMessage,
+  };
+
+  if (successfulQueries === 0) {
+    throw new CopyrightDiscoveryError(adminSummary, userMessage, diagnostics);
   }
 
   // Capture screenshots for page-only leads so the grader always has visual
@@ -928,75 +1117,17 @@ export async function firecrawlDiscover(
     });
   }
 
-  // Image-result page URLs with piracy/suspicious signals must also enter the
-  // exact-page distribution crawler (identity grading alone is never enough).
-  const imagePageLeads: PageLead[] = out
-    .filter(
-      (c) =>
-        c.exact ||
-        c.websiteType === "unauthorized_streaming" ||
-        c.websiteType === "download_page" ||
-        c.websiteType === "file_host" ||
-        c.websiteType === "torrent_index" ||
-        c.category === "cam_theatre_leak" ||
-        c.category === "streaming_site" ||
-        c.category === "torrent" ||
-        c.category === "file_sharing",
-    )
-    .map((c) => ({
-      url: c.url,
-      title: c.title,
-      query: c.query ?? "",
-      text: `${c.title ?? ""} ${c.url} ${c.category ?? ""}`,
-      strong: true,
-    }));
-
   // Page-level leads feed the distribution-site inspector (player/download/
   // mirror/file-link evidence), independent of whether a screenshot succeeded.
-  const leadSeen = new Set<string>();
-  const pageLeads: PageLead[] = [];
-  for (const lead of [
-    ...strongLeads.map((l) => ({ ...l, title: l.title ?? null, strong: true as const })),
-    ...imagePageLeads,
-    ...weakLeads.slice(0, 40).map((l) => ({ ...l, title: l.title ?? null, strong: false as const })),
-  ]) {
-    const key = canonicalUrl(lead.url);
-    if (leadSeen.has(key)) continue;
-    leadSeen.add(key);
-    pageLeads.push({ ...lead, url: key });
-    // Keep Firecrawl page leads aligned with the scan crawl cap — never stall at ~3/48.
-    if (pageLeads.length >= DEFAULT_PAGE_CAP) break;
-  }
+  const pageLeads: PageLead[] = [
+    ...strongLeads.map((l) => ({ ...l, title: l.title ?? null, strong: true })),
+    ...weakLeads.slice(0, 12).map((l) => ({ ...l, title: l.title ?? null, strong: false })),
+  ].slice(0, 40);
 
   // Suspicious distribution sources first, official-looking noise never here.
   return {
     candidates: out.sort((x, y) => Number(y.exact) - Number(x.exact)).slice(0, 60),
     pageLeads,
-    queriesGenerated,
-    queriesExecuted: results.length,
-    providerSuccesses,
-    providerRequests: results.length,
-    providerFailures,
-    providerFailuresByCategory,
-    providerFailureSamples,
-    firecrawl_requests: results.length,
-    firecrawl_successes: providerSuccesses,
-    firecrawl_failures: providerFailures,
-    firecrawl_circuit_opened: batchedCircuit.opened,
-    firecrawl_circuit_reason: batchedCircuit.openedReason,
-    firecrawl_operator_action: batchedCircuit.operatorAction,
-    firecrawl_stopped_early: batchedStoppedEarly,
-    firecrawl_stopped_early_reason: batchedStoppedEarlyReason,
-    discovery_saturation: discoverySaturation,
-    candidates_by_provider: {
-      firecrawl: pageLeads.length,
-      telegram: telegramCandidates,
-    },
-    telegram_queries: telegramQueries,
-    telegram_posts: telegramPosts,
-    telegram_candidates: telegramCandidates,
-    telegram_failures: telegramFailures,
-    telegram_requests: telegramRequests,
-    firecrawl_env_diagnostic: firecrawlEnvironmentDiagnostic(),
+    diagnostics,
   };
 }
