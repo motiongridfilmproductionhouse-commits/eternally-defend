@@ -760,10 +760,23 @@ function DeepfakeIntelPage() {
                   <Loader2 className="size-5 mx-auto animate-spin mb-2" /> Loading findings…
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="card-surface p-10 text-center text-sm text-muted-foreground">
-                  {scan.status === "running"
-                    ? "Sweep in progress — results stream as classification completes."
-                    : "No findings at this risk level."}
+                <div className="card-surface p-8 text-center text-sm text-muted-foreground space-y-2 border border-border/60">
+                  {scan.status === "running" ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="size-6 text-primary animate-spin" />
+                      <span>Sweep in progress — results stream as classification completes.</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 py-2">
+                      <CheckCircle2 className="size-8 text-emerald-500" strokeWidth={1.5} />
+                      <div className="font-bold text-foreground text-sm">
+                        No public synthetic-media evidence found for this identity.
+                      </div>
+                      <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                        Sweeps across Google Images, multi-provider discovery, Telegram, Reddit, and image hosts returned zero verified deepfakes or explicit synthetic media targeting this identity. Irrelevant news and biography pages were automatically filtered.
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <ul className="space-y-2.5">
@@ -1150,6 +1163,46 @@ function TelemetryDashboard({
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20 col-span-2 sm:col-span-4">
           <div className="text-[10px] text-muted-foreground">Current Query</div>
           <div className="font-medium text-xs truncate text-foreground">“{currentQuery}”</div>
+        </div>
+      </div>
+
+      {/* Discard Diagnostics Breakdown */}
+      <div className="rounded-md border border-border/60 bg-secondary/10 p-3 space-y-2 text-xs">
+        <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase flex items-center justify-between">
+          <span>Discard Diagnostics & Relevance Filter</span>
+          <span className="text-emerald-400 font-medium">Strict Synthetic Filter Active</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs pt-1">
+          <div className="rounded border border-emerald-500/30 p-2 bg-emerald-500/10">
+            <div className="text-[10px] text-muted-foreground">Synthetic Candidates</div>
+            <div className="font-bold text-sm text-emerald-400">
+              {telemetry?.synthetic_candidates_found ?? candidatesFound}
+            </div>
+          </div>
+          <div className="rounded border border-border/60 p-2 bg-secondary/20">
+            <div className="text-[10px] text-muted-foreground">Unrelated Discarded</div>
+            <div className="font-bold text-sm text-muted-foreground">
+              {telemetry?.unrelated_pages_discarded ?? 0}
+            </div>
+          </div>
+          <div className="rounded border border-border/60 p-2 bg-secondary/20">
+            <div className="text-[10px] text-muted-foreground">Official Discarded</div>
+            <div className="font-bold text-sm text-muted-foreground">
+              {telemetry?.official_pages_discarded ?? 0}
+            </div>
+          </div>
+          <div className="rounded border border-border/60 p-2 bg-secondary/20">
+            <div className="text-[10px] text-muted-foreground">News Discarded</div>
+            <div className="font-bold text-sm text-muted-foreground">
+              {telemetry?.news_pages_discarded ?? 0}
+            </div>
+          </div>
+          <div className="rounded border border-border/60 p-2 bg-secondary/20">
+            <div className="text-[10px] text-muted-foreground">Biography Discarded</div>
+            <div className="font-bold text-sm text-muted-foreground">
+              {telemetry?.biography_pages_discarded ?? 0}
+            </div>
+          </div>
         </div>
       </div>
 

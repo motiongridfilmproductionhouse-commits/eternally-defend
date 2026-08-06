@@ -29,6 +29,12 @@ export interface ScanTelemetry {
   estimated_remaining_time: string;
   stage_logs: string[];
   stage_failure?: string | null;
+  // Discard Diagnostics
+  synthetic_candidates_found?: number;
+  unrelated_pages_discarded?: number;
+  official_pages_discarded?: number;
+  news_pages_discarded?: number;
+  biography_pages_discarded?: number;
 }
 
 /** Helper to parse telemetry JSON from error_message field or metadata */
@@ -246,9 +252,15 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       await updateTelemetry({
         stage: "crawling_pages",
         candidates_found: candidateFilter.accepted.length,
+        synthetic_candidates_found: candidateFilter.diagnostics?.syntheticCandidatesFound ?? candidateFilter.accepted.length,
+        unrelated_pages_discarded: candidateFilter.diagnostics?.unrelatedPagesDiscarded ?? candidateFilter.rejected.length,
+        official_pages_discarded: candidateFilter.diagnostics?.officialPagesDiscarded ?? 0,
+        news_pages_discarded: candidateFilter.diagnostics?.newsPagesDiscarded ?? 0,
+        biography_pages_discarded: candidateFilter.diagnostics?.biographyPagesDiscarded ?? 0,
         stage_logs: [
           ...telemetry.stage_logs,
-          `✓ ${candidateFilter.accepted.length} candidate leads ready for crawling`,
+          `✓ ${candidateFilter.accepted.length} synthetic candidate leads ready for crawling`,
+          `✓ Discarded ${candidateFilter.rejected.length} unrelated news/official/biography pages`,
           "Crawling candidate pages & downloading media...",
         ],
       });

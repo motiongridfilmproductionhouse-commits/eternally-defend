@@ -326,6 +326,85 @@ export function scoreDeepfakeCandidate(
   return Math.max(0, Math.min(100, score));
 }
 
+const APP_STORE_HOSTS = ["play.google.com", "apps.apple.com", "appstore.com"];
+
+const BIOGRAPHY_REFERENCE_HOSTS = [
+  "wikipedia.org",
+  "wikimedia.org",
+  "imdb.com",
+  "rottentomatoes.com",
+  "themoviedb.org",
+  "tmdb.org",
+  "britannica.com",
+  "biography.com",
+  "famousbirthdays.com",
+  "fandom.com",
+  "wiki.com",
+  "celebs.com",
+  "allcelebs.com",
+];
+
+const FILM_REVIEW_HOSTS = [
+  "letterboxd.com",
+  "metacritic.com",
+  "rogerebert.com",
+  "cinemablend.com",
+  "filmcompanion.in",
+  "screenrant.com",
+  "collider.com",
+  "variety.com",
+  "hollywoodreporter.com",
+  "deadline.com",
+];
+
+const OFFICIAL_SOCIAL_HOSTS = [
+  "facebook.com",
+  "instagram.com",
+  "threads.net",
+  "linkedin.com",
+];
+
+const SHOPPING_HOSTS = [
+  "amazon.com",
+  "ebay.com",
+  "etsy.com",
+  "walmart.com",
+  "flipkart.com",
+  "shop.com",
+  "store.com",
+];
+
+const HIGH_RISK_SYNTHETIC_HOSTS = [
+  "t.me",
+  "telegram.org",
+  "terabox.com",
+  "mega.nz",
+  "coomer.su",
+  "kemono.su",
+  "anonfiles.com",
+  "cyberdrop.me",
+  "pixeldrain.com",
+  "imgur.com",
+  "reddit.com",
+  "x.com",
+  "twitter.com",
+];
+
+export function isCollegeOrGovHost(host: string): boolean {
+  return (
+    /\.(?:edu|gov|ac\.in|ac\.uk|gov\.in|gov\.uk|gov\.au)$/i.test(host) ||
+    /^(?:college|university|school|dept|gov)\./i.test(host)
+  );
+}
+
+export interface FilterDiagnostics {
+  syntheticCandidatesFound: number;
+  unrelatedPagesDiscarded: number;
+  officialPagesDiscarded: number;
+  newsPagesDiscarded: number;
+  biographyPagesDiscarded: number;
+}
+
 export function filterDeepfakeCandidates(
   hits: RawHit[],
   target: {
@@ -337,10 +416,18 @@ export function filterDeepfakeCandidates(
   accepted: FilteredCandidate[];
   triage: FilteredCandidate[];
   rejected: FilteredCandidate[];
+  diagnostics: FilterDiagnostics;
 } {
   const accepted: FilteredCandidate[] = [];
   const triage: FilteredCandidate[] = [];
   const rejected: FilteredCandidate[] = [];
+  const diagnostics: FilterDiagnostics = {
+    syntheticCandidatesFound: 0,
+    unrelatedPagesDiscarded: 0,
+    officialPagesDiscarded: 0,
+    newsPagesDiscarded: 0,
+    biographyPagesDiscarded: 0,
+  };
 
   const names = targetNames(target);
 
@@ -351,51 +438,66 @@ export function filterDeepfakeCandidates(
     const fullText = `${title} ${description} ${hit.url}`;
 
     const visibleTargetMatch = containsTarget(visibleText, names);
-
     const threat = collectThreatSignals(fullText);
     const host = hostOf(hit.url);
 
-    const safeReferenceHost = hostMatches(host, SAFE_REFERENCE_HOSTS);
-
-    const stockMediaHost = hostMatches(host, STOCK_MEDIA_HOSTS);
-
-    const generalNewsHost = isLikelyNewsHost(host);
+    const isAppStore = hostMatches(host, APP_STORE_HOSTS);
+    const isBiography = hostMatches(host, SAFE_REFERENCE_HOSTS) || hostMatches(host, BIOGRAPHY_REFERENCE_HOSTS);
+    const isFilmReview = hostMatches(host, FILM_REVIEW_HOSTS);
+    const isOfficialSocial = hostMatches(host, OFFICIAL_SOCIAL_HOSTS);
+    const isCollegeGov = isCollegeOrGovHost(host);
+    const isShopping = hostMatches(host, SHOPPING_HOSTS);
+    const isGeneralNews = isLikelyNewsHost(host);
+    const isStockMedia = hostMatches(host, STOCK_MEDIA_HOSTS);
+    const isHighRiskSyntheticHost = hostMatches(host, HIGH_RISK_SYNTHETIC_HOSTS);
 
     const normalNewsSignal = NORMAL_NEWS_PATTERNS.some((pattern) => pattern.test(visibleText));
-
     const listing = isListingUrl(hit.url);
-
     const contentMatchScore = scoreDeepfakeCandidate(hit, target);
 
     let decision: CandidateDecision;
     let rejectionReason: string | undefined;
 
-    /*
-     * Lead-First Candidate Filter:
-     * Preserve all candidate leads discovered for the protected identity.
-     * Verification (face comparison & AI detection) will classify them later.
-     */
-    if (listing) {
+    const hasPositiveSyntheticSignal = threat.hasSyntheticSignal || isHighRiskSyntheticHost;
+
+    if (hasPositiveSyntheticSignal) {
+      decision = "accepted";
+      diagnostics.syntheticCandidatesFound++;
+    } else if (listing) {
       decision = "rejected";
       rejectionReason = "Search listing page excluded before crawl";
-    } else if (safeReferenceHost && !threat.hasStrongExplicitSignal && !threat.hasSyntheticSignal) {
+      diagnostics.unrelatedPagesDiscarded++;
+    } else if (isAppStore || isOfficialSocial || isCollegeGov) {
       decision = "rejected";
-      rejectionReason = "Reference page without deepfake signal (Wikipedia/IMDb)";
+      rejectionReason = "Official page discarded (App Store/Social/College/Gov)";
+      diagnostics.officialPagesDiscarded++;
+    } else if (isBiography || isFilmReview) {
+      decision = "rejected";
+      rejectionReason = "Biography / film review page discarded without AI signal";
+      diagnostics.biographyPagesDiscarded++;
     } else if (threat.hasStrongExplicitSignal && !threat.hasSyntheticSignal) {
       decision = "triage";
       rejectionReason = "Explicit name mention without synthetic signal";
-    } else if (threat.hasSyntheticSignal) {
-      decision = "accepted";
+    } else if (isGeneralNews || normalNewsSignal) {
+      decision = "rejected";
+      rejectionReason = "General news article discarded without AI signal";
+      diagnostics.newsPagesDiscarded++;
+    } else if (isShopping || isStockMedia) {
+      decision = "rejected";
+      rejectionReason = "Unrelated page discarded (Shopping/Stock media)";
+      diagnostics.unrelatedPagesDiscarded++;
     } else if (
-      visibleTargetMatch ||
-      (hit as any).image_url ||
-      (hit as any).thumbnail_url ||
-      threat.signals.length > 0
+      visibleTargetMatch &&
+      ((hit as any).image_url || (hit as any).thumbnail_url) &&
+      !isGeneralNews &&
+      !isBiography
     ) {
       decision = "accepted";
+      diagnostics.syntheticCandidatesFound++;
     } else {
-      decision = "triage";
-      rejectionReason = "Requires face comparison and verification";
+      decision = "rejected";
+      rejectionReason = "Unrelated page discarded (no synthetic media evidence)";
+      diagnostics.unrelatedPagesDiscarded++;
     }
 
     const candidate: FilteredCandidate = {
@@ -424,6 +526,7 @@ export function filterDeepfakeCandidates(
     accepted: accepted.sort(byRelevance),
     triage: triage.sort(byRelevance),
     rejected,
+    diagnostics,
   };
 }
 
