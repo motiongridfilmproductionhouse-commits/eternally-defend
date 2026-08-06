@@ -136,23 +136,33 @@ test("7. High Alert mode renders HIGH ALERT badge, floating alert banner, and th
 test("8. classifyThreatFinding triggers High Alert for VERIFIED_EXPLICIT_DEEPFAKE, PROBABLE_FACE_SWAP, and HIGH risk synthetic items", () => {
   const explicitVerified: ClientFinding = {
     id: "f1",
+    url: "https://mrdeepfakes.com/video/1",
     finding_classification: "VERIFIED_EXPLICIT_DEEPFAKE",
+    face_similarity: 95.0,
+    is_synthetic: true,
     risk_level: "CRITICAL",
   };
   assert.equal(classifyThreatFinding(explicitVerified), "VERIFIED_DEEPFAKE");
 
   const faceSwapProbable: ClientFinding = {
     id: "f2",
-    finding_classification: "PROBABLE_FACE_SWAP",
+    url: "https://terabox.com/file/2",
+    finding_classification: "PROBABLE_EXPLICIT_FACE_SWAP",
+    face_similarity: 90.0,
+    is_synthetic: true,
+    explicit_media_confirmed: true,
     risk_level: "HIGH",
   };
   assert.equal(classifyThreatFinding(faceSwapProbable), "PROBABLE_DEEPFAKE");
 
   const syntheticHigh: ClientFinding = {
     id: "f3",
-    finding_classification: "SYNTHETIC_IMAGE",
+    url: "https://t.me/channel/3",
+    finding_classification: "PROBABLE_SYNTHETIC_NUDITY",
+    face_similarity: 88.0,
     risk_level: "HIGH",
     is_synthetic: true,
+    explicit_media_confirmed: true,
   };
   assert.equal(classifyThreatFinding(syntheticHigh), "PROBABLE_DEEPFAKE");
 

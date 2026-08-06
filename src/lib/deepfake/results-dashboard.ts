@@ -42,6 +42,9 @@ export type ClientFinding = EvidenceUrlFields & {
   created_at?: string | null;
   verified_domain?: string | null;
   face_similarity?: number | null;
+  explicit_media_confirmed?: boolean | null;
+  synthetic_media_confirmed?: boolean | null;
+  hosting_or_distribution_confirmed?: boolean | null;
 };
 
 export type OverviewMetrics = {

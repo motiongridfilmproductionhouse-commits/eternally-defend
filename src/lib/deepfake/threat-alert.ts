@@ -105,35 +105,27 @@ export function threatDedupKey(finding: ClientFinding): string {
   );
 }
 
+import {
+  qualifiesForExplicitThreatFeed,
+  qualifiesForVerifiedExplicitFeed,
+} from "./filter.server";
+
+export {
+  qualifiesForExplicitThreatFeed,
+  qualifiesForVerifiedExplicitFeed,
+};
+
 export function classifyThreatFinding(
   finding: ClientFinding,
 ): "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE" | null {
+  if (!qualifiesForExplicitThreatFeed(finding)) {
+    return null;
+  }
   const cls = (finding.finding_classification || "").toUpperCase();
-  const risk = (finding.risk_level || "").toUpperCase();
-  const isSynthetic = finding.is_synthetic === true || cls.includes("SYNTHETIC");
-
-  if (
-    cls.includes("VERIFIED") ||
-    cls === "VERIFIED_DEEPFAKE" ||
-    cls === "VERIFIED_EXPLICIT_DEEPFAKE" ||
-    cls === "VERIFIED_FACE_SWAP"
-  ) {
+  if (cls.includes("VERIFIED")) {
     return "VERIFIED_DEEPFAKE";
   }
-
-  if (
-    cls.includes("PROBABLE") ||
-    cls === "PROBABLE_DEEPFAKE" ||
-    cls === "PROBABLE_EXPLICIT_DEEPFAKE" ||
-    cls === "PROBABLE_FACE_SWAP" ||
-    ((cls.includes("SYNTHETIC") || isSynthetic) && (risk === "CRITICAL" || risk === "HIGH")) ||
-    risk === "CRITICAL" ||
-    risk === "HIGH"
-  ) {
-    return "PROBABLE_DEEPFAKE";
-  }
-
-  return null;
+  return "PROBABLE_DEEPFAKE";
 }
 
 export function mapFindingToRadarStage(finding: ClientFinding): string {
