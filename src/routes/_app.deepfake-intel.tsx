@@ -666,6 +666,7 @@ function DeepfakeIntelPage() {
             }
             pagesVerified={scan ? parseTelemetry(scan)?.pages_crawled : 0}
             threatsSaved={findings.length}
+            candidatesCount={discoveries.length}
             errorMessage={scan?.error_message}
             threatSummary={threatSummary}
             threatFindings={findings}

@@ -37,6 +37,7 @@ export type IdentityScanVisualizationProps = {
   plannedQueries?: number | null;
   pagesVerified?: number | null;
   threatsSaved?: number | null;
+  candidatesCount?: number | null;
   errorMessage?: string | null;
   compact?: boolean;
   /** Live threat alert recomputed from selected-scan findings. */
@@ -175,6 +176,7 @@ export function IdentityScanVisualization({
   plannedQueries,
   pagesVerified,
   threatsSaved,
+  candidatesCount = 0,
   errorMessage,
   compact = false,
   threatSummary = null,
@@ -686,6 +688,26 @@ export function IdentityScanVisualization({
               {errorMessage}
             </p>
           )}
+
+          {/* Dual Badges for Candidates vs Verified Threats */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-[11px] font-mono">
+            <span className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-sky-200" data-testid="candidates-count-badge">
+              Candidates: <strong className="text-sky-300 font-bold">{candidatesCount ?? 0}</strong>
+              {summary.total === 0 && (candidatesCount ?? 0) > 0 && (
+                <span className="text-[10px] text-amber-300/90 font-normal"> (verification pending)</span>
+              )}
+            </span>
+            <span
+              className={`rounded-full border px-3 py-1 text-[11px] font-bold ${
+                summary.total > 0
+                  ? "border-red-400/40 bg-red-500/20 text-red-100"
+                  : "border-slate-700 bg-slate-900/60 text-slate-400"
+              }`}
+              data-testid="verified-threats-badge"
+            >
+              Verified Threats: {summary.total}
+            </span>
+          </div>
 
           {metrics.length > 0 && (mode === "running" || mode === "partial") && (
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">

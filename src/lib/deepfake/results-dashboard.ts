@@ -134,9 +134,17 @@ export function normalizeUrlVerificationStatus(value: unknown): string | null {
 
 export function isClientVisibleClassification(
   value: string | null | undefined,
-): value is "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE" {
-  const normalized = normalizeClassification(value);
-  return normalized === "VERIFIED_DEEPFAKE" || normalized === "PROBABLE_DEEPFAKE";
+): boolean {
+  if (!value || typeof value !== "string") return false;
+  const normalized = value.trim().toUpperCase();
+  return (
+    normalized.includes("VERIFIED") ||
+    normalized.includes("PROBABLE") ||
+    normalized.includes("DEEPFAKE") ||
+    normalized.includes("SYNTHETIC") ||
+    normalized.includes("FACE_SWAP") ||
+    normalized.includes("EXPLICIT")
+  );
 }
 
 function readField(row: Record<string, unknown>, snake: string, camel: string): unknown {

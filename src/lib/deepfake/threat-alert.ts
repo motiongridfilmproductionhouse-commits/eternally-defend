@@ -108,10 +108,52 @@ export function threatDedupKey(finding: ClientFinding): string {
 export function classifyThreatFinding(
   finding: ClientFinding,
 ): "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE" | null {
-  const normalized = normalizeClassification(finding.finding_classification);
-  if (normalized === "VERIFIED_DEEPFAKE") return "VERIFIED_DEEPFAKE";
-  if (normalized === "PROBABLE_DEEPFAKE") return "PROBABLE_DEEPFAKE";
+  const cls = (finding.finding_classification || "").toUpperCase();
+  const risk = (finding.risk_level || "").toUpperCase();
+  const isSynthetic = finding.is_synthetic === true || cls.includes("SYNTHETIC");
+
+  if (
+    cls.includes("VERIFIED") ||
+    cls === "VERIFIED_DEEPFAKE" ||
+    cls === "VERIFIED_EXPLICIT_DEEPFAKE" ||
+    cls === "VERIFIED_FACE_SWAP"
+  ) {
+    return "VERIFIED_DEEPFAKE";
+  }
+
+  if (
+    cls.includes("PROBABLE") ||
+    cls === "PROBABLE_DEEPFAKE" ||
+    cls === "PROBABLE_EXPLICIT_DEEPFAKE" ||
+    cls === "PROBABLE_FACE_SWAP" ||
+    ((cls.includes("SYNTHETIC") || isSynthetic) && (risk === "CRITICAL" || risk === "HIGH")) ||
+    risk === "CRITICAL" ||
+    risk === "HIGH"
+  ) {
+    return "PROBABLE_DEEPFAKE";
+  }
+
   return null;
+}
+
+export function mapFindingToRadarStage(finding: ClientFinding): string {
+  const cls = (finding.finding_classification || "").toUpperCase();
+  const pageType = (finding.page_type || "").toUpperCase();
+  const url = (finding.url || finding.source_host || "").toLowerCase();
+
+  if (cls.includes("FACE") || (finding.identity_confidence && finding.identity_confidence >= 85)) {
+    return "identity_match";
+  }
+  if (cls.includes("EXPLICIT") || cls.includes("SYNTHETIC") || finding.is_synthetic) {
+    return "media_analysis";
+  }
+  if (url.includes("http") || pageType.includes("PAGE")) {
+    return "url_verification";
+  }
+  if (cls.includes("DEEPFAKE") || finding.takedown_recommended) {
+    return "evidence_classification";
+  }
+  return "web_discovery";
 }
 
 /**

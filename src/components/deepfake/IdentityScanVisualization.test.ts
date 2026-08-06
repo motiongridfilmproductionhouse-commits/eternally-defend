@@ -12,7 +12,11 @@ import {
   shouldShowThreatAwareScanBeam,
   threatAwareStatusCopy,
   threatAlertBadgeLabel,
+  classifyThreatFinding,
+  buildThreatAlertSummary,
+  mapFindingToRadarStage,
 } from "../../lib/deepfake/threat-alert";
+import type { ClientFinding } from "../../lib/deepfake/results-dashboard";
 
 const COMPONENT_PATH = join(
   process.cwd(),
@@ -127,4 +131,56 @@ test("7. High Alert mode renders HIGH ALERT badge, floating alert banner, and th
   assert.match(code, /data-testid="high-alert-banner"/);
   assert.match(code, /🚨 HIGH RISK SYNTHETIC MEDIA DETECTED/);
   assert.match(code, /data-testid="threat-pulse-badge"/);
+});
+
+test("8. classifyThreatFinding triggers High Alert for VERIFIED_EXPLICIT_DEEPFAKE, PROBABLE_FACE_SWAP, and HIGH risk synthetic items", () => {
+  const explicitVerified: ClientFinding = {
+    id: "f1",
+    finding_classification: "VERIFIED_EXPLICIT_DEEPFAKE",
+    risk_level: "CRITICAL",
+  };
+  assert.equal(classifyThreatFinding(explicitVerified), "VERIFIED_DEEPFAKE");
+
+  const faceSwapProbable: ClientFinding = {
+    id: "f2",
+    finding_classification: "PROBABLE_FACE_SWAP",
+    risk_level: "HIGH",
+  };
+  assert.equal(classifyThreatFinding(faceSwapProbable), "PROBABLE_DEEPFAKE");
+
+  const syntheticHigh: ClientFinding = {
+    id: "f3",
+    finding_classification: "SYNTHETIC_IMAGE",
+    risk_level: "HIGH",
+    is_synthetic: true,
+  };
+  assert.equal(classifyThreatFinding(syntheticHigh), "PROBABLE_DEEPFAKE");
+
+  const summary = buildThreatAlertSummary([explicitVerified, faceSwapProbable, syntheticHigh]);
+  assert.equal(summary.tone, "red");
+  assert.equal(summary.verified, 1);
+  assert.equal(summary.probable, 2);
+  assert.equal(summary.total, 3);
+});
+
+test("9. Dual status badges separate raw candidate count from verified threats", () => {
+  const code = readFileSync(COMPONENT_PATH, "utf8");
+  assert.match(code, /data-testid="candidates-count-badge"/);
+  assert.match(code, /data-testid="verified-threats-badge"/);
+  assert.match(code, /verification pending/);
+});
+
+test("10. mapFindingToRadarStage maps finding classifications to exact radar stage nodes", () => {
+  assert.equal(
+    mapFindingToRadarStage({ id: "1", finding_classification: "VERIFIED_FACE_SWAP" }),
+    "identity_match",
+  );
+  assert.equal(
+    mapFindingToRadarStage({ id: "2", finding_classification: "SYNTHETIC_IMAGE", is_synthetic: true }),
+    "media_analysis",
+  );
+  assert.equal(
+    mapFindingToRadarStage({ id: "3", finding_classification: "VERIFIED_DEEPFAKE", takedown_recommended: true }),
+    "evidence_classification",
+  );
 });
