@@ -654,6 +654,107 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
     return { scan, matches: matchRows };
   });
 
+export const listAllCopyrightMatches = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ includeArchived: z.boolean().optional() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const userId = context.auth.user.id;
+    const { data: matches, error } = await context.supabase
+      .from("copyright_matches")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    const rows = matches ?? [];
+    if (data.includeArchived) return rows;
+    return rows.filter((m) => {
+      const ev = (m.evidence ?? {}) as Record<string, unknown>;
+      return ev.client_visible !== false;
+    });
+  });
+
+export const archivePreviousCopyrightResults = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ keepScanId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const userId = context.auth.user.id;
+    const { data: matches, error: fetchErr } = await context.supabase
+      .from("copyright_matches")
+      .select("id, scan_id, evidence")
+      .eq("user_id", userId)
+      .neq("scan_id", data.keepScanId);
+
+    if (fetchErr) throw new Error(fetchErr.message);
+
+    const rowsToArchive = (matches ?? []).filter((m) => {
+      const ev = (m.evidence ?? {}) as Record<string, unknown>;
+      return ev.client_visible !== false;
+    });
+
+    if (rowsToArchive.length === 0) {
+      return { count: 0 };
+    }
+
+    const now = new Date().toISOString();
+    let updatedCount = 0;
+
+    for (const row of rowsToArchive) {
+      const ev = (row.evidence ?? {}) as Record<string, unknown>;
+      const updatedEvidence = {
+        ...ev,
+        client_visible: false,
+        archived_at: now,
+      };
+
+      const { error: updErr } = await context.supabase
+        .from("copyright_matches")
+        .update({ evidence: updatedEvidence })
+        .eq("id", row.id)
+        .eq("user_id", userId);
+
+      if (!updErr) updatedCount++;
+    }
+
+    return { count: updatedCount };
+  });
+
+export const archiveScanCopyrightResults = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const userId = context.auth.user.id;
+    const { data: matches, error: fetchErr } = await context.supabase
+      .from("copyright_matches")
+      .select("id, evidence")
+      .eq("scan_id", data.scanId)
+      .eq("user_id", userId);
+
+    if (fetchErr) throw new Error(fetchErr.message);
+
+    const now = new Date().toISOString();
+    let updatedCount = 0;
+
+    for (const row of matches ?? []) {
+      const ev = (row.evidence ?? {}) as Record<string, unknown>;
+      const updatedEvidence = {
+        ...ev,
+        client_visible: false,
+        archived_at: now,
+      };
+
+      const { error: updErr } = await context.supabase
+        .from("copyright_matches")
+        .update({ evidence: updatedEvidence })
+        .eq("id", row.id)
+        .eq("user_id", userId);
+
+      if (!updErr) updatedCount++;
+    }
+
+    return { count: updatedCount };
+  });
+
 export const updateCopyrightMatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>

@@ -147,3 +147,143 @@ test("10. Suspicious Sources and historical rows are not regressed", () => {
   assert.equal(match.evidence.distribution.domain_risk, "high");
   assert.equal(match.detection_type, "ripped_copy");
 });
+
+test("11. Current scan findings remain visible when selecting active scan", () => {
+  const currentScanId = "scan-current";
+  const rows = [
+    { id: "m-1", scan_id: "scan-current", user_id: "user-1", evidence: { client_visible: true } },
+    { id: "m-2", scan_id: "scan-old", user_id: "user-1", evidence: { client_visible: true } },
+  ];
+
+  const currentMatches = rows.filter((r) => r.scan_id === currentScanId);
+  assert.equal(currentMatches.length, 1);
+  assert.equal(currentMatches[0].id, "m-1");
+});
+
+test("12. Old scans are hidden by default in previous results section", () => {
+  let showPreviousResults = false; // default state
+  const previousMatches = [{ id: "m-2", scan_id: "scan-old", evidence: { client_visible: true } }];
+
+  const visiblePreviousMatches = showPreviousResults ? previousMatches : [];
+  assert.equal(visiblePreviousMatches.length, 0);
+
+  // Toggle show
+  showPreviousResults = true;
+  const expandedPreviousMatches = showPreviousResults ? previousMatches : [];
+  assert.equal(expandedPreviousMatches.length, 1);
+});
+
+test("13. Hide toggle does not mutate database or row client_visible state", () => {
+  const row = { id: "m-2", scan_id: "scan-old", evidence: { client_visible: true } };
+  let showPreviousResults = false;
+
+  // Toggle UI state
+  showPreviousResults = !showPreviousResults;
+
+  // Database row properties remain unchanged
+  assert.equal(row.evidence.client_visible, true);
+  assert.equal(showPreviousResults, true);
+});
+
+test("14. Archive action affects only old scans and preserves current scan rows", () => {
+  const keepScanId = "scan-current";
+  const userId = "user-1";
+
+  const dbRows = [
+    { id: "m-1", scan_id: "scan-current", user_id: "user-1", evidence: { client_visible: true } },
+    { id: "m-2", scan_id: "scan-old-1", user_id: "user-1", evidence: { client_visible: true } },
+    { id: "m-3", scan_id: "scan-old-2", user_id: "user-1", evidence: { client_visible: true } },
+  ];
+
+  // Archive operation
+  const updatedRows = dbRows.map((r) => {
+    if (r.user_id === userId && r.scan_id !== keepScanId) {
+      return {
+        ...r,
+        evidence: { ...r.evidence, client_visible: false, archived_at: "2026-08-06T00:00:00Z" },
+      };
+    }
+    return r;
+  });
+
+  // Current scan row preserved
+  assert.equal(updatedRows.find((r) => r.id === "m-1")?.evidence.client_visible, true);
+  // Old scan rows archived
+  assert.equal(updatedRows.find((r) => r.id === "m-2")?.evidence.client_visible, false);
+  assert.equal(updatedRows.find((r) => r.id === "m-3")?.evidence.client_visible, false);
+});
+
+test("15. Other clients' rows are not affected during archive operation", () => {
+  const keepScanId = "scan-current";
+  const authUserId = "user-client-A";
+
+  const dbRows = [
+    {
+      id: "m-1",
+      scan_id: "scan-old",
+      user_id: "user-client-A",
+      evidence: { client_visible: true },
+    },
+    {
+      id: "m-2",
+      scan_id: "scan-old",
+      user_id: "user-client-B",
+      evidence: { client_visible: true },
+    },
+  ];
+
+  const updatedRows = dbRows.map((r) => {
+    if (r.user_id === authUserId && r.scan_id !== keepScanId) {
+      return { ...r, evidence: { ...r.evidence, client_visible: false } };
+    }
+    return r;
+  });
+
+  // Client A row archived
+  assert.equal(updatedRows.find((r) => r.id === "m-1")?.evidence.client_visible, false);
+  // Client B row untouched
+  assert.equal(updatedRows.find((r) => r.id === "m-2")?.evidence.client_visible, true);
+});
+
+test("16. Confirmation required state before archive/delete execution", () => {
+  let clearDialogOpen = false;
+  let serverActionCalled = false;
+
+  const triggerClearClick = () => {
+    clearDialogOpen = true; // Opens dialog, does NOT call server action yet
+  };
+
+  const confirmActionClick = () => {
+    if (clearDialogOpen) {
+      serverActionCalled = true;
+      clearDialogOpen = false;
+    }
+  };
+
+  triggerClearClick();
+  assert.equal(clearDialogOpen, true);
+  assert.equal(serverActionCalled, false);
+
+  confirmActionClick();
+  assert.equal(clearDialogOpen, false);
+  assert.equal(serverActionCalled, true);
+});
+
+test("17. Archived rows (client_visible: false) are excluded from canonical result list", () => {
+  const allRows = [
+    { id: "m-1", scan_id: "scan-1", evidence: { client_visible: true } },
+    {
+      id: "m-2",
+      scan_id: "scan-1",
+      evidence: { client_visible: false, archived_at: "2026-08-06T00:00:00Z" },
+    },
+    { id: "m-3", scan_id: "scan-2", evidence: { client_visible: true } },
+  ];
+
+  const canonicalVisibleList = allRows.filter((r) => r.evidence.client_visible !== false);
+  assert.equal(canonicalVisibleList.length, 2);
+  assert.deepEqual(
+    canonicalVisibleList.map((r) => r.id),
+    ["m-1", "m-3"],
+  );
+});

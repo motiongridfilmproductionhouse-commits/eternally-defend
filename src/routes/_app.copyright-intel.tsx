@@ -8,6 +8,9 @@ import {
   listCopyrightScans,
   getCopyrightScan,
   updateCopyrightMatch,
+  listAllCopyrightMatches,
+  archivePreviousCopyrightResults,
+  archiveScanCopyrightResults,
 } from "@/lib/copyright.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +22,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
@@ -40,10 +53,16 @@ import {
   Film,
   Image as ImageIcon,
   Mail,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  Archive,
 } from "lucide-react";
 
 type MatchRow = {
   id: string;
+  scan_id?: string;
+  user_id?: string;
   confidence: number;
   confidence_band: string;
   review_status: string;
@@ -80,24 +99,26 @@ export const Route = createFileRoute("/_app/copyright-intel")({
   component: CopyrightIntelPage,
 });
 
-const BAND: Record<string, { label: string; cls: string }> = {
-  confirmed: { label: "90-100% EXACT", cls: "bg-red-600/15 text-red-400 border-red-600/40" },
-  probable: {
-    label: "70-89% PROBABLE",
-    cls: "bg-orange-500/15 text-orange-400 border-orange-500/40",
-  },
-  review: { label: "50-69% REVIEW", cls: "bg-amber-400/15 text-amber-300 border-amber-400/40" },
+const TYPE_LABEL: Record<string, string> = {
+  exact_image: "exact copy",
+  exact_video: "exact video match",
+  reupload: "re-upload",
+  video_clip: "video clip / trailer",
+  cropped: "cropped / framed",
+  resized: "resized copy",
+  watermarked: "watermark removed/added",
+  poster_derivative: "poster derivative",
+  fan_art: "fan art / derivative",
+  meme: "meme / parody",
+  derivative: "derivative work",
+  ripped_copy: "ripped copy / distribution lead",
 };
 
-const TYPE_LABEL: Record<string, string> = {
-  reuploaded_artwork: "Re-uploaded artwork",
-  poster_copy: "Poster copy",
-  movie_screenshot: "Movie screenshot",
-  trailer_copy: "Trailer copy",
-  video_clip: "Video clip",
-  cam_recording: "Leaked cam recording",
-  ripped_copy: "Ripped copy",
-  edited_derivative: "Edited derivative",
+const BAND: Record<string, { label: string; cls: string }> = {
+  confirmed: { label: "High Confidence Match (≥90%)", cls: "border-primary/50 text-primary" },
+  probable: { label: "Probable Match (70-89%)", cls: "border-emerald-500/50 text-emerald-400" },
+  review: { label: "Review Required (50-69%)", cls: "border-amber-500/50 text-amber-400" },
+  dismissed: { label: "Dismissed (<50% or benign)", cls: "border-muted text-muted-foreground" },
 };
 
 /** Sample frames from a video file entirely in the browser. */
@@ -139,6 +160,10 @@ function CopyrightIntelPage() {
   const listFn = useServerFn(listCopyrightScans);
   const getFn = useServerFn(getCopyrightScan);
   const updFn = useServerFn(updateCopyrightMatch);
+  const listAllFn = useServerFn(listAllCopyrightMatches);
+  const archivePreviousFn = useServerFn(archivePreviousCopyrightResults);
+  const archiveScanFn = useServerFn(archiveScanCopyrightResults);
+
   const qc = useQueryClient();
 
   const [title, setTitle] = useState("");
@@ -161,6 +186,23 @@ function CopyrightIntelPage() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "pending" | "verified" | "review_required" | "rejected"
   >("all");
+
+  const [showPreviousResults, setShowPreviousResults] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("copyright_show_previous_results") === "true";
+    }
+    return false;
+  });
+
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [archivingScanId, setArchivingScanId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("copyright_show_previous_results", String(showPreviousResults));
+    }
+  }, [showPreviousResults]);
+
   const blobToBase64 = async (blob: Blob): Promise<string> => {
     const buffer = await blob.arrayBuffer();
     let binary = "";
@@ -189,7 +231,22 @@ function CopyrightIntelPage() {
     enabled: !!selectedScanId,
   });
 
-  const matches = useMemo(() => (detail.data?.matches ?? []) as MatchRow[], [detail.data]);
+  const allMatchesQuery = useQuery({
+    queryKey: ["all-copyright-matches"],
+    queryFn: () => listAllFn({}),
+  });
+
+  const allMatches = useMemo(
+    () => (allMatchesQuery.data ?? []) as MatchRow[],
+    [allMatchesQuery.data],
+  );
+
+  const currentMatches = useMemo(() => (detail.data?.matches ?? []) as MatchRow[], [detail.data]);
+
+  const previousMatches = useMemo(
+    () => allMatches.filter((m) => m.scan_id !== selectedScanId),
+    [allMatches, selectedScanId],
+  );
 
   // Diagnostic warning if stats.matches > 0 but 0 rows returned
   useEffect(() => {
@@ -205,17 +262,19 @@ function CopyrightIntelPage() {
     }
   }, [selectedScanId, detail.data]);
 
-  const filteredMatches = useMemo(() => {
-    if (statusFilter === "pending") return matches.filter((m) => m.review_status === "pending");
+  const filteredCurrentMatches = useMemo(() => {
+    if (statusFilter === "pending")
+      return currentMatches.filter((m) => m.review_status === "pending");
     if (statusFilter === "verified")
-      return matches.filter((m) => m.confidence >= 90 || m.confidence_band === "confirmed");
+      return currentMatches.filter((m) => m.confidence >= 90 || m.confidence_band === "confirmed");
     if (statusFilter === "review_required")
-      return matches.filter(
+      return currentMatches.filter(
         (m) => m.confidence_band === "probable" || m.review_status === "evidence_ready",
       );
-    if (statusFilter === "rejected") return matches.filter((m) => m.review_status === "dismissed");
-    return matches;
-  }, [matches, statusFilter]);
+    if (statusFilter === "rejected")
+      return currentMatches.filter((m) => m.review_status === "dismissed");
+    return currentMatches;
+  }, [currentMatches, statusFilter]);
 
   const scan = useMutation({
     mutationFn: async () => {
@@ -295,6 +354,7 @@ function CopyrightIntelPage() {
       });
       setSelectedScanId(res.scanId);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
+      qc.invalidateQueries({ queryKey: ["all-copyright-matches"] });
       toast.success(
         `${res.stats.matches} evidence-backed match(es) from ${res.stats.candidates} candidates`,
       );
@@ -311,8 +371,236 @@ function CopyrightIntelPage() {
       matchId: string;
       reviewStatus: "pending" | "evidence_ready" | "dismissed";
     }) => updFn({ data: v }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["copyright-scan", selectedScanId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["copyright-scan", selectedScanId] });
+      qc.invalidateQueries({ queryKey: ["all-copyright-matches"] });
+    },
   });
+
+  const clearPreviousMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedScanId) throw new Error("No active scan selected.");
+      return await archivePreviousFn({ data: { keepScanId: selectedScanId } });
+    },
+    onSuccess: (res) => {
+      setClearDialogOpen(false);
+      qc.invalidateQueries({ queryKey: ["copyright-scans"] });
+      qc.invalidateQueries({ queryKey: ["copyright-scan"] });
+      qc.invalidateQueries({ queryKey: ["all-copyright-matches"] });
+      toast.success(`Archived ${res.count} previous scan finding(s)`);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const archiveScanMutation = useMutation({
+    mutationFn: async (scanId: string) => {
+      return await archiveScanFn({ data: { scanId } });
+    },
+    onSuccess: (res) => {
+      setArchivingScanId(null);
+      qc.invalidateQueries({ queryKey: ["copyright-scans"] });
+      qc.invalidateQueries({ queryKey: ["copyright-scan"] });
+      qc.invalidateQueries({ queryKey: ["all-copyright-matches"] });
+      toast.success(`Archived ${res.count} finding(s) for scan`);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const renderMatchArticle = (m: MatchRow) => {
+    const band = BAND[m.confidence_band] ?? BAND.review;
+    const ev = (m.evidence ?? {}) as Record<string, unknown>;
+    const contact = (m.contact ?? {}) as Record<string, string | null>;
+    const dist = (ev.distribution ?? null) as null | {
+      domain_risk?: string;
+      content_type?: string;
+      release_timing?: string;
+      release_offset_days?: number | null;
+      piracy_indicators?: Array<{ key: string; detail: string; strong?: boolean }>;
+      distribution_links?: string[];
+      quality_tags?: string[];
+    };
+    const riskCls =
+      dist?.domain_risk === "high"
+        ? "border-destructive/50 text-destructive"
+        : dist?.domain_risk === "medium"
+          ? "border-amber-500/50 text-amber-500"
+          : "text-muted-foreground";
+
+    return (
+      <article
+        key={m.id}
+        className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur transition hover:border-primary/30"
+      >
+        <div className="flex gap-4">
+          {m.thumbnail_url && (
+            <img
+              src={m.thumbnail_url}
+              alt={`Matched evidence frame from ${m.platform ?? "source"}`}
+              loading="lazy"
+              className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover"
+            />
+          )}
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className={band.cls}>
+                {m.confidence}% · {band.label}
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {TYPE_LABEL[m.detection_type] ?? m.detection_type}
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {m.platform ?? "Unknown platform"}
+              </Badge>
+              {String(ev.discovery) === "piracy_lead" && (
+                <Badge variant="outline" className="text-[10px] text-primary">
+                  piracy lead
+                </Badge>
+              )}
+              {dist && (
+                <>
+                  <Badge variant="outline" className={`text-[10px] uppercase ${riskCls}`}>
+                    {dist.domain_risk} risk domain
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    {(dist.content_type ?? "").replace(/_/g, " ")}
+                  </Badge>
+                  {dist.release_timing && dist.release_timing !== "unknown" && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {dist.release_timing.replace(/_/g, " ")}
+                      {typeof dist.release_offset_days === "number"
+                        ? ` · +${dist.release_offset_days}d`
+                        : ""}
+                    </Badge>
+                  )}
+                </>
+              )}
+              {m.review_status !== "pending" && (
+                <Badge variant="outline" className="text-[10px]">
+                  {m.review_status.replace("_", " ")}
+                </Badge>
+              )}
+            </div>
+            <a
+              href={m.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 truncate text-sm text-primary hover:underline"
+            >
+              {m.page_title || m.source_url} <ExternalLink className="h-3 w-3 shrink-0" />
+            </a>
+            {m.reason && <p className="text-xs text-muted-foreground">{m.reason}</p>}
+            {dist?.piracy_indicators?.length ? (
+              <ul className="space-y-1 rounded-lg border border-border/60 bg-background/40 p-2">
+                {dist.piracy_indicators.slice(0, 6).map((i) => (
+                  <li key={i.key} className="flex gap-1.5 text-[11px] text-muted-foreground">
+                    <span className={i.strong ? "text-destructive" : "text-primary"}>●</span>
+                    <span>
+                      <span className="font-medium">{i.key.replace(/_/g, " ")}:</span> {i.detail}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {dist?.distribution_links?.length ? (
+              <p className="text-[11px] text-muted-foreground">
+                <span className="font-medium">Distribution links:</span>{" "}
+                {dist.distribution_links.length} detected
+                {" · "}
+                {dist.distribution_links.slice(0, 2).join(", ").slice(0, 120)}
+              </p>
+            ) : null}
+
+            {Array.isArray(m.transformations) && m.transformations.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {(m.transformations as string[]).map((t) => (
+                  <span
+                    key={t}
+                    className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+            {m.ocr_text && (
+              <p className="line-clamp-2 text-[11px] text-muted-foreground">
+                <span className="font-medium">OCR:</span> {m.ocr_text}
+              </p>
+            )}
+            {typeof ev.watermark === "string" && ev.watermark && (
+              <p className="text-[11px] text-muted-foreground">
+                <span className="font-medium">Watermark:</span> {ev.watermark}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              {contact.abuseEmail && (
+                <span className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  {contact.abuseEmail}
+                </span>
+              )}
+              {contact.reportUrl && (
+                <a
+                  href={contact.reportUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 hover:underline"
+                >
+                  <ShieldCheck className="h-3 w-3" />
+                  Abuse / DMCA page
+                </a>
+              )}
+              {contact.note && (
+                <span className="flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {contact.note}
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => review.mutate({ matchId: m.id, reviewStatus: "evidence_ready" })}
+              >
+                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                Mark evidence ready
+              </Button>
+
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setSelectedMatch(m);
+                  setInvestigationOpen(true);
+                }}
+              >
+                Website Details
+              </Button>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  review.mutate({
+                    matchId: m.id,
+                    reviewStatus: "dismissed",
+                  })
+                }
+              >
+                <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -519,27 +807,45 @@ function CopyrightIntelPage() {
           </h2>
           {(scans.data ?? []).map((s) => {
             const st = (s.stats ?? {}) as Record<string, number>;
+            const isSelected = selectedScanId === s.id;
             return (
-              <button
+              <div
                 key={s.id}
-                onClick={() => setSelectedScanId(s.id)}
-                className={`w-full rounded-lg border p-3 text-left text-sm transition ${
-                  selectedScanId === s.id
+                className={`group relative rounded-lg border p-3 text-left text-sm transition ${
+                  isSelected
                     ? "border-primary/50 bg-primary/10"
                     : "border-border/60 bg-card/50 hover:border-primary/30"
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-medium">{s.title}</span>
-                  <Badge variant="outline" className="shrink-0 text-[10px]">
-                    {s.status}
-                  </Badge>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {s.reference_kind} · {st.matches ?? 0} matches ·{" "}
-                  {new Date(s.created_at).toLocaleDateString()}
-                </div>
-              </button>
+                <button
+                  onClick={() => setSelectedScanId(s.id)}
+                  className="w-full text-left focus:outline-none"
+                >
+                  <div className="flex items-center justify-between gap-2 pr-6">
+                    <span className="truncate font-medium">{s.title}</span>
+                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                      {s.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {s.reference_kind} · {st.matches ?? 0} matches ·{" "}
+                    {new Date(s.created_at).toLocaleDateString()}
+                  </div>
+                </button>
+
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setArchivingScanId(s.id);
+                  }}
+                  title="Archive Results for this Scan"
+                  className="absolute right-2 top-2 h-6 w-6 opacity-60 hover:opacity-100 group-hover:opacity-100"
+                >
+                  <Archive className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                </Button>
+              </div>
             );
           })}
           {!scans.isLoading && !(scans.data ?? []).length && (
@@ -547,315 +853,181 @@ function CopyrightIntelPage() {
           )}
         </aside>
 
-        <section className="space-y-3">
+        <section className="space-y-6">
           {!selectedScanId && (
             <p className="text-sm text-muted-foreground">
               Select a scan to review graded evidence.
             </p>
           )}
+
           {selectedScanId && (
-            <div className="space-y-4">
-              {(() => {
-                const sDetail = detail.data?.scan;
-                const sStats = (sDetail?.stats ?? {}) as Record<string, unknown>;
-                const verifiedCnt = matches.filter(
-                  (m) => m.confidence >= 90 || m.confidence_band === "confirmed",
-                ).length;
-                const pendingCnt = matches.filter((m) => m.review_status === "pending").length;
-                const reviewReqCnt = matches.filter(
-                  (m) => m.confidence_band === "probable" || m.review_status === "evidence_ready",
-                ).length;
-                const rejectedCnt = matches.filter((m) => m.review_status === "dismissed").length;
-                const candPages = sStats.candidate_pages ?? sStats.candidates ?? matches.length;
-                const crwPages = sStats.crawled_pages ?? sStats.graded ?? matches.length;
+            <div className="space-y-6">
+              {/* Current Scan Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">Current Scan Results</h2>
+                  <span className="text-xs text-muted-foreground">
+                    Showing {currentMatches.length} finding(s) for current active scan
+                  </span>
+                </div>
 
-                return (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 backdrop-blur">
-                      <div>
-                        <div className="text-lg font-semibold">{matches.length}</div>
-                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Detected Threats
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-semibold text-emerald-400">{verifiedCnt}</div>
-                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Verified
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-semibold text-amber-400">{pendingCnt}</div>
-                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Pending Review
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-semibold">{String(candPages)}</div>
-                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Candidate Pages
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-semibold">{String(crwPages)}</div>
-                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Crawled Pages
-                        </div>
-                      </div>
-                    </div>
+                {(() => {
+                  const sDetail = detail.data?.scan;
+                  const sStats = (sDetail?.stats ?? {}) as Record<string, unknown>;
+                  const verifiedCnt = currentMatches.filter(
+                    (m) => m.confidence >= 90 || m.confidence_band === "confirmed",
+                  ).length;
+                  const pendingCnt = currentMatches.filter(
+                    (m) => m.review_status === "pending",
+                  ).length;
+                  const reviewReqCnt = currentMatches.filter(
+                    (m) => m.confidence_band === "probable" || m.review_status === "evidence_ready",
+                  ).length;
+                  const rejectedCnt = currentMatches.filter(
+                    (m) => m.review_status === "dismissed",
+                  ).length;
+                  const candPages =
+                    sStats.candidate_pages ?? sStats.candidates ?? currentMatches.length;
+                  const crwPages = sStats.crawled_pages ?? sStats.graded ?? currentMatches.length;
 
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {[
-                        { id: "all", label: "All Findings", count: matches.length },
-                        { id: "pending", label: "Pending Review", count: pendingCnt },
-                        { id: "verified", label: "Verified", count: verifiedCnt },
-                        { id: "review_required", label: "Review Required", count: reviewReqCnt },
-                        { id: "rejected", label: "Rejected", count: rejectedCnt },
-                      ].map((tab) => (
-                        <Button
-                          key={tab.id}
-                          size="sm"
-                          variant={statusFilter === tab.id ? "default" : "outline"}
-                          onClick={() => setStatusFilter(tab.id as typeof statusFilter)}
-                          className="h-7 text-xs"
-                        >
-                          {tab.label} ({tab.count})
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <Tabs defaultValue="sources">
-                <TabsList>
-                  <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
-                  <TabsTrigger value="youtube">YouTube monitoring</TabsTrigger>
-                </TabsList>
-                <TabsContent value="youtube" className="mt-3">
-                  <YoutubeMonitorPanel scanId={selectedScanId} />
-                </TabsContent>
-                <TabsContent value="sources" className="mt-3 space-y-3">
-                  {detail.isLoading && (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                  {selectedScanId && !detail.isLoading && !filteredMatches.length && (
-                    <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
-                      No matches found under this filter for this reference.
-                    </div>
-                  )}
-
-                  {filteredMatches.map((m) => {
-                    const band = BAND[m.confidence_band] ?? BAND.review;
-                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
-                    const contact = (m.contact ?? {}) as Record<string, string | null>;
-                    const dist = (ev.distribution ?? null) as null | {
-                      domain_risk?: string;
-                      content_type?: string;
-                      release_timing?: string;
-                      release_offset_days?: number | null;
-                      piracy_indicators?: Array<{ key: string; detail: string; strong?: boolean }>;
-                      distribution_links?: string[];
-                      quality_tags?: string[];
-                    };
-                    const riskCls =
-                      dist?.domain_risk === "high"
-                        ? "border-destructive/50 text-destructive"
-                        : dist?.domain_risk === "medium"
-                          ? "border-amber-500/50 text-amber-500"
-                          : "text-muted-foreground";
-
-                    return (
-                      <article
-                        key={m.id}
-                        className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur"
-                      >
-                        <div className="flex gap-4">
-                          {m.thumbnail_url && (
-                            <img
-                              src={m.thumbnail_url}
-                              alt={`Matched evidence frame from ${m.platform ?? "source"}`}
-                              loading="lazy"
-                              className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover"
-                            />
-                          )}
-                          <div className="min-w-0 flex-1 space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant="outline" className={band.cls}>
-                                {m.confidence}% · {band.label}
-                              </Badge>
-                              <Badge variant="outline" className="text-[10px]">
-                                {TYPE_LABEL[m.detection_type] ?? m.detection_type}
-                              </Badge>
-                              <Badge variant="outline" className="text-[10px]">
-                                {m.platform ?? "Unknown platform"}
-                              </Badge>
-                              {String(ev.discovery) === "piracy_lead" && (
-                                <Badge variant="outline" className="text-[10px] text-primary">
-                                  piracy lead
-                                </Badge>
-                              )}
-                              {dist && (
-                                <>
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-[10px] uppercase ${riskCls}`}
-                                  >
-                                    {dist.domain_risk} risk domain
-                                  </Badge>
-                                  <Badge variant="outline" className="text-[10px]">
-                                    {(dist.content_type ?? "").replace(/_/g, " ")}
-                                  </Badge>
-                                  {dist.release_timing && dist.release_timing !== "unknown" && (
-                                    <Badge variant="outline" className="text-[10px]">
-                                      {dist.release_timing.replace(/_/g, " ")}
-                                      {typeof dist.release_offset_days === "number"
-                                        ? ` · +${dist.release_offset_days}d`
-                                        : ""}
-                                    </Badge>
-                                  )}
-                                </>
-                              )}
-                              {m.review_status !== "pending" && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {m.review_status.replace("_", " ")}
-                                </Badge>
-                              )}
-                            </div>
-                            <a
-                              href={m.source_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 truncate text-sm text-primary hover:underline"
-                            >
-                              {m.page_title || m.source_url}{" "}
-                              <ExternalLink className="h-3 w-3 shrink-0" />
-                            </a>
-                            {m.reason && (
-                              <p className="text-xs text-muted-foreground">{m.reason}</p>
-                            )}
-                            {dist?.piracy_indicators?.length ? (
-                              <ul className="space-y-1 rounded-lg border border-border/60 bg-background/40 p-2">
-                                {dist.piracy_indicators.slice(0, 6).map((i) => (
-                                  <li
-                                    key={i.key}
-                                    className="flex gap-1.5 text-[11px] text-muted-foreground"
-                                  >
-                                    <span
-                                      className={i.strong ? "text-destructive" : "text-primary"}
-                                    >
-                                      ●
-                                    </span>
-                                    <span>
-                                      <span className="font-medium">
-                                        {i.key.replace(/_/g, " ")}:
-                                      </span>{" "}
-                                      {i.detail}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : null}
-                            {dist?.distribution_links?.length ? (
-                              <p className="text-[11px] text-muted-foreground">
-                                <span className="font-medium">Distribution links:</span>{" "}
-                                {dist.distribution_links.length} detected
-                                {" · "}
-                                {dist.distribution_links.slice(0, 2).join(", ").slice(0, 120)}
-                              </p>
-                            ) : null}
-
-                            {Array.isArray(m.transformations) && m.transformations.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {(m.transformations as string[]).map((t) => (
-                                  <span
-                                    key={t}
-                                    className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                                  >
-                                    {t}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            {m.ocr_text && (
-                              <p className="line-clamp-2 text-[11px] text-muted-foreground">
-                                <span className="font-medium">OCR:</span> {m.ocr_text}
-                              </p>
-                            )}
-                            {typeof ev.watermark === "string" && ev.watermark && (
-                              <p className="text-[11px] text-muted-foreground">
-                                <span className="font-medium">Watermark:</span> {ev.watermark}
-                              </p>
-                            )}
-                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                              {contact.abuseEmail && (
-                                <span className="flex items-center gap-1">
-                                  <Mail className="h-3 w-3" />
-                                  {contact.abuseEmail}
-                                </span>
-                              )}
-                              {contact.reportUrl && (
-                                <a
-                                  href={contact.reportUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-1 hover:underline"
-                                >
-                                  <ShieldCheck className="h-3 w-3" />
-                                  Abuse / DMCA page
-                                </a>
-                              )}
-                              {contact.note && (
-                                <span className="flex items-center gap-1">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  {contact.note}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex gap-2 pt-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  review.mutate({ matchId: m.id, reviewStatus: "evidence_ready" })
-                                }
-                              >
-                                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                                Mark evidence ready
-                              </Button>
-
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => {
-                                  setSelectedMatch(m);
-                                  setInvestigationOpen(true);
-                                }}
-                              >
-                                Website Details
-                              </Button>
-
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() =>
-                                  review.mutate({
-                                    matchId: m.id,
-                                    reviewStatus: "dismissed",
-                                  })
-                                }
-                              >
-                                <XCircle className="mr-1.5 h-3.5 w-3.5" />
-                                Dismiss
-                              </Button>
-                            </div>
+                  return (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 backdrop-blur">
+                        <div>
+                          <div className="text-lg font-semibold">{currentMatches.length}</div>
+                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Detected Threats
                           </div>
                         </div>
-                      </article>
-                    );
-                  })}
-                </TabsContent>
-              </Tabs>
+                        <div>
+                          <div className="text-lg font-semibold text-emerald-400">
+                            {verifiedCnt}
+                          </div>
+                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Verified
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-amber-400">{pendingCnt}</div>
+                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Pending Review
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold">{String(candPages)}</div>
+                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Candidate Pages
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold">{String(crwPages)}</div>
+                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Crawled Pages
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {[
+                          { id: "all", label: "All Findings", count: currentMatches.length },
+                          { id: "pending", label: "Pending Review", count: pendingCnt },
+                          { id: "verified", label: "Verified", count: verifiedCnt },
+                          { id: "review_required", label: "Review Required", count: reviewReqCnt },
+                          { id: "rejected", label: "Rejected", count: rejectedCnt },
+                        ].map((tab) => (
+                          <Button
+                            key={tab.id}
+                            size="sm"
+                            variant={statusFilter === tab.id ? "default" : "outline"}
+                            onClick={() => setStatusFilter(tab.id as typeof statusFilter)}
+                            className="h-7 text-xs"
+                          >
+                            {tab.label} ({tab.count})
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <Tabs defaultValue="sources">
+                  <TabsList>
+                    <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
+                    <TabsTrigger value="youtube">YouTube monitoring</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="youtube" className="mt-3">
+                    <YoutubeMonitorPanel scanId={selectedScanId} />
+                  </TabsContent>
+                  <TabsContent value="sources" className="mt-3 space-y-3">
+                    {detail.isLoading && (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                    {selectedScanId && !detail.isLoading && !filteredCurrentMatches.length && (
+                      <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
+                        No matches found under this filter for this reference.
+                      </div>
+                    )}
+
+                    {filteredCurrentMatches.map((m) => renderMatchArticle(m))}
+                  </TabsContent>
+                </Tabs>
+              </div>
+
+              {/* Previous Scan Results Section */}
+              <div className="space-y-4 pt-6 border-t border-border/60">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold">Previous Scan Results</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Findings from older detection scans ({previousMatches.length} items)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowPreviousResults((prev) => !prev)}
+                      className="h-8 text-xs"
+                    >
+                      {showPreviousResults ? (
+                        <>
+                          <ChevronUp className="mr-1.5 h-3.5 w-3.5" />
+                          Hide Previous Results
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="mr-1.5 h-3.5 w-3.5" />
+                          Show Previous Results ({previousMatches.length})
+                        </>
+                      )}
+                    </Button>
+
+                    {previousMatches.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setClearDialogOpen(true)}
+                        className="h-8 text-xs"
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        Clear Previous Results
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {showPreviousResults && (
+                  <div className="space-y-3">
+                    {previousMatches.length === 0 ? (
+                      <div className="rounded-lg border border-border/60 bg-card/50 p-4 text-xs text-muted-foreground">
+                        No previous scan findings recorded.
+                      </div>
+                    ) : (
+                      previousMatches.map((m) => renderMatchArticle(m))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </section>
@@ -872,6 +1044,55 @@ function CopyrightIntelPage() {
         </div>
         <DistributionMonitorPanel />
       </section>
+
+      {/* Clear Previous Results Confirmation Dialog */}
+      <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear previous copyright results?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove old scan findings from your visible results. The current scan will
+              remain unchanged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => clearPreviousMutation.mutate()}
+            >
+              Clear Previous Results
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Per-Scan Archive Confirmation Dialog */}
+      <AlertDialog
+        open={!!archivingScanId}
+        onOpenChange={(open) => !open && setArchivingScanId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive results for this scan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will archive all recorded findings for this specific scan from your active
+              workspace view.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (archivingScanId) archiveScanMutation.mutate(archivingScanId);
+              }}
+            >
+              Archive Results
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <InvestigationModal
         open={investigationOpen}
