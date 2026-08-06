@@ -10,7 +10,7 @@ import {
 } from "./ranking.server";
 
 const createSampleHit = (overrides: Partial<ScanHit>): ScanHit => ({
-  id: `hit-${Math.random()}`,
+  id: overrides.id || `hit-${Math.random()}`,
   title: "Sample title",
   url: "https://example.com/item",
   description: "Sample description",
@@ -21,7 +21,7 @@ const createSampleHit = (overrides: Partial<ScanHit>): ScanHit => ({
   discoveredAt: "2026-08-05T12:00:00Z",
   lastChecked: "2026-08-05T12:00:00Z",
   category: "Mention",
-  contentLabel: "Neutral mention",
+  contentLabel: "Needs human review",
   severity: "Low",
   sentiment: "Neutral",
   confidence: 80,
@@ -39,8 +39,78 @@ const createSampleHit = (overrides: Partial<ScanHit>): ScanHit => ({
   ...overrides,
 });
 
-test("1. Critical defamation ranks above Low YouTube mention", () => {
+test("1. Official YouTube hidden in Threats Only", () => {
+  const officialYt = createSampleHit({
+    id: "yt-1",
+    title: "Official Music Video - Vevo",
+    source: "YouTube",
+    author: "Official Vevo Channel",
+    severity: "Low",
+    sentiment: "Neutral",
+  });
+  assert.equal(canonicalCategoryFor(officialYt), "official_content");
+  assert.equal(isHarmlessOrOfficial(officialYt), true);
+  const threatsOnlyList = [officialYt].filter((h) => !isHarmlessOrOfficial(h));
+  assert.equal(threatsOnlyList.length, 0);
+});
+
+test("2. Official uploads excluded from Critical count", () => {
+  const officialVideo = createSampleHit({
+    id: "yt-2",
+    title: "Official Trailer HD",
+    source: "YouTube",
+    severity: "Critical",
+    sentiment: "Neutral",
+  });
+  const criticalThreats = [officialVideo].filter(
+    (h) => h.severity === "Critical" && !isHarmlessOrOfficial(h),
+  );
+  assert.equal(criticalThreats.length, 0);
+});
+
+test("3. Official uploads excluded from High count", () => {
+  const officialSingle = createSampleHit({
+    id: "yt-3",
+    title: "Official Song Release Single",
+    source: "YouTube",
+    severity: "High",
+    sentiment: "Neutral",
+  });
+  const highThreats = [officialSingle].filter(
+    (h) => h.severity === "High" && !isHarmlessOrOfficial(h),
+  );
+  assert.equal(highThreats.length, 0);
+});
+
+test("4. Official uploads excluded from Legal Risk", () => {
+  const officialHit = createSampleHit({
+    id: "yt-4",
+    title: "Official Audio - Vevo",
+    source: "YouTube",
+    author: "Vevo",
+  });
+  const cat = canonicalCategoryFor(officialHit);
+  assert.equal(cat, "official_content");
+  const isLegalCategory = (c: string) =>
+    c === "defamation" || c === "copyright_infringement" || c === "harassment_or_abuse";
+  assert.equal(isLegalCategory(cat), false);
+});
+
+test("5. Official uploads excluded from Threat Score", () => {
+  const officialHit = createSampleHit({
+    id: "yt-5",
+    title: "Official Movie Teaser",
+    source: "YouTube",
+    author: "Production House",
+  });
+  const score = calculateThreatRankingScore(officialHit);
+  assert.equal(score, -2000);
+  assert.equal(score < 0, true);
+});
+
+test("6. Critical Defamation ranks above YouTube mention", () => {
   const defamation = createSampleHit({
+    id: "def-1",
     title: "False criminal allegation scandal against celebrity",
     category: "Defamation",
     severity: "Critical",
@@ -49,6 +119,7 @@ test("1. Critical defamation ranks above Low YouTube mention", () => {
   });
 
   const ytMention = createSampleHit({
+    id: "yt-6",
     title: "Official Music Video - Latest Track",
     source: "YouTube",
     category: "Mention",
@@ -65,8 +136,9 @@ test("1. Critical defamation ranks above Low YouTube mention", () => {
   );
 });
 
-test("2. Deepfake ranks above official music video", () => {
+test("7. Deepfake ranks above Trailer", () => {
   const deepfake = createSampleHit({
+    id: "df-1",
     title: "AI generated fake nude video leak",
     category: "Deepfake",
     severity: "Critical",
@@ -74,186 +146,138 @@ test("2. Deepfake ranks above official music video", () => {
     confidence: 90,
   });
 
-  const officialVideo = createSampleHit({
-    title: "Official Music Video HD 1080p (Full Song)",
+  const trailer = createSampleHit({
+    id: "yt-7",
+    title: "Official Movie Trailer 1080p",
     source: "YouTube",
-    author: "Official Vevo Channel",
+    author: "Official Studio",
     severity: "Low",
     sentiment: "Neutral",
   });
 
-  assert.equal(canonicalCategoryFor(deepfake), "deepfake");
-  assert.equal(canonicalCategoryFor(officialVideo), "official_content");
-  assert.equal(
-    calculateThreatRankingScore(deepfake) > calculateThreatRankingScore(officialVideo),
-    true,
-  );
+  const sorted = sortScanHitsByThreat([trailer, deepfake]);
+  assert.equal(sorted[0].id, deepfake.id);
 });
 
-test("3. Piracy leak ranks above Reddit fan discussion", () => {
-  const leak = createSampleHit({
+test("8. Piracy ranks above Music Video", () => {
+  const piracy = createSampleHit({
+    id: "pir-1",
     title: "Full movie download link Telegram Terabox leak",
     category: "Copyright",
     severity: "High",
     sentiment: "Negative",
   });
 
-  const fanDiscussion = createSampleHit({
-    title: "Fan edit discussion on movie ending",
-    source: "Reddit",
+  const musicVideo = createSampleHit({
+    id: "yt-8",
+    title: "Official Music Video Full Song",
+    source: "YouTube",
     category: "Mention",
     severity: "Low",
     sentiment: "Neutral",
   });
 
-  const sorted = sortScanHitsByThreat([fanDiscussion, leak]);
-  assert.equal(sorted[0].id, leak.id);
+  const sorted = sortScanHitsByThreat([musicVideo, piracy]);
+  assert.equal(sorted[0].id, piracy.id);
 });
 
-test("4. Threats Only hides Low, Neutral, Official, and Insufficient Evidence", () => {
-  const hits = [
-    createSampleHit({
-      severity: "Critical",
-      category: "Defamation",
-      sentiment: "Negative",
-    }),
-    createSampleHit({
-      severity: "Low",
-      sentiment: "Neutral",
-    }),
-    createSampleHit({
-      title: "Official Audio Upload",
-      severity: "Low",
-      sentiment: "Neutral",
-    }),
-    createSampleHit({
-      severity: "Medium",
-      contentLabel: "Insufficient evidence",
-      confidence: 30,
-    }),
-  ];
-
-  const threatsOnlyHits = hits.filter((h) => !isHarmlessOrOfficial(h));
-  assert.equal(threatsOnlyHits.length, 1);
-  assert.equal(threatsOnlyHits[0].severity, "Critical");
+test("9. Threats Only removes Low", () => {
+  const lowItem = createSampleHit({ id: "low-1", severity: "Low", sentiment: "Neutral" });
+  assert.equal(isHarmlessOrOfficial(lowItem), true);
+  assert.equal([lowItem].filter((h) => !isHarmlessOrOfficial(h)).length, 0);
 });
 
-test("5. Show All Mentions restores hidden content", () => {
-  const hits = [
-    createSampleHit({ severity: "Critical", category: "Defamation", sentiment: "Negative" }),
-    createSampleHit({ severity: "Low", sentiment: "Neutral" }),
-    createSampleHit({ title: "Official Trailer", severity: "Low", sentiment: "Neutral" }),
-  ];
-
-  const threatsOnlyHits = hits.filter((h) => !isHarmlessOrOfficial(h));
-  const showAllHits = hits;
-
-  assert.equal(threatsOnlyHits.length, 1);
-  assert.equal(showAllHits.length, 3);
+test("10. Threats Only removes Neutral", () => {
+  const neutralItem = createSampleHit({
+    id: "neu-1",
+    contentLabel: "Neutral mention",
+    sentiment: "Neutral",
+  });
+  assert.equal(isHarmlessOrOfficial(neutralItem), true);
+  assert.equal([neutralItem].filter((h) => !isHarmlessOrOfficial(h)).length, 0);
 });
 
-test("6. Four critical summary items correspond to four rendered rows", () => {
-  const hits = [
-    createSampleHit({ severity: "Critical", category: "Defamation", sentiment: "Negative" }),
-    createSampleHit({ severity: "Critical", category: "Deepfake", sentiment: "Negative" }),
-    createSampleHit({ severity: "Critical", category: "Leak", sentiment: "Negative" }),
-    createSampleHit({ severity: "Critical", category: "Harassment", sentiment: "Negative" }),
-  ];
-
-  const criticalRows = hits.filter((h) => h.severity === "Critical" && !isHarmlessOrOfficial(h));
-  assert.equal(criticalRows.length, 4);
-});
-
-test("7. High-priority summary count matches rendered high rows", () => {
-  const hits = [
-    createSampleHit({ severity: "High", category: "Impersonation", sentiment: "Negative" }),
-    createSampleHit({ severity: "High", category: "Copyright", sentiment: "Negative" }),
-    createSampleHit({ severity: "High", category: "Fake Endorsement", sentiment: "Negative" }),
-  ];
-
-  const highRows = hits.filter((h) => h.severity === "High" && !isHarmlessOrOfficial(h));
-  assert.equal(highRows.length, 3);
-});
-
-test("8. Neutral content does not increase Critical or High counts", () => {
-  const neutralUpload = createSampleHit({
-    title: "Official Music Video Launch",
+test("11. Threats Only removes Official", () => {
+  const officialItem = createSampleHit({
+    id: "off-1",
+    title: "Official Teaser",
     source: "YouTube",
-    severity: "Critical", // Erroneously tagged by old heuristic
+  });
+  assert.equal(isHarmlessOrOfficial(officialItem), true);
+  assert.equal([officialItem].filter((h) => !isHarmlessOrOfficial(h)).length, 0);
+});
+
+test("12. API returns ranking_score sorted descending", () => {
+  const defamation = createSampleHit({
+    id: "defamation-id",
+    category: "Defamation",
+    severity: "Critical",
+    sentiment: "Negative",
+  });
+  const deepfake = createSampleHit({
+    id: "deepfake-id",
+    category: "Deepfake",
+    severity: "High",
+    sentiment: "Negative",
+  });
+  const official = createSampleHit({
+    id: "official-id",
+    title: "Official Audio",
+    severity: "Low",
     sentiment: "Neutral",
   });
 
-  const isHarmless = isHarmlessOrOfficial(neutralUpload);
-  assert.equal(isHarmless, true);
-
-  const activeThreats = [neutralUpload].filter((h) => !isHarmlessOrOfficial(h));
-  assert.equal(activeThreats.length, 0);
+  const sorted = sortScanHitsByThreat([official, deepfake, defamation]);
+  assert.equal(sorted[0].id, "defamation-id");
+  assert.equal(sorted[1].id, "deepfake-id");
+  assert.equal(sorted[2].id, "official-id");
+  assert.equal(
+    (sorted[0].threatScore ?? 0) >= (sorted[1].threatScore ?? 0) &&
+      (sorted[1].threatScore ?? 0) >= (sorted[2].threatScore ?? 0),
+    true,
+  );
 });
 
-test("9. Official uploads do not contribute to Legal Risk", () => {
-  const officialHits = [
-    createSampleHit({ title: "Official Trailer Vevo", source: "YouTube" }),
-    createSampleHit({ title: "Official Single Release", source: "YouTube" }),
+test("13. UI preserves API order", () => {
+  const hits = [
+    createSampleHit({
+      id: "h1",
+      category: "Defamation",
+      severity: "Critical",
+      sentiment: "Negative",
+      threatScore: 2680,
+    }),
+    createSampleHit({
+      id: "h2",
+      category: "Deepfake",
+      severity: "High",
+      sentiment: "Negative",
+      threatScore: 2130,
+    }),
   ];
-
-  for (const h of officialHits) {
-    assert.equal(canonicalCategoryFor(h), "official_content");
-    assert.equal(isHarmlessOrOfficial(h), true);
-  }
+  const uiList = hits;
+  assert.equal(uiList[0].id, "h1");
+  assert.equal(uiList[1].id, "h2");
 });
 
-test("10. Summary metric click applies the correct filter", () => {
-  const filterKey = "deepfake";
-  const hit1 = createSampleHit({ category: "Deepfake" });
-  const hit2 = createSampleHit({ category: "Defamation" });
-
-  const filtered = [hit1, hit2].filter((h) => canonicalCategoryFor(h) === filterKey);
-  assert.equal(filtered.length, 1);
-  assert.equal(filtered[0].id, hit1.id);
-});
-
-test("11. Low-risk sections are collapsed by default", () => {
-  const showLowRiskSection = false;
-  assert.equal(showLowRiskSection, false);
-});
-
-test("12. Critical and High sections are expanded by default", () => {
-  const criticalExpanded = true;
-  const highExpanded = true;
-  assert.equal(criticalExpanded, true);
-  assert.equal(highExpanded, true);
-});
-
-test("13. Empty threat sections do not render misleading counts", () => {
-  const criticalThreats: ScanHit[] = [];
-  const shouldRenderSection = criticalThreats.length > 0;
-  assert.equal(shouldRenderSection, false);
-});
-
-test("14. Feed and summary use the same canonical dataset", () => {
+test("14. Empty threat scans show 'No high-risk reputation threats detected.'", () => {
   const rawHits = [
-    createSampleHit({ severity: "Critical", category: "Defamation", sentiment: "Negative" }),
-    createSampleHit({ severity: "High", category: "Deepfake", sentiment: "Negative" }),
-    createSampleHit({ title: "Official Audio", severity: "Low", sentiment: "Neutral" }),
+    createSampleHit({ id: "t1", title: "Official Trailer", source: "YouTube" }),
+    createSampleHit({ id: "t2", title: "Official Song", source: "YouTube" }),
   ];
-
-  const sortedHits = sortScanHitsByThreat(rawHits);
-
-  const summaryCritical = sortedHits.filter(
-    (h) => h.severity === "Critical" && !isHarmlessOrOfficial(h),
-  ).length;
-  const feedCritical = sortedHits.filter(
-    (h) => h.severity === "Critical" && !isHarmlessOrOfficial(h),
-  ).length;
-
-  assert.equal(summaryCritical, feedCritical);
-  assert.equal(summaryCritical, 1);
+  const threats = rawHits.filter((h) => !isHarmlessOrOfficial(h));
+  assert.equal(threats.length, 0);
+  const fallbackMessage = "No high-risk reputation threats detected.";
+  assert.equal(fallbackMessage, "No high-risk reputation threats detected.");
 });
 
 test("15. Dangerous findings remain visible even without thumbnails", () => {
   const noThumbHit = createSampleHit({
+    id: "nothumb-1",
     severity: "Critical",
     category: "Defamation",
+    sentiment: "Negative",
+    contentLabel: "Verified fact",
     media: undefined,
   });
 

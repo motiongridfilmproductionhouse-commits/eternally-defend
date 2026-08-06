@@ -65,6 +65,7 @@ import {
   Clock,
   Database,
   EyeOff,
+  CheckCircle,
   X as XIcon,
 } from "lucide-react";
 
@@ -908,15 +909,8 @@ function ScanPage() {
           {/* ── Admin Diagnostics — hidden from users, visible in dev or ?diag=1 ── */}
           <AdminDiagnosticsPanel report={report} />
 
-          {/* DB-backed persisted results with cursor-paginated infinite scroll */}
-          <PersistedResults
-            scanId={persistedScanId}
-            summary={persistSummary}
-            scanStatus={report ? "completed" : "running"}
-          />
-
           {/* ═══════════════════════════════════════════════════════════
-              FINDINGS FEED & THREAT SECTIONS
+              FINDINGS FEED & THREAT SECTIONS (Primary view)
           ══════════════════════════════════════════════════════════ */}
           <div id="findings-feed" className="space-y-6 pt-4 border-t border-border">
             {/* Control Bar: Threats Only Toggle & Active Filters */}
@@ -1040,8 +1034,30 @@ function ScanPage() {
               );
               const neutralHits = applyFilters(allHits.filter((h) => isHarmlessOrOfficial(h)));
 
+              const hasThreats =
+                criticalThreats.length > 0 ||
+                highThreats.length > 0 ||
+                mediumThreats.length > 0 ||
+                reviewRequired.length > 0;
+
               return (
                 <div className="space-y-6">
+                  {/* Step 8 Fallback Banner: No threats detected */}
+                  {!hasThreats && (
+                    <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 text-center space-y-2">
+                      <div className="inline-flex size-10 rounded-full bg-emerald-500/10 grid place-items-center text-emerald-600 dark:text-emerald-400 mx-auto">
+                        <CheckCircle className="size-6" />
+                      </div>
+                      <h3 className="text-base font-bold text-foreground">
+                        No high-risk reputation threats detected.
+                      </h3>
+                      <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                        All discovered public content for this reference consists of low-risk or
+                        official mentions.
+                      </p>
+                    </div>
+                  )}
+
                   {/* 1. Critical Threats */}
                   {criticalThreats.length > 0 && (
                     <Bucket
@@ -1098,41 +1114,42 @@ function ScanPage() {
                     />
                   )}
 
-                  {/* 5. Low-Risk Mentions (collapsed by default) */}
-                  {lowRiskHits.length > 0 && (!threatsOnly || showLowRiskSection) && (
-                    <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Eye className="size-4 text-muted-foreground" />
-                          <h3 className="text-sm font-semibold">
-                            Low-Risk Mentions ({lowRiskHits.length})
-                          </h3>
+                  {/* 5. Low-Risk Mentions (automatically expanded when no threats exist) */}
+                  {lowRiskHits.length > 0 &&
+                    (!threatsOnly || !hasThreats || showLowRiskSection) && (
+                      <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Eye className="size-4 text-muted-foreground" />
+                            <h3 className="text-sm font-semibold">
+                              Low-Risk Mentions ({lowRiskHits.length})
+                            </h3>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowLowRiskSection((v) => !v)}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent font-medium cursor-pointer"
+                          >
+                            {showLowRiskSection || !hasThreats
+                              ? "Hide Low-Risk Mentions"
+                              : `Show Low-Risk Mentions (${lowRiskHits.length})`}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowLowRiskSection((v) => !v)}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent font-medium cursor-pointer"
-                        >
-                          {showLowRiskSection
-                            ? "Hide Low-Risk Mentions"
-                            : `Show Low-Risk Mentions (${lowRiskHits.length})`}
-                        </button>
+                        {(showLowRiskSection || !hasThreats) && (
+                          <Bucket
+                            title=""
+                            icon={<Eye className="size-4" />}
+                            hits={lowRiskHits}
+                            onPromote={promote}
+                            added={added}
+                            entityTerms={entityTerms}
+                            scanId={persistedScanId}
+                            analyzingVideos={analyzingVideos}
+                            hideCard
+                          />
+                        )}
                       </div>
-                      {showLowRiskSection && (
-                        <Bucket
-                          title=""
-                          icon={<Eye className="size-4" />}
-                          hits={lowRiskHits}
-                          onPromote={promote}
-                          added={added}
-                          entityTerms={entityTerms}
-                          scanId={persistedScanId}
-                          analyzingVideos={analyzingVideos}
-                          hideCard
-                        />
-                      )}
-                    </div>
-                  )}
+                    )}
 
                   {/* 6. Neutral / Official Content (collapsed by default) */}
                   {neutralHits.length > 0 && (!threatsOnly || showNeutralSection) && (
@@ -1173,6 +1190,13 @@ function ScanPage() {
               );
             })()}
           </div>
+
+          {/* DB-backed persisted results with cursor-paginated infinite scroll (placed below live findings) */}
+          <PersistedResults
+            scanId={persistedScanId}
+            summary={persistSummary}
+            scanStatus={report ? "completed" : "running"}
+          />
 
           <PageCard title="METHODOLOGY & LIMITATIONS" sub="How Eterna AI produced this report">
             <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
@@ -1864,7 +1888,7 @@ function Bucket({
   analyzingVideos: Set<string>;
   hideCard?: boolean;
 }) {
-  const [sort, setSort] = useState<SortKey>("newest");
+  const [sort, setSort] = useState<SortKey>("threat");
   const [sentimentFilter, setSentimentFilter] = useState<string>("All");
   const [visible, setVisible] = useState(PAGE_SIZE);
   const filtered = useMemo(() => {
@@ -1875,6 +1899,9 @@ function Bucket({
       (a: ScanHit, b: ScanHit) =>
         (fn(b) as number) - (fn(a) as number);
     switch (sort) {
+      case "threat":
+        // Preserve API threat-ranking score order directly
+        break;
       case "newest":
         list = [...list].sort(by((h) => (h.published ? new Date(h.published).getTime() : 0)));
         break;
@@ -1897,7 +1924,8 @@ function Bucket({
         list = [...list].sort(by((h) => h.media?.likes ?? h.engagement));
         break;
       default:
-        list = [...list].sort(by((h) => h.threatScore));
+        // Default to preserving API ranking order
+        break;
     }
     return list;
   }, [hits, sort, sentimentFilter]);

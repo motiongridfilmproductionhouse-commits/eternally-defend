@@ -23,22 +23,28 @@ export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
   const url = (hit.url || "").toLowerCase();
   const cat = (hit.category || "").toLowerCase();
   const label = (hit.contentLabel || "").toLowerCase();
-  const text = `${title} ${desc} ${url} ${cat} ${label}`;
+  const author = (hit.author || "").toLowerCase();
+  const text = `${title} ${desc} ${url} ${cat} ${label} ${author}`;
 
-  // 1. Official content detection
+  // 1. Official content detection (YouTube uploads, trailers, OTT clips, music, Vevo, Shorts)
   if (
-    /(official (music video|video|audio|trailer|teaser|channel|upload|single|track|movie|release)|vevo|official audio|full song|single launch|official channel|official page)/i.test(
+    /(official (music video|video|audio|trailer|teaser|channel|upload|single|track|movie|release|clip|scene|jukebox|interview|press meet|full movie)|vevo|manoramamax|hotstar|prime video|zee5|sony liv|netflix|youtube\.com\/shorts|#shorts|shorts|lyrical video|jukebox|behind the scenes|making of)/i.test(
       text,
     ) ||
     hit.source?.toLowerCase().includes("vevo") ||
-    (hit.author &&
-      /official|vevo|records|label|studios|entertainment|pictures|films|music/i.test(hit.author))
+    /official|vevo|records|label|studios|entertainment|pictures|films|music|media|television|broadcasting|channel|productions/i.test(
+      author,
+    )
   ) {
     return "official_content";
   }
 
-  // 2. Fan edit / Fan creations
-  if (/(fan edit|fanmade|fan creation|tribute video|fan tribute|fan edit video)/i.test(text)) {
+  // 2. Fan edit / Fan creations / Fan tributes
+  if (
+    /(fan edit|fanmade|fan creation|tribute video|fan tribute|fan edit video|fan compilation)/i.test(
+      text,
+    )
+  ) {
     return "neutral_mention";
   }
 
@@ -46,7 +52,7 @@ export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
   if (
     cat.includes("defamation") ||
     label.includes("defamation") ||
-    /(false allegation|fake news|character assassination|criminal accusation|rumour|rumor|scandal allegation|affair leak|extramarital|affair scandal)/i.test(
+    /(false allegation|fake news|character assassination|criminal accusation|rumour|rumor|scandal allegation|affair leak|extramarital|affair scandal|exposed|allegation)/i.test(
       text,
     )
   ) {
@@ -57,7 +63,7 @@ export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
   if (
     cat.includes("deepfake") ||
     label.includes("manipulated media") ||
-    /(deepfake|ai generated|face swap|fake video|fake image|synthetic voice|ai nude|voice clone)/i.test(
+    /(deepfake|ai generated|face swap|fake video|fake image|synthetic voice|ai nude|voice clone|deep fake)/i.test(
       text,
     )
   ) {
@@ -68,7 +74,7 @@ export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
   if (
     cat.includes("copyright") ||
     label.includes("copyright") ||
-    /(movie leak|unauthorized stream|full movie download|telegram link|terabox|archive\.org|ogomovies|movierulz|tamilrockers|piracy|leaked footage)/i.test(
+    /(movie leak|unauthorized stream|full movie download|telegram link|terabox|archive\.org|ogomovies|movierulz|tamilrockers|1tamilmv|filmyzilla|piracy|leaked footage|full movie watch online)/i.test(
       text,
     )
   ) {
@@ -79,7 +85,9 @@ export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
   if (
     cat.includes("impersonation") ||
     label.includes("impersonation") ||
-    /(fake account|fake page|fake profile|identity theft|fake twitter|fake instagram)/i.test(text)
+    /(fake account|fake page|fake profile|identity theft|fake twitter|fake instagram|fake facebook)/i.test(
+      text,
+    )
   ) {
     return "impersonation";
   }
@@ -89,7 +97,7 @@ export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
     cat.includes("fake endorsement") ||
     label.includes("scam") ||
     label.includes("fake endorsement") ||
-    /(fake giveaway|investment scam|crypto scam|fake endorsement|fraudulent|ticket scam)/i.test(
+    /(fake giveaway|investment scam|crypto scam|fake endorsement|fraudulent|ticket scam|fake promotion)/i.test(
       text,
     )
   ) {
@@ -100,7 +108,7 @@ export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
   if (
     cat.includes("harassment") ||
     label.includes("harassment") ||
-    /(targeted abuse|cyberbullying|hate speech|coordinated trolling|death threat|doxxed)/i.test(
+    /(targeted abuse|cyberbullying|hate speech|coordinated trolling|death threat|doxxed|harassment)/i.test(
       text,
     )
   ) {
@@ -111,7 +119,7 @@ export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
   if (
     cat.includes("leak") ||
     label.includes("leak") ||
-    /(private leak|leaked document|personal phone number|address leak|confidential leak)/i.test(
+    /(private leak|leaked document|personal phone number|address leak|confidential leak|leaked photo)/i.test(
       text,
     )
   ) {
@@ -157,36 +165,55 @@ export function isHarmlessOrOfficial(hit: ScanHit): boolean {
   if (cat === "official_content" || cat === "neutral_mention" || cat === "unrelated") return true;
   if (hit.severity === "Low" && hit.sentiment !== "Negative") return true;
   if (hit.contentLabel === "Insufficient evidence") return true;
+  if (hit.contentLabel === "Neutral mention") return true;
+
+  const title = (hit.title || "").toLowerCase();
+  if (
+    /(fan edit|fanmade|fan creation|tribute video|shorts|#shorts|manoramamax|jukebox|lyrical video|trailer|official song)/i.test(
+      title,
+    )
+  ) {
+    return true;
+  }
+
   return false;
 }
 
 /**
  * Computes a deterministic threat ranking score for a hit.
+ * Threats receive positive scores (800 - 3000+).
+ * Official content, fan edits, and neutral mentions receive negative scores (-1500 to -3000).
  */
 export function calculateThreatRankingScore(hit: ScanHit): number {
+  const cat = canonicalCategoryFor(hit);
+
+  // Official content, fan edits, and neutral mentions MUST have negative scores
+  if (cat === "official_content") return -2000;
+  if (cat === "unrelated") return -3000;
+  if (isHarmlessOrOfficial(hit)) return -1500;
+
   let score = 0;
 
   // 1. Severity base
-  if (hit.severity === "Critical") score += 1000;
-  else if (hit.severity === "High") score += 750;
-  else if (hit.severity === "Medium") score += 500;
+  if (hit.severity === "Critical") score += 2000;
+  else if (hit.severity === "High") score += 1500;
+  else if (hit.severity === "Medium") score += 800;
   else if (hit.severity === "Low") score += 100;
 
-  // 2. Canonical Category Bonus
-  const cat = canonicalCategoryFor(hit);
+  // 2. Category Priority Bonus
   const categoryBonus: Record<CanonicalThreatCategory, number> = {
-    defamation: 300,
-    deepfake: 280,
-    copyright_infringement: 260,
-    impersonation: 240,
-    scam_or_fraud: 230,
-    harassment_or_abuse: 210,
+    defamation: 500,
+    deepfake: 450,
+    copyright_infringement: 400,
+    impersonation: 350,
+    scam_or_fraud: 300,
+    harassment_or_abuse: 250,
     privacy_or_leak: 200,
     misinformation: 150,
     negative_media: 100,
-    neutral_mention: -300,
-    official_content: -500,
-    unrelated: -1000,
+    neutral_mention: -1500,
+    official_content: -2000,
+    unrelated: -3000,
   };
   score += categoryBonus[cat] ?? 0;
 
@@ -196,7 +223,7 @@ export function calculateThreatRankingScore(hit: ScanHit): number {
   } else if (hit.confidence >= 50 || hit.contentLabel === "Needs human review") {
     score += 100;
   } else if (hit.contentLabel === "Insufficient evidence" || hit.confidence < 50) {
-    score -= 250;
+    score -= 500;
   }
 
   // 4. Virality & Reach
@@ -211,20 +238,6 @@ export function calculateThreatRankingScore(hit: ScanHit): number {
     score += 75;
   }
 
-  // 6. Cross-platform duplication / repeated detection
-  if (
-    (hit.engagement ?? 0) > 1000 ||
-    (hit.metricsAvailable?.views && hit.media?.views && hit.media.views > 50000)
-  ) {
-    score += 75;
-  }
-
-  // 7. Penalties for fan edits / low-risk entertainment content
-  const title = (hit.title || "").toLowerCase();
-  if (/(fan edit|fanmade|tribute)/i.test(title)) {
-    score -= 300;
-  }
-
   return score;
 }
 
@@ -232,9 +245,20 @@ export function calculateThreatRankingScore(hit: ScanHit): number {
  * Sorts hits deterministically by threat ranking score descending.
  */
 export function sortScanHitsByThreat(hits: ScanHit[]): ScanHit[] {
+  // Normalize hit classification & ranking_score
+  for (const h of hits) {
+    const cat = canonicalCategoryFor(h);
+    if (cat === "official_content") {
+      h.severity = "Low";
+      h.category = "Mention";
+      h.contentLabel = "Neutral mention";
+    }
+    h.threatScore = calculateThreatRankingScore(h);
+  }
+
   return [...hits].sort((a, b) => {
-    const scoreA = calculateThreatRankingScore(a);
-    const scoreB = calculateThreatRankingScore(b);
+    const scoreA = a.threatScore ?? calculateThreatRankingScore(a);
+    const scoreB = b.threatScore ?? calculateThreatRankingScore(b);
     if (scoreB !== scoreA) return scoreB - scoreA;
 
     // Tie-breaker: recency
@@ -242,6 +266,45 @@ export function sortScanHitsByThreat(hits: ScanHit[]): ScanHit[] {
     const dateB = b.published ? new Date(b.published).getTime() : 0;
     return dateB - dateA;
   });
+}
+
+/**
+ * Logs comprehensive ranking diagnostics as specified in Step 9.
+ */
+export function logRankingDiagnostics(
+  hits: ScanHit[],
+  providerTotal: number,
+  threatsOnly: boolean = true,
+): void {
+  const threatRows = hits.filter((h) => !isHarmlessOrOfficial(h));
+  const officialRows = hits.filter((h) => canonicalCategoryFor(h) === "official_content");
+  const neutralRows = hits.filter((h) => canonicalCategoryFor(h) === "neutral_mention");
+  const hiddenRows = hits.filter((h) => isHarmlessOrOfficial(h));
+
+  console.log("========== RANKING ==========");
+  console.log(`Provider rows: ${providerTotal}`);
+  console.log(`Threat rows: ${threatRows.length}`);
+  console.log(`Official rows: ${officialRows.length}`);
+  console.log(`Neutral rows: ${neutralRows.length}`);
+  console.log(`Hidden rows: ${hiddenRows.length}`);
+  console.log(`Threats Only: ${threatsOnly}`);
+  console.log("Top 20 ranking:");
+
+  const top20 = hits.slice(0, 20);
+  top20.forEach((h, idx) => {
+    const cat = canonicalCategoryFor(h);
+    const score = h.threatScore ?? calculateThreatRankingScore(h);
+    console.log(
+      `${idx + 1}. [${h.severity}] [${cat}] Score ${score} - ${h.title.slice(0, 65)} (${h.url})`,
+    );
+
+    if (idx < 10 && (cat === "official_content" || isHarmlessOrOfficial(h))) {
+      console.warn("WARNING:");
+      console.warn("Official content reached Top 10.");
+      console.warn(`Reason: Title="${h.title}" URL="${h.url}" Cat="${cat}" Score=${score}`);
+    }
+  });
+  console.log("=============================");
 }
 
 /**

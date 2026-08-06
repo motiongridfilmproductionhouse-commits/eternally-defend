@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { inferAutomatedContentPosition, type ContentPosition } from "@/lib/evidence-review";
-import { sortScanHitsByThreat, isHarmlessOrOfficial } from "@/lib/reputation/ranking.server";
+import {
+  sortScanHitsByThreat,
+  isHarmlessOrOfficial,
+  logRankingDiagnostics,
+  canonicalCategoryFor,
+} from "@/lib/reputation/ranking.server";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
@@ -2803,6 +2808,27 @@ function buildReport(
   // Sort hits by deterministic threat ranking score descending so critical/high
   // actionable threats (defamation, deepfakes, leaks, impersonation) rank first.
   const hits = sortScanHitsByThreat(filteredHits);
+
+  // Step 1: Log classification per result
+  hits.forEach((h) => {
+    const cat = canonicalCategoryFor(h);
+    console.log("[scan:classify]", {
+      title: h.title,
+      url: h.url,
+      platform: h.platform,
+      provider: h.source,
+      severity: h.severity,
+      threat_category: cat,
+      confidence: h.confidence,
+      official_content: cat === "official_content",
+      neutral_mention: cat === "neutral_mention",
+      insufficient_evidence: h.contentLabel === "Insufficient evidence",
+      ranking_score: h.threatScore,
+    });
+  });
+
+  // Step 2 & 9: Log ranking diagnostics
+  logRankingDiagnostics(hits, totalBeforeFilter, true);
 
   // Critical and High threats must exclude official/harmless content
   const critical = hits.filter((h) => h.severity === "Critical" && !isHarmlessOrOfficial(h));
