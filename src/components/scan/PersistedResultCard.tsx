@@ -3,14 +3,39 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { severityColor } from "@/lib/data-store";
-import { cleanTitle, faviconUrl, hostFromUrl, readableFromSlug, viaProxy, youtubeThumbFromUrl } from "@/lib/media-utils";
+import {
+  cleanTitle,
+  faviconUrl,
+  hostFromUrl,
+  readableFromSlug,
+  viaProxy,
+  youtubeThumbFromUrl,
+} from "@/lib/media-utils";
 import { addEvidenceForHit, hideScanHit, unhideScanHit } from "@/lib/scan-actions.functions";
 import {
-  Eye, EyeOff, ExternalLink, Globe, Loader2, MoreVertical, ShieldPlus, FilePlus2, Gavel,
-  Youtube, Clock, FileText, Undo2, Ban,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Globe,
+  Loader2,
+  MoreVertical,
+  ShieldPlus,
+  FilePlus2,
+  Gavel,
+  Youtube,
+  Clock,
+  FileText,
+  Undo2,
+  Ban,
+  AlertTriangle,
 } from "lucide-react";
 import type { DetailFinding } from "./DetailDrawer";
 import type { ActionTarget } from "./ActionDrawer";
@@ -59,17 +84,20 @@ export function PersistedResultCard({
   const host = hostFromUrl(url);
   const favicon = faviconUrl(url);
 
-  const target: ActionTarget = useMemo(() => ({
-    id: hit.id,
-    title: displayTitle,
-    url,
-    source: hit.source,
-    platform: hit.source_type || hit.source,
-    threatScore: hit.threat_score,
-    evidenceCount,
-    status,
-    author: hit.author,
-  }), [hit, url, displayTitle, evidenceCount, status]);
+  const target: ActionTarget = useMemo(
+    () => ({
+      id: hit.id,
+      title: displayTitle,
+      url,
+      source: hit.source,
+      platform: hit.source_type || hit.source,
+      threatScore: hit.threat_score,
+      evidenceCount,
+      status,
+      author: hit.author,
+    }),
+    [hit, url, displayTitle, evidenceCount, status],
+  );
 
   const handleAddEvidence = async () => {
     setBusy("evidence");
@@ -130,7 +158,9 @@ export function PersistedResultCard({
             <MoreVertical className="size-3.5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Actions</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">
+              Actions
+            </DropdownMenuLabel>
             <DropdownMenuItem onSelect={() => url && window.open(url, "_blank", "noreferrer")}>
               <ExternalLink className="size-3.5 mr-2" /> Open source
             </DropdownMenuItem>
@@ -163,12 +193,18 @@ export function PersistedResultCard({
                 <DropdownMenuItem onSelect={handleUnhide}>
                   <Undo2 className="size-3.5 mr-2" /> Unhide finding
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={handleHide} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  onSelect={handleHide}
+                  className="text-destructive focus:text-destructive"
+                >
                   <Ban className="size-3.5 mr-2" /> Mark false positive
                 </DropdownMenuItem>
               </>
             ) : (
-              <DropdownMenuItem onSelect={handleHide} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem
+                onSelect={handleHide}
+                className="text-destructive focus:text-destructive"
+              >
                 <EyeOff className="size-3.5 mr-2" /> Hide finding
               </DropdownMenuItem>
             )}
@@ -176,44 +212,89 @@ export function PersistedResultCard({
         </DropdownMenu>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onOpenDetail(hit)}
-        className="text-left block w-full"
-      >
+      <button type="button" onClick={() => onOpenDetail(hit)} className="text-left block w-full">
         {thumb ? (
           <div className="aspect-video bg-muted overflow-hidden">
-            <img src={thumb} alt={displayTitle} loading="lazy" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+            <img
+              src={thumb}
+              alt={displayTitle}
+              loading="lazy"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
           </div>
         ) : (
           <div className="aspect-video bg-gradient-to-br from-muted/60 to-secondary/60 flex flex-col items-center justify-center gap-1.5">
-            {favicon ? <img src={favicon} alt="" className="size-8 rounded bg-white/80 p-1 shadow-sm" /> : <Globe className="size-5 text-muted-foreground" />}
-            <div className="text-[10px] font-semibold text-foreground/80 truncate max-w-[80%] text-center">{host ?? hit.source}</div>
-            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{hit.source}</div>
+            {favicon ? (
+              <img src={favicon} alt="" className="size-8 rounded bg-white/80 p-1 shadow-sm" />
+            ) : (
+              <Globe className="size-5 text-muted-foreground" />
+            )}
+            <div className="text-[10px] font-semibold text-foreground/80 truncate max-w-[80%] text-center">
+              {host ?? hit.source}
+            </div>
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
+              {hit.source}
+            </div>
           </div>
         )}
         <div className="p-3 flex-1 flex flex-col">
           <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-            {hit.is_new_since_last_scan && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500 text-white">NEW</span>}
+            {hit.is_new_since_last_scan && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500 text-white">
+                NEW
+              </span>
+            )}
             {hit.severity && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: severityColor(hit.severity as never) }}>
+              <span
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded text-white"
+                style={{ background: severityColor(hit.severity as never) }}
+              >
                 {hit.severity.toUpperCase()}
               </span>
             )}
             <span className="text-[10px] text-muted-foreground truncate">{hit.source}</span>
             {hit.published_at && (
               <span className="text-[10px] text-muted-foreground ml-auto">
-                {new Date(hit.published_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                {new Date(hit.published_at).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
               </span>
             )}
           </div>
           <div className="text-sm font-semibold line-clamp-2">{displayTitle}</div>
-          {hit.description && <div className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{hit.description}</div>}
+          {hit.description && (
+            <div className="text-[11px] text-muted-foreground line-clamp-2 mt-1">
+              {hit.description}
+            </div>
+          )}
           <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
-            {typeof hit.threat_score === "number" && <span>Threat {Math.round(hit.threat_score)}</span>}
+            {typeof hit.threat_score === "number" && (
+              <span>Threat {Math.round(hit.threat_score)}</span>
+            )}
             {typeof hit.reach === "number" && hit.reach > 0 && <span>Reach {fmt(hit.reach)}</span>}
             {hit.times_detected > 1 && <span>Seen ×{hit.times_detected}</span>}
           </div>
+
+          {/* Why this is dangerous explanation */}
+          {(hit.severity === "Critical" || hit.severity === "High") && (
+            <div className="mt-2.5 rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-[10px] space-y-1 text-left">
+              <div className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">
+                <AlertTriangle className="size-3" /> Why this is dangerous
+              </div>
+              <ul className="list-disc pl-3 text-muted-foreground space-y-0.5">
+                <li>Flagged as actionable reputation threat on {hit.source}</li>
+                {typeof hit.reach === "number" && hit.reach > 0 && (
+                  <li>Indexed public reach (~{fmt(hit.reach)} audience impressions)</li>
+                )}
+                <li>High probability of search persistence and cross-platform spread</li>
+              </ul>
+            </div>
+          )}
         </div>
       </button>
 
@@ -237,7 +318,12 @@ export function PersistedResultCard({
             className="text-[10px] px-2 py-1 rounded border border-border hover:bg-accent inline-flex items-center gap-1 disabled:opacity-50"
             title="Add evidence"
           >
-            {busy === "evidence" ? <Loader2 className="size-3 animate-spin" /> : <ShieldPlus className="size-3" />} Add
+            {busy === "evidence" ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : (
+              <ShieldPlus className="size-3" />
+            )}{" "}
+            Add
           </button>
           <button
             onClick={() => onTakeAction(target)}
@@ -253,4 +339,5 @@ export function PersistedResultCard({
 }
 
 // Re-export DetailDrawer type usage helpers for parents
-export { }; export type { DetailFinding } from "./DetailDrawer";
+export {};
+export type { DetailFinding } from "./DetailDrawer";

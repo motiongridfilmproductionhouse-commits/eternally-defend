@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { inferAutomatedContentPosition, type ContentPosition } from "@/lib/evidence-review";
+import { sortScanHitsByThreat, isHarmlessOrOfficial } from "@/lib/reputation/ranking.server";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
@@ -658,13 +659,17 @@ const TRUSTED_NEWS =
 /* ═══════════════════════════════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════════════════════════════ */
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 10000): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 10000,
+): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(id);
     return res;
@@ -674,31 +679,47 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
-async function fetchPlacesNew(textQuery: string, apiKey: string, countryCode?: string): Promise<any> {
+async function fetchPlacesNew(
+  textQuery: string,
+  apiKey: string,
+  countryCode?: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
   const url = "https://places.googleapis.com/v1/places:searchText";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const body: any = {
     textQuery,
-    languageCode: "en"
+    languageCode: "en",
   };
   if (countryCode && countryCode.length === 2) {
     body.regionCode = countryCode.toUpperCase();
   }
-  const res = await fetchWithTimeout(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.types,places.googleMapsUri"
+  const res = await fetchWithTimeout(
+    url,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask":
+          "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.types,places.googleMapsUri",
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body)
-  }, 10000);
+    10000,
+  );
   if (!res.ok) {
     throw new Error(`Google Places API (New) returned ${res.status}: ${await res.text()}`);
   }
   return res.json();
 }
 
-async function fetchPlacesClassic(query: string, apiKey: string, countryCode?: string): Promise<any> {
+async function fetchPlacesClassic(
+  query: string,
+  apiKey: string,
+  countryCode?: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
   let url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${apiKey}`;
   if (countryCode) {
     url += `&region=${countryCode.toLowerCase()}`;
@@ -714,6 +735,7 @@ async function fetchPlacesClassic(query: string, apiKey: string, countryCode?: s
   return data;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchPlaceDetailsClassic(placeId: string, apiKey: string): Promise<any> {
   const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,website,url,types,place_id&key=${apiKey}`;
   try {
@@ -731,7 +753,7 @@ function computeResolutionConfidence(
   query: string,
   userWebsite?: string,
   userCountry?: string,
-  userIndustry?: string
+  userIndustry?: string,
 ): { confidence: number; reasons: string[] } {
   let score = 0;
   const reasons: string[] = [];
@@ -739,7 +761,7 @@ function computeResolutionConfidence(
   // 1. Name Similarity
   const normCandName = candidate.name.toLowerCase().replace(/[^a-z0-9]/g, "");
   const normQuery = query.toLowerCase().replace(/[^a-z0-9]/g, "");
-  
+
   if (normCandName === normQuery) {
     score += 45;
     reasons.push("Exact name match");
@@ -749,7 +771,7 @@ function computeResolutionConfidence(
   } else {
     const candWords = candidate.name.toLowerCase().split(/\s+/);
     const queryWords = query.toLowerCase().split(/\s+/);
-    const overlap = candWords.filter(w => queryWords.includes(w) && w.length > 2);
+    const overlap = candWords.filter((w) => queryWords.includes(w) && w.length > 2);
     if (overlap.length > 0) {
       score += 15;
       reasons.push("Word overlap in name");
@@ -759,7 +781,9 @@ function computeResolutionConfidence(
   // 2. Website Match
   if (userWebsite && candidate.website) {
     try {
-      const userHost = new URL(userWebsite.startsWith("http") ? userWebsite : `http://${userWebsite}`).hostname.replace(/^www\./, "");
+      const userHost = new URL(
+        userWebsite.startsWith("http") ? userWebsite : `http://${userWebsite}`,
+      ).hostname.replace(/^www\./, "");
       const candHost = new URL(candidate.website).hostname.replace(/^www\./, "");
       if (userHost === candHost) {
         score += 45;
@@ -790,7 +814,7 @@ function computeResolutionConfidence(
   // 4. Category/Industry Match
   if (userIndustry && candidate.types) {
     const ind = userIndustry.toLowerCase().trim();
-    const matchesType = candidate.types.some(t => {
+    const matchesType = candidate.types.some((t) => {
       const typeStr = t.replace(/_/g, " ").toLowerCase();
       return typeStr.includes(ind) || ind.includes(typeStr);
     });
@@ -804,14 +828,20 @@ function computeResolutionConfidence(
   return { confidence: finalScore, reasons };
 }
 
-function isOwnedSource(urlStr: string, website?: string | null, handles?: string[] | null): boolean {
+function isOwnedSource(
+  urlStr: string,
+  website?: string | null,
+  handles?: string[] | null,
+): boolean {
   try {
     const url = new URL(urlStr);
     const host = url.hostname.replace(/^www\./, "").toLowerCase();
 
     // Check website match
     if (website) {
-      const webHost = new URL(website.startsWith("http") ? website : `http://${website}`).hostname.replace(/^www\./, "").toLowerCase();
+      const webHost = new URL(website.startsWith("http") ? website : `http://${website}`).hostname
+        .replace(/^www\./, "")
+        .toLowerCase();
       if (host === webHost) return true;
     }
 
@@ -820,11 +850,13 @@ function isOwnedSource(urlStr: string, website?: string | null, handles?: string
       for (const h of handles) {
         const normH = h.replace(/^@/, "").toLowerCase().trim();
         if (!normH) continue;
-        
+
         const path = url.pathname.toLowerCase();
         if (
-          (host.includes("youtube.com") && (path.includes(`/${normH}`) || path.includes(`@${normH}`))) ||
-          ((host.includes("twitter.com") || host.includes("x.com")) && path.startsWith(`/${normH}`)) ||
+          (host.includes("youtube.com") &&
+            (path.includes(`/${normH}`) || path.includes(`@${normH}`))) ||
+          ((host.includes("twitter.com") || host.includes("x.com")) &&
+            path.startsWith(`/${normH}`)) ||
           (host.includes("instagram.com") && path.startsWith(`/${normH}`)) ||
           (host.includes("facebook.com") && path.startsWith(`/${normH}`)) ||
           (host.includes("linkedin.com") && path.includes(`/${normH}`)) ||
@@ -851,7 +883,14 @@ interface ResolutionResult {
   googleMapsUrl: string | null;
   resolutionConfidence: number;
   resolutionReason: string | null;
-  status: "resolved" | "not_resolved" | "key_missing" | "request_denied" | "insufficient_confidence" | "disabled" | "bypassed";
+  status:
+    | "resolved"
+    | "not_resolved"
+    | "key_missing"
+    | "request_denied"
+    | "insufficient_confidence"
+    | "disabled"
+    | "bypassed";
   error: string | null;
 }
 
@@ -860,7 +899,7 @@ async function resolveBrandWithPlaces(
   subjectType: "Auto" | "Person" | "Brand/Business" = "Auto",
   userWebsite?: string,
   userCountry?: string,
-  userIndustry?: string
+  userIndustry?: string,
 ): Promise<ResolutionResult> {
   const defaultRes: ResolutionResult = {
     resolved: false,
@@ -874,7 +913,7 @@ async function resolveBrandWithPlaces(
     resolutionConfidence: 0,
     resolutionReason: null,
     status: "not_resolved",
-    error: null
+    error: null,
   };
 
   if (subjectType === "Person") {
@@ -887,8 +926,11 @@ async function resolveBrandWithPlaces(
     const normQuery = query.toLowerCase();
     const hasSite = !!userWebsite;
     const hasIndustry = !!userIndustry;
-    const commonCorpSuffix = /\b(inc|llc|corp|ltd|co|group|agency|holding|ventures|partners|software|tech|solutions|systems|store|shop|restaurant|cafe|hotel|clinic|hospital|academy|school|university|foundation|trust)\b/.test(normQuery);
-    
+    const commonCorpSuffix =
+      /\b(inc|llc|corp|ltd|co|group|agency|holding|ventures|partners|software|tech|solutions|systems|store|shop|restaurant|cafe|hotel|clinic|hospital|academy|school|university|foundation|trust)\b/.test(
+        normQuery,
+      );
+
     const likelyBusiness = hasSite || hasIndustry || commonCorpSuffix;
     if (!likelyBusiness) {
       defaultRes.status = "bypassed";
@@ -896,7 +938,8 @@ async function resolveBrandWithPlaces(
     }
   }
 
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY || process.env.YOUTUBE_API_KEY;
+  const apiKey =
+    process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY || process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
     defaultRes.status = "key_missing";
     defaultRes.error = "Google Places API key is missing";
@@ -910,6 +953,7 @@ async function resolveBrandWithPlaces(
   }
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let places: any[] = [];
     let methodUsed = "New API";
 
@@ -917,8 +961,11 @@ async function resolveBrandWithPlaces(
       // 1. Try New Places API Text Search
       const data = await fetchPlacesNew(query, apiKey, countryCode);
       places = data.places || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      console.warn(`[places:resolve] New Places API failed, falling back to Classic API: ${e.message}`);
+      console.warn(
+        `[places:resolve] New Places API failed, falling back to Classic API: ${e.message}`,
+      );
       // 2. Fallback to Classic Places API
       methodUsed = "Classic API";
       const classicData = await fetchPlacesClassic(query, apiKey, countryCode);
@@ -933,14 +980,14 @@ async function resolveBrandWithPlaces(
               formattedAddress: details.formatted_address,
               websiteUri: details.website,
               googleMapsUri: details.url,
-              types: details.types
+              types: details.types,
             });
           } else {
             places.push({
               id: candidate.place_id,
               displayName: { text: candidate.name },
               formattedAddress: candidate.formatted_address,
-              types: candidate.types
+              types: candidate.types,
             });
           }
         }
@@ -954,6 +1001,7 @@ async function resolveBrandWithPlaces(
     }
 
     // Score all candidates
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const scoredCandidates = places.map((p: any) => {
       const cand = {
         id: p.id || p.place_id,
@@ -961,14 +1009,14 @@ async function resolveBrandWithPlaces(
         website: p.websiteUri || p.website,
         address: p.formattedAddress || p.formatted_address,
         googleMapsUrl: p.googleMapsUri || p.url,
-        types: p.types || []
+        types: p.types || [],
       };
       const { confidence, reasons } = computeResolutionConfidence(
         cand,
         query,
         userWebsite,
         userCountry,
-        userIndustry
+        userIndustry,
       );
       return { cand, confidence, reasons };
     });
@@ -997,9 +1045,9 @@ async function resolveBrandWithPlaces(
       resolutionConfidence: best.confidence,
       resolutionReason: best.reasons.join(", ") || "Confidence threshold met",
       status: "resolved",
-      error: null
+      error: null,
     };
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error("[places:resolve] Places resolution encountered error:", err);
     defaultRes.status = "request_denied";
@@ -1216,7 +1264,6 @@ interface RawHit {
   };
 }
 
-
 /** Parse a single Firecrawl search result item into a RawHit. */
 function fcItemToRaw(item: Record<string, unknown>): RawHit {
   const md = (item.metadata ?? {}) as Record<string, unknown>;
@@ -1240,10 +1287,7 @@ function fcItemToRaw(item: Record<string, unknown>): RawHit {
 }
 
 /** Run a single Firecrawl search query and return parsed RawHit array. */
-async function fcSearch(
-  q: string,
-  limit: number,
-): Promise<RawHit[]> {
+async function fcSearch(q: string, limit: number): Promise<RawHit[]> {
   const { firecrawlFetch } = await import("@/lib/firecrawl-client.server");
   const apiResponse = await firecrawlFetch("/search", {
     query: q,
@@ -1253,7 +1297,9 @@ async function fcSearch(
   });
   const responseText = await apiResponse.text();
   if (!apiResponse.ok) {
-    throw new Error(`Firecrawl search failed (${apiResponse.status}): ${responseText.slice(0, 300)}`);
+    throw new Error(
+      `Firecrawl search failed (${apiResponse.status}): ${responseText.slice(0, 300)}`,
+    );
   }
   const response = JSON.parse(responseText) as unknown;
   const root = response as Record<string, unknown>;
@@ -1921,14 +1967,8 @@ async function runYouTube(
   quotaReason?: string;
 }> {
   console.log("[youtube-debug] Runtime environment", {
-    hasKey: Boolean(
-      process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY
-    ),
-    keyLength: (
-      process.env.YOUTUBE_API_KEY ??
-      process.env.GOOGLE_API_KEY ??
-      ""
-    ).length,
+    hasKey: Boolean(process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY),
+    keyLength: (process.env.YOUTUBE_API_KEY ?? process.env.GOOGLE_API_KEY ?? "").length,
     nodeEnv: process.env.NODE_ENV ?? "unknown",
   });
 
@@ -2225,15 +2265,13 @@ function classifyRedditRisk(hit: RawHit): RedditRiskClassification {
 async function runReddit(
   query: string,
   aliases: string[],
-  monthWindow: MonthWindow
+  monthWindow: MonthWindow,
 ): Promise<{ raw: RawHit[]; error?: string }> {
-  const nameForms = Array.from(
-    new Set([query, ...aliases].map((s) => s.trim()).filter(Boolean)),
-  );
+  const nameForms = Array.from(new Set([query, ...aliases].map((s) => s.trim()).filter(Boolean)));
   if (!nameForms.length) return { raw: [] };
 
   const searchTerms = nameForms
-    .map((name) => name.includes(" ") ? `"${name.replaceAll('"', "")}"` : name)
+    .map((name) => (name.includes(" ") ? `"${name.replaceAll('"', "")}"` : name))
     .join(" OR ");
   const errors: string[] = [];
   const raw: RawHit[] = [];
@@ -2266,12 +2304,16 @@ async function runReddit(
     url.searchParams.set("raw_json", "1");
     if (req.type) url.searchParams.set("type", req.type);
 
-    const res = await fetchWithTimeout(url.toString(), {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "EternaSentinel/1.0 public-reputation-monitoring",
+    const res = await fetchWithTimeout(
+      url.toString(),
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "EternaSentinel/1.0 public-reputation-monitoring",
+        },
       },
-    }, 10_000);
+      10_000,
+    );
 
     if (!res.ok || !res.headers.get("content-type")?.includes("json")) {
       throw new Error(`Reddit public search returned ${res.status}`);
@@ -2290,9 +2332,10 @@ async function runReddit(
         item.title || item.link_title || (isComment ? "Reddit comment" : "Reddit discussion"),
       );
       const snippet = String(item.body || item.selftext || item.title || "").slice(0, 800);
-      const thumb = typeof item.thumbnail === "string" && item.thumbnail.startsWith("http")
-        ? item.thumbnail
-        : undefined;
+      const thumb =
+        typeof item.thumbnail === "string" && item.thumbnail.startsWith("http")
+          ? item.thumbnail
+          : undefined;
 
       out.push({
         url: new URL(item.permalink, "https://www.reddit.com").toString(),
@@ -2311,7 +2354,8 @@ async function runReddit(
   const directSettled = await Promise.allSettled(redditRequests.map(fetchReddit));
   for (const result of directSettled) {
     if (result.status === "fulfilled") raw.push(...result.value);
-    else errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
+    else
+      errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
   }
 
   /* Reddit blocks unauthenticated JSON from many cloud IPs. Fall back to the
@@ -2328,16 +2372,18 @@ async function runReddit(
     );
     for (const result of settled) {
       if (result.status === "fulfilled") raw.push(...result.value);
-      else errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
+      else
+        errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
     }
   }
 
-  const normalize = (value: string) => value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+  const normalize = (value: string) =>
+    value
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
 
   const identities = nameForms.map((name) => {
     const normalized = normalize(name);
@@ -2371,7 +2417,9 @@ async function runReddit(
       }
     }
 
-    if (REDDIT_RISK_PATTERN.test(`${hit.title ?? ""} ${hit.description ?? ""} ${hit.snippet ?? ""}`)) {
+    if (
+      REDDIT_RISK_PATTERN.test(`${hit.title ?? ""} ${hit.description ?? ""} ${hit.snippet ?? ""}`)
+    ) {
       score += 30;
     }
 
@@ -2398,17 +2446,12 @@ async function runReddit(
      risk-bearing discussions above neutral mentions. */
   const results = Array.from(unique.values())
     .map((hit) => ({ ...hit, redditRisk: classifyRedditRisk(hit) }))
-    .sort(
-      (a, b) =>
-        b.redditRisk.score - a.redditRisk.score ||
-        relevance(b) - relevance(a),
-    )
+    .sort((a, b) => b.redditRisk.score - a.redditRisk.score || relevance(b) - relevance(a))
     .slice(0, 80);
   return results.length
     ? { raw: results }
     : { raw: [], error: errors.join("; ") || "No indexed Reddit discussions found" };
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    SECOND-STAGE KEYWORD EXTRACTION
@@ -2531,9 +2574,7 @@ function buildReport(
         entityMatched =
           entityForms.some((form) => redditHaystack.includes(form)) ||
           entityTokenSets.some(
-            (tokens) =>
-              tokens.length > 0 &&
-              tokens.some((token) => redditHaystack.includes(token)),
+            (tokens) => tokens.length > 0 && tokens.some((token) => redditHaystack.includes(token)),
           );
       }
       if (!entityMatched) continue;
@@ -2571,8 +2612,7 @@ function buildReport(
        * Web results still require an explicit risk or negative-sentiment signal.
        */
       const isOfficialYouTubeLead =
-        (source === "YouTube" || run.source === "YouTube") &&
-        Boolean(o.media?.videoId);
+        (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
       const isRedditEntityLead = source === "Reddit" || run.source === "Reddit";
       if (!riskMatched && !isOfficialYouTubeLead && !isRedditEntityLead) continue;
       const cred = credibilityScore(source, platform);
@@ -2616,14 +2656,14 @@ function buildReport(
           ? `Reddit risk ${redditRisk.score}/100 · ${redditRisk.categories.join(", ")} · ${redditRisk.reason}`
           : `Reddit risk ${redditRisk.score}/100 · ${redditRisk.reason}`
         : c.keywords.length
-        ? `Matched: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
-        : sent === "Negative"
-          ? "Negative sentiment in title/description"
+          ? `Matched: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
+          : sent === "Negative"
+            ? "Negative sentiment in title/description"
             : isOfficialYouTubeLead
-            ? "Official YouTube API · named-entity monitoring lead"
+              ? "Official YouTube API · named-entity monitoring lead"
               : isRedditEntityLead
                 ? "Indexed Reddit discussion · exact named-entity match"
-            : "Named-entity match";
+                : "Named-entity match";
 
       const hit: ScanHit = {
         id: `hit-${idx}`,
@@ -2759,37 +2799,14 @@ function buildReport(
       );
   }
 
-  // ── Freshness + threat sort ───────────────────────────────────────────────
-  // Dated results: newest-first (within the selected month).
-  // Undated results: sorted by threat score and placed after dated ones.
-  const recencyBoost = (h: ScanHit): number => {
-    const d = ageDaysOf(h.published);
-    if (d < 0.5) return 45;
-    if (d < 1) return 38;
-    if (d < 3) return 28;
-    if (d < 7) return 18;
-    if (d < 14) return 10;
-    if (d < 30) return 4;
-    return 0;
-  };
+  // ── Threat Ranking Sort ───────────────────────────────────────────────────
+  // Sort hits by deterministic threat ranking score descending so critical/high
+  // actionable threats (defamation, deepfakes, leaks, impersonation) rank first.
+  const hits = sortScanHitsByThreat(filteredHits);
 
-  const hits = filteredHits.sort((a, b) => {
-    const dateA = a.published ? new Date(a.published).getTime() : -1;
-    const dateB = b.published ? new Date(b.published).getTime() : -1;
-    // Both have dates: newest first
-    if (dateA >= 0 && dateB >= 0) {
-      if (dateB !== dateA) return dateB - dateA;
-      return b.threatScore + recencyBoost(b) - (a.threatScore + recencyBoost(a));
-    }
-    // Dated results before undated
-    if (dateA >= 0 && dateB < 0) return -1;
-    if (dateA < 0 && dateB >= 0) return 1;
-    // Both undated: threat score
-    return b.threatScore - a.threatScore;
-  });
-
-  const critical = hits.filter((h) => h.severity === "Critical");
-  const high = hits.filter((h) => h.severity === "High");
+  // Critical and High threats must exclude official/harmless content
+  const critical = hits.filter((h) => h.severity === "Critical" && !isHarmlessOrOfficial(h));
+  const high = hits.filter((h) => h.severity === "High" && !isHarmlessOrOfficial(h));
   const negative = hits.filter((h) => h.sentiment === "Negative");
   const viral = hits.filter((h) => h.viral);
   const totalReach = hits.reduce((a, h) => a + h.reachEstimate, 0);
@@ -2966,16 +2983,10 @@ function buildReport(
    * reputation score. A small result set from only one source cannot
    * reliably represent a person's overall online reputation.
    */
-  const hasReliableCoverage =
-    hits.length >= 20 &&
-    sourceCount >= 3 &&
-    coverageConfidence >= 60;
+  const hasReliableCoverage = hits.length >= 20 && sourceCount >= 3 && coverageConfidence >= 60;
 
   const reputationScore = hasReliableCoverage
-    ? Math.max(
-        0,
-        Math.min(100, Math.round(100 - observedRisk)),
-      )
+    ? Math.max(0, Math.min(100, Math.round(100 - observedRisk)))
     : 50;
 
   const reputationLevel = !hasReliableCoverage
@@ -3036,6 +3047,30 @@ function buildReport(
     );
   if (!immediateActions.length)
     immediateActions.push("Continue monitoring; no critical action required");
+
+  // Diagnostic warning when summary metrics exceed rendered row counts
+  const renderedCriticalCount = hits.filter(
+    (h) => h.severity === "Critical" && !isHarmlessOrOfficial(h),
+  ).length;
+  const renderedHighCount = hits.filter(
+    (h) => h.severity === "High" && !isHarmlessOrOfficial(h),
+  ).length;
+  const renderedBreakingCount = buckets.breaking.length;
+
+  if (
+    critical.length > renderedCriticalCount ||
+    high.length > renderedHighCount ||
+    buckets.breaking.length > renderedBreakingCount
+  ) {
+    console.warn(`[scan:diagnostic] ⚠ Diagnostic warning: summary metric discrepancy detected!`, {
+      summaryCritical: critical.length,
+      renderedCritical: renderedCriticalCount,
+      summaryHigh: high.length,
+      renderedHigh: renderedHighCount,
+      summaryBreaking: buckets.breaking.length,
+      renderedBreaking: renderedBreakingCount,
+    });
+  }
 
   return {
     ok: !err,
@@ -3132,7 +3167,9 @@ export const Route = createFileRoute("/api/scan")({
 
           const wantYouTube = sources.includes("youtube");
           const wantReddit = sources.includes("reddit");
-          const nonYtOrRedditSources = sources.filter((s) => s !== "youtube" && s !== "reddit") as SourceKey[];
+          const nonYtOrRedditSources = sources.filter(
+            (s) => s !== "youtube" && s !== "reddit",
+          ) as SourceKey[];
           const expansionQuery = aliases.length
             ? `${query} OR ${aliases.map((a) => `"${a}"`).join(" OR ")}`
             : query;
@@ -3141,24 +3178,25 @@ export const Route = createFileRoute("/api/scan")({
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 1 — Run YouTube, baseline Firecrawl, and Reddit concurrently
           // ══════════════════════════════════════════════════════════════════════
-          const [ytSettled, fcControversySettled, fcGeneralSettled, redditSettled] = await Promise.allSettled([
-            wantYouTube
-              ? runYouTube(query, aliases, variations, hashtags, handles, ytTarget, monthWindow)
-              : Promise.resolve({
-                  raw: [] as RawHit[],
-                  error: undefined as string | undefined,
-                  queriesUsed: 0,
-                  pagesScanned: 0,
-                  apiErrors: 0,
-                  quotaExhausted: false,
-                  quotaReason: undefined as string | undefined,
-                }),
-            runFirecrawl(controversyQuery, nonYtOrRedditSources, Math.min(limit, 5)),
-            runFirecrawl(expansionQuery, nonYtOrRedditSources, limit),
-            wantReddit
-              ? runReddit(query, aliases, monthWindow)
-              : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined }),
-          ]);
+          const [ytSettled, fcControversySettled, fcGeneralSettled, redditSettled] =
+            await Promise.allSettled([
+              wantYouTube
+                ? runYouTube(query, aliases, variations, hashtags, handles, ytTarget, monthWindow)
+                : Promise.resolve({
+                    raw: [] as RawHit[],
+                    error: undefined as string | undefined,
+                    queriesUsed: 0,
+                    pagesScanned: 0,
+                    apiErrors: 0,
+                    quotaExhausted: false,
+                    quotaReason: undefined as string | undefined,
+                  }),
+              runFirecrawl(controversyQuery, nonYtOrRedditSources, Math.min(limit, 5)),
+              runFirecrawl(expansionQuery, nonYtOrRedditSources, limit),
+              wantReddit
+                ? runReddit(query, aliases, monthWindow)
+                : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined }),
+            ]);
 
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 1b — Provider-specific logging & success state checks
@@ -3180,7 +3218,8 @@ export const Route = createFileRoute("/api/scan")({
             ytApiErrors = val.apiErrors;
             ytError = val.error;
             ytQuotaReason = val.quotaReason;
-            ytQuotaExhausted = val.quotaExhausted || (wantYouTube && val.raw.length === 0 && val.apiErrors > 5);
+            ytQuotaExhausted =
+              val.quotaExhausted || (wantYouTube && val.raw.length === 0 && val.apiErrors > 5);
             if (wantYouTube) {
               if (val.error) {
                 console.error(`[scan] YouTube: error - ${val.error}`);
@@ -3201,8 +3240,10 @@ export const Route = createFileRoute("/api/scan")({
           let fcGeneralRuns: { source: string; raw: RawHit[] }[] = [];
           let fcError: string | undefined = undefined;
 
-          const fcCSuccess = fcControversySettled.status === "fulfilled" && !fcControversySettled.value.error;
-          const fcGSuccess = fcGeneralSettled.status === "fulfilled" && !fcGeneralSettled.value.error;
+          const fcCSuccess =
+            fcControversySettled.status === "fulfilled" && !fcControversySettled.value.error;
+          const fcGSuccess =
+            fcGeneralSettled.status === "fulfilled" && !fcGeneralSettled.value.error;
 
           if (fcCSuccess || fcGSuccess) {
             fcSuccess = true;
@@ -3214,8 +3255,14 @@ export const Route = createFileRoute("/api/scan")({
             }
             console.log("[scan] Firecrawl: success");
           } else {
-            const err1 = fcControversySettled.status === "rejected" ? fcControversySettled.reason?.message : fcControversySettled.value?.error;
-            const err2 = fcGeneralSettled.status === "rejected" ? fcGeneralSettled.reason?.message : fcGeneralSettled.value?.error;
+            const err1 =
+              fcControversySettled.status === "rejected"
+                ? fcControversySettled.reason?.message
+                : fcControversySettled.value?.error;
+            const err2 =
+              fcGeneralSettled.status === "rejected"
+                ? fcGeneralSettled.reason?.message
+                : fcGeneralSettled.value?.error;
             fcError = `Controversy error: ${err1}, General error: ${err2}`;
             console.error(`[scan] Firecrawl: error - ${fcError}`);
           }
@@ -3257,9 +3304,9 @@ export const Route = createFileRoute("/api/scan")({
 
           // Return HTTP 500 if every active provider failed
           const activeProvidersCount = (wantYouTube ? 1 : 0) + 1 + (wantReddit ? 1 : 0);
-          const failedProvidersCount = 
-            (wantYouTube && !ytSuccess ? 1 : 0) + 
-            (!fcSuccess ? 1 : 0) + 
+          const failedProvidersCount =
+            (wantYouTube && !ytSuccess ? 1 : 0) +
+            (!fcSuccess ? 1 : 0) +
             (wantReddit && !redditSuccess ? 1 : 0);
 
           if (failedProvidersCount === activeProvidersCount) {
@@ -3267,9 +3314,9 @@ export const Route = createFileRoute("/api/scan")({
             return Response.json(
               {
                 ok: false,
-                error: `Every search provider failed to execute. YouTube: ${ytError || "none"}, Firecrawl: ${fcError || "none"}, Reddit: ${redditError || "none"}`
+                error: `Every search provider failed to execute. YouTube: ${ytError || "none"}, Firecrawl: ${fcError || "none"}, Reddit: ${redditError || "none"}`,
               },
-              { status: 500 }
+              { status: 500 },
             );
           }
 
@@ -3301,12 +3348,9 @@ export const Route = createFileRoute("/api/scan")({
 
           console.log("[scan-debug] First-pass discovery totals", {
             youtube: ytRaw.length,
-            firecrawlDiscovery:
-              fcDiscovery?.runs.flatMap((run) => run.raw).length ?? 0,
-            firecrawlControversy:
-              fcControversyRuns.flatMap((run) => run.raw).length,
-            firecrawlGeneral:
-              fcGeneralRuns.flatMap((run) => run.raw).length,
+            firecrawlDiscovery: fcDiscovery?.runs.flatMap((run) => run.raw).length ?? 0,
+            firecrawlControversy: fcControversyRuns.flatMap((run) => run.raw).length,
+            firecrawlGeneral: fcGeneralRuns.flatMap((run) => run.raw).length,
             firstPassRaw: firstPassRaw.length,
           });
           let expansionRuns: { source: string; raw: RawHit[] }[] = [];

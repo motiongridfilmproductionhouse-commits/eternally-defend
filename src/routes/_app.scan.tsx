@@ -11,7 +11,6 @@ import type {
   FreshnessWindow,
 } from "@/routes/api/scan";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
-import { BusinessReputationScan } from "@/components/business/BusinessReputationScan";
 import { severityColor } from "@/lib/data-store";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
@@ -32,6 +31,11 @@ import {
 import { PersistedResultCard, type HitLike } from "@/components/scan/PersistedResultCard";
 import { DetailDrawer } from "@/components/scan/DetailDrawer";
 import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
+import {
+  isHarmlessOrOfficial,
+  canonicalCategoryFor,
+  generateThreatExplanation,
+} from "@/lib/reputation/ranking.server";
 import { listEvidenceStatus, hideScanHit } from "@/lib/scan-actions.functions";
 import {
   Radar,
@@ -190,7 +194,6 @@ function ScanPage() {
   const userId = session?.user.id;
   const generateReportPdf = useServerFn(generateScanReportPdf);
   const [pdfPending, setPdfPending] = useState(false);
-  const [scanMode, setScanMode] = useState<"reputation" | "business">("reputation");
   const [q, setQ] = useState("");
   const [aliases, setAliases] = useState("");
   const [variations, setVariations] = useState("");
@@ -200,6 +203,11 @@ function ScanPage() {
   const [country, setCountry] = useState("");
   const [industry, setIndustry] = useState("");
   const [monthFilter, setMonthFilter] = useState<"24h" | "7d" | "30d" | "12m" | "all">("12m");
+  const [threatsOnly, setThreatsOnly] = useState<boolean>(true);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
+  const [activeSeverityFilter, setActiveSeverityFilter] = useState<string | null>(null);
+  const [showLowRiskSection, setShowLowRiskSection] = useState<boolean>(false);
+  const [showNeutralSection, setShowNeutralSection] = useState<boolean>(false);
 
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
@@ -213,6 +221,17 @@ function ScanPage() {
 
   const m = useMutation({ mutationFn: runScan });
   const autoScanStarted = useRef(false);
+
+  const handleMetricClick = (filterType: "category" | "severity", value: string) => {
+    if (filterType === "category") {
+      setActiveCategoryFilter((prev) => (prev === value ? null : value));
+    } else {
+      setActiveSeverityFilter((prev) => (prev === value ? null : value));
+    }
+    setTimeout(() => {
+      document.getElementById("findings-feed")?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
+  };
 
   useEffect(() => {
     if (typeof window === "undefined" || autoScanStarted.current) return;
@@ -256,13 +275,9 @@ function ScanPage() {
 
     const firstUrl = report.hits[0]?.url ?? "";
     const lastUrl = report.hits[report.hits.length - 1]?.url ?? "";
-    const reportKey = [
-      report.query,
-      report.period,
-      report.hits.length,
-      firstUrl,
-      lastUrl,
-    ].join("::");
+    const reportKey = [report.query, report.period, report.hits.length, firstUrl, lastUrl].join(
+      "::",
+    );
 
     if (persistedReportKeyRef.current === reportKey) return;
     persistedReportKeyRef.current = reportKey;
@@ -563,42 +578,8 @@ function ScanPage() {
     }
   };
 
-  const tabs = (
-    <div className="flex flex-wrap gap-2">
-      {(
-        [
-          ["reputation", "Reputation scan"],
-          ["business", "Business Reputation Scan"],
-        ] as const
-      ).map(([value, label]) => (
-        <button
-          key={value}
-          type="button"
-          onClick={() => setScanMode(value)}
-          className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
-            scanMode === value
-              ? "border-primary/60 bg-primary/10 text-foreground"
-              : "border-border bg-card text-muted-foreground hover:border-primary/40"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-
-  if (scanMode === "business") {
-    return (
-      <div className="space-y-6">
-        {tabs}
-        <BusinessReputationScan />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {tabs}
       {/* Hero + form */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
         <div
@@ -835,9 +816,14 @@ function ScanPage() {
               </div>
               <div className="mt-4 space-y-2">
                 {report.scoreBreakdown.map((b) => (
-                  <div key={b.key}>
+                  <button
+                    key={b.key}
+                    type="button"
+                    onClick={() => handleMetricClick("category", b.key)}
+                    className="w-full text-left cursor-pointer hover:opacity-80 transition group"
+                  >
                     <div className="flex justify-between text-[11px]">
-                      <span>{b.label}</span>
+                      <span className="group-hover:underline">{b.label}</span>
                       <span className="font-semibold">{b.value}/100</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -846,7 +832,7 @@ function ScanPage() {
                         style={{ width: `${b.value}%`, background: scoreColor(100 - b.value) }}
                       />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -860,30 +846,54 @@ function ScanPage() {
               icon={<Eye className="size-4" />}
               tone="brand"
             />
-            <KPI
-              label="Breaking (24h)"
-              value={report.buckets.breaking.length}
-              icon={<Bell className="size-4" />}
-              tone="danger"
-            />
-            <KPI
-              label="Critical"
-              value={report.totals.critical}
-              icon={<AlertTriangle className="size-4" />}
-              tone="danger"
-            />
-            <KPI
-              label="High"
-              value={report.totals.high}
-              icon={<ShieldAlert className="size-4" />}
-              tone="warn"
-            />
-            <KPI
-              label="Viral"
-              value={report.totals.viral}
-              icon={<Flame className="size-4" />}
-              tone="viral"
-            />
+            <button
+              type="button"
+              onClick={() => handleMetricClick("severity", "24h")}
+              className="text-left cursor-pointer hover:opacity-90 transition"
+            >
+              <KPI
+                label="Breaking (24h)"
+                value={report.buckets.breaking.length}
+                icon={<Bell className="size-4" />}
+                tone="danger"
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMetricClick("severity", "Critical")}
+              className="text-left cursor-pointer hover:opacity-90 transition"
+            >
+              <KPI
+                label="Critical"
+                value={report.totals.critical}
+                icon={<AlertTriangle className="size-4" />}
+                tone="danger"
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMetricClick("severity", "High")}
+              className="text-left cursor-pointer hover:opacity-90 transition"
+            >
+              <KPI
+                label="High"
+                value={report.totals.high}
+                icon={<ShieldAlert className="size-4" />}
+                tone="warn"
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMetricClick("severity", "viral")}
+              className="text-left cursor-pointer hover:opacity-90 transition"
+            >
+              <KPI
+                label="Viral"
+                value={report.totals.viral}
+                icon={<Flame className="size-4" />}
+                tone="viral"
+              />
+            </button>
             <KPI
               label="Reach"
               value={fmt(report.totals.totalReach)}
@@ -906,250 +916,263 @@ function ScanPage() {
           />
 
           {/* ═══════════════════════════════════════════════════════════
-              TIME-WINDOW BUCKETS — primary discovery view
-              Show freshest content first; older results below.
+              FINDINGS FEED & THREAT SECTIONS
           ══════════════════════════════════════════════════════════ */}
-
-          {/* Breaking (last 24 hours) */}
-          {report.buckets.breaking.length > 0 && (
-            <div className="rounded-2xl border-2 border-red-500/40 bg-red-50/30 dark:bg-red-950/10 overflow-hidden">
-              <div className="flex items-center gap-3 px-5 py-3 bg-red-500/10">
-                <span className="relative flex size-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-80" />
-                  <span className="relative inline-flex size-2.5 rounded-full bg-red-500" />
-                </span>
-                <span className="text-[11px] font-bold tracking-widest text-red-600 dark:text-red-400 uppercase">
-                  Breaking · Last 24 Hours
-                </span>
-                <span className="ml-auto text-[11px] text-red-500 font-semibold">
-                  {report.buckets.breaking.length} result
-                  {report.buckets.breaking.length !== 1 ? "s" : ""}
-                </span>
+          <div id="findings-feed" className="space-y-6 pt-4 border-t border-border">
+            {/* Control Bar: Threats Only Toggle & Active Filters */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="size-5 text-primary" />
+                <div>
+                  <h2 className="text-base font-bold">Findings Feed</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Actionable reputation threat intelligence
+                  </p>
+                </div>
               </div>
-              <div className="p-4">
-                <Bucket
-                  title=""
-                  icon={<Bell className="size-4" />}
-                  hits={report.buckets.breaking}
-                  onPromote={promote}
-                  added={added}
-                  entityTerms={entityTerms}
-                  scanId={persistedScanId}
-                  analyzingVideos={analyzingVideos}
-                  hideCard
-                />
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {(activeCategoryFilter || activeSeverityFilter) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveCategoryFilter(null);
+                      setActiveSeverityFilter(null);
+                    }}
+                    className="text-xs px-2.5 py-1 rounded-lg bg-accent border border-border inline-flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    Clear filter: {activeCategoryFilter || activeSeverityFilter}{" "}
+                    <XIcon className="size-3" />
+                  </button>
+                )}
+
+                <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setThreatsOnly(true)}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                      threatsOnly
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Threats Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setThreatsOnly(false)}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                      !threatsOnly
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Show All Mentions
+                  </button>
+                </div>
               </div>
             </div>
-          )}
 
-          <Bucket
-            title="LAST 3 DAYS"
-            icon={<Clock className="size-4" />}
-            hits={report.buckets.recent3d}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="LAST 7 DAYS"
-            icon={<Clock className="size-4" />}
-            hits={report.buckets.recent7d}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="LAST 30 DAYS"
-            icon={<Clock className="size-4" />}
-            hits={report.buckets.recent30d}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
+            {/* Render 6 Ordered Threat Sections */}
+            {(() => {
+              const allHits = report.hits;
+              const currentFilteredHits = threatsOnly
+                ? allHits.filter((h) => !isHarmlessOrOfficial(h))
+                : allHits;
 
-          {/* ═══════════════════════════════════════════════════════════
-              RISK CATEGORY BUCKETS
-          ══════════════════════════════════════════════════════════ */}
-          <Bucket
-            title="CRITICAL THREATS"
-            icon={<AlertTriangle className="size-4" />}
-            hits={report.buckets.critical}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="DEFAMATION RISK"
-            icon={<Gavel className="size-4" />}
-            hits={report.buckets.defamation}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="EXPOSÉ / ALLEGATIONS"
-            icon={<ShieldAlert className="size-4" />}
-            hits={report.buckets.expose}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="LEAKS"
-            icon={<EyeOff className="size-4" />}
-            hits={report.buckets.leaks}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="CONTROVERSIES / BOYCOTTS"
-            icon={<Flame className="size-4" />}
-            hits={report.buckets.controversies}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="HARASSMENT / ABUSE"
-            icon={<XIcon className="size-4" />}
-            hits={report.buckets.harassment}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="LEGAL DISPUTES"
-            icon={<Gavel className="size-4" />}
-            hits={report.buckets.legal}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="DEEPFAKE / MANIPULATED MEDIA"
-            icon={<ShieldAlert className="size-4" />}
-            hits={report.buckets.deepfake}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="IMPERSONATION / FAKE ENDORSEMENTS"
-            icon={<BadgeCheck className="size-4" />}
-            hits={report.buckets.impersonation}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="VIRAL / EMERGING"
-            icon={<TrendingUp className="size-4" />}
-            hits={report.buckets.emerging}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
+              const applyFilters = (list: ScanHit[]) => {
+                let res = list;
+                if (activeCategoryFilter) {
+                  const f = activeCategoryFilter.toLowerCase();
+                  res = res.filter((h) => {
+                    const cat = canonicalCategoryFor(h);
+                    const src = (h.source || "").toLowerCase();
+                    if (f === "youtube") return src === "youtube";
+                    if (f === "reddit") return src === "reddit";
+                    if (f === "news") return src === "news";
+                    if (f === "social")
+                      return ["facebook", "instagram", "x", "tiktok"].includes(src);
+                    if (f === "impersonation")
+                      return cat === "impersonation" || cat === "scam_or_fraud";
+                    if (f === "deepfake") return cat === "deepfake";
+                    if (f === "legal")
+                      return (
+                        cat === "defamation" ||
+                        cat === "copyright_infringement" ||
+                        cat === "harassment_or_abuse"
+                      );
+                    return cat === f || h.category.toLowerCase().includes(f);
+                  });
+                }
+                if (activeSeverityFilter) {
+                  const sf = activeSeverityFilter;
+                  if (sf === "24h") res = res.filter((h) => h.freshnessWindow === "24h");
+                  else if (sf === "viral") res = res.filter((h) => h.viral);
+                  else res = res.filter((h) => h.severity === sf);
+                }
+                return res;
+              };
 
-          {/* ═══════════════════════════════════════════════════════════
-              SOURCE BUCKETS
-          ══════════════════════════════════════════════════════════ */}
-          <Bucket
-            title="YOUTUBE — FRESHEST FIRST"
-            icon={<Youtube className="size-4" />}
-            hits={report.buckets.youtube}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="NEWS COVERAGE"
-            icon={<Newspaper className="size-4" />}
-            hits={report.buckets.news}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="REDDIT DISCUSSIONS"
-            icon={<MessageCircle className="size-4" />}
-            hits={report.buckets.reddit}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="INSTAGRAM MONITORING"
-            icon={<Instagram className="size-4" />}
-            hits={report.buckets.instagram}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="FACEBOOK MONITORING"
-            icon={<Facebook className="size-4" />}
-            hits={report.buckets.facebook}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="COPYRIGHT / REUPLOADS"
-            icon={<Copyright className="size-4" />}
-            hits={report.buckets.copyright}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
-          <Bucket
-            title="REVIEWS & COMPLAINTS"
-            icon={<Gavel className="size-4" />}
-            hits={report.buckets.reviews}
-            onPromote={promote}
-            added={added}
-            entityTerms={entityTerms}
-            scanId={persistedScanId}
-            analyzingVideos={analyzingVideos}
-          />
+              const criticalThreats = applyFilters(
+                currentFilteredHits.filter(
+                  (h) => h.severity === "Critical" && !isHarmlessOrOfficial(h),
+                ),
+              );
+              const highThreats = applyFilters(
+                currentFilteredHits.filter(
+                  (h) => h.severity === "High" && !isHarmlessOrOfficial(h),
+                ),
+              );
+              const mediumThreats = applyFilters(
+                currentFilteredHits.filter(
+                  (h) => h.severity === "Medium" && !isHarmlessOrOfficial(h),
+                ),
+              );
+              const reviewRequired = applyFilters(
+                currentFilteredHits.filter(
+                  (h) =>
+                    (h.confidence >= 50 && h.confidence < 85) ||
+                    h.contentLabel === "Needs human review",
+                ),
+              );
+              const lowRiskHits = applyFilters(
+                allHits.filter((h) => h.severity === "Low" && !isHarmlessOrOfficial(h)),
+              );
+              const neutralHits = applyFilters(allHits.filter((h) => isHarmlessOrOfficial(h)));
+
+              return (
+                <div className="space-y-6">
+                  {/* 1. Critical Threats */}
+                  {criticalThreats.length > 0 && (
+                    <Bucket
+                      title="CRITICAL THREATS"
+                      icon={<AlertTriangle className="size-4 text-red-500" />}
+                      hits={criticalThreats}
+                      onPromote={promote}
+                      added={added}
+                      entityTerms={entityTerms}
+                      scanId={persistedScanId}
+                      analyzingVideos={analyzingVideos}
+                    />
+                  )}
+
+                  {/* 2. High-Priority Threats */}
+                  {highThreats.length > 0 && (
+                    <Bucket
+                      title="HIGH-PRIORITY THREATS"
+                      icon={<ShieldAlert className="size-4 text-amber-500" />}
+                      hits={highThreats}
+                      onPromote={promote}
+                      added={added}
+                      entityTerms={entityTerms}
+                      scanId={persistedScanId}
+                      analyzingVideos={analyzingVideos}
+                    />
+                  )}
+
+                  {/* 3. Medium Threats */}
+                  {mediumThreats.length > 0 && (
+                    <Bucket
+                      title="MEDIUM THREATS"
+                      icon={<ShieldAlert className="size-4 text-yellow-500" />}
+                      hits={mediumThreats}
+                      onPromote={promote}
+                      added={added}
+                      entityTerms={entityTerms}
+                      scanId={persistedScanId}
+                      analyzingVideos={analyzingVideos}
+                    />
+                  )}
+
+                  {/* 4. Needs Human Review */}
+                  {reviewRequired.length > 0 && (
+                    <Bucket
+                      title="NEEDS HUMAN REVIEW"
+                      icon={<Clock className="size-4 text-blue-500" />}
+                      hits={reviewRequired}
+                      onPromote={promote}
+                      added={added}
+                      entityTerms={entityTerms}
+                      scanId={persistedScanId}
+                      analyzingVideos={analyzingVideos}
+                    />
+                  )}
+
+                  {/* 5. Low-Risk Mentions (collapsed by default) */}
+                  {lowRiskHits.length > 0 && (!threatsOnly || showLowRiskSection) && (
+                    <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Eye className="size-4 text-muted-foreground" />
+                          <h3 className="text-sm font-semibold">
+                            Low-Risk Mentions ({lowRiskHits.length})
+                          </h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowLowRiskSection((v) => !v)}
+                          className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent font-medium cursor-pointer"
+                        >
+                          {showLowRiskSection
+                            ? "Hide Low-Risk Mentions"
+                            : `Show Low-Risk Mentions (${lowRiskHits.length})`}
+                        </button>
+                      </div>
+                      {showLowRiskSection && (
+                        <Bucket
+                          title=""
+                          icon={<Eye className="size-4" />}
+                          hits={lowRiskHits}
+                          onPromote={promote}
+                          added={added}
+                          entityTerms={entityTerms}
+                          scanId={persistedScanId}
+                          analyzingVideos={analyzingVideos}
+                          hideCard
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* 6. Neutral / Official Content (collapsed by default) */}
+                  {neutralHits.length > 0 && (!threatsOnly || showNeutralSection) && (
+                    <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Globe className="size-4 text-muted-foreground" />
+                          <h3 className="text-sm font-semibold">
+                            Neutral / Official Content ({neutralHits.length})
+                          </h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowNeutralSection((v) => !v)}
+                          className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent font-medium cursor-pointer"
+                        >
+                          {showNeutralSection
+                            ? "Hide Neutral / Official"
+                            : `Show Neutral / Official (${neutralHits.length})`}
+                        </button>
+                      </div>
+                      {showNeutralSection && (
+                        <Bucket
+                          title=""
+                          icon={<Globe className="size-4" />}
+                          hits={neutralHits}
+                          onPromote={promote}
+                          added={added}
+                          entityTerms={entityTerms}
+                          scanId={persistedScanId}
+                          analyzingVideos={analyzingVideos}
+                          hideCard
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
 
           <PageCard title="METHODOLOGY & LIMITATIONS" sub="How Eterna AI produced this report">
             <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
@@ -2257,6 +2280,31 @@ function ResultCard({
         <div className="text-[11px] rounded-lg px-3 py-2 border border-dashed border-border bg-muted/40">
           <span className="font-semibold text-foreground">Recommended:</span> {h.recommendedAction}
         </div>
+
+        {/* Why this is dangerous explanation box for critical/high threats */}
+        {(h.severity === "Critical" || h.severity === "High") && (
+          <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs space-y-1.5 text-left">
+            <div className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-1.5">
+              <AlertTriangle className="size-3.5" /> Why this is dangerous
+            </div>
+            {(() => {
+              const exp = generateThreatExplanation(h);
+              return (
+                <>
+                  <div className="text-muted-foreground font-medium">{exp.reason}</div>
+                  <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
+                    {exp.points.map((p, idx) => (
+                      <li key={idx}>{p}</li>
+                    ))}
+                  </ul>
+                  <div className="text-[11px] font-semibold text-red-600 dark:text-red-400 pt-0.5">
+                    Impact: {exp.impact}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
 
         {isYouTube && h.media?.videoId && (
           <div className="flex items-center justify-between gap-2 -mt-1">
