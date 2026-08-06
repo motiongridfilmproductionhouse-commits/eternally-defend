@@ -17,14 +17,16 @@ export interface ScanTelemetry {
   queries_generated: number;
   queries_executed: number;
   providers_used: string[];
+  candidates_found: number;
   pages_crawled: number;
   images_downloaded: number;
-  face_comparisons_completed: number;
-  deepfake_candidates: number;
-  verified_findings: number;
-  rejected_findings: number;
+  images_compared: number;
+  verified_matches: number;
+  probable_matches: number;
+  rejected_matches: number;
   coverage_pct: number;
   last_heartbeat: string;
+  estimated_remaining_time: string;
   stage_logs: string[];
   stage_failure?: string | null;
 }
@@ -109,15 +111,17 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       queries_generated: 0,
       queries_executed: 0,
       providers_used: [],
+      candidates_found: 0,
       pages_crawled: 0,
       images_downloaded: 0,
-      face_comparisons_completed: 0,
-      deepfake_candidates: 0,
-      verified_findings: 0,
-      rejected_findings: 0,
+      images_compared: 0,
+      verified_matches: 0,
+      probable_matches: 0,
+      rejected_matches: 0,
       coverage_pct: 0,
       last_heartbeat: new Date().toISOString(),
-      stage_logs: ["✓ Identity profile loaded", "✓ Worker dispatched", "✓ Lease acquired"],
+      estimated_remaining_time: "Calculating...",
+      stage_logs: ["✓ Identity loaded", "✓ Worker dispatched", "✓ Lease acquired"],
     };
 
     const updateTelemetry = async (updates: Partial<ScanTelemetry>) => {
@@ -127,7 +131,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         .update({
           error_message: JSON.stringify(telemetry),
           total_queries: telemetry.queries_generated,
-          total_results: telemetry.deepfake_candidates,
+          total_results: telemetry.candidates_found,
         })
         .eq("id", scan.id);
     };
@@ -191,6 +195,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           onProgress: async (p) => {
             executedQueriesCount++;
             if (p.provider && p.provider !== "none") providersSet.add(p.provider);
+            const remainingQueries = uniqueQueries.length - executedQueriesCount;
+            const remSec = remainingQueries * 2;
 
             await updateTelemetry({
               stage: `searching_${p.provider}`,
@@ -198,28 +204,32 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
               current_query: p.query,
               queries_executed: executedQueriesCount,
               providers_used: Array.from(providersSet),
+              candidates_found: telemetry.candidates_found + p.hitsFound,
               coverage_pct: Math.round((executedQueriesCount / uniqueQueries.length) * 100),
+              estimated_remaining_time: `${remSec}s remaining`,
             });
           },
         });
       } catch (discoveryErr) {
         const errMsg = discoveryErr instanceof Error ? discoveryErr.message : String(discoveryErr);
         await updateTelemetry({
-          stage_failure: "FAILED DURING WEB DISCOVERY",
-          stage_logs: [...telemetry.stage_logs, `✖ FAILED DURING WEB DISCOVERY: ${errMsg}`],
+          stage_failure: "FAILED DURING GOOGLE IMAGES",
+          stage_logs: [...telemetry.stage_logs, `✖ FAILED DURING GOOGLE IMAGES: ${errMsg}`],
         });
-        throw new Error(`FAILED DURING WEB DISCOVERY: ${errMsg}`);
+        throw new Error(`FAILED DURING GOOGLE IMAGES: ${errMsg}`);
       }
 
       await updateTelemetry({
         stage: "discovery_complete",
         queries_executed: uniqueQueries.length,
         providers_used: Array.from(providersSet),
+        candidates_found: allHits.length,
         coverage_pct: 100,
+        estimated_remaining_time: "Completing verification...",
         stage_logs: [
           ...telemetry.stage_logs,
-          "✓ Google Images complete",
-          "✓ Web Search complete",
+          "✓ Google Images searched",
+          "✓ Google Web searched",
           "Filtering candidate leads...",
         ],
       });
@@ -235,12 +245,11 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 
       await updateTelemetry({
         stage: "crawling_pages",
-        deepfake_candidates: candidateFilter.accepted.length,
-        rejected_findings: candidateFilter.rejected.length,
+        candidates_found: candidateFilter.accepted.length,
         stage_logs: [
           ...telemetry.stage_logs,
-          `✓ ${candidateFilter.accepted.length} deepfake candidates accepted`,
-          "Crawling candidate pages & extracting media...",
+          `✓ ${candidateFilter.accepted.length} candidate leads ready for crawling`,
+          "Crawling candidate pages & downloading media...",
         ],
       });
 
@@ -253,8 +262,11 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         await updateTelemetry({
           stage: "media_crawled",
           pages_crawled: candidateFilter.accepted.length,
-          images_downloaded: mediaCandidates.filter((m) => m.image_url || m.media_url).length,
-          stage_logs: [...telemetry.stage_logs, "✓ Crawl complete"],
+          images_downloaded: mediaCandidates.filter(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (m) => (m as any).image_url || (m as any).thumbnail_url || m.media_url,
+          ).length,
+          stage_logs: [...telemetry.stage_logs, "✓ Crawl completed", "✓ Images downloaded"],
         });
       } catch (crawlErr) {
         console.warn("[DEEPFAKE] Media crawl partial failure:", crawlErr);
@@ -263,10 +275,18 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           media_url: (hit as any).image_url ?? (hit as any).thumbnail_url ?? null,
         }));
+
+        await updateTelemetry({
+          stage_logs: [...telemetry.stage_logs, "⚠ Crawling partial timeout — leads preserved"],
+        });
       }
 
       // 6. Target Face Profile Filter
       let hiveCandidates = mediaCandidates;
+      let verifiedCount = 0;
+      let probableCount = 0;
+      let rejectedCount = candidateFilter.rejected.length;
+
       if (data.profile_id) {
         try {
           await updateTelemetry({
@@ -283,8 +303,18 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
             userId,
             profileId: data.profile_id,
             candidates: mediaCandidates,
-            similarityThreshold: 88,
+            similarityThreshold: 70,
           });
+
+          verifiedCount = faceResults.matched.filter(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (f) => (f as any).face_similarity >= 95,
+          ).length;
+          probableCount = faceResults.matched.filter(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (f) => (f as any).face_similarity >= 85 && (f as any).face_similarity < 95,
+          ).length;
+          rejectedCount += faceResults.rejected.length;
 
           hiveCandidates = [
             ...faceResults.matched,
@@ -298,14 +328,20 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 
           await updateTelemetry({
             stage: "face_matching_complete",
-            face_comparisons_completed: mediaCandidates.length,
+            images_compared: mediaCandidates.length,
+            verified_matches: verifiedCount,
+            probable_matches: probableCount,
+            rejected_matches: rejectedCount,
             stage_logs: [
               ...telemetry.stage_logs,
-              `✓ Face comparison complete (${faceResults.matched.length} verified face matches)`,
+              `✓ Face matching complete (${verifiedCount} Verified, ${probableCount} Probable)`,
             ],
           });
         } catch (faceErr) {
-          console.warn("[DEEPFAKE] Face comparison skipped due to provider error:", faceErr);
+          const errMsg = faceErr instanceof Error ? faceErr.message : String(faceErr);
+          await updateTelemetry({
+            stage_logs: [...telemetry.stage_logs, `⚠ FAILED DURING FACE MATCHING: ${errMsg}`],
+          });
         }
       }
 
@@ -360,6 +396,10 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         } else {
           classified = hiveResults;
         }
+
+        await updateTelemetry({
+          stage_logs: [...telemetry.stage_logs, "✓ AI analysis complete"],
+        });
       } catch (classErr) {
         console.warn("[DEEPFAKE] Classification error, preserving discovered leads:", classErr);
         classified = candidateFilter.accepted.map((item) => ({
@@ -419,7 +459,12 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           .from("deepfake_findings")
           .upsert(rows, { onConflict: "scan_id,url" });
 
-        if (fErr) console.warn("[deepfake] findings insert warning:", fErr.message);
+        if (fErr) {
+          await updateTelemetry({
+            stage_failure: "FAILED DURING STORAGE",
+            stage_logs: [...telemetry.stage_logs, `✖ FAILED DURING STORAGE: ${fErr.message}`],
+          });
+        }
 
         // Best effort evidence capture
         try {
@@ -438,12 +483,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 
       await updateTelemetry({
         stage: "completed",
-        verified_findings: critical + high + medium,
-        stage_logs: [
-          ...telemetry.stage_logs,
-          "✓ Findings persisted",
-          "✓ Scan completed successfully",
-        ],
+        estimated_remaining_time: "Completed",
+        stage_logs: [...telemetry.stage_logs, "✓ Findings stored", "✓ Scan completed successfully"],
       });
 
       // 9. Finalize Scan Record

@@ -921,34 +921,40 @@ function TelemetryDashboard({
   const queriesExec = telemetry?.queries_executed ?? (scan.status === "completed" ? queriesGen : 0);
   const providers = telemetry?.providers_used?.length
     ? telemetry.providers_used.join(", ")
-    : "Firecrawl, Brave, SerpAPI, Reddit, Web";
+    : "Google Images, Firecrawl, Brave, SerpAPI, Reddit, Web";
+  const candidatesFound = telemetry?.candidates_found ?? discoveriesCount;
   const pagesCrawled = telemetry?.pages_crawled ?? discoveriesCount;
   const imagesDownloaded = telemetry?.images_downloaded ?? discoveriesCount;
-  const faceMatches = telemetry?.face_comparisons_completed ?? 0;
-  const candidates = telemetry?.deepfake_candidates ?? discoveriesCount;
-  const verified =
-    telemetry?.verified_findings ?? scan.critical_count + scan.high_count + scan.medium_count;
-  const rejected = telemetry?.rejected_findings ?? scan.low_count;
-  const coveragePct =
-    telemetry?.coverage_pct ??
-    (scan.status === "completed" ? 100 : Math.round((queriesExec / Math.max(queriesGen, 1)) * 100));
+  const imagesCompared = telemetry?.images_compared ?? findingsCount;
+  const verifiedMatches = telemetry?.verified_matches ?? scan.critical_count + scan.high_count;
+  const probableMatches = telemetry?.probable_matches ?? scan.medium_count;
+  const rejectedMatches = telemetry?.rejected_matches ?? scan.low_count;
+
   const currentProvider =
-    telemetry?.current_provider ?? (isRunning ? "multi-provider" : "completed");
+    telemetry?.current_provider ?? (isRunning ? "google_images" : "completed");
+  const currentQuery = telemetry?.current_query ?? scan.target_name;
   const currentStage = telemetry?.stage ?? (isRunning ? "executing_discovery" : scan.status);
+  const estimatedTime =
+    telemetry?.estimated_remaining_time ?? (isRunning ? "25s remaining" : "Completed");
   const heartbeat = telemetry?.last_heartbeat
     ? new Date(telemetry.last_heartbeat).toLocaleTimeString()
     : new Date(scan.started_at).toLocaleTimeString();
 
   return (
     <div className="card-surface p-4 space-y-4 border border-border/80 shadow-sm">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Radar className={`size-4 text-primary ${isRunning ? "animate-spin" : ""}`} />
           <h3 className="text-sm font-bold">Deepfake Discovery Live Telemetry</h3>
         </div>
-        <Badge variant={isRunning ? "default" : isFailed ? "destructive" : "outline"}>
-          {currentStage.toUpperCase()}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[10px]">
+            {estimatedTime}
+          </Badge>
+          <Badge variant={isRunning ? "default" : isFailed ? "destructive" : "outline"}>
+            {currentStage.toUpperCase()}
+          </Badge>
+        </div>
       </div>
 
       {isFailed && (
@@ -978,8 +984,8 @@ function TelemetryDashboard({
           <div className="font-bold text-sm text-primary">{queriesExec}</div>
         </div>
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20">
-          <div className="text-[10px] text-muted-foreground">Coverage</div>
-          <div className="font-bold text-sm text-emerald-500">{coveragePct}%</div>
+          <div className="text-[10px] text-muted-foreground">Candidates Found</div>
+          <div className="font-bold text-sm text-amber-500">{candidatesFound}</div>
         </div>
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20">
           <div className="text-[10px] text-muted-foreground">Current Provider</div>
@@ -995,33 +1001,34 @@ function TelemetryDashboard({
           <div className="font-bold text-sm">{imagesDownloaded}</div>
         </div>
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20">
-          <div className="text-[10px] text-muted-foreground">Face Matches</div>
-          <div className="font-bold text-sm">{faceMatches}</div>
+          <div className="text-[10px] text-muted-foreground">Images Compared</div>
+          <div className="font-bold text-sm">{imagesCompared}</div>
         </div>
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20">
-          <div className="text-[10px] text-muted-foreground">Deepfake Candidates</div>
-          <div className="font-bold text-sm text-amber-500">{candidates}</div>
+          <div className="text-[10px] text-muted-foreground">Verified Matches</div>
+          <div className="font-bold text-sm text-emerald-500">{verifiedMatches}</div>
         </div>
 
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20">
-          <div className="text-[10px] text-muted-foreground">Verified Findings</div>
-          <div className="font-bold text-sm text-emerald-500">{verified}</div>
+          <div className="text-[10px] text-muted-foreground">Probable Matches</div>
+          <div className="font-bold text-sm text-blue-400">{probableMatches}</div>
         </div>
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20">
-          <div className="text-[10px] text-muted-foreground">Rejected Findings</div>
-          <div className="font-bold text-sm">{rejected}</div>
+          <div className="text-[10px] text-muted-foreground">Rejected Matches</div>
+          <div className="font-bold text-sm text-muted-foreground">{rejectedMatches}</div>
         </div>
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20 col-span-2">
-          <div className="text-[10px] text-muted-foreground">Providers Used</div>
-          <div className="font-medium text-xs truncate">{providers}</div>
+          <div className="text-[10px] text-muted-foreground">Current Query</div>
+          <div className="font-medium text-xs truncate">{currentQuery}</div>
         </div>
       </div>
 
       {/* Stage-level checklist */}
       {telemetry?.stage_logs && telemetry.stage_logs.length > 0 && (
         <div className="rounded-md border border-border/60 bg-muted/20 p-2.5 space-y-1 text-xs">
-          <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">
-            Stage Diagnostics
+          <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 flex items-center justify-between">
+            <span>Stage Diagnostics</span>
+            <span>Providers: {providers}</span>
           </div>
           {telemetry.stage_logs.map((log, idx) => (
             <div key={idx} className="flex items-center gap-1.5 text-[11px]">
@@ -1032,11 +1039,12 @@ function TelemetryDashboard({
               ) : (
                 <Loader2 className="size-3 text-primary animate-spin shrink-0" />
               )}
-              <span>{log.replace(/^[✓✖]\s*/, "")}</span>
+              <span>{log.replace(/^[✓✖⚠]\s*/, "")}</span>
             </div>
           ))}
-          <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/40 mt-1">
-            Last heartbeat: {heartbeat}
+          <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/40 mt-1 flex justify-between">
+            <span>Last heartbeat: {heartbeat}</span>
+            <span>Est. Remaining: {estimatedTime}</span>
           </div>
         </div>
       )}

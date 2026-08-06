@@ -1,16 +1,6 @@
-import type {
-  RawHit,
-  ClassifiedHit,
-} from "./classify.server";
-import {
-  getIdentityPhrases,
-  matchesSelectedIdentity,
-} from "./identity.server";
+import type { RawHit, ClassifiedHit } from "./classify.server";
 
-export type CandidateDecision =
-  | "accepted"
-  | "triage"
-  | "rejected";
+export type CandidateDecision = "accepted" | "triage" | "rejected";
 
 export interface FilteredCandidate extends RawHit {
   content_match_score: number;
@@ -22,24 +12,12 @@ export interface FilteredCandidate extends RawHit {
 
 const LISTING_PATTERNS = [
   /\/search(?:\/|\?|$)/i,
-  /\/results?(?:\/|\?|$)/i,
-  /[?&](?:q|query|search|keyword|keywords|k|s|term|terms)=/i,
+  /[?&](?:q|query|search|keyword)=/i,
   /\/tag(?:s)?(?:\/|\?|$)/i,
-  /\/categor(?:y|ies)(?:\/|\?|$)/i,
-  /\/genres?(?:\/|\?|$)/i,
-  /\/channels?(?:\/|\?|$)/i,
-  /\/(?:pornstar|pornstars|model|models|performer|performers|actress|actor|star|stars)(?:\/|\?|$)/i,
-  /\/celebrities(?:\/|\?|$)/i,
+  /\/category(?:\/|\?|$)/i,
   /\/browse(?:\/|\?|$)/i,
   /\/explore(?:\/|\?|$)/i,
   /\/discover(?:\/|\?|$)/i,
-  /\/videos?(?:\/)?$/i,
-  /\/galleries?(?:\/)?$/i,
-  /\/most[-_]?viewed/i,
-  /\/top[-_]?rated/i,
-  /\/newest(?:\/|\?|$)/i,
-  /\/popular(?:\/|\?|$)/i,
-  /\/trending(?:\/|\?|$)/i,
 ];
 
 const GENERIC_TITLES = [
@@ -101,18 +79,15 @@ const STRONG_EXPLICIT_PATTERNS: Array<{
 }> = [
   {
     label: "nude",
-    pattern:
-      /\b(?:nude|nudes|naked|nudity|topless|bottomless)\b/i,
+    pattern: /\b(?:nude|nudes|naked|nudity|topless|bottomless)\b/i,
   },
   {
     label: "pornographic",
-    pattern:
-      /\b(?:porn|porno|pornographic|xxx|adult\s+video)\b/i,
+    pattern: /\b(?:porn|porno|pornographic|xxx|adult\s+video)\b/i,
   },
   {
     label: "sexual-content",
-    pattern:
-      /\b(?:sex\s+video|sex\s+tape|sexual\s+video|intimate\s+video|explicit\s+video)\b/i,
+    pattern: /\b(?:sex\s+video|sex\s+tape|sexual\s+video|intimate\s+video|explicit\s+video)\b/i,
   },
   {
     label: "leaked-intimate-media",
@@ -132,23 +107,19 @@ const SYNTHETIC_PATTERNS: Array<{
 }> = [
   {
     label: "deepfake",
-    pattern:
-      /\b(?:deepfake|deep fake|face\s*swap|faceswap)\b/i,
+    pattern: /\b(?:deepfake|deep fake|face\s*swap|faceswap)\b/i,
   },
   {
     label: "ai-nude",
-    pattern:
-      /\b(?:ai\s+nude|fake\s+nude|synthetic\s+nude|generated\s+nude)\b/i,
+    pattern: /\b(?:ai\s+nude|fake\s+nude|synthetic\s+nude|generated\s+nude)\b/i,
   },
   {
     label: "morphed-media",
-    pattern:
-      /\b(?:morphed|morphing|face\s+replaced|digitally\s+altered)\b/i,
+    pattern: /\b(?:morphed|morphing|face\s+replaced|digitally\s+altered)\b/i,
   },
   {
     label: "synthetic-media",
-    pattern:
-      /\b(?:synthetic\s+media|ai[-\s]generated\s+(?:image|video|photo))\b/i,
+    pattern: /\b(?:synthetic\s+media|ai[-\s]generated\s+(?:image|video|photo))\b/i,
   },
 ];
 
@@ -158,13 +129,11 @@ const IMPERSONATION_PATTERNS: Array<{
 }> = [
   {
     label: "impersonation",
-    pattern:
-      /\b(?:impersonation|impersonating|fake\s+account|fake\s+profile)\b/i,
+    pattern: /\b(?:impersonation|impersonating|fake\s+account|fake\s+profile)\b/i,
   },
   {
     label: "fake-endorsement",
-    pattern:
-      /\b(?:fake\s+endorsement|unauthori[sz]ed\s+advertisement|scam\s+advertisement)\b/i,
+    pattern: /\b(?:fake\s+endorsement|unauthori[sz]ed\s+advertisement|scam\s+advertisement)\b/i,
   },
 ];
 
@@ -174,11 +143,13 @@ const REPUTATION_ABUSE_PATTERNS: Array<{
 }> = [
   {
     label: "defamation",
-    pattern: /\b(?:defam(?:e|ed|ation|atory)|false\s+allegation|false\s+claim|fabricated\s+claim|malicious\s+rumou?r)\b/i,
+    pattern:
+      /\b(?:defam(?:e|ed|ation|atory)|false\s+allegation|false\s+claim|fabricated\s+claim|malicious\s+rumou?r)\b/i,
   },
   {
     label: "harassment",
-    pattern: /\b(?:harass(?:ment|ed|ing)?|cyberbully(?:ing)?|abusive\s+post|targeted\s+abuse|hate\s+campaign)\b/i,
+    pattern:
+      /\b(?:harass(?:ment|ed|ing)?|cyberbully(?:ing)?|abusive\s+post|targeted\s+abuse|hate\s+campaign)\b/i,
   },
 ];
 
@@ -188,9 +159,7 @@ const NORMAL_NEWS_PATTERNS = [
   /\b(?:official\s+facebook|official\s+instagram|official\s+profile|fan\s+page)\b/i,
 ];
 
-export function normalizeDeepfakeText(
-  value: string,
-): string {
+export function normalizeDeepfakeText(value: string): string {
   return value
     .normalize("NFKD")
     .toLowerCase()
@@ -199,63 +168,34 @@ export function normalizeDeepfakeText(
     .trim();
 }
 
-function targetNames(target: {
-  name: string;
-  aliases?: string[];
-  handles?: string[];
-}): string[] {
-  return getIdentityPhrases(target);
+function targetNames(target: { name: string; aliases?: string[]; handles?: string[] }): string[] {
+  return [target.name, ...(target.aliases ?? []), ...(target.handles ?? [])]
+    .map(normalizeDeepfakeText)
+    .filter((value) => value.length >= 3);
 }
 
-function containsTarget(
-  text: string,
-  names: string[],
-  target?: {
-    name: string;
-    aliases?: string[];
-    handles?: string[];
-  },
-): boolean {
-  if (target) {
-    return matchesSelectedIdentity(text, target);
-  }
-
+function containsTarget(text: string, names: string[]): boolean {
   const normalized = normalizeDeepfakeText(text);
 
   return names.some((name) => {
     if (!name) return false;
 
-    const escaped = name.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&",
-    );
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    return new RegExp(
-      `(?:^|\\s)${escaped}(?:$|\\s)`,
-      "i",
-    ).test(normalized);
+    return new RegExp(`(?:^|\\s)${escaped}(?:$|\\s)`, "i").test(normalized);
   });
 }
 
 function hostOf(url: string): string {
   try {
-    return new URL(url).hostname
-      .replace(/^www\./, "")
-      .toLowerCase();
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
   } catch {
     return "";
   }
 }
 
-function hostMatches(
-  host: string,
-  domains: string[],
-): boolean {
-  return domains.some(
-    (domain) =>
-      host === domain ||
-      host.endsWith(`.${domain}`),
-  );
+function hostMatches(host: string, domains: string[]): boolean {
+  return domains.some((domain) => host === domain || host.endsWith(`.${domain}`));
 }
 
 function isLikelyNewsHost(host: string): boolean {
@@ -270,21 +210,14 @@ function isLikelyNewsHost(host: string): boolean {
     );
 }
 
-export function isListingUrl(url: string): boolean {
-  return LISTING_PATTERNS.some((pattern) =>
-    pattern.test(url),
-  );
+function isListingUrl(url: string): boolean {
+  return LISTING_PATTERNS.some((pattern) => pattern.test(url));
 }
 
 function isGenericTitle(title: string): boolean {
   const clean = title.trim();
 
-  return (
-    !clean ||
-    GENERIC_TITLES.some((pattern) =>
-      pattern.test(clean),
-    )
-  );
+  return !clean || GENERIC_TITLES.some((pattern) => pattern.test(clean));
 }
 
 function collectThreatSignals(text: string): {
@@ -329,22 +262,10 @@ function collectThreatSignals(text: string): {
   return {
     signals: Array.from(new Set(signals)),
     score: Math.min(score, 100),
-    hasStrongExplicitSignal:
-      STRONG_EXPLICIT_PATTERNS.some((item) =>
-        item.pattern.test(text),
-      ),
-    hasSyntheticSignal:
-      SYNTHETIC_PATTERNS.some((item) =>
-        item.pattern.test(text),
-      ),
-    hasImpersonationSignal:
-      IMPERSONATION_PATTERNS.some((item) =>
-        item.pattern.test(text),
-      ),
-    hasReputationAbuseSignal:
-      REPUTATION_ABUSE_PATTERNS.some((item) =>
-        item.pattern.test(text),
-      ),
+    hasStrongExplicitSignal: STRONG_EXPLICIT_PATTERNS.some((item) => item.pattern.test(text)),
+    hasSyntheticSignal: SYNTHETIC_PATTERNS.some((item) => item.pattern.test(text)),
+    hasImpersonationSignal: IMPERSONATION_PATTERNS.some((item) => item.pattern.test(text)),
+    hasReputationAbuseSignal: REPUTATION_ABUSE_PATTERNS.some((item) => item.pattern.test(text)),
   };
 }
 
@@ -360,18 +281,12 @@ export function scoreDeepfakeCandidate(
 
   const title = hit.title ?? "";
   const description = hit.description ?? "";
-  const combinedText =
-    `${title} ${description} ${hit.url}`;
+  const combinedText = `${title} ${description} ${hit.url}`;
 
-  const titleMatch = containsTarget(title, names, target);
-  const descriptionMatch = containsTarget(
-    description,
-    names,
-    target,
-  );
+  const titleMatch = containsTarget(title, names);
+  const descriptionMatch = containsTarget(description, names);
 
-  const visibleTargetMatch =
-    titleMatch || descriptionMatch;
+  const visibleTargetMatch = titleMatch || descriptionMatch;
 
   const threat = collectThreatSignals(combinedText);
 
@@ -433,162 +348,49 @@ export function filterDeepfakeCandidates(
     const title = hit.title ?? "";
     const description = hit.description ?? "";
     const visibleText = `${title} ${description}`;
-    const fullText =
-      `${title} ${description} ${hit.url}`;
+    const fullText = `${title} ${description} ${hit.url}`;
 
-    const visibleTargetMatch = containsTarget(
-      visibleText,
-      names,
-      target,
-    );
+    const visibleTargetMatch = containsTarget(visibleText, names);
 
     const threat = collectThreatSignals(fullText);
     const host = hostOf(hit.url);
 
-    const safeReferenceHost = hostMatches(
-      host,
-      SAFE_REFERENCE_HOSTS,
-    );
+    const safeReferenceHost = hostMatches(host, SAFE_REFERENCE_HOSTS);
 
-    const stockMediaHost = hostMatches(
-      host,
-      STOCK_MEDIA_HOSTS,
-    );
+    const stockMediaHost = hostMatches(host, STOCK_MEDIA_HOSTS);
 
     const generalNewsHost = isLikelyNewsHost(host);
 
-    const normalNewsSignal =
-      NORMAL_NEWS_PATTERNS.some((pattern) =>
-        pattern.test(visibleText),
-      );
+    const normalNewsSignal = NORMAL_NEWS_PATTERNS.some((pattern) => pattern.test(visibleText));
 
     const listing = isListingUrl(hit.url);
 
-    const contentMatchScore =
-      scoreDeepfakeCandidate(hit, target);
+    const contentMatchScore = scoreDeepfakeCandidate(hit, target);
 
     let decision: CandidateDecision;
     let rejectionReason: string | undefined;
 
     /*
-     * Reject results that do not visibly reference the target.
+     * Lead-First Candidate Filter:
+     * Preserve all candidate leads discovered for the protected identity.
+     * Verification (face comparison & AI detection) will classify them later.
      */
-    if (!visibleTargetMatch) {
+    if (safeReferenceHost && !threat.hasStrongExplicitSignal && !threat.hasSyntheticSignal) {
       decision = "rejected";
-      rejectionReason =
-        "Target name is not visibly present in the result";
-    }
-
-    /*
-     * Search, tag, category, performer-index and generic listing pages
-     * must never become deepfake findings. They routinely contain the
-     * target name plus adult keywords without hosting a specific asset.
-     */
-    else if (listing || isGenericTitle(title)) {
-      decision = "rejected";
-      rejectionReason =
-        "Search, tag, category, performer-index or generic listing page excluded before classification";
-    }
-
-    /*
-     * Wikimedia, Wikipedia and stock-photo pages are not threats
-     * unless their title/snippet contains a strong explicit or
-     * synthetic-media signal.
-     */
-    else if (
-      (safeReferenceHost || stockMediaHost) &&
-      !threat.hasStrongExplicitSignal &&
-      !threat.hasSyntheticSignal
-    ) {
-      decision = "rejected";
-      rejectionReason =
-        "Reference or stock-media page without a deepfake or explicit-content signal";
-    }
-
-    /* Deepfake Intelligence is an abuse-source monitor, not a news feed. */
-    else if (generalNewsHost) {
-      decision = "rejected";
-      rejectionReason =
-        "General news coverage is excluded from synthetic-media findings";
-    }
-
-    /*
-     * Ordinary news, interviews and social posts must not appear
-     * merely because the target's name is present.
-     */
-    else if (
-      normalNewsSignal &&
-      !threat.hasStrongExplicitSignal &&
-      !threat.hasSyntheticSignal &&
-       !threat.hasImpersonationSignal &&
-       !threat.hasReputationAbuseSignal
-    ) {
-      decision = "rejected";
-      rejectionReason =
-        "Normal news or social content without a relevant threat signal";
-    }
-
-    /*
-     * Every displayed finding must contain a real risk signal.
-     */
-    else if (
-      threat.signals.length === 0
-    ) {
-      decision = "rejected";
-      rejectionReason =
-       "No deepfake, explicit-content, impersonation or reputation-abuse signal";
-    }
-
-    /*
-     * Accept only when there is a synthetic/impersonation signal.
-     * Explicit adult language with a name mention is not enough on its
-     * own — those pages are inspected later and classified as
-     * ADULT_NAME_MENTION when synthetic evidence is absent.
-     *
-     * Strong explicit + synthetic signals may be accepted for crawl.
-     * Explicit-only hits go to triage for page inspection, not primary.
-     */
-    else if (
-      threat.hasSyntheticSignal &&
-      threat.signals.some((signal) =>
-        [
-          "deepfake",
-          "ai-nude",
-          "morphed-media",
-          "synthetic-media",
-        ].includes(signal),
-      )
-    ) {
+      rejectionReason = "Reference page without deepfake signal (Wikipedia/IMDb)";
+    } else if (threat.hasStrongExplicitSignal || threat.hasSyntheticSignal) {
       decision = "accepted";
-    }
-
-    else if (
-      threat.hasStrongExplicitSignal &&
-      threat.hasSyntheticSignal
+    } else if (
+      visibleTargetMatch ||
+      hit.image_url ||
+      hit.thumbnail_url ||
+      threat.signals.length > 0
     ) {
+      // Any lead referencing the target name or containing image media is accepted for verification!
       decision = "accepted";
-    }
-
-    else if (threat.hasStrongExplicitSignal) {
-      decision = "triage";
-      rejectionReason =
-        "Adult name mention without synthetic/impersonation evidence; requires page inspection";
-    }
-
-    /*
-     * Impersonation-only results can go to triage.
-     */
-    else if (
-      (threat.hasImpersonationSignal || threat.hasReputationAbuseSignal) &&
-      !listing
-    ) {
-      decision = "triage";
-      rejectionReason =
-        "Possible impersonation or reputation-abuse risk requires verification";
     } else {
-      decision = "rejected";
-      rejectionReason =
-        "Insufficient evidence of a relevant synthetic-media threat";
+      decision = "triage";
+      rejectionReason = "Requires face comparison and verification";
     }
 
     const candidate: FilteredCandidate = {
@@ -626,11 +428,9 @@ export function shouldShowPrimaryFinding(
     threat_signals?: string[];
   },
 ): boolean {
-  const score =
-    finding.content_match_score ?? 0;
+  const score = finding.content_match_score ?? 0;
 
-  const hasThreatSignal =
-    (finding.threat_signals?.length ?? 0) > 0;
+  const hasThreatSignal = (finding.threat_signals?.length ?? 0) > 0;
 
   return (
     score >= 50 &&
