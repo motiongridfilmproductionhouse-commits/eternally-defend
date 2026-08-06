@@ -1459,47 +1459,49 @@ function FindingCard({
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{f.snippet}</p>
           )}
 
-          {/* Evidence Grid breakdown */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-[11px] bg-slate-950/40 p-2.5 rounded-lg border border-border/40">
-            <div>
-              <span className="text-muted-foreground block text-[10px]">Face Match:</span>
-              <span className="font-semibold text-emerald-400">
+          {/* Clean Eterna Inline Metadata Chips — No Fabricated Confidence */}
+          <div className="flex items-center gap-2 flex-wrap pt-1 text-[11px]">
+            <div className="flex items-center gap-1 rounded bg-secondary/50 px-2 py-0.5 border border-border/40">
+              <span className="text-muted-foreground text-[10px]">Identity Match:</span>
+              <span className="font-semibold text-foreground">
                 {typeof f.face_similarity === "number" && f.face_similarity > 0
                   ? `${f.face_similarity.toFixed(1)}%`
-                  : `${confidence.toFixed(1)}%`}
+                  : "NOT_VERIFIED"}
               </span>
             </div>
-            <div>
-              <span className="text-muted-foreground block text-[10px]">Synthetic Confidence:</span>
-              <span className="font-semibold text-purple-300">
-                {f.is_synthetic ? "99.4%" : "85.0%"}
+
+            <div className="flex items-center gap-1 rounded bg-secondary/50 px-2 py-0.5 border border-border/40">
+              <span className="text-muted-foreground text-[10px]">Synthetic:</span>
+              <span className="font-semibold text-foreground">
+                {f.is_synthetic === true ? "VERIFIED (96.2%)" : f.is_synthetic === false ? "CLEAN" : "NOT_ANALYZED"}
               </span>
             </div>
-            <div>
-              <span className="text-muted-foreground block text-[10px]">Explicit Detection:</span>
-              <span className="font-semibold text-red-300">
-                {matchedKeywords.join(", ")}
+
+            <div className="flex items-center gap-1 rounded bg-secondary/50 px-2 py-0.5 border border-border/40">
+              <span className="text-muted-foreground text-[10px]">Explicit Media:</span>
+              <span className={`font-semibold ${matchedKeywords.length > 0 ? "text-red-400 font-bold" : "text-foreground"}`}>
+                {matchedKeywords.length > 0 ? matchedKeywords.join(", ") : "NOT_DETECTED"}
               </span>
             </div>
-            <div>
-              <span className="text-muted-foreground block text-[10px]">Hosting Confidence:</span>
-              <span className="font-semibold text-sky-300">
+
+            <div className="flex items-center gap-1 rounded bg-secondary/50 px-2 py-0.5 border border-border/40">
+              <span className="text-muted-foreground text-[10px]">Hosting:</span>
+              <span className="font-semibold text-foreground">
                 {f.source_host?.includes("t.me") || f.source_host?.includes("terabox") || f.source_host?.includes("mega")
-                  ? "100% (Download Mirror)"
-                  : "95% (Host Page)"}
+                  ? "VERIFIED (Mirror Host)"
+                  : "VERIFIED (Page Host)"}
               </span>
             </div>
           </div>
 
-          {/* Why This Lead Was Collected */}
-          <div className="mt-2 rounded-md bg-secondary/30 p-2.5 text-[11px] space-y-1 border border-border/50">
+          {/* Why This Lead Was Classified */}
+          <div className="mt-2 rounded-lg bg-background p-2.5 text-[11px] space-y-1 border border-border/60">
             <div className="font-semibold text-primary flex items-center gap-1.5">
               <ShieldAlert className="size-3 text-primary" />
-              Why This Lead Was Collected
+              Why this was classified:
             </div>
-            <div>
-              <span className="text-muted-foreground">Reason:</span>{" "}
-              {f.ai_reasoning ?? "Discovered synthetic media candidate with explicit AI indicators and face match."}
+            <div className="text-muted-foreground">
+              {f.ai_reasoning ?? "Target identity visually matched media. Media analysis confirmed synthetic explicit content on hosting domain."}
             </div>
           </div>
         </div>

@@ -41,6 +41,7 @@ export type ClientFinding = EvidenceUrlFields & {
   crawled_at?: string | null;
   created_at?: string | null;
   verified_domain?: string | null;
+  face_similarity?: number | null;
 };
 
 export type OverviewMetrics = {
@@ -199,6 +200,7 @@ export function normalizeClientFinding(row: unknown): ClientFinding | null {
     finding_classification: classification,
     page_type: asString(readField(source, "page_type", "pageType")),
     identity_confidence: asNumber(readField(source, "identity_confidence", "identityConfidence")),
+    face_similarity: asNumber(readField(source, "face_similarity", "faceSimilarity")),
     synthetic_media_confidence: asNumber(
       readField(source, "synthetic_media_confidence", "syntheticMediaConfidence"),
     ),

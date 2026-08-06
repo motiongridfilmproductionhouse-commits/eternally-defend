@@ -606,3 +606,85 @@ export function classifyPageType(url: string, title = ""): PageTypeCategory {
 
   return "PREVIEW_PAGE";
 }
+
+/**
+ * Strict Canonical Gate — qualifiesForExplicitThreatFeed
+ * Gate A: Target Identity (face_similarity >= 85%)
+ * Gate B: Explicit / Synthetic Media Evidence (media classifier confirmed)
+ * Gate C: Hosting / Distribution Evidence (media host, mirror, preview, gallery)
+ */
+export function qualifiesForExplicitThreatFeed(candidate: {
+  url?: string | null;
+  title?: string | null;
+  snippet?: string | null;
+  face_similarity?: number | null;
+  confidence?: number | null;
+  is_synthetic?: boolean | null;
+  finding_classification?: string | null;
+  page_type?: string | null;
+  takedown_recommended?: boolean | null;
+}): boolean {
+  if (!candidate) return false;
+  const urlLower = (candidate.url || "").toLowerCase();
+  const titleLower = (candidate.title || "").toLowerCase();
+  const cls = (candidate.finding_classification || "").toUpperCase();
+
+  // 1. HARD REJECT COLLAPSED & REJECTED HOSTS
+  if (
+    urlLower.includes("wikipedia.org") ||
+    urlLower.includes("imdb.com") ||
+    urlLower.includes("rottentomatoes.com") ||
+    urlLower.includes(".edu") ||
+    urlLower.includes(".gov") ||
+    urlLower.includes("apps.apple.com") ||
+    urlLower.includes("play.google.com") ||
+    urlLower.includes("amazon.") ||
+    urlLower.includes("asianetnews.") ||
+    urlLower.includes("filmibeat.")
+  ) {
+    return false;
+  }
+
+  // GATE A: Target Identity (face_similarity >= 85%)
+  const sim = candidate.face_similarity ?? candidate.confidence ?? 0;
+  const hasFaceVerified = sim >= 85 || cls.includes("VERIFIED") || cls.includes("PROBABLE");
+  if (!hasFaceVerified) {
+    return false;
+  }
+
+  // GATE B: Explicit / Synthetic Media Evidence
+  const hasMediaSignal =
+    candidate.is_synthetic === true ||
+    cls.includes("EXPLICIT") ||
+    cls.includes("SYNTHETIC") ||
+    cls.includes("FACE_SWAP") ||
+    cls.includes("DEEPFAKE") ||
+    candidate.takedown_recommended === true;
+
+  if (!hasMediaSignal) {
+    return false;
+  }
+
+  // GATE C: Hosting / Distribution Evidence
+  const isHost =
+    urlLower.includes("t.me") ||
+    urlLower.includes("terabox") ||
+    urlLower.includes("mega.nz") ||
+    urlLower.includes("pixeldrain") ||
+    urlLower.includes("mrdeepfakes") ||
+    urlLower.includes("sexcelebrity") ||
+    urlLower.includes("coomer") ||
+    urlLower.includes("nifty") ||
+    urlLower.includes("/video") ||
+    urlLower.includes("/image") ||
+    urlLower.includes(".jpg") ||
+    urlLower.includes(".mp4") ||
+    titleLower.includes("gallery") ||
+    titleLower.includes("download");
+
+  if (!isHost && !candidate.takedown_recommended) {
+    return false;
+  }
+
+  return true;
+}
