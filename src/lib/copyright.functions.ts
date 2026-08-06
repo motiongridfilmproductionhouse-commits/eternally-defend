@@ -633,13 +633,25 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
       .eq("id", data.scanId)
       .single();
     if (error) throw new Error(error.message);
+
     const { data: matches, error: mErr } = await context.supabase
       .from("copyright_matches")
       .select("*")
       .eq("scan_id", data.scanId)
       .order("confidence", { ascending: false });
     if (mErr) throw new Error(mErr.message);
-    return { scan, matches: matches ?? [] };
+
+    const matchRows = matches ?? [];
+    const stats = (scan.stats ?? {}) as Record<string, unknown>;
+    const expectedCount = Number(stats.matches ?? 0);
+
+    if (expectedCount > 0 && matchRows.length === 0) {
+      console.warn(
+        `[CopyrightScan] Diagnostic Warning: scan_id=${data.scanId} has stats.matches=${expectedCount} but copyright_matches query returned 0 rows.`,
+      );
+    }
+
+    return { scan, matches: matchRows };
   });
 
 export const updateCopyrightMatch = createServerFn({ method: "POST" })

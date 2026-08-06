@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -41,6 +41,23 @@ import {
   Image as ImageIcon,
   Mail,
 } from "lucide-react";
+
+type MatchRow = {
+  id: string;
+  confidence: number;
+  confidence_band: string;
+  review_status: string;
+  detection_type: string;
+  platform?: string | null;
+  thumbnail_url?: string | null;
+  source_url: string;
+  page_title?: string | null;
+  reason?: string | null;
+  transformations?: string[];
+  ocr_text?: string | null;
+  evidence?: Record<string, unknown>;
+  contact?: Record<string, string | null>;
+};
 
 export const Route = createFileRoute("/_app/copyright-intel")({
   head: () => ({
@@ -141,6 +158,9 @@ function CopyrightIntelPage() {
 
   const [investigationOpen, setInvestigationOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<unknown>(null);
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "pending" | "verified" | "review_required" | "rejected"
+  >("all");
   const blobToBase64 = async (blob: Blob): Promise<string> => {
     const buffer = await blob.arrayBuffer();
     let binary = "";
@@ -152,6 +172,14 @@ function CopyrightIntelPage() {
   };
 
   const scans = useQuery({ queryKey: ["copyright-scans"], queryFn: () => listFn({}) });
+
+  // Auto-select the latest scan if none is manually selected yet
+  useEffect(() => {
+    if (!selectedScanId && scans.data && scans.data.length > 0) {
+      setSelectedScanId(scans.data[0].id);
+    }
+  }, [scans.data, selectedScanId]);
+
   const detail = useQuery({
     queryKey: ["copyright-scan", selectedScanId],
     queryFn: () => {
@@ -160,6 +188,34 @@ function CopyrightIntelPage() {
     },
     enabled: !!selectedScanId,
   });
+
+  const matches = useMemo(() => (detail.data?.matches ?? []) as MatchRow[], [detail.data]);
+
+  // Diagnostic warning if stats.matches > 0 but 0 rows returned
+  useEffect(() => {
+    if (selectedScanId && detail.data) {
+      const sStats = (detail.data.scan?.stats ?? {}) as Record<string, unknown>;
+      const expectedMatches = Number(sStats.matches ?? 0);
+      const returnedRows = detail.data.matches?.length ?? 0;
+      if (expectedMatches > 0 && returnedRows === 0) {
+        console.warn(
+          `[CopyrightIntel] Diagnostic Warning: scan_id="${selectedScanId}" (title: "${detail.data.scan?.title}") has stats.matches=${expectedMatches} but copyright_matches query returned 0 rows.`,
+        );
+      }
+    }
+  }, [selectedScanId, detail.data]);
+
+  const filteredMatches = useMemo(() => {
+    if (statusFilter === "pending") return matches.filter((m) => m.review_status === "pending");
+    if (statusFilter === "verified")
+      return matches.filter((m) => m.confidence >= 90 || m.confidence_band === "confirmed");
+    if (statusFilter === "review_required")
+      return matches.filter(
+        (m) => m.confidence_band === "probable" || m.review_status === "evidence_ready",
+      );
+    if (statusFilter === "rejected") return matches.filter((m) => m.review_status === "dismissed");
+    return matches;
+  }, [matches, statusFilter]);
 
   const scan = useMutation({
     mutationFn: async () => {
@@ -257,8 +313,6 @@ function CopyrightIntelPage() {
     }) => updFn({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["copyright-scan", selectedScanId] }),
   });
-
-  const matches = detail.data?.matches ?? [];
 
   return (
     <div className="space-y-6">
@@ -458,8 +512,6 @@ function CopyrightIntelPage() {
         </DialogContent>
       </Dialog>
 
-      <DistributionMonitorPanel />
-
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <aside className="space-y-2">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -502,7 +554,7 @@ function CopyrightIntelPage() {
             </p>
           )}
           {selectedScanId && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {(() => {
                 const sDetail = detail.data?.scan;
                 const sStats = (sDetail?.stats ?? {}) as Record<string, unknown>;
@@ -510,40 +562,66 @@ function CopyrightIntelPage() {
                   (m) => m.confidence >= 90 || m.confidence_band === "confirmed",
                 ).length;
                 const pendingCnt = matches.filter((m) => m.review_status === "pending").length;
+                const reviewReqCnt = matches.filter(
+                  (m) => m.confidence_band === "probable" || m.review_status === "evidence_ready",
+                ).length;
+                const rejectedCnt = matches.filter((m) => m.review_status === "dismissed").length;
                 const candPages = sStats.candidate_pages ?? sStats.candidates ?? matches.length;
                 const crwPages = sStats.crawled_pages ?? sStats.graded ?? matches.length;
 
                 return (
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 backdrop-blur">
-                    <div>
-                      <div className="text-lg font-semibold">{matches.length}</div>
-                      <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Detected Threats
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 backdrop-blur">
+                      <div>
+                        <div className="text-lg font-semibold">{matches.length}</div>
+                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Detected Threats
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-semibold text-emerald-400">{verifiedCnt}</div>
+                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Verified
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-semibold text-amber-400">{pendingCnt}</div>
+                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Pending Review
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-semibold">{String(candPages)}</div>
+                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Candidate Pages
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-semibold">{String(crwPages)}</div>
+                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Crawled Pages
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <div className="text-lg font-semibold text-emerald-400">{verifiedCnt}</div>
-                      <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Verified
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold text-amber-400">{pendingCnt}</div>
-                      <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Pending Review
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold">{String(candPages)}</div>
-                      <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Candidate Pages
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold">{String(crwPages)}</div>
-                      <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Crawled Pages
-                      </div>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {[
+                        { id: "all", label: "All Findings", count: matches.length },
+                        { id: "pending", label: "Pending Review", count: pendingCnt },
+                        { id: "verified", label: "Verified", count: verifiedCnt },
+                        { id: "review_required", label: "Review Required", count: reviewReqCnt },
+                        { id: "rejected", label: "Rejected", count: rejectedCnt },
+                      ].map((tab) => (
+                        <Button
+                          key={tab.id}
+                          size="sm"
+                          variant={statusFilter === tab.id ? "default" : "outline"}
+                          onClick={() => setStatusFilter(tab.id as typeof statusFilter)}
+                          className="h-7 text-xs"
+                        >
+                          {tab.label} ({tab.count})
+                        </Button>
+                      ))}
                     </div>
                   </div>
                 );
@@ -561,13 +639,13 @@ function CopyrightIntelPage() {
                   {detail.isLoading && (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   )}
-                  {selectedScanId && !detail.isLoading && !matches.length && (
+                  {selectedScanId && !detail.isLoading && !filteredMatches.length && (
                     <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
-                      No candidate matches found for this reference.
+                      No matches found under this filter for this reference.
                     </div>
                   )}
 
-                  {matches.map((m) => {
+                  {filteredMatches.map((m) => {
                     const band = BAND[m.confidence_band] ?? BAND.review;
                     const ev = (m.evidence ?? {}) as Record<string, unknown>;
                     const contact = (m.contact ?? {}) as Record<string, string | null>;
@@ -782,6 +860,19 @@ function CopyrightIntelPage() {
           )}
         </section>
       </div>
+
+      <section className="space-y-3 pt-6 border-t border-border/60">
+        <div>
+          <h2 className="text-sm font-semibold">
+            Previously Monitored Sources & Automated Distribution Radar
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Registered sources automatically re-crawled across background monitoring runs.
+          </p>
+        </div>
+        <DistributionMonitorPanel />
+      </section>
+
       <InvestigationModal
         open={investigationOpen}
         onOpenChange={setInvestigationOpen}
