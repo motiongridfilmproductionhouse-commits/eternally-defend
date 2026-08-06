@@ -44,8 +44,8 @@ export function V2ProfileStep({ profile, accountType, onSaved }: { profile: any;
       await save({ data: form });
       await onSaved();
       toast.success("Profile saved.");
-    } catch (error: any) {
-      toast.error(error?.message ?? "Unable to save profile");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Unable to save profile");
     } finally {
       setBusy(false);
     }

@@ -26,8 +26,8 @@ export function AccountTypeStep({ onSelected }: { onSelected: () => Promise<void
       await choose({ data: { account_type: selected } });
       await onSelected();
       toast.success("Account type saved.");
-    } catch (error: any) {
-      toast.error(error?.message ?? "Unable to save account type");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Unable to save account type");
     } finally {
       setBusy(false);
     }

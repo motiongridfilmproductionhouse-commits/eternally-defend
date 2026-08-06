@@ -37,10 +37,16 @@ import { Route as AppCopyrightIntelRouteImport } from './routes/_app.copyright-i
 import { Route as AppChannelWatchRouteImport } from './routes/_app.channel-watch'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
+import { Route as PartnerPartnerIndexRouteImport } from './routes/_partner.partner.index'
 import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
 import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
 import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public/image-proxy'
 import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
+import { Route as PartnerPartnerProposalsRouteImport } from './routes/_partner.partner.proposals'
+import { Route as PartnerPartnerPaymentsRouteImport } from './routes/_partner.partner.payments'
+import { Route as PartnerPartnerMarketingRouteImport } from './routes/_partner.partner.marketing'
+import { Route as PartnerPartnerCommissionsRouteImport } from './routes/_partner.partner.commissions'
+import { Route as PartnerPartnerClientsRouteImport } from './routes/_partner.partner.clients'
 import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes/_app.sensitive-protection.removal-cases'
 import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
 import { Route as AppAdminSensitiveProtectionRouteImport } from './routes/_app.admin.sensitive-protection'
@@ -199,6 +205,11 @@ const AppAssetsRoute = AppAssetsRouteImport.update({
   path: '/assets',
   getParentRoute: () => AppRoute,
 } as any)
+const PartnerPartnerIndexRoute = PartnerPartnerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PartnerPartnerRoute,
+} as any)
 const AppSensitiveProtectionIndexRoute =
   AppSensitiveProtectionIndexRouteImport.update({
     id: '/sensitive-protection/',
@@ -219,6 +230,32 @@ const ApiMediaPreviewRoute = ApiMediaPreviewRouteImport.update({
   id: '/api/media/preview',
   path: '/api/media/preview',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PartnerPartnerProposalsRoute = PartnerPartnerProposalsRouteImport.update({
+  id: '/proposals',
+  path: '/proposals',
+  getParentRoute: () => PartnerPartnerRoute,
+} as any)
+const PartnerPartnerPaymentsRoute = PartnerPartnerPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => PartnerPartnerRoute,
+} as any)
+const PartnerPartnerMarketingRoute = PartnerPartnerMarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => PartnerPartnerRoute,
+} as any)
+const PartnerPartnerCommissionsRoute =
+  PartnerPartnerCommissionsRouteImport.update({
+    id: '/commissions',
+    path: '/commissions',
+    getParentRoute: () => PartnerPartnerRoute,
+  } as any)
+const PartnerPartnerClientsRoute = PartnerPartnerClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => PartnerPartnerRoute,
 } as any)
 const AppSensitiveProtectionRemovalCasesRoute =
   AppSensitiveProtectionRemovalCasesRouteImport.update({
@@ -352,7 +389,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
-  '/partner': typeof PartnerPartnerRoute
+  '/partner': typeof PartnerPartnerRouteWithChildren
   '/api/scan': typeof ApiScanRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -362,10 +399,16 @@ export interface FileRoutesByFullPath {
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
+  '/partner/clients': typeof PartnerPartnerClientsRoute
+  '/partner/commissions': typeof PartnerPartnerCommissionsRoute
+  '/partner/marketing': typeof PartnerPartnerMarketingRoute
+  '/partner/payments': typeof PartnerPartnerPaymentsRoute
+  '/partner/proposals': typeof PartnerPartnerProposalsRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
+  '/partner/': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
@@ -402,7 +445,6 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
-  '/partner': typeof PartnerPartnerRoute
   '/api/scan': typeof ApiScanRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -412,10 +454,16 @@ export interface FileRoutesByTo {
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
+  '/partner/clients': typeof PartnerPartnerClientsRoute
+  '/partner/commissions': typeof PartnerPartnerCommissionsRoute
+  '/partner/marketing': typeof PartnerPartnerMarketingRoute
+  '/partner/payments': typeof PartnerPartnerPaymentsRoute
+  '/partner/proposals': typeof PartnerPartnerProposalsRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
+  '/partner': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
@@ -454,7 +502,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/threat-monitoring': typeof AppThreatMonitoringRoute
   '/_app/threat-radar': typeof AppThreatRadarRoute
-  '/_partner/partner': typeof PartnerPartnerRoute
+  '/_partner/partner': typeof PartnerPartnerRouteWithChildren
   '/api/scan': typeof ApiScanRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/_app/': typeof AppIndexRoute
@@ -465,10 +513,16 @@ export interface FileRoutesById {
   '/_app/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
   '/_app/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/_app/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
+  '/_partner/partner/clients': typeof PartnerPartnerClientsRoute
+  '/_partner/partner/commissions': typeof PartnerPartnerCommissionsRoute
+  '/_partner/partner/marketing': typeof PartnerPartnerMarketingRoute
+  '/_partner/partner/payments': typeof PartnerPartnerPaymentsRoute
+  '/_partner/partner/proposals': typeof PartnerPartnerProposalsRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
+  '/_partner/partner/': typeof PartnerPartnerIndexRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
@@ -517,10 +571,16 @@ export interface FileRouteTypes {
     | '/admin/sensitive-protection'
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
+    | '/partner/clients'
+    | '/partner/commissions'
+    | '/partner/marketing'
+    | '/partner/payments'
+    | '/partner/proposals'
     | '/api/media/preview'
     | '/api/public/image-proxy'
     | '/api/public/veriff-webhook'
     | '/sensitive-protection/'
+    | '/partner/'
     | '/sensitive-protection/results/$id'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
@@ -557,7 +617,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/threat-monitoring'
     | '/threat-radar'
-    | '/partner'
     | '/api/scan'
     | '/verify/$slug'
     | '/admin/diagnostics'
@@ -567,10 +626,16 @@ export interface FileRouteTypes {
     | '/admin/sensitive-protection'
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
+    | '/partner/clients'
+    | '/partner/commissions'
+    | '/partner/marketing'
+    | '/partner/payments'
+    | '/partner/proposals'
     | '/api/media/preview'
     | '/api/public/image-proxy'
     | '/api/public/veriff-webhook'
     | '/sensitive-protection'
+    | '/partner'
     | '/sensitive-protection/results/$id'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
@@ -619,10 +684,16 @@ export interface FileRouteTypes {
     | '/_app/admin/sensitive-protection'
     | '/_app/sensitive-protection/emergency'
     | '/_app/sensitive-protection/removal-cases'
+    | '/_partner/partner/clients'
+    | '/_partner/partner/commissions'
+    | '/_partner/partner/marketing'
+    | '/_partner/partner/payments'
+    | '/_partner/partner/proposals'
     | '/api/media/preview'
     | '/api/public/image-proxy'
     | '/api/public/veriff-webhook'
     | '/_app/sensitive-protection/'
+    | '/_partner/partner/'
     | '/_app/sensitive-protection/results/$id'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
@@ -858,6 +929,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_partner/partner/': {
+      id: '/_partner/partner/'
+      path: '/'
+      fullPath: '/partner/'
+      preLoaderRoute: typeof PartnerPartnerIndexRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
     '/_app/sensitive-protection/': {
       id: '/_app/sensitive-protection/'
       path: '/sensitive-protection'
@@ -885,6 +963,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/media/preview'
       preLoaderRoute: typeof ApiMediaPreviewRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_partner/partner/proposals': {
+      id: '/_partner/partner/proposals'
+      path: '/proposals'
+      fullPath: '/partner/proposals'
+      preLoaderRoute: typeof PartnerPartnerProposalsRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/_partner/partner/payments': {
+      id: '/_partner/partner/payments'
+      path: '/payments'
+      fullPath: '/partner/payments'
+      preLoaderRoute: typeof PartnerPartnerPaymentsRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/_partner/partner/marketing': {
+      id: '/_partner/partner/marketing'
+      path: '/marketing'
+      fullPath: '/partner/marketing'
+      preLoaderRoute: typeof PartnerPartnerMarketingRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/_partner/partner/commissions': {
+      id: '/_partner/partner/commissions'
+      path: '/commissions'
+      fullPath: '/partner/commissions'
+      preLoaderRoute: typeof PartnerPartnerCommissionsRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/_partner/partner/clients': {
+      id: '/_partner/partner/clients'
+      path: '/clients'
+      fullPath: '/partner/clients'
+      preLoaderRoute: typeof PartnerPartnerClientsRouteImport
+      parentRoute: typeof PartnerPartnerRoute
     }
     '/_app/sensitive-protection/removal-cases': {
       id: '/_app/sensitive-protection/removal-cases'
@@ -1081,12 +1194,34 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface PartnerPartnerRouteChildren {
+  PartnerPartnerClientsRoute: typeof PartnerPartnerClientsRoute
+  PartnerPartnerCommissionsRoute: typeof PartnerPartnerCommissionsRoute
+  PartnerPartnerMarketingRoute: typeof PartnerPartnerMarketingRoute
+  PartnerPartnerPaymentsRoute: typeof PartnerPartnerPaymentsRoute
+  PartnerPartnerProposalsRoute: typeof PartnerPartnerProposalsRoute
+  PartnerPartnerIndexRoute: typeof PartnerPartnerIndexRoute
+}
+
+const PartnerPartnerRouteChildren: PartnerPartnerRouteChildren = {
+  PartnerPartnerClientsRoute: PartnerPartnerClientsRoute,
+  PartnerPartnerCommissionsRoute: PartnerPartnerCommissionsRoute,
+  PartnerPartnerMarketingRoute: PartnerPartnerMarketingRoute,
+  PartnerPartnerPaymentsRoute: PartnerPartnerPaymentsRoute,
+  PartnerPartnerProposalsRoute: PartnerPartnerProposalsRoute,
+  PartnerPartnerIndexRoute: PartnerPartnerIndexRoute,
+}
+
+const PartnerPartnerRouteWithChildren = PartnerPartnerRoute._addFileChildren(
+  PartnerPartnerRouteChildren,
+)
+
 interface PartnerRouteChildren {
-  PartnerPartnerRoute: typeof PartnerPartnerRoute
+  PartnerPartnerRoute: typeof PartnerPartnerRouteWithChildren
 }
 
 const PartnerRouteChildren: PartnerRouteChildren = {
-  PartnerPartnerRoute: PartnerPartnerRoute,
+  PartnerPartnerRoute: PartnerPartnerRouteWithChildren,
 }
 
 const PartnerRouteWithChildren =
@@ -1125,12 +1260,3 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

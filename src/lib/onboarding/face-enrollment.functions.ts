@@ -270,17 +270,30 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
       failure_at: null,
     } as any).eq("user_id", userId);
 
-    const { data: progress } = await supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle();
-    const states = {
-      ...(progress?.step_states as Record<string, string> ?? {}),
-      "3": "COMPLETED"
-    };
-    await supabase.from("onboarding_progress").upsert({
-      user_id: userId,
-      current_step: Math.max(progress?.current_step ?? 1, 4),
-      step_states: states,
-      overall_status: "IN_PROGRESS"
-    }, { onConflict: "user_id" });
+    const { upsertProgressPreservingVersion, normalizeOnboardingVersion } = await import(
+      "./version.server"
+    );
+    const { data: progress } = await supabase
+      .from("onboarding_progress")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const version = normalizeOnboardingVersion(progress?.onboarding_version);
+    if (version === "v1") {
+      const states = {
+        ...((progress?.step_states as Record<string, string>) ?? {}),
+        "3": "COMPLETED",
+      };
+      await upsertProgressPreservingVersion(supabase, userId, {
+        current_step: Math.max(progress?.current_step ?? 1, 4),
+        step_states: states,
+        overall_status: "IN_PROGRESS",
+      });
+    } else {
+      await upsertProgressPreservingVersion(supabase, userId, {
+        overall_status: "IN_PROGRESS",
+      });
+    }
 
     return { ok: true, status: "FACE_VERIFIED" as const, confidence: conf, faceIds: savedFaceIds };
   });
@@ -316,46 +329,72 @@ export const revokeBiometrics = createServerFn({ method: "POST" })
   });
 
 /**
- * Defer face enrollment. Requires KYC APPROVED. Marks the face profile DEFERRED
- * and advances onboarding_progress past Step 3 so the user can resume later.
+ * Defer face enrollment. Legacy/v2-individual require KYC APPROVED. v2 celebrity
+ * may defer without Veriff. Marks the face profile DEFERRED.
  */
 export const deferFaceEnrollment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-
-    const { data: kyc } = await supabase
-      .from("kyc_verifications")
-      .select("verification_status")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (kyc?.verification_status !== "APPROVED") {
-      throw new Error("Identity Verification must be APPROVED before deferring Face Protection.");
-    }
-
-    await supabase.from("protected_face_profiles").upsert({
-      user_id: userId,
-      collection_id: collectionIdForUser(userId),
-      status: "DEFERRED",
-    }, { onConflict: "user_id" });
+    const { upsertProgressPreservingVersion, normalizeOnboardingVersion } = await import(
+      "./version.server"
+    );
+    const { isV2AccountType, requiresVeriff } = await import("./v2-config");
 
     const { data: progress } = await supabase
       .from("onboarding_progress")
       .select("*")
       .eq("user_id", userId)
       .maybeSingle();
-    const states = {
-      ...((progress?.step_states as Record<string, string>) ?? {}),
-      "3": "DEFERRED",
-    };
-    await supabase.from("onboarding_progress").upsert({
-      user_id: userId,
-      current_step: Math.max(progress?.current_step ?? 1, 4),
-      step_states: states,
-      overall_status: "IN_PROGRESS",
-    }, { onConflict: "user_id" });
+    const version = normalizeOnboardingVersion(progress?.onboarding_version);
+
+    const { data: profile } = await supabase
+      .from("client_profiles")
+      .select("onboarding_account_type")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const accountType = isV2AccountType(profile?.onboarding_account_type)
+      ? profile.onboarding_account_type
+      : null;
+    const mustHaveKyc = version === "v1" || (accountType ? requiresVeriff(accountType) : true);
+
+    if (mustHaveKyc) {
+      const { data: kyc } = await supabase
+        .from("kyc_verifications")
+        .select("verification_status")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (kyc?.verification_status !== "APPROVED") {
+        throw new Error("Identity Verification must be APPROVED before deferring Face Protection.");
+      }
+    }
+
+    await supabase.from("protected_face_profiles").upsert(
+      {
+        user_id: userId,
+        collection_id: collectionIdForUser(userId),
+        status: "DEFERRED",
+      },
+      { onConflict: "user_id" },
+    );
+
+    if (version === "v1") {
+      const states = {
+        ...((progress?.step_states as Record<string, string>) ?? {}),
+        "3": "DEFERRED",
+      };
+      await upsertProgressPreservingVersion(supabase, userId, {
+        current_step: Math.max(progress?.current_step ?? 1, 4),
+        step_states: states,
+        overall_status: "IN_PROGRESS",
+      });
+    } else {
+      await upsertProgressPreservingVersion(supabase, userId, {
+        overall_status: "IN_PROGRESS",
+      });
+    }
 
     return { ok: true, status: "DEFERRED" as const };
   });
@@ -392,21 +431,30 @@ export const resumeFaceEnrollment = createServerFn({ method: "POST" })
       failure_at: null,
     } as any, { onConflict: "user_id" });
 
+    const { upsertProgressPreservingVersion, normalizeOnboardingVersion } = await import(
+      "./version.server"
+    );
     const { data: progress } = await supabase
       .from("onboarding_progress")
       .select("*")
       .eq("user_id", userId)
       .maybeSingle();
-    const states = {
-      ...((progress?.step_states as Record<string, string>) ?? {}),
-      "3": "IN_PROGRESS",
-    };
-    await supabase.from("onboarding_progress").upsert({
-      user_id: userId,
-      current_step: 3,
-      step_states: states,
-      overall_status: "IN_PROGRESS",
-    }, { onConflict: "user_id" });
+    const version = normalizeOnboardingVersion(progress?.onboarding_version);
+    if (version === "v1") {
+      const states = {
+        ...((progress?.step_states as Record<string, string>) ?? {}),
+        "3": "IN_PROGRESS",
+      };
+      await upsertProgressPreservingVersion(supabase, userId, {
+        current_step: 3,
+        step_states: states,
+        overall_status: "IN_PROGRESS",
+      });
+    } else {
+      await upsertProgressPreservingVersion(supabase, userId, {
+        overall_status: "IN_PROGRESS",
+      });
+    }
 
     return { ok: true, status: nextStatus };
   });
