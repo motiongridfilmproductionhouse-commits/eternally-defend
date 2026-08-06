@@ -317,58 +317,39 @@ export function IdentityScanVisualization({
         transformBox: "fill-box" as const,
         animation: "identityNewThreatPulse 1.4s ease-out 1",
       }
-    : animate && elevated
-      ? mode === "running"
-        ? {
-            transformOrigin: "50% 50%" as const,
-            transformBox: "fill-box" as const,
-            animation: "identityThreatRadar 4.8s ease-in-out infinite",
-          }
-        : {
-            transformOrigin: "50% 50%" as const,
-            transformBox: "fill-box" as const,
-            animation: "identityThreatBreath 3.8s ease-in-out infinite",
-          }
-      : animate && mode === "running"
-        ? {
-            transformOrigin: "50% 50%" as const,
-            transformBox: "fill-box" as const,
-            animation: "identityRingSpin 10s linear infinite",
-          }
-        : animate
-          ? {
-              transformOrigin: "50% 50%" as const,
-              transformBox: "fill-box" as const,
-              animation: "identityBreath 3.6s ease-in-out infinite",
-            }
-          : {
-              transformOrigin: "50% 50%" as const,
-              transformBox: "fill-box" as const,
-            };
-
-  const innerRingAnimation =
-    animate && elevated
+    : prefersReducedMotion || mode === "completed" || mode === "failed"
       ? {
           transformOrigin: "50% 50%" as const,
           transformBox: "fill-box" as const,
-          animation: "identityThreatBreath 3.2s ease-in-out infinite",
         }
-      : animate
-        ? mode === "running"
-          ? {
-              transformOrigin: "50% 50%" as const,
-              transformBox: "fill-box" as const,
-              animation: "identityRingSpin 7s linear infinite reverse",
-            }
-          : {
-              transformOrigin: "50% 50%" as const,
-              transformBox: "fill-box" as const,
-              animation: "identityBreath 3.6s ease-in-out infinite",
-            }
+      : mode === "running"
+        ? {
+            transformOrigin: "50% 50%" as const,
+            transformBox: "fill-box" as const,
+            animation: "identityRingSpin 4s linear infinite",
+          }
         : {
             transformOrigin: "50% 50%" as const,
             transformBox: "fill-box" as const,
+            animation: "identityRingSpin 14s linear infinite",
           };
+
+  const innerRingAnimation = prefersReducedMotion || mode === "completed" || mode === "failed"
+    ? {
+        transformOrigin: "50% 50%" as const,
+        transformBox: "fill-box" as const,
+      }
+    : mode === "running"
+      ? {
+          transformOrigin: "50% 50%" as const,
+          transformBox: "fill-box" as const,
+          animation: "identityRingSpinReverse 7s linear infinite",
+        }
+      : {
+          transformOrigin: "50% 50%" as const,
+          transformBox: "fill-box" as const,
+          animation: "identityRingSpinReverse 20s linear infinite",
+        };
 
   return (
     <section
@@ -698,6 +679,10 @@ export function IdentityScanVisualization({
         @keyframes identityRingSpin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        @keyframes identityRingSpinReverse {
+          from { transform: rotate(360deg); }
+          to { transform: rotate(0deg); }
         }
         @keyframes identityBeam {
           0% { transform: translateY(-30%); opacity: 0.2; }
