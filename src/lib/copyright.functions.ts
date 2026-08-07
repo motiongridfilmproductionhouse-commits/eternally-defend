@@ -185,8 +185,9 @@ export const retryCopyrightScan = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!scan) throw new Error("Scan not found.");
 
-    const keys = (scan.frame_paths ?? []).length
-      ? (scan.frame_paths as string[])
+    const framePaths = Array.isArray(scan.frame_paths) ? (scan.frame_paths as string[]) : [];
+    const keys = framePaths.length
+      ? framePaths
       : scan.storage_path
         ? [scan.storage_path as string]
         : [];
@@ -194,7 +195,7 @@ export const retryCopyrightScan = createServerFn({ method: "POST" })
 
     await supabase
       .from("copyright_scans")
-      .update({ status: "running", error_message: null })
+      .update({ status: "running" })
       .eq("id", scan.id)
       .eq("user_id", userId);
 
