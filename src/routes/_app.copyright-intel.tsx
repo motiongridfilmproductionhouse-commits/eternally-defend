@@ -348,15 +348,15 @@ function CopyrightIntelPage() {
       setStage("");
       setStageIndex(SCAN_STAGES.length);
       setSummary({
-        candidates: res.stats.candidates ?? 0,
-        matches: res.stats.matches ?? 0,
-        graded: res.stats.graded ?? 0,
+        candidates: res.summary.candidates,
+        matches: res.summary.matches,
+        graded: res.summary.graded,
       });
       setSelectedScanId(res.scanId);
       qc.invalidateQueries({ queryKey: ["copyright-scans"] });
       qc.invalidateQueries({ queryKey: ["all-copyright-matches"] });
       toast.success(
-        `${res.stats.matches} evidence-backed match(es) from ${res.stats.candidates} candidates`,
+        `${res.summary.matches} evidence-backed match(es) from ${res.summary.candidates} candidates`,
       );
     },
     onError: (e: Error) => {
@@ -652,8 +652,8 @@ function CopyrightIntelPage() {
             previews={previews}
             title={scanMeta.title}
             kind={scanMeta.kind}
-            stageIndex={stageIndex}
-            note={stage}
+            scanStatus="running"
+            scanId={selectedScanId}
           />
         </div>
       )}

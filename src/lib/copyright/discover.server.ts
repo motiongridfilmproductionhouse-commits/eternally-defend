@@ -10,6 +10,7 @@
 
 import { firecrawlFetch, isFirecrawlConfigured } from "@/lib/firecrawl-client.server";
 import {
+  calculatePriorityScore,
   canonicalUrl,
   hostOf,
   isExcludedHost,

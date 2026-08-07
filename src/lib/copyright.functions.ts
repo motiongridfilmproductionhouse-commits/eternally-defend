@@ -1,41 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
-import {
-  hostOf,
-  canonicalUrl,
-  isExcludedHost,
-  websiteTypeFor,
-  type DiscoveryCandidate,
-} from "@/lib/copyright/url.server";
-import {
-  analyzeReference,
-  firecrawlDiscover,
-  CopyrightDiscoveryError,
-} from "@/lib/copyright/discover.server";
-import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.server";
-import { readStoredObject } from "@/lib/copyright/storage.server";
+import { getSignedPutUrl, putObject } from "@/lib/aws/s3.server";
+import { copyrightImageTypes } from "@/lib/copyright/storage.server";
 
-import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
-import { analyzeDistributionPage, releaseTimingFor } from "@/lib/copyright/distribution.server";
-import {
-  registerDistributionSource,
-  runAutoMonitor,
-} from "@/lib/copyright/distribution-monitor.server";
-
-import {
-  buildMovieFingerprint,
-  matchCandidateAgainstFingerprint,
-  blendConfidence,
-  EMPTY_MATCH,
-  type FingerprintMatch,
-} from "@/lib/copyright/fingerprint.server";
-import { fetchImageBytes } from "@/lib/aws/s3.server";
-import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
-import type { Database } from "@/integrations/supabase/types";
-
-type MatchInsert = Database["public"]["Tables"]["copyright_matches"]["Insert"];
 
 /** Presigned upload slot for a reference image or an extracted video frame. */
 export const prepareCopyrightUpload = createServerFn({ method: "POST" })
@@ -126,498 +94,33 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
     if (sErr || !scan) throw new Error(sErr?.message ?? "Could not start scan.");
 
     try {
-      const firstBytes = await readStoredObject(data.keys[0]);
-      if (!firstBytes.length) throw new Error("Reference file is empty.");
-      const sha256 = await sha256Hex(firstBytes);
-      const referenceDataUrl = bytesToDataUrl(firstBytes, data.contentType);
-
-      // 1. AI-vision analysis + AWS Rekognition fingerprint of the reference material.
-      const allFrames = await Promise.all(
-        data.keys
-          .slice(0, 4)
-          .map(async (k, i) =>
-            i === 0 ? firstBytes : await readStoredObject(k).catch(() => new Uint8Array()),
-          ),
+      const { executeCopyrightScanPipeline } = await import(
+        "@/lib/copyright/scan-executor.server"
       );
-      const [analysis, fingerprint] = await Promise.all([
-        analyzeReference(referenceDataUrl, data.title),
-        buildMovieFingerprint(
-          allFrames.filter((b) => b.length > 0),
-          data.title,
-        ),
-      ]);
-
-      // 2. Fetch historical suspicious URLs for the same user/client to seed into scan recheck.
-      const { data: histMatches } = await supabase
-        .from("copyright_matches")
-        .select("source_url")
-        .eq("user_id", userId)
-        .limit(50);
-
-      const historicalUrls = (histMatches ?? []).map((m) => m.source_url).filter(Boolean);
-
-      // Reverse discovery across configured providers, seeded by analysis + historical URLs.
-      const byUrl = new Map<string, DiscoveryCandidate>();
-      let discovery: Awaited<ReturnType<typeof firecrawlDiscover>>;
-      try {
-        discovery = await firecrawlDiscover(referenceDataUrl, data.title, 0, analysis, {
-          scanId: scan.id,
-          historicalUrls,
-        });
-      } catch (err) {
-        if (err instanceof CopyrightDiscoveryError) {
-          await supabase
-            .from("copyright_scans")
-            .update({
-              status: "failed",
-              error: err.userMessage,
-              stats: {
-                discovery_diagnostics: err.diagnostics,
-                admin_summary: err.adminSummary,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              } as any,
-            })
-            .eq("id", scan.id);
-          throw new Error(err.userMessage);
-        }
-        throw err;
-      }
-
-      const officialSources: DiscoveryCandidate[] = [];
-      const validCandidates: DiscoveryCandidate[] = [];
-
-      for (const c of discovery.candidates) {
-        const url = c.url;
-        if (!byUrl.has(url)) byUrl.set(url, c);
-        if (isExcludedHost(url)) {
-          officialSources.push(c);
-        } else {
-          validCandidates.push(c);
-        }
-      }
-
-      // Ensure every valid candidate has a thumbnail URL so no valid result is lost.
-      for (const c of validCandidates) {
-        if (!c.thumbnail && !c.imageUrl) {
-          const host = hostOf(c.url) ?? "domain";
-          c.thumbnail = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;
-        }
-      }
-
-      // Prioritise high-signal piracy leads by priority score.
-      const ordered = [...validCandidates]
-        .sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
-        .slice(0, 45);
-
-      // 3. Evidence grading with a multimodal comparison.
-      const rows: MatchInsert[] = [];
-      const fallbackRows: MatchInsert[] = [];
-      let ignored = 0;
-
-      const buildRow = (
-        candidate: DiscoveryCandidate,
-        confidence: number,
-        detectionType: string,
-        transformations: string[],
-        ocrText: string | null,
-        watermark: string | null,
-        reason: string,
-        rek: FingerprintMatch = EMPTY_MATCH,
-      ): MatchInsert => {
-        const contact = resolveAbuseContact(candidate.url);
-        const thumb = candidate.thumbnail ?? candidate.imageUrl;
-        return {
-          scan_id: scan.id,
-          user_id: userId,
-          source_url: canonicalUrl(candidate.url),
-          platform: contact.platform,
-          page_title: candidate.title,
-          thumbnail_url: thumb,
-          confidence,
-          confidence_band: bandFor(confidence),
-          detection_type: detectionType,
-          transformations,
-          review_status: "pending",
-          evidence: {
-            client_visible: true,
-            reference_frame_index: candidate.frameIndex,
-            reference_frame_path: data.keys[candidate.frameIndex] ?? data.keys[0],
-            candidate_image_url: thumb,
-            discovery: candidate.exact ? "piracy_lead" : "visual_match",
-            discovery_query: candidate.query ?? null,
-            keyword_match: candidate.keywordMatch ?? candidate.query ?? null,
-            piracy_category: candidate.category ?? null,
-            website_type:
-              candidate.websiteType ?? websiteTypeFor(candidate.url, candidate.title ?? ""),
-            detected_language: candidate.language ?? analysis.language ?? null,
-            reference_ocr_text: analysis.ocrText,
-            reference_watermark: analysis.watermark,
-            reference_media_type: analysis.mediaType,
-            reference_language: analysis.language,
-            reference_alt_titles: analysis.altTitles,
-            reference_release_date: analysis.releaseDate,
-            reference_actors: analysis.actors,
-            reference_region: analysis.region,
-            watermark,
-            host: hostOf(candidate.url),
-            // AWS Rekognition recognition details
-            recognition: {
-              provider: fingerprint.available ? "aws_rekognition" : "unavailable",
-              face_similarity: rek.faceSimilarity,
-              actor_matches: rek.celebrityMatches,
-              scene_similarity: rek.sceneOverlap,
-              matched_scene_labels: rek.matchedLabels,
-              ocr_title_match: rek.ocrTitleMatch,
-              matched_ocr_text: rek.matchedOcrText,
-              watermark_match: rek.watermarkMatch,
-              signals: rek.signals,
-              signal_count: rek.signals.length,
-              corroboration_score: rek.score,
-            },
-            reference_fingerprint: {
-              scene_labels: fingerprint.labels,
-              scene_categories: fingerprint.sceneCategories,
-              recognized_actors: fingerprint.celebrities,
-              face_count: fingerprint.faceCount,
-              ocr_lines: fingerprint.ocrLines.slice(0, 20),
-              watermark_hints: fingerprint.watermarkHints,
-            },
-          },
-          ocr_text: ocrText,
-          reason,
-          contact: contact as unknown as MatchInsert["contact"],
-        };
-      };
-
-      for (let offset = 0; offset < ordered.length; offset += 4) {
-        const batch = ordered.slice(offset, offset + 4);
-        const graded = await Promise.all(
-          batch.map(async (candidate) => {
-            const img = candidate.imageUrl ?? candidate.thumbnail!;
-
-            // AWS Rekognition corroboration on the candidate image (best effort).
-            let rek: FingerprintMatch = EMPTY_MATCH;
-            if (fingerprint.available && img && !img.includes("favicons?domain=")) {
-              const fetched = await fetchImageBytes(img).catch(() => null);
-              if (fetched?.bytes?.length) {
-                rek = await matchCandidateAgainstFingerprint(
-                  fingerprint,
-                  fetched.bytes,
-                  data.title,
-                );
-              }
-            }
-
-            const result = await gradeCandidate({
-              referenceDataUrl,
-              candidateImageUrl: img,
-              candidatePageUrl: candidate.url,
-              candidateTitle: candidate.title,
-              platform: candidate.source,
-              workTitle: data.title,
-              highSignal: candidate.exact || rek.signals.length >= 2,
-              referenceOcrText: analysis.ocrText,
-              referenceWatermark: analysis.watermark,
-            });
-            return { candidate, result, rek };
-          }),
-        );
-
-        for (const { candidate, result, rek } of graded) {
-          const blended = blendConfidence(result ? result.confidence : null, rek);
-          const rekStrong = rek.signals.length >= 2;
-          // Multi-signal Rekognition corroboration overrides a soft AI false-positive call.
-          const isMatch = result
-            ? (!result.falsePositive || rek.signals.length >= 3) &&
-              (result.detectionType !== "unrelated" || rekStrong) &&
-              blended >= 50
-            : rekStrong && blended >= 50;
-
-          const rekReason = rek.signals.length
-            ? ` AWS recognition: ${rek.signals.join("; ")}.`
-            : "";
-
-          if (isMatch) {
-            rows.push(
-              buildRow(
-                candidate,
-                blended,
-                result?.detectionType && result.detectionType !== "unrelated"
-                  ? result.detectionType
-                  : candidate.websiteType === "duplicate_artwork"
-                    ? "poster_copy"
-                    : "ripped_copy",
-                [
-                  ...(result?.transformations ?? []),
-                  ...(rek.watermarkMatch ? ["watermark_match"] : []),
-                ],
-                result?.ocrText ?? (rek.matchedOcrText.join(" | ") || null),
-                result?.watermark ?? rek.watermarkMatch,
-                `${result?.reason ?? "Multi-signal Rekognition match."}${rekReason}`,
-                rek,
-              ),
-            );
-            continue;
-          }
-
-          ignored++;
-          fallbackRows.push(
-            buildRow(
-              candidate,
-              Math.max(35, Math.min(49, blended || 35)),
-              result?.detectionType && result.detectionType !== "unrelated"
-                ? result.detectionType
-                : "ripped_copy",
-              result?.transformations ?? [],
-              result?.ocrText ?? null,
-              result?.watermark ?? rek.watermarkMatch,
-              (result?.reason ||
-                `Piracy-signal lead (${candidate.category ?? "web_lead"}) surfaced by "${candidate.keywordMatch ?? candidate.query ?? data.title}" — requires human review.`) +
-                rekReason,
-              rek,
-            ),
-          );
-        }
-      }
-
-      // Add any remaining unverified valid candidates that were not graded into rows/fallbackRows
-      const processedUrls = new Set([
-        ...rows.map((r) => r.source_url),
-        ...fallbackRows.map((r) => r.source_url),
-      ]);
-      for (const c of validCandidates) {
-        const canon = canonicalUrl(c.url);
-        if (!processedUrls.has(canon)) {
-          fallbackRows.push(
-            buildRow(
-              c,
-              40,
-              c.websiteType === "duplicate_artwork" ? "poster_copy" : "ripped_copy",
-              [],
-              null,
-              null,
-              `Discovered candidate source (${c.category ?? "automated_lead"}) surfaced by "${c.keywordMatch ?? c.query ?? data.title}" — pending review.`,
-            ),
-          );
-          processedUrls.add(canon);
-        }
-      }
-
-      // 4. Unauthorized-distribution site inspection. Page leads are fetched and
-      //    examined for hard evidence (players, download buttons, mirrors, file
-      //    and torrent links). Title/poster/trailer/news mentions alone never
-      //    qualify. Evidence only — nothing is reported or taken down.
-      const titles = [data.title, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
-      const releaseDate = analysis.releaseDate;
-      const leadUrls = discovery.pageLeads
-        .sort((a2, b2) => Number(b2.strong) - Number(a2.strong))
-        .slice(0, 16);
-
-      const distributionRows: MatchInsert[] = [];
-      const inspectedDomains = new Set<string>();
-
-      const distributionSummary: Array<{
-        url: string;
-        domain_risk: string;
-        content_type: string;
-        release_timing: string;
-        confidence: number;
-        strong_evidence: boolean;
-        indicators: string[];
-      }> = [];
-
-      for (let offset = 0; offset < leadUrls.length; offset += 4) {
-        const batch = leadUrls.slice(offset, offset + 4);
-        const analyses = await Promise.all(
-          batch.map(async (lead) => ({
-            lead,
-            analysis: await analyzeDistributionPage({
-              url: lead.url,
-              title: lead.title,
-              titles,
-              releaseDate,
-            }).catch(() => null),
-          })),
-        );
-
-        for (const { lead, analysis: dist } of analyses) {
-          if (!dist) continue;
-          inspectedDomains.add((dist.domain ?? "").toLowerCase());
-          distributionSummary.push({
-            url: dist.url,
-            domain_risk: dist.domainRisk,
-            content_type: dist.contentType,
-            release_timing: dist.releaseTiming,
-            confidence: dist.confidence,
-            strong_evidence: dist.strongEvidence,
-            indicators: dist.indicatorKeys,
-          });
-          // Strong evidence gate: only distribution sources become findings.
-          if (!dist.strongEvidence || dist.domainRisk === "low") continue;
-
-          // Register in the Unauthorized Distribution Sources database + Auto Monitor.
-          const contact = resolveAbuseContact(dist.url);
-          await registerDistributionSource(supabase, {
-            userId,
-            scanId: scan.id,
-            workTitle: data.title,
-            platform: contact.platform,
-            analysis: dist,
-          }).catch(() => null);
-
-          distributionRows.push({
-            scan_id: scan.id,
-            user_id: userId,
-            source_url: canonicalUrl(dist.url),
-            platform: contact.platform,
-            page_title: dist.pageTitle ?? lead.title,
-            thumbnail_url: dist.screenshot,
-            confidence: dist.confidence,
-            confidence_band: bandFor(dist.confidence),
-            detection_type:
-              dist.contentType === "torrent_index_site"
-                ? "ripped_copy"
-                : dist.contentType === "unauthorized_streaming_site"
-                  ? "video_clip"
-                  : dist.contentType === "reupload_platform"
-                    ? "video_clip"
-                    : "ripped_copy",
-            transformations: dist.qualityTags.slice(0, 8),
-            review_status: "pending",
-            evidence: {
-              client_visible: true,
-              discovery: "distribution_site",
-              discovery_query: lead.query,
-              keyword_match: lead.query,
-              host: hostOf(dist.url),
-              website_type: dist.contentType,
-              detected_language: analysis.language,
-              reference_release_date: releaseDate,
-              distribution: {
-                domain: dist.domain,
-                domain_risk: dist.domainRisk,
-                content_type: dist.contentType,
-                release_timing: dist.releaseTiming,
-                release_offset_days: dist.releaseOffsetDays,
-                piracy_indicators: dist.indicators.map((i) => ({
-                  key: i.key,
-                  detail: i.detail,
-                  weight: i.weight,
-                  strong: i.strong,
-                })),
-                indicator_keys: dist.indicatorKeys,
-                distribution_links: dist.distributionLinks,
-                quality_tags: dist.qualityTags,
-                strong_evidence: dist.strongEvidence,
-                evidence_screenshot: dist.screenshot,
-              },
-            },
-            ocr_text: null,
-            reason: dist.reason,
-            contact: contact as unknown as MatchInsert["contact"],
-          });
-        }
-      }
-
-      // 5. Auto Monitor pass: re-check already-known distribution sources.
-      const monitorPass = await runAutoMonitor(supabase, {
+      const result = await executeCopyrightScanPipeline({
+        supabase,
+        scanId: scan.id as string,
         userId,
-        limit: 8,
-        force: true,
-        runType: "scan",
-        excludeDomains: [...inspectedDomains].filter(Boolean),
-      }).catch(() => ({ checked: 0, incidents: 0 }));
-
-      const seenUrls = new Set(distributionRows.map((r) => r.source_url));
-      const allRows = [
-        ...distributionRows,
-        ...[...rows, ...fallbackRows].filter((r) => !seenUrls.has(r.source_url)),
-      ];
-
-      if (allRows.length > 0) {
-        const { error: mErr } = await supabase
-          .from("copyright_matches")
-          .upsert(allRows, { onConflict: "scan_id,source_url" });
-        if (mErr) throw new Error(mErr.message);
-      }
-
-      // Worker completion verification gate: confirm candidates are persisted before marking completed.
-      if (byUrl.size > 0 && allRows.length === 0) {
-        throw new Error(
-          `Scan completion halted: ${byUrl.size} candidate(s) discovered but 0 candidate rows persisted.`,
-        );
-      }
-
-      const pendingReviewCount = allRows.filter((r) => r.review_status === "pending").length;
-      const verifiedCount = allRows.filter(
-        (r) => (r.confidence ?? 0) >= 90 || r.confidence_band === "confirmed",
-      ).length;
-      const rejectedCount =
-        allRows.filter((r) => r.review_status === "dismissed").length + officialSources.length;
-      const crawledPagesCount = ordered.length + leadUrls.length;
-
-      const diagnostics = {
-        discovered_candidate_count: byUrl.size,
-        persisted_candidate_count: allRows.length,
-        client_visible_count: allRows.filter(
-          (r) => (r.evidence as Record<string, unknown> | null)?.client_visible !== false,
-        ).length,
-        crawl_queue_count: byUrl.size,
-        crawled_count: crawledPagesCount,
-        pending_review_count: pendingReviewCount,
-        verified_count: verifiedCount,
-        rejected_count: rejectedCount,
-        hidden_by_filter_count: officialSources.length,
-        scan_id_and_client_id_consistency: allRows.every(
-          (r) => r.scan_id === scan.id && r.user_id === userId,
-        ),
+        title: data.title,
+        keys: data.keys,
+        contentType: data.contentType,
+        source: "inline",
+      });
+      const num = (key: string) => {
+        const v = result.stats[key];
+        return typeof v === "number" ? v : 0;
       };
-
-      const stats = {
-        candidate_pages: byUrl.size,
-        crawled_pages: crawledPagesCount,
-        pending_verification: pendingReviewCount,
-        verified_threats: verifiedCount,
-        rejected: rejectedCount,
-
-        candidates: byUrl.size,
-        graded: ordered.length,
-        matches: allRows.length,
-        leads: fallbackRows.length,
-        distribution_pages_inspected: leadUrls.length,
-        distribution_sites: distributionRows.length,
-        distribution_high_risk: distributionSummary.filter((d) => d.domain_risk === "high").length,
-        distribution_summary: distributionSummary.slice(0, 25),
-        monitored_sources_checked: monitorPass.checked,
-        monitor_incidents: monitorPass.incidents,
-        discovery_diagnostics: discovery.diagnostics,
-        diagnostics,
-        admin_summary: discovery.diagnostics.adminSummary,
-
-        release_timing: releaseTimingFor(releaseDate).timing,
-        queries_language: analysis.language,
-        release_date: analysis.releaseDate,
-
-        ignored,
-        frames: data.keys.length,
-        sha256,
-        confirmed: verifiedCount,
-        probable: allRows.filter((r) => r.confidence_band === "probable").length,
-        review: allRows.filter((r) => r.confidence_band === "review").length,
+      return {
+        scanId: result.scanId,
+        status: result.status,
+        summary: {
+          candidates: num("candidates"),
+          matches: num("matches"),
+          graded: num("graded"),
+        },
       };
-      await supabase
-        .from("copyright_scans")
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .update({ status: "completed", sha256, stats: stats as any })
-        .eq("id", scan.id);
-      return { scanId: scan.id as string, stats };
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      await supabase
-        .from("copyright_scans")
-        .update({ status: "failed", error: message.slice(0, 500) })
-        .eq("id", scan.id);
-      throw new Error(message);
+      throw new Error(e instanceof Error ? e.message : String(e));
     }
   });
 
@@ -668,11 +171,52 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
     return { scan, matches: matchRows };
   });
 
+export const retryCopyrightScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: scan, error } = await supabase
+      .from("copyright_scans")
+      .select("id, title, frame_paths, storage_path, reference_kind")
+      .eq("id", data.scanId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!scan) throw new Error("Scan not found.");
+
+    const framePaths = Array.isArray(scan.frame_paths) ? (scan.frame_paths as string[]) : [];
+    const keys = framePaths.length
+      ? framePaths
+      : scan.storage_path
+        ? [scan.storage_path as string]
+        : [];
+    if (!keys.length) throw new Error("Original reference material is unavailable for retry.");
+
+    await supabase
+      .from("copyright_scans")
+      .update({ status: "running" })
+      .eq("id", scan.id)
+      .eq("user_id", userId);
+
+    const { executeCopyrightScanPipeline } = await import("@/lib/copyright/scan-executor.server");
+    const result = await executeCopyrightScanPipeline({
+      supabase,
+      scanId: scan.id as string,
+      userId,
+      title: scan.title as string,
+      keys,
+      contentType: "image/jpeg",
+      source: "inline",
+    });
+    return { scanId: result.scanId, status: result.status };
+  });
+
 export const listAllCopyrightMatches = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ includeArchived: z.boolean().optional() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const userId = context.auth.user.id;
+    const userId = context.userId;
     const { data: matches, error } = await context.supabase
       .from("copyright_matches")
       .select("*")
@@ -695,7 +239,7 @@ export const archivePreviousCopyrightResults = createServerFn({ method: "POST" }
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ keepScanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const userId = context.auth.user.id;
+    const userId = context.userId;
     console.log("[archivePreviousCopyrightResults] Starting archive", {
       userId,
       keepScanId: data.keepScanId,
@@ -765,7 +309,7 @@ export const archiveScanCopyrightResults = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const userId = context.auth.user.id;
+    const userId = context.userId;
     console.log("[archiveScanCopyrightResults] Starting archive", { userId, scanId: data.scanId });
 
     const { data: matches, error: fetchErr } = await context.supabase

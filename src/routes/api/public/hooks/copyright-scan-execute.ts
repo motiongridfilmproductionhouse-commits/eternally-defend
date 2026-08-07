@@ -69,7 +69,7 @@ export const Route = createFileRoute("/api/public/hooks/copyright-scan-execute")
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { executeCopyrightScanById, recordCopyrightScanDiagnostic } =
-          await import("@/lib/copyright.functions");
+          await import("@/lib/copyright/scan-executor.server");
         await recordCopyrightScanDiagnostic(supabaseAdmin, parsed.scan_id, {
           worker_hook_request_id: requestId,
           worker_hook_received_at: receivedAt,

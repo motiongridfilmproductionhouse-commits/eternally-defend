@@ -14,11 +14,31 @@ const DIRECT_BASE = "https://api.firecrawl.dev/v2";
 const GATEWAY_BASE = "https://connector-gateway.lovable.dev/firecrawl/v2";
 
 export function isFirecrawlConfigured(): boolean {
-  const fcKey = process.env.FIRECRAWL_API_KEY?.trim();
-  const lovableKey = process.env.LOVABLE_API_KEY?.trim();
-  if (fcKey) return true;
-  if (lovableKey) return true;
-  return false;
+  return firecrawlEnvironmentDiagnostic().configured;
+}
+
+export function firecrawlEnvironmentDiagnostic(): {
+  firecrawl_api_key_present: boolean;
+  firecrawl_api_key_length: number;
+  firecrawl_api_key_mode: "direct" | "lovable_gateway" | "missing";
+  lovable_api_key_required: boolean;
+  lovable_api_key_present: boolean;
+  lovable_api_key_length: number;
+  configured: boolean;
+} {
+  const fcKey = process.env.FIRECRAWL_API_KEY?.trim() ?? "";
+  const lovableKey = process.env.LOVABLE_API_KEY?.trim() ?? "";
+  const mode = !fcKey ? "missing" : fcKey.startsWith("lovc_") ? "lovable_gateway" : "direct";
+  const gatewayRequired = mode === "lovable_gateway";
+  return {
+    firecrawl_api_key_present: Boolean(fcKey),
+    firecrawl_api_key_length: fcKey.length,
+    firecrawl_api_key_mode: mode,
+    lovable_api_key_required: gatewayRequired,
+    lovable_api_key_present: Boolean(lovableKey),
+    lovable_api_key_length: lovableKey.length,
+    configured: mode === "direct" ? true : gatewayRequired ? Boolean(lovableKey) : false,
+  };
 }
 
 export interface FirecrawlFetchOptions {
