@@ -21,6 +21,23 @@ export function isFirecrawlConfigured(): boolean {
   return false;
 }
 
+export function firecrawlEnvironmentDiagnostic(): {
+  firecrawl_api_key_present: boolean;
+  firecrawl_api_key_length: number;
+  firecrawl_api_key_mode: "direct" | "lovable_gateway" | "missing";
+  lovable_api_key_present: boolean;
+} {
+  const fcKey = process.env.FIRECRAWL_API_KEY?.trim() ?? "";
+  const lovableKey = process.env.LOVABLE_API_KEY?.trim() ?? "";
+  const mode = !fcKey ? "missing" : fcKey.startsWith("lovc_") ? "lovable_gateway" : "direct";
+  return {
+    firecrawl_api_key_present: Boolean(fcKey),
+    firecrawl_api_key_length: fcKey.length,
+    firecrawl_api_key_mode: mode,
+    lovable_api_key_present: Boolean(lovableKey),
+  };
+}
+
 export interface FirecrawlFetchOptions {
   signal?: AbortSignal;
   forceDirect?: boolean;

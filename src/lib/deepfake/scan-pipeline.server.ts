@@ -316,10 +316,10 @@ export function buildScheduledQueries(input: {
   googleImagesUrl?: string;
   maxQueries: number;
 }): string[] {
-  const generatedQueries = generateDeepfakeQueries(input.target, {
-    maxQueries: input.maxQueries,
-    minQueries: 1,
-  });
+  const generatedQueries = generateDeepfakeQueries(input.target).slice(
+    0,
+    Math.max(1, input.maxQueries),
+  );
 
   let importedQueries: string[] = [];
   if (input.googleImagesUrl) {

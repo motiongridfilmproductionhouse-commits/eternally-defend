@@ -38,14 +38,11 @@ export function buildStartupQueryList(input: {
   googleImagesUrl?: string;
   maxQueries: number;
 }): string[] {
-  const generatedQueries = generateDeepfakeQueries(
-    {
-      name: input.name,
-      aliases: input.aliases ?? [],
-      handles: input.handles ?? [],
-    },
-    { maxQueries: input.maxQueries, minQueries: 1 },
-  );
+  const generatedQueries = generateDeepfakeQueries({
+    name: input.name,
+    aliases: input.aliases ?? [],
+    handles: input.handles ?? [],
+  }).slice(0, Math.max(1, input.maxQueries));
 
   let importedQueries: string[] = [];
   if (input.googleImagesUrl) {
