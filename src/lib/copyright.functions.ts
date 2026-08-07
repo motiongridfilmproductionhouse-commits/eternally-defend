@@ -1,41 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getSignedPutUrl, putObject, sha256Hex } from "@/lib/aws/s3.server";
-import {
-  hostOf,
-  canonicalUrl,
-  isExcludedHost,
-  websiteTypeFor,
-  type DiscoveryCandidate,
-} from "@/lib/copyright/url.server";
-import {
-  analyzeReference,
-  firecrawlDiscover,
-  CopyrightDiscoveryError,
-} from "@/lib/copyright/discover.server";
-import { bytesToDataUrl, copyrightImageTypes } from "@/lib/copyright/storage.server";
-import { readStoredObject } from "@/lib/copyright/storage.server";
+import { getSignedPutUrl, putObject } from "@/lib/aws/s3.server";
+import { copyrightImageTypes } from "@/lib/copyright/storage.server";
 
-import { bandFor, gradeCandidate } from "@/lib/copyright/classify.server";
-import { analyzeDistributionPage, releaseTimingFor } from "@/lib/copyright/distribution.server";
-import {
-  registerDistributionSource,
-  runAutoMonitor,
-} from "@/lib/copyright/distribution-monitor.server";
-
-import {
-  buildMovieFingerprint,
-  matchCandidateAgainstFingerprint,
-  blendConfidence,
-  EMPTY_MATCH,
-  type FingerprintMatch,
-} from "@/lib/copyright/fingerprint.server";
-import { fetchImageBytes } from "@/lib/aws/s3.server";
-import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
-import type { Database } from "@/integrations/supabase/types";
-
-type MatchInsert = Database["public"]["Tables"]["copyright_matches"]["Insert"];
 
 /** Presigned upload slot for a reference image or an extracted video frame. */
 export const prepareCopyrightUpload = createServerFn({ method: "POST" })

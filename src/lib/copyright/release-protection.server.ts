@@ -198,7 +198,7 @@ export async function scheduleReleaseProtectionScanNow(
     .single();
   if (runErr) throw new Error(runErr.message);
 
-  const { dispatchCopyrightScanExecution } = await import("@/lib/copyright.functions");
+  const { dispatchCopyrightScanExecution } = await import("@/lib/copyright/scan-executor.server");
   await dispatchCopyrightScanExecution(scanId, supabase);
 
   const customMinutes =
