@@ -105,7 +105,7 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
 
         // Direct waitUntil pattern — create the promise, register it, then 202.
         // Do NOT wrap in setImmediate/setTimeout.
-        const { executeDeepfakeScanById } = await import("@/lib/deepfake-intel.functions");
+        const { executeDeepfakeScanById } = await import("@/lib/deepfake/scan-executor.server");
         const executionPromise = executeDeepfakeScanById({
           supabase: supabaseAdmin,
           scanId: parsed.scan_id,
@@ -113,7 +113,7 @@ export const Route = createFileRoute("/api/public/hooks/deepfake-scan-execute")(
           workerExecutionId,
           requestId,
           startupCorrelationId,
-        }).catch(async (error) => {
+        }).catch(async (error: unknown) => {
           await persistDeepfakeWorkerEvent({
             supabase: supabaseAdmin,
             scanId: parsed.scan_id,
