@@ -106,7 +106,19 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
         contentType: data.contentType,
         source: "inline",
       });
-      return { scanId: result.scanId, stats: result.stats };
+      const num = (key: string) => {
+        const v = result.stats[key];
+        return typeof v === "number" ? v : 0;
+      };
+      return {
+        scanId: result.scanId,
+        status: result.status,
+        summary: {
+          candidates: num("candidates"),
+          matches: num("matches"),
+          graded: num("graded"),
+        },
+      };
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : String(e));
     }
