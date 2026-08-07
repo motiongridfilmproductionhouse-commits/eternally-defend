@@ -1,6764 +1,6806 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5";
-  };
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       account_audit_log: {
         Row: {
-          account_id: string;
-          action: string;
-          actor_id: string | null;
-          created_at: string;
-          from_status: Database["public"]["Enums"]["discovered_account_status"] | null;
-          id: string;
-          meta: Json;
-          to_status: Database["public"]["Enums"]["discovered_account_status"] | null;
-        };
+          account_id: string
+          action: string
+          actor_id: string | null
+          created_at: string
+          from_status:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+          id: string
+          meta: Json
+          to_status:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+        }
         Insert: {
-          account_id: string;
-          action: string;
-          actor_id?: string | null;
-          created_at?: string;
-          from_status?: Database["public"]["Enums"]["discovered_account_status"] | null;
-          id?: string;
-          meta?: Json;
-          to_status?: Database["public"]["Enums"]["discovered_account_status"] | null;
-        };
+          account_id: string
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          from_status?:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+          id?: string
+          meta?: Json
+          to_status?:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+        }
         Update: {
-          account_id?: string;
-          action?: string;
-          actor_id?: string | null;
-          created_at?: string;
-          from_status?: Database["public"]["Enums"]["discovered_account_status"] | null;
-          id?: string;
-          meta?: Json;
-          to_status?: Database["public"]["Enums"]["discovered_account_status"] | null;
-        };
+          account_id?: string
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          from_status?:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+          id?: string
+          meta?: Json
+          to_status?:
+            | Database["public"]["Enums"]["discovered_account_status"]
+            | null
+        }
         Relationships: [
           {
-            foreignKeyName: "account_audit_log_account_id_fkey";
-            columns: ["account_id"];
-            isOneToOne: false;
-            referencedRelation: "discovered_accounts";
-            referencedColumns: ["id"];
+            foreignKeyName: "account_audit_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       account_verifications: {
         Row: {
-          account_id: string;
-          code: string | null;
-          created_at: string;
-          evidence: Json;
-          expires_at: string | null;
-          id: string;
-          method: Database["public"]["Enums"]["verification_method"];
-          reviewer_id: string | null;
-          state: Database["public"]["Enums"]["verification_state"];
-          updated_at: string;
-          user_id: string;
-          verified_at: string | null;
-        };
+          account_id: string
+          code: string | null
+          created_at: string
+          evidence: Json
+          expires_at: string | null
+          id: string
+          method: Database["public"]["Enums"]["verification_method"]
+          reviewer_id: string | null
+          state: Database["public"]["Enums"]["verification_state"]
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+        }
         Insert: {
-          account_id: string;
-          code?: string | null;
-          created_at?: string;
-          evidence?: Json;
-          expires_at?: string | null;
-          id?: string;
-          method: Database["public"]["Enums"]["verification_method"];
-          reviewer_id?: string | null;
-          state?: Database["public"]["Enums"]["verification_state"];
-          updated_at?: string;
-          user_id: string;
-          verified_at?: string | null;
-        };
+          account_id: string
+          code?: string | null
+          created_at?: string
+          evidence?: Json
+          expires_at?: string | null
+          id?: string
+          method: Database["public"]["Enums"]["verification_method"]
+          reviewer_id?: string | null
+          state?: Database["public"]["Enums"]["verification_state"]
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+        }
         Update: {
-          account_id?: string;
-          code?: string | null;
-          created_at?: string;
-          evidence?: Json;
-          expires_at?: string | null;
-          id?: string;
-          method?: Database["public"]["Enums"]["verification_method"];
-          reviewer_id?: string | null;
-          state?: Database["public"]["Enums"]["verification_state"];
-          updated_at?: string;
-          user_id?: string;
-          verified_at?: string | null;
-        };
+          account_id?: string
+          code?: string | null
+          created_at?: string
+          evidence?: Json
+          expires_at?: string | null
+          id?: string
+          method?: Database["public"]["Enums"]["verification_method"]
+          reviewer_id?: string | null
+          state?: Database["public"]["Enums"]["verification_state"]
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "account_verifications_account_id_fkey";
-            columns: ["account_id"];
-            isOneToOne: false;
-            referencedRelation: "discovered_accounts";
-            referencedColumns: ["id"];
+            foreignKeyName: "account_verifications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       api_usage: {
         Row: {
-          cost_usd: number;
-          created_at: string;
-          id: string;
-          job_id: string | null;
-          metadata: Json;
-          provider: string;
-          unit_type: string;
-          units: number;
-          user_id: string;
-        };
+          cost_usd: number
+          created_at: string
+          id: string
+          job_id: string | null
+          metadata: Json
+          provider: string
+          unit_type: string
+          units: number
+          user_id: string
+        }
         Insert: {
-          cost_usd?: number;
-          created_at?: string;
-          id?: string;
-          job_id?: string | null;
-          metadata?: Json;
-          provider: string;
-          unit_type: string;
-          units?: number;
-          user_id: string;
-        };
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          metadata?: Json
+          provider: string
+          unit_type: string
+          units?: number
+          user_id: string
+        }
         Update: {
-          cost_usd?: number;
-          created_at?: string;
-          id?: string;
-          job_id?: string | null;
-          metadata?: Json;
-          provider?: string;
-          unit_type?: string;
-          units?: number;
-          user_id?: string;
-        };
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          metadata?: Json
+          provider?: string
+          unit_type?: string
+          units?: number
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "api_usage_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "api_usage_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       asset_verification_events: {
         Row: {
-          asset_id: string | null;
-          created_at: string;
-          event: string;
-          id: string;
-          payload: Json | null;
-          user_id: string;
-        };
+          asset_id: string | null
+          created_at: string
+          event: string
+          id: string
+          payload: Json | null
+          user_id: string
+        }
         Insert: {
-          asset_id?: string | null;
-          created_at?: string;
-          event: string;
-          id?: string;
-          payload?: Json | null;
-          user_id: string;
-        };
+          asset_id?: string | null
+          created_at?: string
+          event: string
+          id?: string
+          payload?: Json | null
+          user_id: string
+        }
         Update: {
-          asset_id?: string | null;
-          created_at?: string;
-          event?: string;
-          id?: string;
-          payload?: Json | null;
-          user_id?: string;
-        };
+          asset_id?: string | null
+          created_at?: string
+          event?: string
+          id?: string
+          payload?: Json | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "asset_verification_events_asset_id_fkey";
-            columns: ["asset_id"];
-            isOneToOne: false;
-            referencedRelation: "digital_assets";
-            referencedColumns: ["id"];
+            foreignKeyName: "asset_verification_events_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "digital_assets"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       authorization_admin_reviews: {
         Row: {
-          authorization_id: string;
-          decided_at: string;
-          decision: string;
-          id: string;
-          notes: string | null;
-          reviewer_id: string | null;
-          user_id: string;
-        };
+          authorization_id: string
+          decided_at: string
+          decision: string
+          id: string
+          notes: string | null
+          reviewer_id: string | null
+          user_id: string
+        }
         Insert: {
-          authorization_id: string;
-          decided_at?: string;
-          decision: string;
-          id?: string;
-          notes?: string | null;
-          reviewer_id?: string | null;
-          user_id: string;
-        };
+          authorization_id: string
+          decided_at?: string
+          decision: string
+          id?: string
+          notes?: string | null
+          reviewer_id?: string | null
+          user_id: string
+        }
         Update: {
-          authorization_id?: string;
-          decided_at?: string;
-          decision?: string;
-          id?: string;
-          notes?: string | null;
-          reviewer_id?: string | null;
-          user_id?: string;
-        };
+          authorization_id?: string
+          decided_at?: string
+          decision?: string
+          id?: string
+          notes?: string | null
+          reviewer_id?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "authorization_admin_reviews_authorization_id_fkey";
-            columns: ["authorization_id"];
-            isOneToOne: false;
-            referencedRelation: "client_authorizations";
-            referencedColumns: ["id"];
+            foreignKeyName: "authorization_admin_reviews_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       authorization_audit_logs: {
         Row: {
-          action: string;
-          actor_id: string | null;
-          created_at: string;
-          id: string;
-          ip_address: string | null;
-          payload: Json | null;
-          target: string | null;
-          user_agent: string | null;
-          user_id: string | null;
-        };
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          payload: Json | null
+          target: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
         Insert: {
-          action: string;
-          actor_id?: string | null;
-          created_at?: string;
-          id?: string;
-          ip_address?: string | null;
-          payload?: Json | null;
-          target?: string | null;
-          user_agent?: string | null;
-          user_id?: string | null;
-        };
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json | null
+          target?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
         Update: {
-          action?: string;
-          actor_id?: string | null;
-          created_at?: string;
-          id?: string;
-          ip_address?: string | null;
-          payload?: Json | null;
-          target?: string | null;
-          user_agent?: string | null;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json | null
+          target?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       authorization_documents: {
         Row: {
-          authorization_id: string;
-          created_at: string;
-          id: string;
-          kind: string;
-          s3_key: string;
-          sha256: string | null;
-          user_id: string;
-          version: number | null;
-        };
+          authorization_id: string
+          created_at: string
+          id: string
+          kind: string
+          s3_key: string
+          sha256: string | null
+          user_id: string
+          version: number | null
+        }
         Insert: {
-          authorization_id: string;
-          created_at?: string;
-          id?: string;
-          kind: string;
-          s3_key: string;
-          sha256?: string | null;
-          user_id: string;
-          version?: number | null;
-        };
+          authorization_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          s3_key: string
+          sha256?: string | null
+          user_id: string
+          version?: number | null
+        }
         Update: {
-          authorization_id?: string;
-          created_at?: string;
-          id?: string;
-          kind?: string;
-          s3_key?: string;
-          sha256?: string | null;
-          user_id?: string;
-          version?: number | null;
-        };
+          authorization_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          s3_key?: string
+          sha256?: string | null
+          user_id?: string
+          version?: number | null
+        }
         Relationships: [
           {
-            foreignKeyName: "authorization_documents_authorization_id_fkey";
-            columns: ["authorization_id"];
-            isOneToOne: false;
-            referencedRelation: "client_authorizations";
-            referencedColumns: ["id"];
+            foreignKeyName: "authorization_documents_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       authorization_records: {
         Row: {
-          active: boolean;
-          authorization_level: Database["public"]["Enums"]["authorization_level_enum"];
-          consent_version: string;
-          consents: Json;
-          created_at: string;
-          id: string;
-          ip_address: string | null;
-          legal_name: string;
-          onboarding_version: string;
-          signature_hash: string;
-          signature_text: string;
-          signed_at: string;
-          user_agent: string | null;
-          user_id: string;
-        };
+          active: boolean
+          authorization_level: Database["public"]["Enums"]["authorization_level_enum"]
+          consent_version: string
+          consents: Json
+          created_at: string
+          id: string
+          ip_address: string | null
+          legal_name: string
+          onboarding_version: string
+          signature_hash: string
+          signature_text: string
+          signed_at: string
+          user_agent: string | null
+          user_id: string
+        }
         Insert: {
-          active?: boolean;
-          authorization_level: Database["public"]["Enums"]["authorization_level_enum"];
-          consent_version: string;
-          consents: Json;
-          created_at?: string;
-          id?: string;
-          ip_address?: string | null;
-          legal_name: string;
-          onboarding_version: string;
-          signature_hash: string;
-          signature_text: string;
-          signed_at?: string;
-          user_agent?: string | null;
-          user_id: string;
-        };
+          active?: boolean
+          authorization_level: Database["public"]["Enums"]["authorization_level_enum"]
+          consent_version: string
+          consents: Json
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          legal_name: string
+          onboarding_version: string
+          signature_hash: string
+          signature_text: string
+          signed_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
         Update: {
-          active?: boolean;
-          authorization_level?: Database["public"]["Enums"]["authorization_level_enum"];
-          consent_version?: string;
-          consents?: Json;
-          created_at?: string;
-          id?: string;
-          ip_address?: string | null;
-          legal_name?: string;
-          onboarding_version?: string;
-          signature_hash?: string;
-          signature_text?: string;
-          signed_at?: string;
-          user_agent?: string | null;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          active?: boolean
+          authorization_level?: Database["public"]["Enums"]["authorization_level_enum"]
+          consent_version?: string
+          consents?: Json
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          legal_name?: string
+          onboarding_version?: string
+          signature_hash?: string
+          signature_text?: string
+          signed_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       authorization_scopes: {
         Row: {
-          authorization_id: string;
-          created_at: string;
-          granted: boolean;
-          id: string;
-          scope_key: string;
-          user_id: string;
-        };
+          authorization_id: string
+          created_at: string
+          granted: boolean
+          id: string
+          scope_key: string
+          user_id: string
+        }
         Insert: {
-          authorization_id: string;
-          created_at?: string;
-          granted?: boolean;
-          id?: string;
-          scope_key: string;
-          user_id: string;
-        };
+          authorization_id: string
+          created_at?: string
+          granted?: boolean
+          id?: string
+          scope_key: string
+          user_id: string
+        }
         Update: {
-          authorization_id?: string;
-          created_at?: string;
-          granted?: boolean;
-          id?: string;
-          scope_key?: string;
-          user_id?: string;
-        };
+          authorization_id?: string
+          created_at?: string
+          granted?: boolean
+          id?: string
+          scope_key?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "authorization_scopes_authorization_id_fkey";
-            columns: ["authorization_id"];
-            isOneToOne: false;
-            referencedRelation: "client_authorizations";
-            referencedColumns: ["id"];
+            foreignKeyName: "authorization_scopes_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       authorization_signatures: {
         Row: {
-          authorization_id: string;
-          created_at: string;
-          document_sha256: string | null;
-          drawn_signature_svg: string | null;
-          id: string;
-          ip_address: string | null;
-          otp_verified_at: string | null;
-          role_title: string | null;
-          signed_at: string | null;
-          status: Database["public"]["Enums"]["signature_status"];
-          typed_name: string | null;
-          user_agent: string | null;
-          user_id: string;
-          version: number;
-        };
+          authorization_id: string
+          created_at: string
+          document_sha256: string | null
+          drawn_signature_svg: string | null
+          id: string
+          ip_address: string | null
+          otp_verified_at: string | null
+          role_title: string | null
+          signed_at: string | null
+          status: Database["public"]["Enums"]["signature_status"]
+          typed_name: string | null
+          user_agent: string | null
+          user_id: string
+          version: number
+        }
         Insert: {
-          authorization_id: string;
-          created_at?: string;
-          document_sha256?: string | null;
-          drawn_signature_svg?: string | null;
-          id?: string;
-          ip_address?: string | null;
-          otp_verified_at?: string | null;
-          role_title?: string | null;
-          signed_at?: string | null;
-          status?: Database["public"]["Enums"]["signature_status"];
-          typed_name?: string | null;
-          user_agent?: string | null;
-          user_id: string;
-          version: number;
-        };
+          authorization_id: string
+          created_at?: string
+          document_sha256?: string | null
+          drawn_signature_svg?: string | null
+          id?: string
+          ip_address?: string | null
+          otp_verified_at?: string | null
+          role_title?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["signature_status"]
+          typed_name?: string | null
+          user_agent?: string | null
+          user_id: string
+          version: number
+        }
         Update: {
-          authorization_id?: string;
-          created_at?: string;
-          document_sha256?: string | null;
-          drawn_signature_svg?: string | null;
-          id?: string;
-          ip_address?: string | null;
-          otp_verified_at?: string | null;
-          role_title?: string | null;
-          signed_at?: string | null;
-          status?: Database["public"]["Enums"]["signature_status"];
-          typed_name?: string | null;
-          user_agent?: string | null;
-          user_id?: string;
-          version?: number;
-        };
+          authorization_id?: string
+          created_at?: string
+          document_sha256?: string | null
+          drawn_signature_svg?: string | null
+          id?: string
+          ip_address?: string | null
+          otp_verified_at?: string | null
+          role_title?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["signature_status"]
+          typed_name?: string | null
+          user_agent?: string | null
+          user_id?: string
+          version?: number
+        }
         Relationships: [
           {
-            foreignKeyName: "authorization_signatures_authorization_id_fkey";
-            columns: ["authorization_id"];
-            isOneToOne: false;
-            referencedRelation: "client_authorizations";
-            referencedColumns: ["id"];
+            foreignKeyName: "authorization_signatures_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       authorization_versions: {
         Row: {
-          authorization_id: string;
-          created_at: string;
-          id: string;
-          snapshot: Json;
-          user_id: string;
-          version: number;
-        };
+          authorization_id: string
+          created_at: string
+          id: string
+          snapshot: Json
+          user_id: string
+          version: number
+        }
         Insert: {
-          authorization_id: string;
-          created_at?: string;
-          id?: string;
-          snapshot: Json;
-          user_id: string;
-          version: number;
-        };
+          authorization_id: string
+          created_at?: string
+          id?: string
+          snapshot: Json
+          user_id: string
+          version: number
+        }
         Update: {
-          authorization_id?: string;
-          created_at?: string;
-          id?: string;
-          snapshot?: Json;
-          user_id?: string;
-          version?: number;
-        };
+          authorization_id?: string
+          created_at?: string
+          id?: string
+          snapshot?: Json
+          user_id?: string
+          version?: number
+        }
         Relationships: [
           {
-            foreignKeyName: "authorization_versions_authorization_id_fkey";
-            columns: ["authorization_id"];
-            isOneToOne: false;
-            referencedRelation: "client_authorizations";
-            referencedColumns: ["id"];
+            foreignKeyName: "authorization_versions_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       automation_events: {
         Row: {
-          created_at: string;
-          duration_ms: number | null;
-          event: string;
-          id: string;
-          job_id: string;
-          payload_json: Json;
-          platform: Database["public"]["Enums"]["automation_platform"] | null;
-          result: string | null;
-          screenshot_path: string | null;
-          user_id: string;
-        };
+          created_at: string
+          duration_ms: number | null
+          event: string
+          id: string
+          job_id: string
+          payload_json: Json
+          platform: Database["public"]["Enums"]["automation_platform"] | null
+          result: string | null
+          screenshot_path: string | null
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          duration_ms?: number | null;
-          event: string;
-          id?: string;
-          job_id: string;
-          payload_json?: Json;
-          platform?: Database["public"]["Enums"]["automation_platform"] | null;
-          result?: string | null;
-          screenshot_path?: string | null;
-          user_id: string;
-        };
+          created_at?: string
+          duration_ms?: number | null
+          event: string
+          id?: string
+          job_id: string
+          payload_json?: Json
+          platform?: Database["public"]["Enums"]["automation_platform"] | null
+          result?: string | null
+          screenshot_path?: string | null
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          duration_ms?: number | null;
-          event?: string;
-          id?: string;
-          job_id?: string;
-          payload_json?: Json;
-          platform?: Database["public"]["Enums"]["automation_platform"] | null;
-          result?: string | null;
-          screenshot_path?: string | null;
-          user_id?: string;
-        };
+          created_at?: string
+          duration_ms?: number | null
+          event?: string
+          id?: string
+          job_id?: string
+          payload_json?: Json
+          platform?: Database["public"]["Enums"]["automation_platform"] | null
+          result?: string | null
+          screenshot_path?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "automation_events_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "automation_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "automation_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "automation_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       automation_jobs: {
         Row: {
-          adapter: Database["public"]["Enums"]["automation_adapter"];
-          attempts: number;
-          cdp_expires_at: string | null;
-          cdp_ws_url: string | null;
-          completed_at: string | null;
-          created_at: string;
-          enforcement_request_id: string;
-          error_json: Json | null;
-          id: string;
-          input_json: Json;
-          last_screenshot_path: string | null;
-          platform: Database["public"]["Enums"]["automation_platform"];
-          review_bundle_path: string | null;
-          review_summary_json: Json | null;
-          started_at: string | null;
-          status: Database["public"]["Enums"]["automation_job_status"];
-          updated_at: string;
-          user_id: string;
-          worker_id: string | null;
-        };
+          adapter: Database["public"]["Enums"]["automation_adapter"]
+          attempts: number
+          cdp_expires_at: string | null
+          cdp_ws_url: string | null
+          completed_at: string | null
+          created_at: string
+          enforcement_request_id: string
+          error_json: Json | null
+          id: string
+          input_json: Json
+          last_screenshot_path: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          review_bundle_path: string | null
+          review_summary_json: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["automation_job_status"]
+          updated_at: string
+          user_id: string
+          worker_id: string | null
+        }
         Insert: {
-          adapter: Database["public"]["Enums"]["automation_adapter"];
-          attempts?: number;
-          cdp_expires_at?: string | null;
-          cdp_ws_url?: string | null;
-          completed_at?: string | null;
-          created_at?: string;
-          enforcement_request_id: string;
-          error_json?: Json | null;
-          id?: string;
-          input_json?: Json;
-          last_screenshot_path?: string | null;
-          platform: Database["public"]["Enums"]["automation_platform"];
-          review_bundle_path?: string | null;
-          review_summary_json?: Json | null;
-          started_at?: string | null;
-          status?: Database["public"]["Enums"]["automation_job_status"];
-          updated_at?: string;
-          user_id: string;
-          worker_id?: string | null;
-        };
+          adapter: Database["public"]["Enums"]["automation_adapter"]
+          attempts?: number
+          cdp_expires_at?: string | null
+          cdp_ws_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          enforcement_request_id: string
+          error_json?: Json | null
+          id?: string
+          input_json?: Json
+          last_screenshot_path?: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          review_bundle_path?: string | null
+          review_summary_json?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["automation_job_status"]
+          updated_at?: string
+          user_id: string
+          worker_id?: string | null
+        }
         Update: {
-          adapter?: Database["public"]["Enums"]["automation_adapter"];
-          attempts?: number;
-          cdp_expires_at?: string | null;
-          cdp_ws_url?: string | null;
-          completed_at?: string | null;
-          created_at?: string;
-          enforcement_request_id?: string;
-          error_json?: Json | null;
-          id?: string;
-          input_json?: Json;
-          last_screenshot_path?: string | null;
-          platform?: Database["public"]["Enums"]["automation_platform"];
-          review_bundle_path?: string | null;
-          review_summary_json?: Json | null;
-          started_at?: string | null;
-          status?: Database["public"]["Enums"]["automation_job_status"];
-          updated_at?: string;
-          user_id?: string;
-          worker_id?: string | null;
-        };
+          adapter?: Database["public"]["Enums"]["automation_adapter"]
+          attempts?: number
+          cdp_expires_at?: string | null
+          cdp_ws_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          enforcement_request_id?: string
+          error_json?: Json | null
+          id?: string
+          input_json?: Json
+          last_screenshot_path?: string | null
+          platform?: Database["public"]["Enums"]["automation_platform"]
+          review_bundle_path?: string | null
+          review_summary_json?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["automation_job_status"]
+          updated_at?: string
+          user_id?: string
+          worker_id?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "automation_jobs_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "automation_jobs_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       biometric_consents: {
         Row: {
-          consent_version: string;
-          consents: Json;
-          id: string;
-          ip_address: string | null;
-          revoked_at: string | null;
-          signed_at: string;
-          user_agent: string | null;
-          user_id: string;
-        };
+          consent_version: string
+          consents: Json
+          id: string
+          ip_address: string | null
+          revoked_at: string | null
+          signed_at: string
+          user_agent: string | null
+          user_id: string
+        }
         Insert: {
-          consent_version: string;
-          consents: Json;
-          id?: string;
-          ip_address?: string | null;
-          revoked_at?: string | null;
-          signed_at?: string;
-          user_agent?: string | null;
-          user_id: string;
-        };
+          consent_version: string
+          consents: Json
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
+          signed_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
         Update: {
-          consent_version?: string;
-          consents?: Json;
-          id?: string;
-          ip_address?: string | null;
-          revoked_at?: string | null;
-          signed_at?: string;
-          user_agent?: string | null;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          consent_version?: string
+          consents?: Json
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
+          signed_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       business_aliases: {
         Row: {
-          alias: string;
-          alias_type: string;
-          business_profile_id: string;
-          created_at: string;
-          id: string;
-          language: string | null;
-          user_id: string;
-        };
+          alias: string
+          alias_type: string
+          business_profile_id: string
+          created_at: string
+          id: string
+          language: string | null
+          user_id: string
+        }
         Insert: {
-          alias: string;
-          alias_type?: string;
-          business_profile_id: string;
-          created_at?: string;
-          id?: string;
-          language?: string | null;
-          user_id: string;
-        };
+          alias: string
+          alias_type?: string
+          business_profile_id: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          user_id: string
+        }
         Update: {
-          alias?: string;
-          alias_type?: string;
-          business_profile_id?: string;
-          created_at?: string;
-          id?: string;
-          language?: string | null;
-          user_id?: string;
-        };
+          alias?: string
+          alias_type?: string
+          business_profile_id?: string
+          created_at?: string
+          id?: string
+          language?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "business_aliases_business_profile_id_fkey";
-            columns: ["business_profile_id"];
-            isOneToOne: false;
-            referencedRelation: "business_profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "business_aliases_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       business_place_selections: {
         Row: {
-          business_profile_id: string;
-          display_name: string | null;
-          formatted_address: string | null;
-          google_place_id: string;
-          id: string;
-          raw: Json;
-          scan_scope: string;
-          selected_at: string;
-          user_id: string;
-        };
+          business_profile_id: string
+          display_name: string | null
+          formatted_address: string | null
+          google_place_id: string
+          id: string
+          raw: Json
+          scan_scope: string
+          selected_at: string
+          user_id: string
+        }
         Insert: {
-          business_profile_id: string;
-          display_name?: string | null;
-          formatted_address?: string | null;
-          google_place_id: string;
-          id?: string;
-          raw?: Json;
-          scan_scope?: string;
-          selected_at?: string;
-          user_id: string;
-        };
+          business_profile_id: string
+          display_name?: string | null
+          formatted_address?: string | null
+          google_place_id: string
+          id?: string
+          raw?: Json
+          scan_scope?: string
+          selected_at?: string
+          user_id: string
+        }
         Update: {
-          business_profile_id?: string;
-          display_name?: string | null;
-          formatted_address?: string | null;
-          google_place_id?: string;
-          id?: string;
-          raw?: Json;
-          scan_scope?: string;
-          selected_at?: string;
-          user_id?: string;
-        };
+          business_profile_id?: string
+          display_name?: string | null
+          formatted_address?: string | null
+          google_place_id?: string
+          id?: string
+          raw?: Json
+          scan_scope?: string
+          selected_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "business_place_selections_business_profile_id_fkey";
-            columns: ["business_profile_id"];
-            isOneToOne: false;
-            referencedRelation: "business_profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "business_place_selections_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       business_profiles: {
         Row: {
-          abbreviations: string[];
-          address: string | null;
-          branch_names: string[];
-          business_status: string | null;
-          category: string | null;
-          city: string | null;
-          client_id: string | null;
-          confirmed_at: string | null;
-          country: string | null;
-          created_at: string;
-          executives: string[];
-          google_maps_url: string | null;
-          google_place_id: string | null;
-          id: string;
-          industry: string | null;
-          languages: string[];
-          latitude: number | null;
-          locked: boolean;
-          logo_url: string | null;
-          longitude: number | null;
-          official_business_name: string;
-          parent_company: string | null;
-          phone: string | null;
-          place_payload: Json;
-          place_source: string;
-          previous_names: string[];
-          products: string[];
-          rating: number | null;
-          region: string | null;
-          review_count: number | null;
-          scan_scope: string;
-          selected_location: string | null;
-          trading_name: string | null;
-          updated_at: string;
-          user_id: string;
-          website_domain: string | null;
-          website_url: string | null;
-        };
+          abbreviations: string[]
+          address: string | null
+          branch_names: string[]
+          business_status: string | null
+          category: string | null
+          city: string | null
+          client_id: string | null
+          confirmed_at: string | null
+          country: string | null
+          created_at: string
+          executives: string[]
+          google_maps_url: string | null
+          google_place_id: string | null
+          id: string
+          industry: string | null
+          languages: string[]
+          latitude: number | null
+          locked: boolean
+          logo_url: string | null
+          longitude: number | null
+          official_business_name: string
+          parent_company: string | null
+          phone: string | null
+          place_payload: Json
+          place_source: string
+          previous_names: string[]
+          products: string[]
+          rating: number | null
+          region: string | null
+          review_count: number | null
+          scan_scope: string
+          selected_location: string | null
+          trading_name: string | null
+          updated_at: string
+          user_id: string
+          website_domain: string | null
+          website_url: string | null
+        }
         Insert: {
-          abbreviations?: string[];
-          address?: string | null;
-          branch_names?: string[];
-          business_status?: string | null;
-          category?: string | null;
-          city?: string | null;
-          client_id?: string | null;
-          confirmed_at?: string | null;
-          country?: string | null;
-          created_at?: string;
-          executives?: string[];
-          google_maps_url?: string | null;
-          google_place_id?: string | null;
-          id?: string;
-          industry?: string | null;
-          languages?: string[];
-          latitude?: number | null;
-          locked?: boolean;
-          logo_url?: string | null;
-          longitude?: number | null;
-          official_business_name: string;
-          parent_company?: string | null;
-          phone?: string | null;
-          place_payload?: Json;
-          place_source?: string;
-          previous_names?: string[];
-          products?: string[];
-          rating?: number | null;
-          region?: string | null;
-          review_count?: number | null;
-          scan_scope?: string;
-          selected_location?: string | null;
-          trading_name?: string | null;
-          updated_at?: string;
-          user_id: string;
-          website_domain?: string | null;
-          website_url?: string | null;
-        };
+          abbreviations?: string[]
+          address?: string | null
+          branch_names?: string[]
+          business_status?: string | null
+          category?: string | null
+          city?: string | null
+          client_id?: string | null
+          confirmed_at?: string | null
+          country?: string | null
+          created_at?: string
+          executives?: string[]
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          id?: string
+          industry?: string | null
+          languages?: string[]
+          latitude?: number | null
+          locked?: boolean
+          logo_url?: string | null
+          longitude?: number | null
+          official_business_name: string
+          parent_company?: string | null
+          phone?: string | null
+          place_payload?: Json
+          place_source?: string
+          previous_names?: string[]
+          products?: string[]
+          rating?: number | null
+          region?: string | null
+          review_count?: number | null
+          scan_scope?: string
+          selected_location?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_id: string
+          website_domain?: string | null
+          website_url?: string | null
+        }
         Update: {
-          abbreviations?: string[];
-          address?: string | null;
-          branch_names?: string[];
-          business_status?: string | null;
-          category?: string | null;
-          city?: string | null;
-          client_id?: string | null;
-          confirmed_at?: string | null;
-          country?: string | null;
-          created_at?: string;
-          executives?: string[];
-          google_maps_url?: string | null;
-          google_place_id?: string | null;
-          id?: string;
-          industry?: string | null;
-          languages?: string[];
-          latitude?: number | null;
-          locked?: boolean;
-          logo_url?: string | null;
-          longitude?: number | null;
-          official_business_name?: string;
-          parent_company?: string | null;
-          phone?: string | null;
-          place_payload?: Json;
-          place_source?: string;
-          previous_names?: string[];
-          products?: string[];
-          rating?: number | null;
-          region?: string | null;
-          review_count?: number | null;
-          scan_scope?: string;
-          selected_location?: string | null;
-          trading_name?: string | null;
-          updated_at?: string;
-          user_id?: string;
-          website_domain?: string | null;
-          website_url?: string | null;
-        };
-        Relationships: [];
-      };
+          abbreviations?: string[]
+          address?: string | null
+          branch_names?: string[]
+          business_status?: string | null
+          category?: string | null
+          city?: string | null
+          client_id?: string | null
+          confirmed_at?: string | null
+          country?: string | null
+          created_at?: string
+          executives?: string[]
+          google_maps_url?: string | null
+          google_place_id?: string | null
+          id?: string
+          industry?: string | null
+          languages?: string[]
+          latitude?: number | null
+          locked?: boolean
+          logo_url?: string | null
+          longitude?: number | null
+          official_business_name?: string
+          parent_company?: string | null
+          phone?: string | null
+          place_payload?: Json
+          place_source?: string
+          previous_names?: string[]
+          products?: string[]
+          rating?: number | null
+          region?: string | null
+          review_count?: number | null
+          scan_scope?: string
+          selected_location?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_id?: string
+          website_domain?: string | null
+          website_url?: string | null
+        }
+        Relationships: []
+      }
       business_reputation_scans: {
         Row: {
-          business_profile_id: string;
-          client_id: string | null;
-          completed_at: string | null;
-          created_at: string;
-          error: string | null;
-          id: string;
-          scan_scope: string;
-          stage: string | null;
-          started_at: string | null;
-          stats: Json;
-          status: string;
-          updated_at: string;
-          user_id: string;
-        };
+          business_profile_id: string
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          scan_scope: string
+          stage: string | null
+          started_at: string | null
+          stats: Json
+          status: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          business_profile_id: string;
-          client_id?: string | null;
-          completed_at?: string | null;
-          created_at?: string;
-          error?: string | null;
-          id?: string;
-          scan_scope?: string;
-          stage?: string | null;
-          started_at?: string | null;
-          stats?: Json;
-          status?: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          business_profile_id: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          scan_scope?: string
+          stage?: string | null
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          business_profile_id?: string;
-          client_id?: string | null;
-          completed_at?: string | null;
-          created_at?: string;
-          error?: string | null;
-          id?: string;
-          scan_scope?: string;
-          stage?: string | null;
-          started_at?: string | null;
-          stats?: Json;
-          status?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
+          business_profile_id?: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          scan_scope?: string
+          stage?: string | null
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "business_reputation_scans_business_profile_id_fkey";
-            columns: ["business_profile_id"];
-            isOneToOne: false;
-            referencedRelation: "business_profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "business_reputation_scans_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       business_scan_queries: {
         Row: {
-          business_profile_id: string;
-          country: string | null;
-          created_at: string;
-          id: string;
-          language: string | null;
-          priority: number;
-          query: string;
-          query_type: string;
-          user_id: string;
-        };
+          business_profile_id: string
+          country: string | null
+          created_at: string
+          id: string
+          language: string | null
+          priority: number
+          query: string
+          query_type: string
+          user_id: string
+        }
         Insert: {
-          business_profile_id: string;
-          country?: string | null;
-          created_at?: string;
-          id?: string;
-          language?: string | null;
-          priority?: number;
-          query: string;
-          query_type?: string;
-          user_id: string;
-        };
+          business_profile_id: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          priority?: number
+          query: string
+          query_type?: string
+          user_id: string
+        }
         Update: {
-          business_profile_id?: string;
-          country?: string | null;
-          created_at?: string;
-          id?: string;
-          language?: string | null;
-          priority?: number;
-          query?: string;
-          query_type?: string;
-          user_id?: string;
-        };
+          business_profile_id?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          priority?: number
+          query?: string
+          query_type?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "business_scan_queries_business_profile_id_fkey";
-            columns: ["business_profile_id"];
-            isOneToOne: false;
-            referencedRelation: "business_profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "business_scan_queries_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       business_social_accounts: {
         Row: {
-          business_profile_id: string;
-          created_at: string;
-          id: string;
-          is_official: boolean;
-          platform: string;
-          profile_url: string | null;
-          user_id: string;
-          username: string | null;
-        };
+          business_profile_id: string
+          created_at: string
+          id: string
+          is_official: boolean
+          platform: string
+          profile_url: string | null
+          user_id: string
+          username: string | null
+        }
         Insert: {
-          business_profile_id: string;
-          created_at?: string;
-          id?: string;
-          is_official?: boolean;
-          platform: string;
-          profile_url?: string | null;
-          user_id: string;
-          username?: string | null;
-        };
+          business_profile_id: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          platform: string
+          profile_url?: string | null
+          user_id: string
+          username?: string | null
+        }
         Update: {
-          business_profile_id?: string;
-          created_at?: string;
-          id?: string;
-          is_official?: boolean;
-          platform?: string;
-          profile_url?: string | null;
-          user_id?: string;
-          username?: string | null;
-        };
+          business_profile_id?: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          platform?: string
+          profile_url?: string | null
+          user_id?: string
+          username?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "business_social_accounts_business_profile_id_fkey";
-            columns: ["business_profile_id"];
-            isOneToOne: false;
-            referencedRelation: "business_profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "business_social_accounts_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       caption_imports: {
         Row: {
-          created_at: string;
-          filename: string | null;
-          format: string;
-          id: string;
-          job_id: string | null;
-          language: string | null;
-          raw_text: string;
-          segment_count: number;
-          segments: Json;
-          transcript_source: string;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          filename: string | null
+          format: string
+          id: string
+          job_id: string | null
+          language: string | null
+          raw_text: string
+          segment_count: number
+          segments: Json
+          transcript_source: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          filename?: string | null;
-          format: string;
-          id?: string;
-          job_id?: string | null;
-          language?: string | null;
-          raw_text: string;
-          segment_count?: number;
-          segments?: Json;
-          transcript_source?: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          filename?: string | null
+          format: string
+          id?: string
+          job_id?: string | null
+          language?: string | null
+          raw_text: string
+          segment_count?: number
+          segments?: Json
+          transcript_source?: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          filename?: string | null;
-          format?: string;
-          id?: string;
-          job_id?: string | null;
-          language?: string | null;
-          raw_text?: string;
-          segment_count?: number;
-          segments?: Json;
-          transcript_source?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
+          created_at?: string
+          filename?: string | null
+          format?: string
+          id?: string
+          job_id?: string | null
+          language?: string | null
+          raw_text?: string
+          segment_count?: number
+          segments?: Json
+          transcript_source?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "caption_imports_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "caption_imports_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       case_findings: {
         Row: {
-          case_id: string;
-          created_at: string;
-          id: string;
-          note: string | null;
-          scan_hit_id: string | null;
-          user_id: string;
-        };
+          case_id: string
+          created_at: string
+          id: string
+          note: string | null
+          scan_hit_id: string | null
+          user_id: string
+        }
         Insert: {
-          case_id: string;
-          created_at?: string;
-          id?: string;
-          note?: string | null;
-          scan_hit_id?: string | null;
-          user_id: string;
-        };
+          case_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          scan_hit_id?: string | null
+          user_id: string
+        }
         Update: {
-          case_id?: string;
-          created_at?: string;
-          id?: string;
-          note?: string | null;
-          scan_hit_id?: string | null;
-          user_id?: string;
-        };
+          case_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          scan_hit_id?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "case_findings_case_id_fkey";
-            columns: ["case_id"];
-            isOneToOne: false;
-            referencedRelation: "cases";
-            referencedColumns: ["id"];
+            foreignKeyName: "case_findings_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "case_findings_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "case_findings_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       cases: {
         Row: {
-          assignee: string | null;
-          closed_at: string | null;
-          created_at: string;
-          id: string;
-          metadata: Json;
-          notes: string | null;
-          opened_at: string;
-          priority: string;
-          status: string;
-          subject: string;
-          type: string;
-          updated_at: string;
-          user_id: string;
-        };
+          assignee: string | null
+          closed_at: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          notes: string | null
+          opened_at: string
+          priority: string
+          status: string
+          subject: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          assignee?: string | null;
-          closed_at?: string | null;
-          created_at?: string;
-          id?: string;
-          metadata?: Json;
-          notes?: string | null;
-          opened_at?: string;
-          priority?: string;
-          status?: string;
-          subject: string;
-          type: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          assignee?: string | null
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          opened_at?: string
+          priority?: string
+          status?: string
+          subject: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          assignee?: string | null;
-          closed_at?: string | null;
-          created_at?: string;
-          id?: string;
-          metadata?: Json;
-          notes?: string | null;
-          opened_at?: string;
-          priority?: string;
-          status?: string;
-          subject?: string;
-          type?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          assignee?: string | null
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          opened_at?: string
+          priority?: string
+          status?: string
+          subject?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       channel_watch_events: {
         Row: {
-          created_at: string;
-          event_type: string;
-          id: string;
-          payload: Json;
-          user_id: string;
-          video_id: string | null;
-          watch_id: string | null;
-        };
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          user_id: string
+          video_id: string | null
+          watch_id: string | null
+        }
         Insert: {
-          created_at?: string;
-          event_type: string;
-          id?: string;
-          payload?: Json;
-          user_id: string;
-          video_id?: string | null;
-          watch_id?: string | null;
-        };
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          user_id: string
+          video_id?: string | null
+          watch_id?: string | null
+        }
         Update: {
-          created_at?: string;
-          event_type?: string;
-          id?: string;
-          payload?: Json;
-          user_id?: string;
-          video_id?: string | null;
-          watch_id?: string | null;
-        };
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          user_id?: string
+          video_id?: string | null
+          watch_id?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "channel_watch_events_video_id_fkey";
-            columns: ["video_id"];
-            isOneToOne: false;
-            referencedRelation: "channel_watch_videos";
-            referencedColumns: ["id"];
+            foreignKeyName: "channel_watch_events_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "channel_watch_videos"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "channel_watch_events_watch_id_fkey";
-            columns: ["watch_id"];
-            isOneToOne: false;
-            referencedRelation: "channel_watches";
-            referencedColumns: ["id"];
+            foreignKeyName: "channel_watch_events_watch_id_fkey"
+            columns: ["watch_id"]
+            isOneToOne: false
+            referencedRelation: "channel_watches"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       channel_watch_evidence: {
         Row: {
-          created_at: string;
-          evidence_vault_item_id: string | null;
-          id: string;
-          kind: string;
-          metadata: Json;
-          s3_bucket: string | null;
-          s3_key: string | null;
-          user_id: string;
-          video_id: string;
-        };
+          created_at: string
+          evidence_vault_item_id: string | null
+          id: string
+          kind: string
+          metadata: Json
+          s3_bucket: string | null
+          s3_key: string | null
+          user_id: string
+          video_id: string
+        }
         Insert: {
-          created_at?: string;
-          evidence_vault_item_id?: string | null;
-          id?: string;
-          kind: string;
-          metadata?: Json;
-          s3_bucket?: string | null;
-          s3_key?: string | null;
-          user_id: string;
-          video_id: string;
-        };
+          created_at?: string
+          evidence_vault_item_id?: string | null
+          id?: string
+          kind: string
+          metadata?: Json
+          s3_bucket?: string | null
+          s3_key?: string | null
+          user_id: string
+          video_id: string
+        }
         Update: {
-          created_at?: string;
-          evidence_vault_item_id?: string | null;
-          id?: string;
-          kind?: string;
-          metadata?: Json;
-          s3_bucket?: string | null;
-          s3_key?: string | null;
-          user_id?: string;
-          video_id?: string;
-        };
+          created_at?: string
+          evidence_vault_item_id?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          s3_bucket?: string | null
+          s3_key?: string | null
+          user_id?: string
+          video_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "channel_watch_evidence_evidence_vault_item_id_fkey";
-            columns: ["evidence_vault_item_id"];
-            isOneToOne: false;
-            referencedRelation: "evidence_vault_items";
-            referencedColumns: ["id"];
+            foreignKeyName: "channel_watch_evidence_evidence_vault_item_id_fkey"
+            columns: ["evidence_vault_item_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_vault_items"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "channel_watch_evidence_video_id_fkey";
-            columns: ["video_id"];
-            isOneToOne: false;
-            referencedRelation: "channel_watch_videos";
-            referencedColumns: ["id"];
+            foreignKeyName: "channel_watch_evidence_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "channel_watch_videos"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       channel_watch_videos: {
         Row: {
-          analysis_error: string | null;
-          analysis_status: Database["public"]["Enums"]["channel_watch_analysis_status"];
-          classification: Database["public"]["Enums"]["channel_watch_classification"] | null;
-          comment_count: number | null;
-          created_at: string;
-          deepfake_indicators: Json;
-          description: string | null;
-          detected_at: string;
-          duration_seconds: number | null;
-          id: string;
-          is_baseline: boolean;
-          like_count: number | null;
-          mention_match: Json;
-          protected_asset_similarity: Json;
-          published_at: string | null;
-          reupload_of_video_id: string | null;
-          review_note: string | null;
-          review_status: Database["public"]["Enums"]["channel_watch_review_status"];
-          risk_score: number | null;
-          thumbnail_url: string | null;
-          title: string | null;
-          updated_at: string;
-          url: string | null;
-          user_id: string;
-          video_id: string;
-          view_count: number | null;
-          virality_score: number | null;
-          watch_id: string;
-        };
+          analysis_error: string | null
+          analysis_status: Database["public"]["Enums"]["channel_watch_analysis_status"]
+          classification:
+            | Database["public"]["Enums"]["channel_watch_classification"]
+            | null
+          comment_count: number | null
+          created_at: string
+          deepfake_indicators: Json
+          description: string | null
+          detected_at: string
+          duration_seconds: number | null
+          id: string
+          is_baseline: boolean
+          like_count: number | null
+          mention_match: Json
+          protected_asset_similarity: Json
+          published_at: string | null
+          reupload_of_video_id: string | null
+          review_note: string | null
+          review_status: Database["public"]["Enums"]["channel_watch_review_status"]
+          risk_score: number | null
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          url: string | null
+          user_id: string
+          video_id: string
+          view_count: number | null
+          virality_score: number | null
+          watch_id: string
+        }
         Insert: {
-          analysis_error?: string | null;
-          analysis_status?: Database["public"]["Enums"]["channel_watch_analysis_status"];
-          classification?: Database["public"]["Enums"]["channel_watch_classification"] | null;
-          comment_count?: number | null;
-          created_at?: string;
-          deepfake_indicators?: Json;
-          description?: string | null;
-          detected_at?: string;
-          duration_seconds?: number | null;
-          id?: string;
-          is_baseline?: boolean;
-          like_count?: number | null;
-          mention_match?: Json;
-          protected_asset_similarity?: Json;
-          published_at?: string | null;
-          reupload_of_video_id?: string | null;
-          review_note?: string | null;
-          review_status?: Database["public"]["Enums"]["channel_watch_review_status"];
-          risk_score?: number | null;
-          thumbnail_url?: string | null;
-          title?: string | null;
-          updated_at?: string;
-          url?: string | null;
-          user_id: string;
-          video_id: string;
-          view_count?: number | null;
-          virality_score?: number | null;
-          watch_id: string;
-        };
+          analysis_error?: string | null
+          analysis_status?: Database["public"]["Enums"]["channel_watch_analysis_status"]
+          classification?:
+            | Database["public"]["Enums"]["channel_watch_classification"]
+            | null
+          comment_count?: number | null
+          created_at?: string
+          deepfake_indicators?: Json
+          description?: string | null
+          detected_at?: string
+          duration_seconds?: number | null
+          id?: string
+          is_baseline?: boolean
+          like_count?: number | null
+          mention_match?: Json
+          protected_asset_similarity?: Json
+          published_at?: string | null
+          reupload_of_video_id?: string | null
+          review_note?: string | null
+          review_status?: Database["public"]["Enums"]["channel_watch_review_status"]
+          risk_score?: number | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id: string
+          video_id: string
+          view_count?: number | null
+          virality_score?: number | null
+          watch_id: string
+        }
         Update: {
-          analysis_error?: string | null;
-          analysis_status?: Database["public"]["Enums"]["channel_watch_analysis_status"];
-          classification?: Database["public"]["Enums"]["channel_watch_classification"] | null;
-          comment_count?: number | null;
-          created_at?: string;
-          deepfake_indicators?: Json;
-          description?: string | null;
-          detected_at?: string;
-          duration_seconds?: number | null;
-          id?: string;
-          is_baseline?: boolean;
-          like_count?: number | null;
-          mention_match?: Json;
-          protected_asset_similarity?: Json;
-          published_at?: string | null;
-          reupload_of_video_id?: string | null;
-          review_note?: string | null;
-          review_status?: Database["public"]["Enums"]["channel_watch_review_status"];
-          risk_score?: number | null;
-          thumbnail_url?: string | null;
-          title?: string | null;
-          updated_at?: string;
-          url?: string | null;
-          user_id?: string;
-          video_id?: string;
-          view_count?: number | null;
-          virality_score?: number | null;
-          watch_id?: string;
-        };
+          analysis_error?: string | null
+          analysis_status?: Database["public"]["Enums"]["channel_watch_analysis_status"]
+          classification?:
+            | Database["public"]["Enums"]["channel_watch_classification"]
+            | null
+          comment_count?: number | null
+          created_at?: string
+          deepfake_indicators?: Json
+          description?: string | null
+          detected_at?: string
+          duration_seconds?: number | null
+          id?: string
+          is_baseline?: boolean
+          like_count?: number | null
+          mention_match?: Json
+          protected_asset_similarity?: Json
+          published_at?: string | null
+          reupload_of_video_id?: string | null
+          review_note?: string | null
+          review_status?: Database["public"]["Enums"]["channel_watch_review_status"]
+          risk_score?: number | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+          video_id?: string
+          view_count?: number | null
+          virality_score?: number | null
+          watch_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "channel_watch_videos_watch_id_fkey";
-            columns: ["watch_id"];
-            isOneToOne: false;
-            referencedRelation: "channel_watches";
-            referencedColumns: ["id"];
+            foreignKeyName: "channel_watch_videos_watch_id_fkey"
+            columns: ["watch_id"]
+            isOneToOne: false
+            referencedRelation: "channel_watches"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       channel_watches: {
         Row: {
-          avatar_url: string | null;
-          channel_id: string;
-          channel_title: string | null;
-          channel_url: string | null;
-          created_at: string;
-          description: string | null;
-          firecrawl_monitor_id: string | null;
-          handle: string | null;
-          id: string;
-          last_checked_at: string | null;
-          last_error: string | null;
-          last_video_published_at: string | null;
-          next_check_at: string | null;
-          notes: string | null;
-          priority: Database["public"]["Enums"]["channel_watch_priority"];
-          reason: string | null;
-          status: Database["public"]["Enums"]["channel_watch_status"];
-          subscriber_count: number | null;
-          updated_at: string;
-          uploads_playlist_id: string | null;
-          user_id: string;
-          video_count: number | null;
-        };
+          avatar_url: string | null
+          channel_id: string
+          channel_title: string | null
+          channel_url: string | null
+          created_at: string
+          description: string | null
+          firecrawl_monitor_id: string | null
+          handle: string | null
+          id: string
+          last_checked_at: string | null
+          last_error: string | null
+          last_video_published_at: string | null
+          next_check_at: string | null
+          notes: string | null
+          priority: Database["public"]["Enums"]["channel_watch_priority"]
+          reason: string | null
+          status: Database["public"]["Enums"]["channel_watch_status"]
+          subscriber_count: number | null
+          updated_at: string
+          uploads_playlist_id: string | null
+          user_id: string
+          video_count: number | null
+        }
         Insert: {
-          avatar_url?: string | null;
-          channel_id: string;
-          channel_title?: string | null;
-          channel_url?: string | null;
-          created_at?: string;
-          description?: string | null;
-          firecrawl_monitor_id?: string | null;
-          handle?: string | null;
-          id?: string;
-          last_checked_at?: string | null;
-          last_error?: string | null;
-          last_video_published_at?: string | null;
-          next_check_at?: string | null;
-          notes?: string | null;
-          priority?: Database["public"]["Enums"]["channel_watch_priority"];
-          reason?: string | null;
-          status?: Database["public"]["Enums"]["channel_watch_status"];
-          subscriber_count?: number | null;
-          updated_at?: string;
-          uploads_playlist_id?: string | null;
-          user_id: string;
-          video_count?: number | null;
-        };
+          avatar_url?: string | null
+          channel_id: string
+          channel_title?: string | null
+          channel_url?: string | null
+          created_at?: string
+          description?: string | null
+          firecrawl_monitor_id?: string | null
+          handle?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          last_video_published_at?: string | null
+          next_check_at?: string | null
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["channel_watch_priority"]
+          reason?: string | null
+          status?: Database["public"]["Enums"]["channel_watch_status"]
+          subscriber_count?: number | null
+          updated_at?: string
+          uploads_playlist_id?: string | null
+          user_id: string
+          video_count?: number | null
+        }
         Update: {
-          avatar_url?: string | null;
-          channel_id?: string;
-          channel_title?: string | null;
-          channel_url?: string | null;
-          created_at?: string;
-          description?: string | null;
-          firecrawl_monitor_id?: string | null;
-          handle?: string | null;
-          id?: string;
-          last_checked_at?: string | null;
-          last_error?: string | null;
-          last_video_published_at?: string | null;
-          next_check_at?: string | null;
-          notes?: string | null;
-          priority?: Database["public"]["Enums"]["channel_watch_priority"];
-          reason?: string | null;
-          status?: Database["public"]["Enums"]["channel_watch_status"];
-          subscriber_count?: number | null;
-          updated_at?: string;
-          uploads_playlist_id?: string | null;
-          user_id?: string;
-          video_count?: number | null;
-        };
-        Relationships: [];
-      };
+          avatar_url?: string | null
+          channel_id?: string
+          channel_title?: string | null
+          channel_url?: string | null
+          created_at?: string
+          description?: string | null
+          firecrawl_monitor_id?: string | null
+          handle?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          last_video_published_at?: string | null
+          next_check_at?: string | null
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["channel_watch_priority"]
+          reason?: string | null
+          status?: Database["public"]["Enums"]["channel_watch_status"]
+          subscriber_count?: number | null
+          updated_at?: string
+          uploads_playlist_id?: string | null
+          user_id?: string
+          video_count?: number | null
+        }
+        Relationships: []
+      }
       client_authorizations: {
         Row: {
-          auth_number: string;
-          created_at: string;
-          effective_date: string | null;
-          enforcement_enabled: boolean;
-          expiry_date: string | null;
-          id: string;
-          snapshot: Json | null;
-          status: Database["public"]["Enums"]["authorization_status"];
-          territory: string | null;
-          updated_at: string;
-          user_id: string;
-          version: number;
-        };
+          auth_number: string
+          created_at: string
+          effective_date: string | null
+          enforcement_enabled: boolean
+          expiry_date: string | null
+          id: string
+          snapshot: Json | null
+          status: Database["public"]["Enums"]["authorization_status"]
+          territory: string | null
+          updated_at: string
+          user_id: string
+          version: number
+        }
         Insert: {
-          auth_number: string;
-          created_at?: string;
-          effective_date?: string | null;
-          enforcement_enabled?: boolean;
-          expiry_date?: string | null;
-          id?: string;
-          snapshot?: Json | null;
-          status?: Database["public"]["Enums"]["authorization_status"];
-          territory?: string | null;
-          updated_at?: string;
-          user_id: string;
-          version?: number;
-        };
+          auth_number: string
+          created_at?: string
+          effective_date?: string | null
+          enforcement_enabled?: boolean
+          expiry_date?: string | null
+          id?: string
+          snapshot?: Json | null
+          status?: Database["public"]["Enums"]["authorization_status"]
+          territory?: string | null
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
         Update: {
-          auth_number?: string;
-          created_at?: string;
-          effective_date?: string | null;
-          enforcement_enabled?: boolean;
-          expiry_date?: string | null;
-          id?: string;
-          snapshot?: Json | null;
-          status?: Database["public"]["Enums"]["authorization_status"];
-          territory?: string | null;
-          updated_at?: string;
-          user_id?: string;
-          version?: number;
-        };
-        Relationships: [];
-      };
+          auth_number?: string
+          created_at?: string
+          effective_date?: string | null
+          enforcement_enabled?: boolean
+          expiry_date?: string | null
+          id?: string
+          snapshot?: Json | null
+          status?: Database["public"]["Enums"]["authorization_status"]
+          territory?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       client_profiles: {
         Row: {
-          account_type: Database["public"]["Enums"]["account_type_enum"] | null;
-          address: string | null;
-          authorization_level: Database["public"]["Enums"]["authorization_level_enum"] | null;
-          authorization_status: Database["public"]["Enums"]["authorization_status_enum"];
-          business_reg_number: string | null;
-          client_id: string | null;
-          client_type: Database["public"]["Enums"]["client_type_enum"] | null;
-          company_email: string | null;
-          company_name: string | null;
-          contact_person: string | null;
-          country: string | null;
-          created_at: string;
-          display_name: string | null;
-          email: string | null;
-          email_verified_at: string | null;
-          full_name: string | null;
-          gov_id_ref: string | null;
-          legal_name: string | null;
-          official_socials: Json;
-          onboarding_account_type: string | null;
-          onboarding_completed: boolean;
-          onboarding_step: number;
-          onboarding_version: string;
-          phone: string | null;
-          phone_verified_at: string | null;
-          referred_by: string | null;
-          role_title: string | null;
-          sidebar_collapsed: boolean;
-          social_profiles: Json;
-          updated_at: string;
-          user_id: string;
-          verification_badge: string | null;
-          website: string | null;
-        };
+          account_type: Database["public"]["Enums"]["account_type_enum"] | null
+          address: string | null
+          authorization_level:
+            | Database["public"]["Enums"]["authorization_level_enum"]
+            | null
+          authorization_status: Database["public"]["Enums"]["authorization_status_enum"]
+          business_reg_number: string | null
+          client_id: string | null
+          client_type: Database["public"]["Enums"]["client_type_enum"] | null
+          company_email: string | null
+          company_name: string | null
+          contact_person: string | null
+          country: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          email_verified_at: string | null
+          full_name: string | null
+          gov_id_ref: string | null
+          legal_name: string | null
+          official_socials: Json
+          onboarding_account_type: string | null
+          onboarding_completed: boolean
+          onboarding_step: number
+          onboarding_version: string
+          phone: string | null
+          phone_verified_at: string | null
+          referred_by: string | null
+          role_title: string | null
+          sidebar_collapsed: boolean
+          social_profiles: Json
+          updated_at: string
+          user_id: string
+          verification_badge: string | null
+          website: string | null
+        }
         Insert: {
-          account_type?: Database["public"]["Enums"]["account_type_enum"] | null;
-          address?: string | null;
-          authorization_level?: Database["public"]["Enums"]["authorization_level_enum"] | null;
-          authorization_status?: Database["public"]["Enums"]["authorization_status_enum"];
-          business_reg_number?: string | null;
-          client_id?: string | null;
-          client_type?: Database["public"]["Enums"]["client_type_enum"] | null;
-          company_email?: string | null;
-          company_name?: string | null;
-          contact_person?: string | null;
-          country?: string | null;
-          created_at?: string;
-          display_name?: string | null;
-          email?: string | null;
-          email_verified_at?: string | null;
-          full_name?: string | null;
-          gov_id_ref?: string | null;
-          legal_name?: string | null;
-          official_socials?: Json;
-          onboarding_account_type?: string | null;
-          onboarding_completed?: boolean;
-          onboarding_step?: number;
-          onboarding_version?: string;
-          phone?: string | null;
-          phone_verified_at?: string | null;
-          referred_by?: string | null;
-          role_title?: string | null;
-          sidebar_collapsed?: boolean;
-          social_profiles?: Json;
-          updated_at?: string;
-          user_id: string;
-          verification_badge?: string | null;
-          website?: string | null;
-        };
+          account_type?: Database["public"]["Enums"]["account_type_enum"] | null
+          address?: string | null
+          authorization_level?:
+            | Database["public"]["Enums"]["authorization_level_enum"]
+            | null
+          authorization_status?: Database["public"]["Enums"]["authorization_status_enum"]
+          business_reg_number?: string | null
+          client_id?: string | null
+          client_type?: Database["public"]["Enums"]["client_type_enum"] | null
+          company_email?: string | null
+          company_name?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          email_verified_at?: string | null
+          full_name?: string | null
+          gov_id_ref?: string | null
+          legal_name?: string | null
+          official_socials?: Json
+          onboarding_account_type?: string | null
+          onboarding_completed?: boolean
+          onboarding_step?: number
+          onboarding_version?: string
+          phone?: string | null
+          phone_verified_at?: string | null
+          referred_by?: string | null
+          role_title?: string | null
+          sidebar_collapsed?: boolean
+          social_profiles?: Json
+          updated_at?: string
+          user_id: string
+          verification_badge?: string | null
+          website?: string | null
+        }
         Update: {
-          account_type?: Database["public"]["Enums"]["account_type_enum"] | null;
-          address?: string | null;
-          authorization_level?: Database["public"]["Enums"]["authorization_level_enum"] | null;
-          authorization_status?: Database["public"]["Enums"]["authorization_status_enum"];
-          business_reg_number?: string | null;
-          client_id?: string | null;
-          client_type?: Database["public"]["Enums"]["client_type_enum"] | null;
-          company_email?: string | null;
-          company_name?: string | null;
-          contact_person?: string | null;
-          country?: string | null;
-          created_at?: string;
-          display_name?: string | null;
-          email?: string | null;
-          email_verified_at?: string | null;
-          full_name?: string | null;
-          gov_id_ref?: string | null;
-          legal_name?: string | null;
-          official_socials?: Json;
-          onboarding_account_type?: string | null;
-          onboarding_completed?: boolean;
-          onboarding_step?: number;
-          onboarding_version?: string;
-          phone?: string | null;
-          phone_verified_at?: string | null;
-          referred_by?: string | null;
-          role_title?: string | null;
-          sidebar_collapsed?: boolean;
-          social_profiles?: Json;
-          updated_at?: string;
-          user_id?: string;
-          verification_badge?: string | null;
-          website?: string | null;
-        };
-        Relationships: [];
-      };
+          account_type?: Database["public"]["Enums"]["account_type_enum"] | null
+          address?: string | null
+          authorization_level?:
+            | Database["public"]["Enums"]["authorization_level_enum"]
+            | null
+          authorization_status?: Database["public"]["Enums"]["authorization_status_enum"]
+          business_reg_number?: string | null
+          client_id?: string | null
+          client_type?: Database["public"]["Enums"]["client_type_enum"] | null
+          company_email?: string | null
+          company_name?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          email_verified_at?: string | null
+          full_name?: string | null
+          gov_id_ref?: string | null
+          legal_name?: string | null
+          official_socials?: Json
+          onboarding_account_type?: string | null
+          onboarding_completed?: boolean
+          onboarding_step?: number
+          onboarding_version?: string
+          phone?: string | null
+          phone_verified_at?: string | null
+          referred_by?: string | null
+          role_title?: string | null
+          sidebar_collapsed?: boolean
+          social_profiles?: Json
+          updated_at?: string
+          user_id?: string
+          verification_badge?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       copyright_matches: {
         Row: {
-          confidence: number;
-          confidence_band: string;
-          contact: Json;
-          created_at: string;
-          detection_type: string;
-          evidence: Json;
-          id: string;
-          ocr_text: string | null;
-          page_title: string | null;
-          platform: string | null;
-          reason: string | null;
-          review_status: string;
-          scan_id: string;
-          source_url: string;
-          thumbnail_url: string | null;
-          transformations: Json;
-          user_id: string;
-        };
+          confidence: number
+          confidence_band: string
+          contact: Json
+          created_at: string
+          detection_type: string
+          evidence: Json
+          id: string
+          ocr_text: string | null
+          page_title: string | null
+          platform: string | null
+          reason: string | null
+          review_status: string
+          scan_id: string
+          source_url: string
+          thumbnail_url: string | null
+          transformations: Json
+          user_id: string
+        }
         Insert: {
-          confidence?: number;
-          confidence_band?: string;
-          contact?: Json;
-          created_at?: string;
-          detection_type?: string;
-          evidence?: Json;
-          id?: string;
-          ocr_text?: string | null;
-          page_title?: string | null;
-          platform?: string | null;
-          reason?: string | null;
-          review_status?: string;
-          scan_id: string;
-          source_url: string;
-          thumbnail_url?: string | null;
-          transformations?: Json;
-          user_id: string;
-        };
+          confidence?: number
+          confidence_band?: string
+          contact?: Json
+          created_at?: string
+          detection_type?: string
+          evidence?: Json
+          id?: string
+          ocr_text?: string | null
+          page_title?: string | null
+          platform?: string | null
+          reason?: string | null
+          review_status?: string
+          scan_id: string
+          source_url: string
+          thumbnail_url?: string | null
+          transformations?: Json
+          user_id: string
+        }
         Update: {
-          confidence?: number;
-          confidence_band?: string;
-          contact?: Json;
-          created_at?: string;
-          detection_type?: string;
-          evidence?: Json;
-          id?: string;
-          ocr_text?: string | null;
-          page_title?: string | null;
-          platform?: string | null;
-          reason?: string | null;
-          review_status?: string;
-          scan_id?: string;
-          source_url?: string;
-          thumbnail_url?: string | null;
-          transformations?: Json;
-          user_id?: string;
-        };
+          confidence?: number
+          confidence_band?: string
+          contact?: Json
+          created_at?: string
+          detection_type?: string
+          evidence?: Json
+          id?: string
+          ocr_text?: string | null
+          page_title?: string | null
+          platform?: string | null
+          reason?: string | null
+          review_status?: string
+          scan_id?: string
+          source_url?: string
+          thumbnail_url?: string | null
+          transformations?: Json
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "copyright_matches_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "copyright_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "copyright_matches_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       copyright_release_protection: {
         Row: {
-          created_at: string;
-          id: string;
-          last_scan_at: string | null;
-          last_scan_id: string | null;
-          monitoring_end_at: string | null;
-          monitoring_start_at: string | null;
-          next_scan_at: string | null;
-          paused: boolean;
-          readiness_level: string;
-          readiness_score: number;
-          reference_package: Json;
-          scan_id: string | null;
-          settings: Json;
-          stats: Json;
-          title: string;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          id: string
+          last_scan_at: string | null
+          last_scan_id: string | null
+          monitoring_end_at: string | null
+          monitoring_start_at: string | null
+          next_scan_at: string | null
+          paused: boolean
+          readiness_level: string
+          readiness_score: number
+          reference_package: Json
+          scan_id: string | null
+          settings: Json
+          stats: Json
+          title: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          id?: string;
-          last_scan_at?: string | null;
-          last_scan_id?: string | null;
-          monitoring_end_at?: string | null;
-          monitoring_start_at?: string | null;
-          next_scan_at?: string | null;
-          paused?: boolean;
-          readiness_level?: string;
-          readiness_score?: number;
-          reference_package?: Json;
-          scan_id?: string | null;
-          settings?: Json;
-          stats?: Json;
-          title: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          id?: string
+          last_scan_at?: string | null
+          last_scan_id?: string | null
+          monitoring_end_at?: string | null
+          monitoring_start_at?: string | null
+          next_scan_at?: string | null
+          paused?: boolean
+          readiness_level?: string
+          readiness_score?: number
+          reference_package?: Json
+          scan_id?: string | null
+          settings?: Json
+          stats?: Json
+          title: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          id?: string;
-          last_scan_at?: string | null;
-          last_scan_id?: string | null;
-          monitoring_end_at?: string | null;
-          monitoring_start_at?: string | null;
-          next_scan_at?: string | null;
-          paused?: boolean;
-          readiness_level?: string;
-          readiness_score?: number;
-          reference_package?: Json;
-          scan_id?: string | null;
-          settings?: Json;
-          stats?: Json;
-          title?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
+          created_at?: string
+          id?: string
+          last_scan_at?: string | null
+          last_scan_id?: string | null
+          monitoring_end_at?: string | null
+          monitoring_start_at?: string | null
+          next_scan_at?: string | null
+          paused?: boolean
+          readiness_level?: string
+          readiness_score?: number
+          reference_package?: Json
+          scan_id?: string | null
+          settings?: Json
+          stats?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "copyright_release_protection_last_scan_id_fkey";
-            columns: ["last_scan_id"];
-            isOneToOne: false;
-            referencedRelation: "copyright_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "copyright_release_protection_last_scan_id_fkey"
+            columns: ["last_scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "copyright_release_protection_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "copyright_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "copyright_release_protection_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       copyright_scans: {
         Row: {
-          created_at: string;
-          error: string | null;
-          frame_paths: Json;
-          id: string;
-          reference_kind: string;
-          sha256: string | null;
-          stats: Json;
-          status: string;
-          storage_path: string | null;
-          title: string;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          error: string | null
+          frame_paths: Json
+          id: string
+          reference_kind: string
+          sha256: string | null
+          stats: Json
+          status: string
+          storage_path: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          error?: string | null;
-          frame_paths?: Json;
-          id?: string;
-          reference_kind?: string;
-          sha256?: string | null;
-          stats?: Json;
-          status?: string;
-          storage_path?: string | null;
-          title: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          error?: string | null
+          frame_paths?: Json
+          id?: string
+          reference_kind?: string
+          sha256?: string | null
+          stats?: Json
+          status?: string
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          error?: string | null;
-          frame_paths?: Json;
-          id?: string;
-          reference_kind?: string;
-          sha256?: string | null;
-          stats?: Json;
-          status?: string;
-          storage_path?: string | null;
-          title?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          error?: string | null
+          frame_paths?: Json
+          id?: string
+          reference_kind?: string
+          sha256?: string | null
+          stats?: Json
+          status?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       copyright_youtube_videos: {
         Row: {
-          ai_summary: string | null;
-          channel_id: string | null;
-          channel_title: string | null;
-          channel_url: string | null;
-          comment_count: number | null;
-          comment_samples: Json;
-          content_category: string | null;
-          copyright_signals: Json;
-          copyright_usage: string;
-          created_at: string;
-          description: string | null;
-          duration_seconds: number | null;
-          evidence: Json;
-          evidence_timestamps: Json;
-          id: string;
-          is_release_review: boolean;
-          key_statements: Json;
-          like_count: number | null;
-          matched_query: string | null;
-          misleading_signals: Json;
-          published_at: string | null;
-          reputation_impact: string;
-          reputation_impact_score: number;
-          review_status: string;
-          review_type: string | null;
-          risk_score: number;
-          same_day_release: boolean;
-          scan_id: string;
-          sentiment: string;
-          sentiment_score: number | null;
-          thumbnail_url: string | null;
-          title: string;
-          updated_at: string;
-          user_id: string;
-          video_id: string;
-          video_url: string;
-          view_count: number | null;
-        };
+          ai_summary: string | null
+          channel_id: string | null
+          channel_title: string | null
+          channel_url: string | null
+          comment_count: number | null
+          comment_samples: Json
+          content_category: string | null
+          copyright_signals: Json
+          copyright_usage: string
+          created_at: string
+          description: string | null
+          duration_seconds: number | null
+          evidence: Json
+          evidence_timestamps: Json
+          id: string
+          is_release_review: boolean
+          key_statements: Json
+          like_count: number | null
+          matched_query: string | null
+          misleading_signals: Json
+          published_at: string | null
+          reputation_impact: string
+          reputation_impact_score: number
+          review_status: string
+          review_type: string | null
+          risk_score: number
+          same_day_release: boolean
+          scan_id: string
+          sentiment: string
+          sentiment_score: number | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          video_id: string
+          video_url: string
+          view_count: number | null
+        }
         Insert: {
-          ai_summary?: string | null;
-          channel_id?: string | null;
-          channel_title?: string | null;
-          channel_url?: string | null;
-          comment_count?: number | null;
-          comment_samples?: Json;
-          content_category?: string | null;
-          copyright_signals?: Json;
-          copyright_usage?: string;
-          created_at?: string;
-          description?: string | null;
-          duration_seconds?: number | null;
-          evidence?: Json;
-          evidence_timestamps?: Json;
-          id?: string;
-          is_release_review?: boolean;
-          key_statements?: Json;
-          like_count?: number | null;
-          matched_query?: string | null;
-          misleading_signals?: Json;
-          published_at?: string | null;
-          reputation_impact?: string;
-          reputation_impact_score?: number;
-          review_status?: string;
-          review_type?: string | null;
-          risk_score?: number;
-          same_day_release?: boolean;
-          scan_id: string;
-          sentiment?: string;
-          sentiment_score?: number | null;
-          thumbnail_url?: string | null;
-          title: string;
-          updated_at?: string;
-          user_id: string;
-          video_id: string;
-          video_url: string;
-          view_count?: number | null;
-        };
+          ai_summary?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          channel_url?: string | null
+          comment_count?: number | null
+          comment_samples?: Json
+          content_category?: string | null
+          copyright_signals?: Json
+          copyright_usage?: string
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          evidence?: Json
+          evidence_timestamps?: Json
+          id?: string
+          is_release_review?: boolean
+          key_statements?: Json
+          like_count?: number | null
+          matched_query?: string | null
+          misleading_signals?: Json
+          published_at?: string | null
+          reputation_impact?: string
+          reputation_impact_score?: number
+          review_status?: string
+          review_type?: string | null
+          risk_score?: number
+          same_day_release?: boolean
+          scan_id: string
+          sentiment?: string
+          sentiment_score?: number | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          video_id: string
+          video_url: string
+          view_count?: number | null
+        }
         Update: {
-          ai_summary?: string | null;
-          channel_id?: string | null;
-          channel_title?: string | null;
-          channel_url?: string | null;
-          comment_count?: number | null;
-          comment_samples?: Json;
-          content_category?: string | null;
-          copyright_signals?: Json;
-          copyright_usage?: string;
-          created_at?: string;
-          description?: string | null;
-          duration_seconds?: number | null;
-          evidence?: Json;
-          evidence_timestamps?: Json;
-          id?: string;
-          is_release_review?: boolean;
-          key_statements?: Json;
-          like_count?: number | null;
-          matched_query?: string | null;
-          misleading_signals?: Json;
-          published_at?: string | null;
-          reputation_impact?: string;
-          reputation_impact_score?: number;
-          review_status?: string;
-          review_type?: string | null;
-          risk_score?: number;
-          same_day_release?: boolean;
-          scan_id?: string;
-          sentiment?: string;
-          sentiment_score?: number | null;
-          thumbnail_url?: string | null;
-          title?: string;
-          updated_at?: string;
-          user_id?: string;
-          video_id?: string;
-          video_url?: string;
-          view_count?: number | null;
-        };
+          ai_summary?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          channel_url?: string | null
+          comment_count?: number | null
+          comment_samples?: Json
+          content_category?: string | null
+          copyright_signals?: Json
+          copyright_usage?: string
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          evidence?: Json
+          evidence_timestamps?: Json
+          id?: string
+          is_release_review?: boolean
+          key_statements?: Json
+          like_count?: number | null
+          matched_query?: string | null
+          misleading_signals?: Json
+          published_at?: string | null
+          reputation_impact?: string
+          reputation_impact_score?: number
+          review_status?: string
+          review_type?: string | null
+          risk_score?: number
+          same_day_release?: boolean
+          scan_id?: string
+          sentiment?: string
+          sentiment_score?: number | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+          video_url?: string
+          view_count?: number | null
+        }
         Relationships: [
           {
-            foreignKeyName: "copyright_youtube_videos_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "copyright_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "copyright_youtube_videos_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       deepfake_discoveries: {
         Row: {
-          analysis_status: string;
-          canonical_url: string | null;
-          discovered_at: string;
-          id: string;
-          image_url: string | null;
-          media_type: string | null;
-          page_title: string | null;
-          page_url: string;
-          scan_id: string;
-          search_query: string;
-          snippet: string | null;
-          source: string;
-          source_host: string | null;
-          thumbnail_url: string | null;
-          updated_at: string;
-          user_id: string;
-        };
+          analysis_status: string
+          canonical_url: string | null
+          discovered_at: string
+          id: string
+          image_url: string | null
+          media_type: string | null
+          page_title: string | null
+          page_url: string
+          scan_id: string
+          search_query: string
+          snippet: string | null
+          source: string
+          source_host: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          analysis_status?: string;
-          canonical_url?: string | null;
-          discovered_at?: string;
-          id?: string;
-          image_url?: string | null;
-          media_type?: string | null;
-          page_title?: string | null;
-          page_url: string;
-          scan_id: string;
-          search_query: string;
-          snippet?: string | null;
-          source?: string;
-          source_host?: string | null;
-          thumbnail_url?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
+          analysis_status?: string
+          canonical_url?: string | null
+          discovered_at?: string
+          id?: string
+          image_url?: string | null
+          media_type?: string | null
+          page_title?: string | null
+          page_url: string
+          scan_id: string
+          search_query: string
+          snippet?: string | null
+          source?: string
+          source_host?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          analysis_status?: string;
-          canonical_url?: string | null;
-          discovered_at?: string;
-          id?: string;
-          image_url?: string | null;
-          media_type?: string | null;
-          page_title?: string | null;
-          page_url?: string;
-          scan_id?: string;
-          search_query?: string;
-          snippet?: string | null;
-          source?: string;
-          source_host?: string | null;
-          thumbnail_url?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
+          analysis_status?: string
+          canonical_url?: string | null
+          discovered_at?: string
+          id?: string
+          image_url?: string | null
+          media_type?: string | null
+          page_title?: string | null
+          page_url?: string
+          scan_id?: string
+          search_query?: string
+          snippet?: string | null
+          source?: string
+          source_host?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "deepfake_discoveries_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "deepfake_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "deepfake_discoveries_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       deepfake_evidence: {
         Row: {
-          canonical_url: string | null;
-          capture_error: string | null;
-          confidence: number | null;
-          content_category: string | null;
-          content_length: number | null;
-          content_type: string | null;
-          created_at: string;
-          direct_media_url: string | null;
-          discovered_at: string;
-          evidence_page_url: string | null;
-          evidence_status: string;
-          face_match: boolean;
-          face_similarity: number | null;
-          finding_url: string;
-          http_status: number | null;
-          id: string;
-          last_verified_at: string | null;
-          matched_face_id: string | null;
-          media_sha256: string | null;
-          media_type: string | null;
-          page_description: string | null;
-          page_title: string | null;
-          risk_level: string | null;
-          scan_id: string;
-          source_host: string | null;
-          updated_at: string;
-          user_id: string;
-        };
+          canonical_url: string | null
+          capture_error: string | null
+          confidence: number | null
+          content_category: string | null
+          content_length: number | null
+          content_type: string | null
+          created_at: string
+          direct_media_url: string | null
+          discovered_at: string
+          evidence_page_url: string | null
+          evidence_status: string
+          face_match: boolean
+          face_similarity: number | null
+          finding_url: string
+          http_status: number | null
+          id: string
+          last_verified_at: string | null
+          matched_face_id: string | null
+          media_sha256: string | null
+          media_type: string | null
+          page_description: string | null
+          page_title: string | null
+          risk_level: string | null
+          scan_id: string
+          source_host: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          canonical_url?: string | null;
-          capture_error?: string | null;
-          confidence?: number | null;
-          content_category?: string | null;
-          content_length?: number | null;
-          content_type?: string | null;
-          created_at?: string;
-          direct_media_url?: string | null;
-          discovered_at?: string;
-          evidence_page_url?: string | null;
-          evidence_status?: string;
-          face_match?: boolean;
-          face_similarity?: number | null;
-          finding_url: string;
-          http_status?: number | null;
-          id?: string;
-          last_verified_at?: string | null;
-          matched_face_id?: string | null;
-          media_sha256?: string | null;
-          media_type?: string | null;
-          page_description?: string | null;
-          page_title?: string | null;
-          risk_level?: string | null;
-          scan_id: string;
-          source_host?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
+          canonical_url?: string | null
+          capture_error?: string | null
+          confidence?: number | null
+          content_category?: string | null
+          content_length?: number | null
+          content_type?: string | null
+          created_at?: string
+          direct_media_url?: string | null
+          discovered_at?: string
+          evidence_page_url?: string | null
+          evidence_status?: string
+          face_match?: boolean
+          face_similarity?: number | null
+          finding_url: string
+          http_status?: number | null
+          id?: string
+          last_verified_at?: string | null
+          matched_face_id?: string | null
+          media_sha256?: string | null
+          media_type?: string | null
+          page_description?: string | null
+          page_title?: string | null
+          risk_level?: string | null
+          scan_id: string
+          source_host?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          canonical_url?: string | null;
-          capture_error?: string | null;
-          confidence?: number | null;
-          content_category?: string | null;
-          content_length?: number | null;
-          content_type?: string | null;
-          created_at?: string;
-          direct_media_url?: string | null;
-          discovered_at?: string;
-          evidence_page_url?: string | null;
-          evidence_status?: string;
-          face_match?: boolean;
-          face_similarity?: number | null;
-          finding_url?: string;
-          http_status?: number | null;
-          id?: string;
-          last_verified_at?: string | null;
-          matched_face_id?: string | null;
-          media_sha256?: string | null;
-          media_type?: string | null;
-          page_description?: string | null;
-          page_title?: string | null;
-          risk_level?: string | null;
-          scan_id?: string;
-          source_host?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
+          canonical_url?: string | null
+          capture_error?: string | null
+          confidence?: number | null
+          content_category?: string | null
+          content_length?: number | null
+          content_type?: string | null
+          created_at?: string
+          direct_media_url?: string | null
+          discovered_at?: string
+          evidence_page_url?: string | null
+          evidence_status?: string
+          face_match?: boolean
+          face_similarity?: number | null
+          finding_url?: string
+          http_status?: number | null
+          id?: string
+          last_verified_at?: string | null
+          matched_face_id?: string | null
+          media_sha256?: string | null
+          media_type?: string | null
+          page_description?: string | null
+          page_title?: string | null
+          risk_level?: string | null
+          scan_id?: string
+          source_host?: string | null
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "deepfake_evidence_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "deepfake_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "deepfake_evidence_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       deepfake_findings: {
         Row: {
-          ai_reasoning: string | null;
-          canonical_url: string | null;
-          classification_explanation: string | null;
-          confidence: number;
-          content_category: string | null;
-          crawled_at: string | null;
-          created_at: string;
-          discovered_url: string | null;
-          face_referenced: boolean;
-          face_similarity: number | null;
-          final_url: string | null;
-          finding_classification: string | null;
-          http_status: number | null;
-          id: string;
-          identity_confidence: number | null;
-          is_synthetic: boolean;
-          matched_evidence: string[];
-          matched_face_id: string | null;
-          page_title: string | null;
-          page_type: string | null;
-          query: string | null;
-          redirect_chain: string[];
-          review_status: string;
-          risk_level: string;
-          scan_id: string;
-          snippet: string | null;
-          source_host: string | null;
-          synthetic_media_confidence: number | null;
-          takedown_recommended: boolean;
-          target_face_match: boolean | null;
-          url: string;
-          url_rejection_reason: string | null;
-          url_verification_status: string | null;
-          user_id: string;
-        };
+          ai_reasoning: string | null
+          canonical_url: string | null
+          classification_explanation: string | null
+          confidence: number
+          content_category: string | null
+          crawled_at: string | null
+          created_at: string
+          discovered_url: string | null
+          face_referenced: boolean
+          face_similarity: number | null
+          final_url: string | null
+          finding_classification: string | null
+          http_status: number | null
+          id: string
+          identity_confidence: number | null
+          is_synthetic: boolean
+          matched_evidence: string[]
+          matched_face_id: string | null
+          page_title: string | null
+          page_type: string | null
+          query: string | null
+          redirect_chain: string[]
+          review_status: string
+          risk_level: string
+          scan_id: string
+          snippet: string | null
+          source_host: string | null
+          synthetic_media_confidence: number | null
+          takedown_recommended: boolean
+          target_face_match: boolean | null
+          url: string
+          url_rejection_reason: string | null
+          url_verification_status: string | null
+          user_id: string
+        }
         Insert: {
-          ai_reasoning?: string | null;
-          canonical_url?: string | null;
-          classification_explanation?: string | null;
-          confidence?: number;
-          content_category?: string | null;
-          crawled_at?: string | null;
-          created_at?: string;
-          discovered_url?: string | null;
-          face_referenced?: boolean;
-          face_similarity?: number | null;
-          final_url?: string | null;
-          finding_classification?: string | null;
-          http_status?: number | null;
-          id?: string;
-          identity_confidence?: number | null;
-          is_synthetic?: boolean;
-          matched_evidence?: string[];
-          matched_face_id?: string | null;
-          page_title?: string | null;
-          page_type?: string | null;
-          query?: string | null;
-          redirect_chain?: string[];
-          review_status?: string;
-          risk_level?: string;
-          scan_id: string;
-          snippet?: string | null;
-          source_host?: string | null;
-          synthetic_media_confidence?: number | null;
-          takedown_recommended?: boolean;
-          target_face_match?: boolean | null;
-          url: string;
-          url_rejection_reason?: string | null;
-          url_verification_status?: string | null;
-          user_id: string;
-        };
+          ai_reasoning?: string | null
+          canonical_url?: string | null
+          classification_explanation?: string | null
+          confidence?: number
+          content_category?: string | null
+          crawled_at?: string | null
+          created_at?: string
+          discovered_url?: string | null
+          face_referenced?: boolean
+          face_similarity?: number | null
+          final_url?: string | null
+          finding_classification?: string | null
+          http_status?: number | null
+          id?: string
+          identity_confidence?: number | null
+          is_synthetic?: boolean
+          matched_evidence?: string[]
+          matched_face_id?: string | null
+          page_title?: string | null
+          page_type?: string | null
+          query?: string | null
+          redirect_chain?: string[]
+          review_status?: string
+          risk_level?: string
+          scan_id: string
+          snippet?: string | null
+          source_host?: string | null
+          synthetic_media_confidence?: number | null
+          takedown_recommended?: boolean
+          target_face_match?: boolean | null
+          url: string
+          url_rejection_reason?: string | null
+          url_verification_status?: string | null
+          user_id: string
+        }
         Update: {
-          ai_reasoning?: string | null;
-          canonical_url?: string | null;
-          classification_explanation?: string | null;
-          confidence?: number;
-          content_category?: string | null;
-          crawled_at?: string | null;
-          created_at?: string;
-          discovered_url?: string | null;
-          face_referenced?: boolean;
-          face_similarity?: number | null;
-          final_url?: string | null;
-          finding_classification?: string | null;
-          http_status?: number | null;
-          id?: string;
-          identity_confidence?: number | null;
-          is_synthetic?: boolean;
-          matched_evidence?: string[];
-          matched_face_id?: string | null;
-          page_title?: string | null;
-          page_type?: string | null;
-          query?: string | null;
-          redirect_chain?: string[];
-          review_status?: string;
-          risk_level?: string;
-          scan_id?: string;
-          snippet?: string | null;
-          source_host?: string | null;
-          synthetic_media_confidence?: number | null;
-          takedown_recommended?: boolean;
-          target_face_match?: boolean | null;
-          url?: string;
-          url_rejection_reason?: string | null;
-          url_verification_status?: string | null;
-          user_id?: string;
-        };
+          ai_reasoning?: string | null
+          canonical_url?: string | null
+          classification_explanation?: string | null
+          confidence?: number
+          content_category?: string | null
+          crawled_at?: string | null
+          created_at?: string
+          discovered_url?: string | null
+          face_referenced?: boolean
+          face_similarity?: number | null
+          final_url?: string | null
+          finding_classification?: string | null
+          http_status?: number | null
+          id?: string
+          identity_confidence?: number | null
+          is_synthetic?: boolean
+          matched_evidence?: string[]
+          matched_face_id?: string | null
+          page_title?: string | null
+          page_type?: string | null
+          query?: string | null
+          redirect_chain?: string[]
+          review_status?: string
+          risk_level?: string
+          scan_id?: string
+          snippet?: string | null
+          source_host?: string | null
+          synthetic_media_confidence?: number | null
+          takedown_recommended?: boolean
+          target_face_match?: boolean | null
+          url?: string
+          url_rejection_reason?: string | null
+          url_verification_status?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "deepfake_findings_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "deepfake_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "deepfake_findings_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       deepfake_reference_faces: {
         Row: {
-          created_at: string;
-          external_image_id: string | null;
-          face_confidence: number | null;
-          id: string;
-          profile_id: string;
-          rekognition_face_id: string | null;
-          storage_path: string;
-        };
+          created_at: string
+          external_image_id: string | null
+          face_confidence: number | null
+          id: string
+          profile_id: string
+          rekognition_face_id: string | null
+          storage_path: string
+        }
         Insert: {
-          created_at?: string;
-          external_image_id?: string | null;
-          face_confidence?: number | null;
-          id?: string;
-          profile_id: string;
-          rekognition_face_id?: string | null;
-          storage_path: string;
-        };
+          created_at?: string
+          external_image_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          profile_id: string
+          rekognition_face_id?: string | null
+          storage_path: string
+        }
         Update: {
-          created_at?: string;
-          external_image_id?: string | null;
-          face_confidence?: number | null;
-          id?: string;
-          profile_id?: string;
-          rekognition_face_id?: string | null;
-          storage_path?: string;
-        };
+          created_at?: string
+          external_image_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          profile_id?: string
+          rekognition_face_id?: string | null
+          storage_path?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "deepfake_reference_faces_profile_id_fkey";
-            columns: ["profile_id"];
-            isOneToOne: false;
-            referencedRelation: "deepfake_target_profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "deepfake_reference_faces_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_target_profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       deepfake_scans: {
         Row: {
-          aliases: string[];
-          created_at: string;
-          critical_count: number;
-          discovery_metrics: Json;
-          error_message: string | null;
-          finished_at: string | null;
-          handles: string[];
-          heartbeat_at: string | null;
-          high_count: number;
-          id: string;
-          lease_expires_at: string | null;
-          low_count: number;
-          medium_count: number;
-          profile_id: string | null;
-          scan_checkpoint: Json | null;
-          scan_run_token: string | null;
-          started_at: string;
-          status: string;
-          target_name: string;
-          total_queries: number;
-          total_results: number;
-          user_id: string;
-        };
+          aliases: string[]
+          created_at: string
+          critical_count: number
+          discovery_metrics: Json
+          error_message: string | null
+          finished_at: string | null
+          handles: string[]
+          heartbeat_at: string | null
+          high_count: number
+          id: string
+          lease_expires_at: string | null
+          low_count: number
+          medium_count: number
+          profile_id: string | null
+          scan_checkpoint: Json | null
+          scan_run_token: string | null
+          started_at: string
+          status: string
+          target_name: string
+          total_queries: number
+          total_results: number
+          user_id: string
+        }
         Insert: {
-          aliases?: string[];
-          created_at?: string;
-          critical_count?: number;
-          discovery_metrics?: Json;
-          error_message?: string | null;
-          finished_at?: string | null;
-          handles?: string[];
-          heartbeat_at?: string | null;
-          high_count?: number;
-          id?: string;
-          lease_expires_at?: string | null;
-          low_count?: number;
-          medium_count?: number;
-          profile_id?: string | null;
-          scan_checkpoint?: Json | null;
-          scan_run_token?: string | null;
-          started_at?: string;
-          status?: string;
-          target_name: string;
-          total_queries?: number;
-          total_results?: number;
-          user_id: string;
-        };
+          aliases?: string[]
+          created_at?: string
+          critical_count?: number
+          discovery_metrics?: Json
+          error_message?: string | null
+          finished_at?: string | null
+          handles?: string[]
+          heartbeat_at?: string | null
+          high_count?: number
+          id?: string
+          lease_expires_at?: string | null
+          low_count?: number
+          medium_count?: number
+          profile_id?: string | null
+          scan_checkpoint?: Json | null
+          scan_run_token?: string | null
+          started_at?: string
+          status?: string
+          target_name: string
+          total_queries?: number
+          total_results?: number
+          user_id: string
+        }
         Update: {
-          aliases?: string[];
-          created_at?: string;
-          critical_count?: number;
-          discovery_metrics?: Json;
-          error_message?: string | null;
-          finished_at?: string | null;
-          handles?: string[];
-          heartbeat_at?: string | null;
-          high_count?: number;
-          id?: string;
-          lease_expires_at?: string | null;
-          low_count?: number;
-          medium_count?: number;
-          profile_id?: string | null;
-          scan_checkpoint?: Json | null;
-          scan_run_token?: string | null;
-          started_at?: string;
-          status?: string;
-          target_name?: string;
-          total_queries?: number;
-          total_results?: number;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          aliases?: string[]
+          created_at?: string
+          critical_count?: number
+          discovery_metrics?: Json
+          error_message?: string | null
+          finished_at?: string | null
+          handles?: string[]
+          heartbeat_at?: string | null
+          high_count?: number
+          id?: string
+          lease_expires_at?: string | null
+          low_count?: number
+          medium_count?: number
+          profile_id?: string | null
+          scan_checkpoint?: Json | null
+          scan_run_token?: string | null
+          started_at?: string
+          status?: string
+          target_name?: string
+          total_queries?: number
+          total_results?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       deepfake_target_profiles: {
         Row: {
-          authorization_status: string;
-          created_at: string;
-          id: string;
-          rekognition_collection_id: string | null;
-          target_name: string;
-          user_id: string;
-        };
+          authorization_status: string
+          created_at: string
+          id: string
+          rekognition_collection_id: string | null
+          target_name: string
+          user_id: string
+        }
         Insert: {
-          authorization_status?: string;
-          created_at?: string;
-          id?: string;
-          rekognition_collection_id?: string | null;
-          target_name: string;
-          user_id: string;
-        };
+          authorization_status?: string
+          created_at?: string
+          id?: string
+          rekognition_collection_id?: string | null
+          target_name: string
+          user_id: string
+        }
         Update: {
-          authorization_status?: string;
-          created_at?: string;
-          id?: string;
-          rekognition_collection_id?: string | null;
-          target_name?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          authorization_status?: string
+          created_at?: string
+          id?: string
+          rekognition_collection_id?: string | null
+          target_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       digital_assets: {
         Row: {
-          channel_id: string | null;
-          channel_url: string | null;
-          created_at: string;
-          handle: string | null;
-          id: string;
-          kind: string;
-          metadata: Json;
-          name: string | null;
-          updated_at: string;
-          user_id: string;
-          verification_method: string | null;
-          verification_status: Database["public"]["Enums"]["asset_verification_status"];
-          verified_at: string | null;
-        };
+          channel_id: string | null
+          channel_url: string | null
+          created_at: string
+          handle: string | null
+          id: string
+          kind: string
+          metadata: Json
+          name: string | null
+          updated_at: string
+          user_id: string
+          verification_method: string | null
+          verification_status: Database["public"]["Enums"]["asset_verification_status"]
+          verified_at: string | null
+        }
         Insert: {
-          channel_id?: string | null;
-          channel_url?: string | null;
-          created_at?: string;
-          handle?: string | null;
-          id?: string;
-          kind: string;
-          metadata?: Json;
-          name?: string | null;
-          updated_at?: string;
-          user_id: string;
-          verification_method?: string | null;
-          verification_status?: Database["public"]["Enums"]["asset_verification_status"];
-          verified_at?: string | null;
-        };
+          channel_id?: string | null
+          channel_url?: string | null
+          created_at?: string
+          handle?: string | null
+          id?: string
+          kind: string
+          metadata?: Json
+          name?: string | null
+          updated_at?: string
+          user_id: string
+          verification_method?: string | null
+          verification_status?: Database["public"]["Enums"]["asset_verification_status"]
+          verified_at?: string | null
+        }
         Update: {
-          channel_id?: string | null;
-          channel_url?: string | null;
-          created_at?: string;
-          handle?: string | null;
-          id?: string;
-          kind?: string;
-          metadata?: Json;
-          name?: string | null;
-          updated_at?: string;
-          user_id?: string;
-          verification_method?: string | null;
-          verification_status?: Database["public"]["Enums"]["asset_verification_status"];
-          verified_at?: string | null;
-        };
-        Relationships: [];
-      };
+          channel_id?: string | null
+          channel_url?: string | null
+          created_at?: string
+          handle?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          name?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_method?: string | null
+          verification_status?: Database["public"]["Enums"]["asset_verification_status"]
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       discovered_accounts: {
         Row: {
-          bio: string | null;
-          confidence: number;
-          created_at: string;
-          cross_links: Json;
-          decided_at: string | null;
-          discovery_source: Database["public"]["Enums"]["discovery_source"];
-          display_name: string | null;
-          follower_count: number | null;
-          handle: string | null;
-          id: string;
-          match_reasons: string[];
-          match_signals: Json;
-          platform: Database["public"]["Enums"]["discovered_platform"];
-          platform_verified: boolean;
-          profile_image_url: string | null;
-          profile_url: string;
-          status: Database["public"]["Enums"]["discovered_account_status"];
-          subject_id: string;
-          updated_at: string;
-          user_decision: Database["public"]["Enums"]["discovered_user_decision"] | null;
-          user_id: string;
-          website_links: Json;
-        };
+          bio: string | null
+          confidence: number
+          created_at: string
+          cross_links: Json
+          decided_at: string | null
+          discovery_source: Database["public"]["Enums"]["discovery_source"]
+          display_name: string | null
+          follower_count: number | null
+          handle: string | null
+          id: string
+          match_reasons: string[]
+          match_signals: Json
+          platform: Database["public"]["Enums"]["discovered_platform"]
+          platform_verified: boolean
+          profile_image_url: string | null
+          profile_url: string
+          status: Database["public"]["Enums"]["discovered_account_status"]
+          subject_id: string
+          updated_at: string
+          user_decision:
+            | Database["public"]["Enums"]["discovered_user_decision"]
+            | null
+          user_id: string
+          website_links: Json
+        }
         Insert: {
-          bio?: string | null;
-          confidence?: number;
-          created_at?: string;
-          cross_links?: Json;
-          decided_at?: string | null;
-          discovery_source?: Database["public"]["Enums"]["discovery_source"];
-          display_name?: string | null;
-          follower_count?: number | null;
-          handle?: string | null;
-          id?: string;
-          match_reasons?: string[];
-          match_signals?: Json;
-          platform: Database["public"]["Enums"]["discovered_platform"];
-          platform_verified?: boolean;
-          profile_image_url?: string | null;
-          profile_url: string;
-          status?: Database["public"]["Enums"]["discovered_account_status"];
-          subject_id: string;
-          updated_at?: string;
-          user_decision?: Database["public"]["Enums"]["discovered_user_decision"] | null;
-          user_id: string;
-          website_links?: Json;
-        };
+          bio?: string | null
+          confidence?: number
+          created_at?: string
+          cross_links?: Json
+          decided_at?: string | null
+          discovery_source?: Database["public"]["Enums"]["discovery_source"]
+          display_name?: string | null
+          follower_count?: number | null
+          handle?: string | null
+          id?: string
+          match_reasons?: string[]
+          match_signals?: Json
+          platform: Database["public"]["Enums"]["discovered_platform"]
+          platform_verified?: boolean
+          profile_image_url?: string | null
+          profile_url: string
+          status?: Database["public"]["Enums"]["discovered_account_status"]
+          subject_id: string
+          updated_at?: string
+          user_decision?:
+            | Database["public"]["Enums"]["discovered_user_decision"]
+            | null
+          user_id: string
+          website_links?: Json
+        }
         Update: {
-          bio?: string | null;
-          confidence?: number;
-          created_at?: string;
-          cross_links?: Json;
-          decided_at?: string | null;
-          discovery_source?: Database["public"]["Enums"]["discovery_source"];
-          display_name?: string | null;
-          follower_count?: number | null;
-          handle?: string | null;
-          id?: string;
-          match_reasons?: string[];
-          match_signals?: Json;
-          platform?: Database["public"]["Enums"]["discovered_platform"];
-          platform_verified?: boolean;
-          profile_image_url?: string | null;
-          profile_url?: string;
-          status?: Database["public"]["Enums"]["discovered_account_status"];
-          subject_id?: string;
-          updated_at?: string;
-          user_decision?: Database["public"]["Enums"]["discovered_user_decision"] | null;
-          user_id?: string;
-          website_links?: Json;
-        };
+          bio?: string | null
+          confidence?: number
+          created_at?: string
+          cross_links?: Json
+          decided_at?: string | null
+          discovery_source?: Database["public"]["Enums"]["discovery_source"]
+          display_name?: string | null
+          follower_count?: number | null
+          handle?: string | null
+          id?: string
+          match_reasons?: string[]
+          match_signals?: Json
+          platform?: Database["public"]["Enums"]["discovered_platform"]
+          platform_verified?: boolean
+          profile_image_url?: string | null
+          profile_url?: string
+          status?: Database["public"]["Enums"]["discovered_account_status"]
+          subject_id?: string
+          updated_at?: string
+          user_decision?:
+            | Database["public"]["Enums"]["discovered_user_decision"]
+            | null
+          user_id?: string
+          website_links?: Json
+        }
         Relationships: [
           {
-            foreignKeyName: "discovered_accounts_subject_id_fkey";
-            columns: ["subject_id"];
-            isOneToOne: false;
-            referencedRelation: "discovery_subjects";
-            referencedColumns: ["id"];
+            foreignKeyName: "discovered_accounts_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "discovery_subjects"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       discovery_subjects: {
         Row: {
-          country: string | null;
-          created_at: string;
-          id: string;
-          normalized_name: string | null;
-          notes: string | null;
-          org: string | null;
-          query: string;
-          subject_kind: Database["public"]["Enums"]["discovery_subject_kind"];
-          updated_at: string;
-          user_id: string;
-          website_domain: string | null;
-        };
+          country: string | null
+          created_at: string
+          id: string
+          normalized_name: string | null
+          notes: string | null
+          org: string | null
+          query: string
+          subject_kind: Database["public"]["Enums"]["discovery_subject_kind"]
+          updated_at: string
+          user_id: string
+          website_domain: string | null
+        }
         Insert: {
-          country?: string | null;
-          created_at?: string;
-          id?: string;
-          normalized_name?: string | null;
-          notes?: string | null;
-          org?: string | null;
-          query: string;
-          subject_kind: Database["public"]["Enums"]["discovery_subject_kind"];
-          updated_at?: string;
-          user_id: string;
-          website_domain?: string | null;
-        };
+          country?: string | null
+          created_at?: string
+          id?: string
+          normalized_name?: string | null
+          notes?: string | null
+          org?: string | null
+          query: string
+          subject_kind: Database["public"]["Enums"]["discovery_subject_kind"]
+          updated_at?: string
+          user_id: string
+          website_domain?: string | null
+        }
         Update: {
-          country?: string | null;
-          created_at?: string;
-          id?: string;
-          normalized_name?: string | null;
-          notes?: string | null;
-          org?: string | null;
-          query?: string;
-          subject_kind?: Database["public"]["Enums"]["discovery_subject_kind"];
-          updated_at?: string;
-          user_id?: string;
-          website_domain?: string | null;
-        };
-        Relationships: [];
-      };
+          country?: string | null
+          created_at?: string
+          id?: string
+          normalized_name?: string | null
+          notes?: string | null
+          org?: string | null
+          query?: string
+          subject_kind?: Database["public"]["Enums"]["discovery_subject_kind"]
+          updated_at?: string
+          user_id?: string
+          website_domain?: string | null
+        }
+        Relationships: []
+      }
       distribution_incidents: {
         Row: {
-          confidence: number;
-          created_at: string;
-          detected_at: string;
-          evidence: Json;
-          id: string;
-          incident_type: string;
-          scan_id: string | null;
-          severity: string;
-          source_id: string;
-          summary: string | null;
-          updated_at: string;
-          url: string | null;
-          user_id: string;
-          work_title: string | null;
-        };
+          confidence: number
+          created_at: string
+          detected_at: string
+          evidence: Json
+          id: string
+          incident_type: string
+          scan_id: string | null
+          severity: string
+          source_id: string
+          summary: string | null
+          updated_at: string
+          url: string | null
+          user_id: string
+          work_title: string | null
+        }
         Insert: {
-          confidence?: number;
-          created_at?: string;
-          detected_at?: string;
-          evidence?: Json;
-          id?: string;
-          incident_type?: string;
-          scan_id?: string | null;
-          severity?: string;
-          source_id: string;
-          summary?: string | null;
-          updated_at?: string;
-          url?: string | null;
-          user_id: string;
-          work_title?: string | null;
-        };
+          confidence?: number
+          created_at?: string
+          detected_at?: string
+          evidence?: Json
+          id?: string
+          incident_type?: string
+          scan_id?: string | null
+          severity?: string
+          source_id: string
+          summary?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id: string
+          work_title?: string | null
+        }
         Update: {
-          confidence?: number;
-          created_at?: string;
-          detected_at?: string;
-          evidence?: Json;
-          id?: string;
-          incident_type?: string;
-          scan_id?: string | null;
-          severity?: string;
-          source_id?: string;
-          summary?: string | null;
-          updated_at?: string;
-          url?: string | null;
-          user_id?: string;
-          work_title?: string | null;
-        };
+          confidence?: number
+          created_at?: string
+          detected_at?: string
+          evidence?: Json
+          id?: string
+          incident_type?: string
+          scan_id?: string | null
+          severity?: string
+          source_id?: string
+          summary?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+          work_title?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "distribution_incidents_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "copyright_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "distribution_incidents_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "distribution_incidents_source_id_fkey";
-            columns: ["source_id"];
-            isOneToOne: false;
-            referencedRelation: "distribution_sources";
-            referencedColumns: ["id"];
+            foreignKeyName: "distribution_incidents_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_sources"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       distribution_monitor_runs: {
         Row: {
-          changes: Json;
-          confidence: number | null;
-          created_at: string;
-          finished_at: string | null;
-          id: string;
-          incidents_created: number;
-          notes: string | null;
-          reachable: boolean | null;
-          risk_level: string | null;
-          run_type: string;
-          source_id: string;
-          started_at: string;
-          status: string;
-          user_id: string;
-        };
+          changes: Json
+          confidence: number | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          incidents_created: number
+          notes: string | null
+          reachable: boolean | null
+          risk_level: string | null
+          run_type: string
+          source_id: string
+          started_at: string
+          status: string
+          user_id: string
+        }
         Insert: {
-          changes?: Json;
-          confidence?: number | null;
-          created_at?: string;
-          finished_at?: string | null;
-          id?: string;
-          incidents_created?: number;
-          notes?: string | null;
-          reachable?: boolean | null;
-          risk_level?: string | null;
-          run_type?: string;
-          source_id: string;
-          started_at?: string;
-          status?: string;
-          user_id: string;
-        };
+          changes?: Json
+          confidence?: number | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          incidents_created?: number
+          notes?: string | null
+          reachable?: boolean | null
+          risk_level?: string | null
+          run_type?: string
+          source_id: string
+          started_at?: string
+          status?: string
+          user_id: string
+        }
         Update: {
-          changes?: Json;
-          confidence?: number | null;
-          created_at?: string;
-          finished_at?: string | null;
-          id?: string;
-          incidents_created?: number;
-          notes?: string | null;
-          reachable?: boolean | null;
-          risk_level?: string | null;
-          run_type?: string;
-          source_id?: string;
-          started_at?: string;
-          status?: string;
-          user_id?: string;
-        };
+          changes?: Json
+          confidence?: number | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          incidents_created?: number
+          notes?: string | null
+          reachable?: boolean | null
+          risk_level?: string | null
+          run_type?: string
+          source_id?: string
+          started_at?: string
+          status?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "distribution_monitor_runs_source_id_fkey";
-            columns: ["source_id"];
-            isOneToOne: false;
-            referencedRelation: "distribution_sources";
-            referencedColumns: ["id"];
+            foreignKeyName: "distribution_monitor_runs_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_sources"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       distribution_sources: {
         Row: {
-          check_count: number;
-          confidence: number;
-          content_type: string;
-          created_at: string;
-          discovered_scan_id: string | null;
-          domain: string;
-          evidence: Json;
-          first_seen_at: string;
-          id: string;
-          incident_count: number;
-          indicators: Json;
-          last_checked_at: string | null;
-          last_seen_at: string;
-          monitor_enabled: boolean;
-          monitor_interval_minutes: number;
-          next_check_at: string;
-          page_title: string | null;
-          parent_source_id: string | null;
-          platform: string | null;
-          risk_level: string;
-          risk_score: number;
-          screenshot_url: string | null;
-          source_kind: string;
-          status: string;
-          tracked_titles: string[];
-          updated_at: string;
-          url: string;
-          user_id: string;
-        };
+          check_count: number
+          confidence: number
+          content_type: string
+          created_at: string
+          discovered_scan_id: string | null
+          domain: string
+          evidence: Json
+          first_seen_at: string
+          id: string
+          incident_count: number
+          indicators: Json
+          last_checked_at: string | null
+          last_seen_at: string
+          monitor_enabled: boolean
+          monitor_interval_minutes: number
+          next_check_at: string
+          page_title: string | null
+          parent_source_id: string | null
+          platform: string | null
+          risk_level: string
+          risk_score: number
+          screenshot_url: string | null
+          source_kind: string
+          status: string
+          tracked_titles: string[]
+          updated_at: string
+          url: string
+          user_id: string
+        }
         Insert: {
-          check_count?: number;
-          confidence?: number;
-          content_type?: string;
-          created_at?: string;
-          discovered_scan_id?: string | null;
-          domain: string;
-          evidence?: Json;
-          first_seen_at?: string;
-          id?: string;
-          incident_count?: number;
-          indicators?: Json;
-          last_checked_at?: string | null;
-          last_seen_at?: string;
-          monitor_enabled?: boolean;
-          monitor_interval_minutes?: number;
-          next_check_at?: string;
-          page_title?: string | null;
-          parent_source_id?: string | null;
-          platform?: string | null;
-          risk_level?: string;
-          risk_score?: number;
-          screenshot_url?: string | null;
-          source_kind?: string;
-          status?: string;
-          tracked_titles?: string[];
-          updated_at?: string;
-          url: string;
-          user_id: string;
-        };
+          check_count?: number
+          confidence?: number
+          content_type?: string
+          created_at?: string
+          discovered_scan_id?: string | null
+          domain: string
+          evidence?: Json
+          first_seen_at?: string
+          id?: string
+          incident_count?: number
+          indicators?: Json
+          last_checked_at?: string | null
+          last_seen_at?: string
+          monitor_enabled?: boolean
+          monitor_interval_minutes?: number
+          next_check_at?: string
+          page_title?: string | null
+          parent_source_id?: string | null
+          platform?: string | null
+          risk_level?: string
+          risk_score?: number
+          screenshot_url?: string | null
+          source_kind?: string
+          status?: string
+          tracked_titles?: string[]
+          updated_at?: string
+          url: string
+          user_id: string
+        }
         Update: {
-          check_count?: number;
-          confidence?: number;
-          content_type?: string;
-          created_at?: string;
-          discovered_scan_id?: string | null;
-          domain?: string;
-          evidence?: Json;
-          first_seen_at?: string;
-          id?: string;
-          incident_count?: number;
-          indicators?: Json;
-          last_checked_at?: string | null;
-          last_seen_at?: string;
-          monitor_enabled?: boolean;
-          monitor_interval_minutes?: number;
-          next_check_at?: string;
-          page_title?: string | null;
-          parent_source_id?: string | null;
-          platform?: string | null;
-          risk_level?: string;
-          risk_score?: number;
-          screenshot_url?: string | null;
-          source_kind?: string;
-          status?: string;
-          tracked_titles?: string[];
-          updated_at?: string;
-          url?: string;
-          user_id?: string;
-        };
+          check_count?: number
+          confidence?: number
+          content_type?: string
+          created_at?: string
+          discovered_scan_id?: string | null
+          domain?: string
+          evidence?: Json
+          first_seen_at?: string
+          id?: string
+          incident_count?: number
+          indicators?: Json
+          last_checked_at?: string | null
+          last_seen_at?: string
+          monitor_enabled?: boolean
+          monitor_interval_minutes?: number
+          next_check_at?: string
+          page_title?: string | null
+          parent_source_id?: string | null
+          platform?: string | null
+          risk_level?: string
+          risk_score?: number
+          screenshot_url?: string | null
+          source_kind?: string
+          status?: string
+          tracked_titles?: string[]
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "distribution_sources_discovered_scan_id_fkey";
-            columns: ["discovered_scan_id"];
-            isOneToOne: false;
-            referencedRelation: "copyright_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "distribution_sources_discovered_scan_id_fkey"
+            columns: ["discovered_scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "distribution_sources_parent_source_id_fkey";
-            columns: ["parent_source_id"];
-            isOneToOne: false;
-            referencedRelation: "distribution_sources";
-            referencedColumns: ["id"];
+            foreignKeyName: "distribution_sources_parent_source_id_fkey"
+            columns: ["parent_source_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_sources"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       dmca_submissions: {
         Row: {
-          copyright_basis: string;
-          created_at: string;
-          enforcement_request_id: string | null;
-          external_reference: string | null;
-          id: string;
-          package_path: string | null;
-          platform: string;
-          protected_asset_id: string | null;
-          response: Json | null;
-          submission_status: string;
-          submitted_at: string | null;
-          updated_at: string;
-          user_id: string;
-        };
+          copyright_basis: string
+          created_at: string
+          enforcement_request_id: string | null
+          external_reference: string | null
+          id: string
+          package_path: string | null
+          platform: string
+          protected_asset_id: string | null
+          response: Json | null
+          submission_status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          copyright_basis: string;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          external_reference?: string | null;
-          id?: string;
-          package_path?: string | null;
-          platform: string;
-          protected_asset_id?: string | null;
-          response?: Json | null;
-          submission_status?: string;
-          submitted_at?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
+          copyright_basis: string
+          created_at?: string
+          enforcement_request_id?: string | null
+          external_reference?: string | null
+          id?: string
+          package_path?: string | null
+          platform: string
+          protected_asset_id?: string | null
+          response?: Json | null
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          copyright_basis?: string;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          external_reference?: string | null;
-          id?: string;
-          package_path?: string | null;
-          platform?: string;
-          protected_asset_id?: string | null;
-          response?: Json | null;
-          submission_status?: string;
-          submitted_at?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
+          copyright_basis?: string
+          created_at?: string
+          enforcement_request_id?: string | null
+          external_reference?: string | null
+          id?: string
+          package_path?: string | null
+          platform?: string
+          protected_asset_id?: string | null
+          response?: Json | null
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "dmca_submissions_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "dmca_submissions_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "dmca_submissions_protected_asset_id_fkey";
-            columns: ["protected_asset_id"];
-            isOneToOne: false;
-            referencedRelation: "protected_assets";
-            referencedColumns: ["id"];
+            foreignKeyName: "dmca_submissions_protected_asset_id_fkey"
+            columns: ["protected_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       enforcement_actions: {
         Row: {
-          action_type: string;
-          actor_id: string;
-          created_at: string;
-          enforcement_request_id: string | null;
-          evidence_ids: string[];
-          generated_files: Json;
-          id: string;
-          payload: Json;
-          platform: string | null;
-          submission_status: string | null;
-          target_url: string | null;
-          user_id: string;
-        };
+          action_type: string
+          actor_id: string
+          created_at: string
+          enforcement_request_id: string | null
+          evidence_ids: string[]
+          generated_files: Json
+          id: string
+          payload: Json
+          platform: string | null
+          submission_status: string | null
+          target_url: string | null
+          user_id: string
+        }
         Insert: {
-          action_type: string;
-          actor_id: string;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          evidence_ids?: string[];
-          generated_files?: Json;
-          id?: string;
-          payload?: Json;
-          platform?: string | null;
-          submission_status?: string | null;
-          target_url?: string | null;
-          user_id: string;
-        };
+          action_type: string
+          actor_id: string
+          created_at?: string
+          enforcement_request_id?: string | null
+          evidence_ids?: string[]
+          generated_files?: Json
+          id?: string
+          payload?: Json
+          platform?: string | null
+          submission_status?: string | null
+          target_url?: string | null
+          user_id: string
+        }
         Update: {
-          action_type?: string;
-          actor_id?: string;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          evidence_ids?: string[];
-          generated_files?: Json;
-          id?: string;
-          payload?: Json;
-          platform?: string | null;
-          submission_status?: string | null;
-          target_url?: string | null;
-          user_id?: string;
-        };
+          action_type?: string
+          actor_id?: string
+          created_at?: string
+          enforcement_request_id?: string | null
+          evidence_ids?: string[]
+          generated_files?: Json
+          id?: string
+          payload?: Json
+          platform?: string | null
+          submission_status?: string | null
+          target_url?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "enforcement_actions_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "enforcement_actions_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       enforcement_evidence: {
         Row: {
-          created_at: string;
-          enforcement_request_id: string;
-          evidence_type: string;
-          id: string;
-          payload: Json;
-          reference: string | null;
-          storage_path: string | null;
-          user_id: string;
-        };
+          created_at: string
+          enforcement_request_id: string
+          evidence_type: string
+          id: string
+          payload: Json
+          reference: string | null
+          storage_path: string | null
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          enforcement_request_id: string;
-          evidence_type: string;
-          id?: string;
-          payload?: Json;
-          reference?: string | null;
-          storage_path?: string | null;
-          user_id: string;
-        };
+          created_at?: string
+          enforcement_request_id: string
+          evidence_type: string
+          id?: string
+          payload?: Json
+          reference?: string | null
+          storage_path?: string | null
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          enforcement_request_id?: string;
-          evidence_type?: string;
-          id?: string;
-          payload?: Json;
-          reference?: string | null;
-          storage_path?: string | null;
-          user_id?: string;
-        };
+          created_at?: string
+          enforcement_request_id?: string
+          evidence_type?: string
+          id?: string
+          payload?: Json
+          reference?: string | null
+          storage_path?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "enforcement_evidence_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "enforcement_evidence_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       enforcement_package_items: {
         Row: {
-          bytes: number | null;
-          enforcement_request_id: string;
-          generated_at: string;
-          id: string;
-          kind: string;
-          sha256: string | null;
-          storage_bucket: string;
-          storage_path: string;
-          user_id: string;
-        };
+          bytes: number | null
+          enforcement_request_id: string
+          generated_at: string
+          id: string
+          kind: string
+          sha256: string | null
+          storage_bucket: string
+          storage_path: string
+          user_id: string
+        }
         Insert: {
-          bytes?: number | null;
-          enforcement_request_id: string;
-          generated_at?: string;
-          id?: string;
-          kind: string;
-          sha256?: string | null;
-          storage_bucket?: string;
-          storage_path: string;
-          user_id: string;
-        };
+          bytes?: number | null
+          enforcement_request_id: string
+          generated_at?: string
+          id?: string
+          kind: string
+          sha256?: string | null
+          storage_bucket?: string
+          storage_path: string
+          user_id: string
+        }
         Update: {
-          bytes?: number | null;
-          enforcement_request_id?: string;
-          generated_at?: string;
-          id?: string;
-          kind?: string;
-          sha256?: string | null;
-          storage_bucket?: string;
-          storage_path?: string;
-          user_id?: string;
-        };
+          bytes?: number | null
+          enforcement_request_id?: string
+          generated_at?: string
+          id?: string
+          kind?: string
+          sha256?: string | null
+          storage_bucket?: string
+          storage_path?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "enforcement_package_items_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "enforcement_package_items_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       enforcement_requests: {
         Row: {
-          authorization_pdf_path: string | null;
-          automation_job_id: string | null;
-          automation_status: Database["public"]["Enums"]["automation_job_status"] | null;
-          created_at: string;
-          evidence_pdf_path: string | null;
-          evidence_refs: Json;
-          human_submitted_at: string | null;
-          human_submitted_by: string | null;
-          id: string;
-          metadata: Json;
-          method: string;
-          package_generated_at: string | null;
-          package_hash: string | null;
-          platform: string;
-          platform_complaint_json: Json | null;
-          platform_complaint_pdf_path: string | null;
-          responded_at: string | null;
-          response_notes: string | null;
-          scan_hit_id: string | null;
-          status: string;
-          submission_status: string;
-          submitted_at: string | null;
-          target_url: string | null;
-          updated_at: string;
-          user_id: string;
-        };
+          authorization_pdf_path: string | null
+          automation_job_id: string | null
+          automation_status:
+            | Database["public"]["Enums"]["automation_job_status"]
+            | null
+          created_at: string
+          evidence_pdf_path: string | null
+          evidence_refs: Json
+          human_submitted_at: string | null
+          human_submitted_by: string | null
+          id: string
+          metadata: Json
+          method: string
+          package_generated_at: string | null
+          package_hash: string | null
+          platform: string
+          platform_complaint_json: Json | null
+          platform_complaint_pdf_path: string | null
+          responded_at: string | null
+          response_notes: string | null
+          scan_hit_id: string | null
+          status: string
+          submission_status: string
+          submitted_at: string | null
+          target_url: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          authorization_pdf_path?: string | null;
-          automation_job_id?: string | null;
-          automation_status?: Database["public"]["Enums"]["automation_job_status"] | null;
-          created_at?: string;
-          evidence_pdf_path?: string | null;
-          evidence_refs?: Json;
-          human_submitted_at?: string | null;
-          human_submitted_by?: string | null;
-          id?: string;
-          metadata?: Json;
-          method: string;
-          package_generated_at?: string | null;
-          package_hash?: string | null;
-          platform: string;
-          platform_complaint_json?: Json | null;
-          platform_complaint_pdf_path?: string | null;
-          responded_at?: string | null;
-          response_notes?: string | null;
-          scan_hit_id?: string | null;
-          status?: string;
-          submission_status?: string;
-          submitted_at?: string | null;
-          target_url?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
+          authorization_pdf_path?: string | null
+          automation_job_id?: string | null
+          automation_status?:
+            | Database["public"]["Enums"]["automation_job_status"]
+            | null
+          created_at?: string
+          evidence_pdf_path?: string | null
+          evidence_refs?: Json
+          human_submitted_at?: string | null
+          human_submitted_by?: string | null
+          id?: string
+          metadata?: Json
+          method: string
+          package_generated_at?: string | null
+          package_hash?: string | null
+          platform: string
+          platform_complaint_json?: Json | null
+          platform_complaint_pdf_path?: string | null
+          responded_at?: string | null
+          response_notes?: string | null
+          scan_hit_id?: string | null
+          status?: string
+          submission_status?: string
+          submitted_at?: string | null
+          target_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          authorization_pdf_path?: string | null;
-          automation_job_id?: string | null;
-          automation_status?: Database["public"]["Enums"]["automation_job_status"] | null;
-          created_at?: string;
-          evidence_pdf_path?: string | null;
-          evidence_refs?: Json;
-          human_submitted_at?: string | null;
-          human_submitted_by?: string | null;
-          id?: string;
-          metadata?: Json;
-          method?: string;
-          package_generated_at?: string | null;
-          package_hash?: string | null;
-          platform?: string;
-          platform_complaint_json?: Json | null;
-          platform_complaint_pdf_path?: string | null;
-          responded_at?: string | null;
-          response_notes?: string | null;
-          scan_hit_id?: string | null;
-          status?: string;
-          submission_status?: string;
-          submitted_at?: string | null;
-          target_url?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
+          authorization_pdf_path?: string | null
+          automation_job_id?: string | null
+          automation_status?:
+            | Database["public"]["Enums"]["automation_job_status"]
+            | null
+          created_at?: string
+          evidence_pdf_path?: string | null
+          evidence_refs?: Json
+          human_submitted_at?: string | null
+          human_submitted_by?: string | null
+          id?: string
+          metadata?: Json
+          method?: string
+          package_generated_at?: string | null
+          package_hash?: string | null
+          platform?: string
+          platform_complaint_json?: Json | null
+          platform_complaint_pdf_path?: string | null
+          responded_at?: string | null
+          response_notes?: string | null
+          scan_hit_id?: string | null
+          status?: string
+          submission_status?: string
+          submitted_at?: string | null
+          target_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "enforcement_requests_automation_job_id_fkey";
-            columns: ["automation_job_id"];
-            isOneToOne: false;
-            referencedRelation: "automation_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "enforcement_requests_automation_job_id_fkey"
+            columns: ["automation_job_id"]
+            isOneToOne: false
+            referencedRelation: "automation_jobs"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "enforcement_requests_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "enforcement_requests_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       enforcement_status_history: {
         Row: {
-          created_at: string;
-          enforcement_request_id: string;
-          from_status: string | null;
-          id: string;
-          note: string | null;
-          to_status: string;
-          user_id: string;
-        };
+          created_at: string
+          enforcement_request_id: string
+          from_status: string | null
+          id: string
+          note: string | null
+          to_status: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          enforcement_request_id: string;
-          from_status?: string | null;
-          id?: string;
-          note?: string | null;
-          to_status: string;
-          user_id: string;
-        };
+          created_at?: string
+          enforcement_request_id: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          enforcement_request_id?: string;
-          from_status?: string | null;
-          id?: string;
-          note?: string | null;
-          to_status?: string;
-          user_id?: string;
-        };
+          created_at?: string
+          enforcement_request_id?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "enforcement_status_history_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "enforcement_status_history_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       enforcement_targets: {
         Row: {
-          channel_name: string | null;
-          channel_url: string | null;
-          created_at: string;
-          enforcement_request_id: string;
-          id: string;
-          metadata: Json;
-          platform: string;
-          scan_hit_id: string | null;
-          target_url: string;
-          updated_at: string;
-          user_id: string;
-        };
+          channel_name: string | null
+          channel_url: string | null
+          created_at: string
+          enforcement_request_id: string
+          id: string
+          metadata: Json
+          platform: string
+          scan_hit_id: string | null
+          target_url: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          channel_name?: string | null;
-          channel_url?: string | null;
-          created_at?: string;
-          enforcement_request_id: string;
-          id?: string;
-          metadata?: Json;
-          platform: string;
-          scan_hit_id?: string | null;
-          target_url: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          channel_name?: string | null
+          channel_url?: string | null
+          created_at?: string
+          enforcement_request_id: string
+          id?: string
+          metadata?: Json
+          platform: string
+          scan_hit_id?: string | null
+          target_url: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          channel_name?: string | null;
-          channel_url?: string | null;
-          created_at?: string;
-          enforcement_request_id?: string;
-          id?: string;
-          metadata?: Json;
-          platform?: string;
-          scan_hit_id?: string | null;
-          target_url?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
+          channel_name?: string | null
+          channel_url?: string | null
+          created_at?: string
+          enforcement_request_id?: string
+          id?: string
+          metadata?: Json
+          platform?: string
+          scan_hit_id?: string | null
+          target_url?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "enforcement_targets_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "enforcement_targets_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "enforcement_targets_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "enforcement_targets_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       enterprise_documents: {
         Row: {
-          doc_type: Database["public"]["Enums"]["enterprise_doc_type_enum"];
-          filename: string;
-          id: string;
-          mime: string | null;
-          size_bytes: number | null;
-          storage_path: string;
-          uploaded_at: string;
-          user_id: string;
-        };
+          doc_type: Database["public"]["Enums"]["enterprise_doc_type_enum"]
+          filename: string
+          id: string
+          mime: string | null
+          size_bytes: number | null
+          storage_path: string
+          uploaded_at: string
+          user_id: string
+        }
         Insert: {
-          doc_type: Database["public"]["Enums"]["enterprise_doc_type_enum"];
-          filename: string;
-          id?: string;
-          mime?: string | null;
-          size_bytes?: number | null;
-          storage_path: string;
-          uploaded_at?: string;
-          user_id: string;
-        };
+          doc_type: Database["public"]["Enums"]["enterprise_doc_type_enum"]
+          filename: string
+          id?: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_at?: string
+          user_id: string
+        }
         Update: {
-          doc_type?: Database["public"]["Enums"]["enterprise_doc_type_enum"];
-          filename?: string;
-          id?: string;
-          mime?: string | null;
-          size_bytes?: number | null;
-          storage_path?: string;
-          uploaded_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          doc_type?: Database["public"]["Enums"]["enterprise_doc_type_enum"]
+          filename?: string
+          id?: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       evidence_chain_of_custody: {
         Row: {
-          action: string;
-          actor: string;
-          created_at: string;
-          destination_location: string | null;
-          event_at: string;
-          event_number: number;
-          evidence_object_id: string;
-          hash_after: string | null;
-          hash_before: string | null;
-          id: string;
-          signature_log_reference: string | null;
-          source_location: string | null;
-          user_id: string;
-        };
+          action: string
+          actor: string
+          created_at: string
+          destination_location: string | null
+          event_at: string
+          event_number: number
+          evidence_object_id: string
+          hash_after: string | null
+          hash_before: string | null
+          id: string
+          signature_log_reference: string | null
+          source_location: string | null
+          user_id: string
+        }
         Insert: {
-          action: string;
-          actor: string;
-          created_at?: string;
-          destination_location?: string | null;
-          event_at?: string;
-          event_number?: never;
-          evidence_object_id: string;
-          hash_after?: string | null;
-          hash_before?: string | null;
-          id?: string;
-          signature_log_reference?: string | null;
-          source_location?: string | null;
-          user_id: string;
-        };
+          action: string
+          actor: string
+          created_at?: string
+          destination_location?: string | null
+          event_at?: string
+          event_number?: never
+          evidence_object_id: string
+          hash_after?: string | null
+          hash_before?: string | null
+          id?: string
+          signature_log_reference?: string | null
+          source_location?: string | null
+          user_id: string
+        }
         Update: {
-          action?: string;
-          actor?: string;
-          created_at?: string;
-          destination_location?: string | null;
-          event_at?: string;
-          event_number?: never;
-          evidence_object_id?: string;
-          hash_after?: string | null;
-          hash_before?: string | null;
-          id?: string;
-          signature_log_reference?: string | null;
-          source_location?: string | null;
-          user_id?: string;
-        };
+          action?: string
+          actor?: string
+          created_at?: string
+          destination_location?: string | null
+          event_at?: string
+          event_number?: never
+          evidence_object_id?: string
+          hash_after?: string | null
+          hash_before?: string | null
+          id?: string
+          signature_log_reference?: string | null
+          source_location?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "evidence_chain_of_custody_evidence_object_id_fkey";
-            columns: ["evidence_object_id"];
-            isOneToOne: false;
-            referencedRelation: "evidence_objects";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_chain_of_custody_evidence_object_id_fkey"
+            columns: ["evidence_object_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_objects"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       evidence_frames: {
         Row: {
-          created_at: string;
-          frame_hash: string | null;
-          frame_url: string | null;
-          height: number | null;
-          id: string;
-          job_id: string;
-          storage_path: string | null;
-          timestamp_seconds: number | null;
-          user_id: string;
-          width: number | null;
-        };
+          created_at: string
+          frame_hash: string | null
+          frame_url: string | null
+          height: number | null
+          id: string
+          job_id: string
+          storage_path: string | null
+          timestamp_seconds: number | null
+          user_id: string
+          width: number | null
+        }
         Insert: {
-          created_at?: string;
-          frame_hash?: string | null;
-          frame_url?: string | null;
-          height?: number | null;
-          id?: string;
-          job_id: string;
-          storage_path?: string | null;
-          timestamp_seconds?: number | null;
-          user_id: string;
-          width?: number | null;
-        };
+          created_at?: string
+          frame_hash?: string | null
+          frame_url?: string | null
+          height?: number | null
+          id?: string
+          job_id: string
+          storage_path?: string | null
+          timestamp_seconds?: number | null
+          user_id: string
+          width?: number | null
+        }
         Update: {
-          created_at?: string;
-          frame_hash?: string | null;
-          frame_url?: string | null;
-          height?: number | null;
-          id?: string;
-          job_id?: string;
-          storage_path?: string | null;
-          timestamp_seconds?: number | null;
-          user_id?: string;
-          width?: number | null;
-        };
+          created_at?: string
+          frame_hash?: string | null
+          frame_url?: string | null
+          height?: number | null
+          id?: string
+          job_id?: string
+          storage_path?: string | null
+          timestamp_seconds?: number | null
+          user_id?: string
+          width?: number | null
+        }
         Relationships: [
           {
-            foreignKeyName: "evidence_frames_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_frames_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       evidence_item_reviews: {
         Row: {
-          alleged_violation_type: string[];
-          confidence_score: number | null;
-          content_context: string | null;
-          content_position: Database["public"]["Enums"]["evidence_content_position"];
-          created_at: string;
-          exact_original_statement: string | null;
-          falsity_basis: string | null;
-          id: string;
-          legal_review_required: boolean;
-          recommended_action: string | null;
-          review_status: Database["public"]["Enums"]["evidence_review_status"];
-          reviewed_at: string | null;
-          reviewer_declaration_signed: boolean;
-          reviewer_name: string | null;
-          reviewer_notes: string | null;
-          reviewer_role: string | null;
-          scan_hit_id: string;
-          speaker_identity: string | null;
-          statement_language: string | null;
-          statement_type: Database["public"]["Enums"]["evidence_statement_type"];
-          supersedes_review_id: string | null;
-          supporting_facts: string | null;
-          target_person: string | null;
-          user_id: string;
-          verified_english_translation: string | null;
-          victim_impact: string | null;
-          video_end_timestamp: number | null;
-          video_start_timestamp: number | null;
-          violation_reason: string | null;
-        };
+          alleged_violation_type: string[]
+          confidence_score: number | null
+          content_context: string | null
+          content_position: Database["public"]["Enums"]["evidence_content_position"]
+          created_at: string
+          exact_original_statement: string | null
+          falsity_basis: string | null
+          id: string
+          legal_review_required: boolean
+          recommended_action: string | null
+          review_status: Database["public"]["Enums"]["evidence_review_status"]
+          reviewed_at: string | null
+          reviewer_declaration_signed: boolean
+          reviewer_name: string | null
+          reviewer_notes: string | null
+          reviewer_role: string | null
+          scan_hit_id: string
+          speaker_identity: string | null
+          statement_language: string | null
+          statement_type: Database["public"]["Enums"]["evidence_statement_type"]
+          supersedes_review_id: string | null
+          supporting_facts: string | null
+          target_person: string | null
+          user_id: string
+          verified_english_translation: string | null
+          victim_impact: string | null
+          video_end_timestamp: number | null
+          video_start_timestamp: number | null
+          violation_reason: string | null
+        }
         Insert: {
-          alleged_violation_type?: string[];
-          confidence_score?: number | null;
-          content_context?: string | null;
-          content_position?: Database["public"]["Enums"]["evidence_content_position"];
-          created_at?: string;
-          exact_original_statement?: string | null;
-          falsity_basis?: string | null;
-          id?: string;
-          legal_review_required?: boolean;
-          recommended_action?: string | null;
-          review_status?: Database["public"]["Enums"]["evidence_review_status"];
-          reviewed_at?: string | null;
-          reviewer_declaration_signed?: boolean;
-          reviewer_name?: string | null;
-          reviewer_notes?: string | null;
-          reviewer_role?: string | null;
-          scan_hit_id: string;
-          speaker_identity?: string | null;
-          statement_language?: string | null;
-          statement_type?: Database["public"]["Enums"]["evidence_statement_type"];
-          supersedes_review_id?: string | null;
-          supporting_facts?: string | null;
-          target_person?: string | null;
-          user_id: string;
-          verified_english_translation?: string | null;
-          victim_impact?: string | null;
-          video_end_timestamp?: number | null;
-          video_start_timestamp?: number | null;
-          violation_reason?: string | null;
-        };
+          alleged_violation_type?: string[]
+          confidence_score?: number | null
+          content_context?: string | null
+          content_position?: Database["public"]["Enums"]["evidence_content_position"]
+          created_at?: string
+          exact_original_statement?: string | null
+          falsity_basis?: string | null
+          id?: string
+          legal_review_required?: boolean
+          recommended_action?: string | null
+          review_status?: Database["public"]["Enums"]["evidence_review_status"]
+          reviewed_at?: string | null
+          reviewer_declaration_signed?: boolean
+          reviewer_name?: string | null
+          reviewer_notes?: string | null
+          reviewer_role?: string | null
+          scan_hit_id: string
+          speaker_identity?: string | null
+          statement_language?: string | null
+          statement_type?: Database["public"]["Enums"]["evidence_statement_type"]
+          supersedes_review_id?: string | null
+          supporting_facts?: string | null
+          target_person?: string | null
+          user_id: string
+          verified_english_translation?: string | null
+          victim_impact?: string | null
+          video_end_timestamp?: number | null
+          video_start_timestamp?: number | null
+          violation_reason?: string | null
+        }
         Update: {
-          alleged_violation_type?: string[];
-          confidence_score?: number | null;
-          content_context?: string | null;
-          content_position?: Database["public"]["Enums"]["evidence_content_position"];
-          created_at?: string;
-          exact_original_statement?: string | null;
-          falsity_basis?: string | null;
-          id?: string;
-          legal_review_required?: boolean;
-          recommended_action?: string | null;
-          review_status?: Database["public"]["Enums"]["evidence_review_status"];
-          reviewed_at?: string | null;
-          reviewer_declaration_signed?: boolean;
-          reviewer_name?: string | null;
-          reviewer_notes?: string | null;
-          reviewer_role?: string | null;
-          scan_hit_id?: string;
-          speaker_identity?: string | null;
-          statement_language?: string | null;
-          statement_type?: Database["public"]["Enums"]["evidence_statement_type"];
-          supersedes_review_id?: string | null;
-          supporting_facts?: string | null;
-          target_person?: string | null;
-          user_id?: string;
-          verified_english_translation?: string | null;
-          victim_impact?: string | null;
-          video_end_timestamp?: number | null;
-          video_start_timestamp?: number | null;
-          violation_reason?: string | null;
-        };
+          alleged_violation_type?: string[]
+          confidence_score?: number | null
+          content_context?: string | null
+          content_position?: Database["public"]["Enums"]["evidence_content_position"]
+          created_at?: string
+          exact_original_statement?: string | null
+          falsity_basis?: string | null
+          id?: string
+          legal_review_required?: boolean
+          recommended_action?: string | null
+          review_status?: Database["public"]["Enums"]["evidence_review_status"]
+          reviewed_at?: string | null
+          reviewer_declaration_signed?: boolean
+          reviewer_name?: string | null
+          reviewer_notes?: string | null
+          reviewer_role?: string | null
+          scan_hit_id?: string
+          speaker_identity?: string | null
+          statement_language?: string | null
+          statement_type?: Database["public"]["Enums"]["evidence_statement_type"]
+          supersedes_review_id?: string | null
+          supporting_facts?: string | null
+          target_person?: string | null
+          user_id?: string
+          verified_english_translation?: string | null
+          victim_impact?: string | null
+          video_end_timestamp?: number | null
+          video_start_timestamp?: number | null
+          violation_reason?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "evidence_item_reviews_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_item_reviews_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "evidence_item_reviews_supersedes_review_id_fkey";
-            columns: ["supersedes_review_id"];
-            isOneToOne: false;
-            referencedRelation: "evidence_item_reviews";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_item_reviews_supersedes_review_id_fkey"
+            columns: ["supersedes_review_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_item_reviews"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       evidence_objects: {
         Row: {
-          acquisition_method: string | null;
-          captured_at: string;
-          collector_identity: string | null;
-          created_at: string;
-          file_size: number | null;
-          hash_generated_at: string | null;
-          hashing_algorithm: string;
-          id: string;
-          metadata: Json;
-          mime_type: string | null;
-          object_type: string;
-          original_filename: string | null;
-          previous_hash: string | null;
-          scan_hit_id: string | null;
-          sha256: string | null;
-          source_url: string | null;
-          storage_object_path: string | null;
-          user_id: string;
-        };
+          acquisition_method: string | null
+          captured_at: string
+          collector_identity: string | null
+          created_at: string
+          file_size: number | null
+          hash_generated_at: string | null
+          hashing_algorithm: string
+          id: string
+          metadata: Json
+          mime_type: string | null
+          object_type: string
+          original_filename: string | null
+          previous_hash: string | null
+          scan_hit_id: string | null
+          sha256: string | null
+          source_url: string | null
+          storage_object_path: string | null
+          user_id: string
+        }
         Insert: {
-          acquisition_method?: string | null;
-          captured_at: string;
-          collector_identity?: string | null;
-          created_at?: string;
-          file_size?: number | null;
-          hash_generated_at?: string | null;
-          hashing_algorithm?: string;
-          id?: string;
-          metadata?: Json;
-          mime_type?: string | null;
-          object_type: string;
-          original_filename?: string | null;
-          previous_hash?: string | null;
-          scan_hit_id?: string | null;
-          sha256?: string | null;
-          source_url?: string | null;
-          storage_object_path?: string | null;
-          user_id: string;
-        };
+          acquisition_method?: string | null
+          captured_at: string
+          collector_identity?: string | null
+          created_at?: string
+          file_size?: number | null
+          hash_generated_at?: string | null
+          hashing_algorithm?: string
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          object_type: string
+          original_filename?: string | null
+          previous_hash?: string | null
+          scan_hit_id?: string | null
+          sha256?: string | null
+          source_url?: string | null
+          storage_object_path?: string | null
+          user_id: string
+        }
         Update: {
-          acquisition_method?: string | null;
-          captured_at?: string;
-          collector_identity?: string | null;
-          created_at?: string;
-          file_size?: number | null;
-          hash_generated_at?: string | null;
-          hashing_algorithm?: string;
-          id?: string;
-          metadata?: Json;
-          mime_type?: string | null;
-          object_type?: string;
-          original_filename?: string | null;
-          previous_hash?: string | null;
-          scan_hit_id?: string | null;
-          sha256?: string | null;
-          source_url?: string | null;
-          storage_object_path?: string | null;
-          user_id?: string;
-        };
+          acquisition_method?: string | null
+          captured_at?: string
+          collector_identity?: string | null
+          created_at?: string
+          file_size?: number | null
+          hash_generated_at?: string | null
+          hashing_algorithm?: string
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          object_type?: string
+          original_filename?: string | null
+          previous_hash?: string | null
+          scan_hit_id?: string | null
+          sha256?: string | null
+          source_url?: string | null
+          storage_object_path?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "evidence_objects_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_objects_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       evidence_report_exports: {
         Row: {
-          created_at: string;
-          export_type: string;
-          final_pdf_sha256: string | null;
-          id: string;
-          manifest_path: string | null;
-          readiness_failures: string[];
-          report_id: string;
-          scan_id: string | null;
-          storage_path: string | null;
-          user_id: string;
-        };
+          created_at: string
+          export_type: string
+          final_pdf_sha256: string | null
+          id: string
+          manifest_path: string | null
+          readiness_failures: string[]
+          report_id: string
+          scan_id: string | null
+          storage_path: string | null
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          export_type: string;
-          final_pdf_sha256?: string | null;
-          id?: string;
-          manifest_path?: string | null;
-          readiness_failures?: string[];
-          report_id: string;
-          scan_id?: string | null;
-          storage_path?: string | null;
-          user_id: string;
-        };
+          created_at?: string
+          export_type: string
+          final_pdf_sha256?: string | null
+          id?: string
+          manifest_path?: string | null
+          readiness_failures?: string[]
+          report_id: string
+          scan_id?: string | null
+          storage_path?: string | null
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          export_type?: string;
-          final_pdf_sha256?: string | null;
-          id?: string;
-          manifest_path?: string | null;
-          readiness_failures?: string[];
-          report_id?: string;
-          scan_id?: string | null;
-          storage_path?: string | null;
-          user_id?: string;
-        };
+          created_at?: string
+          export_type?: string
+          final_pdf_sha256?: string | null
+          id?: string
+          manifest_path?: string | null
+          readiness_failures?: string[]
+          report_id?: string
+          scan_id?: string | null
+          storage_path?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "evidence_report_exports_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_report_exports_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       evidence_vault_items: {
         Row: {
-          bytes: number | null;
-          case_id: string | null;
-          content_type: string | null;
-          created_at: string;
-          enforcement_request_id: string | null;
-          face_match_event_id: string | null;
-          id: string;
-          kind: string;
-          label: string | null;
-          metadata: Json | null;
-          s3_bucket: string;
-          s3_key: string;
-          scan_hit_id: string | null;
-          sha256: string | null;
-          user_id: string;
-        };
+          bytes: number | null
+          case_id: string | null
+          content_type: string | null
+          created_at: string
+          enforcement_request_id: string | null
+          face_match_event_id: string | null
+          id: string
+          kind: string
+          label: string | null
+          metadata: Json | null
+          s3_bucket: string
+          s3_key: string
+          scan_hit_id: string | null
+          sha256: string | null
+          user_id: string
+        }
         Insert: {
-          bytes?: number | null;
-          case_id?: string | null;
-          content_type?: string | null;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          face_match_event_id?: string | null;
-          id?: string;
-          kind: string;
-          label?: string | null;
-          metadata?: Json | null;
-          s3_bucket: string;
-          s3_key: string;
-          scan_hit_id?: string | null;
-          sha256?: string | null;
-          user_id: string;
-        };
+          bytes?: number | null
+          case_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          face_match_event_id?: string | null
+          id?: string
+          kind: string
+          label?: string | null
+          metadata?: Json | null
+          s3_bucket: string
+          s3_key: string
+          scan_hit_id?: string | null
+          sha256?: string | null
+          user_id: string
+        }
         Update: {
-          bytes?: number | null;
-          case_id?: string | null;
-          content_type?: string | null;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          face_match_event_id?: string | null;
-          id?: string;
-          kind?: string;
-          label?: string | null;
-          metadata?: Json | null;
-          s3_bucket?: string;
-          s3_key?: string;
-          scan_hit_id?: string | null;
-          sha256?: string | null;
-          user_id?: string;
-        };
+          bytes?: number | null
+          case_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          face_match_event_id?: string | null
+          id?: string
+          kind?: string
+          label?: string | null
+          metadata?: Json | null
+          s3_bucket?: string
+          s3_key?: string
+          scan_hit_id?: string | null
+          sha256?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "evidence_vault_items_case_id_fkey";
-            columns: ["case_id"];
-            isOneToOne: false;
-            referencedRelation: "cases";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_vault_items_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "evidence_vault_items_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_vault_items_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "evidence_vault_items_face_match_event_id_fkey";
-            columns: ["face_match_event_id"];
-            isOneToOne: false;
-            referencedRelation: "face_match_events";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_vault_items_face_match_event_id_fkey"
+            columns: ["face_match_event_id"]
+            isOneToOne: false
+            referencedRelation: "face_match_events"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "evidence_vault_items_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "evidence_vault_items_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       extracted_claims: {
         Row: {
-          claimant: string | null;
-          created_at: string;
-          extracted_claim: string;
-          fact_check_status: string;
-          id: string;
-          job_id: string;
-          language: string | null;
-          original_statement: string;
-          transcript_segment_id: string | null;
-          user_id: string;
-        };
+          claimant: string | null
+          created_at: string
+          extracted_claim: string
+          fact_check_status: string
+          id: string
+          job_id: string
+          language: string | null
+          original_statement: string
+          transcript_segment_id: string | null
+          user_id: string
+        }
         Insert: {
-          claimant?: string | null;
-          created_at?: string;
-          extracted_claim: string;
-          fact_check_status?: string;
-          id?: string;
-          job_id: string;
-          language?: string | null;
-          original_statement: string;
-          transcript_segment_id?: string | null;
-          user_id: string;
-        };
+          claimant?: string | null
+          created_at?: string
+          extracted_claim: string
+          fact_check_status?: string
+          id?: string
+          job_id: string
+          language?: string | null
+          original_statement: string
+          transcript_segment_id?: string | null
+          user_id: string
+        }
         Update: {
-          claimant?: string | null;
-          created_at?: string;
-          extracted_claim?: string;
-          fact_check_status?: string;
-          id?: string;
-          job_id?: string;
-          language?: string | null;
-          original_statement?: string;
-          transcript_segment_id?: string | null;
-          user_id?: string;
-        };
+          claimant?: string | null
+          created_at?: string
+          extracted_claim?: string
+          fact_check_status?: string
+          id?: string
+          job_id?: string
+          language?: string | null
+          original_statement?: string
+          transcript_segment_id?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "extracted_claims_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "extracted_claims_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "extracted_claims_transcript_segment_id_fkey";
-            columns: ["transcript_segment_id"];
-            isOneToOne: false;
-            referencedRelation: "transcript_segments";
-            referencedColumns: ["id"];
+            foreignKeyName: "extracted_claims_transcript_segment_id_fkey"
+            columns: ["transcript_segment_id"]
+            isOneToOne: false
+            referencedRelation: "transcript_segments"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       face_match_events: {
         Row: {
-          bounding_box: Json | null;
-          collection_id: string;
-          context_notes: string | null;
-          created_at: string;
-          enforcement_request_id: string | null;
-          face_confidence: number | null;
-          id: string;
-          image_s3_bucket: string | null;
-          image_s3_key: string | null;
-          matched_asset_id: string | null;
-          matched_face_id: string | null;
-          matched_protected_face_id: string | null;
-          review_status: string;
-          reviewed_at: string | null;
-          reviewed_by: string | null;
-          scan_hit_id: string | null;
-          similarity: number | null;
-          source_type: string | null;
-          source_url: string | null;
-          threat_category: string | null;
-          updated_at: string;
-          user_id: string;
-        };
+          bounding_box: Json | null
+          collection_id: string
+          context_notes: string | null
+          created_at: string
+          enforcement_request_id: string | null
+          face_confidence: number | null
+          id: string
+          image_s3_bucket: string | null
+          image_s3_key: string | null
+          matched_asset_id: string | null
+          matched_face_id: string | null
+          matched_protected_face_id: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          scan_hit_id: string | null
+          similarity: number | null
+          source_type: string | null
+          source_url: string | null
+          threat_category: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          bounding_box?: Json | null;
-          collection_id: string;
-          context_notes?: string | null;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          face_confidence?: number | null;
-          id?: string;
-          image_s3_bucket?: string | null;
-          image_s3_key?: string | null;
-          matched_asset_id?: string | null;
-          matched_face_id?: string | null;
-          matched_protected_face_id?: string | null;
-          review_status?: string;
-          reviewed_at?: string | null;
-          reviewed_by?: string | null;
-          scan_hit_id?: string | null;
-          similarity?: number | null;
-          source_type?: string | null;
-          source_url?: string | null;
-          threat_category?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
+          bounding_box?: Json | null
+          collection_id: string
+          context_notes?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          image_s3_bucket?: string | null
+          image_s3_key?: string | null
+          matched_asset_id?: string | null
+          matched_face_id?: string | null
+          matched_protected_face_id?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scan_hit_id?: string | null
+          similarity?: number | null
+          source_type?: string | null
+          source_url?: string | null
+          threat_category?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          bounding_box?: Json | null;
-          collection_id?: string;
-          context_notes?: string | null;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          face_confidence?: number | null;
-          id?: string;
-          image_s3_bucket?: string | null;
-          image_s3_key?: string | null;
-          matched_asset_id?: string | null;
-          matched_face_id?: string | null;
-          matched_protected_face_id?: string | null;
-          review_status?: string;
-          reviewed_at?: string | null;
-          reviewed_by?: string | null;
-          scan_hit_id?: string | null;
-          similarity?: number | null;
-          source_type?: string | null;
-          source_url?: string | null;
-          threat_category?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
+          bounding_box?: Json | null
+          collection_id?: string
+          context_notes?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          face_confidence?: number | null
+          id?: string
+          image_s3_bucket?: string | null
+          image_s3_key?: string | null
+          matched_asset_id?: string | null
+          matched_face_id?: string | null
+          matched_protected_face_id?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scan_hit_id?: string | null
+          similarity?: number | null
+          source_type?: string | null
+          source_url?: string | null
+          threat_category?: string | null
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "face_match_events_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "face_match_events_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "face_match_events_matched_asset_id_fkey";
-            columns: ["matched_asset_id"];
-            isOneToOne: false;
-            referencedRelation: "protected_assets";
-            referencedColumns: ["id"];
+            foreignKeyName: "face_match_events_matched_asset_id_fkey"
+            columns: ["matched_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "face_match_events_matched_protected_face_id_fkey";
-            columns: ["matched_protected_face_id"];
-            isOneToOne: false;
-            referencedRelation: "protected_faces";
-            referencedColumns: ["id"];
+            foreignKeyName: "face_match_events_matched_protected_face_id_fkey"
+            columns: ["matched_protected_face_id"]
+            isOneToOne: false
+            referencedRelation: "protected_faces"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "face_match_events_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "face_match_events_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       fact_check_matches: {
         Row: {
-          created_at: string;
-          extracted_claim_id: string;
-          id: string;
-          job_id: string;
-          language: string | null;
-          match_confidence: number | null;
-          publisher_name: string | null;
-          publisher_site: string | null;
-          raw: Json | null;
-          review_date: string | null;
-          review_title: string | null;
-          review_url: string | null;
-          reviewed_claim: string | null;
-          textual_rating: string | null;
-          user_id: string;
-        };
+          created_at: string
+          extracted_claim_id: string
+          id: string
+          job_id: string
+          language: string | null
+          match_confidence: number | null
+          publisher_name: string | null
+          publisher_site: string | null
+          raw: Json | null
+          review_date: string | null
+          review_title: string | null
+          review_url: string | null
+          reviewed_claim: string | null
+          textual_rating: string | null
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          extracted_claim_id: string;
-          id?: string;
-          job_id: string;
-          language?: string | null;
-          match_confidence?: number | null;
-          publisher_name?: string | null;
-          publisher_site?: string | null;
-          raw?: Json | null;
-          review_date?: string | null;
-          review_title?: string | null;
-          review_url?: string | null;
-          reviewed_claim?: string | null;
-          textual_rating?: string | null;
-          user_id: string;
-        };
+          created_at?: string
+          extracted_claim_id: string
+          id?: string
+          job_id: string
+          language?: string | null
+          match_confidence?: number | null
+          publisher_name?: string | null
+          publisher_site?: string | null
+          raw?: Json | null
+          review_date?: string | null
+          review_title?: string | null
+          review_url?: string | null
+          reviewed_claim?: string | null
+          textual_rating?: string | null
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          extracted_claim_id?: string;
-          id?: string;
-          job_id?: string;
-          language?: string | null;
-          match_confidence?: number | null;
-          publisher_name?: string | null;
-          publisher_site?: string | null;
-          raw?: Json | null;
-          review_date?: string | null;
-          review_title?: string | null;
-          review_url?: string | null;
-          reviewed_claim?: string | null;
-          textual_rating?: string | null;
-          user_id?: string;
-        };
+          created_at?: string
+          extracted_claim_id?: string
+          id?: string
+          job_id?: string
+          language?: string | null
+          match_confidence?: number | null
+          publisher_name?: string | null
+          publisher_site?: string | null
+          raw?: Json | null
+          review_date?: string | null
+          review_title?: string | null
+          review_url?: string | null
+          reviewed_claim?: string | null
+          textual_rating?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "fact_check_matches_extracted_claim_id_fkey";
-            columns: ["extracted_claim_id"];
-            isOneToOne: false;
-            referencedRelation: "extracted_claims";
-            referencedColumns: ["id"];
+            foreignKeyName: "fact_check_matches_extracted_claim_id_fkey"
+            columns: ["extracted_claim_id"]
+            isOneToOne: false
+            referencedRelation: "extracted_claims"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fact_check_matches_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "fact_check_matches_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       finding_review_history: {
         Row: {
-          action: string;
-          created_at: string;
-          finding_id: string;
-          from_severity: string | null;
-          from_status: string | null;
-          id: string;
-          notes: string | null;
-          reviewer_id: string;
-          to_severity: string | null;
-          to_status: string;
-        };
+          action: string
+          created_at: string
+          finding_id: string
+          from_severity: string | null
+          from_status: string | null
+          id: string
+          notes: string | null
+          reviewer_id: string
+          to_severity: string | null
+          to_status: string
+        }
         Insert: {
-          action?: string;
-          created_at?: string;
-          finding_id: string;
-          from_severity?: string | null;
-          from_status?: string | null;
-          id?: string;
-          notes?: string | null;
-          reviewer_id: string;
-          to_severity?: string | null;
-          to_status: string;
-        };
+          action?: string
+          created_at?: string
+          finding_id: string
+          from_severity?: string | null
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          reviewer_id: string
+          to_severity?: string | null
+          to_status: string
+        }
         Update: {
-          action?: string;
-          created_at?: string;
-          finding_id?: string;
-          from_severity?: string | null;
-          from_status?: string | null;
-          id?: string;
-          notes?: string | null;
-          reviewer_id?: string;
-          to_severity?: string | null;
-          to_status?: string;
-        };
+          action?: string
+          created_at?: string
+          finding_id?: string
+          from_severity?: string | null
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          reviewer_id?: string
+          to_severity?: string | null
+          to_status?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "finding_review_history_finding_id_fkey";
-            columns: ["finding_id"];
-            isOneToOne: false;
-            referencedRelation: "timestamp_findings";
-            referencedColumns: ["id"];
+            foreignKeyName: "finding_review_history_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "timestamp_findings"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       generated_reports: {
         Row: {
-          created_at: string;
-          filters: Json;
-          findings_count: number;
-          id: string;
-          kind: string;
-          name: string;
-          pdf_url: string | null;
-          status: string;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          filters: Json
+          findings_count: number
+          id: string
+          kind: string
+          name: string
+          pdf_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          filters?: Json;
-          findings_count?: number;
-          id?: string;
-          kind?: string;
-          name: string;
-          pdf_url?: string | null;
-          status?: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          filters?: Json
+          findings_count?: number
+          id?: string
+          kind?: string
+          name: string
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          filters?: Json;
-          findings_count?: number;
-          id?: string;
-          kind?: string;
-          name?: string;
-          pdf_url?: string | null;
-          status?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          filters?: Json
+          findings_count?: number
+          id?: string
+          kind?: string
+          name?: string
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kyc_verifications: {
         Row: {
-          client_id: string | null;
-          country: string | null;
-          created_at: string;
-          document_type: string | null;
-          id: string;
-          provider_reference: string | null;
-          raw_webhook: Json | null;
-          review_reason: string | null;
-          session_url: string | null;
-          updated_at: string;
-          user_id: string;
-          veriff_session_id: string | null;
-          verification_date: string | null;
-          verification_status: Database["public"]["Enums"]["kyc_status"];
-        };
+          client_id: string | null
+          country: string | null
+          created_at: string
+          document_type: string | null
+          id: string
+          provider_reference: string | null
+          raw_webhook: Json | null
+          review_reason: string | null
+          session_url: string | null
+          updated_at: string
+          user_id: string
+          veriff_session_id: string | null
+          verification_date: string | null
+          verification_status: Database["public"]["Enums"]["kyc_status"]
+        }
         Insert: {
-          client_id?: string | null;
-          country?: string | null;
-          created_at?: string;
-          document_type?: string | null;
-          id?: string;
-          provider_reference?: string | null;
-          raw_webhook?: Json | null;
-          review_reason?: string | null;
-          session_url?: string | null;
-          updated_at?: string;
-          user_id: string;
-          veriff_session_id?: string | null;
-          verification_date?: string | null;
-          verification_status?: Database["public"]["Enums"]["kyc_status"];
-        };
+          client_id?: string | null
+          country?: string | null
+          created_at?: string
+          document_type?: string | null
+          id?: string
+          provider_reference?: string | null
+          raw_webhook?: Json | null
+          review_reason?: string | null
+          session_url?: string | null
+          updated_at?: string
+          user_id: string
+          veriff_session_id?: string | null
+          verification_date?: string | null
+          verification_status?: Database["public"]["Enums"]["kyc_status"]
+        }
         Update: {
-          client_id?: string | null;
-          country?: string | null;
-          created_at?: string;
-          document_type?: string | null;
-          id?: string;
-          provider_reference?: string | null;
-          raw_webhook?: Json | null;
-          review_reason?: string | null;
-          session_url?: string | null;
-          updated_at?: string;
-          user_id?: string;
-          veriff_session_id?: string | null;
-          verification_date?: string | null;
-          verification_status?: Database["public"]["Enums"]["kyc_status"];
-        };
-        Relationships: [];
-      };
+          client_id?: string | null
+          country?: string | null
+          created_at?: string
+          document_type?: string | null
+          id?: string
+          provider_reference?: string | null
+          raw_webhook?: Json | null
+          review_reason?: string | null
+          session_url?: string | null
+          updated_at?: string
+          user_id?: string
+          veriff_session_id?: string | null
+          verification_date?: string | null
+          verification_status?: Database["public"]["Enums"]["kyc_status"]
+        }
+        Relationships: []
+      }
       legal_cases: {
         Row: {
-          attorney: string | null;
-          case_id: string | null;
-          case_number: string | null;
-          created_at: string;
-          enforcement_request_id: string | null;
-          filed_at: string | null;
-          id: string;
-          notes: string | null;
-          package_path: string | null;
-          stage: string;
-          updated_at: string;
-          user_id: string;
-        };
+          attorney: string | null
+          case_id: string | null
+          case_number: string | null
+          created_at: string
+          enforcement_request_id: string | null
+          filed_at: string | null
+          id: string
+          notes: string | null
+          package_path: string | null
+          stage: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          attorney?: string | null;
-          case_id?: string | null;
-          case_number?: string | null;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          filed_at?: string | null;
-          id?: string;
-          notes?: string | null;
-          package_path?: string | null;
-          stage?: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          attorney?: string | null
+          case_id?: string | null
+          case_number?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          filed_at?: string | null
+          id?: string
+          notes?: string | null
+          package_path?: string | null
+          stage?: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          attorney?: string | null;
-          case_id?: string | null;
-          case_number?: string | null;
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          filed_at?: string | null;
-          id?: string;
-          notes?: string | null;
-          package_path?: string | null;
-          stage?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
+          attorney?: string | null
+          case_id?: string | null
+          case_number?: string | null
+          created_at?: string
+          enforcement_request_id?: string | null
+          filed_at?: string | null
+          id?: string
+          notes?: string | null
+          package_path?: string | null
+          stage?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "legal_cases_case_id_fkey";
-            columns: ["case_id"];
-            isOneToOne: false;
-            referencedRelation: "cases";
-            referencedColumns: ["id"];
+            foreignKeyName: "legal_cases_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "legal_cases_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "legal_cases_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       multimedia_analysis_jobs: {
         Row: {
-          actual_cost_cents: number;
-          api_calls_count: number;
-          canceled_reason: string | null;
-          confidence_by_axis: Json | null;
-          cost_estimate_usd: number;
-          created_at: string;
-          estimated_cost_cents: number;
-          finished_at: string | null;
-          id: string;
-          progress_message: string | null;
-          progress_percent: number;
-          reputation_score: number | null;
-          retention_expires_at: string | null;
-          risk_scores: Json;
-          score_explanations: Json | null;
-          source_kind: string;
-          source_metadata: Json;
-          source_ref: string;
-          stage_status: Json;
-          started_at: string | null;
-          status: string;
-          target_aliases: string[];
-          target_name: string | null;
-          updated_at: string;
-          user_id: string;
-        };
+          actual_cost_cents: number
+          api_calls_count: number
+          canceled_reason: string | null
+          confidence_by_axis: Json | null
+          cost_estimate_usd: number
+          created_at: string
+          estimated_cost_cents: number
+          finished_at: string | null
+          id: string
+          progress_message: string | null
+          progress_percent: number
+          reputation_score: number | null
+          retention_expires_at: string | null
+          risk_scores: Json
+          score_explanations: Json | null
+          source_kind: string
+          source_metadata: Json
+          source_ref: string
+          stage_status: Json
+          started_at: string | null
+          status: string
+          target_aliases: string[]
+          target_name: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          actual_cost_cents?: number;
-          api_calls_count?: number;
-          canceled_reason?: string | null;
-          confidence_by_axis?: Json | null;
-          cost_estimate_usd?: number;
-          created_at?: string;
-          estimated_cost_cents?: number;
-          finished_at?: string | null;
-          id?: string;
-          progress_message?: string | null;
-          progress_percent?: number;
-          reputation_score?: number | null;
-          retention_expires_at?: string | null;
-          risk_scores?: Json;
-          score_explanations?: Json | null;
-          source_kind: string;
-          source_metadata?: Json;
-          source_ref: string;
-          stage_status?: Json;
-          started_at?: string | null;
-          status?: string;
-          target_aliases?: string[];
-          target_name?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
+          actual_cost_cents?: number
+          api_calls_count?: number
+          canceled_reason?: string | null
+          confidence_by_axis?: Json | null
+          cost_estimate_usd?: number
+          created_at?: string
+          estimated_cost_cents?: number
+          finished_at?: string | null
+          id?: string
+          progress_message?: string | null
+          progress_percent?: number
+          reputation_score?: number | null
+          retention_expires_at?: string | null
+          risk_scores?: Json
+          score_explanations?: Json | null
+          source_kind: string
+          source_metadata?: Json
+          source_ref: string
+          stage_status?: Json
+          started_at?: string | null
+          status?: string
+          target_aliases?: string[]
+          target_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          actual_cost_cents?: number;
-          api_calls_count?: number;
-          canceled_reason?: string | null;
-          confidence_by_axis?: Json | null;
-          cost_estimate_usd?: number;
-          created_at?: string;
-          estimated_cost_cents?: number;
-          finished_at?: string | null;
-          id?: string;
-          progress_message?: string | null;
-          progress_percent?: number;
-          reputation_score?: number | null;
-          retention_expires_at?: string | null;
-          risk_scores?: Json;
-          score_explanations?: Json | null;
-          source_kind?: string;
-          source_metadata?: Json;
-          source_ref?: string;
-          stage_status?: Json;
-          started_at?: string | null;
-          status?: string;
-          target_aliases?: string[];
-          target_name?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          actual_cost_cents?: number
+          api_calls_count?: number
+          canceled_reason?: string | null
+          confidence_by_axis?: Json | null
+          cost_estimate_usd?: number
+          created_at?: string
+          estimated_cost_cents?: number
+          finished_at?: string | null
+          id?: string
+          progress_message?: string | null
+          progress_percent?: number
+          reputation_score?: number | null
+          retention_expires_at?: string | null
+          risk_scores?: Json
+          score_explanations?: Json | null
+          source_kind?: string
+          source_metadata?: Json
+          source_ref?: string
+          stage_status?: Json
+          started_at?: string | null
+          status?: string
+          target_aliases?: string[]
+          target_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       multimedia_errors: {
         Row: {
-          created_at: string;
-          error_code: string | null;
-          error_message: string | null;
-          id: string;
-          job_id: string;
-          provider: string | null;
-          raw: Json | null;
-          stage: string;
-          user_id: string;
-        };
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          job_id: string
+          provider: string | null
+          raw: Json | null
+          stage: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          error_code?: string | null;
-          error_message?: string | null;
-          id?: string;
-          job_id: string;
-          provider?: string | null;
-          raw?: Json | null;
-          stage: string;
-          user_id: string;
-        };
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          job_id: string
+          provider?: string | null
+          raw?: Json | null
+          stage: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          error_code?: string | null;
-          error_message?: string | null;
-          id?: string;
-          job_id?: string;
-          provider?: string | null;
-          raw?: Json | null;
-          stage?: string;
-          user_id?: string;
-        };
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          provider?: string | null
+          raw?: Json | null
+          stage?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "multimedia_errors_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "multimedia_errors_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       multimedia_uploads: {
         Row: {
-          created_at: string;
-          filename: string;
-          id: string;
-          job_id: string | null;
-          mime_type: string;
-          organization: string | null;
-          permission_confirmed: boolean;
-          retention_policy: string;
-          retention_until: string | null;
-          sha256: string;
-          size_bytes: number;
-          storage_path: string;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          filename: string
+          id: string
+          job_id: string | null
+          mime_type: string
+          organization: string | null
+          permission_confirmed: boolean
+          retention_policy: string
+          retention_until: string | null
+          sha256: string
+          size_bytes: number
+          storage_path: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          filename: string;
-          id?: string;
-          job_id?: string | null;
-          mime_type: string;
-          organization?: string | null;
-          permission_confirmed?: boolean;
-          retention_policy?: string;
-          retention_until?: string | null;
-          sha256: string;
-          size_bytes: number;
-          storage_path: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          filename: string
+          id?: string
+          job_id?: string | null
+          mime_type: string
+          organization?: string | null
+          permission_confirmed?: boolean
+          retention_policy?: string
+          retention_until?: string | null
+          sha256: string
+          size_bytes: number
+          storage_path: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          filename?: string;
-          id?: string;
-          job_id?: string | null;
-          mime_type?: string;
-          organization?: string | null;
-          permission_confirmed?: boolean;
-          retention_policy?: string;
-          retention_until?: string | null;
-          sha256?: string;
-          size_bytes?: number;
-          storage_path?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
+          created_at?: string
+          filename?: string
+          id?: string
+          job_id?: string | null
+          mime_type?: string
+          organization?: string | null
+          permission_confirmed?: boolean
+          retention_policy?: string
+          retention_until?: string | null
+          sha256?: string
+          size_bytes?: number
+          storage_path?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "multimedia_uploads_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "multimedia_uploads_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       narrative_clusters: {
         Row: {
-          cluster_key: string;
-          combined_reach: number;
-          created_at: string;
-          dominant_source: string | null;
-          first_detected_at: string;
-          id: string;
-          latest_detected_at: string;
-          narrative_summary: string | null;
-          source_count: number;
-          sources: Json;
-          target_name: string;
-          updated_at: string;
-          user_id: string;
-        };
+          cluster_key: string
+          combined_reach: number
+          created_at: string
+          dominant_source: string | null
+          first_detected_at: string
+          id: string
+          latest_detected_at: string
+          narrative_summary: string | null
+          source_count: number
+          sources: Json
+          target_name: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          cluster_key: string;
-          combined_reach?: number;
-          created_at?: string;
-          dominant_source?: string | null;
-          first_detected_at?: string;
-          id?: string;
-          latest_detected_at?: string;
-          narrative_summary?: string | null;
-          source_count?: number;
-          sources?: Json;
-          target_name: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          cluster_key: string
+          combined_reach?: number
+          created_at?: string
+          dominant_source?: string | null
+          first_detected_at?: string
+          id?: string
+          latest_detected_at?: string
+          narrative_summary?: string | null
+          source_count?: number
+          sources?: Json
+          target_name: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          cluster_key?: string;
-          combined_reach?: number;
-          created_at?: string;
-          dominant_source?: string | null;
-          first_detected_at?: string;
-          id?: string;
-          latest_detected_at?: string;
-          narrative_summary?: string | null;
-          source_count?: number;
-          sources?: Json;
-          target_name?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          cluster_key?: string
+          combined_reach?: number
+          created_at?: string
+          dominant_source?: string | null
+          first_detected_at?: string
+          id?: string
+          latest_detected_at?: string
+          narrative_summary?: string | null
+          source_count?: number
+          sources?: Json
+          target_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ocr_results: {
         Row: {
-          bounding_boxes: Json | null;
-          confidence: number | null;
-          created_at: string;
-          evidence_frame_id: string | null;
-          id: string;
-          job_id: string;
-          language_code: string | null;
-          text: string;
-          user_id: string;
-        };
+          bounding_boxes: Json | null
+          confidence: number | null
+          created_at: string
+          evidence_frame_id: string | null
+          id: string
+          job_id: string
+          language_code: string | null
+          text: string
+          user_id: string
+        }
         Insert: {
-          bounding_boxes?: Json | null;
-          confidence?: number | null;
-          created_at?: string;
-          evidence_frame_id?: string | null;
-          id?: string;
-          job_id: string;
-          language_code?: string | null;
-          text: string;
-          user_id: string;
-        };
+          bounding_boxes?: Json | null
+          confidence?: number | null
+          created_at?: string
+          evidence_frame_id?: string | null
+          id?: string
+          job_id: string
+          language_code?: string | null
+          text: string
+          user_id: string
+        }
         Update: {
-          bounding_boxes?: Json | null;
-          confidence?: number | null;
-          created_at?: string;
-          evidence_frame_id?: string | null;
-          id?: string;
-          job_id?: string;
-          language_code?: string | null;
-          text?: string;
-          user_id?: string;
-        };
+          bounding_boxes?: Json | null
+          confidence?: number | null
+          created_at?: string
+          evidence_frame_id?: string | null
+          id?: string
+          job_id?: string
+          language_code?: string | null
+          text?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "ocr_results_evidence_frame_id_fkey";
-            columns: ["evidence_frame_id"];
-            isOneToOne: false;
-            referencedRelation: "evidence_frames";
-            referencedColumns: ["id"];
+            foreignKeyName: "ocr_results_evidence_frame_id_fkey"
+            columns: ["evidence_frame_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_frames"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ocr_results_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "ocr_results_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       onboarding_assets: {
         Row: {
-          asset_kind: Database["public"]["Enums"]["asset_kind_enum"];
-          created_at: string;
-          id: string;
-          label: string;
-          metadata: Json;
-          storage_path: string | null;
-          updated_at: string;
-          url: string | null;
-          user_id: string;
-          value: string | null;
-        };
+          asset_kind: Database["public"]["Enums"]["asset_kind_enum"]
+          created_at: string
+          id: string
+          label: string
+          metadata: Json
+          storage_path: string | null
+          updated_at: string
+          url: string | null
+          user_id: string
+          value: string | null
+        }
         Insert: {
-          asset_kind: Database["public"]["Enums"]["asset_kind_enum"];
-          created_at?: string;
-          id?: string;
-          label: string;
-          metadata?: Json;
-          storage_path?: string | null;
-          updated_at?: string;
-          url?: string | null;
-          user_id: string;
-          value?: string | null;
-        };
+          asset_kind: Database["public"]["Enums"]["asset_kind_enum"]
+          created_at?: string
+          id?: string
+          label: string
+          metadata?: Json
+          storage_path?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id: string
+          value?: string | null
+        }
         Update: {
-          asset_kind?: Database["public"]["Enums"]["asset_kind_enum"];
-          created_at?: string;
-          id?: string;
-          label?: string;
-          metadata?: Json;
-          storage_path?: string | null;
-          updated_at?: string;
-          url?: string | null;
-          user_id?: string;
-          value?: string | null;
-        };
-        Relationships: [];
-      };
+          asset_kind?: Database["public"]["Enums"]["asset_kind_enum"]
+          created_at?: string
+          id?: string
+          label?: string
+          metadata?: Json
+          storage_path?: string | null
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       onboarding_audit_log: {
         Row: {
-          created_at: string;
-          event_type: string;
-          id: string;
-          ip_address: string | null;
-          payload: Json;
-          step: number | null;
-          user_agent: string | null;
-          user_id: string;
-        };
+          created_at: string
+          event_type: string
+          id: string
+          ip_address: string | null
+          payload: Json
+          step: number | null
+          user_agent: string | null
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          event_type: string;
-          id?: string;
-          ip_address?: string | null;
-          payload?: Json;
-          step?: number | null;
-          user_agent?: string | null;
-          user_id: string;
-        };
+          created_at?: string
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json
+          step?: number | null
+          user_agent?: string | null
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          event_type?: string;
-          id?: string;
-          ip_address?: string | null;
-          payload?: Json;
-          step?: number | null;
-          user_agent?: string | null;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json
+          step?: number | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       onboarding_progress: {
         Row: {
-          created_at: string;
-          current_step: number;
-          onboarding_version: string;
-          overall_status: Database["public"]["Enums"]["onboarding_overall_status"];
-          step_states: Json;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          current_step: number
+          onboarding_version: string
+          overall_status: Database["public"]["Enums"]["onboarding_overall_status"]
+          step_states: Json
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          current_step?: number;
-          onboarding_version?: string;
-          overall_status?: Database["public"]["Enums"]["onboarding_overall_status"];
-          step_states?: Json;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          current_step?: number
+          onboarding_version?: string
+          overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
+          step_states?: Json
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          current_step?: number;
-          onboarding_version?: string;
-          overall_status?: Database["public"]["Enums"]["onboarding_overall_status"];
-          step_states?: Json;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          current_step?: number
+          onboarding_version?: string
+          overall_status?: Database["public"]["Enums"]["onboarding_overall_status"]
+          step_states?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       onboarding_v2_evidence: {
         Row: {
-          created_at: string;
-          evidence_type: string;
-          filename: string | null;
-          id: string;
-          metadata: Json;
-          mime_type: string | null;
-          reference_value: string | null;
-          status: string;
-          storage_path: string | null;
-          updated_at: string;
-          user_id: string;
-          verification_method: string | null;
-          verified_at: string | null;
-        };
+          created_at: string
+          evidence_type: string
+          filename: string | null
+          id: string
+          metadata: Json
+          mime_type: string | null
+          reference_value: string | null
+          status: string
+          storage_path: string | null
+          updated_at: string
+          user_id: string
+          verification_method: string | null
+          verified_at: string | null
+        }
         Insert: {
-          created_at?: string;
-          evidence_type: string;
-          filename?: string | null;
-          id?: string;
-          metadata?: Json;
-          mime_type?: string | null;
-          reference_value?: string | null;
-          status?: string;
-          storage_path?: string | null;
-          updated_at?: string;
-          user_id: string;
-          verification_method?: string | null;
-          verified_at?: string | null;
-        };
+          created_at?: string
+          evidence_type: string
+          filename?: string | null
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          reference_value?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id: string
+          verification_method?: string | null
+          verified_at?: string | null
+        }
         Update: {
-          created_at?: string;
-          evidence_type?: string;
-          filename?: string | null;
-          id?: string;
-          metadata?: Json;
-          mime_type?: string | null;
-          reference_value?: string | null;
-          status?: string;
-          storage_path?: string | null;
-          updated_at?: string;
-          user_id?: string;
-          verification_method?: string | null;
-          verified_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          evidence_type?: string
+          filename?: string | null
+          id?: string
+          metadata?: Json
+          mime_type?: string | null
+          reference_value?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_method?: string | null
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       partner_agreements: {
         Row: {
-          application_id: string;
-          created_at: string;
-          draft_s3_key: string;
-          eterna_signed_at: string | null;
-          eterna_signer_id: string | null;
-          generated_at: string;
-          id: string;
-          sha256: string | null;
-          signed_s3_key: string | null;
-          status: string;
-          updated_at: string;
-          user_id: string;
-          version: number;
-        };
+          application_id: string
+          created_at: string
+          draft_s3_key: string
+          eterna_signed_at: string | null
+          eterna_signer_id: string | null
+          generated_at: string
+          id: string
+          sha256: string | null
+          signed_s3_key: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
         Insert: {
-          application_id: string;
-          created_at?: string;
-          draft_s3_key: string;
-          eterna_signed_at?: string | null;
-          eterna_signer_id?: string | null;
-          generated_at?: string;
-          id?: string;
-          sha256?: string | null;
-          signed_s3_key?: string | null;
-          status?: string;
-          updated_at?: string;
-          user_id: string;
-          version?: number;
-        };
+          application_id: string
+          created_at?: string
+          draft_s3_key: string
+          eterna_signed_at?: string | null
+          eterna_signer_id?: string | null
+          generated_at?: string
+          id?: string
+          sha256?: string | null
+          signed_s3_key?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
         Update: {
-          application_id?: string;
-          created_at?: string;
-          draft_s3_key?: string;
-          eterna_signed_at?: string | null;
-          eterna_signer_id?: string | null;
-          generated_at?: string;
-          id?: string;
-          sha256?: string | null;
-          signed_s3_key?: string | null;
-          status?: string;
-          updated_at?: string;
-          user_id?: string;
-          version?: number;
-        };
+          application_id?: string
+          created_at?: string
+          draft_s3_key?: string
+          eterna_signed_at?: string | null
+          eterna_signer_id?: string | null
+          generated_at?: string
+          id?: string
+          sha256?: string | null
+          signed_s3_key?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
         Relationships: [
           {
-            foreignKeyName: "partner_agreements_application_id_fkey";
-            columns: ["application_id"];
-            isOneToOne: false;
-            referencedRelation: "partner_applications";
-            referencedColumns: ["id"];
+            foreignKeyName: "partner_agreements_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       partner_applications: {
         Row: {
-          address: string | null;
-          assigned_partner_id: string | null;
-          business_email: string;
-          country: string;
-          created_at: string;
-          declarations: Json;
-          expected_monthly_clients: number | null;
-          founder_name: string;
-          id: string;
-          id_document_s3_key: string | null;
-          industry: string | null;
-          ip_address: string | null;
-          legal_company_name: string;
-          partnership_type: string;
-          phone: string | null;
-          registration_number: string | null;
-          rep_name: string;
-          rep_title: string | null;
-          review_notes: string | null;
-          reviewed_at: string | null;
-          reviewed_by: string | null;
-          signature_hash: string;
-          signature_text: string;
-          signed_at: string;
-          status: string;
-          territory: string | null;
-          trade_licence_s3_key: string | null;
-          trading_name: string | null;
-          updated_at: string;
-          user_agent: string | null;
-          user_id: string;
-          website: string | null;
-          whatsapp: string | null;
-        };
+          address: string | null
+          assigned_partner_id: string | null
+          business_email: string
+          country: string
+          created_at: string
+          declarations: Json
+          expected_monthly_clients: number | null
+          founder_name: string
+          id: string
+          id_document_s3_key: string | null
+          industry: string | null
+          ip_address: string | null
+          legal_company_name: string
+          partnership_type: string
+          phone: string | null
+          registration_number: string | null
+          rep_name: string
+          rep_title: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          signature_hash: string
+          signature_text: string
+          signed_at: string
+          status: string
+          territory: string | null
+          trade_licence_s3_key: string | null
+          trading_name: string | null
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+          website: string | null
+          whatsapp: string | null
+        }
         Insert: {
-          address?: string | null;
-          assigned_partner_id?: string | null;
-          business_email: string;
-          country: string;
-          created_at?: string;
-          declarations?: Json;
-          expected_monthly_clients?: number | null;
-          founder_name: string;
-          id?: string;
-          id_document_s3_key?: string | null;
-          industry?: string | null;
-          ip_address?: string | null;
-          legal_company_name: string;
-          partnership_type: string;
-          phone?: string | null;
-          registration_number?: string | null;
-          rep_name: string;
-          rep_title?: string | null;
-          review_notes?: string | null;
-          reviewed_at?: string | null;
-          reviewed_by?: string | null;
-          signature_hash: string;
-          signature_text: string;
-          signed_at?: string;
-          status?: string;
-          territory?: string | null;
-          trade_licence_s3_key?: string | null;
-          trading_name?: string | null;
-          updated_at?: string;
-          user_agent?: string | null;
-          user_id: string;
-          website?: string | null;
-          whatsapp?: string | null;
-        };
+          address?: string | null
+          assigned_partner_id?: string | null
+          business_email: string
+          country: string
+          created_at?: string
+          declarations?: Json
+          expected_monthly_clients?: number | null
+          founder_name: string
+          id?: string
+          id_document_s3_key?: string | null
+          industry?: string | null
+          ip_address?: string | null
+          legal_company_name: string
+          partnership_type: string
+          phone?: string | null
+          registration_number?: string | null
+          rep_name: string
+          rep_title?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          signature_hash: string
+          signature_text: string
+          signed_at?: string
+          status?: string
+          territory?: string | null
+          trade_licence_s3_key?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+          website?: string | null
+          whatsapp?: string | null
+        }
         Update: {
-          address?: string | null;
-          assigned_partner_id?: string | null;
-          business_email?: string;
-          country?: string;
-          created_at?: string;
-          declarations?: Json;
-          expected_monthly_clients?: number | null;
-          founder_name?: string;
-          id?: string;
-          id_document_s3_key?: string | null;
-          industry?: string | null;
-          ip_address?: string | null;
-          legal_company_name?: string;
-          partnership_type?: string;
-          phone?: string | null;
-          registration_number?: string | null;
-          rep_name?: string;
-          rep_title?: string | null;
-          review_notes?: string | null;
-          reviewed_at?: string | null;
-          reviewed_by?: string | null;
-          signature_hash?: string;
-          signature_text?: string;
-          signed_at?: string;
-          status?: string;
-          territory?: string | null;
-          trade_licence_s3_key?: string | null;
-          trading_name?: string | null;
-          updated_at?: string;
-          user_agent?: string | null;
-          user_id?: string;
-          website?: string | null;
-          whatsapp?: string | null;
-        };
-        Relationships: [];
-      };
+          address?: string | null
+          assigned_partner_id?: string | null
+          business_email?: string
+          country?: string
+          created_at?: string
+          declarations?: Json
+          expected_monthly_clients?: number | null
+          founder_name?: string
+          id?: string
+          id_document_s3_key?: string | null
+          industry?: string | null
+          ip_address?: string | null
+          legal_company_name?: string
+          partnership_type?: string
+          phone?: string | null
+          registration_number?: string | null
+          rep_name?: string
+          rep_title?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          signature_hash?: string
+          signature_text?: string
+          signed_at?: string
+          status?: string
+          territory?: string | null
+          trade_licence_s3_key?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       partner_audit_log: {
         Row: {
-          action: string;
-          actor_id: string | null;
-          application_id: string | null;
-          created_at: string;
-          id: string;
-          ip_address: string | null;
-          partner_id: string | null;
-          payload: Json | null;
-          user_agent: string | null;
-        };
+          action: string
+          actor_id: string | null
+          application_id: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          partner_id: string | null
+          payload: Json | null
+          user_agent: string | null
+        }
         Insert: {
-          action: string;
-          actor_id?: string | null;
-          application_id?: string | null;
-          created_at?: string;
-          id?: string;
-          ip_address?: string | null;
-          partner_id?: string | null;
-          payload?: Json | null;
-          user_agent?: string | null;
-        };
+          action: string
+          actor_id?: string | null
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          partner_id?: string | null
+          payload?: Json | null
+          user_agent?: string | null
+        }
         Update: {
-          action?: string;
-          actor_id?: string | null;
-          application_id?: string | null;
-          created_at?: string;
-          id?: string;
-          ip_address?: string | null;
-          partner_id?: string | null;
-          payload?: Json | null;
-          user_agent?: string | null;
-        };
-        Relationships: [];
-      };
+          action?: string
+          actor_id?: string | null
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          partner_id?: string | null
+          payload?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       partner_commissions: {
         Row: {
-          commission_inr: number;
-          created_at: string;
-          earned_at: string;
-          gross_inr: number;
-          id: string;
-          paid_at: string | null;
-          partner_id: string;
-          payout_ref: string | null;
-          referred_client_id: string;
-          status: string;
-          updated_at: string;
-        };
+          commission_inr: number
+          created_at: string
+          earned_at: string
+          gross_inr: number
+          id: string
+          paid_at: string | null
+          partner_id: string
+          payout_ref: string | null
+          referred_client_id: string
+          status: string
+          updated_at: string
+        }
         Insert: {
-          commission_inr?: number;
-          created_at?: string;
-          earned_at?: string;
-          gross_inr?: number;
-          id?: string;
-          paid_at?: string | null;
-          partner_id: string;
-          payout_ref?: string | null;
-          referred_client_id: string;
-          status?: string;
-          updated_at?: string;
-        };
+          commission_inr?: number
+          created_at?: string
+          earned_at?: string
+          gross_inr?: number
+          id?: string
+          paid_at?: string | null
+          partner_id: string
+          payout_ref?: string | null
+          referred_client_id: string
+          status?: string
+          updated_at?: string
+        }
         Update: {
-          commission_inr?: number;
-          created_at?: string;
-          earned_at?: string;
-          gross_inr?: number;
-          id?: string;
-          paid_at?: string | null;
-          partner_id?: string;
-          payout_ref?: string | null;
-          referred_client_id?: string;
-          status?: string;
-          updated_at?: string;
-        };
+          commission_inr?: number
+          created_at?: string
+          earned_at?: string
+          gross_inr?: number
+          id?: string
+          paid_at?: string | null
+          partner_id?: string
+          payout_ref?: string | null
+          referred_client_id?: string
+          status?: string
+          updated_at?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "partner_commissions_partner_id_fkey";
-            columns: ["partner_id"];
-            isOneToOne: false;
-            referencedRelation: "partner_profiles";
-            referencedColumns: ["partner_id"];
+            foreignKeyName: "partner_commissions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["partner_id"]
           },
           {
-            foreignKeyName: "partner_commissions_referred_client_id_fkey";
-            columns: ["referred_client_id"];
-            isOneToOne: true;
-            referencedRelation: "partner_referred_clients";
-            referencedColumns: ["id"];
+            foreignKeyName: "partner_commissions_referred_client_id_fkey"
+            columns: ["referred_client_id"]
+            isOneToOne: true
+            referencedRelation: "partner_referred_clients"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       partner_profiles: {
         Row: {
-          activated_at: string;
-          commission_pct: number;
-          created_at: string;
-          id: string;
-          legal_company_name: string;
-          partner_id: string;
-          referral_code: string;
-          status: string;
-          territory: string | null;
-          updated_at: string;
-          user_id: string;
-        };
+          activated_at: string
+          commission_pct: number
+          created_at: string
+          id: string
+          legal_company_name: string
+          partner_id: string
+          referral_code: string
+          status: string
+          territory: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          activated_at?: string;
-          commission_pct?: number;
-          created_at?: string;
-          id?: string;
-          legal_company_name: string;
-          partner_id: string;
-          referral_code: string;
-          status?: string;
-          territory?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
+          activated_at?: string
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          legal_company_name: string
+          partner_id: string
+          referral_code: string
+          status?: string
+          territory?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          activated_at?: string;
-          commission_pct?: number;
-          created_at?: string;
-          id?: string;
-          legal_company_name?: string;
-          partner_id?: string;
-          referral_code?: string;
-          status?: string;
-          territory?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          activated_at?: string
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          legal_company_name?: string
+          partner_id?: string
+          referral_code?: string
+          status?: string
+          territory?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       partner_referred_clients: {
         Row: {
-          cleared_at: string | null;
-          client_user_id: string | null;
-          commission_amount_inr: number | null;
-          created_at: string;
-          id: string;
-          lead_email: string;
-          lead_name: string | null;
-          lead_phone: string | null;
-          notes: string | null;
-          partner_id: string;
-          referral_code: string;
-          sale_amount_inr: number | null;
-          status: string;
-          updated_at: string;
-        };
+          cleared_at: string | null
+          client_user_id: string | null
+          commission_amount_inr: number | null
+          created_at: string
+          id: string
+          lead_email: string
+          lead_name: string | null
+          lead_phone: string | null
+          notes: string | null
+          partner_id: string
+          referral_code: string
+          sale_amount_inr: number | null
+          status: string
+          updated_at: string
+        }
         Insert: {
-          cleared_at?: string | null;
-          client_user_id?: string | null;
-          commission_amount_inr?: number | null;
-          created_at?: string;
-          id?: string;
-          lead_email: string;
-          lead_name?: string | null;
-          lead_phone?: string | null;
-          notes?: string | null;
-          partner_id: string;
-          referral_code: string;
-          sale_amount_inr?: number | null;
-          status?: string;
-          updated_at?: string;
-        };
+          cleared_at?: string | null
+          client_user_id?: string | null
+          commission_amount_inr?: number | null
+          created_at?: string
+          id?: string
+          lead_email: string
+          lead_name?: string | null
+          lead_phone?: string | null
+          notes?: string | null
+          partner_id: string
+          referral_code: string
+          sale_amount_inr?: number | null
+          status?: string
+          updated_at?: string
+        }
         Update: {
-          cleared_at?: string | null;
-          client_user_id?: string | null;
-          commission_amount_inr?: number | null;
-          created_at?: string;
-          id?: string;
-          lead_email?: string;
-          lead_name?: string | null;
-          lead_phone?: string | null;
-          notes?: string | null;
-          partner_id?: string;
-          referral_code?: string;
-          sale_amount_inr?: number | null;
-          status?: string;
-          updated_at?: string;
-        };
+          cleared_at?: string | null
+          client_user_id?: string | null
+          commission_amount_inr?: number | null
+          created_at?: string
+          id?: string
+          lead_email?: string
+          lead_name?: string | null
+          lead_phone?: string | null
+          notes?: string | null
+          partner_id?: string
+          referral_code?: string
+          sale_amount_inr?: number | null
+          status?: string
+          updated_at?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "partner_referred_clients_partner_id_fkey";
-            columns: ["partner_id"];
-            isOneToOne: false;
-            referencedRelation: "partner_profiles";
-            referencedColumns: ["partner_id"];
+            foreignKeyName: "partner_referred_clients_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["partner_id"]
           },
-        ];
-      };
+        ]
+      }
       platform_credentials: {
         Row: {
-          created_at: string;
-          id: string;
-          label: string | null;
-          last_verified_at: string | null;
-          login_email_ciphertext: string | null;
-          mfa_hint: string | null;
-          platform: Database["public"]["Enums"]["automation_platform"];
-          status: Database["public"]["Enums"]["platform_credential_status"];
-          storage_state_ciphertext: string;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          id: string
+          label: string | null
+          last_verified_at: string | null
+          login_email_ciphertext: string | null
+          mfa_hint: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          status: Database["public"]["Enums"]["platform_credential_status"]
+          storage_state_ciphertext: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          id?: string;
-          label?: string | null;
-          last_verified_at?: string | null;
-          login_email_ciphertext?: string | null;
-          mfa_hint?: string | null;
-          platform: Database["public"]["Enums"]["automation_platform"];
-          status?: Database["public"]["Enums"]["platform_credential_status"];
-          storage_state_ciphertext: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_verified_at?: string | null
+          login_email_ciphertext?: string | null
+          mfa_hint?: string | null
+          platform: Database["public"]["Enums"]["automation_platform"]
+          status?: Database["public"]["Enums"]["platform_credential_status"]
+          storage_state_ciphertext: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          id?: string;
-          label?: string | null;
-          last_verified_at?: string | null;
-          login_email_ciphertext?: string | null;
-          mfa_hint?: string | null;
-          platform?: Database["public"]["Enums"]["automation_platform"];
-          status?: Database["public"]["Enums"]["platform_credential_status"];
-          storage_state_ciphertext?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_verified_at?: string | null
+          login_email_ciphertext?: string | null
+          mfa_hint?: string | null
+          platform?: Database["public"]["Enums"]["automation_platform"]
+          status?: Database["public"]["Enums"]["platform_credential_status"]
+          storage_state_ciphertext?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       platform_reports: {
         Row: {
-          created_at: string;
-          enforcement_request_id: string | null;
-          external_reference: string | null;
-          form_payload: Json;
-          id: string;
-          platform: string;
-          report_type: string;
-          response: Json | null;
-          submission_status: string;
-          submitted_at: string | null;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          enforcement_request_id: string | null
+          external_reference: string | null
+          form_payload: Json
+          id: string
+          platform: string
+          report_type: string
+          response: Json | null
+          submission_status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          external_reference?: string | null;
-          form_payload?: Json;
-          id?: string;
-          platform: string;
-          report_type: string;
-          response?: Json | null;
-          submission_status?: string;
-          submitted_at?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          enforcement_request_id?: string | null
+          external_reference?: string | null
+          form_payload?: Json
+          id?: string
+          platform: string
+          report_type: string
+          response?: Json | null
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          enforcement_request_id?: string | null;
-          external_reference?: string | null;
-          form_payload?: Json;
-          id?: string;
-          platform?: string;
-          report_type?: string;
-          response?: Json | null;
-          submission_status?: string;
-          submitted_at?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
+          created_at?: string
+          enforcement_request_id?: string | null
+          external_reference?: string | null
+          form_payload?: Json
+          id?: string
+          platform?: string
+          report_type?: string
+          response?: Json | null
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "platform_reports_enforcement_request_id_fkey";
-            columns: ["enforcement_request_id"];
-            isOneToOne: false;
-            referencedRelation: "enforcement_requests";
-            referencedColumns: ["id"];
+            foreignKeyName: "platform_reports_enforcement_request_id_fkey"
+            columns: ["enforcement_request_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       protected_asset_matches: {
         Row: {
-          copyright_risk: number | null;
-          created_at: string;
-          evidence_frame_id: string | null;
-          fake_ad_indicator: boolean;
-          id: string;
-          impersonation_risk: number | null;
-          job_id: string;
-          match_type: string;
-          ocr_name_match: boolean;
-          protected_asset_id: string;
-          requires_review: boolean;
-          similarity: number;
-          user_id: string;
-        };
+          copyright_risk: number | null
+          created_at: string
+          evidence_frame_id: string | null
+          fake_ad_indicator: boolean
+          id: string
+          impersonation_risk: number | null
+          job_id: string
+          match_type: string
+          ocr_name_match: boolean
+          protected_asset_id: string
+          requires_review: boolean
+          similarity: number
+          user_id: string
+        }
         Insert: {
-          copyright_risk?: number | null;
-          created_at?: string;
-          evidence_frame_id?: string | null;
-          fake_ad_indicator?: boolean;
-          id?: string;
-          impersonation_risk?: number | null;
-          job_id: string;
-          match_type: string;
-          ocr_name_match?: boolean;
-          protected_asset_id: string;
-          requires_review?: boolean;
-          similarity: number;
-          user_id: string;
-        };
+          copyright_risk?: number | null
+          created_at?: string
+          evidence_frame_id?: string | null
+          fake_ad_indicator?: boolean
+          id?: string
+          impersonation_risk?: number | null
+          job_id: string
+          match_type: string
+          ocr_name_match?: boolean
+          protected_asset_id: string
+          requires_review?: boolean
+          similarity: number
+          user_id: string
+        }
         Update: {
-          copyright_risk?: number | null;
-          created_at?: string;
-          evidence_frame_id?: string | null;
-          fake_ad_indicator?: boolean;
-          id?: string;
-          impersonation_risk?: number | null;
-          job_id?: string;
-          match_type?: string;
-          ocr_name_match?: boolean;
-          protected_asset_id?: string;
-          requires_review?: boolean;
-          similarity?: number;
-          user_id?: string;
-        };
+          copyright_risk?: number | null
+          created_at?: string
+          evidence_frame_id?: string | null
+          fake_ad_indicator?: boolean
+          id?: string
+          impersonation_risk?: number | null
+          job_id?: string
+          match_type?: string
+          ocr_name_match?: boolean
+          protected_asset_id?: string
+          requires_review?: boolean
+          similarity?: number
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "protected_asset_matches_evidence_frame_id_fkey";
-            columns: ["evidence_frame_id"];
-            isOneToOne: false;
-            referencedRelation: "evidence_frames";
-            referencedColumns: ["id"];
+            foreignKeyName: "protected_asset_matches_evidence_frame_id_fkey"
+            columns: ["evidence_frame_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_frames"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "protected_asset_matches_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "protected_asset_matches_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "protected_asset_matches_protected_asset_id_fkey";
-            columns: ["protected_asset_id"];
-            isOneToOne: false;
-            referencedRelation: "protected_assets";
-            referencedColumns: ["id"];
+            foreignKeyName: "protected_asset_matches_protected_asset_id_fkey"
+            columns: ["protected_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       protected_assets: {
         Row: {
-          active: boolean;
-          created_at: string;
-          discovered_account_id: string | null;
-          id: string;
-          kind: string;
-          metadata: Json;
-          name: string;
-          phash: string | null;
-          source_url: string | null;
-          storage_path: string | null;
-          updated_at: string;
-          user_id: string;
-        };
+          active: boolean
+          created_at: string
+          discovered_account_id: string | null
+          id: string
+          kind: string
+          metadata: Json
+          name: string
+          phash: string | null
+          source_url: string | null
+          storage_path: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          active?: boolean;
-          created_at?: string;
-          discovered_account_id?: string | null;
-          id?: string;
-          kind: string;
-          metadata?: Json;
-          name: string;
-          phash?: string | null;
-          source_url?: string | null;
-          storage_path?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
+          active?: boolean
+          created_at?: string
+          discovered_account_id?: string | null
+          id?: string
+          kind: string
+          metadata?: Json
+          name: string
+          phash?: string | null
+          source_url?: string | null
+          storage_path?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          active?: boolean;
-          created_at?: string;
-          discovered_account_id?: string | null;
-          id?: string;
-          kind?: string;
-          metadata?: Json;
-          name?: string;
-          phash?: string | null;
-          source_url?: string | null;
-          storage_path?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
+          active?: boolean
+          created_at?: string
+          discovered_account_id?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          name?: string
+          phash?: string | null
+          source_url?: string | null
+          storage_path?: string | null
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "protected_assets_discovered_account_id_fkey";
-            columns: ["discovered_account_id"];
-            isOneToOne: false;
-            referencedRelation: "discovered_accounts";
-            referencedColumns: ["id"];
+            foreignKeyName: "protected_assets_discovered_account_id_fkey"
+            columns: ["discovered_account_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       protected_face_profiles: {
         Row: {
-          collection_id: string;
-          created_at: string;
-          enrollment_date: string | null;
-          failure_at: string | null;
-          failure_code: string | null;
-          failure_reason: string | null;
-          id: string;
-          liveness_score: number | null;
-          liveness_session_id: string | null;
-          rekognition_user_id: string | null;
-          status: Database["public"]["Enums"]["face_profile_status"];
-          updated_at: string;
-          user_id: string;
-        };
+          collection_id: string
+          created_at: string
+          enrollment_date: string | null
+          failure_at: string | null
+          failure_code: string | null
+          failure_reason: string | null
+          id: string
+          liveness_score: number | null
+          liveness_session_id: string | null
+          rekognition_user_id: string | null
+          status: Database["public"]["Enums"]["face_profile_status"]
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          collection_id: string;
-          created_at?: string;
-          enrollment_date?: string | null;
-          failure_at?: string | null;
-          failure_code?: string | null;
-          failure_reason?: string | null;
-          id?: string;
-          liveness_score?: number | null;
-          liveness_session_id?: string | null;
-          rekognition_user_id?: string | null;
-          status?: Database["public"]["Enums"]["face_profile_status"];
-          updated_at?: string;
-          user_id: string;
-        };
+          collection_id: string
+          created_at?: string
+          enrollment_date?: string | null
+          failure_at?: string | null
+          failure_code?: string | null
+          failure_reason?: string | null
+          id?: string
+          liveness_score?: number | null
+          liveness_session_id?: string | null
+          rekognition_user_id?: string | null
+          status?: Database["public"]["Enums"]["face_profile_status"]
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          collection_id?: string;
-          created_at?: string;
-          enrollment_date?: string | null;
-          failure_at?: string | null;
-          failure_code?: string | null;
-          failure_reason?: string | null;
-          id?: string;
-          liveness_score?: number | null;
-          liveness_session_id?: string | null;
-          rekognition_user_id?: string | null;
-          status?: Database["public"]["Enums"]["face_profile_status"];
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          collection_id?: string
+          created_at?: string
+          enrollment_date?: string | null
+          failure_at?: string | null
+          failure_code?: string | null
+          failure_reason?: string | null
+          id?: string
+          liveness_score?: number | null
+          liveness_session_id?: string | null
+          rekognition_user_id?: string | null
+          status?: Database["public"]["Enums"]["face_profile_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       protected_face_references: {
         Row: {
-          created_at: string;
-          face_id: string | null;
-          id: string;
-          profile_id: string;
-          quality_scores: Json | null;
-          s3_key: string;
-          user_id: string;
-        };
+          created_at: string
+          face_id: string | null
+          id: string
+          profile_id: string
+          quality_scores: Json | null
+          s3_key: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          face_id?: string | null;
-          id?: string;
-          profile_id: string;
-          quality_scores?: Json | null;
-          s3_key: string;
-          user_id: string;
-        };
+          created_at?: string
+          face_id?: string | null
+          id?: string
+          profile_id: string
+          quality_scores?: Json | null
+          s3_key: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          face_id?: string | null;
-          id?: string;
-          profile_id?: string;
-          quality_scores?: Json | null;
-          s3_key?: string;
-          user_id?: string;
-        };
+          created_at?: string
+          face_id?: string | null
+          id?: string
+          profile_id?: string
+          quality_scores?: Json | null
+          s3_key?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "protected_face_references_profile_id_fkey";
-            columns: ["profile_id"];
-            isOneToOne: false;
-            referencedRelation: "protected_face_profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "protected_face_references_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "protected_face_profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       protected_faces: {
         Row: {
-          asset_id: string | null;
-          bounding_box: Json | null;
-          collection_id: string;
-          confidence: number | null;
-          created_at: string;
-          discovered_account_id: string | null;
-          external_image_id: string | null;
-          face_id: string;
-          id: string;
-          image_id: string | null;
-          label: string | null;
-          platform: string | null;
-          s3_bucket: string;
-          s3_key: string;
-          source_url: string | null;
-          user_id: string;
-        };
+          asset_id: string | null
+          bounding_box: Json | null
+          collection_id: string
+          confidence: number | null
+          created_at: string
+          discovered_account_id: string | null
+          external_image_id: string | null
+          face_id: string
+          id: string
+          image_id: string | null
+          label: string | null
+          platform: string | null
+          s3_bucket: string
+          s3_key: string
+          source_url: string | null
+          user_id: string
+        }
         Insert: {
-          asset_id?: string | null;
-          bounding_box?: Json | null;
-          collection_id: string;
-          confidence?: number | null;
-          created_at?: string;
-          discovered_account_id?: string | null;
-          external_image_id?: string | null;
-          face_id: string;
-          id?: string;
-          image_id?: string | null;
-          label?: string | null;
-          platform?: string | null;
-          s3_bucket: string;
-          s3_key: string;
-          source_url?: string | null;
-          user_id: string;
-        };
+          asset_id?: string | null
+          bounding_box?: Json | null
+          collection_id: string
+          confidence?: number | null
+          created_at?: string
+          discovered_account_id?: string | null
+          external_image_id?: string | null
+          face_id: string
+          id?: string
+          image_id?: string | null
+          label?: string | null
+          platform?: string | null
+          s3_bucket: string
+          s3_key: string
+          source_url?: string | null
+          user_id: string
+        }
         Update: {
-          asset_id?: string | null;
-          bounding_box?: Json | null;
-          collection_id?: string;
-          confidence?: number | null;
-          created_at?: string;
-          discovered_account_id?: string | null;
-          external_image_id?: string | null;
-          face_id?: string;
-          id?: string;
-          image_id?: string | null;
-          label?: string | null;
-          platform?: string | null;
-          s3_bucket?: string;
-          s3_key?: string;
-          source_url?: string | null;
-          user_id?: string;
-        };
+          asset_id?: string | null
+          bounding_box?: Json | null
+          collection_id?: string
+          confidence?: number | null
+          created_at?: string
+          discovered_account_id?: string | null
+          external_image_id?: string | null
+          face_id?: string
+          id?: string
+          image_id?: string | null
+          label?: string | null
+          platform?: string | null
+          s3_bucket?: string
+          s3_key?: string
+          source_url?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "protected_faces_asset_id_fkey";
-            columns: ["asset_id"];
-            isOneToOne: false;
-            referencedRelation: "protected_assets";
-            referencedColumns: ["id"];
+            foreignKeyName: "protected_faces_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "protected_faces_discovered_account_id_fkey";
-            columns: ["discovered_account_id"];
-            isOneToOne: false;
-            referencedRelation: "discovered_accounts";
-            referencedColumns: ["id"];
+            foreignKeyName: "protected_faces_discovered_account_id_fkey"
+            columns: ["discovered_account_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       provider_health_checks: {
         Row: {
-          checked_by: string | null;
-          created_at: string;
-          diagnostic: Json | null;
-          error_message: string | null;
-          id: string;
-          latency_ms: number | null;
-          mode: string;
-          provider: string;
-          status: string;
-        };
+          checked_by: string | null
+          created_at: string
+          diagnostic: Json | null
+          error_message: string | null
+          id: string
+          latency_ms: number | null
+          mode: string
+          provider: string
+          status: string
+        }
         Insert: {
-          checked_by?: string | null;
-          created_at?: string;
-          diagnostic?: Json | null;
-          error_message?: string | null;
-          id?: string;
-          latency_ms?: number | null;
-          mode: string;
-          provider: string;
-          status: string;
-        };
+          checked_by?: string | null
+          created_at?: string
+          diagnostic?: Json | null
+          error_message?: string | null
+          id?: string
+          latency_ms?: number | null
+          mode: string
+          provider: string
+          status: string
+        }
         Update: {
-          checked_by?: string | null;
-          created_at?: string;
-          diagnostic?: Json | null;
-          error_message?: string | null;
-          id?: string;
-          latency_ms?: number | null;
-          mode?: string;
-          provider?: string;
-          status?: string;
-        };
-        Relationships: [];
-      };
+          checked_by?: string | null
+          created_at?: string
+          diagnostic?: Json | null
+          error_message?: string | null
+          id?: string
+          latency_ms?: number | null
+          mode?: string
+          provider?: string
+          status?: string
+        }
+        Relationships: []
+      }
       quota_usage: {
         Row: {
-          analyses_count: number;
-          api_calls_count: number;
-          cost_cents: number;
-          created_at: string;
-          id: string;
-          storage_bytes: number;
-          updated_at: string;
-          usage_date: string;
-          user_id: string;
-        };
+          analyses_count: number
+          api_calls_count: number
+          cost_cents: number
+          created_at: string
+          id: string
+          storage_bytes: number
+          updated_at: string
+          usage_date: string
+          user_id: string
+        }
         Insert: {
-          analyses_count?: number;
-          api_calls_count?: number;
-          cost_cents?: number;
-          created_at?: string;
-          id?: string;
-          storage_bytes?: number;
-          updated_at?: string;
-          usage_date?: string;
-          user_id: string;
-        };
+          analyses_count?: number
+          api_calls_count?: number
+          cost_cents?: number
+          created_at?: string
+          id?: string
+          storage_bytes?: number
+          updated_at?: string
+          usage_date?: string
+          user_id: string
+        }
         Update: {
-          analyses_count?: number;
-          api_calls_count?: number;
-          cost_cents?: number;
-          created_at?: string;
-          id?: string;
-          storage_bytes?: number;
-          updated_at?: string;
-          usage_date?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          analyses_count?: number
+          api_calls_count?: number
+          cost_cents?: number
+          created_at?: string
+          id?: string
+          storage_bytes?: number
+          updated_at?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       rekognition_collections: {
         Row: {
-          collection_id: string;
-          created_at: string;
-          face_count: number;
-          id: string;
-          status: string;
-          updated_at: string;
-          user_id: string;
-        };
+          collection_id: string
+          created_at: string
+          face_count: number
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          collection_id: string;
-          created_at?: string;
-          face_count?: number;
-          id?: string;
-          status?: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          collection_id: string
+          created_at?: string
+          face_count?: number
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          collection_id?: string;
-          created_at?: string;
-          face_count?: number;
-          id?: string;
-          status?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          collection_id?: string
+          created_at?: string
+          face_count?: number
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       release_monitor_runs: {
         Row: {
-          candidates_found: number;
-          completed_at: string | null;
-          created_at: string;
-          error_summary: string | null;
-          id: string;
-          incidents_created: number;
-          pre_release_findings: number;
-          providers_attempted: number;
-          providers_failed: number;
-          providers_succeeded: number;
-          release_protection_id: string;
-          scan_id: string | null;
-          scheduled_for: string;
-          started_at: string | null;
-          stats: Json;
-          status: string;
-          user_id: string;
-        };
+          candidates_found: number
+          completed_at: string | null
+          created_at: string
+          error_summary: string | null
+          id: string
+          incidents_created: number
+          pre_release_findings: number
+          providers_attempted: number
+          providers_failed: number
+          providers_succeeded: number
+          release_protection_id: string
+          scan_id: string | null
+          scheduled_for: string
+          started_at: string | null
+          stats: Json
+          status: string
+          user_id: string
+        }
         Insert: {
-          candidates_found?: number;
-          completed_at?: string | null;
-          created_at?: string;
-          error_summary?: string | null;
-          id?: string;
-          incidents_created?: number;
-          pre_release_findings?: number;
-          providers_attempted?: number;
-          providers_failed?: number;
-          providers_succeeded?: number;
-          release_protection_id: string;
-          scan_id?: string | null;
-          scheduled_for: string;
-          started_at?: string | null;
-          stats?: Json;
-          status?: string;
-          user_id: string;
-        };
+          candidates_found?: number
+          completed_at?: string | null
+          created_at?: string
+          error_summary?: string | null
+          id?: string
+          incidents_created?: number
+          pre_release_findings?: number
+          providers_attempted?: number
+          providers_failed?: number
+          providers_succeeded?: number
+          release_protection_id: string
+          scan_id?: string | null
+          scheduled_for: string
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          user_id: string
+        }
         Update: {
-          candidates_found?: number;
-          completed_at?: string | null;
-          created_at?: string;
-          error_summary?: string | null;
-          id?: string;
-          incidents_created?: number;
-          pre_release_findings?: number;
-          providers_attempted?: number;
-          providers_failed?: number;
-          providers_succeeded?: number;
-          release_protection_id?: string;
-          scan_id?: string | null;
-          scheduled_for?: string;
-          started_at?: string | null;
-          stats?: Json;
-          status?: string;
-          user_id?: string;
-        };
+          candidates_found?: number
+          completed_at?: string | null
+          created_at?: string
+          error_summary?: string | null
+          id?: string
+          incidents_created?: number
+          pre_release_findings?: number
+          providers_attempted?: number
+          providers_failed?: number
+          providers_succeeded?: number
+          release_protection_id?: string
+          scan_id?: string | null
+          scheduled_for?: string
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "release_monitor_runs_release_protection_id_fkey";
-            columns: ["release_protection_id"];
-            isOneToOne: false;
-            referencedRelation: "copyright_release_protection";
-            referencedColumns: ["id"];
+            foreignKeyName: "release_monitor_runs_release_protection_id_fkey"
+            columns: ["release_protection_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_release_protection"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "release_monitor_runs_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "copyright_scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "release_monitor_runs_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       release_protection_incidents: {
         Row: {
-          created_at: string;
-          evidence: Json;
-          first_seen_at: string;
-          id: string;
-          incident_type: string;
-          last_seen_at: string;
-          recurrence_count: number;
-          release_protection_id: string;
-          release_timing: string | null;
-          risk_level: string;
-          source_kind: string;
-          source_url: string;
-          status: string;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          evidence: Json
+          first_seen_at: string
+          id: string
+          incident_type: string
+          last_seen_at: string
+          recurrence_count: number
+          release_protection_id: string
+          release_timing: string | null
+          risk_level: string
+          source_kind: string
+          source_url: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          evidence?: Json;
-          first_seen_at?: string;
-          id?: string;
-          incident_type: string;
-          last_seen_at?: string;
-          recurrence_count?: number;
-          release_protection_id: string;
-          release_timing?: string | null;
-          risk_level?: string;
-          source_kind?: string;
-          source_url: string;
-          status?: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          evidence?: Json
+          first_seen_at?: string
+          id?: string
+          incident_type: string
+          last_seen_at?: string
+          recurrence_count?: number
+          release_protection_id: string
+          release_timing?: string | null
+          risk_level?: string
+          source_kind?: string
+          source_url: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          evidence?: Json;
-          first_seen_at?: string;
-          id?: string;
-          incident_type?: string;
-          last_seen_at?: string;
-          recurrence_count?: number;
-          release_protection_id?: string;
-          release_timing?: string | null;
-          risk_level?: string;
-          source_kind?: string;
-          source_url?: string;
-          status?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
+          created_at?: string
+          evidence?: Json
+          first_seen_at?: string
+          id?: string
+          incident_type?: string
+          last_seen_at?: string
+          recurrence_count?: number
+          release_protection_id?: string
+          release_timing?: string | null
+          risk_level?: string
+          source_kind?: string
+          source_url?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "release_protection_incidents_release_protection_id_fkey";
-            columns: ["release_protection_id"];
-            isOneToOne: false;
-            referencedRelation: "copyright_release_protection";
-            referencedColumns: ["id"];
+            foreignKeyName: "release_protection_incidents_release_protection_id_fkey"
+            columns: ["release_protection_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_release_protection"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       scan_hits: {
         Row: {
-          author: string | null;
-          author_handle: string | null;
-          canonical_url: string | null;
-          country: string | null;
-          created_at: string;
-          description: string | null;
-          detected_at: string;
-          engagement: number | null;
-          evidence_refs: Json;
-          external_id: string | null;
-          first_seen_at: string;
-          growth_pct: number | null;
-          hidden_at: string | null;
-          hidden_by_user_id: string | null;
-          hidden_reason: string | null;
-          id: string;
-          is_new_since_last_scan: boolean;
-          language: string | null;
-          last_seen_at: string;
-          metrics: Json;
-          narrative_claim: string | null;
-          organisation_id: string | null;
-          permalink: string | null;
-          previous_scan_id: string | null;
-          previous_scan_seen: boolean;
-          protection_profile_id: string | null;
-          published_at: string | null;
-          purge_after: string | null;
-          reach: number | null;
-          retention_class: string;
-          risk_score: number | null;
-          risk_type: string | null;
-          scan_id: string;
-          severity: string | null;
-          source: string;
-          source_metadata: Json;
-          source_type: string | null;
-          tags: string[];
-          threat_score: number | null;
-          thumbnail_url: string | null;
-          times_detected: number;
-          title: string | null;
-          updated_at: string;
-          user_id: string;
-          velocity: string | null;
-        };
+          author: string | null
+          author_handle: string | null
+          canonical_url: string | null
+          country: string | null
+          created_at: string
+          description: string | null
+          detected_at: string
+          engagement: number | null
+          evidence_refs: Json
+          external_id: string | null
+          first_seen_at: string
+          growth_pct: number | null
+          hidden_at: string | null
+          hidden_by_user_id: string | null
+          hidden_reason: string | null
+          id: string
+          is_new_since_last_scan: boolean
+          language: string | null
+          last_seen_at: string
+          metrics: Json
+          narrative_claim: string | null
+          organisation_id: string | null
+          permalink: string | null
+          previous_scan_id: string | null
+          previous_scan_seen: boolean
+          protection_profile_id: string | null
+          published_at: string | null
+          purge_after: string | null
+          reach: number | null
+          retention_class: string
+          risk_score: number | null
+          risk_type: string | null
+          scan_id: string
+          severity: string | null
+          source: string
+          source_metadata: Json
+          source_type: string | null
+          tags: string[]
+          threat_score: number | null
+          thumbnail_url: string | null
+          times_detected: number
+          title: string | null
+          updated_at: string
+          user_id: string
+          velocity: string | null
+        }
         Insert: {
-          author?: string | null;
-          author_handle?: string | null;
-          canonical_url?: string | null;
-          country?: string | null;
-          created_at?: string;
-          description?: string | null;
-          detected_at?: string;
-          engagement?: number | null;
-          evidence_refs?: Json;
-          external_id?: string | null;
-          first_seen_at?: string;
-          growth_pct?: number | null;
-          hidden_at?: string | null;
-          hidden_by_user_id?: string | null;
-          hidden_reason?: string | null;
-          id?: string;
-          is_new_since_last_scan?: boolean;
-          language?: string | null;
-          last_seen_at?: string;
-          metrics?: Json;
-          narrative_claim?: string | null;
-          organisation_id?: string | null;
-          permalink?: string | null;
-          previous_scan_id?: string | null;
-          previous_scan_seen?: boolean;
-          protection_profile_id?: string | null;
-          published_at?: string | null;
-          purge_after?: string | null;
-          reach?: number | null;
-          retention_class?: string;
-          risk_score?: number | null;
-          risk_type?: string | null;
-          scan_id: string;
-          severity?: string | null;
-          source: string;
-          source_metadata?: Json;
-          source_type?: string | null;
-          tags?: string[];
-          threat_score?: number | null;
-          thumbnail_url?: string | null;
-          times_detected?: number;
-          title?: string | null;
-          updated_at?: string;
-          user_id: string;
-          velocity?: string | null;
-        };
+          author?: string | null
+          author_handle?: string | null
+          canonical_url?: string | null
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          engagement?: number | null
+          evidence_refs?: Json
+          external_id?: string | null
+          first_seen_at?: string
+          growth_pct?: number | null
+          hidden_at?: string | null
+          hidden_by_user_id?: string | null
+          hidden_reason?: string | null
+          id?: string
+          is_new_since_last_scan?: boolean
+          language?: string | null
+          last_seen_at?: string
+          metrics?: Json
+          narrative_claim?: string | null
+          organisation_id?: string | null
+          permalink?: string | null
+          previous_scan_id?: string | null
+          previous_scan_seen?: boolean
+          protection_profile_id?: string | null
+          published_at?: string | null
+          purge_after?: string | null
+          reach?: number | null
+          retention_class?: string
+          risk_score?: number | null
+          risk_type?: string | null
+          scan_id: string
+          severity?: string | null
+          source: string
+          source_metadata?: Json
+          source_type?: string | null
+          tags?: string[]
+          threat_score?: number | null
+          thumbnail_url?: string | null
+          times_detected?: number
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          velocity?: string | null
+        }
         Update: {
-          author?: string | null;
-          author_handle?: string | null;
-          canonical_url?: string | null;
-          country?: string | null;
-          created_at?: string;
-          description?: string | null;
-          detected_at?: string;
-          engagement?: number | null;
-          evidence_refs?: Json;
-          external_id?: string | null;
-          first_seen_at?: string;
-          growth_pct?: number | null;
-          hidden_at?: string | null;
-          hidden_by_user_id?: string | null;
-          hidden_reason?: string | null;
-          id?: string;
-          is_new_since_last_scan?: boolean;
-          language?: string | null;
-          last_seen_at?: string;
-          metrics?: Json;
-          narrative_claim?: string | null;
-          organisation_id?: string | null;
-          permalink?: string | null;
-          previous_scan_id?: string | null;
-          previous_scan_seen?: boolean;
-          protection_profile_id?: string | null;
-          published_at?: string | null;
-          purge_after?: string | null;
-          reach?: number | null;
-          retention_class?: string;
-          risk_score?: number | null;
-          risk_type?: string | null;
-          scan_id?: string;
-          severity?: string | null;
-          source?: string;
-          source_metadata?: Json;
-          source_type?: string | null;
-          tags?: string[];
-          threat_score?: number | null;
-          thumbnail_url?: string | null;
-          times_detected?: number;
-          title?: string | null;
-          updated_at?: string;
-          user_id?: string;
-          velocity?: string | null;
-        };
+          author?: string | null
+          author_handle?: string | null
+          canonical_url?: string | null
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          engagement?: number | null
+          evidence_refs?: Json
+          external_id?: string | null
+          first_seen_at?: string
+          growth_pct?: number | null
+          hidden_at?: string | null
+          hidden_by_user_id?: string | null
+          hidden_reason?: string | null
+          id?: string
+          is_new_since_last_scan?: boolean
+          language?: string | null
+          last_seen_at?: string
+          metrics?: Json
+          narrative_claim?: string | null
+          organisation_id?: string | null
+          permalink?: string | null
+          previous_scan_id?: string | null
+          previous_scan_seen?: boolean
+          protection_profile_id?: string | null
+          published_at?: string | null
+          purge_after?: string | null
+          reach?: number | null
+          retention_class?: string
+          risk_score?: number | null
+          risk_type?: string | null
+          scan_id?: string
+          severity?: string | null
+          source?: string
+          source_metadata?: Json
+          source_type?: string | null
+          tags?: string[]
+          threat_score?: number | null
+          thumbnail_url?: string | null
+          times_detected?: number
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          velocity?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "scan_hits_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "scan_hits_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       scans: {
         Row: {
-          completed_at: string | null;
-          created_at: string;
-          duplicate_hits_removed: number;
-          error: string | null;
-          id: string;
-          name: string | null;
-          new_hits: number;
-          organisation_id: string | null;
-          params: Json;
-          period: string | null;
-          period_end: string | null;
-          period_start: string | null;
-          protection_profile_id: string | null;
-          query: string | null;
-          sources: string[];
-          started_at: string | null;
-          status: string;
-          total_hits: number;
-          unique_hits: number;
-          updated_at: string;
-          updated_hits: number;
-          user_id: string;
-        };
+          completed_at: string | null
+          created_at: string
+          duplicate_hits_removed: number
+          error: string | null
+          id: string
+          name: string | null
+          new_hits: number
+          organisation_id: string | null
+          params: Json
+          period: string | null
+          period_end: string | null
+          period_start: string | null
+          protection_profile_id: string | null
+          query: string | null
+          sources: string[]
+          started_at: string | null
+          status: string
+          total_hits: number
+          unique_hits: number
+          updated_at: string
+          updated_hits: number
+          user_id: string
+        }
         Insert: {
-          completed_at?: string | null;
-          created_at?: string;
-          duplicate_hits_removed?: number;
-          error?: string | null;
-          id?: string;
-          name?: string | null;
-          new_hits?: number;
-          organisation_id?: string | null;
-          params?: Json;
-          period?: string | null;
-          period_end?: string | null;
-          period_start?: string | null;
-          protection_profile_id?: string | null;
-          query?: string | null;
-          sources?: string[];
-          started_at?: string | null;
-          status?: string;
-          total_hits?: number;
-          unique_hits?: number;
-          updated_at?: string;
-          updated_hits?: number;
-          user_id: string;
-        };
+          completed_at?: string | null
+          created_at?: string
+          duplicate_hits_removed?: number
+          error?: string | null
+          id?: string
+          name?: string | null
+          new_hits?: number
+          organisation_id?: string | null
+          params?: Json
+          period?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          protection_profile_id?: string | null
+          query?: string | null
+          sources?: string[]
+          started_at?: string | null
+          status?: string
+          total_hits?: number
+          unique_hits?: number
+          updated_at?: string
+          updated_hits?: number
+          user_id: string
+        }
         Update: {
-          completed_at?: string | null;
-          created_at?: string;
-          duplicate_hits_removed?: number;
-          error?: string | null;
-          id?: string;
-          name?: string | null;
-          new_hits?: number;
-          organisation_id?: string | null;
-          params?: Json;
-          period?: string | null;
-          period_end?: string | null;
-          period_start?: string | null;
-          protection_profile_id?: string | null;
-          query?: string | null;
-          sources?: string[];
-          started_at?: string | null;
-          status?: string;
-          total_hits?: number;
-          unique_hits?: number;
-          updated_at?: string;
-          updated_hits?: number;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          completed_at?: string | null
+          created_at?: string
+          duplicate_hits_removed?: number
+          error?: string | null
+          id?: string
+          name?: string | null
+          new_hits?: number
+          organisation_id?: string | null
+          params?: Json
+          period?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          protection_profile_id?: string | null
+          query?: string | null
+          sources?: string[]
+          started_at?: string | null
+          status?: string
+          total_hits?: number
+          unique_hits?: number
+          updated_at?: string
+          updated_hits?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       speaker_segments: {
         Row: {
-          confidence: number | null;
-          created_at: string;
-          end_seconds: number;
-          id: string;
-          job_id: string;
-          speaker_tag: string;
-          start_seconds: number;
-          user_id: string;
-        };
+          confidence: number | null
+          created_at: string
+          end_seconds: number
+          id: string
+          job_id: string
+          speaker_tag: string
+          start_seconds: number
+          user_id: string
+        }
         Insert: {
-          confidence?: number | null;
-          created_at?: string;
-          end_seconds: number;
-          id?: string;
-          job_id: string;
-          speaker_tag: string;
-          start_seconds: number;
-          user_id: string;
-        };
+          confidence?: number | null
+          created_at?: string
+          end_seconds: number
+          id?: string
+          job_id: string
+          speaker_tag: string
+          start_seconds: number
+          user_id: string
+        }
         Update: {
-          confidence?: number | null;
-          created_at?: string;
-          end_seconds?: number;
-          id?: string;
-          job_id?: string;
-          speaker_tag?: string;
-          start_seconds?: number;
-          user_id?: string;
-        };
+          confidence?: number | null
+          created_at?: string
+          end_seconds?: number
+          id?: string
+          job_id?: string
+          speaker_tag?: string
+          start_seconds?: number
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "speaker_segments_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "speaker_segments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       timestamp_findings: {
         Row: {
-          cluster_id: string | null;
-          confidence: number | null;
-          contributing_signals: Json | null;
-          created_at: string;
-          description: string | null;
-          detection_reason: string | null;
-          end_seconds: number | null;
-          evidence_frame_id: string | null;
-          evidence_source: string | null;
-          extracted_claim_id: string | null;
-          fact_check_status: string | null;
-          finding_type: string;
-          human_review_status: string;
-          id: string;
-          job_id: string;
-          model_version: string | null;
-          original_language: string | null;
-          review_status: string;
-          reviewed_at: string | null;
-          reviewer_id: string | null;
-          reviewer_notes: string | null;
-          severity: string;
-          speaker: string | null;
-          start_seconds: number;
-          timestamp_source: string;
-          title: string;
-          transcript_excerpt: string | null;
-          transcript_segment_id: string | null;
-          translation: string | null;
-          updated_at: string;
-          user_id: string;
-          video_annotation_id: string | null;
-          visual_detection_id: string | null;
-          youtube_deep_link: string | null;
-        };
+          cluster_id: string | null
+          confidence: number | null
+          contributing_signals: Json | null
+          created_at: string
+          description: string | null
+          detection_reason: string | null
+          end_seconds: number | null
+          evidence_frame_id: string | null
+          evidence_source: string | null
+          extracted_claim_id: string | null
+          fact_check_status: string | null
+          finding_type: string
+          human_review_status: string
+          id: string
+          job_id: string
+          model_version: string | null
+          original_language: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewer_id: string | null
+          reviewer_notes: string | null
+          severity: string
+          speaker: string | null
+          start_seconds: number
+          timestamp_source: string
+          title: string
+          transcript_excerpt: string | null
+          transcript_segment_id: string | null
+          translation: string | null
+          updated_at: string
+          user_id: string
+          video_annotation_id: string | null
+          visual_detection_id: string | null
+          youtube_deep_link: string | null
+        }
         Insert: {
-          cluster_id?: string | null;
-          confidence?: number | null;
-          contributing_signals?: Json | null;
-          created_at?: string;
-          description?: string | null;
-          detection_reason?: string | null;
-          end_seconds?: number | null;
-          evidence_frame_id?: string | null;
-          evidence_source?: string | null;
-          extracted_claim_id?: string | null;
-          fact_check_status?: string | null;
-          finding_type: string;
-          human_review_status?: string;
-          id?: string;
-          job_id: string;
-          model_version?: string | null;
-          original_language?: string | null;
-          review_status?: string;
-          reviewed_at?: string | null;
-          reviewer_id?: string | null;
-          reviewer_notes?: string | null;
-          severity: string;
-          speaker?: string | null;
-          start_seconds: number;
-          timestamp_source?: string;
-          title: string;
-          transcript_excerpt?: string | null;
-          transcript_segment_id?: string | null;
-          translation?: string | null;
-          updated_at?: string;
-          user_id: string;
-          video_annotation_id?: string | null;
-          visual_detection_id?: string | null;
-          youtube_deep_link?: string | null;
-        };
+          cluster_id?: string | null
+          confidence?: number | null
+          contributing_signals?: Json | null
+          created_at?: string
+          description?: string | null
+          detection_reason?: string | null
+          end_seconds?: number | null
+          evidence_frame_id?: string | null
+          evidence_source?: string | null
+          extracted_claim_id?: string | null
+          fact_check_status?: string | null
+          finding_type: string
+          human_review_status?: string
+          id?: string
+          job_id: string
+          model_version?: string | null
+          original_language?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          severity: string
+          speaker?: string | null
+          start_seconds: number
+          timestamp_source?: string
+          title: string
+          transcript_excerpt?: string | null
+          transcript_segment_id?: string | null
+          translation?: string | null
+          updated_at?: string
+          user_id: string
+          video_annotation_id?: string | null
+          visual_detection_id?: string | null
+          youtube_deep_link?: string | null
+        }
         Update: {
-          cluster_id?: string | null;
-          confidence?: number | null;
-          contributing_signals?: Json | null;
-          created_at?: string;
-          description?: string | null;
-          detection_reason?: string | null;
-          end_seconds?: number | null;
-          evidence_frame_id?: string | null;
-          evidence_source?: string | null;
-          extracted_claim_id?: string | null;
-          fact_check_status?: string | null;
-          finding_type?: string;
-          human_review_status?: string;
-          id?: string;
-          job_id?: string;
-          model_version?: string | null;
-          original_language?: string | null;
-          review_status?: string;
-          reviewed_at?: string | null;
-          reviewer_id?: string | null;
-          reviewer_notes?: string | null;
-          severity?: string;
-          speaker?: string | null;
-          start_seconds?: number;
-          timestamp_source?: string;
-          title?: string;
-          transcript_excerpt?: string | null;
-          transcript_segment_id?: string | null;
-          translation?: string | null;
-          updated_at?: string;
-          user_id?: string;
-          video_annotation_id?: string | null;
-          visual_detection_id?: string | null;
-          youtube_deep_link?: string | null;
-        };
+          cluster_id?: string | null
+          confidence?: number | null
+          contributing_signals?: Json | null
+          created_at?: string
+          description?: string | null
+          detection_reason?: string | null
+          end_seconds?: number | null
+          evidence_frame_id?: string | null
+          evidence_source?: string | null
+          extracted_claim_id?: string | null
+          fact_check_status?: string | null
+          finding_type?: string
+          human_review_status?: string
+          id?: string
+          job_id?: string
+          model_version?: string | null
+          original_language?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          severity?: string
+          speaker?: string | null
+          start_seconds?: number
+          timestamp_source?: string
+          title?: string
+          transcript_excerpt?: string | null
+          transcript_segment_id?: string | null
+          translation?: string | null
+          updated_at?: string
+          user_id?: string
+          video_annotation_id?: string | null
+          visual_detection_id?: string | null
+          youtube_deep_link?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "timestamp_findings_cluster_id_fkey";
-            columns: ["cluster_id"];
-            isOneToOne: false;
-            referencedRelation: "narrative_clusters";
-            referencedColumns: ["id"];
+            foreignKeyName: "timestamp_findings_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "narrative_clusters"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "timestamp_findings_evidence_frame_id_fkey";
-            columns: ["evidence_frame_id"];
-            isOneToOne: false;
-            referencedRelation: "evidence_frames";
-            referencedColumns: ["id"];
+            foreignKeyName: "timestamp_findings_evidence_frame_id_fkey"
+            columns: ["evidence_frame_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_frames"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "timestamp_findings_extracted_claim_id_fkey";
-            columns: ["extracted_claim_id"];
-            isOneToOne: false;
-            referencedRelation: "extracted_claims";
-            referencedColumns: ["id"];
+            foreignKeyName: "timestamp_findings_extracted_claim_id_fkey"
+            columns: ["extracted_claim_id"]
+            isOneToOne: false
+            referencedRelation: "extracted_claims"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "timestamp_findings_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "timestamp_findings_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "timestamp_findings_transcript_segment_id_fkey";
-            columns: ["transcript_segment_id"];
-            isOneToOne: false;
-            referencedRelation: "transcript_segments";
-            referencedColumns: ["id"];
+            foreignKeyName: "timestamp_findings_transcript_segment_id_fkey"
+            columns: ["transcript_segment_id"]
+            isOneToOne: false
+            referencedRelation: "transcript_segments"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "timestamp_findings_video_annotation_id_fkey";
-            columns: ["video_annotation_id"];
-            isOneToOne: false;
-            referencedRelation: "video_annotations";
-            referencedColumns: ["id"];
+            foreignKeyName: "timestamp_findings_video_annotation_id_fkey"
+            columns: ["video_annotation_id"]
+            isOneToOne: false
+            referencedRelation: "video_annotations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "timestamp_findings_visual_detection_id_fkey";
-            columns: ["visual_detection_id"];
-            isOneToOne: false;
-            referencedRelation: "visual_detections";
-            referencedColumns: ["id"];
+            foreignKeyName: "timestamp_findings_visual_detection_id_fkey"
+            columns: ["visual_detection_id"]
+            isOneToOne: false
+            referencedRelation: "visual_detections"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       transcript_segments: {
         Row: {
-          confidence: number | null;
-          copyright_relevance: number | null;
-          created_at: string;
-          detected_claims: Json;
-          end_seconds: number;
-          fact_check_status: string | null;
-          id: string;
-          job_id: string;
-          language_code: string | null;
-          mentioned_entities: Json;
-          original_text: string;
-          reputation_impact: number | null;
-          segment_index: number;
-          sentiment: string | null;
-          speaker_tag: string | null;
-          start_seconds: number;
-          threat_category: string | null;
-          transcription_job_id: string | null;
-          user_id: string;
-        };
+          confidence: number | null
+          copyright_relevance: number | null
+          created_at: string
+          detected_claims: Json
+          end_seconds: number
+          fact_check_status: string | null
+          id: string
+          job_id: string
+          language_code: string | null
+          mentioned_entities: Json
+          original_text: string
+          reputation_impact: number | null
+          segment_index: number
+          sentiment: string | null
+          speaker_tag: string | null
+          start_seconds: number
+          threat_category: string | null
+          transcription_job_id: string | null
+          user_id: string
+        }
         Insert: {
-          confidence?: number | null;
-          copyright_relevance?: number | null;
-          created_at?: string;
-          detected_claims?: Json;
-          end_seconds: number;
-          fact_check_status?: string | null;
-          id?: string;
-          job_id: string;
-          language_code?: string | null;
-          mentioned_entities?: Json;
-          original_text: string;
-          reputation_impact?: number | null;
-          segment_index: number;
-          sentiment?: string | null;
-          speaker_tag?: string | null;
-          start_seconds: number;
-          threat_category?: string | null;
-          transcription_job_id?: string | null;
-          user_id: string;
-        };
+          confidence?: number | null
+          copyright_relevance?: number | null
+          created_at?: string
+          detected_claims?: Json
+          end_seconds: number
+          fact_check_status?: string | null
+          id?: string
+          job_id: string
+          language_code?: string | null
+          mentioned_entities?: Json
+          original_text: string
+          reputation_impact?: number | null
+          segment_index: number
+          sentiment?: string | null
+          speaker_tag?: string | null
+          start_seconds: number
+          threat_category?: string | null
+          transcription_job_id?: string | null
+          user_id: string
+        }
         Update: {
-          confidence?: number | null;
-          copyright_relevance?: number | null;
-          created_at?: string;
-          detected_claims?: Json;
-          end_seconds?: number;
-          fact_check_status?: string | null;
-          id?: string;
-          job_id?: string;
-          language_code?: string | null;
-          mentioned_entities?: Json;
-          original_text?: string;
-          reputation_impact?: number | null;
-          segment_index?: number;
-          sentiment?: string | null;
-          speaker_tag?: string | null;
-          start_seconds?: number;
-          threat_category?: string | null;
-          transcription_job_id?: string | null;
-          user_id?: string;
-        };
+          confidence?: number | null
+          copyright_relevance?: number | null
+          created_at?: string
+          detected_claims?: Json
+          end_seconds?: number
+          fact_check_status?: string | null
+          id?: string
+          job_id?: string
+          language_code?: string | null
+          mentioned_entities?: Json
+          original_text?: string
+          reputation_impact?: number | null
+          segment_index?: number
+          sentiment?: string | null
+          speaker_tag?: string | null
+          start_seconds?: number
+          threat_category?: string | null
+          transcription_job_id?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "transcript_segments_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "transcript_segments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transcript_segments_transcription_job_id_fkey";
-            columns: ["transcription_job_id"];
-            isOneToOne: false;
-            referencedRelation: "transcription_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "transcript_segments_transcription_job_id_fkey"
+            columns: ["transcription_job_id"]
+            isOneToOne: false
+            referencedRelation: "transcription_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       transcription_jobs: {
         Row: {
-          audio_uri: string | null;
-          created_at: string;
-          duration_seconds: number | null;
-          error: string | null;
-          id: string;
-          job_id: string;
-          language_code: string | null;
-          operation_name: string | null;
-          provider: string;
-          status: string;
-          updated_at: string;
-          user_id: string;
-        };
+          audio_uri: string | null
+          created_at: string
+          duration_seconds: number | null
+          error: string | null
+          id: string
+          job_id: string
+          language_code: string | null
+          operation_name: string | null
+          provider: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          audio_uri?: string | null;
-          created_at?: string;
-          duration_seconds?: number | null;
-          error?: string | null;
-          id?: string;
-          job_id: string;
-          language_code?: string | null;
-          operation_name?: string | null;
-          provider: string;
-          status?: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          audio_uri?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          error?: string | null
+          id?: string
+          job_id: string
+          language_code?: string | null
+          operation_name?: string | null
+          provider: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          audio_uri?: string | null;
-          created_at?: string;
-          duration_seconds?: number | null;
-          error?: string | null;
-          id?: string;
-          job_id?: string;
-          language_code?: string | null;
-          operation_name?: string | null;
-          provider?: string;
-          status?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
+          audio_uri?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          error?: string | null
+          id?: string
+          job_id?: string
+          language_code?: string | null
+          operation_name?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "transcription_jobs_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "transcription_jobs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       translations: {
         Row: {
-          confidence: number | null;
-          created_at: string;
-          detected_language: string | null;
-          id: string;
-          job_id: string | null;
-          original_text: string;
-          provider: string;
-          requires_review: boolean;
-          source_ref: string | null;
-          source_type: string;
-          target_language: string;
-          translated_text: string;
-          user_id: string;
-        };
+          confidence: number | null
+          created_at: string
+          detected_language: string | null
+          id: string
+          job_id: string | null
+          original_text: string
+          provider: string
+          requires_review: boolean
+          source_ref: string | null
+          source_type: string
+          target_language: string
+          translated_text: string
+          user_id: string
+        }
         Insert: {
-          confidence?: number | null;
-          created_at?: string;
-          detected_language?: string | null;
-          id?: string;
-          job_id?: string | null;
-          original_text: string;
-          provider: string;
-          requires_review?: boolean;
-          source_ref?: string | null;
-          source_type: string;
-          target_language: string;
-          translated_text: string;
-          user_id: string;
-        };
+          confidence?: number | null
+          created_at?: string
+          detected_language?: string | null
+          id?: string
+          job_id?: string | null
+          original_text: string
+          provider: string
+          requires_review?: boolean
+          source_ref?: string | null
+          source_type: string
+          target_language: string
+          translated_text: string
+          user_id: string
+        }
         Update: {
-          confidence?: number | null;
-          created_at?: string;
-          detected_language?: string | null;
-          id?: string;
-          job_id?: string | null;
-          original_text?: string;
-          provider?: string;
-          requires_review?: boolean;
-          source_ref?: string | null;
-          source_type?: string;
-          target_language?: string;
-          translated_text?: string;
-          user_id?: string;
-        };
+          confidence?: number | null
+          created_at?: string
+          detected_language?: string | null
+          id?: string
+          job_id?: string | null
+          original_text?: string
+          provider?: string
+          requires_review?: boolean
+          source_ref?: string | null
+          source_type?: string
+          target_language?: string
+          translated_text?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "translations_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "translations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       user_roles: {
         Row: {
-          created_at: string;
-          id: string;
-          role: Database["public"]["Enums"]["app_role"];
-          user_id: string;
-        };
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          id?: string;
-          role: Database["public"]["Enums"]["app_role"];
-          user_id: string;
-        };
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          id?: string;
-          role?: Database["public"]["Enums"]["app_role"];
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       verification_certificates: {
         Row: {
-          account_type: string | null;
-          authorization_id: string;
-          certificate_number: string;
-          expires_at: string | null;
-          id: string;
-          issued_at: string;
-          public_slug: string;
-          s3_key: string | null;
-          score: number;
-          sha256: string | null;
-          snapshot: Json | null;
-          status: string;
-          user_id: string;
-          verification_badge: string | null;
-          verification_method: string | null;
-        };
+          account_type: string | null
+          authorization_id: string
+          certificate_number: string
+          expires_at: string | null
+          id: string
+          issued_at: string
+          public_slug: string
+          s3_key: string | null
+          score: number
+          sha256: string | null
+          snapshot: Json | null
+          status: string
+          user_id: string
+          verification_badge: string | null
+          verification_method: string | null
+        }
         Insert: {
-          account_type?: string | null;
-          authorization_id: string;
-          certificate_number: string;
-          expires_at?: string | null;
-          id?: string;
-          issued_at?: string;
-          public_slug: string;
-          s3_key?: string | null;
-          score: number;
-          sha256?: string | null;
-          snapshot?: Json | null;
-          status?: string;
-          user_id: string;
-          verification_badge?: string | null;
-          verification_method?: string | null;
-        };
+          account_type?: string | null
+          authorization_id: string
+          certificate_number: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string
+          public_slug: string
+          s3_key?: string | null
+          score: number
+          sha256?: string | null
+          snapshot?: Json | null
+          status?: string
+          user_id: string
+          verification_badge?: string | null
+          verification_method?: string | null
+        }
         Update: {
-          account_type?: string | null;
-          authorization_id?: string;
-          certificate_number?: string;
-          expires_at?: string | null;
-          id?: string;
-          issued_at?: string;
-          public_slug?: string;
-          s3_key?: string | null;
-          score?: number;
-          sha256?: string | null;
-          snapshot?: Json | null;
-          status?: string;
-          user_id?: string;
-          verification_badge?: string | null;
-          verification_method?: string | null;
-        };
+          account_type?: string | null
+          authorization_id?: string
+          certificate_number?: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string
+          public_slug?: string
+          s3_key?: string | null
+          score?: number
+          sha256?: string | null
+          snapshot?: Json | null
+          status?: string
+          user_id?: string
+          verification_badge?: string | null
+          verification_method?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "verification_certificates_authorization_id_fkey";
-            columns: ["authorization_id"];
-            isOneToOne: false;
-            referencedRelation: "client_authorizations";
-            referencedColumns: ["id"];
+            foreignKeyName: "verification_certificates_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       video_analysis_jobs: {
         Row: {
-          analysis_state: string;
-          audio_analysis_authorised: boolean;
-          audio_state: string;
-          caption_language: string | null;
-          caption_source: string | null;
-          captions_state: string;
-          completed_at: string | null;
-          coverage_pct: number | null;
-          created_at: string;
-          error: string | null;
-          finding_count: number;
-          id: string;
-          organisation_id: string | null;
-          platform: string;
-          scan_hit_id: string | null;
-          scan_id: string | null;
-          started_at: string | null;
-          transcript_segment_count: number;
-          updated_at: string;
-          user_id: string;
-          video_id: string;
-        };
+          analysis_state: string
+          audio_analysis_authorised: boolean
+          audio_state: string
+          caption_language: string | null
+          caption_source: string | null
+          captions_state: string
+          completed_at: string | null
+          coverage_pct: number | null
+          created_at: string
+          error: string | null
+          finding_count: number
+          id: string
+          organisation_id: string | null
+          platform: string
+          scan_hit_id: string | null
+          scan_id: string | null
+          started_at: string | null
+          transcript_segment_count: number
+          updated_at: string
+          user_id: string
+          video_id: string
+        }
         Insert: {
-          analysis_state?: string;
-          audio_analysis_authorised?: boolean;
-          audio_state?: string;
-          caption_language?: string | null;
-          caption_source?: string | null;
-          captions_state?: string;
-          completed_at?: string | null;
-          coverage_pct?: number | null;
-          created_at?: string;
-          error?: string | null;
-          finding_count?: number;
-          id?: string;
-          organisation_id?: string | null;
-          platform?: string;
-          scan_hit_id?: string | null;
-          scan_id?: string | null;
-          started_at?: string | null;
-          transcript_segment_count?: number;
-          updated_at?: string;
-          user_id: string;
-          video_id: string;
-        };
+          analysis_state?: string
+          audio_analysis_authorised?: boolean
+          audio_state?: string
+          caption_language?: string | null
+          caption_source?: string | null
+          captions_state?: string
+          completed_at?: string | null
+          coverage_pct?: number | null
+          created_at?: string
+          error?: string | null
+          finding_count?: number
+          id?: string
+          organisation_id?: string | null
+          platform?: string
+          scan_hit_id?: string | null
+          scan_id?: string | null
+          started_at?: string | null
+          transcript_segment_count?: number
+          updated_at?: string
+          user_id: string
+          video_id: string
+        }
         Update: {
-          analysis_state?: string;
-          audio_analysis_authorised?: boolean;
-          audio_state?: string;
-          caption_language?: string | null;
-          caption_source?: string | null;
-          captions_state?: string;
-          completed_at?: string | null;
-          coverage_pct?: number | null;
-          created_at?: string;
-          error?: string | null;
-          finding_count?: number;
-          id?: string;
-          organisation_id?: string | null;
-          platform?: string;
-          scan_hit_id?: string | null;
-          scan_id?: string | null;
-          started_at?: string | null;
-          transcript_segment_count?: number;
-          updated_at?: string;
-          user_id?: string;
-          video_id?: string;
-        };
+          analysis_state?: string
+          audio_analysis_authorised?: boolean
+          audio_state?: string
+          caption_language?: string | null
+          caption_source?: string | null
+          captions_state?: string
+          completed_at?: string | null
+          coverage_pct?: number | null
+          created_at?: string
+          error?: string | null
+          finding_count?: number
+          id?: string
+          organisation_id?: string | null
+          platform?: string
+          scan_hit_id?: string | null
+          scan_id?: string | null
+          started_at?: string | null
+          transcript_segment_count?: number
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "video_analysis_jobs_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_analysis_jobs_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "video_analysis_jobs_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_analysis_jobs_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       video_annotations: {
         Row: {
-          annotation_type: string;
-          bounding_box: Json | null;
-          confidence: number | null;
-          created_at: string;
-          end_seconds: number | null;
-          evidence_frame_id: string | null;
-          id: string;
-          job_id: string;
-          label: string | null;
-          protected_asset_id: string | null;
-          raw: Json | null;
-          requires_review: boolean;
-          severity: string | null;
-          shot_number: number | null;
-          start_seconds: number | null;
-          user_id: string;
-        };
+          annotation_type: string
+          bounding_box: Json | null
+          confidence: number | null
+          created_at: string
+          end_seconds: number | null
+          evidence_frame_id: string | null
+          id: string
+          job_id: string
+          label: string | null
+          protected_asset_id: string | null
+          raw: Json | null
+          requires_review: boolean
+          severity: string | null
+          shot_number: number | null
+          start_seconds: number | null
+          user_id: string
+        }
         Insert: {
-          annotation_type: string;
-          bounding_box?: Json | null;
-          confidence?: number | null;
-          created_at?: string;
-          end_seconds?: number | null;
-          evidence_frame_id?: string | null;
-          id?: string;
-          job_id: string;
-          label?: string | null;
-          protected_asset_id?: string | null;
-          raw?: Json | null;
-          requires_review?: boolean;
-          severity?: string | null;
-          shot_number?: number | null;
-          start_seconds?: number | null;
-          user_id: string;
-        };
+          annotation_type: string
+          bounding_box?: Json | null
+          confidence?: number | null
+          created_at?: string
+          end_seconds?: number | null
+          evidence_frame_id?: string | null
+          id?: string
+          job_id: string
+          label?: string | null
+          protected_asset_id?: string | null
+          raw?: Json | null
+          requires_review?: boolean
+          severity?: string | null
+          shot_number?: number | null
+          start_seconds?: number | null
+          user_id: string
+        }
         Update: {
-          annotation_type?: string;
-          bounding_box?: Json | null;
-          confidence?: number | null;
-          created_at?: string;
-          end_seconds?: number | null;
-          evidence_frame_id?: string | null;
-          id?: string;
-          job_id?: string;
-          label?: string | null;
-          protected_asset_id?: string | null;
-          raw?: Json | null;
-          requires_review?: boolean;
-          severity?: string | null;
-          shot_number?: number | null;
-          start_seconds?: number | null;
-          user_id?: string;
-        };
+          annotation_type?: string
+          bounding_box?: Json | null
+          confidence?: number | null
+          created_at?: string
+          end_seconds?: number | null
+          evidence_frame_id?: string | null
+          id?: string
+          job_id?: string
+          label?: string | null
+          protected_asset_id?: string | null
+          raw?: Json | null
+          requires_review?: boolean
+          severity?: string | null
+          shot_number?: number | null
+          start_seconds?: number | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "video_annotations_evidence_frame_id_fkey";
-            columns: ["evidence_frame_id"];
-            isOneToOne: false;
-            referencedRelation: "evidence_frames";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_annotations_evidence_frame_id_fkey"
+            columns: ["evidence_frame_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_frames"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "video_annotations_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_annotations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "video_annotations_protected_asset_id_fkey";
-            columns: ["protected_asset_id"];
-            isOneToOne: false;
-            referencedRelation: "protected_assets";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_annotations_protected_asset_id_fkey"
+            columns: ["protected_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       video_creator_profiles: {
         Row: {
-          channel_created_at: string | null;
-          channel_handle: string | null;
-          channel_id: string;
-          channel_name: string | null;
-          channel_url: string | null;
-          country: string | null;
-          created_at: string;
-          credibility_score: number | null;
-          critical_findings_count: number;
-          description: string | null;
-          estimated_total_reach: number | null;
-          findings_count: number;
-          first_detected_at: string | null;
-          id: string;
-          influence_score: number | null;
-          latest_detected_at: string | null;
-          monitoring_enabled: boolean;
-          organisation_id: string | null;
-          platform: string;
-          profile_image_url: string | null;
-          protection_profile_id: string | null;
-          raw: Json;
-          repeated_allegation_count: number;
-          subscriber_count: number | null;
-          threat_amplification_score: number | null;
-          total_view_count: number | null;
-          updated_at: string;
-          user_id: string;
-          video_count: number | null;
-        };
+          channel_created_at: string | null
+          channel_handle: string | null
+          channel_id: string
+          channel_name: string | null
+          channel_url: string | null
+          country: string | null
+          created_at: string
+          credibility_score: number | null
+          critical_findings_count: number
+          description: string | null
+          estimated_total_reach: number | null
+          findings_count: number
+          first_detected_at: string | null
+          id: string
+          influence_score: number | null
+          latest_detected_at: string | null
+          monitoring_enabled: boolean
+          organisation_id: string | null
+          platform: string
+          profile_image_url: string | null
+          protection_profile_id: string | null
+          raw: Json
+          repeated_allegation_count: number
+          subscriber_count: number | null
+          threat_amplification_score: number | null
+          total_view_count: number | null
+          updated_at: string
+          user_id: string
+          video_count: number | null
+        }
         Insert: {
-          channel_created_at?: string | null;
-          channel_handle?: string | null;
-          channel_id: string;
-          channel_name?: string | null;
-          channel_url?: string | null;
-          country?: string | null;
-          created_at?: string;
-          credibility_score?: number | null;
-          critical_findings_count?: number;
-          description?: string | null;
-          estimated_total_reach?: number | null;
-          findings_count?: number;
-          first_detected_at?: string | null;
-          id?: string;
-          influence_score?: number | null;
-          latest_detected_at?: string | null;
-          monitoring_enabled?: boolean;
-          organisation_id?: string | null;
-          platform?: string;
-          profile_image_url?: string | null;
-          protection_profile_id?: string | null;
-          raw?: Json;
-          repeated_allegation_count?: number;
-          subscriber_count?: number | null;
-          threat_amplification_score?: number | null;
-          total_view_count?: number | null;
-          updated_at?: string;
-          user_id: string;
-          video_count?: number | null;
-        };
+          channel_created_at?: string | null
+          channel_handle?: string | null
+          channel_id: string
+          channel_name?: string | null
+          channel_url?: string | null
+          country?: string | null
+          created_at?: string
+          credibility_score?: number | null
+          critical_findings_count?: number
+          description?: string | null
+          estimated_total_reach?: number | null
+          findings_count?: number
+          first_detected_at?: string | null
+          id?: string
+          influence_score?: number | null
+          latest_detected_at?: string | null
+          monitoring_enabled?: boolean
+          organisation_id?: string | null
+          platform?: string
+          profile_image_url?: string | null
+          protection_profile_id?: string | null
+          raw?: Json
+          repeated_allegation_count?: number
+          subscriber_count?: number | null
+          threat_amplification_score?: number | null
+          total_view_count?: number | null
+          updated_at?: string
+          user_id: string
+          video_count?: number | null
+        }
         Update: {
-          channel_created_at?: string | null;
-          channel_handle?: string | null;
-          channel_id?: string;
-          channel_name?: string | null;
-          channel_url?: string | null;
-          country?: string | null;
-          created_at?: string;
-          credibility_score?: number | null;
-          critical_findings_count?: number;
-          description?: string | null;
-          estimated_total_reach?: number | null;
-          findings_count?: number;
-          first_detected_at?: string | null;
-          id?: string;
-          influence_score?: number | null;
-          latest_detected_at?: string | null;
-          monitoring_enabled?: boolean;
-          organisation_id?: string | null;
-          platform?: string;
-          profile_image_url?: string | null;
-          protection_profile_id?: string | null;
-          raw?: Json;
-          repeated_allegation_count?: number;
-          subscriber_count?: number | null;
-          threat_amplification_score?: number | null;
-          total_view_count?: number | null;
-          updated_at?: string;
-          user_id?: string;
-          video_count?: number | null;
-        };
-        Relationships: [];
-      };
+          channel_created_at?: string | null
+          channel_handle?: string | null
+          channel_id?: string
+          channel_name?: string | null
+          channel_url?: string | null
+          country?: string | null
+          created_at?: string
+          credibility_score?: number | null
+          critical_findings_count?: number
+          description?: string | null
+          estimated_total_reach?: number | null
+          findings_count?: number
+          first_detected_at?: string | null
+          id?: string
+          influence_score?: number | null
+          latest_detected_at?: string | null
+          monitoring_enabled?: boolean
+          organisation_id?: string | null
+          platform?: string
+          profile_image_url?: string | null
+          protection_profile_id?: string | null
+          raw?: Json
+          repeated_allegation_count?: number
+          subscriber_count?: number | null
+          threat_amplification_score?: number | null
+          total_view_count?: number | null
+          updated_at?: string
+          user_id?: string
+          video_count?: number | null
+        }
+        Relationships: []
+      }
       video_creator_risk_history: {
         Row: {
-          created_at: string;
-          creator_profile_id: string;
-          critical_findings_count: number;
-          dominant_risk_category: string | null;
-          estimated_total_reach: number | null;
-          findings_count: number;
-          id: string;
-          influence_score: number | null;
-          metrics: Json;
-          reason: string | null;
-          snapshot_at: string;
-          threat_amplification_score: number | null;
-          user_id: string;
-        };
+          created_at: string
+          creator_profile_id: string
+          critical_findings_count: number
+          dominant_risk_category: string | null
+          estimated_total_reach: number | null
+          findings_count: number
+          id: string
+          influence_score: number | null
+          metrics: Json
+          reason: string | null
+          snapshot_at: string
+          threat_amplification_score: number | null
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          creator_profile_id: string;
-          critical_findings_count?: number;
-          dominant_risk_category?: string | null;
-          estimated_total_reach?: number | null;
-          findings_count?: number;
-          id?: string;
-          influence_score?: number | null;
-          metrics?: Json;
-          reason?: string | null;
-          snapshot_at?: string;
-          threat_amplification_score?: number | null;
-          user_id: string;
-        };
+          created_at?: string
+          creator_profile_id: string
+          critical_findings_count?: number
+          dominant_risk_category?: string | null
+          estimated_total_reach?: number | null
+          findings_count?: number
+          id?: string
+          influence_score?: number | null
+          metrics?: Json
+          reason?: string | null
+          snapshot_at?: string
+          threat_amplification_score?: number | null
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          creator_profile_id?: string;
-          critical_findings_count?: number;
-          dominant_risk_category?: string | null;
-          estimated_total_reach?: number | null;
-          findings_count?: number;
-          id?: string;
-          influence_score?: number | null;
-          metrics?: Json;
-          reason?: string | null;
-          snapshot_at?: string;
-          threat_amplification_score?: number | null;
-          user_id?: string;
-        };
+          created_at?: string
+          creator_profile_id?: string
+          critical_findings_count?: number
+          dominant_risk_category?: string | null
+          estimated_total_reach?: number | null
+          findings_count?: number
+          id?: string
+          influence_score?: number | null
+          metrics?: Json
+          reason?: string | null
+          snapshot_at?: string
+          threat_amplification_score?: number | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "video_creator_risk_history_creator_profile_id_fkey";
-            columns: ["creator_profile_id"];
-            isOneToOne: false;
-            referencedRelation: "video_creator_profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_creator_risk_history_creator_profile_id_fkey"
+            columns: ["creator_profile_id"]
+            isOneToOne: false
+            referencedRelation: "video_creator_profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       video_timestamp_findings: {
         Row: {
-          captured_at: string;
-          channel_id: string | null;
-          channel_name: string | null;
-          channel_url: string | null;
-          claim_summary: string | null;
-          confidence: number | null;
-          context_after: string | null;
-          context_before: string | null;
-          context_type: string;
-          created_at: string;
-          creator_profile_id: string | null;
-          end_seconds: number;
-          end_time_display: string | null;
-          evidence_source: string | null;
-          id: string;
-          matched_entity: string | null;
-          organisation_id: string | null;
-          original_language: string | null;
-          original_text: string;
-          platform: string;
-          protection_profile_id: string | null;
-          raw: Json;
-          review_status: string;
-          reviewed_at: string | null;
-          reviewed_by: string | null;
-          reviewer_notes: string | null;
-          risk_category: string | null;
-          scan_hit_id: string | null;
-          scan_id: string | null;
-          segment_id: string | null;
-          severity: string | null;
-          speaker_label: string | null;
-          speaker_stance: string | null;
-          start_seconds: number;
-          start_time_display: string | null;
-          translated_text: string | null;
-          translation_language: string | null;
-          updated_at: string;
-          user_id: string;
-          video_id: string;
-          video_url: string | null;
-          watch_exact_moment_url: string | null;
-        };
+          captured_at: string
+          channel_id: string | null
+          channel_name: string | null
+          channel_url: string | null
+          claim_summary: string | null
+          confidence: number | null
+          context_after: string | null
+          context_before: string | null
+          context_type: string
+          created_at: string
+          creator_profile_id: string | null
+          end_seconds: number
+          end_time_display: string | null
+          evidence_source: string | null
+          id: string
+          matched_entity: string | null
+          organisation_id: string | null
+          original_language: string | null
+          original_text: string
+          platform: string
+          protection_profile_id: string | null
+          raw: Json
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_notes: string | null
+          risk_category: string | null
+          scan_hit_id: string | null
+          scan_id: string | null
+          segment_id: string | null
+          severity: string | null
+          speaker_label: string | null
+          speaker_stance: string | null
+          start_seconds: number
+          start_time_display: string | null
+          translated_text: string | null
+          translation_language: string | null
+          updated_at: string
+          user_id: string
+          video_id: string
+          video_url: string | null
+          watch_exact_moment_url: string | null
+        }
         Insert: {
-          captured_at?: string;
-          channel_id?: string | null;
-          channel_name?: string | null;
-          channel_url?: string | null;
-          claim_summary?: string | null;
-          confidence?: number | null;
-          context_after?: string | null;
-          context_before?: string | null;
-          context_type?: string;
-          created_at?: string;
-          creator_profile_id?: string | null;
-          end_seconds: number;
-          end_time_display?: string | null;
-          evidence_source?: string | null;
-          id?: string;
-          matched_entity?: string | null;
-          organisation_id?: string | null;
-          original_language?: string | null;
-          original_text: string;
-          platform?: string;
-          protection_profile_id?: string | null;
-          raw?: Json;
-          review_status?: string;
-          reviewed_at?: string | null;
-          reviewed_by?: string | null;
-          reviewer_notes?: string | null;
-          risk_category?: string | null;
-          scan_hit_id?: string | null;
-          scan_id?: string | null;
-          segment_id?: string | null;
-          severity?: string | null;
-          speaker_label?: string | null;
-          speaker_stance?: string | null;
-          start_seconds: number;
-          start_time_display?: string | null;
-          translated_text?: string | null;
-          translation_language?: string | null;
-          updated_at?: string;
-          user_id: string;
-          video_id: string;
-          video_url?: string | null;
-          watch_exact_moment_url?: string | null;
-        };
+          captured_at?: string
+          channel_id?: string | null
+          channel_name?: string | null
+          channel_url?: string | null
+          claim_summary?: string | null
+          confidence?: number | null
+          context_after?: string | null
+          context_before?: string | null
+          context_type?: string
+          created_at?: string
+          creator_profile_id?: string | null
+          end_seconds: number
+          end_time_display?: string | null
+          evidence_source?: string | null
+          id?: string
+          matched_entity?: string | null
+          organisation_id?: string | null
+          original_language?: string | null
+          original_text: string
+          platform?: string
+          protection_profile_id?: string | null
+          raw?: Json
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          risk_category?: string | null
+          scan_hit_id?: string | null
+          scan_id?: string | null
+          segment_id?: string | null
+          severity?: string | null
+          speaker_label?: string | null
+          speaker_stance?: string | null
+          start_seconds: number
+          start_time_display?: string | null
+          translated_text?: string | null
+          translation_language?: string | null
+          updated_at?: string
+          user_id: string
+          video_id: string
+          video_url?: string | null
+          watch_exact_moment_url?: string | null
+        }
         Update: {
-          captured_at?: string;
-          channel_id?: string | null;
-          channel_name?: string | null;
-          channel_url?: string | null;
-          claim_summary?: string | null;
-          confidence?: number | null;
-          context_after?: string | null;
-          context_before?: string | null;
-          context_type?: string;
-          created_at?: string;
-          creator_profile_id?: string | null;
-          end_seconds?: number;
-          end_time_display?: string | null;
-          evidence_source?: string | null;
-          id?: string;
-          matched_entity?: string | null;
-          organisation_id?: string | null;
-          original_language?: string | null;
-          original_text?: string;
-          platform?: string;
-          protection_profile_id?: string | null;
-          raw?: Json;
-          review_status?: string;
-          reviewed_at?: string | null;
-          reviewed_by?: string | null;
-          reviewer_notes?: string | null;
-          risk_category?: string | null;
-          scan_hit_id?: string | null;
-          scan_id?: string | null;
-          segment_id?: string | null;
-          severity?: string | null;
-          speaker_label?: string | null;
-          speaker_stance?: string | null;
-          start_seconds?: number;
-          start_time_display?: string | null;
-          translated_text?: string | null;
-          translation_language?: string | null;
-          updated_at?: string;
-          user_id?: string;
-          video_id?: string;
-          video_url?: string | null;
-          watch_exact_moment_url?: string | null;
-        };
+          captured_at?: string
+          channel_id?: string | null
+          channel_name?: string | null
+          channel_url?: string | null
+          claim_summary?: string | null
+          confidence?: number | null
+          context_after?: string | null
+          context_before?: string | null
+          context_type?: string
+          created_at?: string
+          creator_profile_id?: string | null
+          end_seconds?: number
+          end_time_display?: string | null
+          evidence_source?: string | null
+          id?: string
+          matched_entity?: string | null
+          organisation_id?: string | null
+          original_language?: string | null
+          original_text?: string
+          platform?: string
+          protection_profile_id?: string | null
+          raw?: Json
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          risk_category?: string | null
+          scan_hit_id?: string | null
+          scan_id?: string | null
+          segment_id?: string | null
+          severity?: string | null
+          speaker_label?: string | null
+          speaker_stance?: string | null
+          start_seconds?: number
+          start_time_display?: string | null
+          translated_text?: string | null
+          translation_language?: string | null
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+          video_url?: string | null
+          watch_exact_moment_url?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "video_timestamp_findings_creator_profile_id_fkey";
-            columns: ["creator_profile_id"];
-            isOneToOne: false;
-            referencedRelation: "video_creator_profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_timestamp_findings_creator_profile_id_fkey"
+            columns: ["creator_profile_id"]
+            isOneToOne: false
+            referencedRelation: "video_creator_profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "video_timestamp_findings_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_timestamp_findings_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "video_timestamp_findings_scan_id_fkey";
-            columns: ["scan_id"];
-            isOneToOne: false;
-            referencedRelation: "scans";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_timestamp_findings_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "video_timestamp_findings_segment_id_fkey";
-            columns: ["segment_id"];
-            isOneToOne: false;
-            referencedRelation: "video_transcript_segments";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_timestamp_findings_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "video_transcript_segments"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       video_transcript_segments: {
         Row: {
-          confidence: number | null;
-          coverage_pct: number | null;
-          created_at: string;
-          end_seconds: number;
-          id: string;
-          is_auto_generated: boolean | null;
-          language: string | null;
-          organisation_id: string | null;
-          platform: string;
-          scan_hit_id: string | null;
-          source: string;
-          speaker_label: string | null;
-          start_seconds: number;
-          text: string;
-          translated_text: string | null;
-          translation_language: string | null;
-          user_id: string;
-          video_id: string;
-        };
+          confidence: number | null
+          coverage_pct: number | null
+          created_at: string
+          end_seconds: number
+          id: string
+          is_auto_generated: boolean | null
+          language: string | null
+          organisation_id: string | null
+          platform: string
+          scan_hit_id: string | null
+          source: string
+          speaker_label: string | null
+          start_seconds: number
+          text: string
+          translated_text: string | null
+          translation_language: string | null
+          user_id: string
+          video_id: string
+        }
         Insert: {
-          confidence?: number | null;
-          coverage_pct?: number | null;
-          created_at?: string;
-          end_seconds: number;
-          id?: string;
-          is_auto_generated?: boolean | null;
-          language?: string | null;
-          organisation_id?: string | null;
-          platform?: string;
-          scan_hit_id?: string | null;
-          source: string;
-          speaker_label?: string | null;
-          start_seconds: number;
-          text: string;
-          translated_text?: string | null;
-          translation_language?: string | null;
-          user_id: string;
-          video_id: string;
-        };
+          confidence?: number | null
+          coverage_pct?: number | null
+          created_at?: string
+          end_seconds: number
+          id?: string
+          is_auto_generated?: boolean | null
+          language?: string | null
+          organisation_id?: string | null
+          platform?: string
+          scan_hit_id?: string | null
+          source: string
+          speaker_label?: string | null
+          start_seconds: number
+          text: string
+          translated_text?: string | null
+          translation_language?: string | null
+          user_id: string
+          video_id: string
+        }
         Update: {
-          confidence?: number | null;
-          coverage_pct?: number | null;
-          created_at?: string;
-          end_seconds?: number;
-          id?: string;
-          is_auto_generated?: boolean | null;
-          language?: string | null;
-          organisation_id?: string | null;
-          platform?: string;
-          scan_hit_id?: string | null;
-          source?: string;
-          speaker_label?: string | null;
-          start_seconds?: number;
-          text?: string;
-          translated_text?: string | null;
-          translation_language?: string | null;
-          user_id?: string;
-          video_id?: string;
-        };
+          confidence?: number | null
+          coverage_pct?: number | null
+          created_at?: string
+          end_seconds?: number
+          id?: string
+          is_auto_generated?: boolean | null
+          language?: string | null
+          organisation_id?: string | null
+          platform?: string
+          scan_hit_id?: string | null
+          source?: string
+          speaker_label?: string | null
+          start_seconds?: number
+          text?: string
+          translated_text?: string | null
+          translation_language?: string | null
+          user_id?: string
+          video_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "video_transcript_segments_scan_hit_id_fkey";
-            columns: ["scan_hit_id"];
-            isOneToOne: false;
-            referencedRelation: "scan_hits";
-            referencedColumns: ["id"];
+            foreignKeyName: "video_transcript_segments_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       visual_detections: {
         Row: {
-          bounding_box: Json | null;
-          confidence: number | null;
-          created_at: string;
-          detection_type: string;
-          evidence_frame_id: string | null;
-          face_present: boolean | null;
-          id: string;
-          job_id: string;
-          label: string | null;
-          raw: Json | null;
-          safe_search: Json | null;
-          user_id: string;
-        };
+          bounding_box: Json | null
+          confidence: number | null
+          created_at: string
+          detection_type: string
+          evidence_frame_id: string | null
+          face_present: boolean | null
+          id: string
+          job_id: string
+          label: string | null
+          raw: Json | null
+          safe_search: Json | null
+          user_id: string
+        }
         Insert: {
-          bounding_box?: Json | null;
-          confidence?: number | null;
-          created_at?: string;
-          detection_type: string;
-          evidence_frame_id?: string | null;
-          face_present?: boolean | null;
-          id?: string;
-          job_id: string;
-          label?: string | null;
-          raw?: Json | null;
-          safe_search?: Json | null;
-          user_id: string;
-        };
+          bounding_box?: Json | null
+          confidence?: number | null
+          created_at?: string
+          detection_type: string
+          evidence_frame_id?: string | null
+          face_present?: boolean | null
+          id?: string
+          job_id: string
+          label?: string | null
+          raw?: Json | null
+          safe_search?: Json | null
+          user_id: string
+        }
         Update: {
-          bounding_box?: Json | null;
-          confidence?: number | null;
-          created_at?: string;
-          detection_type?: string;
-          evidence_frame_id?: string | null;
-          face_present?: boolean | null;
-          id?: string;
-          job_id?: string;
-          label?: string | null;
-          raw?: Json | null;
-          safe_search?: Json | null;
-          user_id?: string;
-        };
+          bounding_box?: Json | null
+          confidence?: number | null
+          created_at?: string
+          detection_type?: string
+          evidence_frame_id?: string | null
+          face_present?: boolean | null
+          id?: string
+          job_id?: string
+          label?: string | null
+          raw?: Json | null
+          safe_search?: Json | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "visual_detections_evidence_frame_id_fkey";
-            columns: ["evidence_frame_id"];
-            isOneToOne: false;
-            referencedRelation: "evidence_frames";
-            referencedColumns: ["id"];
+            foreignKeyName: "visual_detections_evidence_frame_id_fkey"
+            columns: ["evidence_frame_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_frames"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "visual_detections_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "multimedia_analysis_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "visual_detections_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multimedia_analysis_jobs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       youtube_verification_challenges: {
         Row: {
-          asset_id: string;
-          code: string;
-          created_at: string;
-          evidence: Json | null;
-          expires_at: string;
-          id: string;
-          used_at: string | null;
-          user_id: string;
-        };
+          asset_id: string
+          code: string
+          created_at: string
+          evidence: Json | null
+          expires_at: string
+          id: string
+          used_at: string | null
+          user_id: string
+        }
         Insert: {
-          asset_id: string;
-          code: string;
-          created_at?: string;
-          evidence?: Json | null;
-          expires_at: string;
-          id?: string;
-          used_at?: string | null;
-          user_id: string;
-        };
+          asset_id: string
+          code: string
+          created_at?: string
+          evidence?: Json | null
+          expires_at: string
+          id?: string
+          used_at?: string | null
+          user_id: string
+        }
         Update: {
-          asset_id?: string;
-          code?: string;
-          created_at?: string;
-          evidence?: Json | null;
-          expires_at?: string;
-          id?: string;
-          used_at?: string | null;
-          user_id?: string;
-        };
+          asset_id?: string
+          code?: string
+          created_at?: string
+          evidence?: Json | null
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "youtube_verification_challenges_asset_id_fkey";
-            columns: ["asset_id"];
-            isOneToOne: false;
-            referencedRelation: "digital_assets";
-            referencedColumns: ["id"];
+            foreignKeyName: "youtube_verification_challenges_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "digital_assets"
+            referencedColumns: ["id"]
           },
-        ];
-      };
-    };
+        ]
+      }
+    }
     Views: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     Functions: {
       acquire_deepfake_scan_continuation: {
-        Args: { p_scan_id: string };
+        Args: { p_scan_id: string }
         Returns: {
-          heartbeat_at: string;
-          lease_expires_at: string;
-          scan_id: string;
-          scan_run_token: string;
-        }[];
-      };
+          heartbeat_at: string
+          lease_expires_at: string
+          scan_id: string
+          scan_run_token: string
+        }[]
+      }
       get_public_verification: {
-        Args: { _slug: string };
+        Args: { _slug: string }
         Returns: {
-          auth_number: string;
-          authorization_status: Database["public"]["Enums"]["authorization_status"];
-          certificate_number: string;
-          client_id: string;
-          company_name: string;
-          display_name: string;
-          enforcement_enabled: boolean;
-          expires_at: string;
-          issued_at: string;
-          public_slug: string;
-          score: number;
-          status: string;
-        }[];
-      };
+          auth_number: string
+          authorization_status: Database["public"]["Enums"]["authorization_status"]
+          certificate_number: string
+          client_id: string
+          company_name: string
+          display_name: string
+          enforcement_enabled: boolean
+          expires_at: string
+          issued_at: string
+          public_slug: string
+          score: number
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
-          _role: Database["public"]["Enums"]["app_role"];
-          _user_id: string;
-        };
-        Returns: boolean;
-      };
-    };
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+    }
     Enums: {
-      account_type_enum: "personal" | "business";
-      app_role: "admin" | "analyst" | "user" | "super_admin" | "partner";
+      account_type_enum: "personal" | "business"
+      app_role: "admin" | "analyst" | "user" | "super_admin" | "partner"
       asset_kind_enum:
         | "name"
         | "brand"
@@ -6770,7 +6812,7 @@ export type Database = {
         | "logo"
         | "image"
         | "video"
-        | "copyright";
+        | "copyright"
       asset_verification_status:
         | "UNVERIFIED"
         | "CODE_GENERATED"
@@ -6778,9 +6820,12 @@ export type Database = {
         | "VERIFIED"
         | "REJECTED"
         | "EXPIRED"
-        | "REVOKED";
+        | "REVOKED"
       authorization_level_enum:
-        "monitoring" | "monitoring_evidence" | "monitoring_enforcement" | "full_protection";
+        | "monitoring"
+        | "monitoring_evidence"
+        | "monitoring_enforcement"
+        | "full_protection"
       authorization_status:
         | "DRAFT"
         | "AWAITING_KYC"
@@ -6793,13 +6838,26 @@ export type Database = {
         | "REJECTED"
         | "SUSPENDED"
         | "REVOKED"
-        | "EXPIRED";
-      authorization_status_enum: "pending" | "authorized" | "enterprise_authorized";
-      automation_adapter: "youtube_copyright" | "youtube_community";
+        | "EXPIRED"
+      authorization_status_enum:
+        | "pending"
+        | "authorized"
+        | "enterprise_authorized"
+      automation_adapter: "youtube_copyright" | "youtube_community"
       automation_job_status:
-        "queued" | "running" | "review_ready" | "submitted" | "failed" | "cancelled";
-      automation_platform: "youtube";
-      channel_watch_analysis_status: "pending" | "running" | "completed" | "failed" | "skipped";
+        | "queued"
+        | "running"
+        | "review_ready"
+        | "submitted"
+        | "failed"
+        | "cancelled"
+      automation_platform: "youtube"
+      channel_watch_analysis_status:
+        | "pending"
+        | "running"
+        | "completed"
+        | "failed"
+        | "skipped"
       channel_watch_classification:
         | "not_relevant"
         | "informational"
@@ -6810,37 +6868,77 @@ export type Database = {
         | "potential_privacy"
         | "potential_manipulated"
         | "potential_harassment"
-        | "potential_false_allegation";
-      channel_watch_priority: "critical" | "high" | "standard" | "low";
+        | "potential_false_allegation"
+      channel_watch_priority: "critical" | "high" | "standard" | "low"
       channel_watch_review_status:
-        "not_required" | "pending" | "approved" | "dismissed" | "escalated";
-      channel_watch_status: "active" | "paused" | "error";
+        | "not_required"
+        | "pending"
+        | "approved"
+        | "dismissed"
+        | "escalated"
+      channel_watch_status: "active" | "paused" | "error"
       client_type_enum:
-        "individual" | "celebrity" | "creator" | "business" | "corporate" | "agency";
+        | "individual"
+        | "celebrity"
+        | "creator"
+        | "business"
+        | "corporate"
+        | "agency"
       discovered_account_status:
         | "discovered"
         | "likely_official"
         | "user_confirmed"
         | "ownership_pending"
         | "verified"
-        | "rejected";
+        | "rejected"
       discovered_platform:
-        "youtube" | "instagram" | "facebook" | "tiktok" | "x" | "linkedin" | "reddit" | "website";
-      discovered_user_decision: "confirmed" | "not_mine" | "unsure";
-      discovery_source: "firecrawl_search" | "website_links" | "cross_link" | "manual";
-      discovery_subject_kind: "person" | "brand" | "company" | "domain" | "handle" | "website";
+        | "youtube"
+        | "instagram"
+        | "facebook"
+        | "tiktok"
+        | "x"
+        | "linkedin"
+        | "reddit"
+        | "website"
+      discovered_user_decision: "confirmed" | "not_mine" | "unsure"
+      discovery_source:
+        | "firecrawl_search"
+        | "website_links"
+        | "cross_link"
+        | "manual"
+      discovery_subject_kind:
+        | "person"
+        | "brand"
+        | "company"
+        | "domain"
+        | "handle"
+        | "website"
       enterprise_doc_type_enum:
-        "authorization_letter" | "agency_agreement" | "power_of_attorney" | "brand_protection";
-      evidence_content_position: "SUPPORTIVE" | "NEUTRAL" | "CRITICAL" | "HOSTILE" | "UNKNOWN";
+        | "authorization_letter"
+        | "agency_agreement"
+        | "power_of_attorney"
+        | "brand_protection"
+      evidence_content_position:
+        | "SUPPORTIVE"
+        | "NEUTRAL"
+        | "CRITICAL"
+        | "HOSTILE"
+        | "UNKNOWN"
       evidence_review_status:
         | "AUTOMATED_LEAD"
         | "REVIEW_REQUIRED"
         | "REVIEWED_NO_VIOLATION"
         | "REVIEWED_POTENTIAL_VIOLATION"
         | "ESCALATION_RECOMMENDED"
-        | "LEGAL_REVIEW_REQUIRED";
+        | "LEGAL_REVIEW_REQUIRED"
       evidence_statement_type:
-        "FACT" | "OPINION" | "INSULT" | "THREAT" | "SATIRE" | "NEWS_REPORT" | "UNKNOWN";
+        | "FACT"
+        | "OPINION"
+        | "INSULT"
+        | "THREAT"
+        | "SATIRE"
+        | "NEWS_REPORT"
+        | "UNKNOWN"
       face_profile_status:
         | "NOT_STARTED"
         | "CONSENT_REQUIRED"
@@ -6853,7 +6951,7 @@ export type Database = {
         | "MANUAL_REVIEW"
         | "DELETION_REQUESTED"
         | "DELETED"
-        | "DEFERRED";
+        | "DEFERRED"
       kyc_status:
         | "NOT_STARTED"
         | "SESSION_CREATED"
@@ -6863,7 +6961,7 @@ export type Database = {
         | "DECLINED"
         | "RESUBMISSION_REQUIRED"
         | "EXPIRED"
-        | "MANUAL_REVIEW";
+        | "MANUAL_REVIEW"
       onboarding_overall_status:
         | "NOT_STARTED"
         | "IN_PROGRESS"
@@ -6871,8 +6969,8 @@ export type Database = {
         | "UNDER_REVIEW"
         | "VERIFIED"
         | "REJECTED"
-        | "COMPLETED";
-      platform_credential_status: "active" | "expired" | "login_required";
+        | "COMPLETED"
+      platform_credential_status: "active" | "expired" | "login_required"
       signature_status:
         | "DRAFT"
         | "READY_FOR_REVIEW"
@@ -6880,7 +6978,7 @@ export type Database = {
         | "AWAITING_OTP"
         | "SIGNED"
         | "VOIDED"
-        | "SUPERSEDED";
+        | "SUPERSEDED"
       verification_method:
         | "oauth"
         | "domain_dns"
@@ -6888,125 +6986,131 @@ export type Database = {
         | "business_email"
         | "bio_code"
         | "document"
-        | "admin_review";
-      verification_state: "pending" | "passed" | "failed" | "expired";
-    };
+        | "admin_review"
+      verification_state: "pending" | "passed" | "failed" | "expired"
+    }
     CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-};
+      [_ in never]: never
+    }
+  }
+}
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R;
+      Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R;
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
       }
       ? R
       : never
-    : never;
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I;
+      Insert: infer I
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I;
+        Insert: infer I
       }
       ? I
       : never
-    : never;
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U;
+      Update: infer U
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U;
+        Update: infer U
       }
       ? U
       : never
-    : never;
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never;
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never;
+    : never
 
 export const Constants = {
   public: {
@@ -7055,7 +7159,11 @@ export const Constants = {
         "REVOKED",
         "EXPIRED",
       ],
-      authorization_status_enum: ["pending", "authorized", "enterprise_authorized"],
+      authorization_status_enum: [
+        "pending",
+        "authorized",
+        "enterprise_authorized",
+      ],
       automation_adapter: ["youtube_copyright", "youtube_community"],
       automation_job_status: [
         "queued",
@@ -7066,7 +7174,13 @@ export const Constants = {
         "cancelled",
       ],
       automation_platform: ["youtube"],
-      channel_watch_analysis_status: ["pending", "running", "completed", "failed", "skipped"],
+      channel_watch_analysis_status: [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
+      ],
       channel_watch_classification: [
         "not_relevant",
         "informational",
@@ -7088,7 +7202,14 @@ export const Constants = {
         "escalated",
       ],
       channel_watch_status: ["active", "paused", "error"],
-      client_type_enum: ["individual", "celebrity", "creator", "business", "corporate", "agency"],
+      client_type_enum: [
+        "individual",
+        "celebrity",
+        "creator",
+        "business",
+        "corporate",
+        "agency",
+      ],
       discovered_account_status: [
         "discovered",
         "likely_official",
@@ -7108,15 +7229,33 @@ export const Constants = {
         "website",
       ],
       discovered_user_decision: ["confirmed", "not_mine", "unsure"],
-      discovery_source: ["firecrawl_search", "website_links", "cross_link", "manual"],
-      discovery_subject_kind: ["person", "brand", "company", "domain", "handle", "website"],
+      discovery_source: [
+        "firecrawl_search",
+        "website_links",
+        "cross_link",
+        "manual",
+      ],
+      discovery_subject_kind: [
+        "person",
+        "brand",
+        "company",
+        "domain",
+        "handle",
+        "website",
+      ],
       enterprise_doc_type_enum: [
         "authorization_letter",
         "agency_agreement",
         "power_of_attorney",
         "brand_protection",
       ],
-      evidence_content_position: ["SUPPORTIVE", "NEUTRAL", "CRITICAL", "HOSTILE", "UNKNOWN"],
+      evidence_content_position: [
+        "SUPPORTIVE",
+        "NEUTRAL",
+        "CRITICAL",
+        "HOSTILE",
+        "UNKNOWN",
+      ],
       evidence_review_status: [
         "AUTOMATED_LEAD",
         "REVIEW_REQUIRED",
@@ -7190,4 +7329,4 @@ export const Constants = {
       verification_state: ["pending", "passed", "failed", "expired"],
     },
   },
-} as const;
+} as const
