@@ -171,6 +171,46 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
     return { scan, matches: matchRows };
   });
 
+export const retryCopyrightScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: scan, error } = await supabase
+      .from("copyright_scans")
+      .select("id, title, frame_paths, storage_path, reference_kind")
+      .eq("id", data.scanId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!scan) throw new Error("Scan not found.");
+
+    const keys = (scan.frame_paths ?? []).length
+      ? (scan.frame_paths as string[])
+      : scan.storage_path
+        ? [scan.storage_path as string]
+        : [];
+    if (!keys.length) throw new Error("Original reference material is unavailable for retry.");
+
+    await supabase
+      .from("copyright_scans")
+      .update({ status: "running", error_message: null })
+      .eq("id", scan.id)
+      .eq("user_id", userId);
+
+    const { executeCopyrightScanPipeline } = await import("@/lib/copyright/scan-executor.server");
+    const result = await executeCopyrightScanPipeline({
+      supabase,
+      scanId: scan.id as string,
+      userId,
+      title: scan.title as string,
+      keys,
+      contentType: "image/jpeg",
+      source: "inline",
+    });
+    return { scanId: result.scanId, status: result.status };
+  });
+
 export const listAllCopyrightMatches = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ includeArchived: z.boolean().optional() }).parse(raw))
