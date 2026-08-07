@@ -677,10 +677,7 @@ function CopyrightIntelPage() {
             title={scanMeta.title}
             kind={scanMeta.kind}
             scanStatus="running"
-<<<<<<< HEAD
             scanId={selectedScanId}
-=======
->>>>>>> 89d191a (fix copyright scan stalls and failure state handling)
           />
         </div>
       )}
