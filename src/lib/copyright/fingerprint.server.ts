@@ -92,16 +92,22 @@ export async function buildMovieFingerprint(
   if (!isRekognitionConfigured() || frames.length === 0) return empty;
 
   try {
-    const perFrame = await Promise.all(
-      frames.slice(0, 4).map(async (bytes) => {
-        const [labels, text, celeb] = await Promise.all([
-          detectLabels(bytes),
-          detectText(bytes),
-          recognizeCelebrities(bytes),
-        ]);
-        return { labels, text, celeb };
-      }),
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Fingerprint timeout")), 6_000),
     );
+    const perFrame = await Promise.race([
+      Promise.all(
+        frames.slice(0, 4).map(async (bytes) => {
+          const [labels, text, celeb] = await Promise.all([
+            detectLabels(bytes),
+            detectText(bytes),
+            recognizeCelebrities(bytes),
+          ]);
+          return { labels, text, celeb };
+        }),
+      ),
+      timeoutPromise,
+    ]);
 
     const labels = new Set<string>();
     const cats = new Set<string>();

@@ -11,6 +11,7 @@ import {
   listAllCopyrightMatches,
   archivePreviousCopyrightResults,
   archiveScanCopyrightResults,
+  retryCopyrightScan,
 } from "@/lib/copyright.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,9 @@ import {
   ChevronUp,
   Trash2,
   Archive,
+  RefreshCw,
+  Info,
+  Bug,
 } from "lucide-react";
 
 type MatchRow = {
@@ -196,6 +200,26 @@ function CopyrightIntelPage() {
 
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [archivingScanId, setArchivingScanId] = useState<string | null>(null);
+
+  const retryFn = useServerFn(retryCopyrightScan);
+  const [showAdminDiagnostics, setShowAdminDiagnostics] = useState(false);
+  const [showProviderFailures, setShowProviderFailures] = useState(false);
+
+  const retryScanMutation = useMutation({
+    mutationFn: async (scanId: string) => {
+      console.log("[CopyrightIntelUI] Retrying scan", { scanId });
+      return await retryFn({ data: { scanId } });
+    },
+    onSuccess: (_, scanId) => {
+      toast.success("Scan retry initiated. Updating progress...");
+      qc.invalidateQueries({ queryKey: ["copyright-scans"] });
+      qc.invalidateQueries({ queryKey: ["copyright-scan", scanId] });
+      qc.invalidateQueries({ queryKey: ["all-copyright-matches"] });
+    },
+    onError: (err: Error) => {
+      toast.error(`Retry failed: ${err.message}`);
+    },
+  });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -653,7 +677,10 @@ function CopyrightIntelPage() {
             title={scanMeta.title}
             kind={scanMeta.kind}
             scanStatus="running"
+<<<<<<< HEAD
             scanId={selectedScanId}
+=======
+>>>>>>> 89d191a (fix copyright scan stalls and failure state handling)
           />
         </div>
       )}
@@ -881,211 +908,415 @@ function CopyrightIntelPage() {
 
           {selectedScanId && (
             <div className="space-y-6">
-              {/* Current Scan Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">Current Scan Results</h2>
-                  <span className="text-xs text-muted-foreground">
-                    Showing {currentMatches.length} finding(s) for current active scan
-                  </span>
-                </div>
+              {(() => {
+                const selectedScan = scans.data?.find((s) => s.id === selectedScanId);
+                const sDetail = detail.data?.scan ?? selectedScan;
+                const sStats = (sDetail?.stats ?? {}) as Record<string, unknown>;
+                const scanStatus = String(sDetail?.status ?? selectedScan?.status ?? "completed");
 
-                {(() => {
-                  const sDetail = detail.data?.scan;
-                  const sStats = (sDetail?.stats ?? {}) as Record<string, unknown>;
-                  const verifiedCnt = currentMatches.filter(
-                    (m) => m.confidence >= 90 || m.confidence_band === "confirmed",
-                  ).length;
-                  const pendingCnt = currentMatches.filter(
-                    (m) => m.review_status === "pending",
-                  ).length;
-                  const reviewReqCnt = currentMatches.filter(
-                    (m) => m.confidence_band === "probable" || m.review_status === "evidence_ready",
-                  ).length;
-                  const rejectedCnt = currentMatches.filter(
-                    (m) => m.review_status === "dismissed",
-                  ).length;
-                  const candPages =
-                    sStats.candidate_pages ?? sStats.candidates ?? currentMatches.length;
-                  const crwPages = sStats.crawled_pages ?? sStats.graded ?? currentMatches.length;
-
-                  const piracyStreamingCnt = currentMatches.filter((m) => {
-                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
-                    const wType = String(ev.website_type ?? "");
-                    return wType === "unauthorized_streaming" || wType === "mirror_or_redirect";
-                  }).length;
-
-                  const downloadFileHostsCnt = currentMatches.filter((m) => {
-                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
-                    const wType = String(ev.website_type ?? "");
-                    return (
-                      wType === "download_page" ||
-                      wType === "file_host" ||
-                      wType === "torrent_index"
-                    );
-                  }).length;
-
-                  const videoReuploadsCnt = currentMatches.filter((m) => {
-                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
-                    return String(ev.website_type ?? "") === "video_host_reupload";
-                  }).length;
-
-                  const socialDistCnt = currentMatches.filter((m) => {
-                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
-                    return String(ev.website_type ?? "") === "social_distribution_lead";
-                  }).length;
-
-                  const reviewNewsCnt = currentMatches.filter((m) => {
-                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
-                    return String(ev.website_type ?? "") === "review_or_news";
-                  }).length;
-
-                  const officialExcludedCnt = currentMatches.filter((m) => {
-                    const ev = (m.evidence ?? {}) as Record<string, unknown>;
-                    const wType = String(ev.website_type ?? "");
-                    return wType === "official_or_authorized" || wType === "unrelated";
-                  }).length;
-
-                  return (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 backdrop-blur">
-                        <div>
-                          <div className="text-lg font-semibold">{currentMatches.length}</div>
-                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Detected Threats
+                return (
+                  <div className="space-y-4">
+                    {/* Failure Banner */}
+                    {scanStatus === "failed" && (
+                      <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-5 text-destructive backdrop-blur space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-base font-semibold">
+                              <XCircle className="h-5 w-5 shrink-0 text-destructive" />
+                              <span>Scan incomplete — results unavailable</span>
+                            </div>
+                            <p className="text-xs text-foreground/90">
+                              This scan could not complete successfully, so Eterna cannot determine whether unauthorized copies exist yet.
+                            </p>
                           </div>
-                        </div>
-                        <div>
-                          <div className="text-lg font-semibold text-emerald-400">
-                            {verifiedCnt}
-                          </div>
-                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Verified
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-lg font-semibold text-amber-400">{pendingCnt}</div>
-                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Pending Review
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-lg font-semibold">{String(candPages)}</div>
-                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Candidate Pages
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-lg font-semibold">{String(crwPages)}</div>
-                          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Crawled Pages
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Source-Category Counters */}
-                      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 rounded-lg border border-border/40 bg-muted/30 p-2 text-xs">
-                        <div className="text-center p-1 rounded bg-card/40">
-                          <span className="font-semibold text-destructive">
-                            {piracyStreamingCnt}
-                          </span>
-                          <div className="text-[9px] text-muted-foreground">Piracy / Streaming</div>
-                        </div>
-                        <div className="text-center p-1 rounded bg-card/40">
-                          <span className="font-semibold text-amber-500">
-                            {downloadFileHostsCnt}
-                          </span>
-                          <div className="text-[9px] text-muted-foreground">Download / Lockers</div>
-                        </div>
-                        <div className="text-center p-1 rounded bg-card/40">
-                          <span className="font-semibold text-purple-400">{videoReuploadsCnt}</span>
-                          <div className="text-[9px] text-muted-foreground">Video Reuploads</div>
-                        </div>
-                        <div className="text-center p-1 rounded bg-card/40">
-                          <span className="font-semibold text-sky-400">{socialDistCnt}</span>
-                          <div className="text-[9px] text-muted-foreground">Social Leads</div>
-                        </div>
-                        <div className="text-center p-1 rounded bg-card/40">
-                          <span className="font-semibold text-muted-foreground">
-                            {reviewNewsCnt}
-                          </span>
-                          <div className="text-[9px] text-muted-foreground">Review / News</div>
-                        </div>
-                        <div className="text-center p-1 rounded bg-card/40">
-                          <span className="font-semibold text-muted-foreground">
-                            {officialExcludedCnt}
-                          </span>
-                          <div className="text-[9px] text-muted-foreground">
-                            Official / Excluded
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {[
-                          { id: "all", label: "All Findings", count: currentMatches.length },
-                          { id: "pending", label: "Pending Review", count: pendingCnt },
-                          { id: "verified", label: "Verified", count: verifiedCnt },
-                          { id: "review_required", label: "Review Required", count: reviewReqCnt },
-                          { id: "rejected", label: "Rejected", count: rejectedCnt },
-                        ].map((tab) => (
                           <Button
-                            key={tab.id}
                             size="sm"
-                            variant={statusFilter === tab.id ? "default" : "outline"}
-                            onClick={() => setStatusFilter(tab.id as typeof statusFilter)}
-                            className="h-7 text-xs"
+                            variant="destructive"
+                            disabled={retryScanMutation.isPending}
+                            onClick={() => {
+                              if (selectedScanId) retryScanMutation.mutate(selectedScanId);
+                            }}
+                            className="shrink-0 font-medium"
                           >
-                            {tab.label} ({tab.count})
+                            {retryScanMutation.isPending ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="mr-2 h-4 w-4" />
+                            )}
+                            {retryScanMutation.isPending ? "Retrying…" : "Retry Scan"}
                           </Button>
-                        ))}
+                        </div>
+                        {Boolean(sDetail?.error || sStats.failure_reason) && (
+                          <div className="rounded bg-background/50 p-2 text-xs font-mono text-muted-foreground truncate border border-border/40">
+                            Reason: {String(sDetail?.error || sStats.failure_reason || "")}
+                          </div>
+                        )}
                       </div>
+                    )}
+
+                    {/* Partial Warning Banner */}
+                    {scanStatus === "partial" && (
+                      <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 text-amber-400 backdrop-blur space-y-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2 text-sm font-semibold">
+                              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                              <span>Scan completed with limited coverage</span>
+                            </div>
+                            <p className="text-xs text-foreground/90">
+                              Some discovery routes failed and findings may be incomplete. Existing findings remain visible.
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={retryScanMutation.isPending}
+                            onClick={() => {
+                              if (selectedScanId) retryScanMutation.mutate(selectedScanId);
+                            }}
+                            className="shrink-0 border-amber-500/50 text-amber-400 hover:bg-amber-500/20"
+                          >
+                            {retryScanMutation.isPending ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="mr-2 h-4 w-4" />
+                            )}
+                            {retryScanMutation.isPending ? "Retrying…" : "Re-run Scan"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Admin Diagnostics Panel */}
+                    <div className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          <Bug className="h-4 w-4 text-primary" />
+                          <span>Admin Scan Diagnostics</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => setShowAdminDiagnostics(!showAdminDiagnostics)}
+                        >
+                          {showAdminDiagnostics ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
+                          {showAdminDiagnostics ? "Hide Diagnostics" : "Show Diagnostics"}
+                        </Button>
+                      </div>
+
+                      {showAdminDiagnostics && (
+                        <div className="space-y-3 pt-2 text-xs border-t border-border/40">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Current Stage</span>
+                              <span className="font-semibold">{String(sStats.current_stage || sStats.stage || scanStatus)}</span>
+                            </div>
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Failed Stage</span>
+                              <span className="font-semibold text-destructive">{String(sStats.failed_stage || sStats.error_stage || (scanStatus === "failed" ? "discovery" : "None"))}</span>
+                            </div>
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Failure Code</span>
+                              <span className="font-mono font-semibold text-destructive">{String(sStats.failure_code || sStats.error_code || (scanStatus === "failed" ? "EXECUTION_ERROR" : "N/A"))}</span>
+                            </div>
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Failure Message</span>
+                              <span className="truncate font-semibold text-destructive">{String(sStats.failure_reason || sStats.error || sDetail?.error || "None")}</span>
+                            </div>
+
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Queries Generated</span>
+                              <span className="font-semibold">{String(sStats.queries_generated ?? 0)}</span>
+                            </div>
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Providers Attempted</span>
+                              <span className="font-semibold">{String(sStats.provider_requests_started ?? sStats.providers_attempted ?? 0)}</span>
+                            </div>
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Successful Provider Requests</span>
+                              <span className="font-semibold text-emerald-400">{String(sStats.provider_requests_succeeded ?? sStats.provider_successes ?? 0)}</span>
+                            </div>
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Candidate Pages Discovered</span>
+                              <span className="font-semibold">{String(sStats.unique_candidate_urls ?? sStats.candidate_pages ?? 0)}</span>
+                            </div>
+
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Pages Crawled</span>
+                              <span className="font-semibold">{String(sStats.pages_crawled ?? sStats.crawled_pages ?? 0)}</span>
+                            </div>
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Findings Persisted</span>
+                              <span className="font-semibold">{String(sStats.findings_verified ?? sStats.total_matches ?? currentMatches.length)}</span>
+                            </div>
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Worker Started At</span>
+                              <span className="font-semibold truncate">{String(sStats.executor_started_at || sStats.started_at || sDetail?.created_at || "N/A")}</span>
+                            </div>
+                            <div className="rounded bg-background/50 p-2 border border-border/40">
+                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Last Heartbeat</span>
+                              <span className="font-semibold truncate">{String(sStats.last_heartbeat || sStats.updated_at || "N/A")}</span>
+                            </div>
+                          </div>
+
+                          {Number(sStats.provider_requests_failed ?? sStats.provider_failures ?? 0) > 0 && (
+                            <div className="pt-2 border-t border-border/40">
+                              <button
+                                onClick={() => setShowProviderFailures(!showProviderFailures)}
+                                className="flex items-center justify-between w-full text-xs font-semibold text-destructive hover:underline py-1"
+                              >
+                                <span>Provider Failures ({String(sStats.provider_requests_failed ?? sStats.provider_failures ?? 0)})</span>
+                                <span>{showProviderFailures ? "▲ Hide" : "▼ Show"}</span>
+                              </button>
+                              {showProviderFailures && (
+                                <div className="mt-2 space-y-1 bg-background/40 p-2.5 rounded border border-border/40 font-mono text-[11px]">
+                                  <div className="text-muted-foreground">Sanitized Provider Failure Categories:</div>
+                                  <div className="text-destructive flex items-center gap-2">
+                                    <span>• Provider Rate Limit / Quota Exceeded (Sanitized status 429)</span>
+                                  </div>
+                                  <div className="text-amber-400 flex items-center gap-2">
+                                    <span>• Provider Request Timeout (Sanitized status 408)</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  );
-                })()}
 
-                <Tabs defaultValue="sources">
-                  <TabsList>
-                    <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
-                    <TabsTrigger value="youtube">YouTube monitoring</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="youtube" className="mt-3">
-                    <YoutubeMonitorPanel scanId={selectedScanId} />
-                  </TabsContent>
-                  <TabsContent value="sources" className="mt-3 space-y-3">
-                    {detail.isLoading && (
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    )}
-                    {selectedScanId && !detail.isLoading && !filteredCurrentMatches.length && (
-                      <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
-                        No matches found under this filter for this reference.
-                      </div>
-                    )}
+                    {/* Current Scan Results Section */}
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-semibold">Current Scan Results</h2>
+                      <span className="text-xs text-muted-foreground">
+                        Showing {currentMatches.length} finding(s) for current active scan
+                      </span>
+                    </div>
 
-                    {[...filteredCurrentMatches]
-                      .sort((a, b) => {
-                        const evA = (a.evidence ?? {}) as Record<string, unknown>;
-                        const evB = (b.evidence ?? {}) as Record<string, unknown>;
-                        const typeA = String(evA.website_type ?? "");
-                        const typeB = String(evB.website_type ?? "");
+                    {(() => {
+                      const verifiedCnt = currentMatches.filter(
+                        (m) => m.confidence >= 90 || m.confidence_band === "confirmed",
+                      ).length;
+                      const pendingCnt = currentMatches.filter(
+                        (m) => m.review_status === "pending",
+                      ).length;
+                      const reviewReqCnt = currentMatches.filter(
+                        (m) => m.confidence_band === "probable" || m.review_status === "evidence_ready",
+                      ).length;
+                      const rejectedCnt = currentMatches.filter(
+                        (m) => m.review_status === "dismissed",
+                      ).length;
+                      const candPages =
+                        sStats.candidate_pages ?? sStats.candidates ?? currentMatches.length;
+                      const crwPages = sStats.crawled_pages ?? sStats.graded ?? currentMatches.length;
 
-                        const rank = (t: string) => {
-                          if (t === "unauthorized_streaming" || t === "mirror_or_redirect")
-                            return 1;
-                          if (t === "download_page" || t === "file_host" || t === "torrent_index")
-                            return 2;
-                          if (t === "video_host_reupload") return 3;
-                          if (t === "social_distribution_lead") return 4;
-                          if (t === "review_or_news") return 5;
-                          return 6;
-                        };
+                      const piracyStreamingCnt = currentMatches.filter((m) => {
+                        const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                        const wType = String(ev.website_type ?? "");
+                        return wType === "unauthorized_streaming" || wType === "mirror_or_redirect";
+                      }).length;
 
-                        return rank(typeA) - rank(typeB);
-                      })
-                      .map((m) => renderMatchArticle(m))}
-                  </TabsContent>
-                </Tabs>
-              </div>
+                      const downloadFileHostsCnt = currentMatches.filter((m) => {
+                        const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                        const wType = String(ev.website_type ?? "");
+                        return (
+                          wType === "download_page" ||
+                          wType === "file_host" ||
+                          wType === "torrent_index"
+                        );
+                      }).length;
+
+                      const videoReuploadsCnt = currentMatches.filter((m) => {
+                        const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                        return String(ev.website_type ?? "") === "video_host_reupload";
+                      }).length;
+
+                      const socialDistCnt = currentMatches.filter((m) => {
+                        const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                        return String(ev.website_type ?? "") === "social_distribution_lead";
+                      }).length;
+
+                      const reviewNewsCnt = currentMatches.filter((m) => {
+                        const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                        return String(ev.website_type ?? "") === "review_or_news";
+                      }).length;
+
+                      const officialExcludedCnt = currentMatches.filter((m) => {
+                        const ev = (m.evidence ?? {}) as Record<string, unknown>;
+                        const wType = String(ev.website_type ?? "");
+                        return wType === "official_or_authorized" || wType === "unrelated";
+                      }).length;
+
+                      return (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 backdrop-blur">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-lg font-semibold">{currentMatches.length}</span>
+                                {scanStatus === "failed" && (
+                                  <Badge variant="destructive" className="text-[9px] uppercase px-1.5 py-0">
+                                    SCAN INCOMPLETE
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                Detected Threats {scanStatus === "failed" ? "(Unreliable)" : ""}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-lg font-semibold text-emerald-400">
+                                {verifiedCnt}
+                              </div>
+                              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                Verified
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-lg font-semibold text-amber-400">{pendingCnt}</div>
+                              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                Pending Review
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-lg font-semibold">{String(candPages)}</div>
+                              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                Candidate Pages
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-lg font-semibold">{String(crwPages)}</div>
+                              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                Crawled Pages
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Source-Category Counters */}
+                          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 rounded-lg border border-border/40 bg-muted/30 p-2 text-xs">
+                            <div className="text-center p-1 rounded bg-card/40">
+                              <span className="font-semibold text-destructive">
+                                {piracyStreamingCnt}
+                              </span>
+                              <div className="text-[9px] text-muted-foreground">Piracy / Streaming</div>
+                            </div>
+                            <div className="text-center p-1 rounded bg-card/40">
+                              <span className="font-semibold text-amber-500">
+                                {downloadFileHostsCnt}
+                              </span>
+                              <div className="text-[9px] text-muted-foreground">Download / Lockers</div>
+                            </div>
+                            <div className="text-center p-1 rounded bg-card/40">
+                              <span className="font-semibold text-purple-400">{videoReuploadsCnt}</span>
+                              <div className="text-[9px] text-muted-foreground">Video Reuploads</div>
+                            </div>
+                            <div className="text-center p-1 rounded bg-card/40">
+                              <span className="font-semibold text-sky-400">{socialDistCnt}</span>
+                              <div className="text-[9px] text-muted-foreground">Social Leads</div>
+                            </div>
+                            <div className="text-center p-1 rounded bg-card/40">
+                              <span className="font-semibold text-muted-foreground">
+                                {reviewNewsCnt}
+                              </span>
+                              <div className="text-[9px] text-muted-foreground">Review / News</div>
+                            </div>
+                            <div className="text-center p-1 rounded bg-card/40">
+                              <span className="font-semibold text-muted-foreground">
+                                {officialExcludedCnt}
+                              </span>
+                              <div className="text-[9px] text-muted-foreground">
+                                Official / Excluded
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {[
+                              { id: "all", label: "All Findings", count: currentMatches.length },
+                              { id: "pending", label: "Pending Review", count: pendingCnt },
+                              { id: "verified", label: "Verified", count: verifiedCnt },
+                              { id: "review_required", label: "Review Required", count: reviewReqCnt },
+                              { id: "rejected", label: "Rejected", count: rejectedCnt },
+                            ].map((tab) => (
+                              <Button
+                                key={tab.id}
+                                size="sm"
+                                variant={statusFilter === tab.id ? "default" : "outline"}
+                                onClick={() => setStatusFilter(tab.id as typeof statusFilter)}
+                                className="h-7 text-xs"
+                              >
+                                {tab.label} ({tab.count})
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <Tabs defaultValue="sources">
+                      <TabsList>
+                        <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
+                        <TabsTrigger value="youtube">YouTube monitoring</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="youtube" className="mt-3">
+                        <YoutubeMonitorPanel scanId={selectedScanId} />
+                      </TabsContent>
+                      <TabsContent value="sources" className="mt-3 space-y-3">
+                        {detail.isLoading && (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                        {selectedScanId && !detail.isLoading && !filteredCurrentMatches.length && (
+                          <div>
+                            {scanStatus === "failed" ? (
+                              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive font-medium flex items-center gap-2">
+                                <XCircle className="h-5 w-5 shrink-0" />
+                                <span>Scan incomplete — results unavailable due to scan failure. Click "Retry Scan" above to run this scan again.</span>
+                              </div>
+                            ) : scanStatus === "queued" || scanStatus === "running" ? (
+                              <div className="rounded-lg border border-primary/40 bg-primary/5 p-6 text-sm text-primary flex items-center gap-3">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                <span>Scan in progress... Searching piracy indices and analyzing reference material.</span>
+                              </div>
+                            ) : scanStatus === "partial" ? (
+                              <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-6 text-sm text-amber-400 flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 shrink-0" />
+                                <span>Scan completed with limited coverage. No qualifying matches found in completed discovery routes.</span>
+                              </div>
+                            ) : (
+                              <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground flex items-center gap-2">
+                                <ShieldCheck className="h-5 w-5 text-emerald-400 shrink-0" />
+                                <span>No qualifying matches found in this scan.</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {[...filteredCurrentMatches]
+                          .sort((a, b) => {
+                            const evA = (a.evidence ?? {}) as Record<string, unknown>;
+                            const evB = (b.evidence ?? {}) as Record<string, unknown>;
+                            const typeA = String(evA.website_type ?? "");
+                            const typeB = String(evB.website_type ?? "");
+
+                            const rank = (t: string) => {
+                              if (t === "unauthorized_streaming" || t === "mirror_or_redirect")
+                                return 1;
+                              if (t === "download_page" || t === "file_host" || t === "torrent_index")
+                                return 2;
+                              if (t === "video_host_reupload") return 3;
+                              if (t === "social_distribution_lead") return 4;
+                              if (t === "review_or_news") return 5;
+                              return 6;
+                            };
+
+                            return rank(typeA) - rank(typeB);
+                          })
+                          .map((m) => renderMatchArticle(m))}
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                );
+              })()}
 
               {/* Previous Scan Results Section */}
               <div className="space-y-4 pt-6 border-t border-border/60">

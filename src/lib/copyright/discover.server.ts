@@ -103,6 +103,7 @@ export async function analyzeReference(
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: getAiGatewayHeaders(key),
+      signal: AbortSignal.timeout(10_000),
       body: JSON.stringify({
         model: "google/gemini-3.6-flash",
         messages: [
