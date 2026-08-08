@@ -32,7 +32,7 @@ export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
       text,
     ) ||
     hit.source?.toLowerCase().includes("vevo") ||
-    /official|vevo|records|label|studios|entertainment|pictures|films|music|media|television|broadcasting|channel|productions/i.test(
+    /\b(official|vevo|records|label|studios|entertainment|pictures|films|music|television|broadcasting|productions)\b/i.test(
       author,
     )
   ) {
@@ -241,24 +241,71 @@ export function calculateThreatRankingScore(hit: ScanHit): number {
   return score;
 }
 
+export function clampRisk(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 /**
- * Sorts hits deterministically by threat ranking score descending.
+ * Computes a normalized 0-100 threat score for an individual hit.
+ * 0 = low/no risk (official content, neutral mention)
+ * 100 = critical threat
+ */
+export function calculateNormalizedThreatScore(hit: ScanHit): number {
+  const cat = canonicalCategoryFor(hit);
+  if (cat === "official_content" || cat === "unrelated" || isHarmlessOrOfficial(hit)) {
+    return 0;
+  }
+
+  const sevWeight: Record<Severity, number> = {
+    Critical: 90,
+    High: 70,
+    Medium: 45,
+    Low: 15,
+  };
+  const baseSev = sevWeight[hit.severity] ?? 15;
+
+  const catMultiplier: Record<CanonicalThreatCategory, number> = {
+    defamation: 1.0,
+    deepfake: 1.0,
+    copyright_infringement: 0.85,
+    impersonation: 0.9,
+    scam_or_fraud: 0.95,
+    harassment_or_abuse: 0.85,
+    privacy_or_leak: 0.9,
+    misinformation: 0.7,
+    negative_media: 0.6,
+    neutral_mention: 0,
+    official_content: 0,
+    unrelated: 0,
+  };
+  const mult = catMultiplier[cat] ?? 0.5;
+  const sentBonus = hit.sentiment === "Negative" ? 10 : hit.sentiment === "Neutral" ? 0 : -10;
+  const viralityBonus = Math.min(10, Math.round((hit.viralityScore ?? 0) * 0.1));
+
+  return clampRisk(baseSev * mult + sentBonus + viralityBonus);
+}
+
+/**
+ * Sorts hits deterministically by threat ranking score descending without mutating threatScore to unbounded values.
  */
 export function sortScanHitsByThreat(hits: ScanHit[]): ScanHit[] {
-  // Normalize hit classification & ranking_score
+  // Normalize hit classification & keep threatScore bounded 0-100
   for (const h of hits) {
     const cat = canonicalCategoryFor(h);
     if (cat === "official_content") {
       h.severity = "Low";
       h.category = "Mention";
       h.contentLabel = "Neutral mention";
+      h.threatScore = 0;
+    } else {
+      h.threatScore = clampRisk(h.threatScore ?? calculateNormalizedThreatScore(h));
     }
-    h.threatScore = calculateThreatRankingScore(h);
   }
 
   return [...hits].sort((a, b) => {
-    const scoreA = a.threatScore ?? calculateThreatRankingScore(a);
-    const scoreB = b.threatScore ?? calculateThreatRankingScore(b);
+    const scoreA = calculateThreatRankingScore(a);
+    const scoreB = calculateThreatRankingScore(b);
     if (scoreB !== scoreA) return scoreB - scoreA;
 
     // Tie-breaker: recency

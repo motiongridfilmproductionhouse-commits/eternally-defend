@@ -122,16 +122,18 @@ const sentimentColor = (s: Sentiment) =>
       ? "oklch(0.68 0.16 155)"
       : "oklch(0.55 0.03 275)";
 
-const scoreColor = (v: number) =>
-  v >= 75
-    ? "oklch(0.68 0.16 155)"
-    : v >= 60
-      ? "oklch(0.75 0.14 90)"
-      : v >= 40
-        ? "oklch(0.7 0.18 55)"
-        : v >= 20
-          ? "oklch(0.65 0.22 35)"
-          : "oklch(0.55 0.24 25)";
+const scoreColor = (v: number | null | undefined) =>
+  v === null || v === undefined || !Number.isFinite(v)
+    ? "oklch(0.55 0.03 275)"
+    : v >= 75
+      ? "oklch(0.68 0.16 155)"
+      : v >= 60
+        ? "oklch(0.75 0.14 90)"
+        : v >= 40
+          ? "oklch(0.7 0.18 55)"
+          : v >= 20
+            ? "oklch(0.65 0.22 35)"
+            : "oklch(0.55 0.24 25)";
 
 function fmt(n: number) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -166,8 +168,8 @@ interface FcDiscoveryDiag {
   ytWebQueries?: number;
   expandedTermsUsed?: string[];
 }
-interface ReportWithDiagnostics extends ReputationReport {
-  diagnostics?: {
+interface ReportWithDiagnostics extends Omit<ReputationReport, "diagnostics"> {
+  diagnostics?: ReputationReport["diagnostics"] & {
     youtube?: YtDiag;
     firecrawlDiscovery?: FcDiscoveryDiag;
     sourceCounts?: Record<string, number>;
@@ -823,7 +825,9 @@ function ScanPage() {
                 className="mt-2 text-6xl font-display font-black"
                 style={{ color: scoreColor(report.reputationScore) }}
               >
-                {report.reputationScore}
+                {report.reputationScore !== null && report.reputationScore !== undefined
+                  ? report.reputationScore
+                  : "—"}
               </div>
               <div
                 className="text-sm font-semibold"
@@ -835,25 +839,28 @@ function ScanPage() {
                 Period: {report.period} · {report.totals.unique} results
               </div>
               <div className="mt-4 space-y-2">
-                {report.scoreBreakdown.map((b) => (
-                  <button
-                    key={b.key}
-                    type="button"
-                    onClick={() => handleMetricClick("category", b.key)}
-                    className="w-full text-left cursor-pointer hover:opacity-80 transition group"
-                  >
-                    <div className="flex justify-between text-[11px]">
-                      <span className="group-hover:underline">{b.label}</span>
-                      <span className="font-semibold">{b.value}/100</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${b.value}%`, background: scoreColor(100 - b.value) }}
-                      />
-                    </div>
-                  </button>
-                ))}
+                {report.scoreBreakdown.map((b) => {
+                  const safeVal = Math.max(0, Math.min(100, Math.round(b.value)));
+                  return (
+                    <button
+                      key={b.key}
+                      type="button"
+                      onClick={() => handleMetricClick("category", b.key)}
+                      className="w-full text-left cursor-pointer hover:opacity-80 transition group"
+                    >
+                      <div className="flex justify-between text-[11px]">
+                        <span className="group-hover:underline">{b.label}</span>
+                        <span className="font-semibold">{safeVal}/100</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${safeVal}%`, background: scoreColor(100 - safeVal) }}
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

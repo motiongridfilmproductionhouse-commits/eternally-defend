@@ -5,6 +5,8 @@ import {
   isHarmlessOrOfficial,
   logRankingDiagnostics,
   canonicalCategoryFor,
+  clampRisk,
+  calculateNormalizedThreatScore,
 } from "@/lib/reputation/ranking.server";
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -222,9 +224,20 @@ export interface ReputationReport {
     avgThreat: number;
     totalReach: number;
   };
-  reputationScore: number;
+  reputationScore: number | null;
   reputationLevel: string;
   scoreBreakdown: { key: string; label: string; value: number }[];
+  diagnostics?: {
+    reputationScore: number | null;
+    confidence: number;
+    coverageState: "high" | "moderate" | "limited";
+    riskDimensions: Record<string, number>;
+    data: {
+      findings: number;
+      platforms: number;
+      domains: number;
+    };
+  };
   executiveSummary: {
     headline: string;
     mostDamagingTopic: string;
@@ -2839,18 +2852,15 @@ function buildReport(
   const avgThreat = hits.length
     ? Math.round(hits.reduce((a, h) => a + h.threatScore, 0) / hits.length)
     : 0;
-
   // ── Buckets ───────────────────────────────────────────────────────────────
   const byWindow = (w: FreshnessWindow) => hits.filter((h) => h.freshnessWindow === w);
   const byCat = (...cats: Category[]) => hits.filter((h) => cats.includes(h.category));
 
   const buckets = {
-    // Time-window buckets — primary discovery view
     breaking: byWindow("24h"),
     recent3d: byWindow("3d"),
     recent7d: byWindow("7d"),
     recent30d: byWindow("30d"),
-    // Risk category buckets
     critical,
     high,
     highRisk: hits.filter((h) => h.severity === "Critical" || h.severity === "High"),
@@ -2864,7 +2874,6 @@ function buildReport(
     impersonation: byCat("Impersonation", "Fake Endorsement"),
     harassment: byCat("Harassment"),
     legal: byCat("Legal Dispute"),
-    // Source buckets
     news: hits.filter((h) => h.source === "News"),
     youtube: hits.filter((h) => h.source === "YouTube"),
     reddit: hits.filter((h) => h.source === "Reddit"),
@@ -2875,159 +2884,165 @@ function buildReport(
     duplicates,
   };
 
-  // ── Calibrated observed-risk score ────────────────────────────────────────
-  // This is an evidence-based risk index, not a popularity score. Missing
-  // platform metrics never become invented reach or engagement.
-  const risk = (arr: ScanHit[]) =>
-    arr.length ? Math.round(arr.reduce((a, h) => a + h.threatScore, 0) / arr.length) : 0;
+  // ── Canonical Source & Domain Normalization ────────────────────────────────
+  const extractDomainOrPublisher = (h: ScanHit): string => {
+    if (h.source === "YouTube" || h.media?.videoId) {
+      return h.author || h.media?.channelTitle || h.media?.channelId || "youtube.com";
+    }
+    try {
+      const u = new URL(h.url);
+      return u.hostname.replace(/^www\./, "");
+    } catch {
+      return h.source || "unknown";
+    }
+  };
+
+  const extractCanonicalSourceCategory = (h: ScanHit): string => {
+    const url = (h.url || "").toLowerCase();
+    const src = (h.source || "").toLowerCase();
+    if (src === "youtube" || url.includes("youtube.com") || url.includes("youtu.be") || h.media?.videoId)
+      return "YouTube";
+    if (src === "reddit" || url.includes("reddit.com")) return "Reddit";
+    if (
+      src === "news" ||
+      /(news|times|post|herald|tribune|journal|gazette|reuters|apnews|bloomberg|manorama|asianet)/i.test(url)
+    )
+      return "News";
+    if (src === "facebook" || url.includes("facebook.com")) return "Facebook";
+    if (src === "instagram" || url.includes("instagram.com")) return "Instagram";
+    if (src === "tiktok" || url.includes("tiktok.com")) return "TikTok";
+    if (src === "x" || url.includes("twitter.com") || url.includes("x.com")) return "X";
+    if (src === "archive" || url.includes("archive.org")) return "Archive";
+    return "Web";
+  };
+
+  const uniqueSourceDomains = new Set(hits.map(extractDomainOrPublisher)).size;
+  const sourceCategoriesSet = new Set(hits.map(extractCanonicalSourceCategory));
+  const sourceCategoriesCount = sourceCategoriesSet.size;
+
+  // ── Calibrated Bounded Risk Breakdown ─────────────────────────────────────
+  const calculateDimensionRisk = (dimensionHits: ScanHit[]): number => {
+    if (!dimensionHits.length) return 0;
+    const threatHits = dimensionHits.filter((h) => !isHarmlessOrOfficial(h));
+    if (!threatHits.length) return 0;
+
+    const riskSum = threatHits.reduce((acc, h) => {
+      const threatVal = clampRisk(h.threatScore ?? calculateNormalizedThreatScore(h));
+      return acc + threatVal;
+    }, 0);
+
+    const meanRisk = riskSum / threatHits.length;
+    const volumeMult = 1 + Math.min(0.35, Math.log10(threatHits.length) * 0.15);
+    return clampRisk(meanRisk * volumeMult);
+  };
+
+  const legalHits = hits.filter((h) => {
+    const cat = canonicalCategoryFor(h);
+    return (
+      cat === "defamation" ||
+      cat === "copyright_infringement" ||
+      cat === "harassment_or_abuse" ||
+      cat === "privacy_or_leak" ||
+      cat === "scam_or_fraud" ||
+      h.category === "Legal Dispute" ||
+      /(lawsuit|court proceeding|regulatory action|criminal allegation|formal investigation|legal notice|legal dispute)/i.test(
+        `${h.title} ${h.description} ${h.contentLabel}`,
+      )
+    );
+  });
+
   const scoreBreakdown = [
-    { key: "news", label: "News Risk", value: risk(buckets.news) },
+    {
+      key: "news",
+      label: "News Risk",
+      value: calculateDimensionRisk(hits.filter((h) => extractCanonicalSourceCategory(h) === "News")),
+    },
     {
       key: "social",
       label: "Social Media Risk",
-      value: risk([
-        ...buckets.facebook,
-        ...buckets.instagram,
-        ...hits.filter((h) => h.source === "X" || h.source === "TikTok"),
-      ]),
+      value: calculateDimensionRisk(
+        hits.filter((h) =>
+          ["Facebook", "Instagram", "TikTok", "X"].includes(extractCanonicalSourceCategory(h)),
+        ),
+      ),
     },
-    { key: "youtube", label: "YouTube Risk", value: risk(buckets.youtube) },
-    { key: "reddit", label: "Reddit Risk", value: risk(buckets.reddit) },
-    { key: "impersonation", label: "Impersonation Risk", value: risk(buckets.impersonation) },
-    { key: "deepfake", label: "Deepfake Risk", value: risk(buckets.deepfake) },
-    { key: "legal", label: "Legal Risk", value: risk(buckets.legal) },
+    {
+      key: "youtube",
+      label: "YouTube Risk",
+      value: calculateDimensionRisk(hits.filter((h) => extractCanonicalSourceCategory(h) === "YouTube")),
+    },
+    {
+      key: "reddit",
+      label: "Reddit Risk",
+      value: calculateDimensionRisk(hits.filter((h) => extractCanonicalSourceCategory(h) === "Reddit")),
+    },
+    {
+      key: "impersonation",
+      label: "Impersonation Risk",
+      value: calculateDimensionRisk(hits.filter((h) => canonicalCategoryFor(h) === "impersonation")),
+    },
+    {
+      key: "deepfake",
+      label: "Deepfake Risk",
+      value: calculateDimensionRisk(hits.filter((h) => canonicalCategoryFor(h) === "deepfake")),
+    },
+    { key: "legal", label: "Legal Risk", value: calculateDimensionRisk(legalHits) },
     {
       key: "virality",
       label: "Virality Risk",
       value: hits.length
-        ? Math.round(hits.reduce((a, h) => a + h.viralityScore, 0) / hits.length)
+        ? clampRisk(Math.round(hits.reduce((a, h) => a + (h.viralityScore ?? 0), 0) / hits.length))
         : 0,
     },
   ];
 
-  const severityFactor: Record<Severity, number> = {
-    Critical: 1,
-    High: 0.74,
-    Medium: 0.42,
-    Low: 0.16,
-  };
-  const categoryFactor: Partial<Record<Category, number>> = {
-    Deepfake: 1,
-    Defamation: 1,
-    Leak: 0.96,
-    Impersonation: 0.92,
-    "Fake Endorsement": 0.88,
-    Harassment: 0.86,
-    "Legal Dispute": 0.84,
-    Allegation: 0.72,
-    Exposé: 0.68,
-    Boycott: 0.62,
-    Controversy: 0.58,
-    Criticism: 0.38,
-    Complaint: 0.36,
-    Copyright: 0.3,
-    "Reaction/Reupload": 0.24,
-    Viral: 0.22,
-    News: 0.14,
-    Review: 0.12,
-    Mention: 0.08,
-  };
-  const sourceCredibility: Record<string, number> = {
-    News: 1,
-    YouTube: 0.78,
-    Reddit: 0.58,
-    Facebook: 0.62,
-    Instagram: 0.62,
-    X: 0.6,
-    TikTok: 0.56,
-    Web: 0.68,
-  };
+  // ── Overall Reputation Score & Coverage State ──────────────────────────────
+  const activeThreatHits = hits.filter((h) => !isHarmlessOrOfficial(h));
+  const overallRisk = activeThreatHits.length
+    ? clampRisk(
+        calculateDimensionRisk(activeThreatHits) * 0.7 +
+          Math.min(15, critical.length * 5) +
+          Math.min(15, Math.log10(activeThreatHits.length + 1) * 6),
+      )
+    : 0;
 
-  const hitRisks = hits
-    .map((h) => {
-      const age = ageDaysOf(h.published);
-      const recency =
-        age < 0
-          ? 0.55
-          : age <= 3
-            ? 1
-            : age <= 7
-              ? 0.9
-              : age <= 30
-                ? 0.76
-                : age <= 180
-                  ? 0.58
-                  : 0.42;
-      const sourceWeight = sourceCredibility[h.source] ?? 0.62;
-      const verifiedReach =
-        h.reachEstimate > 0 ? Math.min(1, Math.log10(h.reachEstimate + 1) / 7) : 0;
-      const sentiment = h.sentiment === "Negative" ? 1 : h.sentiment === "Neutral" ? 0.78 : 0.42;
-      const severity = severityFactor[h.severity] ?? 0.16;
-      const category = categoryFactor[h.category] ?? 0.18;
-      return Math.min(
-        100,
-        100 *
-          severity *
-          category *
-          sentiment *
-          (0.56 + 0.2 * recency + 0.16 * sourceWeight + 0.08 * verifiedReach),
-      );
-    })
-    .sort((a, b) => b - a);
-
-  // Diminishing weights prevent hundreds of copied/reposted stories from
-  // overwhelming a few independently verified high-risk findings.
-  const topRisks = hitRisks.slice(0, 30);
-  let weightedTotal = 0;
-  let weightTotal = 0;
-  topRisks.forEach((value, index) => {
-    const weight = 1 / Math.sqrt(index + 1);
-    weightedTotal += value * weight;
-    weightTotal += weight;
-  });
-  const evidenceRisk = weightTotal ? weightedTotal / weightTotal : 0;
-  const volumePressure = Math.min(16, Math.log2(hits.length + 1) * 2.8);
-  const criticalPressure = Math.min(14, critical.length * 4);
-  const observedRisk = Math.min(100, evidenceRisk * 0.76 + volumePressure + criticalPressure);
+  let coverageState: "high" | "moderate" | "limited" = "limited";
+  if (hits.length >= 30 && (sourceCategoriesCount >= 3 || uniqueSourceDomains >= 8)) {
+    coverageState = "high";
+  } else if (hits.length >= 10 && (sourceCategoriesCount >= 2 || uniqueSourceDomains >= 3)) {
+    coverageState = "moderate";
+  } else if (hits.length >= 40) {
+    coverageState = "moderate";
+  }
 
   const datedCount = hits.filter((h) => Boolean(h.published)).length;
   const metricCount = hits.filter((h) => h.reachEstimate > 0).length;
-  const sourceCount = new Set(hits.map((h) => h.source)).size;
   const coverageConfidence = hits.length
-    ? Math.round(
-        Math.min(
-          100,
-          Math.min(1, hits.length / 50) * 35 +
-            Math.min(1, sourceCount / 6) * 30 +
-            (datedCount / hits.length) * 20 +
-            (metricCount / hits.length) * 15,
-        ),
+    ? clampRisk(
+        Math.min(1, hits.length / 50) * 35 +
+          Math.min(1, sourceCategoriesCount / 4) * 25 +
+          Math.min(1, uniqueSourceDomains / 10) * 20 +
+          (datedCount / hits.length) * 10 +
+          (metricCount / hits.length) * 10,
       )
     : 0;
-  /*
-   * Do not convert weak discovery coverage into an artificially high
-   * reputation score. A small result set from only one source cannot
-   * reliably represent a person's overall online reputation.
-   */
-  const hasReliableCoverage = hits.length >= 20 && sourceCount >= 3 && coverageConfidence >= 60;
 
-  const reputationScore = hasReliableCoverage
-    ? Math.max(0, Math.min(100, Math.round(100 - observedRisk)))
-    : 50;
+  const reputationScore = hits.length >= 3 ? clampRisk(100 - overallRisk) : null;
 
-  const reputationLevel = !hasReliableCoverage
-    ? "Insufficient Data"
-    : reputationScore >= 90
-      ? "Excellent"
-      : reputationScore >= 75
-        ? "Strong"
-        : reputationScore >= 60
-          ? "Stable"
-          : reputationScore >= 40
-            ? "At Risk"
-            : reputationScore >= 20
-              ? "High Risk"
-              : "Critical";
+  const reputationLevel =
+    reputationScore === null
+      ? "Insufficient Data"
+      : reputationScore >= 90
+        ? "Excellent"
+        : reputationScore >= 75
+          ? "Strong"
+          : reputationScore >= 60
+            ? "Stable"
+            : reputationScore >= 40
+              ? "At Risk"
+              : reputationScore >= 20
+                ? "High Risk"
+                : "Critical";
 
   // ── Executive summary ─────────────────────────────────────────────────────
   const topicCounts = new Map<Category, number>();
@@ -3074,29 +3089,75 @@ function buildReport(
   if (!immediateActions.length)
     immediateActions.push("Continue monitoring; no critical action required");
 
-  // Diagnostic warning when summary metrics exceed rendered row counts
-  const renderedCriticalCount = hits.filter(
-    (h) => h.severity === "Critical" && !isHarmlessOrOfficial(h),
-  ).length;
-  const renderedHighCount = hits.filter(
-    (h) => h.severity === "High" && !isHarmlessOrOfficial(h),
-  ).length;
-  const renderedBreakingCount = buckets.breaking.length;
-
-  if (
-    critical.length > renderedCriticalCount ||
-    high.length > renderedHighCount ||
-    buckets.breaking.length > renderedBreakingCount
-  ) {
-    console.warn(`[scan:diagnostic] ⚠ Diagnostic warning: summary metric discrepancy detected!`, {
-      summaryCritical: critical.length,
-      renderedCritical: renderedCriticalCount,
-      summaryHigh: high.length,
-      renderedHigh: renderedHighCount,
-      summaryBreaking: buckets.breaking.length,
-      renderedBreaking: renderedBreakingCount,
-    });
+  let headline = "";
+  if (hits.length >= 3) {
+    if (sourceCategoriesCount === 1 && hits.length >= 15) {
+      headline = `High-volume reputation activity detected, concentrated primarily on ${[...sourceCategoriesSet][0]}. Source diversity is limited (${uniqueSourceDomains} domain/channel source${uniqueSourceDomains !== 1 ? "s" : ""}), so cross-platform reputation score has moderate confidence (${coverageConfidence}%).`;
+    } else {
+      headline = `${reputationLevel} reputation score (${reputationScore}/100, ${coverageConfidence}% coverage confidence) · ${critical.length} critical, ${high.length} high-priority across ${uniqueSourceDomains} domain/channel source${uniqueSourceDomains !== 1 ? "s" : ""} (${sourceCategoriesCount} platform category${sourceCategoriesCount !== 1 ? "s" : ""}) · ${buckets.breaking.length} breaking (last 24h).`;
+    }
+  } else {
+    headline = `Insufficient coverage for a reliable overall reputation score · ${hits.length} result${hits.length !== 1 ? "s" : ""} · ${coverageConfidence}% coverage confidence. Continue discovery before making a reputation assessment.`;
   }
+
+  // Diagnostics logging
+  console.log("[reputation-score:inputs]", {
+    totalFindings: hits.length,
+    credibleFindings: activeThreatHits.length,
+    sourceCategories: sourceCategoriesCount,
+    uniqueDomains: uniqueSourceDomains,
+    youtubeCount: hits.filter((h) => extractCanonicalSourceCategory(h) === "YouTube").length,
+    newsCount: hits.filter((h) => extractCanonicalSourceCategory(h) === "News").length,
+    socialCount: hits.filter((h) =>
+      ["Facebook", "Instagram", "TikTok", "X"].includes(extractCanonicalSourceCategory(h)),
+    ).length,
+    webCount: hits.filter((h) => extractCanonicalSourceCategory(h) === "Web").length,
+    negativeCount: negative.length,
+    neutralCount: hits.length - negative.length,
+    highRiskCount: high.length,
+    criticalCount: critical.length,
+    viralCount: viral.length,
+  });
+
+  console.log("[reputation-score:risk]", {
+    youtubeNormalized: scoreBreakdown.find((b) => b.key === "youtube")?.value ?? 0,
+    legalNormalized: scoreBreakdown.find((b) => b.key === "legal")?.value ?? 0,
+    viralityNormalized: scoreBreakdown.find((b) => b.key === "virality")?.value ?? 0,
+    overallRisk,
+  });
+
+  console.log("[reputation-score:coverage]", {
+    volumeScore: Math.min(1, hits.length / 50) * 35,
+    diversityScore: Math.min(1, sourceCategoriesCount / 4) * 25,
+    domainScore: Math.min(1, uniqueSourceDomains / 10) * 20,
+    recencyScore: (datedCount / (hits.length || 1)) * 10,
+    coverageConfidence,
+    coverageState,
+  });
+
+  console.log("[reputation-score:final]", {
+    overallRisk,
+    reputationScore,
+    confidence: coverageConfidence,
+  });
+
+  const diagnostics = {
+    reputationScore,
+    confidence: coverageConfidence,
+    coverageState,
+    riskDimensions: {
+      youtube: scoreBreakdown.find((b) => b.key === "youtube")?.value ?? 0,
+      news: scoreBreakdown.find((b) => b.key === "news")?.value ?? 0,
+      social: scoreBreakdown.find((b) => b.key === "social")?.value ?? 0,
+      legal: scoreBreakdown.find((b) => b.key === "legal")?.value ?? 0,
+      virality: scoreBreakdown.find((b) => b.key === "virality")?.value ?? 0,
+    },
+    data: {
+      findings: hits.length,
+      platforms: sourceCategoriesCount,
+      domains: uniqueSourceDomains,
+    },
+  };
 
   return {
     ok: !err,
@@ -3122,10 +3183,9 @@ function buildReport(
     reputationScore,
     reputationLevel,
     scoreBreakdown,
+    diagnostics,
     executiveSummary: {
-      headline: hasReliableCoverage
-        ? `${reputationLevel} observed reputation risk (${reputationScore}/100, ${coverageConfidence}% coverage confidence) · ${critical.length} critical, ${high.length} high-priority across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${buckets.breaking.length} breaking (last 24h).`
-        : `Insufficient coverage for a reliable overall reputation score · ${hits.length} results across ${sourcesReturned.size} source${sourcesReturned.size !== 1 ? "s" : ""} · ${coverageConfidence}% coverage confidence. Continue discovery before making a reputation assessment.`,
+      headline,
       mostDamagingTopic,
       mostInfluentialSource,
       fastestGrowing,
