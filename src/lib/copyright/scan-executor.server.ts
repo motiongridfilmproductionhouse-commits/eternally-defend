@@ -39,6 +39,7 @@ import {
 } from "@/lib/copyright/fingerprint.server";
 import { fetchImageBytes, sha256Hex } from "@/lib/aws/s3.server";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
+import { assessLeadRelevance } from "@/lib/copyright/content-relevance";
 import {
   CopyrightScanTracker,
   resolveTerminalStatus,
