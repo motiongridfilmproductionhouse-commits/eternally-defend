@@ -58,6 +58,18 @@ describe("Strict Movie Identity & Evidence Verification", () => {
     assert.strictEqual(res.status, "DIFFERENT_WORK");
   });
 
+  it("rejects candidate where search result says Thudakkam but final destination is another movie", () => {
+    const res = verifyMoviePrintCandidate({
+      url: "https://piracy.example/search?q=Thudakkam",
+      finalUrl: "https://piracy.example/avatar-2-full-movie-hd",
+      pageTitle: "Avatar 2 Full Movie Watch Online Free",
+      workTitle: "Thudakkam",
+      confidence: 80,
+    });
+    assert.strictEqual(res.clientVisible, false);
+    assert.strictEqual(res.status, "DIFFERENT_WORK");
+  });
+
   it("rejects REJECTED_PROMOTIONAL (e.g. Thudakkam Official Trailer)", () => {
     const res = verifyMoviePrintCandidate({
       url: "https://youtube.com/watch?v=12345",
@@ -80,7 +92,7 @@ describe("Strict Movie Identity & Evidence Verification", () => {
     assert.strictEqual(res.status, "DIFFERENT_WORK");
   });
 
-  it("accepts VERIFIED_MOVIE_COPY for confirmed matching full movie distribution page", () => {
+  it("accepts genuine Thudakkam full-movie page as VERIFIED_MOVIE_COPY", () => {
     const res = verifyMoviePrintCandidate({
       url: "https://movierulz.example/thudakkam-2026-full-movie-watch-online",
       finalUrl: "https://movierulz.example/thudakkam-2026-full-movie-watch-online",
@@ -95,5 +107,9 @@ describe("Strict Movie Identity & Evidence Verification", () => {
     assert.strictEqual(res.clientVisible, true);
     assert.strictEqual(res.status, "VERIFIED_MOVIE_COPY");
     assert.strictEqual(res.score, 94);
+    assert.notStrictEqual(res.diagnostics, undefined);
+    assert.strictEqual(res.diagnostics.protected_movie_title, "Thudakkam");
+    assert.strictEqual(res.diagnostics.identity_match, true);
+    assert.strictEqual(res.diagnostics.distribution_signal, true);
   });
 });

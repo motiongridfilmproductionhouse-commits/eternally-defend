@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
+import { CandidateDiagnosticsPanel } from "@/components/copyright/CandidateDiagnosticsPanel";
 import { isExcludedHost } from "@/lib/copyright/url.server";
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
@@ -1115,6 +1116,11 @@ function CopyrightIntelPage() {
                               )}
                             </div>
                           )}
+
+                          <CandidateDiagnosticsPanel
+                            matches={(detail.data?.matches ?? []) as Array<Record<string, unknown>>}
+                            stats={sStats}
+                          />
                         </div>
                       )}
                     </div>

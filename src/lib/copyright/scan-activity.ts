@@ -529,15 +529,21 @@ export function resolveCopyrightThreatBadge(input: {
   if (potential >= 1) {
     return { tone: "potential", label: "VERIFYING THREATS" };
   }
-  const curStage = String(stats.current_stage || stats.stage || "");
-  if (curStage === "retrieving_pages" || curStage === "checking_access" || curStage === "analyzing_visual") {
+  const curStage = String(stats.current_stage || stats.stage || "").toLowerCase();
+  if (curStage === "page_crawl" || curStage === "retrieving_pages" || curStage === "checking_access" || curStage === "analyzing_visual") {
     return { tone: "purple" as const, label: "ANALYZING CANDIDATES" };
   }
   if (curStage === "classifying_evidence" || curStage === "verifying") {
-    return { tone: "potential", label: "VERIFYING THREATS" };
+    return { tone: "potential" as const, label: "VERIFYING THREATS" };
   }
-  if (curStage === "saving_report") {
+  if (curStage === "saving_report" || curStage === "finalizing") {
     return { tone: "purple" as const, label: "FINALIZING RESULTS" };
+  }
+  if (curStage === "preparing_reference") {
+    return { tone: "scanning" as const, label: "PREPARING REFERENCE" };
+  }
+  if (curStage === "generating_queries" || curStage === "discovering" || curStage === "searching_web") {
+    return { tone: "scanning" as const, label: "SEARCHING PIRACY INDICES" };
   }
   if (status === "completed") {
     return { tone: "no_threat" as const, label: "SCAN COMPLETED" };
