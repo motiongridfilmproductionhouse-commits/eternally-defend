@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShieldHalf } from "lucide-react";
+import { ShieldHalf, Lock } from "lucide-react";
+import { isPublicSignupEnabled } from "@/lib/auth-config";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -27,6 +28,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const signupAllowed = isPublicSignupEnabled();
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -47,6 +49,10 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
+        if (!isPublicSignupEnabled()) {
+          setError("New registrations are temporarily closed.");
+          return;
+        }
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -75,6 +81,10 @@ function AuthPage() {
 
   const handleGoogle = async () => {
     setError(null);
+    if (mode === "signup" && !isPublicSignupEnabled()) {
+      setError("New registrations are temporarily closed.");
+      return;
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth` },
@@ -141,69 +151,102 @@ function AuthPage() {
             <div className="font-display font-bold text-lg">Eterna AI</div>
           </div>
 
-          <div>
-            <h2 className="font-display font-bold text-3xl tracking-tight">
-              {mode === "signin" ? "Welcome back" : "Create account"}
-            </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {mode === "signin"
-                ? "Sign in to your Eterna AI workspace."
-                : "Get started with your Eterna AI workspace."}
-            </p>
-          </div>
+          {mode === "signup" && !signupAllowed ? (
+            /* Professional Closed Registration Card */
+            <div className="space-y-6 text-center py-4">
+              <div className="size-14 rounded-2xl grid place-items-center bg-primary/10 text-primary mx-auto">
+                <Lock className="size-7" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="font-display font-bold text-2xl tracking-tight">
+                  New registrations are temporarily closed.
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  ETERNA is currently available to approved clients and partners.
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="w-full h-11 text-base font-semibold"
+                style={{ background: "linear-gradient(90deg, #2563EB, #3B82F6)" }}
+                onClick={() => setMode("signin")}
+              >
+                Back to Sign In
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div>
+                <h2 className="font-display font-bold text-3xl tracking-tight">
+                  {mode === "signin" ? "Welcome back" : "Create account"}
+                </h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {mode === "signin"
+                    ? "Sign in to your Eterna AI workspace."
+                    : "Get started with your Eterna AI workspace."}
+                </p>
+              </div>
 
-          <Button type="button" variant="outline" className="w-full h-11" onClick={handleGoogle}>
-            <GoogleIcon className="size-4 mr-2" />
-            Continue with Google
-          </Button>
+              <Button type="button" variant="outline" className="w-full h-11" onClick={handleGoogle}>
+                <GoogleIcon className="size-4 mr-2" />
+                Continue with Google
+              </Button>
 
-          <div className="relative text-xs text-muted-foreground text-center">
-            <span className="px-3 bg-background relative z-10 tracking-[0.18em] font-medium">
-              OR
-            </span>
-            <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
-          </div>
+              <div className="relative text-xs text-muted-foreground text-center">
+                <span className="px-3 bg-background relative z-10 tracking-[0.18em] font-medium">
+                  OR
+                </span>
+                <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
+              </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <Input
-              type="email"
-              required
-              placeholder="Email"
-              className="h-11"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Input
-              type="password"
-              required
-              minLength={6}
-              placeholder="Password"
-              className="h-11"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            {error && <div className="text-xs text-destructive">{error}</div>}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 text-base font-semibold"
-              style={{ background: "linear-gradient(90deg, #2563EB, #3B82F6)" }}
-            >
-              {loading ? "…" : mode === "signin" ? "Sign in" : "Create account"}
-            </Button>
-          </form>
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <Input
+                  type="email"
+                  required
+                  placeholder="Email"
+                  className="h-11"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <Input
+                  type="password"
+                  required
+                  minLength={6}
+                  placeholder="Password"
+                  className="h-11"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                {error && <div className="text-xs text-destructive">{error}</div>}
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-11 text-base font-semibold"
+                  style={{ background: "linear-gradient(90deg, #2563EB, #3B82F6)" }}
+                >
+                  {loading ? "…" : mode === "signin" ? "Sign in" : "Create account"}
+                </Button>
+              </form>
 
-          <p className="text-sm text-center text-muted-foreground">
-            {mode === "signin" ? "New to Eterna? " : "Already have an account? "}
-            <button
-              type="button"
-              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              className="font-semibold text-primary hover:underline"
-              style={{ color: "#3B82F6" }}
-            >
-              {mode === "signin" ? "Create one" : "Sign in"}
-            </button>
-          </p>
+              <p className="text-sm text-center text-muted-foreground">
+                {mode === "signin" ? "New to Eterna? " : "Already have an account? "}
+                {signupAllowed || mode === "signup" ? (
+                  <button
+                    type="button"
+                    onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+                    className="font-semibold text-primary hover:underline"
+                    style={{ color: "#3B82F6" }}
+                  >
+                    {mode === "signin" ? "Create one" : "Sign in"}
+                  </button>
+                ) : (
+                  <span className="text-xs text-muted-foreground font-medium">
+                    (Registrations currently closed)
+                  </span>
+                )}
+              </p>
+            </>
+          )}
 
           <div className="pt-4 border-t border-border">
             <a
