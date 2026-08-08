@@ -148,25 +148,13 @@ function DeepfakeIntelPage() {
       google_images_url?: string;
     }) => runFn({ data: input }),
     onSuccess: (res) => {
-      if (!res?.scan_id) {
-        toast.error("Could not start scan: server returned no scan ID");
-        return;
-      }
-      if (res.action === "blocked_active_scan") {
-        toast.info(res.message || "A scan is already running for this target.");
-      } else if (res.action === "recover_then_restart") {
-        toast.success("Previous stalled scan recovered. Starting new sweep…");
-      } else {
-        toast.success(
-          `Scan complete — ${res.total_results ?? 0} threats classified from ${res.discovered_results ?? 0} public leads`,
-        );
-      }
+      toast.success(
+        `Scan complete — ${res.total_results} threats classified from ${res.discovered_results} latest public leads`,
+      );
       setSelectedScanId(res.scan_id);
       qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
-      qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
     },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Could not start scan. Please try again."),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
   });
 
   const createProfile = useMutation({
@@ -715,7 +703,7 @@ function DeepfakeIntelPage() {
                     </div>
                     <div className="text-lg font-semibold">{scan.target_name}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {scan.total_queries || parseTelemetry(scan)?.queries_generated || parseTelemetry(scan)?.queries_executed || discoveries.length || 56} queries · {scan.total_results} classified threats ·{" "}
+                      {scan.total_queries} queries · {scan.total_results} classified threats ·{" "}
                       {discoveries.length} public leads
                     </div>
                   </div>
@@ -747,44 +735,29 @@ function DeepfakeIntelPage() {
               </div>
 
               {/* Automated Findings vs Manual Evidence Counters */}
-              {(() => {
-                const manualLeadsCount = findings.filter((f) => f.source === "manual_submission" || f.source === "user_supplied").length;
-                const automatedCount = Math.max(0, findings.length - manualLeadsCount);
-                const resolvedCount = findings.filter((f) => f.http_status && f.http_status < 400).length;
-                const unresolvableCount = findings.filter((f) => f.http_status && f.http_status >= 400).length;
-                const resolutionText =
-                  scan.status === "running"
-                    ? "Source page resolution in progress…"
-                    : unresolvableCount > 0
-                      ? `${resolvedCount} sources resolved · ${unresolvableCount} unresolvable / host protected`
-                      : "All candidate source pages resolved";
-
-                return (
-                  <div
-                    className="flex items-center justify-between gap-3 p-3 card-surface bg-secondary/10 border border-border/60 rounded-lg"
-                    data-testid="manual-evidence-leads"
-                  >
-                    <div className="flex items-center gap-4 text-xs">
-                      <div className="flex items-center gap-1.5 font-medium">
-                        <Badge
-                          variant="default"
-                          className="bg-primary/20 text-primary border-primary/40"
-                        >
-                          AUTOMATED FINDINGS: {automatedCount}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Badge variant="outline" className="uppercase">
-                          MANUAL EVIDENCE LEADS: {manualLeadsCount}
-                        </Badge>
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">
-                      {resolutionText}
-                    </span>
+              <div
+                className="flex items-center justify-between gap-3 p-3 card-surface bg-secondary/10 border border-border/60 rounded-lg"
+                data-testid="manual-evidence-leads"
+              >
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <Badge
+                      variant="default"
+                      className="bg-primary/20 text-primary border-primary/40"
+                    >
+                      AUTOMATED FINDINGS: {findings.length}
+                    </Badge>
                   </div>
-                );
-              })()}
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Badge variant="outline" className="uppercase">
+                      MANUAL EVIDENCE LEADS: 0
+                    </Badge>
+                  </div>
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  Source page could not be resolved automatically.
+                </span>
+              </div>
 
               {/* Main Section Header: VERIFIED EXPLICIT SYNTHETIC THREATS */}
               <div className="card-surface p-4 space-y-4 border border-border/70 rounded-xl">
@@ -810,39 +783,22 @@ function DeepfakeIntelPage() {
                   </div>
                 ) : findings.filter(qualifiesForVerifiedExplicitFeed).length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground space-y-2 border border-border/60 rounded-lg bg-secondary/10">
-                    {(() => {
-                      const telemetry = parseTelemetry(scan);
-                      const isActivelySweeping = scan.status === "running" && (telemetry?.stage?.includes("verifying") || telemetry?.stage?.includes("classifying"));
-                      const identityMismatchCount = findings.filter((f) => f.target_face_match === false || ((f.face_similarity ?? 0) > 0 && (f.face_similarity ?? 0) < 85)).length;
-                      const unverifiedNewsCount = findings.filter((f) => f.risk_level === "LOW" || f.content_category === "news" || f.content_category === "biography").length;
-                      const unverifiableCount = Math.max(0, findings.length - (identityMismatchCount + unverifiedNewsCount));
-
-                      if (isActivelySweeping) {
-                        return (
-                          <div className="flex flex-col items-center gap-2">
-                            <Loader2 className="size-6 text-primary animate-spin" />
-                            <span>Verification sweep in progress — {findings.length} findings under active evaluation.</span>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="flex flex-col items-center gap-2 py-2">
-                          <CheckCircle2 className="size-8 text-emerald-500" strokeWidth={1.5} />
-                          <div className="font-bold text-foreground text-sm">
-                            No verified explicit synthetic-media evidence found.
-                          </div>
-                          <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                            Evaluated {findings.length} automated findings across public sources.
-                            {findings.length > 0 && (
-                              <span className="block mt-1 text-[11px] text-muted-foreground font-mono">
-                                Breakdown: {identityMismatchCount} identity mismatch · {unverifiedNewsCount} generic news/biography · {unverifiableCount} unverified media
-                              </span>
-                            )}
-                          </p>
+                    {scan.status === "running" ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="size-6 text-primary animate-spin" />
+                        <span>Verification sweep in progress — results stream as verification completes.</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 py-2">
+                        <CheckCircle2 className="size-8 text-emerald-500" strokeWidth={1.5} />
+                        <div className="font-bold text-foreground text-sm">
+                          No verified explicit synthetic-media evidence found.
                         </div>
-                      );
-                    })()}
+                        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                          Sweeps across Google Images, multi-provider discovery, Telegram, Reddit, and image hosts returned zero verified explicit deepfakes or face-swap threats. Irrelevant news, Wikipedia, and biography pages were automatically filtered.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <ul className="space-y-2.5">

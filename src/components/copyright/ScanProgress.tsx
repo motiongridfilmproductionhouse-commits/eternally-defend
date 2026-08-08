@@ -21,11 +21,10 @@ import {
   resolveWorkflowStageFromStats,
   workflowStageIndex,
   parseRecentActivity,
-  brightDataTelemetryFromStats,
   type SeenActivityThreatState,
 } from "@/lib/copyright/scan-activity";
 import { LiveWebsiteInvestigation } from "@/components/copyright/LiveWebsiteInvestigation";
-import { LiveFindingsProcessing } from "@/components/copyright/LiveFindingsProcessing";
+import { brightDataTelemetryFromStats } from "@/lib/copyright/scan-activity";
 import { ReferenceMaterialReel } from "@/components/copyright/ReferenceMaterialReel";
 
 export interface ScanProgressProps {
@@ -35,18 +34,17 @@ export interface ScanProgressProps {
   scanStatus?: string | null;
   scanId?: string | null;
   stats?: Record<string, unknown> | null;
-  matches?: Array<Record<string, unknown>> | null;
 }
 
 const WORKFLOW_ICONS = [
   ImageIcon,
-  Search,
-  Globe,
   ScanLine,
   Sparkles,
+  Search,
+  Globe,
+  Download,
   Scale,
   Save,
-  CheckCircle2,
 ] as const;
 
 function usePrefersReducedMotion(): boolean {
@@ -74,21 +72,20 @@ function useTabVisible(): boolean {
   return visible;
 }
 
-function badgeClasses(tone: string): string {
+function badgeClasses(tone: ReturnType<typeof resolveCopyrightThreatBadge>["tone"]): string {
   switch (tone) {
     case "verified":
-      return "border-red-500/60 bg-red-500/15 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.25)] animate-pulse";
-    case "purple":
-      return "border-purple-500/50 bg-purple-500/10 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.2)]";
-    case "potential":
+      return "border-red-500/50 bg-red-500/10 text-red-300";
     case "multiple":
-      return "border-orange-500/50 bg-orange-500/10 text-orange-300 shadow-[0_0_10px_rgba(249,115,22,0.2)]";
-    case "no_threat":
-      return "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
+      return "border-orange-500/50 bg-orange-500/10 text-orange-300";
+    case "potential":
+      return "border-amber-500/50 bg-amber-500/10 text-amber-300";
+    case "provider_limited":
+      return "border-amber-500/40 bg-slate-500/10 text-amber-200/90";
     case "failed":
-      return "border-destructive/60 bg-destructive/15 text-destructive";
+      return "border-destructive/50 bg-destructive/10 text-destructive";
     case "partial":
-    case "scanning":
+      return "border-sky-500/40 bg-sky-500/10 text-sky-300";
     default:
       return "border-sky-500/40 bg-sky-500/10 text-sky-300";
   }
@@ -113,7 +110,6 @@ export function ScanProgress({
   scanStatus,
   scanId,
   stats,
-  matches,
 }: ScanProgressProps) {
   const reducedMotion = usePrefersReducedMotion();
   const tabVisible = useTabVisible();
@@ -128,10 +124,6 @@ export function ScanProgress({
 
   const seenRef = useRef<SeenActivityThreatState | null>(null);
   const [badgePulse, setBadgePulse] = useState(false);
-
-  // Counter animation & highlight tracking
-  const prevCountersRef = useRef<Record<string, number>>({});
-  const [pulsingKeys, setPulsingKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const pulse = resolveNewVerifiedActivityPulse({
@@ -155,71 +147,32 @@ export function ScanProgress({
 
   const counterItems = useMemo(
     () => [
-      { key: "queries_completed", label: "Queries completed", value: counters.queries_completed, color: "blue" },
-      { key: "candidate_pages", label: "Candidate pages found", value: counters.candidate_pages, color: "blue" },
-      { key: "websites_checked", label: "Websites checked", value: counters.websites_checked, color: "purple" },
-      { key: "potential_threats", label: "Potential threats", value: counters.potential_threats, color: "orange" },
-      { key: "verified_findings", label: "Verified findings", value: counters.verified_findings, color: "red" },
-      { key: "provider_failures", label: "Discovery errors", value: counters.provider_failures, color: "amber" },
-      { key: "expanded_sweeps", label: "Expanded discovery sweeps", value: brightData.requests, color: "blue" },
-      { key: "sweeps_results", label: "Sweeps with results", value: brightData.successes, color: "purple" },
-      { key: "leads_discovered", label: "Leads discovered", value: brightData.candidates, color: "blue" },
-      { key: "unique_urls", label: "Unique candidate URLs", value: brightData.uniqueUrls, color: "purple" },
+      { label: "Queries completed", value: counters.queries_completed },
+      { label: "Candidate pages found", value: counters.candidate_pages },
+      { label: "Websites checked", value: counters.websites_checked },
+      { label: "Potential threats", value: counters.potential_threats },
+      { label: "Verified findings", value: counters.verified_findings },
+      { label: "Discovery errors", value: counters.provider_failures },
+      { label: "Expanded discovery sweeps", value: brightData.requests },
+      { label: "Sweeps with results", value: brightData.successes },
+      { label: "Leads discovered", value: brightData.candidates },
+      { label: "Unique candidate URLs", value: brightData.uniqueUrls },
     ],
     [counters, brightData],
   );
 
-  // Pulse updated counters
-  useEffect(() => {
-    const updated = new Set<string>();
-    for (const c of counterItems) {
-      const prev = prevCountersRef.current[c.key];
-      if (prev !== undefined && c.value > prev) {
-        updated.add(c.key);
-      }
-      prevCountersRef.current[c.key] = c.value;
-    }
-    if (updated.size > 0) {
-      setPulsingKeys(updated);
-      const timer = setTimeout(() => setPulsingKeys(new Set()), 1_200);
-      return () => clearTimeout(timer);
-    }
-  }, [counterItems]);
-
   const animate = !reducedMotion && tabVisible;
 
-  // Determine stage progress bar color tone based on state & findings
-  const hasVerified = counters.verified_findings > 0 || badge.tone === "verified";
-  const hasPotential = counters.potential_threats > 0;
-  const isAnalyzing = stageIndex >= 3 && stageIndex <= 4;
-  const isVerifying = stageIndex >= 5;
-
-  let progressBarGradient = "from-sky-500/40 via-sky-400 to-sky-500/40";
-  if (hasVerified) {
-    progressBarGradient = "from-red-500/50 via-red-400 to-red-600";
-  } else if (hasPotential || isVerifying) {
-    progressBarGradient = "from-orange-500/50 via-orange-400 to-orange-500/50";
-  } else if (isAnalyzing) {
-    progressBarGradient = "from-purple-500/50 via-purple-400 to-purple-500/50";
-  }
-
   return (
-    <section className="relative overflow-hidden rounded-xl border border-primary/30 bg-card/60 p-5 backdrop-blur space-y-5">
+    <section className="relative overflow-hidden rounded-xl border border-primary/30 bg-card/60 p-5 backdrop-blur">
       <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/15 blur-3xl" />
 
-      {/* Header */}
       <header className="relative flex flex-col gap-3 sm:flex-row sm:items-start">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border transition-colors ${
-            hasVerified
-              ? "border-red-500/50 bg-red-500/10 text-red-400"
-              : isAnalyzing
-                ? "border-purple-500/50 bg-purple-500/10 text-purple-400"
-                : "border-primary/40 bg-primary/10 text-primary"
-          }`}>
-            <Radar className={`h-5 w-5 ${animate ? "animate-pulse" : ""}`} />
+          <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-primary/40 bg-primary/10">
+            <Radar className={`h-5 w-5 text-primary ${animate ? "animate-pulse" : ""}`} />
             {animate && (
-              <span className="absolute inset-0 animate-ping rounded-xl border border-current/30" />
+              <span className="absolute inset-0 animate-ping rounded-xl border border-primary/30" />
             )}
           </div>
           <div className="min-w-0">
@@ -239,48 +192,28 @@ export function ScanProgress({
         </div>
       </header>
 
-      {/* Dynamic Smooth Animated Progress Bar */}
-      <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
+      <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className={`h-full w-full rounded-full bg-gradient-to-r ${progressBarGradient} transition-colors duration-500 ${
+          className={`h-full w-full rounded-full bg-gradient-to-r from-primary/30 via-primary/60 to-primary/30 ${
             animate ? "animate-[indeterminate_1.8s_ease-in-out_infinite]" : ""
           }`}
           style={{ transformOrigin: "left center" }}
         />
       </div>
 
-      {/* Top Metric Cards Grid */}
-      <div className="relative grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {counterItems.map((c) => {
-          const isPulsing = pulsingKeys.has(c.key);
-          return (
-            <div
-              key={c.label}
-              className={`rounded-lg border px-3 py-2 transition-all duration-300 ${
-                isPulsing
-                  ? c.color === "red"
-                    ? "border-red-500/60 bg-red-500/10 shadow-[0_0_12px_rgba(239,68,68,0.3)] scale-[1.02]"
-                    : c.color === "orange"
-                      ? "border-orange-500/60 bg-orange-500/10 shadow-[0_0_12px_rgba(249,115,22,0.3)] scale-[1.02]"
-                      : c.color === "purple"
-                        ? "border-purple-500/60 bg-purple-500/10 shadow-[0_0_12px_rgba(168,85,247,0.3)] scale-[1.02]"
-                        : "border-sky-500/60 bg-sky-500/10 shadow-[0_0_12px_rgba(56,189,248,0.3)] scale-[1.02]"
-                  : "border-border/40 bg-background/25"
-              }`}
-            >
-              <p className="text-[10px] text-muted-foreground truncate">{c.label}</p>
-              <p className={`text-sm font-semibold tabular-nums ${
-                c.color === "red" && c.value > 0 ? "text-red-400" : c.color === "orange" && c.value > 0 ? "text-orange-400" : ""
-              }`}>
-                {c.value}
-              </p>
-            </div>
-          );
-        })}
+      <div className="relative mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {counterItems.map((c) => (
+          <div
+            key={c.label}
+            className="rounded-lg border border-border/40 bg-background/25 px-2.5 py-2"
+          >
+            <p className="text-[10px] text-muted-foreground">{c.label}</p>
+            <p className="text-sm font-semibold tabular-nums">{c.value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Main Section */}
-      <div className="relative grid gap-5 lg:grid-cols-[minmax(0,240px)_1fr]">
+      <div className="relative mt-5 grid gap-5 lg:grid-cols-[minmax(0,240px)_1fr]">
         <div className="space-y-3">
           <ReferenceMaterialReel
             originalPreview={previews[0] ?? null}
@@ -292,7 +225,7 @@ export function ScanProgress({
           />
           {kind === "video" && previews.length > 1 && (
             <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                 Extracted frames
               </p>
               <div className="grid grid-cols-4 gap-1.5">
@@ -313,54 +246,39 @@ export function ScanProgress({
           )}
         </div>
 
-        <div className="space-y-5">
-          {/* Reference Intelligence Workflow Stage Timeline */}
-          <div className="space-y-2">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Reference Intelligence Timeline
-            </h3>
-            <ol className="space-y-1.5">
-              {COPYRIGHT_WORKFLOW_STAGES.map((s, i) => {
-                const Icon = WORKFLOW_ICONS[i] ?? FileCheck;
-                const done = i < stageIndex || scanStatus === "completed";
-                const active = i === stageIndex && scanStatus !== "completed";
-                return (
-                  <li
-                    key={s.key}
-                    className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-xs transition-all duration-300 ${
-                      active
-                        ? "border-purple-500/50 bg-purple-500/10 text-foreground font-medium shadow-[0_0_10px_rgba(168,85,247,0.15)]"
-                        : done
-                          ? "border-border/50 bg-background/30 text-muted-foreground"
-                          : "border-border/40 bg-background/10 text-muted-foreground/40"
-                    }`}
-                  >
-                    {done ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                    ) : (
-                      <Icon
-                        className={`h-3.5 w-3.5 ${active && animate ? "animate-pulse text-purple-400" : ""}`}
-                      />
-                    )}
-                    <span className="min-w-0 truncate">{s.label}</span>
-                    {active && animate && (
-                      <Loader2 className="ml-auto h-3 w-3 animate-spin text-purple-400" />
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
+        <div className="space-y-4">
+          <ol className="space-y-1.5">
+            {COPYRIGHT_WORKFLOW_STAGES.map((s, i) => {
+              const Icon = WORKFLOW_ICONS[i] ?? FileCheck;
+              const done = i < stageIndex;
+              const active = i === stageIndex;
+              return (
+                <li
+                  key={s.key}
+                  className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors ${
+                    active
+                      ? "border-primary/40 bg-primary/10 text-foreground"
+                      : done
+                        ? "border-border/50 bg-background/30 text-muted-foreground"
+                        : "border-border/40 bg-background/10 text-muted-foreground/60"
+                  }`}
+                >
+                  {done ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                  ) : (
+                    <Icon
+                      className={`h-3.5 w-3.5 ${active && animate ? "animate-pulse text-primary" : ""}`}
+                    />
+                  )}
+                  <span className="min-w-0 truncate">{s.label}</span>
+                  {active && animate && (
+                    <Loader2 className="ml-auto h-3 w-3 animate-spin text-primary" />
+                  )}
+                </li>
+              );
+            })}
+          </ol>
 
-          {/* LIVE FINDINGS PROCESSING SECTION */}
-          <LiveFindingsProcessing
-            stats={stats}
-            scanStatus={scanStatus}
-            scanId={scanId}
-            matches={matches}
-          />
-
-          {/* Live Website Telemetry */}
           <LiveWebsiteInvestigation
             stats={stats}
             scanStatus={scanStatus}
@@ -371,6 +289,11 @@ export function ScanProgress({
       </div>
 
       <style>{`
+        @keyframes scanSweep {
+          0% { transform: translateY(0); opacity: 0.15; }
+          50% { transform: translateY(150px); opacity: 0.55; }
+          100% { transform: translateY(0); opacity: 0.15; }
+        }
         @keyframes indeterminate {
           0% { transform: translateX(-100%) scaleX(0.35); }
           50% { transform: translateX(10%) scaleX(0.65); }
@@ -378,10 +301,11 @@ export function ScanProgress({
         }
         @keyframes threatPulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
-          40% { box-shadow: 0 0 0 4px rgba(239,68,68,0.35); }
+          40% { box-shadow: 0 0 0 3px rgba(239,68,68,0.35); }
         }
         @media (prefers-reduced-motion: reduce) {
           .animate-pulse, .animate-ping, .animate-spin,
+          .animate-\\[scanSweep_2\\.4s_ease-in-out_infinite\\],
           .animate-\\[indeterminate_1\\.8s_ease-in-out_infinite\\],
           .animate-\\[threatPulse_0\\.9s_ease-out_once\\] {
             animation: none !important;

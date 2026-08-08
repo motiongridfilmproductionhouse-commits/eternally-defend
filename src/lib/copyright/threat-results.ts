@@ -9,8 +9,6 @@
 
 import type { PublicSuspiciousSource } from "./suspicious-sources";
 import { isNeverDisplayHost } from "./verified-distribution";
-import { assessLeadRelevance } from "./content-relevance";
-
 
 export type ThreatSeverity = "critical" | "high" | "medium" | "low";
 
@@ -486,12 +484,9 @@ export function buildThreatResultRows(input: {
   inspected?: InspectedSourceInput[];
   /** Include inspected leads that produced no evidence at all. Defaults to true. */
   includeUnverified?: boolean;
-  /** Protected work title + alternates, used to drop other films and promos. */
-  protectedTitles?: Array<string | null | undefined>;
 }): ThreatResultRow[] {
   // Default: never introduce a domain that was only searched or checked.
   const includeUnverified = input.includeUnverified ?? false;
-  const protectedTitles = (input.protectedTitles ?? []).filter(Boolean);
   const byDomain = new Map<string, ThreatResultRow>();
 
   const push = (row: ThreatResultRow) => {
@@ -499,10 +494,6 @@ export function buildThreatResultRows(input: {
     // Mainstream platforms, catalogs, official distributors, news and search
     // engines are never presented as infringement targets.
     if (isNeverDisplayHost(row.domain)) return;
-    // Trailers, songs, reviews, clips and other films that merely share a word
-    // with the protected title are not unauthorized distribution.
-    if (!assessLeadRelevance({ url: row.url, title: row.title, protectedTitles }).relevant) return;
-
     const existing = byDomain.get(row.domain);
     if (!existing) {
       byDomain.set(row.domain, row);

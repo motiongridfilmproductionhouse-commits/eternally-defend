@@ -30,7 +30,6 @@ import {
   registerDistributionSource,
   runAutoMonitor,
 } from "@/lib/copyright/distribution-monitor.server";
-import { verifyMoviePrintCandidate } from "@/lib/copyright/strict-movie-verification";
 import {
   buildMovieFingerprint,
   matchCandidateAgainstFingerprint,
@@ -40,7 +39,6 @@ import {
 } from "@/lib/copyright/fingerprint.server";
 import { fetchImageBytes, sha256Hex } from "@/lib/aws/s3.server";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
-import { assessLeadRelevance } from "@/lib/copyright/content-relevance";
 import {
   CopyrightScanTracker,
   resolveTerminalStatus,
@@ -249,34 +247,17 @@ export async function executeCopyrightScanPipeline(input: {
     tracker.enter("candidate_evaluation");
     const officialSources: DiscoveryCandidate[] = [];
     const validCandidates: DiscoveryCandidate[] = [];
-    const protectedTitles = [title, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
-    let irrelevantLeads = 0;
 
     for (const c of discovery.candidates) {
       const url = c.url;
       if (!byUrl.has(url)) byUrl.set(url, c);
       if (isExcludedHost(url)) {
         officialSources.push(c);
-        continue;
+      } else {
+        validCandidates.push(c);
       }
-      // Trailers, songs, reviews, clips and pages about a different film that
-      // merely shares a word with the protected title are not distribution.
-      const relevance = assessLeadRelevance({
-        url,
-        title: c.title ?? null,
-        protectedTitles,
-      });
-      if (!relevance.relevant) {
-        irrelevantLeads += 1;
-        continue;
-      }
-      validCandidates.push(c);
     }
     tracker.candidatePagesDiscovered = byUrl.size;
-    if (irrelevantLeads > 0) {
-      console.info("copyright_scan_irrelevant_leads_filtered", { count: irrelevantLeads });
-    }
-
 
     // Ensure every valid candidate has a thumbnail URL so no valid result is lost.
     for (const c of validCandidates) {
@@ -305,22 +286,9 @@ export async function executeCopyrightScanPipeline(input: {
       watermark: string | null,
       reason: string,
       rek: FingerprintMatch = EMPTY_MATCH,
-      clientVisibleParam: boolean = false,
     ): MatchInsert => {
       const contact = resolveAbuseContact(candidate.url);
       const thumb = candidate.thumbnail ?? candidate.imageUrl;
-      const vResult = verifyMoviePrintCandidate({
-        url: candidate.url,
-        finalUrl: candidate.url,
-        pageTitle: candidate.title,
-        workTitle: title,
-        altTitles: analysis.altTitles,
-        releaseYear: analysis.releaseDate?.slice(0, 4),
-        confidence,
-        posterMatchScore: rek.score,
-        ocrTitleEvidence: rek.matchedOcrText.join(" | ") || null,
-      });
-
       return {
         scan_id: scanId,
         user_id: userId,
@@ -334,8 +302,7 @@ export async function executeCopyrightScanPipeline(input: {
         transformations,
         review_status: "pending",
         evidence: {
-          client_visible: clientVisibleParam,
-          verification_diagnostics: vResult.diagnostics,
+          client_visible: true,
           reference_frame_index: candidate.frameIndex,
           reference_frame_path: keys[candidate.frameIndex] ?? keys[0],
           candidate_image_url: thumb,
@@ -381,7 +348,7 @@ export async function executeCopyrightScanPipeline(input: {
         ocr_text: ocrText,
         reason,
         contact: contact as unknown as MatchInsert["contact"],
-      } as unknown as MatchInsert;
+      };
     };
 
     for (let offset = 0; offset < ordered.length; offset += 4) {
@@ -426,18 +393,7 @@ export async function executeCopyrightScanPipeline(input: {
           ? ` AWS recognition: ${rek.signals.join("; ")}.`
           : "";
 
-        const vResult = verifyMoviePrintCandidate({
-          url: candidate.url,
-          finalUrl: candidate.url,
-          pageTitle: candidate.title,
-          workTitle: title,
-          altTitles: analysis.altTitles,
-          releaseYear: analysis.releaseDate?.slice(0, 4),
-          confidence: blended,
-          hasPlayerOrDownload: isMatch,
-        });
-
-        if (isMatch && vResult.clientVisible) {
+        if (isMatch) {
           rows.push(
             buildRow(
               candidate,
@@ -455,7 +411,6 @@ export async function executeCopyrightScanPipeline(input: {
               result?.watermark ?? rek.watermarkMatch,
               `${result?.reason ?? "Multi-signal Rekognition match."}${rekReason}`,
               rek,
-              true,
             ),
           );
           continue;
@@ -472,11 +427,10 @@ export async function executeCopyrightScanPipeline(input: {
             result?.transformations ?? [],
             result?.ocrText ?? null,
             result?.watermark ?? rek.watermarkMatch,
-            (result?.reason || vResult.reason ||
+            (result?.reason ||
               `Piracy-signal lead (${candidate.category ?? "web_lead"}) surfaced by "${candidate.keywordMatch ?? candidate.query ?? title}" — requires human review.`) +
               rekReason,
             rek,
-            false,
           ),
         );
       }
@@ -553,31 +507,16 @@ export async function executeCopyrightScanPipeline(input: {
           strong_evidence: dist.strongEvidence,
           indicators: dist.indicatorKeys,
         });
-        const vResult = verifyMoviePrintCandidate({
-          url: dist.url,
-          finalUrl: dist.url,
-          pageTitle: dist.pageTitle ?? lead.title,
-          workTitle: title,
-          altTitles: analysis.altTitles,
-          releaseYear: analysis.releaseDate?.slice(0, 4),
-          confidence: dist.confidence,
-          indicators: dist.indicatorKeys,
-          markdown: dist.pageExcerpt ?? undefined,
-          hasPlayerOrDownload: dist.strongEvidence,
-        });
+        if (!dist.strongEvidence || dist.domainRisk === "low") continue;
 
         const contact = resolveAbuseContact(dist.url);
-        const isConfirmedThreat = dist.strongEvidence && dist.domainRisk !== "low" && vResult.clientVisible;
-
-        if (isConfirmedThreat) {
-          await registerDistributionSource(supabase, {
-            userId,
-            scanId,
-            workTitle: title,
-            platform: contact.platform,
-            analysis: dist,
-          }).catch(() => null);
-        }
+        await registerDistributionSource(supabase, {
+          userId,
+          scanId,
+          workTitle: title,
+          platform: contact.platform,
+          analysis: dist,
+        }).catch(() => null);
 
         distributionRows.push({
           scan_id: scanId,
@@ -599,8 +538,7 @@ export async function executeCopyrightScanPipeline(input: {
           transformations: dist.qualityTags.slice(0, 8),
           review_status: "pending",
           evidence: {
-            client_visible: isConfirmedThreat,
-            verification_diagnostics: vResult.diagnostics,
+            client_visible: true,
             discovery: "distribution_site",
             discovery_query: lead.query,
             keyword_match: lead.query,
@@ -630,7 +568,7 @@ export async function executeCopyrightScanPipeline(input: {
           ocr_text: null,
           reason: dist.reason,
           contact: contact as unknown as MatchInsert["contact"],
-        } as unknown as MatchInsert);
+        });
       }
     }
 

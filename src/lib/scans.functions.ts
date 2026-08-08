@@ -59,16 +59,6 @@ export const persistScan = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => PersistInput.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const startTime = Date.now();
-
-    const youtubeCount = data.hits.filter(
-      (h) => h.source === "YouTube" || (h.sourceType ?? "").toLowerCase().includes("youtube"),
-    ).length;
-    const socialWebCount = data.hits.length - youtubeCount;
-
-    console.log(
-      `[web-scan:persist:start] scanId=${data.scanId ?? "new"} query="${data.query}" discoveredCount=${data.hits.length} youtubeCount=${youtubeCount} socialWebCount=${socialWebCount}`,
-    );
 
     // 1) Look up the previous most recent scan for this user+query to compute "new since last"
     const { data: prevRows } = await supabase
@@ -80,8 +70,7 @@ export const persistScan = createServerFn({ method: "POST" })
       .limit(1);
     const previousScanId = prevRows?.[0]?.id ?? null;
 
-    // 2) Insert the scan row initially as "running" or requested status
-    const initialStatus = data.status ?? "running";
+    // 2) Insert the scan row
     const { data: scan, error: scanErr } = await supabase
       .from("scans")
       .insert({
@@ -91,29 +80,16 @@ export const persistScan = createServerFn({ method: "POST" })
         params: (data.params ?? {}) as never,
         sources: data.sources ?? [],
         period: data.period,
-        status: initialStatus,
+        status: data.status ?? "completed",
         total_hits: data.totals?.total ?? data.hits.length,
         unique_hits: data.totals?.unique ?? data.hits.length,
         duplicate_hits_removed: data.totals?.duplicatesRemoved ?? 0,
         started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
       })
       .select("id")
       .single();
-
-    if (scanErr || !scan) {
-      console.error("[web-scan:persist:error]", {
-        scanId: null,
-        table: "scans",
-        operation: "insert",
-        findingCount: data.hits.length,
-        code: scanErr?.code ?? "UNKNOWN",
-        message: scanErr?.message ?? "Failed to create scan row",
-        details: scanErr?.details ?? null,
-        hint: scanErr?.hint ?? null,
-      });
-      throw new Error(`Failed to create scan: ${scanErr?.message ?? "Database error"}`);
-    }
-    const scanId = scan.id;
+    if (scanErr || !scan) throw new Error(scanErr?.message ?? "Failed to create scan");
 
     // 3) Build unique rows (dedupe within this scan batch by source+external_id||canonical_url)
     const seen = new Set<string>();
@@ -194,50 +170,35 @@ export const persistScan = createServerFn({ method: "POST" })
       });
     }
 
-    // 4) Batch upsert in chunks of 500 with exact conflict key deduplication
+    // 4) Batch upsert in chunks of 500 to keep round-trips bounded
     let newCount = 0;
     let updatedCount = 0;
-    let persistenceMode: "upsert" | "insert-fallback" = "upsert";
     const CHUNK = 500;
 
-    // Deduplicate withExt specifically by (user_id, source, external_id)
-    const withExtMap = new Map<string, Row>();
-    for (const r of rows.filter((x) => x.external_id)) {
-      const k = `${r.user_id}::${r.source}::${r.external_id}`;
-      if (!withExtMap.has(k)) withExtMap.set(k, r);
-      else dupsInBatch++;
-    }
-    const withExt = Array.from(withExtMap.values());
+    // Prefer external_id path; fall back to canonical_url when external_id is null.
+    const withExt = rows.filter((r) => r.external_id);
+    const withoutExt = rows.filter((r) => !r.external_id && r.canonical_url);
 
-    // Deduplicate withoutExt specifically by (user_id, source, canonical_url)
-    const withoutExtMap = new Map<string, Row>();
-    for (const r of rows.filter((x) => !x.external_id && x.canonical_url)) {
-      const k = `${r.user_id}::${r.source}::${r.canonical_url}`;
-      if (!withoutExtMap.has(k)) withoutExtMap.set(k, r);
-      else dupsInBatch++;
-    }
-    const withoutExt = Array.from(withoutExtMap.values());
-
-    async function upsertBatch(batch: Row[], onConflict: string) {
+    async function upsert(batch: Row[], onConflict: string) {
       for (let i = 0; i < batch.length; i += CHUNK) {
         const slice = batch.slice(i, i + CHUNK);
-        const col = onConflict.includes("external_id") ? "external_id" : "canonical_url";
+        // Fetch existing to compute new-vs-updated cheaply
         const ids = slice
-          .map((r) => (col === "external_id" ? r.external_id : r.canonical_url))
+          .map((r) => (onConflict.includes("external_id") ? r.external_id : r.canonical_url))
           .filter(Boolean) as string[];
-
+        const col = onConflict.includes("external_id") ? "external_id" : "canonical_url";
         const { data: existing } = await supabase
           .from("scan_hits")
           .select(`id, source, ${col}, times_detected`)
           .eq("user_id", userId)
           .in(col, ids);
-
         const existingKey = new Set(
           ((existing ?? []) as Array<Record<string, unknown>>).map(
             (e) => `${String(e.source)}::${String(e[col])}`,
           ),
         );
 
+        // Increment times_detected on matches; mark as not-new
         const now = new Date().toISOString();
         const upsertRows = slice.map((r) => {
           const key = `${r.source}::${col === "external_id" ? r.external_id : r.canonical_url}`;
@@ -249,111 +210,59 @@ export const persistScan = createServerFn({ method: "POST" })
             last_seen_at: now,
             previous_scan_seen: isExisting,
             is_new_since_last_scan: !isExisting,
-            times_detected: isExisting ? 2 : 1,
+            times_detected: isExisting ? 2 : 1, // conservative bump; a trigger could do +1 precisely
           };
         });
-
-        // Attempt upsert with conflict target
         const { error } = await supabase
           .from("scan_hits")
           .upsert(upsertRows as never, {
             onConflict: `user_id,source,${col}`,
             ignoreDuplicates: false,
           });
-
-        if (error) {
-          persistenceMode = "insert-fallback";
-          console.warn(
-            `[web-scan:persist:warn] scan_hits upsert with onConflict (${onConflict}) returned error: ${error.message}. Retrying plain insert fallback.`,
-          );
-          // Fallback plain insert if ON CONFLICT clause failed
-          const { error: insertErr } = await supabase
-            .from("scan_hits")
-            .insert(upsertRows as never);
-
-          if (insertErr) {
-            console.error("[web-scan:persist:error]", {
-              scanId,
-              table: "scan_hits",
-              operation: "upsert_fallback_insert",
-              findingCount: slice.length,
-              code: insertErr.code,
-              message: insertErr.message,
-              details: insertErr.details,
-              hint: insertErr.hint,
-            });
-
-            // Mark scan as failed before throwing
-            await supabase.from("scans").update({ status: "failed" }).eq("id", scanId);
-            console.log(
-              `[web-scan:finalize] scanId=${scanId} previousStatus=${initialStatus} newStatus=failed`,
-            );
-            throw new Error(`scan_hits insert failed: ${insertErr.message}`);
-          }
-        }
+        if (error) throw new Error(`scan_hits upsert failed: ${error.message}`);
       }
     }
 
-    try {
-      if (withExt.length) await upsertBatch(withExt, "user_id,source,external_id");
-      if (withoutExt.length) await upsertBatch(withoutExt, "user_id,source,canonical_url");
-    } catch (err) {
-      await supabase.from("scans").update({ status: "failed" }).eq("id", scanId);
-      console.log(
-        `[web-scan:finalize] scanId=${scanId} previousStatus=${initialStatus} newStatus=failed`,
-      );
-      throw err;
-    }
+    if (withExt.length) await upsert(withExt, "user_id,source,external_id");
+    if (withoutExt.length) await upsert(withoutExt, "user_id,source,canonical_url");
 
-    // 5) Finalize status & counters on the scan row
-    const finalStatus = "completed";
-    const durationMs = Date.now() - startTime;
+    // 5) Finalize counters on the scan row
     await supabase
       .from("scans")
       .update({
-        status: finalStatus,
         new_hits: newCount,
         updated_hits: updatedCount,
         duplicate_hits_removed: (data.totals?.duplicatesRemoved ?? 0) + dupsInBatch,
         unique_hits: newCount + updatedCount,
-        completed_at: new Date().toISOString(),
       })
-      .eq("id", scanId);
+      .eq("id", scan.id);
 
-    console.log(
-      `[web-scan:persist:success] scanId=${scanId} insertedCount=${newCount + updatedCount} persistenceMode=${persistenceMode} durationMs=${durationMs}`,
-    );
-    console.log(
-      `[web-scan:finalize] scanId=${scanId} previousStatus=${initialStatus} newStatus=${finalStatus}`,
-    );
-
-    // 6) Non-blocking AWS Rekognition face analysis for hits with images.
-    void (async () => {
-      try {
-        const { data: recent } = await supabase
-          .from("scan_hits")
-          .select("id,thumbnail_url,permalink,canonical_url,source")
-          .eq("scan_id", scanId)
-          .limit(20);
-        if (recent && recent.length > 0) {
-          const { analyzeHitForFaces, pickScanImageUrl } = await import("./face-scan.server");
-          for (const h of recent) {
-            const pick = pickScanImageUrl(h);
-            if (!pick) continue;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await analyzeHitForFaces({
-              supabase: supabase as any,
-              userId,
-              scanHitId: h.id,
-              imageUrl: pick.url,
-              sourceType: pick.type,
-            }).catch(() => null);
-          }
+    // 6) Best-effort AWS Rekognition face analysis for hits with images.
+    // Never blocks or throws — runs in-line for the current request.
+    try {
+      const { data: recent } = await supabase
+        .from("scan_hits")
+        .select("id,thumbnail_url,permalink,canonical_url,source")
+        .eq("scan_id", scan.id)
+        .limit(20);
+      if (recent && recent.length > 0) {
+        const { analyzeHitForFaces, pickScanImageUrl } = await import("./face-scan.server");
+        for (const h of recent) {
+          const pick = pickScanImageUrl(h);
+          if (!pick) continue;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await analyzeHitForFaces({
+            supabase: supabase as any,
+            userId,
+            scanHitId: h.id,
+            imageUrl: pick.url,
+            sourceType: pick.type,
+          });
         }
-      } catch (e) {
-        console.warn("[scans] face analysis skipped", (e as Error).message);
       }
-    })();
+    } catch (e) {
+      console.warn("[scans] face analysis skipped", (e as Error).message);
+    }
 
     return {
       scanId: scan.id,

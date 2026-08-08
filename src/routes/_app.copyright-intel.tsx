@@ -37,8 +37,6 @@ import { toast } from "sonner";
 import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
-import { CandidateDiagnosticsPanel } from "@/components/copyright/CandidateDiagnosticsPanel";
-import { isExcludedHost } from "@/lib/copyright/url.server";
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -267,16 +265,7 @@ function CopyrightIntelPage() {
     [allMatchesQuery.data],
   );
 
-  const currentMatches = useMemo(() => {
-    const raw = (detail.data?.matches ?? []) as MatchRow[];
-    return raw.filter((m) => {
-      const ev = (m.evidence ?? {}) as Record<string, unknown>;
-      const isClientVisible = ev.client_visible !== false;
-      const isExcluded = isExcludedHost(m.source_url);
-      const isVerifiedScore = (m.confidence ?? 0) >= 85 || m.confidence_band === "confirmed";
-      return isClientVisible && !isExcluded && isVerifiedScore;
-    });
-  }, [detail.data]);
+  const currentMatches = useMemo(() => (detail.data?.matches ?? []) as MatchRow[], [detail.data]);
 
   const previousMatches = useMemo(
     () => allMatches.filter((m) => m.scan_id !== selectedScanId),
@@ -615,32 +604,19 @@ function CopyrightIntelPage() {
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <a
-                href={m.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button size="sm" variant="default" className="h-8 text-xs font-medium">
-                  <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-                  Open Verified Source
-                </Button>
-              </a>
-
+            <div className="flex gap-2 pt-1">
               <Button
                 size="sm"
-                variant="destructive"
-                className="h-8 text-xs font-medium"
+                variant="outline"
                 onClick={() => review.mutate({ matchId: m.id, reviewStatus: "evidence_ready" })}
               >
-                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
-                Start Takedown
+                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                Mark evidence ready
               </Button>
 
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-8 text-xs font-medium"
                 onClick={() => {
                   setSelectedMatch(m);
                   setInvestigationOpen(true);
@@ -937,19 +913,6 @@ function CopyrightIntelPage() {
 
                 return (
                   <div className="space-y-4">
-                    {/* Live Scan Progress for Active Scans */}
-                    {(scanStatus === "running" || scanStatus === "queued") && (
-                      <ScanProgress
-                        previews={previews}
-                        title={sDetail?.title || "Copyright Scan"}
-                        kind={(sDetail?.reference_kind as "image" | "video") || "image"}
-                        scanStatus={scanStatus}
-                        scanId={selectedScanId}
-                        stats={sStats}
-                        matches={currentMatches}
-                      />
-                    )}
-
                     {/* Failure Banner */}
                     {scanStatus === "failed" && (
                       <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-5 text-destructive backdrop-blur space-y-3">
@@ -1116,23 +1079,15 @@ function CopyrightIntelPage() {
                               )}
                             </div>
                           )}
-
-                          <CandidateDiagnosticsPanel
-                            matches={(detail.data?.matches ?? []) as Array<Record<string, unknown>>}
-                            stats={sStats}
-                          />
                         </div>
                       )}
                     </div>
 
                     {/* Current Scan Results Section */}
                     <div className="flex items-center justify-between">
-                      <h2 className="text-sm font-semibold uppercase tracking-wider text-destructive flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-                        VERIFIED UNAUTHORIZED COPIES
-                      </h2>
+                      <h2 className="text-sm font-semibold">Current Scan Results</h2>
                       <span className="text-xs text-muted-foreground">
-                        Showing {currentMatches.length} verified print(s) for active scan
+                        Showing {currentMatches.length} finding(s) for current active scan
                       </span>
                     </div>
 
@@ -1325,14 +1280,9 @@ function CopyrightIntelPage() {
                                 <span>Scan completed with limited coverage. No qualifying matches found in completed discovery routes.</span>
                               </div>
                             ) : (
-                              <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground space-y-1">
-                                <div className="flex items-center gap-2 font-semibold text-foreground">
-                                  <ShieldCheck className="h-5 w-5 text-emerald-400 shrink-0" />
-                                  <span>No verified unauthorized movie prints found yet.</span>
-                                </div>
-                                <p className="text-xs text-muted-foreground pl-7">
-                                  Eterna discovered candidate URLs, but none passed the evidence threshold required to identify them as verified copies of this movie.
-                                </p>
+                              <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground flex items-center gap-2">
+                                <ShieldCheck className="h-5 w-5 text-emerald-400 shrink-0" />
+                                <span>No qualifying matches found in this scan.</span>
                               </div>
                             )}
                           </div>

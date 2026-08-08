@@ -383,10 +383,9 @@ export function ThreatResultsList({
   const [search, setSearch] = useState("");
 
   const allRows = useMemo(
-    () => buildThreatResultRows({ suspicious, inspected, protectedTitles: [workTitle] }),
-    [suspicious, inspected, workTitle],
+    () => buildThreatResultRows({ suspicious, inspected }),
+    [suspicious, inspected],
   );
-
   const rows = useMemo(
     () => filterThreatRows(allRows, { filter, search }),
     [allRows, filter, search],

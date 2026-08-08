@@ -24,7 +24,6 @@ export const WORKER_HEARTBEAT_INTERVAL_MS = 25_000;
 export type ScanLeaseRow = {
   lease_expires_at?: string | null;
   heartbeat_at?: string | null;
-  created_at?: string | null;
   discovery_metrics?: unknown;
   status?: string | null;
 };
@@ -42,23 +41,17 @@ function parseTimestamp(value: unknown): number | null {
 
 /**
  * Returns true only when a running scan's lease is expired beyond grace and
- * there is no evidence of an in-flight worker or recent continuation handoff,
- * or when a legacy running scan has no lease and no heartbeat for > 5 minutes.
+ * there is no evidence of an in-flight worker or recent continuation handoff.
  */
 export function isScanEligibleForStaleRecovery(row: ScanLeaseRow, nowMs = Date.now()): boolean {
   if (row.status && row.status !== "running") return false;
 
   const leaseExpiry = parseTimestamp(row.lease_expires_at);
-  if (leaseExpiry != null) {
-    if (leaseExpiry > nowMs) return false;
-    if (nowMs - leaseExpiry < STALE_RECOVERY_GRACE_MS) return false;
-  } else {
-    // Legacy scan without lease_expires_at: check if created_at or heartbeat_at is older than 5 minutes
-    const lastActivity = parseTimestamp(row.heartbeat_at) ?? parseTimestamp(row.created_at);
-    if (lastActivity != null && nowMs - lastActivity < 300_000) {
-      return false;
-    }
-  }
+  if (leaseExpiry == null) return false;
+
+  if (leaseExpiry > nowMs) return false;
+
+  if (nowMs - leaseExpiry < STALE_RECOVERY_GRACE_MS) return false;
 
   const metrics = objectish(row.discovery_metrics);
   if (metrics) {
