@@ -213,12 +213,22 @@ function ScanPage() {
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [persistedScanId, setPersistedScanId] = useState<string | null>(null);
+  const [persistStatus, setPersistStatus] = useState<"idle" | "persisting" | "completed" | "error">("idle");
+  const [persistError, setPersistError] = useState<string | null>(null);
+  const [persistTrigger, setPersistTrigger] = useState<number>(0);
   const [persistSummary, setPersistSummary] = useState<{
     newHits: number;
     updatedHits: number;
     duplicatesRemoved: number;
     uniqueHits: number;
   } | null>(null);
+
+  const retryPersist = () => {
+    persistedReportKeyRef.current = null;
+    setPersistStatus("idle");
+    setPersistError(null);
+    setPersistTrigger((t) => t + 1);
+  };
 
   const m = useMutation({ mutationFn: runScan });
   const autoScanStarted = useRef(false);
@@ -276,7 +286,7 @@ function ScanPage() {
 
     const firstUrl = report.hits[0]?.url ?? "";
     const lastUrl = report.hits[report.hits.length - 1]?.url ?? "";
-    const reportKey = [report.query, report.period, report.hits.length, firstUrl, lastUrl].join(
+    const reportKey = [report.query, report.period, report.hits.length, firstUrl, lastUrl, persistTrigger].join(
       "::",
     );
 
@@ -284,6 +294,9 @@ function ScanPage() {
     persistedReportKeyRef.current = reportKey;
 
     let cancelled = false;
+    setPersistStatus("persisting");
+    setPersistError(null);
+
     (async () => {
       try {
         const mapped = report.hits.map((h) => ({
@@ -344,6 +357,7 @@ function ScanPage() {
           duplicatesRemoved: res.duplicatesRemoved,
           uniqueHits: res.uniqueHits,
         });
+        setPersistStatus("completed");
 
         // Kick off timestamp analysis for every YouTube hit (concurrency 3, fire-and-forget).
         const ytHits = report.hits.filter((h) => h.source === "YouTube" && h.media?.videoId);
@@ -382,13 +396,18 @@ function ScanPage() {
         if (persistedReportKeyRef.current === reportKey) {
           persistedReportKeyRef.current = null;
         }
-        console.error("[scan] persist failed:", e);
+        const errMsg = e instanceof Error ? e.message : "Database persistence failed";
+        console.error("[scan] persist failed:", errMsg);
+        if (!cancelled) {
+          setPersistStatus("error");
+          setPersistError(errMsg);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [report, persistFn, analyzeFn]);
+  }, [report, persistFn, analyzeFn, persistTrigger]);
 
   const toggleSource = (s: SourceKey) =>
     setSources((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
@@ -1135,7 +1154,7 @@ function ScanPage() {
                               : `Show Low-Risk Mentions (${lowRiskHits.length})`}
                           </button>
                         </div>
-                        {(showLowRiskSection || !hasThreats) && (
+                        {(showLowRiskSection || !hasThreats || !threatsOnly) && (
                           <Bucket
                             title=""
                             icon={<Eye className="size-4" />}
@@ -1151,7 +1170,7 @@ function ScanPage() {
                       </div>
                     )}
 
-                  {/* 6. Neutral / Official Content (collapsed by default) */}
+                  {/* 6. Neutral / Official Content */}
                   {neutralHits.length > 0 && (!threatsOnly || showNeutralSection) && (
                     <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3">
                       <div className="flex items-center justify-between">
@@ -1166,12 +1185,12 @@ function ScanPage() {
                           onClick={() => setShowNeutralSection((v) => !v)}
                           className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent font-medium cursor-pointer"
                         >
-                          {showNeutralSection
+                          {showNeutralSection || !threatsOnly
                             ? "Hide Neutral / Official"
                             : `Show Neutral / Official (${neutralHits.length})`}
                         </button>
                       </div>
-                      {showNeutralSection && (
+                      {(showNeutralSection || !threatsOnly || !hasThreats) && (
                         <Bucket
                           title=""
                           icon={<Globe className="size-4" />}
@@ -1196,6 +1215,10 @@ function ScanPage() {
             scanId={persistedScanId}
             summary={persistSummary}
             scanStatus={report ? "completed" : "running"}
+            inMemoryHits={report?.hits}
+            persistStatus={persistStatus}
+            persistError={persistError}
+            onRetryPersist={retryPersist}
           />
 
           <PageCard title="METHODOLOGY & LIMITATIONS" sub="How Eterna AI produced this report">
@@ -2619,6 +2642,39 @@ const SOURCE_PRIORITY: { key: string; label: string; icon: React.ReactNode }[] =
   { key: "Complaints", label: "Complaints", icon: <AlertTriangle className="size-3.5" /> },
   { key: "Archive", label: "Archive", icon: <Database className="size-3.5" /> },
 ];
+
+function scanHitToPersisted(h: ScanHit, scanId?: string | null): PersistedHit {
+  return {
+    id: h.id || `in-mem-${encodeURIComponent(h.url)}`,
+    scan_id: scanId || "in-memory",
+    source: h.source,
+    source_type: h.source === "YouTube" ? "youtube_video" : h.source.toLowerCase(),
+    external_id: h.media?.videoId ?? null,
+    canonical_url: h.url,
+    permalink: h.url,
+    title: h.title,
+    description: h.description ?? null,
+    author: h.author ?? h.media?.channelTitle ?? null,
+    thumbnail_url: h.media?.thumbnailHi ?? h.media?.thumbnail ?? null,
+    published_at: h.published ?? null,
+    detected_at: new Date().toISOString(),
+    reach: h.reachEstimate ?? null,
+    engagement: h.engagement ?? null,
+    velocity: h.viral ? "viral" : null,
+    risk_score: h.threatScore ?? null,
+    threat_score: h.threatScore ?? null,
+    severity: h.severity ?? null,
+    growth_pct: h.media?.growthPerDay ?? null,
+    narrative_claim: null,
+    risk_type: h.category ?? null,
+    tags: h.keywords ?? [],
+    is_new_since_last_scan: true,
+    times_detected: 1,
+    first_seen_at: new Date().toISOString(),
+    last_seen_at: new Date().toISOString(),
+  };
+}
+
 const SOURCE_RANK: Record<string, number> = Object.fromEntries(
   SOURCE_PRIORITY.map((s, i) => [s.key.toLowerCase(), i]),
 );
@@ -2632,6 +2688,10 @@ function PersistedResults({
   scanId,
   summary,
   scanStatus,
+  inMemoryHits,
+  persistStatus,
+  persistError,
+  onRetryPersist,
 }: {
   scanId: string | null;
   summary: {
@@ -2641,6 +2701,10 @@ function PersistedResults({
     uniqueHits: number;
   } | null;
   scanStatus: string;
+  inMemoryHits?: ScanHit[];
+  persistStatus?: "idle" | "persisting" | "completed" | "error";
+  persistError?: string | null;
+  onRetryPersist?: () => void;
 }) {
   const listFn = useServerFn(listScanHits);
   const evidenceStatusFn = useServerFn(listEvidenceStatus);
@@ -2654,7 +2718,7 @@ function PersistedResults({
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<string>("YouTube");
+  const [source, setSource] = useState<string>("");
   const [onlyNew, setOnlyNew] = useState(false);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
@@ -2678,13 +2742,13 @@ function PersistedResults({
   }, [scanId, source, onlyNew, hiddenFilter, reloadTick]);
 
   const load = async (nextCursor: typeof cursor) => {
-    if (loading || !hasMore) return;
+    if (loading || !hasMore || !scanId) return;
     setLoading(true);
     const seq = ++reqSeq.current;
     try {
       const res = await listFn({
         data: {
-          scanId: scanId ?? undefined,
+          scanId,
           source: source || undefined,
           onlyNew: onlyNew || undefined,
           hiddenFilter,
@@ -2711,6 +2775,14 @@ function PersistedResults({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanId, source, onlyNew, hiddenFilter, reloadTick]);
 
+  const effectiveRawItems = useMemo(() => {
+    if (scanId && items.length > 0) return items;
+    if (inMemoryHits && inMemoryHits.length > 0) {
+      return inMemoryHits.map((h) => scanHitToPersisted(h, scanId));
+    }
+    return items;
+  }, [scanId, items, inMemoryHits]);
+
   useEffect(() => {
     if (!sentinel.current) return;
     const el = sentinel.current;
@@ -2725,13 +2797,12 @@ function PersistedResults({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor, hasMore, loading]);
 
-  // Fetch evidence + enforcement status for currently loaded items (batched).
   useEffect(() => {
-    if (!items.length) {
+    if (!effectiveRawItems.length) {
       setEvidenceMap({});
       return;
     }
-    const missing = items.map((h) => h.id).filter((id) => !(id in evidenceMap));
+    const missing = effectiveRawItems.map((h) => h.id).filter((id) => !(id in evidenceMap));
     if (!missing.length) return;
     let cancelled = false;
     (async () => {
@@ -2757,7 +2828,7 @@ function PersistedResults({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items]);
+  }, [effectiveRawItems]);
 
   const displayItems = useMemo(() => {
     const now = Date.now();
@@ -2783,8 +2854,9 @@ function PersistedResults({
       return true;
     };
 
-    return items
+    return effectiveRawItems
       .filter((h) => {
+        if (source && (h.source || "").toLowerCase() !== source.toLowerCase()) return false;
         if (windowMs && h.published_at) {
           if (now - new Date(h.published_at).getTime() > windowMs) return false;
         }
@@ -2807,11 +2879,11 @@ function PersistedResults({
         const pb = b.published_at ? new Date(b.published_at).getTime() : 0;
         return pb - pa;
       });
-  }, [items, timeWindow, quickFilter]);
+  }, [effectiveRawItems, source, timeWindow, quickFilter]);
 
   const sourceCounts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const h of items) c[h.source] = (c[h.source] ?? 0) + 1;
+    for (const h of effectiveRawItems) c[h.source] = (c[h.source] ?? 0) + 1;
     return c;
   }, [items]);
   const criticalCount = useMemo(
@@ -2873,14 +2945,33 @@ function PersistedResults({
     });
   };
 
-  if (!scanId) {
-    return (
-      <PageCard title="TOP YOUTUBE FINDINGS" sub="Persisting scan results…">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="size-3.5 animate-spin" /> Saving scan and hits to the database…
-        </div>
-      </PageCard>
-    );
+  if (effectiveRawItems.length === 0) {
+    if (persistStatus === "persisting") {
+      return (
+        <PageCard title="TOP YOUTUBE FINDINGS" sub="Persisting scan results…">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" /> Saving scan and hits to the database…
+          </div>
+        </PageCard>
+      );
+    }
+    if (persistStatus === "error") {
+      return (
+        <PageCard title="TOP YOUTUBE FINDINGS" sub="Results could not be saved">
+          <div className="flex items-center justify-between text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl p-3">
+            <span>Results could not be saved to database{persistError ? `: ${persistError}` : ""}</span>
+            {onRetryPersist && (
+              <button
+                onClick={onRetryPersist}
+                className="px-3 py-1 bg-destructive text-destructive-foreground font-semibold rounded-lg hover:opacity-90 transition cursor-pointer"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        </PageCard>
+      );
+    }
   }
 
   const activeSource = source ? SOURCE_PRIORITY.find((s) => s.key === source) : null;
@@ -2919,6 +3010,24 @@ function PersistedResults({
           </div>
         }
       >
+        {persistStatus === "persisting" && (
+          <div className="flex items-center gap-2 text-xs p-2.5 mb-3 bg-primary/10 border border-primary/20 rounded-xl text-primary font-medium">
+            <Loader2 className="size-3.5 animate-spin" /> Saving scan and hits to the database…
+          </div>
+        )}
+        {persistStatus === "error" && (
+          <div className="flex items-center justify-between text-xs p-2.5 mb-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive font-medium">
+            <span>Results could not be saved to database{persistError ? `: ${persistError}` : ""}</span>
+            {onRetryPersist && (
+              <button
+                onClick={onRetryPersist}
+                className="px-3 py-1 bg-destructive text-destructive-foreground font-semibold rounded-lg hover:opacity-90 transition cursor-pointer"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap gap-1.5 mb-3">
           <button
             onClick={() => setSource("")}
