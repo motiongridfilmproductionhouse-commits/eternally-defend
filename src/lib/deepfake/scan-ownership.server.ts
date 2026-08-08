@@ -384,49 +384,49 @@ export async function recoverExpiredScanLease(input: {
 
   const { data: row, error: readError } = await supabase
     .from("deepfake_scans")
-    .select("id, status, lease_expires_at, heartbeat_at, discovery_metrics")
+    .select("id, status, lease_expires_at, heartbeat_at, created_at, total_results, total_queries, discovery_metrics")
     .eq("id", input.scanId)
     .eq("status", "running")
     .maybeSingle();
 
-  if (readError) {
-    if (
-      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(
-        readError.message,
-      )
-    ) {
-      return { recovered: false };
-    }
-    throw new Error(readError.message);
+  if (readError || !row) return { recovered: false };
+
+  if (!isScanEligibleForStaleRecovery(row as ScanLeaseRow, nowMs)) {
+    return { recovered: false };
   }
 
-  if (!row || !isScanEligibleForStaleRecovery(row as ScanLeaseRow, nowMs)) {
-    return { recovered: false };
+  const metrics = (row.discovery_metrics ?? {}) as Record<string, unknown>;
+  const candidatesFound = Number(metrics.candidates_found ?? row.total_results ?? 0);
+  const imagesCompared = Number(metrics.images_compared ?? 0);
+
+  let targetStatus: "completed" | "partial" | "failed" = "partial";
+  let terminationReason = "stale_worker";
+
+  if (candidatesFound > 0 && imagesCompared >= candidatesFound) {
+    targetStatus = "completed";
+    terminationReason = "completed_all_candidates";
+  } else if (candidatesFound > 0) {
+    targetStatus = "partial";
+    terminationReason = "unfinished_candidates";
+  } else {
+    targetStatus = "failed";
+    terminationReason = "no_results_or_provider_failure";
   }
 
   const { data, error } = await supabase
     .from("deepfake_scans")
     .update({
-      status: "failed",
+      status: targetStatus,
       scan_run_token: null,
       finished_at: nowIso,
       lease_expires_at: null,
-      error_message:
-        "Scan lease expired without a fresh heartbeat. Marked failed by stale-run recovery.",
+      error_message: `Scan lease expired without active heartbeat (${terminationReason}). Finalized as ${targetStatus}.`,
     } as any)
     .eq("id", input.scanId)
     .eq("status", "running")
-    .lt("lease_expires_at", staleRecoveryLeaseCutoffIso(nowMs))
     .select("id, status");
 
-  if (error) {
-    if (
-      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(error.message)
-    ) {
-      return { recovered: false };
-    }
-    throw new Error(error.message);
-  }
+  if (error) return { recovered: false };
 
   const updated = Array.isArray(data) ? data[0] : null;
   return {
@@ -446,51 +446,29 @@ export async function recoverExpiredScansForUser(input: {
 
   const { data: candidates, error: readError } = await supabase
     .from("deepfake_scans")
-    .select("id, status, lease_expires_at, heartbeat_at, created_at, discovery_metrics")
+    .select("id, status, lease_expires_at, heartbeat_at, created_at, total_results, total_queries, discovery_metrics")
     .eq("user_id", input.userId)
     .eq("status", "running");
 
-  if (readError) {
-    if (
-      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(
-        readError.message,
-      )
-    ) {
-      return 0;
-    }
-    throw new Error(readError.message);
+  if (readError) return 0;
+
+  const eligibleRows = (candidates ?? []).filter((row: ScanLeaseRow) =>
+    isScanEligibleForStaleRecovery(row, nowMs),
+  );
+
+  if (!eligibleRows.length) return 0;
+
+  let recoveredCount = 0;
+  for (const row of eligibleRows) {
+    const res = await recoverExpiredScanLease({
+      supabase,
+      scanId: row.id,
+      nowMs,
+    });
+    if (res.recovered) recoveredCount++;
   }
 
-  const eligibleIds = (candidates ?? [])
-    .filter((row: ScanLeaseRow) => isScanEligibleForStaleRecovery(row, nowMs))
-    .map((row: { id: string }) => row.id);
-
-  if (!eligibleIds.length) return 0;
-
-  const { data, error } = await supabase
-    .from("deepfake_scans")
-    .update({
-      status: "completed",
-      scan_run_token: null,
-      finished_at: nowIso,
-      lease_expires_at: null,
-      error_message:
-        "Scan lease expired without active heartbeat. Finalized by stale-run recovery.",
-    } as any)
-    .in("id", eligibleIds)
-    .eq("status", "running")
-    .select("id");
-
-  if (error) {
-    if (
-      /lease_expires_at|scan_run_token|column .* does not exist|schema cache/i.test(error.message)
-    ) {
-      return 0;
-    }
-    throw new Error(error.message);
-  }
-
-  return Array.isArray(data) ? data.length : 0;
+  return recoveredCount;
 }
 
 export { createScanRunToken };

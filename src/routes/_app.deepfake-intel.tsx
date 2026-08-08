@@ -148,13 +148,25 @@ function DeepfakeIntelPage() {
       google_images_url?: string;
     }) => runFn({ data: input }),
     onSuccess: (res) => {
-      toast.success(
-        `Scan complete — ${res.total_results} threats classified from ${res.discovered_results} latest public leads`,
-      );
+      if (!res?.scan_id) {
+        toast.error("Could not start scan: server returned no scan ID");
+        return;
+      }
+      if (res.action === "blocked_active_scan") {
+        toast.info(res.message || "A scan is already running for this target.");
+      } else if (res.action === "recover_then_restart") {
+        toast.success("Previous stalled scan recovered. Starting new sweep…");
+      } else {
+        toast.success(
+          `Scan complete — ${res.total_results ?? 0} threats classified from ${res.discovered_results ?? 0} public leads`,
+        );
+      }
       setSelectedScanId(res.scan_id);
       qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
+      qc.invalidateQueries({ queryKey: ["deepfake-scan", res.scan_id] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Could not start scan. Please try again."),
   });
 
   const createProfile = useMutation({

@@ -94,8 +94,79 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       }
     };
 
+    // 0. Active/Stale Scan Decision Guard & Diagnostics
+    console.info("[deepfake:start-click]", {
+      target: data.target_name,
+      profile_id: data.profile_id,
+    });
+
+    const { findActiveScanForIdentity, isUniqueViolation } = await import(
+      "./deepfake/scan-concurrency.server"
+    );
+    const { isScanEligibleForStaleRecovery } = await import("./deepfake/scan-lease.server");
+    const { recoverExpiredScanLease } = await import("./deepfake/scan-ownership.server");
+
+    const existingScan = await findActiveScanForIdentity({
+      supabase,
+      userId,
+      profileId: data.profile_id ?? null,
+      targetName: data.target_name,
+    });
+
+    if (existingScan) {
+      const nowMs = Date.now();
+      const heartbeatAt = existingScan.heartbeat_at ? Date.parse(existingScan.heartbeat_at) : NaN;
+      const heartbeatAgeMs = Number.isFinite(heartbeatAt)
+        ? nowMs - heartbeatAt
+        : Number.POSITIVE_INFINITY;
+
+      const isStale =
+        isScanEligibleForStaleRecovery(existingScan, nowMs) || heartbeatAgeMs > 300_000;
+
+      console.info("[deepfake:start-decision]", {
+        existingScanId: existingScan.id,
+        leaseExpiresAt: existingScan.lease_expires_at,
+        heartbeatAt: existingScan.heartbeat_at,
+        heartbeatAgeMs,
+        isStale,
+        action: isStale ? "recover_then_restart" : "blocked_active_scan",
+      });
+
+      console.info("[deepfake:stale-check]", {
+        scanId: existingScan.id,
+        status: existingScan.status,
+        heartbeatAt: existingScan.heartbeat_at,
+        heartbeatAgeMs,
+        leaseExpiresAt: existingScan.lease_expires_at,
+        isStale,
+        reason: isStale
+          ? "Heartbeat age > 5 minutes or lease expired beyond grace"
+          : "Active healthy worker lease",
+      });
+
+      if (!isStale) {
+        return {
+          scan_id: existingScan.id,
+          status: "running",
+          action: "blocked_active_scan" as const,
+          message: "A scan is already running for this target.",
+          total_results: 0,
+          discovered_results: 0,
+        };
+      }
+
+      // Recover/finalize stale scan before creating new scan
+      await recoverExpiredScanLease({
+        supabase,
+        scanId: existingScan.id,
+        nowMs,
+      }).catch((recErr) => {
+        console.warn("[DEEPFAKE] Stale scan recovery notice:", recErr);
+      });
+    }
+
     // 1. Create scan row
-    const { data: scan, error: sErr } = await supabase
+    let scanResult = await supabase
       .from("deepfake_scans")
       .insert({
         user_id: userId,
@@ -107,7 +178,43 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       .select("*")
       .single();
 
-    if (sErr || !scan) throw new Error(sErr?.message ?? "failed to create scan");
+    if (scanResult.error && isUniqueViolation(scanResult.error)) {
+      const activeAgain = await findActiveScanForIdentity({
+        supabase,
+        userId,
+        profileId: data.profile_id ?? null,
+        targetName: data.target_name,
+      });
+
+      if (activeAgain) {
+        await recoverExpiredScanLease({ supabase, scanId: activeAgain.id });
+        scanResult = await supabase
+          .from("deepfake_scans")
+          .insert({
+            user_id: userId,
+            target_name: data.target_name,
+            aliases: data.aliases ?? [],
+            handles: data.handles ?? [],
+            status: "running",
+          })
+          .select("*")
+          .single();
+
+        if (scanResult.error || !scanResult.data) {
+          return {
+            scan_id: activeAgain.id,
+            status: activeAgain.status,
+            action: "blocked_active_scan" as const,
+            message: "Another scan is currently running for this target.",
+            total_results: 0,
+            discovered_results: 0,
+          };
+        }
+      }
+    }
+
+    const scan = scanResult.data;
+    if (scanResult.error || !scan) throw new Error(scanResult.error?.message ?? "failed to create scan");
 
     const telemetry: ScanTelemetry = {
       stage: "initializing",
@@ -524,6 +631,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 
       return {
         scan_id: scan.id,
+        status: "completed",
+        action: existingScan ? ("recover_then_restart" as const) : ("create_new" as const),
         total_results: classified.length,
         discovered_results: allHits.length,
       };
