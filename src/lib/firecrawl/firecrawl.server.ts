@@ -80,7 +80,7 @@ export interface FirecrawlScrapeResponse {
 }
 
 export function isFirecrawlConfigured(): boolean {
-  const key = (process.env.FIRECRAWL_API_KEY ?? process.env.VITE_FIRECRAWL_API_KEY)?.trim() ?? "";
+  const fcKey = process.env.FIRECRAWL_API_KEY?.trim() ?? "";
   return Boolean(key);
 }
 
@@ -88,7 +88,7 @@ export function getFirecrawlConfigInfo(): {
   firecrawlConfigured: boolean;
   mode: "direct" | "lovable_gateway" | "missing";
 } {
-  const fcKey = (process.env.FIRECRAWL_API_KEY ?? process.env.VITE_FIRECRAWL_API_KEY)?.trim() ?? "";
+  const fcKey = process.env.FIRECRAWL_API_KEY?.trim() ?? "";
   if (!fcKey) return { firecrawlConfigured: false, mode: "missing" };
   const mode = fcKey.startsWith("lovc_") ? "lovable_gateway" : "direct";
   return { firecrawlConfigured: true, mode };
@@ -100,7 +100,7 @@ async function firecrawlRequest(
   body: unknown,
   timeoutMs = 12000,
 ): Promise<{ status: number; text: string; latencyMs: number }> {
-  const fcKey = (process.env.FIRECRAWL_API_KEY ?? process.env.VITE_FIRECRAWL_API_KEY)?.trim();
+  const fcKey = process.env.FIRECRAWL_API_KEY?.trim();
   const lovableKey = process.env.LOVABLE_API_KEY?.trim();
 
   if (!fcKey && !lovableKey) {
