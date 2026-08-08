@@ -14,15 +14,13 @@ export const SCAN_ACTIVITY_MAX_EVENTS = 25;
 
 export const COPYRIGHT_WORKFLOW_STAGES = [
   { key: "preparing_reference", label: "Preparing reference material" },
-  { key: "analyzing_visual", label: "Analyzing visual content" },
-  { key: "extracting_identifiers", label: "Extracting title identifiers" },
-  { key: "discovering_candidates", label: "Searching Google / Firecrawl…" },
-  { key: "expanding_queries", label: "Expanding search queries…" },
-  { key: "discovering_mirrors", label: "Discovering mirrors & cloud hosts…" },
-  { key: "retrieving_pages", label: "Retrieving exact pages" },
-  { key: "checking_access", label: "Analysing streaming & download pages…" },
-  { key: "classifying_evidence", label: "Verifying evidence…" },
-  { key: "saving_report", label: "Generating report…" },
+  { key: "generating_queries", label: "Generating search queries" },
+  { key: "discovering_candidates", label: "Discovering candidate pages" },
+  { key: "retrieving_pages", label: "Scanning websites" },
+  { key: "checking_access", label: "Analyzing content relevance" },
+  { key: "classifying_evidence", label: "Verifying evidence" },
+  { key: "saving_report", label: "Compiling findings" },
+  { key: "completed", label: "Finalizing scan" },
 ] as const;
 
 export type CopyrightWorkflowStageKey = (typeof COPYRIGHT_WORKFLOW_STAGES)[number]["key"];
@@ -194,13 +192,14 @@ export function resolveWorkflowStageFromStats(
     const idx = COPYRIGHT_WORKFLOW_STAGES.findIndex((s) => s.key === raw);
     if (idx >= 0) return COPYRIGHT_WORKFLOW_STAGES[idx]!.key;
   }
+  if (stats?.finished_at || stats?.completed_at) return "completed";
   if (stats?.finished_at) return "saving_report";
   if (stats?.classification_started) return "classifying_evidence";
   if (stats?.first_page_crawled) return "checking_access";
-  if (stats?.brightdata_requests || stats?.serpapi_requests) return "discovering_mirrors";
+  if (stats?.brightdata_requests || stats?.serpapi_requests) return "discovering_candidates";
   if (stats?.discovery_started) return "discovering_candidates";
-  if (stats?.queries_generated) return "expanding_queries";
-  if (stats?.executor_started || stats?.executor_started_at) return "analyzing_visual";
+  if (stats?.queries_generated) return "generating_queries";
+  if (stats?.executor_started || stats?.executor_started_at) return "retrieving_pages";
   return "preparing_reference";
 }
 
@@ -468,7 +467,15 @@ export function brightDataTelemetryFromStats(
 }
 
 export type CopyrightThreatBadgeTone =
-  "scanning" | "potential" | "multiple" | "verified" | "provider_limited" | "failed" | "partial";
+  | "scanning"
+  | "potential"
+  | "multiple"
+  | "verified"
+  | "provider_limited"
+  | "failed"
+  | "partial"
+  | "purple"
+  | "no_threat";
 
 export function resolveCopyrightThreatBadge(input: {
   scanStatus?: string | null;
@@ -517,18 +524,25 @@ export function resolveCopyrightThreatBadge(input: {
       Object.values(failuresByCat as Record<string, number>).some((v) => v > 0));
 
   if (verified > 0) {
-    return { tone: "verified", label: "VERIFIED DISTRIBUTION EVIDENCE" };
+    return { tone: "verified", label: "THREATS DETECTED" };
   }
-  if (potential >= 2) {
-    return { tone: "multiple", label: "MULTIPLE THREATS DETECTED" };
+  if (potential >= 1) {
+    return { tone: "potential", label: "VERIFYING THREATS" };
   }
-  if (potential === 1) {
-    return { tone: "potential", label: "POTENTIAL THREAT DETECTED" };
+  const curStage = String(stats.current_stage || stats.stage || "");
+  if (curStage === "retrieving_pages" || curStage === "checking_access" || curStage === "analyzing_visual") {
+    return { tone: "purple" as const, label: "ANALYZING CANDIDATES" };
   }
-  if (providerLimited && status === "running") {
-    return { tone: "provider_limited", label: "DISCOVERY CHANNEL LIMITED" };
+  if (curStage === "classifying_evidence" || curStage === "verifying") {
+    return { tone: "potential", label: "VERIFYING THREATS" };
   }
-  return { tone: "scanning", label: "SCANNING — NO VERIFIED THREAT YET" };
+  if (curStage === "saving_report") {
+    return { tone: "purple" as const, label: "FINALIZING RESULTS" };
+  }
+  if (status === "completed") {
+    return { tone: "no_threat" as const, label: "SCAN COMPLETED" };
+  }
+  return { tone: "scanning", label: "SCANNING WEB" };
 }
 
 export type SeenActivityThreatState = {

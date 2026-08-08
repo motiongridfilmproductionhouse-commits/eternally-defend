@@ -913,6 +913,19 @@ function CopyrightIntelPage() {
 
                 return (
                   <div className="space-y-4">
+                    {/* Live Scan Progress for Active Scans */}
+                    {(scanStatus === "running" || scanStatus === "queued") && (
+                      <ScanProgress
+                        previews={previews}
+                        title={sDetail?.title || "Copyright Scan"}
+                        kind={(sDetail?.reference_kind as "image" | "video") || "image"}
+                        scanStatus={scanStatus}
+                        scanId={selectedScanId}
+                        stats={sStats}
+                        matches={currentMatches}
+                      />
+                    )}
+
                     {/* Failure Banner */}
                     {scanStatus === "failed" && (
                       <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-5 text-destructive backdrop-blur space-y-3">
