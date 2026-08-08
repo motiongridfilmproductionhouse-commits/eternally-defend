@@ -3415,6 +3415,16 @@ export const Route = createFileRoute("/api/scan")({
             }
           }
 
+          const {
+            buildSubjectIdentityProfile,
+            verifySubjectEntity,
+          } = await import("@/lib/firecrawl/entity-verifier");
+
+          const subjectProfile = buildSubjectIdentityProfile(query, [
+            ...aliases,
+            ...variations,
+          ]);
+
           // Deduplicate by URL
           const cleanUrl = (urlStr: string): string => {
             try {
@@ -3431,10 +3441,26 @@ export const Route = createFileRoute("/api/scan")({
 
           const seenUrls = new Set<string>();
           const uniqueNormalized: NormalizedHit[] = [];
+
           for (const hit of allNormalized) {
             if (!hit.url) continue;
+
+            const verification = verifySubjectEntity(
+              {
+                title: hit.title || "",
+                description: hit.snippet || "",
+                snippet: hit.snippet || "",
+                url: hit.url,
+                author: hit.author || "",
+              },
+              subjectProfile,
+            );
+
+            if (!verification.isVerifiedFinding) continue;
+
             const cleaned = cleanUrl(hit.url);
             if (seenUrls.has(cleaned)) continue;
+
             seenUrls.add(cleaned);
             uniqueNormalized.push(hit);
           }
@@ -3492,11 +3518,10 @@ export const Route = createFileRoute("/api/scan")({
           // ══════════════════════════════════════════════════════════════════════
           // Admin Diagnostics & Coverage Counters
           // ══════════════════════════════════════════════════════════════════════
-          const { firecrawlHealthCheck, getFirecrawlConfigInfo } = await import(
-            "@/lib/firecrawl/firecrawl.server"
-          );
-          const fcConfig = getFirecrawlConfigInfo();
-          const fcHealth = await firecrawlHealthCheck(query);
+          const { getFirecrawlConfigInfo } = await import(
+  "@/lib/firecrawl/firecrawl.server"
+);
+const fcConfig = getFirecrawlConfigInfo();
 
           const sourceCounts: Record<string, number> = {};
           for (const r of mergedRuns)
@@ -3520,24 +3545,51 @@ export const Route = createFileRoute("/api/scan")({
             highRiskCandidates: report.hits.filter((h) => h.severity === "High" || h.severity === "Critical").length,
             resultsPersisted: report.hits.length,
             firecrawl: {
-              configured: fcConfig.firecrawlConfigured,
-              reachable: fcHealth.reachable,
-              authenticated: fcHealth.authenticated,
-              statusCode: fcHealth.statusCode,
-              errorCode: fcHealth.errorCode ?? null,
-              requestsAttempted: fcQueriesExecuted,
-              requestsSucceeded: fcSuccess ? fcQueriesExecuted : 0,
-              requestsFailed: fcError ? 1 : 0,
-              authFailures: fcHealth.errorCode === "AUTH_ERROR" ? 1 : 0,
-              rateLimitedRequests: fcHealth.errorCode === "RATE_LIMITED" ? 1 : 0,
-              queriesExecuted: fcQueriesExecuted,
-              webResults: sourceCounts["Web"] ?? 0,
-              newsResults: sourceCounts["News"] ?? 0,
-              imageResults: 0,
-              scrapedPages: 0,
-              scrapeFailures: 0,
-              latencyMs: fcHealth.latencyMs,
-            },
+  configured: fcConfig.firecrawlConfigured,
+  reachable: fcSuccess || Boolean(fcError),
+  authenticated:
+    !fcError?.includes("AUTH_ERROR") &&
+    !fcError?.includes("Unauthorized") &&
+    !fcError?.includes("401"),
+  statusCode:
+    fcError?.includes("AUTH_ERROR") ||
+    fcError?.includes("Unauthorized") ||
+    fcError?.includes("401")
+      ? 401
+      : fcError?.includes("RATE_LIMITED") || fcError?.includes("429")
+        ? 429
+        : fcSuccess
+          ? 200
+          : 503,
+  errorCode:
+    fcError?.includes("AUTH_ERROR") ||
+    fcError?.includes("Unauthorized") ||
+    fcError?.includes("401")
+      ? "AUTH_ERROR"
+      : fcError?.includes("RATE_LIMITED") || fcError?.includes("429")
+        ? "RATE_LIMITED"
+        : fcError
+          ? "PROVIDER_ERROR"
+          : null,
+  requestsAttempted: fcQueriesExecuted,
+  requestsSucceeded: fcSuccess ? fcQueriesExecuted : 0,
+  requestsFailed: fcError ? 1 : 0,
+  authFailures:
+    fcError?.includes("AUTH_ERROR") ||
+    fcError?.includes("Unauthorized") ||
+    fcError?.includes("401")
+      ? 1
+      : 0,
+  rateLimitedRequests:
+    fcError?.includes("RATE_LIMITED") || fcError?.includes("429") ? 1 : 0,
+  queriesExecuted: fcQueriesExecuted,
+  webResults: sourceCounts["Web"] ?? 0,
+  newsResults: sourceCounts["News"] ?? 0,
+  imageResults: 0,
+  scrapedPages: 0,
+  scrapeFailures: 0,
+  latencyMs: null,
+},
             youtube: {
               queriesRun: ytQueriesUsed,
               pagesScanned: ytPagesScanned,

@@ -80,10 +80,9 @@ export interface FirecrawlScrapeResponse {
 }
 
 export function isFirecrawlConfigured(): boolean {
-  const fcKey = process.env.FIRECRAWL_API_KEY?.trim() ?? "";
+  const key = process.env.FIRECRAWL_API_KEY?.trim() ?? "";
   return Boolean(key);
 }
-
 export function getFirecrawlConfigInfo(): {
   firecrawlConfigured: boolean;
   mode: "direct" | "lovable_gateway" | "missing";
