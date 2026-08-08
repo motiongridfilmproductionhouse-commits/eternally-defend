@@ -33,6 +33,32 @@ const HitInput = z.object({
   evidenceRefs: z.array(z.record(z.string(), z.unknown())).optional(),
 });
 
+export function normalizeIntegerCount(val: unknown): number | null {
+  if (val === null || val === undefined || val === "") return null;
+  const num = typeof val === "number" ? val : Number(val);
+  if (!Number.isFinite(num)) return null;
+  const rounded = Math.round(num);
+  if (rounded < 0) return 0;
+  if (rounded > 9_000_000_000_000_000) return 9_000_000_000_000_000;
+  return rounded;
+}
+
+export function normalizeRiskScore(val: unknown): number | null {
+  if (val === null || val === undefined || val === "") return null;
+  const num = typeof val === "number" ? val : Number(val);
+  if (!Number.isFinite(num)) return null;
+  const clamped = Math.max(0, Math.min(100, num));
+  return Number(clamped.toFixed(3));
+}
+
+export function normalizePercentage(val: unknown): number | null {
+  if (val === null || val === undefined || val === "") return null;
+  const num = typeof val === "number" ? val : Number(val);
+  if (!Number.isFinite(num)) return null;
+  const bounded = Math.max(-999_999, Math.min(999_999, num));
+  return Number(bounded.toFixed(3));
+}
+
 export type ScanHitInput = z.infer<typeof HitInput>;
 
 const PersistInput = z.object({
@@ -127,6 +153,7 @@ export const persistScan = createServerFn({ method: "POST" })
     };
     const rows: Row[] = [];
     let dupsInBatch = 0;
+
     for (const h of data.hits) {
       const key = `${h.source}::${h.externalId || h.canonicalUrl || h.permalink || ""}`;
       if (!key.endsWith("::")) {
@@ -152,19 +179,20 @@ export const persistScan = createServerFn({ method: "POST" })
         language: h.language ?? null,
         country: h.country ?? null,
         published_at: h.publishedAt ?? null,
-        reach: h.reach ?? null,
-        engagement: h.engagement ?? null,
+        reach: normalizeIntegerCount(h.reach),
+        engagement: normalizeIntegerCount(h.engagement),
         velocity: h.velocity ?? null,
-        risk_score: h.riskScore ?? h.threatScore ?? null,
-        threat_score: h.threatScore ?? null,
+        risk_score: normalizeRiskScore(h.riskScore ?? h.threatScore),
+        threat_score: normalizeRiskScore(h.threatScore),
         severity: h.severity ?? null,
-        growth_pct: h.growthPct ?? null,
+        growth_pct: normalizePercentage(h.growthPct),
         narrative_claim: h.narrativeClaim ?? null,
         risk_type: h.riskType ?? null,
-        tags: h.tags ?? [],
-        metrics: h.metrics ?? {},
-        source_metadata: h.sourceMetadata ?? {},
-        evidence_refs: h.evidenceRefs ?? [],
+        tags: Array.isArray(h.tags) ? h.tags : [],
+        metrics: h.metrics && typeof h.metrics === "object" ? h.metrics : {},
+        source_metadata:
+          h.sourceMetadata && typeof h.sourceMetadata === "object" ? h.sourceMetadata : {},
+        evidence_refs: Array.isArray(h.evidenceRefs) ? h.evidenceRefs : [],
         previous_scan_id: previousScanId,
         times_detected: 1,
       });
@@ -219,7 +247,31 @@ export const persistScan = createServerFn({ method: "POST" })
             onConflict: `user_id,source,${col}`,
             ignoreDuplicates: false,
           });
-        if (error) throw new Error(`scan_hits upsert failed: ${error.message}`);
+
+        if (error) {
+          console.error("[scan_hits:upsert_error]", {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            onConflict: `user_id,source,${col}`,
+            sampleRow: upsertRows[0]
+              ? {
+                  source: upsertRows[0].source,
+                  external_id: upsertRows[0].external_id,
+                  canonical_url: upsertRows[0].canonical_url,
+                  reach: upsertRows[0].reach,
+                  engagement: upsertRows[0].engagement,
+                  risk_score: upsertRows[0].risk_score,
+                  threat_score: upsertRows[0].threat_score,
+                  growth_pct: upsertRows[0].growth_pct,
+                }
+              : null,
+          });
+          throw new Error(
+            `scan_hits upsert failed: ${error.message}${error.details ? ` - ${error.details}` : ""}`,
+          );
+        }
       }
     }
 
