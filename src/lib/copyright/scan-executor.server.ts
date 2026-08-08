@@ -248,17 +248,34 @@ export async function executeCopyrightScanPipeline(input: {
     tracker.enter("candidate_evaluation");
     const officialSources: DiscoveryCandidate[] = [];
     const validCandidates: DiscoveryCandidate[] = [];
+    const protectedTitles = [title, analysis.title ?? "", ...analysis.altTitles].filter(Boolean);
+    let irrelevantLeads = 0;
 
     for (const c of discovery.candidates) {
       const url = c.url;
       if (!byUrl.has(url)) byUrl.set(url, c);
       if (isExcludedHost(url)) {
         officialSources.push(c);
-      } else {
-        validCandidates.push(c);
+        continue;
       }
+      // Trailers, songs, reviews, clips and pages about a different film that
+      // merely shares a word with the protected title are not distribution.
+      const relevance = assessLeadRelevance({
+        url,
+        title: c.title ?? null,
+        protectedTitles,
+      });
+      if (!relevance.relevant) {
+        irrelevantLeads += 1;
+        continue;
+      }
+      validCandidates.push(c);
     }
     tracker.candidatePagesDiscovered = byUrl.size;
+    if (irrelevantLeads > 0) {
+      console.info("copyright_scan_irrelevant_leads_filtered", { count: irrelevantLeads });
+    }
+
 
     // Ensure every valid candidate has a thumbnail URL so no valid result is lost.
     for (const c of validCandidates) {
