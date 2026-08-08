@@ -1291,111 +1291,76 @@ function fcItemToRaw(item: Record<string, unknown>): RawHit {
   };
 }
 
-/** Run a single Firecrawl search query and return parsed RawHit array. */
-async function fcSearch(q: string, limit: number): Promise<RawHit[]> {
-  const { firecrawlFetch } = await import("@/lib/firecrawl-client.server");
-  const apiResponse = await firecrawlFetch("/search", {
+/** Run a single Firecrawl search query using the centralized v2 client. */
+async function fcSearch(q: string, limit: number, scrape = false): Promise<RawHit[]> {
+  const { firecrawlSearch } = await import("@/lib/firecrawl/firecrawl.server");
+  const res = await firecrawlSearch({
     query: q,
     limit: Math.min(Math.max(limit, 1), 10),
-    sources: ["web"],
-    tbs: "qdr:y",
+    sources: ["web", "news"],
+    scrapeOptions: scrape ? { formats: ["markdown"] } : undefined,
   });
-  const responseText = await apiResponse.text();
-  if (!apiResponse.ok) {
-    throw new Error(
-      `Firecrawl search failed (${apiResponse.status}): ${responseText.slice(0, 300)}`,
-    );
-  }
-  const response = JSON.parse(responseText) as unknown;
-  const root = response as Record<string, unknown>;
 
-  if (root.success === false) {
-    throw new Error(
-      typeof root.error === "string" ? root.error : "Firecrawl search request failed",
-    );
+  if (!res.success) {
+    throw new Error(res.error || `Firecrawl search failed with status ${res.statusCode}`);
   }
 
-  const nested =
-    root.data && typeof root.data === "object" && !Array.isArray(root.data)
-      ? (root.data as Record<string, unknown>)
-      : {};
+  const parsed: RawHit[] = res.items.map((item) => ({
+    url: item.url,
+    title: item.title || "",
+    description: item.snippet || item.description || "",
+    snippet: item.snippet,
+    author: item.author,
+    date: item.publishedDate || item.date,
+    publishedDate: item.publishedDate || item.date,
+    media: item.ogImage ? { thumbnail: item.ogImage, thumbnailHi: item.ogImage } : undefined,
+  }));
 
-  const candidates: unknown[] = [
-    ...(Array.isArray(root.web) ? root.web : []),
-    ...(Array.isArray(root.news) ? root.news : []),
-    ...(Array.isArray(nested.web) ? nested.web : []),
-    ...(Array.isArray(nested.news) ? nested.news : []),
-    ...(Array.isArray(root.data) ? root.data : []),
-  ];
-
-  const unique = new Map<string, Record<string, unknown>>();
-
-  for (const item of candidates) {
-    if (!item || typeof item !== "object") continue;
-
-    const record = item as Record<string, unknown>;
-    const metadata =
-      record.metadata && typeof record.metadata === "object"
-        ? (record.metadata as Record<string, unknown>)
-        : {};
-
-    const normalized: Record<string, unknown> = {
-      ...record,
-      title: record.title ?? metadata.title,
-      description: record.description ?? record.snippet ?? metadata.description,
-      url: record.url ?? record.sourceURL ?? metadata.sourceURL ?? metadata.url,
-    };
-
-    const url = typeof normalized.url === "string" ? normalized.url : "";
-    if (url) unique.set(url, normalized);
-  }
-
-  const parsed = Array.from(unique.values())
-    .map(fcItemToRaw)
-    .filter((hit) => Boolean(hit.url));
-
-  console.log(`[firecrawl] query="${q}" candidates=${candidates.length} parsed=${parsed.length}`);
-
+  console.log(`[firecrawl] query="${q}" rawCandidates=${res.rawCandidatesCount} parsed=${parsed.length}`);
   return parsed;
 }
 
 async function runFirecrawl(
   query: string,
+  aliases: string[],
+  handles: string[],
   sources: SourceKey[],
   limit: number,
-): Promise<{ runs: { source: string; raw: RawHit[] }[]; error?: string }> {
-  const nonYt = sources.filter((s) => s !== "youtube");
-  if (!nonYt.length) return { runs: [] };
-  try {
-    const results = await Promise.allSettled(
-      nonYt.map(async (s) => {
-        const cfg = SOURCE_QUERY[s];
-        const q = cfg.site
-          ? `${query} site:${cfg.site}`
-          : cfg.suffix
-            ? `${query} ${cfg.suffix}`
-            : query;
-        const raw = await fcSearch(q, limit);
-        return { source: cfg.label, raw };
+): Promise<{ runs: { source: string; raw: RawHit[] }[]; error?: string; queriesExecuted: number }> {
+  const { generateExpandedQueries } = await import("@/lib/firecrawl/query-generator");
+  const queryGroups = generateExpandedQueries(query, aliases, handles);
+
+  const runsMap = new Map<string, RawHit[]>();
+  let queriesExecuted = 0;
+  const errors: string[] = [];
+
+  for (const group of queryGroups) {
+    const settled = await Promise.allSettled(
+      group.queries.slice(0, 4).map(async (q) => {
+        queriesExecuted++;
+        return fcSearch(q, limit);
       }),
     );
-    const runs: { source: string; raw: RawHit[] }[] = [];
-    const errors: string[] = [];
-    for (const r of results) {
-      if (r.status === "fulfilled") runs.push(r.value);
-      else {
+    for (const r of settled) {
+      if (r.status === "fulfilled") {
+        for (const hit of r.value) {
+          const { source } = platformFromUrl(hit.url || "");
+          const label = source || "Web";
+          if (!runsMap.has(label)) runsMap.set(label, []);
+          runsMap.get(label)!.push(hit);
+        }
+      } else {
         const errMsg = r.reason instanceof Error ? r.reason.message : String(r.reason);
         errors.push(errMsg);
-        console.error("[scan] firecrawl rejected:", errMsg);
       }
     }
-    if (runs.length === 0 && nonYt.length > 0) {
-      return { runs: [], error: errors.join("; ") || "Firecrawl search failed" };
-    }
-    return { runs };
-  } catch (e) {
-    return { runs: [], error: e instanceof Error ? e.message : "Firecrawl failed" };
   }
+
+  const runs = Array.from(runsMap.entries()).map(([source, raw]) => ({ source, raw }));
+  if (runs.length === 0 && errors.length > 0) {
+    return { runs: [], error: errors.join("; "), queriesExecuted };
+  }
+  return { runs, queriesExecuted };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3204,7 +3169,7 @@ export const Route = createFileRoute("/api/scan")({
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 1 — Run YouTube, baseline Firecrawl, and Reddit concurrently
           // ══════════════════════════════════════════════════════════════════════
-          const [ytSettled, fcControversySettled, fcGeneralSettled, redditSettled] =
+          const [ytSettled, fcSettled, redditSettled] =
             await Promise.allSettled([
               wantYouTube
                 ? runYouTube(query, aliases, variations, hashtags, handles, ytTarget, monthWindow)
@@ -3217,8 +3182,7 @@ export const Route = createFileRoute("/api/scan")({
                     quotaExhausted: false,
                     quotaReason: undefined as string | undefined,
                   }),
-              runFirecrawl(controversyQuery, nonYtOrRedditSources, Math.min(limit, 5)),
-              runFirecrawl(expansionQuery, nonYtOrRedditSources, limit),
+              runFirecrawl(query, aliases, handles, sources, limit),
               wantReddit
                 ? runReddit(query, aliases, monthWindow)
                 : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined }),
@@ -3262,34 +3226,23 @@ export const Route = createFileRoute("/api/scan")({
           }
 
           let fcSuccess = false;
-          let fcControversyRuns: { source: string; raw: RawHit[] }[] = [];
-          let fcGeneralRuns: { source: string; raw: RawHit[] }[] = [];
+          let fcRuns: { source: string; raw: RawHit[] }[] = [];
           let fcError: string | undefined = undefined;
+          let fcQueriesExecuted = 0;
 
-          const fcCSuccess =
-            fcControversySettled.status === "fulfilled" && !fcControversySettled.value.error;
-          const fcGSuccess =
-            fcGeneralSettled.status === "fulfilled" && !fcGeneralSettled.value.error;
-
-          if (fcCSuccess || fcGSuccess) {
-            fcSuccess = true;
-            if (fcControversySettled.status === "fulfilled") {
-              fcControversyRuns = fcControversySettled.value.runs;
+          if (fcSettled.status === "fulfilled") {
+            const val = fcSettled.value;
+            fcQueriesExecuted = val.queriesExecuted;
+            fcRuns = val.runs;
+            if (val.error && !val.runs.length) {
+              fcError = val.error;
+              console.error(`[scan] Firecrawl: error - ${val.error}`);
+            } else {
+              fcSuccess = true;
+              console.log(`[scan] Firecrawl: success (${val.runs.reduce((acc, r) => acc + r.raw.length, 0)} results, ${fcQueriesExecuted} queries)`);
             }
-            if (fcGeneralSettled.status === "fulfilled") {
-              fcGeneralRuns = fcGeneralSettled.value.runs;
-            }
-            console.log("[scan] Firecrawl: success");
           } else {
-            const err1 =
-              fcControversySettled.status === "rejected"
-                ? fcControversySettled.reason?.message
-                : fcControversySettled.value?.error;
-            const err2 =
-              fcGeneralSettled.status === "rejected"
-                ? fcGeneralSettled.reason?.message
-                : fcGeneralSettled.value?.error;
-            fcError = `Controversy error: ${err1}, General error: ${err2}`;
+            fcError = fcSettled.reason?.message || String(fcSettled.reason);
             console.error(`[scan] Firecrawl: error - ${fcError}`);
           }
 
@@ -3322,10 +3275,8 @@ export const Route = createFileRoute("/api/scan")({
           });
 
           console.log("[scan-debug] Initial Firecrawl result", {
-            controversyHits: fcControversyRuns.flatMap((run) => run.raw).length,
-            generalHits: fcGeneralRuns.flatMap((run) => run.raw).length,
-            controversyRuns: fcControversyRuns.length,
-            generalRuns: fcGeneralRuns.length,
+            hits: fcRuns.flatMap((run) => run.raw).length,
+            runs: fcRuns.length,
           });
 
           // Return HTTP 500 if every active provider failed
@@ -3363,22 +3314,23 @@ export const Route = createFileRoute("/api/scan")({
           }
 
           // ══════════════════════════════════════════════════════════════════════
-          // STAGE 3 — Keyword expansion from whatever results we have so far
+          // STAGE 3 — Keyword expansion & multi-group consolidation
           // ══════════════════════════════════════════════════════════════════════
           const firstPassRaw = [
             ...ytRaw,
             ...redditRaw,
+            ...fcRuns.flatMap((r) => r.raw),
             ...(fcDiscovery?.runs ?? []).flatMap((r) => r.raw),
-            ...fcControversyRuns.flatMap((r) => r.raw),
           ];
 
-          console.log("[scan-debug] First-pass discovery totals", {
+          console.log("[scan-debug] Discovery totals", {
             youtube: ytRaw.length,
+            firecrawlRuns: fcRuns.length,
+            firecrawlRaw: fcRuns.flatMap((r) => r.raw).length,
             firecrawlDiscovery: fcDiscovery?.runs.flatMap((run) => run.raw).length ?? 0,
-            firecrawlControversy: fcControversyRuns.flatMap((run) => run.raw).length,
-            firecrawlGeneral: fcGeneralRuns.flatMap((run) => run.raw).length,
             firstPassRaw: firstPassRaw.length,
           });
+
           let expansionRuns: { source: string; raw: RawHit[] }[] = [];
           if (firstPassRaw.length >= 3) {
             const trendingTerms = extractExpansionTerms(firstPassRaw, query, aliases);
@@ -3387,6 +3339,8 @@ export const Route = createFileRoute("/api/scan")({
               console.log("[scan] keyword expansion query:", expansionQ);
               const fcExp = await runFirecrawl(
                 expansionQ,
+                aliases,
+                handles,
                 (["news", "web", "reddit"] as SourceKey[]).filter((s) => sources.includes(s)),
                 4,
               );
@@ -3441,14 +3395,13 @@ export const Route = createFileRoute("/api/scan")({
 
           if (fcSuccess) {
             const combinedFcRuns = [
-              ...fcControversyRuns,
-              ...fcGeneralRuns,
+              ...fcRuns,
               ...expansionRuns,
               ...(fcDiscovery?.runs ?? []),
             ];
             for (const run of combinedFcRuns) {
               for (const item of run.raw) {
-                const { platform, source } = platformFromUrl(item.url || "");
+                const { source } = platformFromUrl(item.url || "");
                 allNormalized.push({
                   source: source || run.source || "Web",
                   title: item.title || "",
@@ -3497,8 +3450,7 @@ export const Route = createFileRoute("/api/scan")({
           // Merge all runs — accumulate per source, deduplicate by URL in buildReport
           // ══════════════════════════════════════════════════════════════════════
           const allRuns = [
-            ...fcControversyRuns,
-            ...fcGeneralRuns,
+            ...fcRuns,
             ...expansionRuns,
             ...(fcDiscovery?.runs ?? []),
           ];
@@ -3509,14 +3461,12 @@ export const Route = createFileRoute("/api/scan")({
             else existing.raw.push(...r.raw);
           }
           const mergedRuns = Array.from(runMap.values());
-          // YouTube API results (if any) always take priority — add last so they're not dropped
           if (ytRaw.length) {
             const ytRun = mergedRuns.find((r) => r.source === "YouTube");
             if (ytRun) ytRun.raw.unshift(...ytRaw);
             else mergedRuns.push({ source: "YouTube", raw: ytRaw });
           }
 
-          // Reddit results (if any) — add to mergedRuns so they flow into buildReport and buckets
           if (redditRaw.length) {
             const redditRun = mergedRuns.find((r) => r.source === "Reddit");
             if (redditRun) redditRun.raw.unshift(...redditRaw);
@@ -3524,7 +3474,7 @@ export const Route = createFileRoute("/api/scan")({
           }
 
           const overallErr =
-            !mergedRuns.some((r) => r.raw.length > 0) && !ytQuotaExhaustedFinal
+            !mergedRuns.some((r) => r.raw.length > 0) && !ytQuotaExhaustedFinal && !fcError
               ? "No results returned"
               : undefined;
 
@@ -3537,17 +3487,57 @@ export const Route = createFileRoute("/api/scan")({
             overallErr,
           );
 
-          // Add the normalized unique results feed to the report
           report.results = uniqueNormalized;
 
           // ══════════════════════════════════════════════════════════════════════
-          // Diagnostics
+          // Admin Diagnostics & Coverage Counters
           // ══════════════════════════════════════════════════════════════════════
+          const { firecrawlHealthCheck, getFirecrawlConfigInfo } = await import(
+            "@/lib/firecrawl/firecrawl.server"
+          );
+          const fcConfig = getFirecrawlConfigInfo();
+          const fcHealth = await firecrawlHealthCheck(query);
+
           const sourceCounts: Record<string, number> = {};
           for (const r of mergedRuns)
             sourceCounts[r.source] = (sourceCounts[r.source] ?? 0) + r.raw.length;
 
+          const totalRawFetched = mergedRuns.reduce((s, r) => s + r.raw.length, 0);
+
           (report as unknown as Record<string, unknown>).diagnostics = {
+            queriesGenerated: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
+            queriesExecuted: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
+            queriesFailed: (fcError ? 1 : 0) + (ytError ? 1 : 0) + (redditError ? 1 : 0),
+            firecrawlQueriesExecuted: fcQueriesExecuted + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
+            firecrawlResultsReceived: fcRuns.reduce((acc, r) => acc + r.raw.length, 0),
+            candidateUrls: totalRawFetched,
+            uniqueUrls: uniqueNormalized.length,
+            pagesScraped: 0,
+            subjectMatches: report.hits.filter((h) => h.confidence > 70).length,
+            ambiguousMatches: report.hits.filter((h) => h.confidence <= 70).length,
+            neutralResults: report.hits.filter((h) => h.sentiment === "Neutral").length,
+            negativeCandidates: report.hits.filter((h) => h.sentiment === "Negative").length,
+            highRiskCandidates: report.hits.filter((h) => h.severity === "High" || h.severity === "Critical").length,
+            resultsPersisted: report.hits.length,
+            firecrawl: {
+              configured: fcConfig.firecrawlConfigured,
+              reachable: fcHealth.reachable,
+              authenticated: fcHealth.authenticated,
+              statusCode: fcHealth.statusCode,
+              errorCode: fcHealth.errorCode ?? null,
+              requestsAttempted: fcQueriesExecuted,
+              requestsSucceeded: fcSuccess ? fcQueriesExecuted : 0,
+              requestsFailed: fcError ? 1 : 0,
+              authFailures: fcHealth.errorCode === "AUTH_ERROR" ? 1 : 0,
+              rateLimitedRequests: fcHealth.errorCode === "RATE_LIMITED" ? 1 : 0,
+              queriesExecuted: fcQueriesExecuted,
+              webResults: sourceCounts["Web"] ?? 0,
+              newsResults: sourceCounts["News"] ?? 0,
+              imageResults: 0,
+              scrapedPages: 0,
+              scrapeFailures: 0,
+              latencyMs: fcHealth.latencyMs,
+            },
             youtube: {
               queriesRun: ytQueriesUsed,
               pagesScanned: ytPagesScanned,
@@ -3574,15 +3564,14 @@ export const Route = createFileRoute("/api/scan")({
               endIso: monthWindow.endIso,
             },
             sourceCounts,
-            totalRawFetched: mergedRuns.reduce((s, r) => s + r.raw.length, 0),
+            totalRawFetched,
             sourcesWithResults: mergedRuns.filter((r) => r.raw.length > 0).map((r) => r.source),
             scannedAt: new Date().toISOString(),
             breakingCount: report.buckets.breaking.length,
             recent3dCount: report.buckets.recent3d.length,
             recent7dCount: report.buckets.recent7d.length,
-            // Filter diagnostics (admin-only via ?diag=1)
             filterDiag: {
-              preFilterCount: report.totals.total, // raw dedupe count before month filter
+              preFilterCount: report.totals.total,
               keptDated: report.hits.filter((h) => !!h.published).length,
               keptUndated: report.hits.filter((h) => !h.published).length,
               finalCount: report.hits.length,
