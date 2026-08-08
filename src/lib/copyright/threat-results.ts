@@ -9,6 +9,8 @@
 
 import type { PublicSuspiciousSource } from "./suspicious-sources";
 import { isNeverDisplayHost } from "./verified-distribution";
+import { assessLeadRelevance } from "./content-relevance";
+
 
 export type ThreatSeverity = "critical" | "high" | "medium" | "low";
 
