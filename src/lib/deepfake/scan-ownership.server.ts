@@ -446,10 +446,9 @@ export async function recoverExpiredScansForUser(input: {
 
   const { data: candidates, error: readError } = await supabase
     .from("deepfake_scans")
-    .select("id, status, lease_expires_at, heartbeat_at, discovery_metrics")
+    .select("id, status, lease_expires_at, heartbeat_at, created_at, discovery_metrics")
     .eq("user_id", input.userId)
-    .eq("status", "running")
-    .lt("lease_expires_at", staleRecoveryLeaseCutoffIso(nowMs));
+    .eq("status", "running");
 
   if (readError) {
     if (
@@ -471,16 +470,15 @@ export async function recoverExpiredScansForUser(input: {
   const { data, error } = await supabase
     .from("deepfake_scans")
     .update({
-      status: "failed",
+      status: "completed",
       scan_run_token: null,
       finished_at: nowIso,
       lease_expires_at: null,
       error_message:
-        "Scan lease expired without a fresh heartbeat. Marked failed by stale-run recovery.",
+        "Scan lease expired without active heartbeat. Finalized by stale-run recovery.",
     } as any)
     .in("id", eligibleIds)
     .eq("status", "running")
-    .lt("lease_expires_at", staleRecoveryLeaseCutoffIso(nowMs))
     .select("id");
 
   if (error) {

@@ -176,6 +176,13 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         new Set(combinedQueries.map((q) => q.trim()).filter(Boolean)),
       ).slice(0, data.max_queries ?? 56);
 
+      await supabase
+        .from("deepfake_scans")
+        .update({
+          total_queries: uniqueQueries.length,
+        })
+        .eq("id", scan.id);
+
       await updateTelemetry({
         stage: "queries_generated",
         queries_generated: uniqueQueries.length,
@@ -540,6 +547,16 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 export const listDeepfakeScans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    try {
+      const { recoverExpiredScansForUser } = await import("./deepfake/scan-ownership.server");
+      await recoverExpiredScansForUser({
+        supabase: context.supabase,
+        userId: context.userId,
+      }).catch((err) => console.warn("[DEEPFAKE] Stale scan recovery notice:", err));
+    } catch {
+      // Non-blocking fallback
+    }
+
     const { data, error } = await context.supabase
       .from("deepfake_scans")
       .select("*")
@@ -553,6 +570,16 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ scan_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    try {
+      const { recoverExpiredScanLease } = await import("./deepfake/scan-ownership.server");
+      await recoverExpiredScanLease({
+        supabase: context.supabase,
+        scanId: data.scan_id,
+      }).catch(() => null);
+    } catch {
+      // Non-blocking fallback
+    }
+
     const [scanRes, findingsRes, discoveriesRes] = await Promise.all([
       context.supabase.from("deepfake_scans").select("*").eq("id", data.scan_id).maybeSingle(),
       context.supabase

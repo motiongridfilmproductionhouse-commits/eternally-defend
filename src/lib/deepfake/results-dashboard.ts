@@ -17,6 +17,7 @@ export type FindingClassification = "VERIFIED_DEEPFAKE" | "PROBABLE_DEEPFAKE" | 
 export type ClientFinding = EvidenceUrlFields & {
   id: string;
   url?: string | null;
+  source?: string | null;
   source_host?: string | null;
   page_title?: string | null;
   snippet?: string | null;
@@ -41,6 +42,7 @@ export type ClientFinding = EvidenceUrlFields & {
   crawled_at?: string | null;
   created_at?: string | null;
   verified_domain?: string | null;
+  target_face_match?: boolean | null;
   face_similarity?: number | null;
   explicit_media_confirmed?: boolean | null;
   synthetic_media_confirmed?: boolean | null;
