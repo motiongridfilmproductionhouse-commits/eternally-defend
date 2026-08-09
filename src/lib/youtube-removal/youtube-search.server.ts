@@ -2,16 +2,25 @@
  * YouTube discovery for the targeted removal scan.
  *
  * Uses the official YouTube Data API (search.list + videos.list +
- * channels.list). Provider failures are surfaced as errors — a failed
- * discovery must never be reported as "no results".
+ * channels.list). Provider failures are surfaced with precise error codes —
+ * a failed discovery must never be reported as "no results".
  */
 
 const YT = "https://www.googleapis.com/youtube/v3";
 
 function apiKey(): string {
-  const k = process.env["YOUTUBE_API_KEY"] ?? process.env["GOOGLE_API_KEY"];
-  if (!k) throw new Error("YOUTUBE_API_KEY_MISSING");
-  return k;
+  const ytKey = process.env["YOUTUBE_API_KEY"];
+  const googleKey = process.env["GOOGLE_API_KEY"];
+
+  // Prefer valid Google API Key format (AIza...)
+  if (ytKey && ytKey.startsWith("AIza")) return ytKey;
+  if (googleKey && googleKey.startsWith("AIza")) return googleKey;
+  if (ytKey) return ytKey;
+  if (googleKey) return googleKey;
+
+  const err: Error & { code?: string } = new Error("YouTube API is not configured.");
+  err.code = "YOUTUBE_API_KEY_MISSING";
+  throw err;
 }
 
 export interface DiscoveredVideo {
@@ -54,27 +63,63 @@ export interface ChannelDetail {
 async function ytGet<T>(path: string, params: Record<string, string>): Promise<T> {
   const url = new URL(`${YT}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  url.searchParams.set("key", apiKey());
-  const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
+
+  let key: string;
+  try {
+    key = apiKey();
+  } catch (e) {
+    throw e;
+  }
+
+  url.searchParams.set("key", key);
+
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
+  } catch (netErr: any) {
+    const err: Error & { code?: string } = new Error(`YouTube API network error: ${netErr?.message || "fetch failed"}`);
+    err.code = "YOUTUBE_NETWORK_ERROR";
+    throw err;
+  }
+
   const text = await res.text();
   if (!res.ok) {
     let failureCode = "YOUTUBE_SEARCH_FAILED";
     if (path.includes("/videos")) failureCode = "YOUTUBE_VIDEO_DETAILS_FAILED";
-    if (res.status === 403 && (text.includes("quotaExceeded") || text.includes("quota"))) {
-      failureCode = "YOUTUBE_QUOTA_EXCEEDED";
-    } else if (res.status === 401 || res.status === 403) {
+
+    if (
+      res.status === 400 &&
+      (text.includes("API_KEY_INVALID") || text.includes("keyInvalid") || text.includes("API key not valid"))
+    ) {
       failureCode = "YOUTUBE_AUTH_ERROR";
+    } else if (res.status === 401) {
+      failureCode = "YOUTUBE_AUTH_ERROR";
+    } else if (res.status === 403) {
+      if (text.includes("quotaExceeded") || text.includes("dailyLimitExceeded") || text.includes("quota")) {
+        failureCode = "YOUTUBE_QUOTA_EXCEEDED";
+      } else if (
+        text.includes("accessNotConfigured") ||
+        text.includes("API not enabled") ||
+        text.includes("serviceNotEnabled") ||
+        text.includes("forbidden")
+      ) {
+        failureCode = "YOUTUBE_API_NOT_ENABLED";
+      } else {
+        failureCode = "YOUTUBE_AUTH_ERROR";
+      }
     } else if (res.status === 429) {
       failureCode = "YOUTUBE_RATE_LIMIT";
     }
 
-    const err: Error & { status?: number; code?: string } = new Error(
-      `YouTube ${path} [${res.status}]: ${text.slice(0, 240)}`,
+    const err: Error & { status?: number; code?: string; apiErrorText?: string } = new Error(
+      `YouTube ${path} [${res.status}]: ${text.slice(0, 300)}`,
     );
     err.status = res.status;
     err.code = failureCode;
+    err.apiErrorText = text;
     throw err;
   }
+
   try {
     return JSON.parse(text) as T;
   } catch {
@@ -107,8 +152,7 @@ interface SearchResponse {
 }
 
 /**
- * Run one query with pagination. Returns raw search hits (deduplication is the
- * caller's responsibility so query provenance can be merged).
+ * Run one query with pagination. Returns raw search hits.
  */
 export async function searchVideos(
   query: string,
@@ -163,79 +207,62 @@ export async function fetchVideoDetails(videoIds: string[]): Promise<VideoDetail
       part: "snippet,contentDetails,statistics,status",
       id: batch.join(","),
     });
-    const seen = new Set<string>();
+
     for (const item of j.items ?? []) {
-      const id = String(item.id);
-      seen.add(id);
+      const videoId = item.id;
+      if (!videoId) continue;
       const sn = item.snippet ?? {};
       const cd = item.contentDetails ?? {};
       const st = item.statistics ?? {};
-      const thumbs = sn.thumbnails ?? {};
+      const status = item.status ?? {};
+
       out.push({
-        videoId: id,
+        videoId,
         title: sn.title ?? "Untitled",
         description: sn.description ?? "",
         channelId: sn.channelId ?? "",
         channelTitle: sn.channelTitle ?? "Unknown channel",
         publishedAt: sn.publishedAt ?? "",
         thumbnailUrl:
-          thumbs.maxres?.url ??
-          thumbs.high?.url ??
-          thumbs.medium?.url ??
-          `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+          sn.thumbnails?.high?.url ??
+          sn.thumbnails?.medium?.url ??
+          `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
         durationSeconds: parseIsoDuration(cd.duration),
-        viewCount: st.viewCount != null ? Number(st.viewCount) : null,
-        likeCount: st.likeCount != null ? Number(st.likeCount) : null,
-        commentCount: st.commentCount != null ? Number(st.commentCount) : null,
-        isUnavailable: false,
-        tags: Array.isArray(sn.tags) ? (sn.tags as string[]).slice(0, 25) : [],
+        viewCount: st.viewCount ? Number(st.viewCount) : null,
+        likeCount: st.likeCount ? Number(st.likeCount) : null,
+        commentCount: st.commentCount ? Number(st.commentCount) : null,
+        isUnavailable: status.uploadStatus === "rejected" || status.privacyStatus === "private",
+        tags: Array.isArray(sn.tags) ? sn.tags : [],
         defaultLanguage: sn.defaultAudioLanguage ?? sn.defaultLanguage ?? null,
-      });
-    }
-    // Preserve evidence for videos that became private/removed since discovery.
-    for (const missing of batch.filter((v) => !seen.has(v))) {
-      out.push({
-        videoId: missing,
-        title: "Unavailable video (private, deleted or region-blocked)",
-        description: "",
-        channelId: "",
-        channelTitle: "Unknown channel",
-        publishedAt: "",
-        thumbnailUrl: `https://i.ytimg.com/vi/${missing}/hqdefault.jpg`,
-        durationSeconds: null,
-        viewCount: null,
-        likeCount: null,
-        commentCount: null,
-        isUnavailable: true,
-        tags: [],
-        defaultLanguage: null,
       });
     }
   }
   return out;
 }
 
-/** Hydrate channel identity for news-organisation detection. */
+/** Fetch channel metadata to categorize broadcasters vs independent creators. */
 export async function fetchChannelDetails(channelIds: string[]): Promise<Map<string, ChannelDetail>> {
   const map = new Map<string, ChannelDetail>();
-  const ids = Array.from(new Set(channelIds.filter(Boolean)));
-  for (let i = 0; i < ids.length; i += 50) {
-    const batch = ids.slice(i, i + 50);
+  const unique = Array.from(new Set(channelIds.filter(Boolean)));
+  for (let i = 0; i < unique.length; i += 50) {
+    const batch = unique.slice(i, i + 50);
     const j = await ytGet<{ items?: Array<Record<string, any>> }>("/channels", {
       part: "snippet,statistics",
       id: batch.join(","),
     });
+
     for (const item of j.items ?? []) {
+      const channelId = item.id;
+      if (!channelId) continue;
       const sn = item.snippet ?? {};
       const st = item.statistics ?? {};
-      const customUrl = typeof sn.customUrl === "string" ? sn.customUrl : null;
-      map.set(String(item.id), {
-        channelId: String(item.id),
-        title: sn.title ?? "Unknown channel",
-        handle: customUrl ? (customUrl.startsWith("@") ? customUrl : `@${customUrl}`) : null,
+      map.set(channelId, {
+        channelId,
+        title: sn.title ?? "",
+        handle: sn.customUrl ?? null,
         description: sn.description ?? "",
-        subscriberCount: st.hiddenSubscriberCount ? null : Number(st.subscriberCount ?? 0) || null,
-        videoCount: Number(st.videoCount ?? 0) || null,
+        subscriberCount: st.subscriberCount ? Number(st.subscriberCount) : null,
+        videoCount: st.videoCount ? Number(st.videoCount) : null,
       });
     }
   }

@@ -355,8 +355,18 @@ function YoutubeRemovalPage() {
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
                 <span>
-                  {scan.failure_code === "YOUTUBE_QUOTA_EXCEEDED"
-                    ? "YouTube API quota limit reached. Scan could not continue."
+                  {scan.failure_code === "YOUTUBE_API_KEY_MISSING"
+                    ? "YouTube API is not configured."
+                    : scan.failure_code === "YOUTUBE_AUTH_ERROR"
+                    ? "YouTube API credentials are invalid or not authorized."
+                    : scan.failure_code === "YOUTUBE_API_NOT_ENABLED"
+                    ? "YouTube Data API v3 is not enabled for the configured Google project."
+                    : scan.failure_code === "YOUTUBE_QUOTA_EXCEEDED"
+                    ? "YouTube API daily quota has been reached. Try again after quota reset."
+                    : scan.failure_code === "YOUTUBE_RATE_LIMIT"
+                    ? "YouTube API rate limit reached. Please retry shortly."
+                    : scan.failure_code === "YOUTUBE_NETWORK_ERROR"
+                    ? "YouTube API could not be reached."
                     : scan.error_message || "Scan interrupted during verification. Discovered videos could not be fully analyzed."}
                 </span>
               </div>

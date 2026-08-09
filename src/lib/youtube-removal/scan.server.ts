@@ -75,7 +75,17 @@ export async function runYoutubeRemovalScan(
       error_message: null,
     });
 
-    // ---- 1. QUERY PLAN GENERATION (YOUTUBE API ONLY) --------------------
+    // ---- 1. FAIL FAST PROVIDER HEALTH CHECK ------------------------------
+    stage = "PROVIDER_HEALTH_CHECK";
+    console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} running health check query for "${targetName}"`);
+    try {
+      await searchVideos(targetName, { pages: 1 });
+    } catch (healthErr: any) {
+      console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=HEALTH_CHECK_FAILED code=${healthErr?.code} message="${healthErr?.message}"`);
+      throw healthErr; // Fail fast immediately before launching 20+ search queries
+    }
+
+    // ---- 2. QUERY PLAN GENERATION (YOUTUBE API ONLY) --------------------
     stage = "QUERY_PLAN_CREATED";
     let plan = buildQueryPlan({ targetName, aliases });
     if (activeScope === "NEWS_ALLEGATIONS") {
@@ -87,19 +97,26 @@ export async function runYoutubeRemovalScan(
 
     console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} queryCount=${plan.length}`);
 
-    // ---- 2. DISCOVERY (OFFICIAL YOUTUBE SEARCH API ONLY) -----------------
+    // ---- 3. DISCOVERY (OFFICIAL YOUTUBE SEARCH API ONLY) -----------------
     stage = "DISCOVERY_STARTED";
     const byVideo = new Map<string, DiscoveredVideo>();
     const usedQueries: string[] = [];
     let pagesFetched = 0;
     let rawVideoCount = 0;
-    let providerErrors = 0;
+    let queriesAttempted = 0;
+    let queriesSucceeded = 0;
+    let queriesFailed = 0;
+    let quotaErrorCount = 0;
+    let firstProviderError: (Error & { code?: string }) | null = null;
+    let lastProviderError: (Error & { code?: string }) | null = null;
 
     const runQueries = async (queries: string[], pagesPerQuery: number) => {
       for (const q of queries) {
+        queriesAttempted++;
         try {
           const hits = await searchVideos(q, { pages: pagesPerQuery });
           usedQueries.push(q);
+          queriesSucceeded++;
           pagesFetched += pagesPerQuery;
           rawVideoCount += hits.length;
 
@@ -112,11 +129,21 @@ export async function runYoutubeRemovalScan(
             }
           }
         } catch (e: any) {
-          providerErrors++;
+          queriesFailed++;
+          if (!firstProviderError) firstProviderError = e;
+          lastProviderError = e;
+
+          if (e?.code === "YOUTUBE_QUOTA_EXCEEDED") quotaErrorCount++;
           console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=DISCOVERY query="${q}" code=${e?.code} message=${e?.message}`);
 
-          if (e?.code === "YOUTUBE_QUOTA_EXCEEDED" || e?.status === 403) {
-            throw e; // Quota / Key failure — terminate discovery cleanly
+          // Fatal provider errors — terminate discovery cleanly immediately
+          if (
+            e?.code === "YOUTUBE_QUOTA_EXCEEDED" ||
+            e?.code === "YOUTUBE_AUTH_ERROR" ||
+            e?.code === "YOUTUBE_API_NOT_ENABLED" ||
+            e?.code === "YOUTUBE_API_KEY_MISSING"
+          ) {
+            throw e;
           }
         }
       }
@@ -130,7 +157,9 @@ export async function runYoutubeRemovalScan(
     console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} rawVideoCount=${rawVideoCount} deduplicated=${byVideo.size}`);
 
     if (!byVideo.size) {
-      if (providerErrors) throw new Error("YOUTUBE_SEARCH_FAILED: All discovery queries failed");
+      if (firstProviderError) {
+        throw firstProviderError; // Preserve first specific provider failure
+      }
       await patchScan(supabase, scanId, {
         status: "completed",
         stage: "completed",
@@ -141,12 +170,19 @@ export async function runYoutubeRemovalScan(
         verified_count: 0,
         not_subject_count: 0,
         actionable_count: 0,
-        stats: { provider_errors: providerErrors, note: "no_search_results" },
+        stats: {
+          queries_attempted: queriesAttempted,
+          queries_succeeded: queriesSucceeded,
+          queries_failed: queriesFailed,
+          youtube_search_pages: pagesFetched,
+          quota_error_count: quotaErrorCount,
+          note: "no_search_results",
+        },
       });
       return { status: "completed" };
     }
 
-    // ---- 3. HYDRATION & CHANNEL CLASSIFICATION (YOUTUBE VIDEOS & CHANNELS API)
+    // ---- 4. HYDRATION & CHANNEL CLASSIFICATION (YOUTUBE VIDEOS & CHANNELS API)
     stage = "CANDIDATE_PROCESSING_STARTED";
     await patchScan(supabase, scanId, {
       stage: "hydration",
@@ -194,7 +230,7 @@ export async function runYoutubeRemovalScan(
 
     const excludedNews = activeScope === "NON_OFFICIAL_ONLY" ? officialNews : [];
 
-    // ---- 4. VERIFY + ANALYZE (WITH CANDIDATE ISOLATION) ----------------
+    // ---- 5. VERIFY + ANALYZE (WITH CANDIDATE ISOLATION) ----------------
     stage = "analysis";
     await patchScan(supabase, scanId, {
       stage: "analysis",
@@ -254,7 +290,6 @@ export async function runYoutubeRemovalScan(
             console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=CANDIDATE_FAILED idx=${idx} videoId=${candidate.detail.videoId} error=${candErr?.message}`);
             verificationFailedCount++;
 
-            // Fallback safe result for failed candidate — one bad video must NOT kill the scan
             const fallbackAnalysis: VideoAnalysis = {
               subjectStatus: "uncertain",
               subjectConfidence: 0,
@@ -289,7 +324,6 @@ export async function runYoutubeRemovalScan(
       analysed.push(...results);
       for (const r of results) r.analysis.narratives.forEach((n) => narratives.add(n));
 
-      // Progressively update truthful scan progress counters
       const verifiedSoFar = analysed.filter((a) => a.analysis.subjectStatus === "verified").length;
       const notSubjectSoFar = analysed.filter((a) => a.analysis.subjectStatus === "not_subject").length;
 
@@ -300,7 +334,7 @@ export async function runYoutubeRemovalScan(
       });
     }
 
-    // ---- 5. PERSIST FINDINGS --------------------------------------------
+    // ---- 6. PERSIST FINDINGS --------------------------------------------
     stage = "PERSIST";
     const rows = [
       ...analysed.map(({ candidate, analysis, isAllegationMatch, matchedSignals, topicTags }) => ({
@@ -434,10 +468,13 @@ export async function runYoutubeRemovalScan(
       excluded_news_count: excludedNews.length,
       actionable_count: actionable.length,
       stats: {
-        provider_errors: providerErrors,
+        youtube_queries_attempted: queriesAttempted,
+        youtube_queries_succeeded: queriesSucceeded,
+        youtube_queries_failed: queriesFailed,
+        youtube_search_pages: pagesFetched,
+        youtube_quota_error_count: quotaErrorCount,
         queries_planned: plan.length,
         queries_executed: usedQueries.length,
-        youtube_api_pages_fetched: pagesFetched,
         raw_video_ids: rawVideoCount,
         deduplicated_video_ids: byVideo.size,
         official_news_discovered: officialNews.length,
@@ -458,13 +495,39 @@ export async function runYoutubeRemovalScan(
 
     return { status: "completed" };
   } catch (e: any) {
-    const message = e instanceof Error ? e.message : String(e);
-    const code = e?.code ?? (message.includes("YOUTUBE_QUOTA_EXCEEDED") ? "YOUTUBE_QUOTA_EXCEEDED" : "YOUTUBE_SEARCH_FAILED");
-    const userMessage = code === "YOUTUBE_QUOTA_EXCEEDED"
-      ? "YouTube API quota limit reached. Scan could not continue."
-      : message.slice(0, 500);
+    const rawMessage = e instanceof Error ? e.message : String(e);
+    let code = e?.code ?? "YOUTUBE_SEARCH_FAILED";
 
-    console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=${stage} code=${code} message="${message}"`);
+    if (rawMessage.includes("YOUTUBE_API_KEY_MISSING") || rawMessage.includes("is not configured")) {
+      code = "YOUTUBE_API_KEY_MISSING";
+    } else if (rawMessage.includes("YOUTUBE_AUTH_ERROR") || rawMessage.includes("API key not valid") || rawMessage.includes("401")) {
+      code = "YOUTUBE_AUTH_ERROR";
+    } else if (rawMessage.includes("YOUTUBE_API_NOT_ENABLED") || rawMessage.includes("accessNotConfigured")) {
+      code = "YOUTUBE_API_NOT_ENABLED";
+    } else if (rawMessage.includes("YOUTUBE_QUOTA_EXCEEDED") || rawMessage.includes("quotaExceeded")) {
+      code = "YOUTUBE_QUOTA_EXCEEDED";
+    } else if (rawMessage.includes("YOUTUBE_RATE_LIMIT") || rawMessage.includes("429")) {
+      code = "YOUTUBE_RATE_LIMIT";
+    } else if (rawMessage.includes("YOUTUBE_NETWORK_ERROR") || rawMessage.includes("network error")) {
+      code = "YOUTUBE_NETWORK_ERROR";
+    }
+
+    let userMessage = "YouTube search encountered an unexpected failure.";
+    if (code === "YOUTUBE_API_KEY_MISSING") {
+      userMessage = "YouTube API is not configured.";
+    } else if (code === "YOUTUBE_AUTH_ERROR") {
+      userMessage = "YouTube API credentials are invalid or not authorized.";
+    } else if (code === "YOUTUBE_API_NOT_ENABLED") {
+      userMessage = "YouTube Data API v3 is not enabled for the configured Google project.";
+    } else if (code === "YOUTUBE_QUOTA_EXCEEDED") {
+      userMessage = "YouTube API daily quota has been reached. Try again after quota reset.";
+    } else if (code === "YOUTUBE_RATE_LIMIT") {
+      userMessage = "YouTube API rate limit reached. Please retry shortly.";
+    } else if (code === "YOUTUBE_NETWORK_ERROR") {
+      userMessage = "YouTube API could not be reached.";
+    }
+
+    console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=${stage} code=${code} message="${rawMessage}"`);
 
     await patchScan(supabase, scanId, {
       status: "failed",
