@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS public.scan_hits_user_source_canonical_url_idx;
+DROP INDEX IF EXISTS public.scan_hits_user_source_external_id_idx;
