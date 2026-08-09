@@ -345,10 +345,26 @@ const RISK_TERMS: RiskRule[] = [
       "defamation",
       "defamatory",
       "slander",
+      "slanderous",
       "libel",
+      "libellous",
+      "libelous",
       "false accusation",
+      "false accusations",
+      "false allegation",
+      "false allegations",
+      "false claim",
+      "false claims",
+      "fake news about",
+      "spreading lies",
+      "spreading rumours",
+      "spreading rumors",
+      "character assassination",
+      "smear campaign",
       "hate campaign",
       "maliciously false",
+      "മാനനഷ്ടം",
+      "അപവാദ",
     ],
     category: "Defamation",
     sev: "Critical",
@@ -357,6 +373,46 @@ const RISK_TERMS: RiskRule[] = [
     copyrightEnforce: 10,
     reputation: 96,
   },
+  // Softer defamatory-language signals: insults and reputation attacks that
+  // rarely use the word "defamation" but are the bulk of real defamatory video
+  // titles, especially in Indian-language and transliterated content.
+  {
+    kw: [
+      "cheater",
+      "cheating case",
+      "fraudster",
+      "liar",
+      "lying about",
+      "characterless",
+      "bad character",
+      "shameless",
+      "vulgar",
+      "obscene comment",
+      "insulting",
+      "insulted",
+      "abusing",
+      "abused her",
+      "abused him",
+      "mocking",
+      "body shaming",
+      "gold digger",
+      "prostitute",
+      "call girl",
+      "drug addict",
+      "casting couch",
+      "compromise for role",
+      "വ്യാജ",
+      "അപമാനി",
+      "തെറി",
+    ],
+    category: "Defamation",
+    sev: "High",
+    score: 85,
+    legalTakedown: 80,
+    copyrightEnforce: 8,
+    reputation: 89,
+  },
+
   {
     kw: [
       "private video",
@@ -1859,10 +1915,14 @@ async function fetchYTWindow(
   const jobs: { q: string; order: "date" | "relevance"; pages: number }[] = [];
   const riskGroups = [
     "controversy|scandal|backlash|exposed|allegation|accused",
-    "defamation|leaked|deepfake|impersonation|harassment",
-    "police|court|arrest|lawsuit|complaint|legal",
+    "defamation|slander|libel|false allegation|character assassination",
+    "leaked|deepfake|impersonation|harassment|morphed",
+    "police|court|arrest|lawsuit|complaint|legal notice",
     "trolled|criticism|boycott|fake|rumour|rumor",
+    // Defamatory-language cluster: how real defamatory videos are actually titled.
+    "cheater|liar|fraud|vulgar|insult|abusing|characterless",
   ];
+
 
   for (const name of forms) {
     const exact = name.includes(" ") ? `"${name}"` : name;
@@ -2533,21 +2593,26 @@ function buildReport(
         `${title} ${description} ${o.author ?? o.media?.channelTitle ?? ""}`,
       );
       const isRedditResult = source === "Reddit" || run.source === "Reddit";
+      const isYouTubeApiResult =
+        (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
       let entityMatched = entityForms.some((form) => haystack.includes(form));
       /*
-       * Reddit threads often reference the identity partially (first name,
-       * surname, handle) or only in the URL slug. Keep those discussions
-       * instead of requiring an exact full-name string.
+       * Reddit threads and YouTube videos often reference the identity partially
+       * (first name, surname, handle) or only in the URL slug / channel name.
+       * YouTube API results already come from exact named-entity searches, so a
+       * distinctive-token match is enough — requiring the full name string here
+       * was silently dropping defamatory videos titled with a partial name.
        */
-      if (!entityMatched && isRedditResult) {
-        const redditHaystack = `${haystack} ${normalizeEntity(url)}`;
+      if (!entityMatched && (isRedditResult || isYouTubeApiResult)) {
+        const looseHaystack = `${haystack} ${normalizeEntity(url)}`;
         entityMatched =
-          entityForms.some((form) => redditHaystack.includes(form)) ||
+          entityForms.some((form) => looseHaystack.includes(form)) ||
           entityTokenSets.some(
-            (tokens) => tokens.length > 0 && tokens.some((token) => redditHaystack.includes(token)),
+            (tokens) => tokens.length > 0 && tokens.some((token) => looseHaystack.includes(token)),
           );
       }
       if (!entityMatched) continue;
+
 
       let c = classify(title, description);
       const sent = sentimentOf(`${title} ${description}`);
