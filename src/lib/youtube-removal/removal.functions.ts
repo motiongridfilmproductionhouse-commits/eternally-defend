@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isVerifiedSubject } from "@/lib/firecrawl/entity-verifier";
 import { buildQueryPlan } from "./queries";
+import { SourceScope } from "./news-intelligence";
 
 export const previewQueryPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -28,7 +29,14 @@ export const listYoutubeRemovalScans = createServerFn({ method: "GET" })
 
 export const getYoutubeRemovalScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
+  .inputValidator((raw) =>
+    z
+      .object({
+        scanId: z.string().uuid(),
+        sourceScope: z.enum(["NON_OFFICIAL_ONLY", "NEWS_ALLEGATIONS", "ALL_SOURCES"]).optional(),
+      })
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const [scanRes, findingsRes] = await Promise.all([
       context.supabase
@@ -46,17 +54,35 @@ export const getYoutubeRemovalScan = createServerFn({ method: "POST" })
     ]);
     if (scanRes.error) throw new Error(scanRes.error.message);
     if (findingsRes.error) throw new Error(findingsRes.error.message);
-    const all = findingsRes.data ?? [];
+    const all: any[] = findingsRes.data ?? [];
+    const scope: SourceScope = data.sourceScope || (scanRes.data as any)?.source_scope || "NON_OFFICIAL_ONLY";
+
+    const verifiedFindings = all.filter((f) => isVerifiedSubject(f.subject_status));
+
+    let clientFindings = verifiedFindings.filter((f) => f.channel_class !== "official_news");
+
+    if (scope === "NEWS_ALLEGATIONS") {
+      const newsAllegations = verifiedFindings.filter(
+        (f) => f.channel_class === "official_news" && (f.is_official_news_allegation || f.allegation_matched),
+      );
+      clientFindings = [...clientFindings, ...newsAllegations];
+    } else if (scope === "ALL_SOURCES") {
+      clientFindings = verifiedFindings;
+    }
+
     return {
       scan: scanRes.data,
-      // Client-facing: verified subjects (VERIFIED_SUBJECT / PROBABLE_SUBJECT) from non-official channels only.
-      findings: all.filter(
-        (f) => f.channel_class !== "official_news" && isVerifiedSubject(f.subject_status),
-      ),
+      findings: clientFindings,
       excludedNews: all.filter((f) => f.channel_class === "official_news").length,
-      notSubject: all.filter(
-        (f) => f.channel_class !== "official_news" && !isVerifiedSubject(f.subject_status),
-      ).length,
+      notSubject: all.filter((f) => !isVerifiedSubject(f.subject_status)).length,
+      telemetry: {
+        official_news_discovered: all.filter((f) => f.channel_class === "official_news").length,
+        official_news_target_verified: all.filter((f) => f.channel_class === "official_news" && isVerifiedSubject(f.subject_status)).length,
+        official_news_allegation_matched: all.filter((f) => f.channel_class === "official_news" && (f.is_official_news_allegation || f.allegation_matched)).length,
+        official_news_displayed: clientFindings.filter((f) => f.channel_class === "official_news").length,
+        independent_verified: clientFindings.filter((f) => f.channel_class !== "official_news").length,
+        total_verified_all_sources: verifiedFindings.length,
+      },
     };
   });
 
@@ -68,11 +94,14 @@ export const startYoutubeRemovalScan = createServerFn({ method: "POST" })
         targetName: z.string().min(2).max(120),
         aliases: z.array(z.string().min(1).max(80)).max(10).optional(),
         languageHint: z.string().max(20).optional(),
+        sourceScope: z.enum(["NON_OFFICIAL_ONLY", "NEWS_ALLEGATIONS", "ALL_SOURCES"]).optional(),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const scope = data.sourceScope || "NON_OFFICIAL_ONLY";
     const queries = buildQueryPlan({ targetName: data.targetName, aliases: data.aliases });
+
     const { data: scan, error } = await context.supabase
       .from("youtube_removal_scans")
       .insert({
@@ -83,6 +112,7 @@ export const startYoutubeRemovalScan = createServerFn({ method: "POST" })
         status: "queued",
         stage: "queued",
         queries,
+        source_scope: scope,
       } as never)
       .select("id")
       .single();
@@ -91,7 +121,7 @@ export const startYoutubeRemovalScan = createServerFn({ method: "POST" })
     const scanId = (scan as { id: string }).id;
     const { runYoutubeRemovalScan } = await import("./scan.server");
     try {
-      await runYoutubeRemovalScan(context.supabase, context.userId, scanId);
+      await runYoutubeRemovalScan(context.supabase, context.userId, scanId, scope);
     } catch (e) {
       console.error("[yt-removal] scan failed", scanId, e);
     }
@@ -103,10 +133,6 @@ export const retryYoutubeRemovalScan = createServerFn({ method: "POST" })
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const { runYoutubeRemovalScan } = await import("./scan.server");
-    try {
-      await runYoutubeRemovalScan(context.supabase, context.userId, data.scanId);
-      return { ok: true as const };
-    } catch (e) {
-      return { ok: false as const, error: e instanceof Error ? e.message : "Scan failed" };
-    }
+    await runYoutubeRemovalScan(context.supabase, context.userId, data.scanId);
+    return { scanId: data.scanId };
   });

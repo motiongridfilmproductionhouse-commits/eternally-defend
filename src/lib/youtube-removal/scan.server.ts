@@ -2,11 +2,8 @@
  * Orchestrator for the targeted YouTube defamation / removal-candidate scan.
  *
  * Pipeline: DISCOVER (broad, paginated, deduped) -> CLASSIFY CHANNELS
- * (exclude established news organisations) -> VERIFY TARGET + ANALYZE
- * (captions + AI) -> PRIORITIZE -> PERSIST.
- *
- * Failures are recorded durably on the scan row (failed_stage / failure_code);
- * a failed scan is never presented as "no results".
+ * (exclude established news organisations by default unless NEWS_ALLEGATIONS or ALL_SOURCES selected)
+ * -> VERIFY TARGET + ANALYZE (captions + AI) -> PRIORITIZE -> PERSIST.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -20,10 +17,17 @@ import {
   fetchChannelDetails,
   type DiscoveredVideo,
 } from "./youtube-search.server";
+import {
+  SourceScope,
+  detectNewsAllegationSignals,
+  classifyNewsTopics,
+  classifySourceType,
+  buildAllegationQueryPlan,
+} from "./news-intelligence";
 
 type Supa = SupabaseClient<Database>;
 
-const MAX_ANALYZED = 40;
+const MAX_ANALYZED = 50;
 
 async function patchScan(
   supabase: Supa,
@@ -37,6 +41,7 @@ export async function runYoutubeRemovalScan(
   supabase: Supa,
   userId: string,
   scanId: string,
+  sourceScope: SourceScope = "NON_OFFICIAL_ONLY",
 ): Promise<{ status: string }> {
   const { data: scan, error } = await supabase
     .from("youtube_removal_scans")
@@ -49,6 +54,7 @@ export async function runYoutubeRemovalScan(
 
   const targetName = scan.target_name;
   const aliases = scan.aliases ?? [];
+  const activeScope: SourceScope = (scan as any).source_scope || sourceScope;
 
   let stage = "discovery";
   try {
@@ -57,13 +63,19 @@ export async function runYoutubeRemovalScan(
       stage: "discovery",
       progress: 5,
       started_at: new Date().toISOString(),
+      source_scope: activeScope,
       failed_stage: null,
       failure_code: null,
       error_message: null,
     });
 
     // ---- 1. DISCOVERY --------------------------------------------------
-    const plan = buildQueryPlan({ targetName, aliases });
+    let plan = buildQueryPlan({ targetName, aliases });
+    if (activeScope === "NEWS_ALLEGATIONS" || activeScope === "ALL_SOURCES") {
+      const allegationQueries = buildAllegationQueryPlan(targetName, aliases);
+      plan = [...plan, ...allegationQueries];
+    }
+
     const byVideo = new Map<string, DiscoveredVideo>();
     const usedQueries: string[] = [];
     let providerErrors = 0;
@@ -125,6 +137,7 @@ export async function runYoutubeRemovalScan(
       channelClass: "official_news" | "independent";
       channelReason: string;
       channelHandle: string | null;
+      sourceType: ReturnType<typeof classifySourceType>;
     }
 
     const candidates: Candidate[] = details.map((detail) => {
@@ -134,19 +147,25 @@ export async function runYoutubeRemovalScan(
         channelHandle: channel?.handle ?? null,
         channelDescription: channel?.description ?? null,
       });
+      const sourceType = classifySourceType(channel?.title ?? detail.channelTitle, cls.channelClass);
       return {
         detail,
         queries: byVideo.get(detail.videoId)?.queries ?? [],
         channelClass: cls.channelClass,
         channelReason: cls.reason,
         channelHandle: channel?.handle ?? null,
+        sourceType,
       };
     });
 
-    const excludedNews = candidates.filter((c) => c.channelClass === "official_news");
-    const analysable = candidates
-      .filter((c) => c.channelClass === "independent")
-      .sort((a, b) => (b.detail.viewCount ?? 0) - (a.detail.viewCount ?? 0));
+    const officialNews = candidates.filter((c) => c.channelClass === "official_news");
+    const independentCandidates = candidates.filter((c) => c.channelClass === "independent");
+
+    const analysable = activeScope === "NON_OFFICIAL_ONLY"
+      ? independentCandidates.sort((a, b) => (b.detail.viewCount ?? 0) - (a.detail.viewCount ?? 0))
+      : candidates.sort((a, b) => (b.detail.viewCount ?? 0) - (a.detail.viewCount ?? 0));
+
+    const excludedNews = activeScope === "NON_OFFICIAL_ONLY" ? officialNews : [];
 
     // ---- 3. VERIFY + ANALYZE -------------------------------------------
     stage = "analysis";
@@ -156,16 +175,21 @@ export async function runYoutubeRemovalScan(
       excluded_news_count: excludedNews.length,
     });
 
-    const analysed: Array<{ candidate: Candidate; analysis: VideoAnalysis }> = [];
+    const analysed: Array<{
+      candidate: Candidate;
+      analysis: VideoAnalysis;
+      isAllegationMatch: boolean;
+      matchedSignals: string[];
+      topicTags: ReturnType<typeof classifyNewsTopics>;
+    }> = [];
     const narratives = new Set<string>();
     const batch = analysable.slice(0, MAX_ANALYZED);
 
     for (let i = 0; i < batch.length; i += 4) {
       const slice = batch.slice(i, i + 4);
       const results = await Promise.all(
-        slice.map(async (candidate) => ({
-          candidate,
-          analysis: await analyzeRemovalCandidate({
+        slice.map(async (candidate) => {
+          const analysis = await analyzeRemovalCandidate({
             targetName,
             aliases,
             video: {
@@ -181,8 +205,20 @@ export async function runYoutubeRemovalScan(
               tags: candidate.detail.tags,
               isUnavailable: candidate.detail.isUnavailable,
             },
-          }),
-        })),
+          });
+
+          const fullText = `${candidate.detail.title} ${candidate.detail.description}`;
+          const { isAllegationMatch, matchedSignals } = detectNewsAllegationSignals(fullText);
+          const topicTags = classifyNewsTopics(fullText, matchedSignals);
+
+          return {
+            candidate,
+            analysis,
+            isAllegationMatch,
+            matchedSignals,
+            topicTags,
+          };
+        }),
       );
       analysed.push(...results);
       for (const r of results) r.analysis.narratives.forEach((n) => narratives.add(n));
@@ -194,7 +230,7 @@ export async function runYoutubeRemovalScan(
     // ---- 4. PERSIST -----------------------------------------------------
     stage = "persist";
     const rows = [
-      ...analysed.map(({ candidate, analysis }) => ({
+      ...analysed.map(({ candidate, analysis, isAllegationMatch, matchedSignals, topicTags }) => ({
         scan_id: scanId,
         user_id: userId,
         video_id: candidate.detail.videoId,
@@ -218,6 +254,12 @@ export async function runYoutubeRemovalScan(
         subject_confidence: analysis.subjectConfidence,
         verification_reason: analysis.verificationReason,
         channel_class: candidate.channelClass,
+        source_type: candidate.sourceType,
+        is_official_news: candidate.channelClass === "official_news",
+        is_official_news_allegation: candidate.channelClass === "official_news" && isAllegationMatch,
+        allegation_matched: isAllegationMatch,
+        allegation_signals: matchedSignals,
+        news_topic_tags: topicTags,
         content_types: analysis.contentTypes,
         risk_level: analysis.riskLevel,
         removal_potential: analysis.removalPotential,
@@ -241,8 +283,6 @@ export async function runYoutubeRemovalScan(
         }),
         analysis: { channelReason: candidate.channelReason, modelError: analysis.modelError ?? null },
       })),
-      // Keep discovered-but-excluded rows for auditability (never shown as
-      // removal candidates in the client-facing list).
       ...excludedNews.map((candidate) => ({
         scan_id: scanId,
         user_id: userId,
@@ -267,6 +307,12 @@ export async function runYoutubeRemovalScan(
         subject_confidence: 0,
         verification_reason: candidate.channelReason,
         channel_class: "official_news" as const,
+        source_type: "OFFICIAL_NEWS" as const,
+        is_official_news: true,
+        is_official_news_allegation: false,
+        allegation_matched: false,
+        allegation_signals: [],
+        news_topic_tags: [],
         content_types: [],
         risk_level: "low",
         removal_potential: "not_eligible",
@@ -297,6 +343,9 @@ export async function runYoutubeRemovalScan(
       (a) => a.analysis.removalPotential === "high" || a.analysis.removalPotential === "medium",
     );
 
+    const officialNewsVerified = verified.filter((a) => a.candidate.channelClass === "official_news");
+    const officialNewsAllegationMatched = officialNewsVerified.filter((a) => a.isAllegationMatch);
+
     await patchScan(supabase, scanId, {
       status: "completed",
       stage: "completed",
@@ -313,6 +362,12 @@ export async function runYoutubeRemovalScan(
         queries_run: usedQueries.length,
         analysed: analysed.length,
         analysable: analysable.length,
+        source_scope: activeScope,
+        official_news_discovered: officialNews.length,
+        official_news_target_verified: officialNewsVerified.length,
+        official_news_allegation_matched: officialNewsAllegationMatched.length,
+        independent_verified: verified.filter((a) => a.candidate.channelClass !== "official_news").length,
+        total_verified_all_sources: verified.length,
         narrative_seeds: Array.from(narratives).slice(0, 12),
         suggested_followup_queries: buildNarrativeQueries(targetName, Array.from(narratives)).slice(0, 10),
       },
