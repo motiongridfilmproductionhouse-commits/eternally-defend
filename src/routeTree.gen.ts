@@ -20,6 +20,7 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
 import { Route as PartnerPartnerRouteImport } from './routes/_partner.partner'
+import { Route as AppYoutubeRemovalRouteImport } from './routes/_app.youtube-removal'
 import { Route as AppThreatRadarRouteImport } from './routes/_app.threat-radar'
 import { Route as AppThreatMonitoringRouteImport } from './routes/_app.threat-monitoring'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
@@ -118,6 +119,11 @@ const PartnerPartnerRoute = PartnerPartnerRouteImport.update({
   id: '/partner',
   path: '/partner',
   getParentRoute: () => PartnerRoute,
+} as any)
+const AppYoutubeRemovalRoute = AppYoutubeRemovalRouteImport.update({
+  id: '/youtube-removal',
+  path: '/youtube-removal',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppThreatRadarRoute = AppThreatRadarRouteImport.update({
   id: '/threat-radar',
@@ -389,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
+  '/youtube-removal': typeof AppYoutubeRemovalRoute
   '/partner': typeof PartnerPartnerRouteWithChildren
   '/api/scan': typeof ApiScanRoute
   '/verify/$slug': typeof VerifySlugRoute
@@ -445,6 +452,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
+  '/youtube-removal': typeof AppYoutubeRemovalRoute
   '/api/scan': typeof ApiScanRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -502,6 +510,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/threat-monitoring': typeof AppThreatMonitoringRoute
   '/_app/threat-radar': typeof AppThreatRadarRoute
+  '/_app/youtube-removal': typeof AppYoutubeRemovalRoute
   '/_partner/partner': typeof PartnerPartnerRouteWithChildren
   '/api/scan': typeof ApiScanRoute
   '/verify/$slug': typeof VerifySlugRoute
@@ -561,6 +570,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/threat-monitoring'
     | '/threat-radar'
+    | '/youtube-removal'
     | '/partner'
     | '/api/scan'
     | '/verify/$slug'
@@ -617,6 +627,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/threat-monitoring'
     | '/threat-radar'
+    | '/youtube-removal'
     | '/api/scan'
     | '/verify/$slug'
     | '/admin/diagnostics'
@@ -673,6 +684,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/threat-monitoring'
     | '/_app/threat-radar'
+    | '/_app/youtube-removal'
     | '/_partner/partner'
     | '/api/scan'
     | '/verify/$slug'
@@ -809,6 +821,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/partner'
       preLoaderRoute: typeof PartnerPartnerRouteImport
       parentRoute: typeof PartnerRoute
+    }
+    '/_app/youtube-removal': {
+      id: '/_app/youtube-removal'
+      path: '/youtube-removal'
+      fullPath: '/youtube-removal'
+      preLoaderRoute: typeof AppYoutubeRemovalRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/threat-radar': {
       id: '/_app/threat-radar'
@@ -1146,6 +1165,7 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppThreatMonitoringRoute: typeof AppThreatMonitoringRoute
   AppThreatRadarRoute: typeof AppThreatRadarRoute
+  AppYoutubeRemovalRoute: typeof AppYoutubeRemovalRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminDiagnosticsRoute: typeof AppAdminDiagnosticsRoute
   AppAdminMultimediaHealthRoute: typeof AppAdminMultimediaHealthRoute
@@ -1177,6 +1197,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppThreatMonitoringRoute: AppThreatMonitoringRoute,
   AppThreatRadarRoute: AppThreatRadarRoute,
+  AppYoutubeRemovalRoute: AppYoutubeRemovalRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminDiagnosticsRoute: AppAdminDiagnosticsRoute,
   AppAdminMultimediaHealthRoute: AppAdminMultimediaHealthRoute,
