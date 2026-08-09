@@ -55,6 +55,15 @@ export interface RemovalTelemetry {
   analysis_failed: number;
   reason_code_counts: Record<string, number>;
   per_video_records?: PerVideoRecord[];
+  title_only_but_marked_sufficient?: number;
+  evidence_sufficient?: number;
+  evidence_insufficient?: number;
+  evidence_unavailable?: number;
+  transcript_evidence?: number;
+  description_evidence?: number;
+  title_only_evidence?: number;
+  thumbnail_ocr_evidence?: number;
+  multi_source_evidence?: number;
 }
 
 export interface FunnelData {

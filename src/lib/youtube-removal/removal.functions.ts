@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isVerifiedSubject } from "@/lib/firecrawl/entity-verifier";
 import { buildQueryPlan } from "./queries";
 
 export const previewQueryPlan = createServerFn({ method: "POST" })
@@ -48,13 +49,13 @@ export const getYoutubeRemovalScan = createServerFn({ method: "POST" })
     const all = findingsRes.data ?? [];
     return {
       scan: scanRes.data,
-      // Client-facing: verified subjects from non-official channels only.
+      // Client-facing: verified subjects (VERIFIED_SUBJECT / PROBABLE_SUBJECT) from non-official channels only.
       findings: all.filter(
-        (f) => f.channel_class !== "official_news" && f.subject_status === "verified",
+        (f) => f.channel_class !== "official_news" && isVerifiedSubject(f.subject_status),
       ),
       excludedNews: all.filter((f) => f.channel_class === "official_news").length,
       notSubject: all.filter(
-        (f) => f.channel_class !== "official_news" && f.subject_status !== "verified",
+        (f) => f.channel_class !== "official_news" && !isVerifiedSubject(f.subject_status),
       ).length,
     };
   });

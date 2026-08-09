@@ -24,6 +24,32 @@ export type SubjectMatchStatus =
   | "PROBABLE_MATCH"
   | "AMBIGUOUS";
 
+export function normalizeSubjectVerificationStatus(
+  status: string | null | undefined,
+): SubjectMatchStatus {
+  if (!status) return "NOT_SUBJECT";
+  const s = status.toString().trim().toUpperCase();
+
+  if (s === "MATCH" || s === "VERIFIED_SUBJECT" || s === "VERIFIED") {
+    return "VERIFIED_SUBJECT";
+  }
+  if (s === "PROBABLE_MATCH" || s === "PROBABLE_SUBJECT" || s === "PROBABLE") {
+    return "PROBABLE_SUBJECT";
+  }
+  if (s === "AMBIGUOUS" || s === "AMBIGUOUS_MATCH" || s === "AMBIGUOUS_SUBJECT" || s === "UNCERTAIN") {
+    return "AMBIGUOUS_SUBJECT";
+  }
+  if (s === "VERIFICATION_FAILED" || s === "FAILED") {
+    return "VERIFICATION_FAILED";
+  }
+  return "NOT_SUBJECT";
+}
+
+export function isVerifiedSubject(status: string | null | undefined): boolean {
+  const norm = normalizeSubjectVerificationStatus(status);
+  return norm === "VERIFIED_SUBJECT" || norm === "PROBABLE_SUBJECT";
+}
+
 export interface SubjectIdentityProfile {
   canonicalName: string;
   aliases: string[];
@@ -312,7 +338,7 @@ export function verifySubjectEntity(
       status = "NOT_SUBJECT";
     }
 
-    const isVerified = status === "VERIFIED_SUBJECT" || status === "PROBABLE_SUBJECT" || status === "MATCH" || status === "PROBABLE_MATCH";
+    const isVerified = status === "VERIFIED_SUBJECT" || status === "PROBABLE_SUBJECT";
 
     return {
       subjectMatchStatus: status,

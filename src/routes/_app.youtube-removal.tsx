@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { AlertTriangle, ExternalLink, Eye, RefreshCw, ShieldAlert, Youtube } from "lucide-react";
+import { AlertTriangle, ExternalLink, Eye, RefreshCw, ShieldAlert, Youtube, Activity, ShieldCheck, Database, Wrench } from "lucide-react";
 import {
   getYoutubeRemovalScan,
   listYoutubeRemovalScans,
@@ -54,6 +54,10 @@ function YoutubeRemovalPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  const isDiagMode =
+    typeof window !== "undefined" &&
+    (window.location.search.includes("diag=1") || process.env.NODE_ENV === "development");
+
   const listFn = useServerFn(listYoutubeRemovalScans);
   const getFn = useServerFn(getYoutubeRemovalScan);
   const startFn = useServerFn(startYoutubeRemovalScan);
@@ -86,7 +90,7 @@ function YoutubeRemovalPage() {
   const findings = scanDetail.data?.findings ?? [];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 font-sans">
       <header className="space-y-1">
         <h1 className="flex items-center gap-2 text-2xl font-semibold">
           <Youtube className="h-6 w-6 text-destructive" /> YouTube Removal Intelligence
@@ -106,7 +110,7 @@ function YoutubeRemovalPage() {
         <Button
           onClick={() => start.mutate()}
           disabled={name.trim().length < 2 || start.isPending}
-          className="shrink-0"
+          className="shrink-0 cursor-pointer"
         >
           {start.isPending ? "Scanning…" : "Run targeted scan"}
         </Button>
@@ -118,8 +122,10 @@ function YoutubeRemovalPage() {
             <button
               key={s.id}
               onClick={() => setActiveScanId(s.id)}
-              className={`rounded-md border px-3 py-1.5 text-xs ${
-                activeScanId === s.id ? "border-primary text-primary" : "border-border text-muted-foreground"
+              className={`rounded-md border px-3 py-1.5 text-xs font-mono transition-all cursor-pointer ${
+                activeScanId === s.id
+                  ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
+                  : "border-border text-muted-foreground hover:border-slate-700"
               }`}
             >
               {s.target_name} · {s.status}
@@ -129,9 +135,9 @@ function YoutubeRemovalPage() {
       )}
 
       {scan && (
-        <Card className="space-y-3 p-4">
-          <div className="flex flex-wrap items-center gap-4 text-sm">
-            <span className="font-medium">{scan.target_name}</span>
+        <Card className="space-y-3 p-4 font-sans">
+          <div className="flex flex-wrap items-center gap-4 text-sm font-mono">
+            <span className="font-medium text-foreground">{scan.target_name}</span>
             <Badge variant="outline">{scan.status}</Badge>
             <span className="text-muted-foreground">Stage: {scan.stage ?? "—"}</span>
             <span className="text-muted-foreground">Discovered: {scan.discovered_count}</span>
@@ -140,11 +146,13 @@ function YoutubeRemovalPage() {
             <span className="text-muted-foreground">Actionable: {scan.actionable_count}</span>
             <span className="text-muted-foreground">Queries: {scan.queries?.length ?? 0}</span>
           </div>
+
           {scan.status === "running" && (
             <div className="h-1.5 w-full overflow-hidden rounded bg-muted">
               <div className="h-full bg-primary transition-all" style={{ width: `${scan.progress}%` }} />
             </div>
           )}
+
           {scan.status === "failed" && (
             <div className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
               <AlertTriangle className="h-4 w-4 text-destructive" />
@@ -158,6 +166,54 @@ function YoutubeRemovalPage() {
             </div>
           )}
         </Card>
+      )}
+
+      {/* Admin Diagnostic Panel (/youtube-removal?diag=1) */}
+      {isDiagMode && scan && (
+        <div className="rounded-xl border border-indigo-500/40 bg-slate-950 p-4 font-mono text-xs space-y-3 shadow-lg">
+          <div className="flex items-center justify-between text-indigo-300 font-bold border-b border-indigo-900 pb-2">
+            <span className="flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-indigo-400" /> Live Admin Funnel Diagnostics (?diag=1)
+            </span>
+            <span className="text-[11px] text-slate-400">Commit: 9f4d1df | Engine: 2.3.0</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 text-center">
+            <div className="p-2 rounded bg-slate-900 border border-slate-800">
+              <div className="text-slate-500 text-[10px]">Discovered</div>
+              <div className="text-sm font-bold text-slate-200">{scan.discovered_count}</div>
+            </div>
+            <div className="p-2 rounded bg-slate-900 border border-slate-800">
+              <div className="text-slate-500 text-[10px]">News Excluded</div>
+              <div className="text-sm font-bold text-amber-400">{scan.excluded_news_count}</div>
+            </div>
+            <div className="p-2 rounded bg-slate-900 border border-slate-800">
+              <div className="text-slate-500 text-[10px]">Remaining</div>
+              <div className="text-sm font-bold text-indigo-300">
+                {Math.max(0, scan.discovered_count - scan.excluded_news_count)}
+              </div>
+            </div>
+            <div className="p-2 rounded bg-slate-900 border border-slate-800">
+              <div className="text-slate-500 text-[10px]">Attempted</div>
+              <div className="text-sm font-bold text-slate-200">
+                {scan.verified_count + scan.not_subject_count}
+              </div>
+            </div>
+            <div className="p-2 rounded bg-slate-900 border border-slate-800">
+              <div className="text-slate-500 text-[10px]">Verified Target</div>
+              <div className="text-sm font-bold text-emerald-400">{scan.verified_count}</div>
+            </div>
+            <div className="p-2 rounded bg-slate-900 border border-slate-800">
+              <div className="text-slate-500 text-[10px]">Not Subject</div>
+              <div className="text-sm font-bold text-rose-400">{scan.not_subject_count}</div>
+            </div>
+          </div>
+
+          <div className="text-[11px] text-slate-400 flex items-center justify-between border-t border-slate-900 pt-2">
+            <span>Verifier: <strong>src/lib/firecrawl/entity-verifier.ts (v2.1.0)</strong></span>
+            <span>Classifier: <strong>src/lib/firecrawl/removal-classifier.ts (v2.3.0)</strong></span>
+          </div>
+        </div>
       )}
 
       {scan?.status === "completed" && findings.length === 0 && (
@@ -177,7 +233,7 @@ function YoutubeRemovalPage() {
                   src={f.thumbnail_url ?? ""}
                   alt={`Thumbnail for ${f.title}`}
                   loading="lazy"
-                  className="h-20 w-36 shrink-0 rounded object-cover"
+                  className="h-20 w-36 shrink-0 rounded object-cover bg-slate-900"
                 />
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -192,7 +248,7 @@ function YoutubeRemovalPage() {
                       <Badge variant="outline">EVIDENCE_NOT_VERIFIED</Badge>
                     )}
                   </div>
-                  <p className="truncate text-sm font-medium">{f.title}</p>
+                  <p className="truncate text-sm font-medium text-foreground">{f.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {f.channel_title} · {f.published_at ? new Date(f.published_at).toLocaleDateString() : "—"} ·{" "}
                     {formatNumber(f.view_count)} views · {formatNumber(f.comment_count)} comments
@@ -261,7 +317,7 @@ function YoutubeRemovalPage() {
                   {Array.isArray(f.evidence_timestamps) && f.evidence_timestamps.length > 0 && (
                     <ul className="space-y-1">
                       {(f.evidence_timestamps as Array<Record<string, unknown>>).map((e, i) => (
-                        <li key={i} className="rounded border border-border p-2">
+                        <li key={i} className="rounded border border-border p-2 font-mono">
                           <a
                             className="text-primary underline"
                             href={`${f.video_url}&t=${Number(e.seconds ?? 0)}s`}

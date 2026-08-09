@@ -1,19 +1,17 @@
 /**
  * Per-video analysis for the targeted YouTube removal scan.
  *
- * Two stages, both grounded in real fetched data:
- *  1. Target verification — is this video actually about the protected person?
- *  2. Content classification + takedown-eligibility assessment.
- *
- * Hard rules enforced in the prompt and in post-processing:
- *  - Never fabricate transcripts, timestamps, violations or evidence.
- *  - Never claim guaranteed removal.
- *  - A sensational title alone can never yield HIGH removal potential; that
- *    requires verified spoken/visual evidence (transcript) or an explicit
- *    privacy/impersonation/synthetic-media/copyright signal.
+ * Connects to the canonical Subject Entity Verification Engine (entity-verifier.ts)
+ * and Removal Eligibility Classifier (removal-classifier.ts).
  */
 
 import { nameVariants } from "./queries";
+import {
+  buildSubjectIdentityProfile,
+  verifySubjectEntity,
+  normalizeSubjectVerificationStatus,
+} from "@/lib/firecrawl/entity-verifier";
+import { classifyRemovalEligibility } from "@/lib/firecrawl/removal-classifier";
 
 export type SubjectStatus = "verified" | "not_subject" | "uncertain";
 export type RemovalPotential = "high" | "medium" | "low" | "not_eligible";
@@ -86,63 +84,6 @@ export interface AnalyzeInput {
   };
 }
 
-const SYSTEM = `You are Eterna, a cautious reputation-intelligence and platform-enforcement analyst.
-
-You assess whether a YouTube video about a protected person contains potentially actionable material.
-
-ABSOLUTE RULES:
-- Never invent a transcript, timestamp, quote, statistic, URL or policy violation. Only use the data supplied.
-- If no transcript is supplied, you may still classify the video from its real title/description, but evidenceVerified MUST be false and removalPotential MUST NOT be "high" unless the title/description themselves explicitly disclose a privacy leak, impersonation, sexualised/non-consensual material, deepfake/synthetic media, or unauthorised full-content reupload.
-- Criticism, reaction, roast, satire, commentary, opinion and legitimate reporting are NOT defamation and are usually "low" or "not_eligible".
-- Never state or imply that removal is guaranteed.
-- Do NOT claim a statement is false unless supplied evidence supports it; prefer UNVERIFIED_ALLEGATION.
-- If the video is about a different person/movie/song/business/character with a similar name, set subjectStatus "not_subject".
-
-CONTENT TYPES (choose 1-3 exact values): FALSE_FACTUAL_ALLEGATION, UNVERIFIED_ALLEGATION, MISLEADING_CONTENT, MANIPULATED_MEDIA, DEEPFAKE_OR_SYNTHETIC_MEDIA, IMPERSONATION, PRIVACY_VIOLATION, DOXXING_OR_PERSONAL_INFORMATION, HARASSMENT_OR_TARGETED_ABUSE, SEXUALIZED_OR_NON_CONSENSUAL_CONTENT, COPYRIGHT_CANDIDATE, MISLEADING_THUMBNAIL, CLICKBAIT, HOSTILE_COMMENTARY, NEGATIVE_OPINION, SATIRE_OR_PARODY, LEGITIMATE_CRITICISM, INSUFFICIENT_EVIDENCE.
-
-REMOVAL POTENTIAL:
-- "high": clear evidence of a potentially actionable policy, privacy, copyright, impersonation, manipulated-media or legal violation.
-- "medium": a potential violation exists but more evidence, ownership proof, context or legal review is required.
-- "low": mainly opinion, criticism, reaction, satire, reporting or commentary with no identifiable violation.
-- "not_eligible": no reasonable removal or reporting basis.
-
-recommendedRoute must be one of: platform_report, privacy_complaint, copyright_notice, impersonation_report, manipulated_media_report, legal_review, monitor_only.
-
-Return JSON only.`;
-
-interface GatewayResponse {
-  choices?: Array<{ message?: { content?: string } }>;
-}
-
-function fallback(reason: string, transcriptState: string): VideoAnalysis {
-  return {
-    subjectStatus: "uncertain",
-    subjectConfidence: 0,
-    verificationReason: "Automated verification unavailable — manual review required",
-    contentTypes: ["INSUFFICIENT_EVIDENCE"],
-    riskLevel: "low",
-    removalPotential: "not_eligible",
-    potentialViolation: null,
-    problematicClaim: null,
-    assessmentReason: `EVIDENCE_NOT_VERIFIED — ${reason}`,
-    recommendedAction: "MONITOR / REVIEW",
-    recommendedRoute: "monitor_only",
-    evidenceNeeded: "Human review of the video content",
-    evidenceTimestamps: [],
-    evidenceVerified: false,
-    transcriptState,
-    transcriptLanguage: null,
-    narratives: [],
-    modelError: reason,
-  };
-}
-
-function toSeconds(ts: string): number | null {
-  const m = ts.match(/^(?:(\d+):)?(\d{1,2}):(\d{2})$/);
-  if (!m) return null;
-  return +(m[1] ?? 0) * 3600 + +m[2]! * 60 + +m[3]!;
-}
-
 function formatTs(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   const h = Math.floor(s / 3600);
@@ -153,12 +94,10 @@ function formatTs(seconds: number): string {
 }
 
 /**
- * Fetch captions (best effort) and analyse a single video.
+ * Perform canonical target entity verification & removal eligibility analysis.
  */
 export async function analyzeRemovalCandidate(input: AnalyzeInput): Promise<VideoAnalysis> {
-  const key = process.env["LOVABLE_API_KEY"];
-
-  // --- transcript (real captions only; never synthesised) -----------------
+  let transcriptText = "";
   let transcriptState = "captions_unavailable";
   let transcriptLanguage: string | null = null;
   let transcriptLines: Array<{ t: string; text: string; seconds: number }> = [];
@@ -170,6 +109,7 @@ export async function analyzeRemovalCandidate(input: AnalyzeInput): Promise<Vide
       if (captions.available && captions.segments?.length) {
         transcriptState = "captions_analysed";
         transcriptLanguage = captions.language ?? null;
+        transcriptText = captions.segments.map((s) => s.text).join(" ");
         const variants = nameVariants(input.targetName, input.aliases).map((v) => v.toLowerCase());
         const mentions = captions.segments.filter((s) => {
           const text = s.text.toLowerCase();
@@ -193,159 +133,106 @@ export async function analyzeRemovalCandidate(input: AnalyzeInput): Promise<Vide
     transcriptState = "video_unavailable";
   }
 
-  if (!key) return fallback("LOVABLE_API_KEY missing", transcriptState);
-
-  const payload = {
-    protectedPerson: input.targetName,
-    knownAliases: input.aliases,
-    video: {
-      videoId: input.video.videoId,
-      url: `https://www.youtube.com/watch?v=${input.video.videoId}`,
+  // 1. CANONICAL SUBJECT ENTITY VERIFICATION
+  const profile = buildSubjectIdentityProfile(input.targetName, input.aliases);
+  const ver = verifySubjectEntity(
+    {
       title: input.video.title,
-      channel: input.video.channelTitle,
-      publishedAt: input.video.publishedAt,
-      description: input.video.description.slice(0, 3000),
-      tags: input.video.tags,
-      views: input.video.viewCount,
-      likes: input.video.likeCount,
-      comments: input.video.commentCount,
-      durationSeconds: input.video.durationSeconds,
-      availability: input.video.isUnavailable ? "unavailable" : "available",
+      description: input.video.description,
+      snippet: input.video.description,
+      author: input.video.channelTitle,
+      channelTitle: input.video.channelTitle,
+      transcript: transcriptText,
+      url: `https://www.youtube.com/watch?v=${input.video.videoId}`,
     },
-    transcript: {
-      state: transcriptState,
-      language: transcriptLanguage,
-      lines: transcriptLines,
-    },
+    profile,
+  );
+
+  const normStatus = normalizeSubjectVerificationStatus(ver.subjectMatchStatus);
+
+  // Runtime Diagnostic Logging for Live Candidates
+  console.info("[YT-LIVE-VERIFY]", {
+    videoId: input.video.videoId,
+    title: input.video.title,
+    channel: input.video.channelTitle,
+    target: input.targetName,
+    status: normStatus,
+    score: ver.subjectMatchScore,
+    matchedSignals: ver.matchedTargetSignals,
+    failedSignals: ver.failedTargetSignals,
+  });
+
+  // 2. CANONICAL REMOVAL ELIGIBILITY CLASSIFICATION
+  const removalRes = classifyRemovalEligibility({
+    title: input.video.title,
+    snippet: input.video.description,
+    description: input.video.description,
+    author: input.video.channelTitle,
+    url: `https://www.youtube.com/watch?v=${input.video.videoId}`,
+    transcript: transcriptText,
+    hasTranscript: Boolean(transcriptText),
+    subjectVerificationStatus: normStatus,
+    verificationScore: ver.subjectMatchScore,
+  });
+
+  const isVerified = normStatus === "VERIFIED_SUBJECT" || normStatus === "PROBABLE_SUBJECT";
+  const mappedSubjectStatus: SubjectStatus =
+    normStatus === "NOT_SUBJECT" ? "not_subject" : isVerified ? "verified" : "uncertain";
+
+  const mappedRemovalPotential: RemovalPotential =
+    removalRes.removalClassification === "HIGH_REMOVAL"
+      ? "high"
+      : removalRes.removalClassification === "MEDIUM_REMOVAL"
+      ? "medium"
+      : removalRes.removalClassification === "LOW_REMOVAL"
+      ? "low"
+      : "not_eligible";
+
+  const mappedRiskLevel: RiskLevel =
+    removalRes.removalScore >= 80
+      ? "critical"
+      : removalRes.removalScore >= 50
+      ? "high"
+      : removalRes.removalScore >= 20
+      ? "medium"
+      : "low";
+
+  const verificationReason =
+    (ver.matchedTargetSignals && ver.matchedTargetSignals.length > 0
+      ? `Matched: ${ver.matchedTargetSignals.join(", ")}`
+      : ver.failedTargetSignals && ver.failedTargetSignals.length > 0
+      ? `Failed: ${ver.failedTargetSignals.join(", ")}`
+      : "Canonical entity verification");
+
+  const assessmentReason =
+    (removalRes.allReasonCodes && removalRes.allReasonCodes.length > 0
+      ? removalRes.allReasonCodes.join(", ")
+      : "Canonical evidence analysis");
+
+  return {
+    subjectStatus: mappedSubjectStatus,
+    subjectConfidence: ver.subjectMatchScore,
+    verificationReason,
+    contentTypes: (removalRes.evidenceReasons && removalRes.evidenceReasons.length > 0)
+      ? removalRes.evidenceReasons
+      : ["INSUFFICIENT_EVIDENCE"],
+    riskLevel: mappedRiskLevel,
+    removalPotential: mappedRemovalPotential,
+    potentialViolation: removalRes.removalClassification !== "NOT_ELIGIBLE" ? removalRes.actionRecommendation : null,
+    problematicClaim: null,
+    assessmentReason,
+    recommendedAction: removalRes.actionRecommendation,
+    recommendedRoute: removalRes.actionRecommendation ? removalRes.actionRecommendation.toLowerCase() : "monitor_only",
+    evidenceNeeded: transcriptText ? null : "Full transcript analysis",
+    evidenceTimestamps: [],
+    evidenceVerified: Boolean(transcriptText),
+    transcriptState,
+    transcriptLanguage,
+    narratives: [],
   };
-
-  try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          {
-            role: "user",
-            content:
-              `Assess this video. Return JSON exactly as:\n` +
-              `{ "subjectStatus": "verified|not_subject|uncertain", "subjectConfidence": 0-100, "verificationReason": string, ` +
-              `"contentTypes": string[], "riskLevel": "critical|high|medium|low", "removalPotential": "high|medium|low|not_eligible", ` +
-              `"potentialViolation": string|null, "problematicClaim": string|null, "assessmentReason": string, ` +
-              `"recommendedAction": string, "recommendedRoute": string, "evidenceNeeded": string|null, ` +
-              `"evidenceTimestamps": [{"timestamp": "mm:ss", "excerpt": string, "violationType": string}], ` +
-              `"narratives": string[] }\n` +
-              `Only include evidenceTimestamps that exist verbatim in the supplied transcript lines. ` +
-              `narratives = short recurring allegation keywords useful for further searching.\n\n` +
-              JSON.stringify(payload),
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      return fallback(`ai_gateway_${res.status}: ${body.slice(0, 140)}`, transcriptState);
-    }
-    const j = (await res.json()) as GatewayResponse;
-    const content = j.choices?.[0]?.message?.content ?? "{}";
-    const raw = JSON.parse(content) as Record<string, unknown>;
-
-    const validLines = new Map(transcriptLines.map((l) => [l.t, l]));
-    const evidenceTimestamps: EvidenceTimestamp[] = Array.isArray(raw.evidenceTimestamps)
-      ? (raw.evidenceTimestamps as Array<Record<string, unknown>>)
-          .map((e) => {
-            const timestamp = String(e.timestamp ?? "").trim();
-            const line = validLines.get(timestamp);
-            return {
-              timestamp,
-              seconds: line ? line.seconds : toSeconds(timestamp),
-              excerpt: String(e.excerpt ?? "").slice(0, 400),
-              violationType: String(e.violationType ?? "unspecified").slice(0, 80),
-            };
-          })
-          // Drop hallucinated timestamps: must map to a real caption line.
-          .filter((e) => validLines.has(e.timestamp))
-          .slice(0, 8)
-      : [];
-
-    const contentTypes = (Array.isArray(raw.contentTypes) ? raw.contentTypes : [])
-      .map((t) => String(t).toUpperCase())
-      .filter((t) => (CONTENT_TYPES as readonly string[]).includes(t))
-      .slice(0, 4);
-
-    let removalPotential = String(raw.removalPotential ?? "not_eligible").toLowerCase() as RemovalPotential;
-    if (!["high", "medium", "low", "not_eligible"].includes(removalPotential)) {
-      removalPotential = "not_eligible";
-    }
-
-    const evidenceVerified = evidenceTimestamps.length > 0 && transcriptState === "captions_analysed";
-
-    // Guardrail: no transcript evidence -> cap HIGH unless the metadata itself
-    // discloses a hard-signal category.
-    const hardSignals = [
-      "PRIVACY_VIOLATION",
-      "DOXXING_OR_PERSONAL_INFORMATION",
-      "IMPERSONATION",
-      "SEXUALIZED_OR_NON_CONSENSUAL_CONTENT",
-      "DEEPFAKE_OR_SYNTHETIC_MEDIA",
-      "MANIPULATED_MEDIA",
-      "COPYRIGHT_CANDIDATE",
-    ];
-    if (
-      removalPotential === "high" &&
-      !evidenceVerified &&
-      !contentTypes.some((t) => hardSignals.includes(t))
-    ) {
-      removalPotential = "medium";
-    }
-
-    const subjectStatusRaw = String(raw.subjectStatus ?? "uncertain").toLowerCase();
-    const subjectStatus: SubjectStatus =
-      subjectStatusRaw === "verified" || subjectStatusRaw === "not_subject"
-        ? (subjectStatusRaw as SubjectStatus)
-        : "uncertain";
-
-    let riskLevel = String(raw.riskLevel ?? "low").toLowerCase() as RiskLevel;
-    if (!["critical", "high", "medium", "low"].includes(riskLevel)) riskLevel = "low";
-
-    return {
-      subjectStatus,
-      subjectConfidence: Math.max(0, Math.min(100, Number(raw.subjectConfidence ?? 0) || 0)),
-      verificationReason: String(raw.verificationReason ?? "").slice(0, 600),
-      contentTypes: contentTypes.length ? contentTypes : ["INSUFFICIENT_EVIDENCE"],
-      riskLevel,
-      removalPotential,
-      potentialViolation: raw.potentialViolation ? String(raw.potentialViolation).slice(0, 300) : null,
-      problematicClaim: raw.problematicClaim ? String(raw.problematicClaim).slice(0, 700) : null,
-      assessmentReason:
-        String(raw.assessmentReason ?? "").slice(0, 900) +
-        (evidenceVerified ? "" : " (EVIDENCE_NOT_VERIFIED — no verifiable transcript excerpt)"),
-      recommendedAction: String(
-        raw.recommendedAction ??
-          (removalPotential === "high" || removalPotential === "medium"
-            ? "Prepare enforcement package"
-            : "MONITOR / REVIEW"),
-      ).slice(0, 300),
-      recommendedRoute: raw.recommendedRoute ? String(raw.recommendedRoute).slice(0, 60) : "monitor_only",
-      evidenceNeeded: raw.evidenceNeeded ? String(raw.evidenceNeeded).slice(0, 500) : null,
-      evidenceTimestamps,
-      evidenceVerified,
-      transcriptState,
-      transcriptLanguage,
-      narratives: Array.isArray(raw.narratives)
-        ? (raw.narratives as unknown[]).map((n) => String(n).slice(0, 60)).slice(0, 6)
-        : [],
-    };
-  } catch (e) {
-    return fallback(e instanceof Error ? e.message : "analysis_failed", transcriptState);
-  }
 }
 
-/** Explainable priority score (0-100). Reach never alone drives removability. */
+/** Explainable priority score (0-100). */
 export function priorityScore(args: {
   analysis: VideoAnalysis;
   viewCount: number | null;
