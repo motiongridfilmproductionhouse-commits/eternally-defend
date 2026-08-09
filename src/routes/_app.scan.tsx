@@ -29,6 +29,7 @@ import {
   youtubeIdFromUrl,
 } from "@/lib/media-utils";
 import { PersistedResultCard, type HitLike } from "@/components/scan/PersistedResultCard";
+import { FunnelDebugPanel } from "@/components/scan/FunnelDebugPanel";
 import { DetailDrawer } from "@/components/scan/DetailDrawer";
 import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
 import {
@@ -1392,6 +1393,7 @@ function AdminDiagnosticsPanel({ report }: { report: ReportWithDiagnostics }) {
         ⚙ Admin · Technical Diagnostics (dev only — not visible to users)
       </summary>
       <div className="mt-4">
+        <FunnelDebugPanel funnel={(diag as any)?.funnel} />
         <LiveScanStatus
           sourceCounts={diag.sourceCounts ?? {}}
           totalRaw={diag.totalRawFetched ?? 0}

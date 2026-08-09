@@ -255,6 +255,9 @@ export function PersistedResultCard({
                 {hit.severity.toUpperCase()}
               </span>
             )}
+            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              VERIFIED SUBJECT
+            </span>
             <span className="text-[10px] text-muted-foreground truncate">{hit.source}</span>
             {hit.published_at && (
               <span className="text-[10px] text-muted-foreground ml-auto">
@@ -302,7 +305,11 @@ export function PersistedResultCard({
       <div className="border-t border-border bg-muted/30 px-3 py-2 flex items-center justify-between gap-2">
         <div className="text-[10px] text-muted-foreground flex items-center gap-2 min-w-0">
           <span className="font-semibold text-foreground">Ev {evidenceCount}</span>
-          {status && <span className="truncate">· {status}</span>}
+          {status ? (
+            <span className="truncate">· {status}</span>
+          ) : (
+            <span className="truncate text-amber-500 font-medium">· Evidence analysis pending</span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button

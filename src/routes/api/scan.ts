@@ -2648,8 +2648,9 @@ function buildReport(
        */
       const isOfficialYouTubeLead =
         (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
+      const isYouTubeLead = source === "YouTube" || run.source === "YouTube";
       const isRedditEntityLead = source === "Reddit" || run.source === "Reddit";
-      if (!riskMatched && !isOfficialYouTubeLead && !isRedditEntityLead) continue;
+      if (!riskMatched && !isOfficialYouTubeLead && !isRedditEntityLead && !isYouTubeLead) continue;
       const cred = credibilityScore(source, platform);
       const realViews = o.media?.views ?? 0;
       const viewsAvailable = o.media?.viewsAvailable === true;
@@ -3490,6 +3491,25 @@ export const Route = createFileRoute("/api/scan")({
             ...variations,
           ]);
 
+          const OFFICIAL_NEWS_PATTERNS: RegExp[] = [
+            /\b(?:24\s*news|twenty\s*four\s*news|24\s*kerala)\b/i,
+            /\b(?:asianet\s*news|asianetnews|asianet\s*live)\b/i,
+            /\b(?:manorama\s*news|manoramamax|mm\s*tv)\b/i,
+            /\b(?:mathrubhumi\s*news|mathrubhumi\s*live)\b/i,
+            /\b(?:mediaone|mediaone\s*tv|mediaone\s*news)\b/i,
+            /\b(?:reporter\s*tv|reporter\s*live|reporter\s*news)\b/i,
+            /\b(?:news18\s*kerala|news18\s*malayalam|news18\s*south)\b/i,
+            /\b(?:kairali\s*news|kairali\s*tv|kairali\s*people)\b/i,
+            /\b(?:janam\s*tv|janam\s*news)\b/i,
+            /\b(?:amrita\s*news|amrita\s*tv)\b/i,
+            /\b(?:ndtv|zee\s*news|republic\s*tv|times\s*now|india\s*today|abp\s*news)\b/i,
+          ];
+
+          const isOfficialNewsChannel = (channel: string, title: string = "", url: string = ""): boolean => {
+            const blob = `${channel} ${title} ${url}`.toLowerCase();
+            return OFFICIAL_NEWS_PATTERNS.some((pattern) => pattern.test(channel) || pattern.test(blob));
+          };
+
           // Deduplicate by URL
           const cleanUrl = (urlStr: string): string => {
             try {
@@ -3504,11 +3524,146 @@ export const Route = createFileRoute("/api/scan")({
             }
           };
 
+          const funnelCounters = {
+            discovered_total: allNormalized.length,
+            deduplicated_total: 0,
+            official_news_excluded: 0,
+            verification_attempted: 0,
+            verified_subject: 0,
+            probable_subject: 0,
+            not_subject: 0,
+            verification_failed: 0,
+            verification_skipped: 0,
+            missing_metadata: 0,
+            transcript_available: 0,
+            transcript_unavailable: 0,
+            classifier_called: 0,
+            classifier_failed: 0,
+            classifier_parse_failed: 0,
+            persisted_results: 0,
+            hidden_results: 0,
+          };
+
+          interface RejectedCandidateRecord {
+            video_id: string;
+            title: string;
+            channel: string;
+            rejection_stage: string;
+            rejection_reason: string;
+            verification_score: number;
+            matched_target_signals: string[];
+            failed_target_signals: string[];
+            url?: string;
+            thumbnail?: string;
+          }
+
+          const rejectedCandidates: RejectedCandidateRecord[] = [];
           const seenUrls = new Set<string>();
           const uniqueNormalized: NormalizedHit[] = [];
 
+          // 1. Deduplication stage
+          const deduplicatedHits: NormalizedHit[] = [];
           for (const hit of allNormalized) {
-            if (!hit.url) continue;
+            if (!hit.url || !hit.title) {
+              funnelCounters.missing_metadata++;
+              rejectedCandidates.push({
+                video_id: hit.url ? cleanUrl(hit.url) : `missing-${rejectedCandidates.length}`,
+                title: hit.title || "Untitled",
+                channel: hit.author || "Unknown",
+                rejection_stage: "METADATA_CHECK",
+                rejection_reason: "Missing title or URL metadata",
+                verification_score: 0,
+                matched_target_signals: [],
+                failed_target_signals: ["missing_metadata"],
+                url: hit.url,
+                thumbnail: hit.thumbnail,
+              });
+              continue;
+            }
+
+            const cleaned = cleanUrl(hit.url);
+            if (seenUrls.has(cleaned)) continue;
+            seenUrls.add(cleaned);
+            deduplicatedHits.push(hit);
+          }
+
+          funnelCounters.deduplicated_total = deduplicatedHits.length;
+
+          const { classifyRemovalEligibility } = await import("@/lib/firecrawl/removal-classifier");
+
+          const removalCounters = {
+            evidence_analyzed: 0,
+            evidence_sufficient: 0,
+            evidence_insufficient: 0,
+            evidence_unavailable: 0,
+            transcript_evidence: 0,
+            caption_evidence: 0,
+            description_evidence: 0,
+            title_only_evidence: 0,
+            thumbnail_ocr_evidence: 0,
+            multi_source_evidence: 0,
+            title_only_but_marked_sufficient: 0,
+            high_removal: 0,
+            medium_removal: 0,
+            low_removal: 0,
+            not_eligible: 0,
+            analysis_failed: 0,
+            evidence_reason_counts: {} as Record<string, number>,
+            removal_reason_counts: {} as Record<string, number>,
+            infrastructure_reason_counts: {} as Record<string, number>,
+            action_recommendation_counts: {} as Record<string, number>,
+          };
+
+          interface PerVideoAnalysisRecord {
+            video_id: string;
+            title: string;
+            channel: string;
+            subject_verification_status: string;
+            verification_score: number;
+            evidence_status: string;
+            evidence_confidence: number;
+            evidence_sources: string[];
+            evidence_source_count: number;
+            removal_classification: string;
+            removal_score: number;
+            action_recommendation: string;
+            policy_signals: unknown;
+            human_readable_reason: string;
+            evidence_reason_codes: string[];
+            removal_reason_codes: string[];
+            infrastructure_reason_codes: string[];
+            supporting_evidence: string[];
+            transcript_available: boolean;
+            analysis_version: string;
+            url?: string;
+            thumbnail?: string;
+          }
+
+          const perVideoAnalysisRecords: PerVideoAnalysisRecord[] = [];
+
+          // 2. Official News Filter & Target Verification stage
+          for (const hit of deduplicatedHits) {
+            const videoId = hit.url.match(/(?:v=|\/embed\/|\/shorts\/|\/watch\?v=)([\w-]{6,})/)?.[1] || hit.url;
+
+            if (isOfficialNewsChannel(hit.author, hit.title, hit.url)) {
+              funnelCounters.official_news_excluded++;
+              rejectedCandidates.push({
+                video_id: videoId,
+                title: hit.title,
+                channel: hit.author || "Official News Channel",
+                rejection_stage: "OFFICIAL_NEWS_FILTER",
+                rejection_reason: `Excluded official news publisher (${hit.author || "News"})`,
+                verification_score: 0,
+                matched_target_signals: [],
+                failed_target_signals: ["official_news_excluded"],
+                url: hit.url,
+                thumbnail: hit.thumbnail,
+              });
+              continue;
+            }
+
+            funnelCounters.verification_attempted++;
+            funnelCounters.transcript_unavailable++; // default until transcript fetcher runs
 
             const verification = verifySubjectEntity(
               {
@@ -3517,16 +3672,110 @@ export const Route = createFileRoute("/api/scan")({
                 snippet: hit.snippet || "",
                 url: hit.url,
                 author: hit.author || "",
+                channelTitle: hit.author || "",
               },
               subjectProfile,
             );
 
-            if (!verification.isVerifiedFinding) continue;
+            if (verification.subjectMatchStatus === "VERIFIED_SUBJECT" || verification.subjectMatchStatus === "MATCH") {
+              funnelCounters.verified_subject++;
+            } else if (verification.subjectMatchStatus === "PROBABLE_SUBJECT" || verification.subjectMatchStatus === "PROBABLE_MATCH") {
+              funnelCounters.probable_subject++;
+            } else if (verification.subjectMatchStatus === "VERIFICATION_FAILED") {
+              funnelCounters.verification_failed++;
+            } else {
+              funnelCounters.not_subject++;
+            }
 
-            const cleaned = cleanUrl(hit.url);
-            if (seenUrls.has(cleaned)) continue;
+            if (!verification.isVerifiedFinding) {
+              rejectedCandidates.push({
+                video_id: videoId,
+                title: hit.title,
+                channel: hit.author || "Unknown Channel",
+                rejection_stage: "TARGET_IDENTITY_VERIFICATION",
+                rejection_reason: verification.mismatchReasons.join("; ") || `Identity verification threshold not met (${verification.subjectMatchScore}/100)`,
+                verification_score: verification.subjectMatchScore,
+                matched_target_signals: verification.matchedTargetSignals,
+                failed_target_signals: verification.failedTargetSignals,
+                url: hit.url,
+                thumbnail: hit.thumbnail,
+              });
+              continue;
+            }
 
-            seenUrls.add(cleaned);
+            // Target Verified Candidate -> Run Removal Eligibility Classification
+            removalCounters.evidence_analyzed++;
+
+            const removalRes = classifyRemovalEligibility({
+              title: hit.title || "",
+              snippet: hit.snippet || "",
+              description: hit.snippet || "",
+              author: hit.author || "",
+              url: hit.url,
+              subjectVerificationStatus: verification.subjectMatchStatus,
+              verificationScore: verification.subjectMatchScore,
+            });
+
+            if (removalRes.evidenceStatus === "SUFFICIENT") removalCounters.evidence_sufficient++;
+            else if (removalRes.evidenceStatus === "INSUFFICIENT") removalCounters.evidence_insufficient++;
+            else removalCounters.evidence_unavailable++;
+
+            if (removalRes.evidenceSources.includes("TRANSCRIPT")) removalCounters.transcript_evidence++;
+            if (removalRes.evidenceSources.includes("CAPTIONS")) removalCounters.caption_evidence++;
+            if (removalRes.evidenceSources.includes("DESCRIPTION")) removalCounters.description_evidence++;
+            if (removalRes.evidenceSources.length === 1 && removalRes.evidenceSources.includes("TITLE")) removalCounters.title_only_evidence++;
+            if (removalRes.evidenceSources.includes("THUMBNAIL_OCR")) removalCounters.thumbnail_ocr_evidence++;
+            if (removalRes.evidenceSourceCount > 1) removalCounters.multi_source_evidence++;
+
+            if (removalRes.evidenceStatus === "SUFFICIENT" && removalRes.evidenceSources.length === 1 && removalRes.evidenceSources.includes("TITLE")) {
+              removalCounters.title_only_but_marked_sufficient++;
+            }
+
+            if (removalRes.removalClassification === "HIGH_REMOVAL") removalCounters.high_removal++;
+            else if (removalRes.removalClassification === "MEDIUM_REMOVAL") removalCounters.medium_removal++;
+            else if (removalRes.removalClassification === "LOW_REMOVAL") removalCounters.low_removal++;
+            else if (removalRes.removalClassification === "ANALYSIS_FAILED") removalCounters.analysis_failed++;
+            else removalCounters.not_eligible++;
+
+            for (const code of removalRes.evidenceReasons) {
+              removalCounters.evidence_reason_counts[code] = (removalCounters.evidence_reason_counts[code] || 0) + 1;
+            }
+            for (const code of removalRes.removalReasons) {
+              removalCounters.removal_reason_counts[code] = (removalCounters.removal_reason_counts[code] || 0) + 1;
+            }
+            for (const code of removalRes.infrastructureReasons) {
+              removalCounters.infrastructure_reason_counts[code] = (removalCounters.infrastructure_reason_counts[code] || 0) + 1;
+            }
+
+            const recCode = removalRes.actionRecommendation;
+            removalCounters.action_recommendation_counts[recCode] = (removalCounters.action_recommendation_counts[recCode] || 0) + 1;
+
+            perVideoAnalysisRecords.push({
+              video_id: videoId,
+              title: hit.title,
+              channel: hit.author || "Unknown Channel",
+              subject_verification_status: verification.subjectMatchStatus,
+              verification_score: verification.subjectMatchScore,
+              evidence_status: removalRes.evidenceStatus,
+              evidence_confidence: removalRes.evidenceConfidence,
+              evidence_sources: removalRes.evidenceSources,
+              evidence_source_count: removalRes.evidenceSourceCount,
+              removal_classification: removalRes.removalClassification,
+              removal_score: removalRes.removalScore,
+              action_recommendation: removalRes.actionRecommendation,
+              policy_signals: removalRes.policySignals,
+              human_readable_reason: removalRes.humanReadableReason,
+              evidence_reason_codes: removalRes.evidenceReasons,
+              removal_reason_codes: removalRes.removalReasons,
+              infrastructure_reason_codes: removalRes.infrastructureReasons,
+              supporting_evidence: removalRes.supportingEvidence,
+              transcript_available: Boolean(verification.transcriptAvailable),
+              analysis_version: removalRes.analysisVersion,
+              url: hit.url,
+              thumbnail: hit.thumbnail,
+            });
+
+            funnelCounters.persisted_results++;
             uniqueNormalized.push(hit);
           }
 
@@ -3595,6 +3844,15 @@ const fcConfig = getFirecrawlConfigInfo();
           const totalRawFetched = mergedRuns.reduce((s, r) => s + r.raw.length, 0);
 
           (report as unknown as Record<string, unknown>).diagnostics = {
+            funnel: {
+              ...funnelCounters,
+              persisted_results: uniqueNormalized.length,
+              rejected_candidates: rejectedCandidates,
+              removal: {
+                ...removalCounters,
+                per_video_records: perVideoAnalysisRecords,
+              },
+            },
             queriesGenerated: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesExecuted: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesFailed: (fcError ? 1 : 0) + (ytError ? 1 : 0) + (redditError ? 1 : 0),

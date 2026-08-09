@@ -12,10 +12,14 @@
  */
 
 export type SubjectRelevance =
+  | "VERIFIED_SUBJECT"
+  | "PROBABLE_SUBJECT"
+  | "AMBIGUOUS_SUBJECT"
+  | "NOT_SUBJECT"
+  | "VERIFICATION_FAILED"
   | "MATCH"
   | "PROBABLE_MATCH"
-  | "AMBIGUOUS"
-  | "NOT_SUBJECT";
+  | "AMBIGUOUS";
 
 export type ReputationContext =
   | "OFFICIAL"
