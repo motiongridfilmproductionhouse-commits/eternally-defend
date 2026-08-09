@@ -2593,21 +2593,26 @@ function buildReport(
         `${title} ${description} ${o.author ?? o.media?.channelTitle ?? ""}`,
       );
       const isRedditResult = source === "Reddit" || run.source === "Reddit";
+      const isYouTubeApiResult =
+        (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
       let entityMatched = entityForms.some((form) => haystack.includes(form));
       /*
-       * Reddit threads often reference the identity partially (first name,
-       * surname, handle) or only in the URL slug. Keep those discussions
-       * instead of requiring an exact full-name string.
+       * Reddit threads and YouTube videos often reference the identity partially
+       * (first name, surname, handle) or only in the URL slug / channel name.
+       * YouTube API results already come from exact named-entity searches, so a
+       * distinctive-token match is enough — requiring the full name string here
+       * was silently dropping defamatory videos titled with a partial name.
        */
-      if (!entityMatched && isRedditResult) {
-        const redditHaystack = `${haystack} ${normalizeEntity(url)}`;
+      if (!entityMatched && (isRedditResult || isYouTubeApiResult)) {
+        const looseHaystack = `${haystack} ${normalizeEntity(url)}`;
         entityMatched =
-          entityForms.some((form) => redditHaystack.includes(form)) ||
+          entityForms.some((form) => looseHaystack.includes(form)) ||
           entityTokenSets.some(
-            (tokens) => tokens.length > 0 && tokens.some((token) => redditHaystack.includes(token)),
+            (tokens) => tokens.length > 0 && tokens.some((token) => looseHaystack.includes(token)),
           );
       }
       if (!entityMatched) continue;
+
 
       let c = classify(title, description);
       const sent = sentimentOf(`${title} ${description}`);
