@@ -6718,6 +6718,215 @@ export type Database = {
           },
         ]
       }
+      youtube_removal_findings: {
+        Row: {
+          analysis: Json
+          assessment_reason: string | null
+          channel_class: string
+          channel_id: string | null
+          channel_title: string | null
+          channel_url: string | null
+          comment_count: number | null
+          content_types: string[]
+          created_at: string
+          description: string | null
+          discovery_queries: string[]
+          duration_seconds: number | null
+          evidence_needed: string | null
+          evidence_timestamps: Json
+          evidence_verified: boolean
+          id: string
+          is_unavailable: boolean
+          like_count: number | null
+          potential_violation: string | null
+          priority_score: number
+          problematic_claim: string | null
+          published_at: string | null
+          recommended_action: string | null
+          recommended_route: string | null
+          removal_potential: string
+          risk_level: string
+          scan_id: string
+          subject_confidence: number
+          subject_status: string
+          thumbnail_url: string | null
+          title: string
+          transcript_language: string | null
+          transcript_state: string | null
+          updated_at: string
+          user_id: string
+          verification_reason: string | null
+          video_id: string
+          video_url: string
+          view_count: number | null
+        }
+        Insert: {
+          analysis?: Json
+          assessment_reason?: string | null
+          channel_class?: string
+          channel_id?: string | null
+          channel_title?: string | null
+          channel_url?: string | null
+          comment_count?: number | null
+          content_types?: string[]
+          created_at?: string
+          description?: string | null
+          discovery_queries?: string[]
+          duration_seconds?: number | null
+          evidence_needed?: string | null
+          evidence_timestamps?: Json
+          evidence_verified?: boolean
+          id?: string
+          is_unavailable?: boolean
+          like_count?: number | null
+          potential_violation?: string | null
+          priority_score?: number
+          problematic_claim?: string | null
+          published_at?: string | null
+          recommended_action?: string | null
+          recommended_route?: string | null
+          removal_potential?: string
+          risk_level?: string
+          scan_id: string
+          subject_confidence?: number
+          subject_status?: string
+          thumbnail_url?: string | null
+          title: string
+          transcript_language?: string | null
+          transcript_state?: string | null
+          updated_at?: string
+          user_id: string
+          verification_reason?: string | null
+          video_id: string
+          video_url: string
+          view_count?: number | null
+        }
+        Update: {
+          analysis?: Json
+          assessment_reason?: string | null
+          channel_class?: string
+          channel_id?: string | null
+          channel_title?: string | null
+          channel_url?: string | null
+          comment_count?: number | null
+          content_types?: string[]
+          created_at?: string
+          description?: string | null
+          discovery_queries?: string[]
+          duration_seconds?: number | null
+          evidence_needed?: string | null
+          evidence_timestamps?: Json
+          evidence_verified?: boolean
+          id?: string
+          is_unavailable?: boolean
+          like_count?: number | null
+          potential_violation?: string | null
+          priority_score?: number
+          problematic_claim?: string | null
+          published_at?: string | null
+          recommended_action?: string | null
+          recommended_route?: string | null
+          removal_potential?: string
+          risk_level?: string
+          scan_id?: string
+          subject_confidence?: number
+          subject_status?: string
+          thumbnail_url?: string | null
+          title?: string
+          transcript_language?: string | null
+          transcript_state?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_reason?: string | null
+          video_id?: string
+          video_url?: string
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_removal_findings_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_removal_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_removal_scans: {
+        Row: {
+          actionable_count: number
+          aliases: string[]
+          completed_at: string | null
+          created_at: string
+          discovered_count: number
+          error_message: string | null
+          excluded_news_count: number
+          failed_stage: string | null
+          failure_code: string | null
+          id: string
+          language_hint: string | null
+          not_subject_count: number
+          progress: number
+          queries: string[]
+          stage: string | null
+          started_at: string | null
+          stats: Json
+          status: string
+          target_name: string
+          updated_at: string
+          user_id: string
+          verified_count: number
+        }
+        Insert: {
+          actionable_count?: number
+          aliases?: string[]
+          completed_at?: string | null
+          created_at?: string
+          discovered_count?: number
+          error_message?: string | null
+          excluded_news_count?: number
+          failed_stage?: string | null
+          failure_code?: string | null
+          id?: string
+          language_hint?: string | null
+          not_subject_count?: number
+          progress?: number
+          queries?: string[]
+          stage?: string | null
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          target_name: string
+          updated_at?: string
+          user_id: string
+          verified_count?: number
+        }
+        Update: {
+          actionable_count?: number
+          aliases?: string[]
+          completed_at?: string | null
+          created_at?: string
+          discovered_count?: number
+          error_message?: string | null
+          excluded_news_count?: number
+          failed_stage?: string | null
+          failure_code?: string | null
+          id?: string
+          language_hint?: string | null
+          not_subject_count?: number
+          progress?: number
+          queries?: string[]
+          stage?: string | null
+          started_at?: string | null
+          stats?: Json
+          status?: string
+          target_name?: string
+          updated_at?: string
+          user_id?: string
+          verified_count?: number
+        }
+        Relationships: []
+      }
       youtube_verification_challenges: {
         Row: {
           asset_id: string
