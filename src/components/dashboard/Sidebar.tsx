@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Package,
   Radar,
+  Youtube,
   Activity,
   Brain,
   ShieldCheck,
