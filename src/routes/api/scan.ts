@@ -1915,10 +1915,14 @@ async function fetchYTWindow(
   const jobs: { q: string; order: "date" | "relevance"; pages: number }[] = [];
   const riskGroups = [
     "controversy|scandal|backlash|exposed|allegation|accused",
-    "defamation|leaked|deepfake|impersonation|harassment",
-    "police|court|arrest|lawsuit|complaint|legal",
+    "defamation|slander|libel|false allegation|character assassination",
+    "leaked|deepfake|impersonation|harassment|morphed",
+    "police|court|arrest|lawsuit|complaint|legal notice",
     "trolled|criticism|boycott|fake|rumour|rumor",
+    // Defamatory-language cluster: how real defamatory videos are actually titled.
+    "cheater|liar|fraud|vulgar|insult|abusing|characterless",
   ];
+
 
   for (const name of forms) {
     const exact = name.includes(" ") ? `"${name}"` : name;
