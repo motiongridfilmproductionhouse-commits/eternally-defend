@@ -164,6 +164,45 @@ export type Database = {
           },
         ]
       }
+      youtube_search_cache: {
+        Row: {
+          id: string
+          normalized_query: string
+          page_number: number
+          order_mode: string
+          region_code: string | null
+          video_results: Json
+          result_count: number
+          fetched_at: string
+          expires_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          normalized_query: string
+          page_number?: number
+          order_mode?: string
+          region_code?: string | null
+          video_results: Json
+          result_count?: number
+          fetched_at?: string
+          expires_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          normalized_query?: string
+          page_number?: number
+          order_mode?: string
+          region_code?: string | null
+          video_results?: Json
+          result_count?: number
+          fetched_at?: string
+          expires_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       asset_verification_events: {
         Row: {
           asset_id: string | null

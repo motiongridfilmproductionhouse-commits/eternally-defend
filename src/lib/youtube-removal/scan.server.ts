@@ -2,7 +2,8 @@
  * Orchestrator for targeted YouTube Removal Intelligence scan.
  *
  * Discovery Source: OFFICIAL YOUTUBE DATA API ONLY.
- * No Firecrawl, no Google web search, no external search gateways.
+ * Quota Optimized: Max 8 search.list calls, query prioritization, TTL caching,
+ * candidate isolation, early stopping at 150 videos, and known video ID reuse.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -23,10 +24,13 @@ import {
   classifySourceType,
   buildAllegationQueryPlan,
 } from "./news-intelligence";
+import { getCachedSearch, setCachedSearch } from "./youtube-quota-cache";
 
 type Supa = SupabaseClient<Database>;
 
 const MAX_ANALYZED = 50;
+const HARD_SEARCH_BUDGET = 8;
+const EARLY_STOP_THRESHOLD = 150;
 
 async function patchScan(
   supabase: Supa,
@@ -38,6 +42,35 @@ async function patchScan(
     updated_at: new Date().toISOString(),
   };
   await supabase.from("youtube_removal_scans").update(updatedPatch as never).eq("id", scanId);
+}
+
+/** Get prioritized query plan based on source scope and hard budget limits. */
+export function getPrioritizedQueryPlan(targetName: string, scope: SourceScope): string[] {
+  const t = targetName.trim();
+  if (scope === "NON_OFFICIAL_ONLY") {
+    return [`${t}`, `${t} interview`, `${t} reaction`, `${t} controversy`, `${t} exposed`].slice(0, 5);
+  }
+  if (scope === "NEWS_ALLEGATIONS") {
+    return [
+      `${t} scam`,
+      `${t} fraud`,
+      `${t} allegation`,
+      `${t} investigation`,
+      `${t} controversy`,
+      `${t} case`,
+    ].slice(0, 6);
+  }
+  // ALL_SOURCES: Top combined queries (max 8)
+  return [
+    `${t}`,
+    `${t} scam`,
+    `${t} fraud`,
+    `${t} allegation`,
+    `${t} investigation`,
+    `${t} interview`,
+    `${t} controversy`,
+    `${t} reaction`,
+  ].slice(0, 8);
 }
 
 export async function runYoutubeRemovalScan(
@@ -75,29 +108,16 @@ export async function runYoutubeRemovalScan(
       error_message: null,
     });
 
-    // ---- 1. FAIL FAST PROVIDER HEALTH CHECK ------------------------------
-    stage = "PROVIDER_HEALTH_CHECK";
-    console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} running health check query for "${targetName}"`);
-    try {
-      await searchVideos(targetName, { pages: 1 });
-    } catch (healthErr: any) {
-      console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=HEALTH_CHECK_FAILED code=${healthErr?.code} message="${healthErr?.message}"`);
-      throw healthErr; // Fail fast immediately before launching 20+ search queries
-    }
-
-    // ---- 2. QUERY PLAN GENERATION (YOUTUBE API ONLY) --------------------
+    // ---- 1. PRIORITIZED QUERY PLAN GENERATION & BUDGET CALCULATION -----
     stage = "QUERY_PLAN_CREATED";
-    let plan = buildQueryPlan({ targetName, aliases });
-    if (activeScope === "NEWS_ALLEGATIONS") {
-      plan = buildAllegationQueryPlan(targetName, aliases);
-    } else if (activeScope === "ALL_SOURCES") {
-      const allegationQueries = buildAllegationQueryPlan(targetName, aliases);
-      plan = Array.from(new Set([...plan, ...allegationQueries]));
-    }
+    const plan = getPrioritizedQueryPlan(targetName, activeScope);
+    const plannedSearchRequests = Math.min(plan.length, HARD_SEARCH_BUDGET);
 
-    console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} queryCount=${plan.length}`);
+    console.info(
+      `[YT-SCAN] scanId=${scanId} stage=${stage} plannedQueries=${plan.length} estimatedSearchRequests=${plannedSearchRequests}`,
+    );
 
-    // ---- 3. DISCOVERY (OFFICIAL YOUTUBE SEARCH API ONLY) -----------------
+    // ---- 2. DISCOVERY (WITH QUOTA CACHING & EARLY STOPPING) -------------
     stage = "DISCOVERY_STARTED";
     const byVideo = new Map<string, DiscoveredVideo>();
     const usedQueries: string[] = [];
@@ -107,58 +127,127 @@ export async function runYoutubeRemovalScan(
     let queriesSucceeded = 0;
     let queriesFailed = 0;
     let quotaErrorCount = 0;
+    let rateLimitErrorCount = 0;
+    let cacheHits = 0;
+    let cacheMisses = 0;
+    let searchApiRequestsCount = 0;
     let firstProviderError: (Error & { code?: string }) | null = null;
-    let lastProviderError: (Error & { code?: string }) | null = null;
 
-    const runQueries = async (queries: string[], pagesPerQuery: number) => {
-      for (const q of queries) {
-        queriesAttempted++;
-        try {
-          const hits = await searchVideos(q, { pages: pagesPerQuery });
-          usedQueries.push(q);
-          queriesSucceeded++;
-          pagesFetched += pagesPerQuery;
-          rawVideoCount += hits.length;
+    // Feature 5: Reuse known video IDs from previous scans for this target
+    try {
+      const { data: existingFindings } = await supabase
+        .from("youtube_removal_findings")
+        .select("video_id, title, description, channel_id, channel_title, published_at, thumbnail_url, discovery_queries")
+        .eq("user_id", userId)
+        .limit(100);
 
-          for (const hit of hits) {
-            const existing = byVideo.get(hit.videoId);
-            if (existing) {
-              if (!existing.queries.includes(q)) existing.queries.push(q);
-            } else {
-              byVideo.set(hit.videoId, hit);
-            }
-          }
-        } catch (e: any) {
-          queriesFailed++;
-          if (!firstProviderError) firstProviderError = e;
-          lastProviderError = e;
-
-          if (e?.code === "YOUTUBE_QUOTA_EXCEEDED") quotaErrorCount++;
-          console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=DISCOVERY query="${q}" code=${e?.code} message=${e?.message}`);
-
-          // Fatal provider errors — terminate discovery cleanly immediately
-          if (
-            e?.code === "YOUTUBE_QUOTA_EXCEEDED" ||
-            e?.code === "YOUTUBE_AUTH_ERROR" ||
-            e?.code === "YOUTUBE_API_NOT_ENABLED" ||
-            e?.code === "YOUTUBE_API_KEY_MISSING"
-          ) {
-            throw e;
+      if (existingFindings && existingFindings.length > 0) {
+        for (const ef of existingFindings) {
+          if (ef.video_id && !byVideo.has(ef.video_id)) {
+            byVideo.set(ef.video_id, {
+              videoId: ef.video_id,
+              title: ef.title,
+              description: ef.description || "",
+              channelId: ef.channel_id || "",
+              channelTitle: ef.channel_title || "Unknown channel",
+              publishedAt: ef.published_at || "",
+              thumbnailUrl: ef.thumbnail_url || `https://i.ytimg.com/vi/${ef.video_id}/hqdefault.jpg`,
+              queries: ef.discovery_queries || [targetName],
+            });
           }
         }
+        console.info(`[YT-SCAN] scanId=${scanId} reused ${existingFindings.length} known video IDs from prior scans.`);
       }
-    };
+    } catch {
+      // Ignore prior scan reuse error
+    }
 
-    await runQueries(plan.slice(0, 14), 2);
-    await patchScan(supabase, scanId, { progress: 25, discovered_count: byVideo.size });
-    await runQueries(plan.slice(14), 1);
+    let l1Hits = 0;
+    let l2Hits = 0;
+
+    for (const q of plan) {
+      if (searchApiRequestsCount >= HARD_SEARCH_BUDGET) {
+        console.info(`[YT-SCAN] scanId=${scanId} reached hard search request budget of ${HARD_SEARCH_BUDGET}. Stopping discovery.`);
+        break;
+      }
+
+      if (byVideo.size >= EARLY_STOP_THRESHOLD) {
+        console.info(`[YT-SCAN] scanId=${scanId} reached early stop threshold of ${EARLY_STOP_THRESHOLD} videos. Stopping discovery.`);
+        break;
+      }
+
+      queriesAttempted++;
+      usedQueries.push(q);
+
+      // Check L1 & L2 multi-tiered search cache
+      const cachedResult = await getCachedSearch(supabase, q, 1, "relevance", null);
+      if (cachedResult) {
+        if (cachedResult.source === "L1") l1Hits++;
+        if (cachedResult.source === "L2") l2Hits++;
+        cacheHits++;
+
+        for (const hit of cachedResult.hits) {
+          const existing = byVideo.get(hit.videoId);
+          if (existing) {
+            if (!existing.queries.includes(q)) existing.queries.push(q);
+          } else {
+            byVideo.set(hit.videoId, hit);
+          }
+        }
+        console.info(`[YT-SCAN] scanId=${scanId} query="${q}" CACHE HIT (${cachedResult.source}) (hits=${cachedResult.hits.length})`);
+        continue;
+      }
+
+      cacheMisses++;
+      searchApiRequestsCount++;
+
+      try {
+        // First real query doubles as provider health check
+        const hits = await searchVideos(q, { pages: 1 });
+        queriesSucceeded++;
+        pagesFetched += 1;
+        rawVideoCount += hits.length;
+
+        // Persist to L1 memory & L2 Supabase table
+        await setCachedSearch(supabase, q, 1, "relevance", null, hits);
+
+        for (const hit of hits) {
+          const existing = byVideo.get(hit.videoId);
+          if (existing) {
+            if (!existing.queries.includes(q)) existing.queries.push(q);
+          } else {
+            byVideo.set(hit.videoId, hit);
+          }
+        }
+      } catch (e: any) {
+        queriesFailed++;
+        if (!firstProviderError) firstProviderError = e;
+
+        if (e?.code === "YOUTUBE_QUOTA_EXCEEDED") quotaErrorCount++;
+        if (e?.code === "YOUTUBE_RATE_LIMIT") rateLimitErrorCount++;
+
+        console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=DISCOVERY query="${q}" code=${e?.code} message=${e?.message}`);
+
+        // Fail fast on fatal API/Auth/Quota errors
+        if (
+          e?.code === "YOUTUBE_QUOTA_EXCEEDED" ||
+          e?.code === "YOUTUBE_AUTH_ERROR" ||
+          e?.code === "YOUTUBE_API_NOT_ENABLED" ||
+          e?.code === "YOUTUBE_API_KEY_MISSING"
+        ) {
+          throw e;
+        }
+      }
+
+      await patchScan(supabase, scanId, { progress: Math.min(35, 5 + Math.round((queriesAttempted / plan.length) * 30)), discovered_count: byVideo.size });
+    }
 
     stage = "DISCOVERY_COMPLETE";
-    console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} rawVideoCount=${rawVideoCount} deduplicated=${byVideo.size}`);
+    console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} rawVideoCount=${rawVideoCount} deduplicated=${byVideo.size} searchApiRequests=${searchApiRequestsCount}`);
 
     if (!byVideo.size) {
       if (firstProviderError) {
-        throw firstProviderError; // Preserve first specific provider failure
+        throw firstProviderError;
       }
       await patchScan(supabase, scanId, {
         status: "completed",
@@ -176,13 +265,17 @@ export async function runYoutubeRemovalScan(
           queries_failed: queriesFailed,
           youtube_search_pages: pagesFetched,
           quota_error_count: quotaErrorCount,
+          rate_limit_error_count: rateLimitErrorCount,
+          cache_hits: cacheHits,
+          cache_misses: cacheMisses,
+          search_api_requests: searchApiRequestsCount,
           note: "no_search_results",
         },
       });
       return { status: "completed" };
     }
 
-    // ---- 4. HYDRATION & CHANNEL CLASSIFICATION (YOUTUBE VIDEOS & CHANNELS API)
+    // ---- 3. HYDRATION & CHANNEL CLASSIFICATION (YOUTUBE VIDEOS & CHANNELS API)
     stage = "CANDIDATE_PROCESSING_STARTED";
     await patchScan(supabase, scanId, {
       stage: "hydration",
@@ -230,7 +323,7 @@ export async function runYoutubeRemovalScan(
 
     const excludedNews = activeScope === "NON_OFFICIAL_ONLY" ? officialNews : [];
 
-    // ---- 5. VERIFY + ANALYZE (WITH CANDIDATE ISOLATION) ----------------
+    // ---- 4. VERIFY + ANALYZE (WITH CANDIDATE ISOLATION) ----------------
     stage = "analysis";
     await patchScan(supabase, scanId, {
       stage: "analysis",
@@ -276,8 +369,6 @@ export async function runYoutubeRemovalScan(
             const fullText = `${candidate.detail.title} ${candidate.detail.description}`;
             const { isAllegationMatch, matchedSignals } = detectNewsAllegationSignals(fullText);
             const topicTags = classifyNewsTopics(fullText, matchedSignals);
-
-            console.info(`[YT-SCAN] scanId=${scanId} stage=SUBJECT_VERIFICATION_COMPLETE idx=${idx} videoId=${candidate.detail.videoId} status=${analysis.subjectStatus}`);
 
             return {
               candidate,
@@ -334,7 +425,7 @@ export async function runYoutubeRemovalScan(
       });
     }
 
-    // ---- 6. PERSIST FINDINGS --------------------------------------------
+    // ---- 5. PERSIST FINDINGS --------------------------------------------
     stage = "PERSIST";
     const rows = [
       ...analysed.map(({ candidate, analysis, isAllegationMatch, matchedSignals, topicTags }) => ({
@@ -468,11 +559,19 @@ export async function runYoutubeRemovalScan(
       excluded_news_count: excludedNews.length,
       actionable_count: actionable.length,
       stats: {
+        planned_search_requests: plannedSearchRequests,
+        search_api_requests: searchApiRequestsCount,
+        search_cache_l1_hits: l1Hits,
+        search_cache_l2_hits: l2Hits,
+        cache_hits: cacheHits,
+        cache_misses: cacheMisses,
         youtube_queries_attempted: queriesAttempted,
         youtube_queries_succeeded: queriesSucceeded,
         youtube_queries_failed: queriesFailed,
         youtube_search_pages: pagesFetched,
         youtube_quota_error_count: quotaErrorCount,
+        youtube_rate_limit_error_count: rateLimitErrorCount,
+        videos_discovered_per_api_request: searchApiRequestsCount > 0 ? (byVideo.size / searchApiRequestsCount).toFixed(1) : byVideo.size,
         queries_planned: plan.length,
         queries_executed: usedQueries.length,
         raw_video_ids: rawVideoCount,
@@ -520,7 +619,7 @@ export async function runYoutubeRemovalScan(
     } else if (code === "YOUTUBE_API_NOT_ENABLED") {
       userMessage = "YouTube Data API v3 is not enabled for the configured Google project.";
     } else if (code === "YOUTUBE_QUOTA_EXCEEDED") {
-      userMessage = "YouTube API daily quota has been reached. Try again after quota reset.";
+      userMessage = "YouTube API search quota has been reached.";
     } else if (code === "YOUTUBE_RATE_LIMIT") {
       userMessage = "YouTube API rate limit reached. Please retry shortly.";
     } else if (code === "YOUTUBE_NETWORK_ERROR") {

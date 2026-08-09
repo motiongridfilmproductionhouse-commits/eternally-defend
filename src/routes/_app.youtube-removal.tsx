@@ -383,7 +383,7 @@ function YoutubeRemovalPage() {
         <Card className="p-4 bg-slate-900 text-white font-mono text-xs space-y-3">
           <div className="flex items-center justify-between text-indigo-300 font-bold border-b border-slate-800 pb-2">
             <span className="flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-indigo-400" /> Live Admin Diagnostics (?diag=1)
+              <Wrench className="w-4 h-4 text-indigo-400" /> Live Admin Provider & Quota Diagnostics (?diag=1)
             </span>
             <span className="text-[11px] text-slate-400">Scan ID: {scan.id}</span>
           </div>
@@ -393,6 +393,18 @@ function YoutubeRemovalPage() {
             <div>Failed Stage: <strong>{scan.failed_stage || "none"}</strong></div>
             <div>Failure Code: <strong>{scan.failure_code || "none"}</strong></div>
           </div>
+          {scan.stats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400">
+              <div>Request Budget: <strong className="text-emerald-400">{(scan.stats as any).planned_search_requests || 8} / 8</strong></div>
+              <div>Search Requests: <strong className="text-white">{(scan.stats as any).search_api_requests || 0}</strong></div>
+              <div>L1 Memory Hits: <strong className="text-emerald-400">{(scan.stats as any).search_cache_l1_hits || 0}</strong></div>
+              <div>L2 Supabase Hits: <strong className="text-cyan-400">{(scan.stats as any).search_cache_l2_hits || 0}</strong></div>
+              <div>Cache Misses: <strong className="text-amber-400">{(scan.stats as any).cache_misses || 0}</strong></div>
+              <div>Pages Fetched: <strong className="text-white">{(scan.stats as any).youtube_search_pages || 0}</strong></div>
+              <div>Quota Errors: <strong className="text-red-400">{(scan.stats as any).youtube_quota_error_count || 0}</strong></div>
+              <div>Yield / Request: <strong className="text-purple-400">{(scan.stats as any).videos_discovered_per_api_request || "—"} vids</strong></div>
+            </div>
+          )}
         </Card>
       )}
 

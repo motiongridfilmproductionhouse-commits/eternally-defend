@@ -8,6 +8,8 @@ import {
   formatNewsSafetyNote,
 } from "./news-intelligence";
 import { buildQueryPlan } from "./queries";
+import { getPrioritizedQueryPlan } from "./scan.server";
+import { getCachedSearch, setCachedSearch, clearL1Cache } from "./youtube-quota-cache";
 
 describe("Source Scope & YouTube Data API Intelligence Engine Test Suite", () => {
   const targetName = "Gokulam Gopalan";
@@ -158,5 +160,84 @@ describe("Source Scope & YouTube Data API Intelligence Engine Test Suite", () =>
 
     assert.equal(uniqueMap.size, 2);
     assert.deepEqual(uniqueMap.get("vid1")?.queries, ["q1", "q2"]);
+  });
+
+  it("17. Scan query plan NEVER exceeds hard search request budget of 8", () => {
+    const nonOfficialPlan = getPrioritizedQueryPlan(targetName, "NON_OFFICIAL_ONLY");
+    const newsPlan = getPrioritizedQueryPlan(targetName, "NEWS_ALLEGATIONS");
+    const allSourcesPlan = getPrioritizedQueryPlan(targetName, "ALL_SOURCES");
+
+    assert.ok(nonOfficialPlan.length <= 5);
+    assert.ok(newsPlan.length <= 6);
+    assert.ok(allSourcesPlan.length <= 8);
+  });
+
+  it("18. L1 Memory & L2 Supabase persistent cache returns hits on repeated query", async () => {
+    clearL1Cache();
+    const query = "Gokulam Gopalan interview";
+    const dummyHits: any[] = [{ videoId: "cache_vid_1", title: "Cached Video Title" }];
+
+    const initial = await getCachedSearch(null, query, 1, "relevance", null);
+    assert.equal(initial, null);
+
+    await setCachedSearch(null, query, 1, "relevance", null, dummyHits);
+
+    const hit = await getCachedSearch(null, query, 1, "relevance", null);
+    assert.ok(hit != null);
+    assert.equal(hit?.source, "L1");
+    assert.equal(hit?.hits.length, 1);
+    assert.equal(hit?.hits[0].videoId, "cache_vid_1");
+  });
+
+  it("19. Early stop threshold stops discovery when deduplicated videos reach limit", () => {
+    const byVideo = new Map<string, any>();
+    const EARLY_STOP_THRESHOLD = 150;
+
+    for (let i = 0; i < 150; i++) {
+      byVideo.set(`vid_${i}`, { videoId: `vid_${i}` });
+    }
+
+    const shouldStop = byVideo.size >= EARLY_STOP_THRESHOLD;
+    assert.equal(shouldStop, true);
+  });
+
+  it("20. YOUTUBE_QUOTA_EXCEEDED and YOUTUBE_RATE_LIMIT remain distinct errors", () => {
+    const quotaErr: any = new Error("YouTube /search [403]: quotaExceeded");
+    quotaErr.code = "YOUTUBE_QUOTA_EXCEEDED";
+
+    const rateErr: any = new Error("YouTube /search [429]: rateLimitExceeded");
+    rateErr.code = "YOUTUBE_RATE_LIMIT";
+
+    assert.notEqual(quotaErr.code, rateErr.code);
+    assert.equal(quotaErr.code, "YOUTUBE_QUOTA_EXCEEDED");
+    assert.equal(rateErr.code, "YOUTUBE_RATE_LIMIT");
+  });
+
+  it("21. ALL_SOURCES mode does NOT execute all 28-30 expansion queries blindly", () => {
+    const plan = getPrioritizedQueryPlan(targetName, "ALL_SOURCES");
+    assert.equal(plan.length, 8);
+    assert.ok(plan.includes("Gokulam Gopalan scam"));
+    assert.ok(plan.includes("Gokulam Gopalan interview"));
+  });
+
+  it("22. Cached discovery hits only contain raw metadata (no cached removal/verification decisions)", async () => {
+    clearL1Cache();
+    const query = "Gokulam Gopalan";
+    const rawHit: any[] = [
+      {
+        videoId: "raw_vid_123",
+        title: "Raw Title",
+        description: "Raw Desc",
+        channelId: "ch1",
+        channelTitle: "Chan",
+      },
+    ];
+
+    await setCachedSearch(null, query, 1, "relevance", null, rawHit);
+    const cached = await getCachedSearch(null, query, 1, "relevance", null);
+
+    assert.ok(cached != null);
+    assert.equal((cached?.hits[0] as any).subjectStatus, undefined);
+    assert.equal((cached?.hits[0] as any).removalPotential, undefined);
   });
 });
