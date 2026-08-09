@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isVerifiedSubject } from "@/lib/firecrawl/entity-verifier";
 import { buildQueryPlan } from "./queries";
-import { SourceScope } from "./news-intelligence";
+import { SourceScope, buildAllegationQueryPlan } from "./news-intelligence";
 
 export const previewQueryPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -99,8 +99,19 @@ export const startYoutubeRemovalScan = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const scope = data.sourceScope || "NON_OFFICIAL_ONLY";
-    const queries = buildQueryPlan({ targetName: data.targetName, aliases: data.aliases });
+    const scope: SourceScope = data.sourceScope || "NON_OFFICIAL_ONLY";
+
+    let queries = buildQueryPlan({ targetName: data.targetName, aliases: data.aliases });
+    if (scope === "NEWS_ALLEGATIONS" || scope === "ALL_SOURCES") {
+      const allegationQueries = buildAllegationQueryPlan(data.targetName, data.aliases ?? []);
+      queries = Array.from(new Set([...queries, ...allegationQueries]));
+    }
+
+    console.info("[YT-SCAN-START]", {
+      targetName: data.targetName,
+      sourceScope: scope,
+      queryCount: queries.length,
+    });
 
     const { data: scan, error } = await context.supabase
       .from("youtube_removal_scans")
@@ -113,18 +124,32 @@ export const startYoutubeRemovalScan = createServerFn({ method: "POST" })
         stage: "queued",
         queries,
         source_scope: scope,
-      } as never)
+      } as any)
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+
+    if (error) {
+      console.error("[YT-SCAN-CREATE-FAILED]", {
+        targetName: data.targetName,
+        sourceScope: scope,
+        code: error.code,
+        message: error.message,
+      });
+      throw new Error(`Failed to create YouTube scan row: ${error.message}`);
+    }
 
     const scanId = (scan as { id: string }).id;
-    const { runYoutubeRemovalScan } = await import("./scan.server");
-    try {
-      await runYoutubeRemovalScan(context.supabase, context.userId, scanId, scope);
-    } catch (e) {
-      console.error("[yt-removal] scan failed", scanId, e);
-    }
+
+    // Asynchronous background execution — return scanId immediately to UI
+    void (async () => {
+      try {
+        const { runYoutubeRemovalScan } = await import("./scan.server");
+        await runYoutubeRemovalScan(context.supabase, context.userId, scanId, scope);
+      } catch (e) {
+        console.error("[YT-SCAN-ASYNC-FAILED]", scanId, e);
+      }
+    })();
+
     return { scanId };
   });
 
@@ -132,7 +157,21 @@ export const retryYoutubeRemovalScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
+    const { data: scan, error } = await context.supabase
+      .from("youtube_removal_scans")
+      .select("source_scope")
+      .eq("id", data.scanId)
+      .eq("user_id", context.userId)
+      .single();
+
+    if (error) throw new Error(`Scan record not found: ${error.message}`);
+
+    const persistedScope: SourceScope = (scan as any)?.source_scope || "NON_OFFICIAL_ONLY";
+
     const { runYoutubeRemovalScan } = await import("./scan.server");
-    await runYoutubeRemovalScan(context.supabase, context.userId, data.scanId);
+    void runYoutubeRemovalScan(context.supabase, context.userId, data.scanId, persistedScope).catch((e) => {
+      console.error("[YT-SCAN-RETRY-FAILED]", data.scanId, e);
+    });
+
     return { scanId: data.scanId };
   });

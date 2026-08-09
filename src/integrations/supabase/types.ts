@@ -6720,6 +6720,8 @@ export type Database = {
       }
       youtube_removal_findings: {
         Row: {
+          allegation_matched: boolean
+          allegation_signals: string[]
           analysis: Json
           assessment_reason: string | null
           channel_class: string
@@ -6736,8 +6738,11 @@ export type Database = {
           evidence_timestamps: Json
           evidence_verified: boolean
           id: string
+          is_official_news: boolean
+          is_official_news_allegation: boolean
           is_unavailable: boolean
           like_count: number | null
+          news_topic_tags: string[]
           potential_violation: string | null
           priority_score: number
           problematic_claim: string | null
@@ -6747,6 +6752,7 @@ export type Database = {
           removal_potential: string
           risk_level: string
           scan_id: string
+          source_type: string
           subject_confidence: number
           subject_status: string
           thumbnail_url: string | null
@@ -6761,6 +6767,8 @@ export type Database = {
           view_count: number | null
         }
         Insert: {
+          allegation_matched?: boolean
+          allegation_signals?: string[]
           analysis?: Json
           assessment_reason?: string | null
           channel_class?: string
@@ -6777,8 +6785,11 @@ export type Database = {
           evidence_timestamps?: Json
           evidence_verified?: boolean
           id?: string
+          is_official_news?: boolean
+          is_official_news_allegation?: boolean
           is_unavailable?: boolean
           like_count?: number | null
+          news_topic_tags?: string[]
           potential_violation?: string | null
           priority_score?: number
           problematic_claim?: string | null
@@ -6788,6 +6799,7 @@ export type Database = {
           removal_potential?: string
           risk_level?: string
           scan_id: string
+          source_type?: string
           subject_confidence?: number
           subject_status?: string
           thumbnail_url?: string | null
@@ -6802,6 +6814,8 @@ export type Database = {
           view_count?: number | null
         }
         Update: {
+          allegation_matched?: boolean
+          allegation_signals?: string[]
           analysis?: Json
           assessment_reason?: string | null
           channel_class?: string
@@ -6818,8 +6832,11 @@ export type Database = {
           evidence_timestamps?: Json
           evidence_verified?: boolean
           id?: string
+          is_official_news?: boolean
+          is_official_news_allegation?: boolean
           is_unavailable?: boolean
           like_count?: number | null
+          news_topic_tags?: string[]
           potential_violation?: string | null
           priority_score?: number
           problematic_claim?: string | null
@@ -6829,6 +6846,7 @@ export type Database = {
           removal_potential?: string
           risk_level?: string
           scan_id?: string
+          source_type?: string
           subject_confidence?: number
           subject_status?: string
           thumbnail_url?: string | null
@@ -6868,6 +6886,7 @@ export type Database = {
           not_subject_count: number
           progress: number
           queries: string[]
+          source_scope: string
           stage: string | null
           started_at: string | null
           stats: Json
@@ -6892,6 +6911,7 @@ export type Database = {
           not_subject_count?: number
           progress?: number
           queries?: string[]
+          source_scope?: string
           stage?: string | null
           started_at?: string | null
           stats?: Json
@@ -6916,6 +6936,7 @@ export type Database = {
           not_subject_count?: number
           progress?: number
           queries?: string[]
+          source_scope?: string
           stage?: string | null
           started_at?: string | null
           stats?: Json

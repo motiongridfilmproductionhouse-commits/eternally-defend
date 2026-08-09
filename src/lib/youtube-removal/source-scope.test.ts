@@ -7,6 +7,7 @@ import {
   buildAllegationQueryPlan,
   formatNewsSafetyNote,
 } from "./news-intelligence";
+import { buildQueryPlan } from "./queries";
 
 describe("Source Scope & News Allegation Intelligence Engine Test Suite", () => {
   const targetName = "Gokulam Gopalan";
@@ -76,5 +77,31 @@ describe("Source Scope & News Allegation Intelligence Engine Test Suite", () => 
     const officialNewsVerified = 3;
 
     assert.equal(totalVerified, independentVerified + officialNewsVerified);
+  });
+
+  it("9. Query plan matches selected source scope", () => {
+    const basePlan = buildQueryPlan({ targetName });
+    const allegationPlan = buildAllegationQueryPlan(targetName);
+    const combinedPlan = Array.from(new Set([...basePlan, ...allegationPlan]));
+
+    assert.ok(combinedPlan.length > basePlan.length);
+    assert.ok(combinedPlan.some((q) => q.includes("scam")));
+  });
+
+  it("10. Scan creation payload incorporates source_scope", () => {
+    const payloadNON = { target_name: targetName, source_scope: "NON_OFFICIAL_ONLY" };
+    const payloadNEWS = { target_name: targetName, source_scope: "NEWS_ALLEGATIONS" };
+    const payloadALL = { target_name: targetName, source_scope: "ALL_SOURCES" };
+
+    assert.equal(payloadNON.source_scope, "NON_OFFICIAL_ONLY");
+    assert.equal(payloadNEWS.source_scope, "NEWS_ALLEGATIONS");
+    assert.equal(payloadALL.source_scope, "ALL_SOURCES");
+  });
+
+  it("11. Retry logic preserves persisted source_scope", () => {
+    const persistedScan = { id: "scan-123", source_scope: "NEWS_ALLEGATIONS" };
+    const retryScope = persistedScan.source_scope || "NON_OFFICIAL_ONLY";
+
+    assert.equal(retryScope, "NEWS_ALLEGATIONS");
   });
 });

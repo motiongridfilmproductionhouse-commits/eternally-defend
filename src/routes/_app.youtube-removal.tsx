@@ -113,6 +113,7 @@ function YoutubeRemovalPage() {
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [activeScanId, setActiveScanId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const isDiagMode =
@@ -135,10 +136,17 @@ function YoutubeRemovalPage() {
   });
 
   const start = useMutation({
-    mutationFn: async () => startFn({ data: { targetName: name.trim(), sourceScope } }),
+    mutationFn: async () => {
+      setScanError(null);
+      return startFn({ data: { targetName: name.trim(), sourceScope } });
+    },
     onSuccess: (res) => {
       setActiveScanId(res.scanId);
       void queryClient.invalidateQueries({ queryKey: ["yt-removal", "scans"] });
+    },
+    onError: (err: any) => {
+      console.error("[YT-SCAN-UI-ERROR]", err);
+      setScanError(err?.message || "Unable to start YouTube removal scan. Please try again.");
     },
   });
 
@@ -218,10 +226,18 @@ function YoutubeRemovalPage() {
           onClick={() => start.mutate()}
           disabled={name.trim().length < 2 || start.isPending}
           className="shrink-0 cursor-pointer"
+          variant={scanError ? "destructive" : "default"}
         >
-          {start.isPending ? "Scanning…" : "Run targeted scan"}
+          {start.isPending ? "Starting scan…" : scanError ? "Retry Start" : "Run targeted scan"}
         </Button>
       </Card>
+
+      {scanError && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive font-mono">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>Unable to start YouTube scan: {scanError}</span>
+        </div>
+      )}
 
       {/* Source Scope Active Mode Helper Label */}
       {sourceScope === "NEWS_ALLEGATIONS" && (
