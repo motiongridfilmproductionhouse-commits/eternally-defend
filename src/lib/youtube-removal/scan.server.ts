@@ -1,9 +1,8 @@
 /**
- * Orchestrator for the targeted YouTube defamation / removal-candidate scan.
+ * Orchestrator for targeted YouTube Removal Intelligence scan.
  *
- * Pipeline: DISCOVER (broad, paginated, deduped) -> CLASSIFY CHANNELS
- * (exclude established news organisations by default unless NEWS_ALLEGATIONS or ALL_SOURCES selected)
- * -> VERIFY TARGET + ANALYZE (captions + AI) -> PRIORITIZE -> PERSIST.
+ * Discovery Source: OFFICIAL YOUTUBE DATA API ONLY.
+ * No Firecrawl, no Google web search, no external search gateways.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -34,7 +33,11 @@ async function patchScan(
   scanId: string,
   patch: Record<string, unknown>,
 ): Promise<void> {
-  await supabase.from("youtube_removal_scans").update(patch as never).eq("id", scanId);
+  const updatedPatch = {
+    ...patch,
+    updated_at: new Date().toISOString(),
+  };
+  await supabase.from("youtube_removal_scans").update(updatedPatch as never).eq("id", scanId);
 }
 
 export async function runYoutubeRemovalScan(
@@ -56,8 +59,11 @@ export async function runYoutubeRemovalScan(
   const aliases = scan.aliases ?? [];
   const activeScope: SourceScope = (scan as any).source_scope || sourceScope;
 
-  let stage = "discovery";
+  let stage = "SCAN_CREATED";
+  console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} target="${targetName}" sourceScope=${activeScope}`);
+
   try {
+    stage = "DISCOVERY_STARTED";
     await patchScan(supabase, scanId, {
       status: "running",
       stage: "discovery",
@@ -69,22 +75,34 @@ export async function runYoutubeRemovalScan(
       error_message: null,
     });
 
-    // ---- 1. DISCOVERY --------------------------------------------------
+    // ---- 1. QUERY PLAN GENERATION (YOUTUBE API ONLY) --------------------
+    stage = "QUERY_PLAN_CREATED";
     let plan = buildQueryPlan({ targetName, aliases });
-    if (activeScope === "NEWS_ALLEGATIONS" || activeScope === "ALL_SOURCES") {
+    if (activeScope === "NEWS_ALLEGATIONS") {
+      plan = buildAllegationQueryPlan(targetName, aliases);
+    } else if (activeScope === "ALL_SOURCES") {
       const allegationQueries = buildAllegationQueryPlan(targetName, aliases);
-      plan = [...plan, ...allegationQueries];
+      plan = Array.from(new Set([...plan, ...allegationQueries]));
     }
 
+    console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} queryCount=${plan.length}`);
+
+    // ---- 2. DISCOVERY (OFFICIAL YOUTUBE SEARCH API ONLY) -----------------
+    stage = "DISCOVERY_STARTED";
     const byVideo = new Map<string, DiscoveredVideo>();
     const usedQueries: string[] = [];
+    let pagesFetched = 0;
+    let rawVideoCount = 0;
     let providerErrors = 0;
 
-    const runQueries = async (queries: string[], pages: number) => {
+    const runQueries = async (queries: string[], pagesPerQuery: number) => {
       for (const q of queries) {
         try {
-          const hits = await searchVideos(q, { pages });
+          const hits = await searchVideos(q, { pages: pagesPerQuery });
           usedQueries.push(q);
+          pagesFetched += pagesPerQuery;
+          rawVideoCount += hits.length;
+
           for (const hit of hits) {
             const existing = byVideo.get(hit.videoId);
             if (existing) {
@@ -93,11 +111,13 @@ export async function runYoutubeRemovalScan(
               byVideo.set(hit.videoId, hit);
             }
           }
-        } catch (e) {
+        } catch (e: any) {
           providerErrors++;
-          const status = (e as { status?: number }).status;
-          if (status === 403) throw e; // quota / key problem — fail loudly
-          console.error("[yt-removal] query failed", q, e);
+          console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=DISCOVERY query="${q}" code=${e?.code} message=${e?.message}`);
+
+          if (e?.code === "YOUTUBE_QUOTA_EXCEEDED" || e?.status === 403) {
+            throw e; // Quota / Key failure — terminate discovery cleanly
+          }
         }
       }
     };
@@ -106,21 +126,28 @@ export async function runYoutubeRemovalScan(
     await patchScan(supabase, scanId, { progress: 25, discovered_count: byVideo.size });
     await runQueries(plan.slice(14), 1);
 
+    stage = "DISCOVERY_COMPLETE";
+    console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} rawVideoCount=${rawVideoCount} deduplicated=${byVideo.size}`);
+
     if (!byVideo.size) {
-      if (providerErrors) throw new Error("All discovery queries failed");
+      if (providerErrors) throw new Error("YOUTUBE_SEARCH_FAILED: All discovery queries failed");
       await patchScan(supabase, scanId, {
         status: "completed",
         stage: "completed",
         progress: 100,
         completed_at: new Date().toISOString(),
         queries: usedQueries,
+        discovered_count: 0,
+        verified_count: 0,
+        not_subject_count: 0,
+        actionable_count: 0,
         stats: { provider_errors: providerErrors, note: "no_search_results" },
       });
       return { status: "completed" };
     }
 
-    // ---- 2. HYDRATE + CHANNEL CLASSIFICATION ---------------------------
-    stage = "hydration";
+    // ---- 3. HYDRATION & CHANNEL CLASSIFICATION (YOUTUBE VIDEOS & CHANNELS API)
+    stage = "CANDIDATE_PROCESSING_STARTED";
     await patchScan(supabase, scanId, {
       stage: "hydration",
       progress: 40,
@@ -167,7 +194,7 @@ export async function runYoutubeRemovalScan(
 
     const excludedNews = activeScope === "NON_OFFICIAL_ONLY" ? officialNews : [];
 
-    // ---- 3. VERIFY + ANALYZE -------------------------------------------
+    // ---- 4. VERIFY + ANALYZE (WITH CANDIDATE ISOLATION) ----------------
     stage = "analysis";
     await patchScan(supabase, scanId, {
       stage: "analysis",
@@ -184,51 +211,97 @@ export async function runYoutubeRemovalScan(
     }> = [];
     const narratives = new Set<string>();
     const batch = analysable.slice(0, MAX_ANALYZED);
+    let verificationFailedCount = 0;
 
     for (let i = 0; i < batch.length; i += 4) {
       const slice = batch.slice(i, i + 4);
       const results = await Promise.all(
-        slice.map(async (candidate) => {
-          const analysis = await analyzeRemovalCandidate({
-            targetName,
-            aliases,
-            video: {
-              videoId: candidate.detail.videoId,
-              title: candidate.detail.title,
-              description: candidate.detail.description,
-              channelTitle: candidate.detail.channelTitle,
-              publishedAt: candidate.detail.publishedAt,
-              viewCount: candidate.detail.viewCount,
-              likeCount: candidate.detail.likeCount,
-              commentCount: candidate.detail.commentCount,
-              durationSeconds: candidate.detail.durationSeconds,
-              tags: candidate.detail.tags,
-              isUnavailable: candidate.detail.isUnavailable,
-            },
-          });
+        slice.map(async (candidate, sliceIdx) => {
+          const idx = i + sliceIdx;
+          try {
+            const analysis = await analyzeRemovalCandidate({
+              targetName,
+              aliases,
+              video: {
+                videoId: candidate.detail.videoId,
+                title: candidate.detail.title,
+                description: candidate.detail.description,
+                channelTitle: candidate.detail.channelTitle,
+                publishedAt: candidate.detail.publishedAt,
+                viewCount: candidate.detail.viewCount,
+                likeCount: candidate.detail.likeCount,
+                commentCount: candidate.detail.commentCount,
+                durationSeconds: candidate.detail.durationSeconds,
+                tags: candidate.detail.tags,
+                isUnavailable: candidate.detail.isUnavailable,
+              },
+            });
 
-          const fullText = `${candidate.detail.title} ${candidate.detail.description}`;
-          const { isAllegationMatch, matchedSignals } = detectNewsAllegationSignals(fullText);
-          const topicTags = classifyNewsTopics(fullText, matchedSignals);
+            const fullText = `${candidate.detail.title} ${candidate.detail.description}`;
+            const { isAllegationMatch, matchedSignals } = detectNewsAllegationSignals(fullText);
+            const topicTags = classifyNewsTopics(fullText, matchedSignals);
 
-          return {
-            candidate,
-            analysis,
-            isAllegationMatch,
-            matchedSignals,
-            topicTags,
-          };
+            console.info(`[YT-SCAN] scanId=${scanId} stage=SUBJECT_VERIFICATION_COMPLETE idx=${idx} videoId=${candidate.detail.videoId} status=${analysis.subjectStatus}`);
+
+            return {
+              candidate,
+              analysis,
+              isAllegationMatch,
+              matchedSignals,
+              topicTags,
+            };
+          } catch (candErr: any) {
+            console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=CANDIDATE_FAILED idx=${idx} videoId=${candidate.detail.videoId} error=${candErr?.message}`);
+            verificationFailedCount++;
+
+            // Fallback safe result for failed candidate — one bad video must NOT kill the scan
+            const fallbackAnalysis: VideoAnalysis = {
+              subjectStatus: "uncertain",
+              subjectConfidence: 0,
+              verificationReason: `Candidate analysis failed: ${candErr?.message || "unknown error"}`,
+              contentTypes: ["INSUFFICIENT_EVIDENCE"],
+              riskLevel: "low",
+              removalPotential: "not_eligible",
+              potentialViolation: null,
+              problematicClaim: null,
+              assessmentReason: "ANALYSIS_FAILED",
+              recommendedAction: "MONITOR",
+              recommendedRoute: "monitor_only",
+              evidenceNeeded: null,
+              evidenceTimestamps: [],
+              evidenceVerified: false,
+              transcriptState: "error",
+              transcriptLanguage: null,
+              narratives: [],
+            };
+
+            return {
+              candidate,
+              analysis: fallbackAnalysis,
+              isAllegationMatch: false,
+              matchedSignals: [],
+              topicTags: [],
+            };
+          }
         }),
       );
+
       analysed.push(...results);
       for (const r of results) r.analysis.narratives.forEach((n) => narratives.add(n));
+
+      // Progressively update truthful scan progress counters
+      const verifiedSoFar = analysed.filter((a) => a.analysis.subjectStatus === "verified").length;
+      const notSubjectSoFar = analysed.filter((a) => a.analysis.subjectStatus === "not_subject").length;
+
       await patchScan(supabase, scanId, {
         progress: Math.min(90, 55 + Math.round(((i + slice.length) / batch.length) * 30)),
+        verified_count: verifiedSoFar,
+        not_subject_count: notSubjectSoFar,
       });
     }
 
-    // ---- 4. PERSIST -----------------------------------------------------
-    stage = "persist";
+    // ---- 5. PERSIST FINDINGS --------------------------------------------
+    stage = "PERSIST";
     const rows = [
       ...analysed.map(({ candidate, analysis, isAllegationMatch, matchedSignals, topicTags }) => ({
         scan_id: scanId,
@@ -346,6 +419,9 @@ export async function runYoutubeRemovalScan(
     const officialNewsVerified = verified.filter((a) => a.candidate.channelClass === "official_news");
     const officialNewsAllegationMatched = officialNewsVerified.filter((a) => a.isAllegationMatch);
 
+    stage = "SCAN_COMPLETED";
+    console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} verified=${verified.length} actionable=${actionable.length}`);
+
     await patchScan(supabase, scanId, {
       status: "completed",
       stage: "completed",
@@ -359,11 +435,18 @@ export async function runYoutubeRemovalScan(
       actionable_count: actionable.length,
       stats: {
         provider_errors: providerErrors,
-        queries_run: usedQueries.length,
-        analysed: analysed.length,
-        analysable: analysable.length,
-        source_scope: activeScope,
+        queries_planned: plan.length,
+        queries_executed: usedQueries.length,
+        youtube_api_pages_fetched: pagesFetched,
+        raw_video_ids: rawVideoCount,
+        deduplicated_video_ids: byVideo.size,
         official_news_discovered: officialNews.length,
+        verification_attempted: analysed.length,
+        verified: verified.length,
+        probable: 0,
+        not_subject: analysed.filter((a) => a.analysis.subjectStatus === "not_subject").length,
+        verification_failed: verificationFailedCount,
+        findings_persisted: rows.length,
         official_news_target_verified: officialNewsVerified.length,
         official_news_allegation_matched: officialNewsAllegationMatched.length,
         independent_verified: verified.filter((a) => a.candidate.channelClass !== "official_news").length,
@@ -374,20 +457,21 @@ export async function runYoutubeRemovalScan(
     });
 
     return { status: "completed" };
-  } catch (e) {
+  } catch (e: any) {
     const message = e instanceof Error ? e.message : String(e);
-    const status = (e as { status?: number }).status;
+    const code = e?.code ?? (message.includes("YOUTUBE_QUOTA_EXCEEDED") ? "YOUTUBE_QUOTA_EXCEEDED" : "YOUTUBE_SEARCH_FAILED");
+    const userMessage = code === "YOUTUBE_QUOTA_EXCEEDED"
+      ? "YouTube API quota limit reached. Scan could not continue."
+      : message.slice(0, 500);
+
+    console.error(`[YT-SCAN-FAILED] scanId=${scanId} stage=${stage} code=${code} message="${message}"`);
+
     await patchScan(supabase, scanId, {
       status: "failed",
       stage: "failed",
       failed_stage: stage,
-      failure_code:
-        status === 403
-          ? "youtube_quota_or_key"
-          : message.includes("YOUTUBE_API_KEY_MISSING")
-            ? "youtube_key_missing"
-            : "scan_error",
-      error_message: message.slice(0, 500),
+      failure_code: code,
+      error_message: userMessage,
       completed_at: new Date().toISOString(),
     });
     throw e;

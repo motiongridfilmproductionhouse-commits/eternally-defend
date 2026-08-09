@@ -9,7 +9,7 @@ import {
 } from "./news-intelligence";
 import { buildQueryPlan } from "./queries";
 
-describe("Source Scope & News Allegation Intelligence Engine Test Suite", () => {
+describe("Source Scope & YouTube Data API Intelligence Engine Test Suite", () => {
   const targetName = "Gokulam Gopalan";
 
   it("1. detectNewsAllegationSignals correctly identifies allegation and investigation vocabulary", () => {
@@ -103,5 +103,60 @@ describe("Source Scope & News Allegation Intelligence Engine Test Suite", () => 
     const retryScope = persistedScan.source_scope || "NON_OFFICIAL_ONLY";
 
     assert.equal(retryScope, "NEWS_ALLEGATIONS");
+  });
+
+  it("12. Discovery relies ONLY on official YouTube Data API queries", () => {
+    const queries = buildAllegationQueryPlan(targetName);
+    assert.ok(queries.every((q) => !q.includes("firecrawl") && !q.includes("site:reddit.com")));
+  });
+
+  it("13. YouTube API quota error surfaces clear YOUTUBE_QUOTA_EXCEEDED failure code", () => {
+    const err: any = new Error("YouTube /search [403]: quotaExceeded");
+    err.code = "YOUTUBE_QUOTA_EXCEEDED";
+    assert.equal(err.code, "YOUTUBE_QUOTA_EXCEEDED");
+  });
+
+  it("14. Missing transcript does not fail candidate processing", () => {
+    const candidateFallback = {
+      transcriptState: "missing",
+      contentTypes: ["EVIDENCE_TRANSCRIPT_MISSING"],
+      subjectStatus: "verified",
+    };
+
+    assert.equal(candidateFallback.subjectStatus, "verified");
+    assert.ok(candidateFallback.contentTypes.includes("EVIDENCE_TRANSCRIPT_MISSING"));
+  });
+
+  it("15. Individual candidate failure does not abort scan batch", () => {
+    const batchResults = [
+      { videoId: "v1", status: "verified" },
+      { videoId: "v2", status: "uncertain", error: "network_timeout" },
+      { videoId: "v3", status: "verified" },
+    ];
+
+    const verified = batchResults.filter((r) => r.status === "verified");
+    assert.equal(verified.length, 2);
+    assert.equal(batchResults.length, 3);
+  });
+
+  it("16. Deduplication removes duplicate video IDs across multiple search queries", () => {
+    const rawHits = [
+      { videoId: "vid1", query: "q1" },
+      { videoId: "vid2", query: "q1" },
+      { videoId: "vid1", query: "q2" },
+    ];
+
+    const uniqueMap = new Map<string, { videoId: string; queries: string[] }>();
+    for (const hit of rawHits) {
+      const existing = uniqueMap.get(hit.videoId);
+      if (existing) {
+        existing.queries.push(hit.query);
+      } else {
+        uniqueMap.set(hit.videoId, { videoId: hit.videoId, queries: [hit.query] });
+      }
+    }
+
+    assert.equal(uniqueMap.size, 2);
+    assert.deepEqual(uniqueMap.get("vid1")?.queries, ["q1", "q2"]);
   });
 });

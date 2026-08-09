@@ -58,16 +58,29 @@ async function ytGet<T>(path: string, params: Record<string, string>): Promise<T
   const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
   const text = await res.text();
   if (!res.ok) {
-    const err: Error & { status?: number } = new Error(
+    let failureCode = "YOUTUBE_SEARCH_FAILED";
+    if (path.includes("/videos")) failureCode = "YOUTUBE_VIDEO_DETAILS_FAILED";
+    if (res.status === 403 && (text.includes("quotaExceeded") || text.includes("quota"))) {
+      failureCode = "YOUTUBE_QUOTA_EXCEEDED";
+    } else if (res.status === 401 || res.status === 403) {
+      failureCode = "YOUTUBE_AUTH_ERROR";
+    } else if (res.status === 429) {
+      failureCode = "YOUTUBE_RATE_LIMIT";
+    }
+
+    const err: Error & { status?: number; code?: string } = new Error(
       `YouTube ${path} [${res.status}]: ${text.slice(0, 240)}`,
     );
     err.status = res.status;
+    err.code = failureCode;
     throw err;
   }
   try {
     return JSON.parse(text) as T;
   } catch {
-    throw new Error(`YouTube ${path} returned non-JSON`);
+    const err: Error & { code?: string } = new Error(`YouTube ${path} returned non-JSON`);
+    err.code = "YOUTUBE_SEARCH_FAILED";
+    throw err;
   }
 }
 
