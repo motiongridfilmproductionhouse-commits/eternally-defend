@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
-import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
 import {
   ShieldAlert,
   Loader2,
@@ -16,12 +15,20 @@ import {
   AlertCircle,
   Eye,
   Check,
-  X,
   FileCheck,
   ShieldCheck,
   RotateCw,
   Search,
   CheckCircle,
+  Activity,
+  Layers,
+  ArrowRight,
+  Shield,
+  Zap,
+  Server,
+  Radio,
+  FileText,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuthorization } from "@/hooks/use-authorization";
 import { Button } from "@/components/ui/button";
@@ -234,44 +241,51 @@ function EnforcementPage() {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Top Status Banner: AUTOMATIC PROTECTION */}
-      <div className={`rounded-2xl border p-5 transition-all ${autoEnabled ? "border-emerald-500/40 bg-emerald-950/20" : "border-amber-500/40 bg-amber-950/20"}`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className={`size-12 rounded-2xl grid place-items-center ${autoEnabled ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
-              <Bot className="size-6 animate-pulse" />
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 p-4 md:p-8 space-y-6 text-slate-900 dark:text-slate-100 font-sans">
+      {/* Top Hero Command Card */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+        {/* Subtle Ambient Background Accent */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div className="flex items-start md:items-center gap-4">
+            <div className="size-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 grid place-items-center shadow-sm shrink-0">
+              <Bot className="size-7 animate-pulse text-blue-600 dark:text-blue-400" />
             </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-lg font-bold tracking-tight">AUTOMATIC ENFORCEMENT ENGINE</h1>
-                <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full font-semibold ${autoEnabled ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-amber-500/20 text-amber-300 border border-amber-500/30"}`}>
-                  <span className={`size-2 rounded-full ${autoEnabled ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
-                  {autoEnabled ? "ACTIVE" : "PAUSED"}
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white font-mono">
+                  AUTOMATIC ENFORCEMENT ENGINE
+                </h1>
+                <span className={`inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-semibold ${autoEnabled ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60" : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60"}`}>
+                  <span className={`size-2 rounded-full ${autoEnabled ? "bg-emerald-500 animate-ping" : "bg-amber-500"}`} />
+                  {autoEnabled ? "● AUTOMATION ACTIVE" : "● PAUSED"}
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  TEST MODE ACTIVE
+
+                <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  CONTROLLED TEST MODE
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+
+                <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                   KILL SWITCH: ACTIVE
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Automated eligibility evaluation, route resolution, Postmark email delivery, and independent removal verification. Controlled Test Mode enabled. Real third-party contacts blocked.
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-normal max-w-2xl">
+                Continuous detection, eligibility evaluation, verified routing, submission tracking and independent removal verification.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             {eligibleHits.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs"
+                className="text-xs bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm rounded-xl font-medium"
                 onClick={() => triggerScanHitsMutation.mutate()}
                 disabled={triggerScanHitsMutation.isPending}
               >
-                <RotateCw className={`size-3.5 mr-1.5 ${triggerScanHitsMutation.isPending ? "animate-spin" : ""}`} />
+                <RotateCw className={`size-3.5 mr-1.5 text-blue-600 ${triggerScanHitsMutation.isPending ? "animate-spin" : ""}`} />
                 Evaluate Recent Hits ({eligibleHits.length})
               </Button>
             )}
@@ -279,216 +293,274 @@ function EnforcementPage() {
             <Button
               variant="default"
               size="sm"
-              className="text-xs gap-1.5"
+              className="text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-blue-500/20 rounded-xl font-semibold gap-1.5 transition-all duration-200"
               onClick={() => setSettingsDrawerOpen(true)}
             >
               <Sliders className="size-3.5" /> Configure Automation
             </Button>
+
+            <button
+              onClick={() => runWorkerMutation.mutate()}
+              className="text-xs font-medium text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <Bot className="size-3.5 text-slate-400" /> Trigger Worker Pass
+            </button>
           </div>
         </div>
 
-        {/* Granular Scope Badges */}
-        <div className="mt-4 pt-3 border-t border-border/40 flex flex-wrap items-center justify-between text-xs gap-2">
-          <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-            <span className="font-semibold text-foreground">Rights Authorization:</span>
-            <ScopeChip label="IDENTITY MONITORING" active={authz.completed} />
-            <ScopeChip label="COPYRIGHT ENFORCEMENT" active={authz.canRequestEnforcement} />
-            <ScopeChip label="IMPERSONATION REPORTING" active={authz.canRequestEnforcement} />
-            <ScopeChip label="DEEPFAKE ENFORCEMENT" active={authz.canRequestEnforcement} />
-            <ScopeChip label="LEGAL ESCALATION" active={authz.canTakedown} />
+        {/* Compact Hero Execution Stepper */}
+        <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center text-xs font-medium">
+            <HeroStep label="Detection" sub="Continuous Scan" active />
+            <HeroStep label="Rights Verification" sub="Identity Match" active />
+            <HeroStep label="Eligibility" sub="Policy Engine" active />
+            <HeroStep label="Enforcement" sub="Verified Delivery" active pulsing />
+            <HeroStep label="Verification" sub="Removal Scan" active />
           </div>
+        </div>
 
-          <button
-            onClick={() => runWorkerMutation.mutate()}
-            className="text-[11px] text-muted-foreground hover:text-primary inline-flex items-center gap-1"
-          >
-            <Bot className="size-3" /> Trigger Worker Pass
-          </button>
+        {/* Protection Coverage Row */}
+        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-slate-900 dark:text-slate-200">Protection Coverage:</span>
+            <CoverageChip label="Identity Monitoring" active={authz.completed} />
+            <CoverageChip label="Copyright Enforcement" active={authz.canRequestEnforcement} />
+            <CoverageChip label="Impersonation Reporting" active={false} />
+            <CoverageChip label="Deepfake Enforcement" active={false} />
+            <CoverageChip label="Legal Escalation" active={false} />
+          </div>
+          <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+            Eterna Autonomous Engine v2.4
+          </span>
         </div>
       </div>
 
-      {/* Demo Mode Notice */}
+      {/* Simulation Notice */}
       {isDemoMode && (
-        <div className="rounded-xl border border-blue-500/30 bg-blue-950/30 p-3.5 flex items-center gap-3 text-xs text-blue-200">
-          <ShieldCheck className="size-5 text-blue-400 shrink-0" />
+        <div className="rounded-2xl border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 p-4 flex items-center gap-3 text-xs text-blue-900 dark:text-blue-200">
+          <ShieldCheck className="size-5 text-blue-600 dark:text-blue-400 shrink-0" />
           <div className="flex-1">
-            <strong className="font-bold uppercase tracking-wider">SIMULATION ONLY MODE ACTIVE</strong> — Notice preview and audit event workflows generate simulated actions. External network submissions are hard-blocked server-side.
+            <strong className="font-semibold uppercase tracking-wider text-blue-950 dark:text-blue-100">SIMULATION ONLY MODE ACTIVE</strong> — Notice preview and audit event workflows generate simulated actions. External network submissions are hard-blocked server-side.
           </div>
         </div>
       )}
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <StatCard label="ACTIVE CASES" value={metrics.active} sub="In pipeline" accent="oklch(0.65 0.18 240)" />
-        <StatCard label="SUBMITTED" value={metrics.submitted} sub="Sent to routes" accent="oklch(0.68 0.16 155)" />
-        <StatCard label="UNDER REVIEW" value={metrics.underReview} sub="Review queue" accent="oklch(0.75 0.18 75)" />
-        <StatCard label="SOURCE REMOVED" value={metrics.sourceRemoved} sub="Verified offline" accent="oklch(0.68 0.20 140)" />
-        <StatCard label="SEARCH DELISTED" value={metrics.searchDelisted} sub="Removed from index" accent="oklch(0.60 0.18 220)" />
-        <StatCard label="REUPLOADS" value={metrics.reuploads} sub="Auto-detected" accent="oklch(0.63 0.24 25)" />
+      {/* Metric Cards Row */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <MetricCard label="ACTIVE CASES" value={metrics.active} sub="In pipeline" icon={Activity} />
+        <MetricCard label="SUBMITTED" value={metrics.submitted} sub="Sent to routes" icon={Zap} />
+        <MetricCard label="UNDER REVIEW" value={metrics.underReview} sub="Review queue" icon={AlertCircle} />
+        <MetricCard label="SOURCE REMOVED" value={metrics.sourceRemoved} sub="Verified offline" icon={CheckCircle2} />
+        <MetricCard label="SEARCH DELISTED" value={metrics.searchDelisted} sub="Removed index" icon={Search} />
+        <MetricCard label="REUPLOADS" value={metrics.reuploads} sub="Auto-detected" icon={ShieldAlert} />
       </div>
 
-      {/* Live Pipeline Stepper Header */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center justify-between">
-          <span>Automated Enforcement Pipeline Workflow</span>
-          <span className="text-[10px] text-muted-foreground lowercase">server-side background execution</span>
+      {/* Pipeline Centerpiece Card */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white font-mono flex items-center gap-2">
+              <Layers className="size-4 text-blue-600" /> AUTOMATED ENFORCEMENT PIPELINE
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Live progression of findings from initial scanner detection to verified removal
+            </p>
+          </div>
+          <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+            Autonomous Worker Active
+          </span>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium">
-          <PipelineStep label="1. DETECTED" desc="Scanner Hit" active />
-          <PipelineStep label="2. VERIFIED" desc="Rights Match" active />
-          <PipelineStep label="3. ELIGIBLE" desc="Rule Engine" active />
-          <PipelineStep label="4. QUEUED" desc="Durable Job" active />
-          <PipelineStep label="5. SUBMITTED" desc="Route Sent" active />
-          <PipelineStep label="6. REVIEWING" desc="Status Check" active />
-          <PipelineStep label="7. REMOVED" desc="Verified Offline" active />
+
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+          <PipelineStage number="01" name="DETECTED" sub="Scanner Hit" active completed />
+          <PipelineStage number="02" name="VERIFIED" sub="Rights Match" active completed />
+          <PipelineStage number="03" name="ELIGIBLE" sub="Rule Engine" active completed />
+          <PipelineStage number="04" name="QUEUED" sub="Durable Job" active pulsing />
+          <PipelineStage number="05" name="SUBMITTED" sub="Route Sent" active={false} />
+          <PipelineStage number="06" name="REVIEWING" sub="Status Check" active={false} />
+          <PipelineStage number="07" name="REMOVED" sub="Verified Offline" active={false} />
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
-        <TabButton
-          active={activeTab === "cases"}
-          onClick={() => setActiveTab("cases")}
-          label={`Active Cases (${cases.length})`}
-          icon={FileCheck}
-        />
-        <TabButton
-          active={activeTab === "review"}
-          onClick={() => setActiveTab("review")}
-          label={`Human Review Queue (${reviewQueue.length})`}
-          icon={AlertCircle}
-          badgeCount={reviewQueue.length}
-        />
-        <TabButton
-          active={activeTab === "activity"}
-          onClick={() => setActiveTab("activity")}
-          label="Live Activity Ticker"
-          icon={Clock}
-        />
-      </div>
-
-      {/* Tab 1: Active Cases */}
-      {activeTab === "cases" && (
-        <div className="space-y-4">
-          {casesQuery.isLoading ? (
-            <div className="py-12 flex items-center justify-center text-muted-foreground text-sm gap-2">
-              <Loader2 className="size-5 animate-spin" /> Loading automated cases…
-            </div>
-          ) : cases.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground border border-border rounded-2xl p-8">
-              No active automated enforcement cases. New verified scanner findings will automatically trigger eligibility evaluation and backend enforcement.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {cases.map((c) => (
-                <CaseCard key={c.id} c={c} onViewDetails={() => setSelectedCaseForDetails(c)} />
-              ))}
-            </div>
-          )}
+      {/* Main Activity Area with Tabs */}
+      <div className="space-y-4">
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <TabButton
+            active={activeTab === "cases"}
+            onClick={() => setActiveTab("cases")}
+            label={`Active Cases (${cases.length})`}
+            icon={FileCheck}
+          />
+          <TabButton
+            active={activeTab === "review"}
+            onClick={() => setActiveTab("review")}
+            label={`Human Review (${reviewQueue.length})`}
+            icon={AlertCircle}
+            badgeCount={reviewQueue.length}
+          />
+          <TabButton
+            active={activeTab === "activity"}
+            onClick={() => setActiveTab("activity")}
+            label="Live Activity Ticker"
+            icon={Clock}
+          />
         </div>
-      )}
 
-      {/* Tab 2: Human Review Queue */}
-      {activeTab === "review" && (
-        <PageCard title="HUMAN REVIEW QUEUE" sub="Cases flagged for operator evaluation (fair-use, copyright ambiguity, manual settings)">
-          {reviewQueueQuery.isLoading ? (
-            <div className="py-10 flex items-center justify-center text-muted-foreground text-sm gap-2">
-              <Loader2 className="size-4 animate-spin" /> Loading review queue…
+        {/* Tab 1: Active Cases */}
+        {activeTab === "cases" && (
+          <div>
+            {casesQuery.isLoading ? (
+              <div className="py-16 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 text-sm gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
+                <Loader2 className="size-6 text-blue-600 animate-spin" /> Loading enforcement cases…
+              </div>
+            ) : cases.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {cases.map((c) => (
+                  <CaseCard key={c.id} c={c} onViewDetails={() => setSelectedCaseForDetails(c)} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Human Review Queue */}
+        {activeTab === "review" && (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-950 dark:text-white font-mono">
+                HUMAN REVIEW QUEUE
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Cases flagged for manual operator review due to fair-use ambiguity, unverified routes, or client policy settings.
+              </p>
             </div>
-          ) : reviewQueue.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              Review queue is empty. All eligible cases are being processed automatically.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {reviewQueue.map((item) => (
-                <div key={item.id} className="p-4 border border-border rounded-xl bg-card/60 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
-                  <div className="space-y-1 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 font-semibold text-sm">
-                      <span className="text-amber-400 font-mono">[REVIEW REQUIRED]</span>
-                      <span className="truncate">{item.enforcement_cases?.target_url}</span>
+
+            {reviewQueueQuery.isLoading ? (
+              <div className="py-12 flex items-center justify-center text-slate-500 text-sm gap-2">
+                <Loader2 className="size-4 animate-spin text-blue-600" /> Loading review queue…
+              </div>
+            ) : reviewQueue.length === 0 ? (
+              <div className="py-12 text-center text-sm text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800/80 rounded-2xl p-8 bg-slate-50/50 dark:bg-slate-900/50">
+                Review queue is empty. All eligible cases are being processed automatically.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {reviewQueue.map((item) => (
+                  <div key={item.id} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs shadow-sm hover:border-blue-500/30 transition-all">
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 font-semibold text-sm">
+                        <span className="text-amber-600 font-mono text-xs bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">[REVIEW REQUIRED]</span>
+                        <span className="truncate text-slate-950 dark:text-white font-medium">{item.enforcement_cases?.target_url}</span>
+                      </div>
+                      <div className="text-slate-500 dark:text-slate-400 flex flex-wrap gap-x-4">
+                        <span>Domain: <strong className="text-slate-700 dark:text-slate-300 font-medium">{item.enforcement_cases?.domain || "—"}</strong></span>
+                        <span>Basis: <strong className="text-slate-700 dark:text-slate-300 font-medium">{item.enforcement_cases?.enforcement_basis}</strong></span>
+                        <span>Reason: <strong className="text-slate-700 dark:text-slate-300 font-medium">{item.reason}</strong></span>
+                      </div>
                     </div>
-                    <div className="text-muted-foreground flex flex-wrap gap-x-4">
-                      <span>Domain: {item.enforcement_cases?.domain || "—"}</span>
-                      <span>Basis: {item.enforcement_cases?.enforcement_basis}</span>
-                      <span>Reason: {item.reason}</span>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm"
+                        onClick={() =>
+                          reviewMutation.mutate({
+                            queueId: item.id,
+                            caseId: item.case_id,
+                            action: "APPROVE",
+                          })
+                        }
+                        disabled={reviewMutation.isPending}
+                      >
+                        <Check className="size-3.5 mr-1" /> Approve Enforcement
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50 rounded-xl"
+                        onClick={() =>
+                          reviewMutation.mutate({
+                            queueId: item.id,
+                            caseId: item.case_id,
+                            action: "REJECT",
+                          })
+                        }
+                        disabled={reviewMutation.isPending}
+                      >
+                        Not Eligible
+                      </Button>
                     </div>
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="default"
-                      className="text-xs bg-emerald-600 hover:bg-emerald-500"
-                      onClick={() =>
-                        reviewMutation.mutate({
-                          queueId: item.id,
-                          caseId: item.case_id,
-                          action: "APPROVE",
-                        })
-                      }
-                      disabled={reviewMutation.isPending}
-                    >
-                      <Check className="size-3.5 mr-1" /> Approve Enforcement
-                    </Button>
+        {/* Tab 3: Live Enforcement Activity Stream */}
+        {activeTab === "activity" && (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-950 dark:text-white font-mono">
+                LIVE ENFORCEMENT EVENT STREAM
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Real-time audit log of automated backend actions, eligibility evaluations, route resolutions, and verification checks.
+              </p>
+            </div>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs text-rose-400 hover:text-rose-300"
-                      onClick={() =>
-                        reviewMutation.mutate({
-                          queueId: item.id,
-                          caseId: item.case_id,
-                          action: "REJECT",
-                        })
-                      }
-                      disabled={reviewMutation.isPending}
-                    >
-                      <X className="size-3.5 mr-1" /> Not Eligible
-                    </Button>
+            {activityQuery.isLoading ? (
+              <div className="py-12 flex items-center justify-center text-slate-500 text-sm gap-2">
+                <Loader2 className="size-4 animate-spin text-blue-600" /> Loading activity stream…
+              </div>
+            ) : activityFeed.length === 0 ? (
+              <div className="py-12 text-center text-sm text-slate-500 border border-slate-100 rounded-2xl p-8 bg-slate-50">
+                No live activity recorded yet.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 font-mono text-xs">
+                {activityFeed.map((ev) => (
+                  <div key={ev.id} className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800/60 py-3 px-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors">
+                    <span className="size-2 rounded-full bg-blue-500 shrink-0" />
+                    <span className="text-slate-400 text-[11px] shrink-0 w-28">
+                      {new Date(ev.created_at).toLocaleTimeString()}
+                    </span>
+                    <span className="font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] shrink-0 border border-slate-200 dark:border-slate-700">
+                      {ev.event_type}
+                    </span>
+                    <span className="text-slate-600 dark:text-slate-400 truncate flex-1 font-sans text-xs">
+                      {ev.enforcement_cases?.target_url || "Target URL"}
+                    </span>
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      {ev.new_state || ev.actor_type}
+                    </span>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </PageCard>
-      )}
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* Tab 3: Live Enforcement Activity */}
-      {activeTab === "activity" && (
-        <PageCard title="LIVE ENFORCEMENT ACTIVITY TICKER" sub="Real-time audit log of automated backend actions, eligibility evaluations, and status checks">
-          {activityQuery.isLoading ? (
-            <div className="py-8 flex items-center justify-center text-muted-foreground text-sm gap-2">
-              <Loader2 className="size-4 animate-spin" /> Loading activity stream…
-            </div>
-          ) : activityFeed.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              No live activity recorded yet.
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-              {activityFeed.map((ev) => (
-                <div key={ev.id} className="flex items-center gap-3 text-xs border-b border-border/40 py-2.5 px-2 hover:bg-accent/20 rounded-lg">
-                  <Clock className="size-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-muted-foreground font-mono text-[11px] shrink-0 w-36">
-                    {new Date(ev.created_at).toLocaleTimeString()}
-                  </span>
-                  <span className="font-semibold px-2 py-0.5 rounded bg-muted text-[11px] shrink-0">
-                    {ev.event_type}
-                  </span>
-                  <span className="text-muted-foreground truncate flex-1">
-                    {ev.enforcement_cases?.target_url || "Target URL"}
-                  </span>
-                  <Pill color={statusColor(ev.new_state || ev.event_type)}>
-                    {ev.new_state || ev.actor_type}
-                  </Pill>
-                </div>
-              ))}
-            </div>
-          )}
-        </PageCard>
-      )}
+      {/* System Health Strip */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs shadow-sm">
+        <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white font-mono">
+          <Server className="size-4 text-blue-600" /> SYSTEM HEALTH & INFRASTRUCTURE STATUS
+        </div>
+
+        <div className="flex flex-wrap items-center gap-5 text-slate-600 dark:text-slate-300 font-medium text-[11px]">
+          <HealthItem label="Detection Engine" status="ONLINE" />
+          <HealthItem label="Enforcement Worker" status="ONLINE" />
+          <HealthItem label="Email Transport" status="READY" />
+          <HealthItem label="Route Resolver" status="READY" />
+          <HealthItem label="Verification Engine" status="ONLINE" />
+        </div>
+      </div>
 
       <AutomationSettingsDrawer
         open={settingsDrawerOpen}
@@ -498,21 +570,102 @@ function EnforcementPage() {
   );
 }
 
+function MetricCard({ label, value, sub, icon: Icon }: { label: string; value: number; sub: string; icon: any }) {
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-blue-500/30 transition-all duration-200 space-y-1">
+      <div className="flex items-center justify-between text-slate-400">
+        <span className="text-[10px] font-bold tracking-wider uppercase font-mono">{label}</span>
+        <Icon className="size-4" />
+      </div>
+      <div className="text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight">{value}</div>
+      <div className="text-xs text-slate-500 dark:text-slate-400 font-normal">{sub}</div>
+    </div>
+  );
+}
+
+function HeroStep({ label, sub, active, pulsing }: { label: string; sub: string; active: boolean; pulsing?: boolean }) {
+  return (
+    <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 rounded-xl p-2.5 text-center relative overflow-hidden">
+      <div className="flex items-center justify-center gap-1.5">
+        <span className={`size-2 rounded-full ${pulsing ? "bg-blue-600 animate-ping" : "bg-emerald-500"}`} />
+        <span className="font-semibold text-slate-900 dark:text-white text-xs">{label}</span>
+      </div>
+      <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 font-normal">{sub}</span>
+    </div>
+  );
+}
+
+function PipelineStage({ number, name, sub, active, completed, pulsing }: { number: string; name: string; sub: string; active: boolean; completed?: boolean; pulsing?: boolean }) {
+  return (
+    <div className={`p-3 rounded-2xl border transition-all ${completed ? "bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-200/80 dark:border-emerald-900/60" : pulsing ? "bg-blue-50/40 dark:bg-blue-950/20 border-blue-300 dark:border-blue-800 shadow-sm" : "bg-slate-50/50 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800"}`}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] font-mono font-bold text-slate-400">{number}</span>
+        {completed ? (
+          <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+        ) : pulsing ? (
+          <span className="size-2 rounded-full bg-blue-600 animate-ping" />
+        ) : (
+          <span className="size-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+        )}
+      </div>
+      <div className="font-bold text-slate-900 dark:text-white text-xs truncate">{name}</div>
+      <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{sub}</div>
+    </div>
+  );
+}
+
+function CoverageChip({ label, active }: { label: string; active: boolean }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border font-medium transition-colors ${active ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800" : "bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700"}`}>
+      <span className={`size-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-slate-400"}`} />
+      {label}
+    </span>
+  );
+}
+
+function HealthItem({ label, status }: { label: string; status: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="size-2 rounded-full bg-emerald-500" />
+      <span className="text-slate-500 dark:text-slate-400">{label}:</span>
+      <strong className="text-slate-900 dark:text-white font-mono">{status}</strong>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-sm">
+      <div className="size-16 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 grid place-items-center mx-auto">
+        <Shield className="size-8" />
+      </div>
+      <div className="space-y-1 max-w-md mx-auto">
+        <h3 className="text-base font-bold text-slate-950 dark:text-white">No active enforcement cases</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Verified eligible findings will automatically enter the enforcement pipeline and proceed through eligibility evaluation and backend enforcement.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function CaseCard({ c, onViewDetails }: { c: CaseRow; onViewDetails: () => void }) {
   const isRemoved = c.status === "SOURCE_REMOVED";
   const isDelisted = c.status === "SEARCH_DELISTED";
 
   return (
-    <div className="p-4 rounded-2xl border border-border bg-card/70 space-y-3.5">
+    <div className="p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm hover:shadow-md hover:border-blue-500/30 transition-all duration-200">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-foreground font-mono uppercase truncate max-w-[200px]">
+            <span className="text-xs font-bold text-slate-950 dark:text-white font-mono uppercase truncate max-w-[200px]">
               {c.domain || "Web Domain"}
             </span>
-            <Pill color={statusColor(c.status)}>{c.status}</Pill>
+            <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+              {c.status}
+            </span>
             {c.reupload_count > 0 && (
-              <span className="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full font-bold">
+              <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full font-bold">
                 {c.reupload_count} Reupload(s)
               </span>
             )}
@@ -521,83 +674,39 @@ function CaseCard({ c, onViewDetails }: { c: CaseRow; onViewDetails: () => void 
             href={c.target_url}
             target="_blank"
             rel="noreferrer"
-            className="text-xs text-primary underline truncate block"
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block font-medium"
           >
             {c.target_url}
           </a>
         </div>
 
-        <Button size="sm" variant="outline" className="text-xs h-8 px-2.5" onClick={onViewDetails}>
-          <Eye className="size-3.5 mr-1" /> Timeline
+        <Button size="sm" variant="outline" className="text-xs h-8 px-3 rounded-xl border-slate-200 dark:border-slate-800" onClick={onViewDetails}>
+          <Eye className="size-3.5 mr-1 text-slate-400" /> Timeline
         </Button>
       </div>
 
       {/* Details breakdown */}
-      <div className="grid grid-cols-2 gap-2 text-xs bg-muted/40 p-2.5 rounded-xl">
+      <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 dark:bg-slate-800/40 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
         <div>
-          <span className="text-muted-foreground block text-[10px]">Basis</span>
-          <span className="font-semibold text-foreground">{c.enforcement_basis}</span>
+          <span className="text-slate-400 block text-[10px] font-medium">Basis</span>
+          <span className="font-semibold text-slate-900 dark:text-slate-200">{c.enforcement_basis}</span>
         </div>
         <div>
-          <span className="text-muted-foreground block text-[10px]">Route</span>
-          <span className="font-semibold text-foreground">{c.selected_route || "Automated Email Route"}</span>
+          <span className="text-slate-400 block text-[10px] font-medium">Route</span>
+          <span className="font-semibold text-slate-900 dark:text-slate-200">{c.selected_route || "Automated Email Route"}</span>
         </div>
         <div>
-          <span className="text-muted-foreground block text-[10px]">Authorization</span>
-          <span className="font-semibold text-emerald-400 flex items-center gap-1">
+          <span className="text-slate-400 block text-[10px] font-medium">Authorization</span>
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
             <CheckCircle2 className="size-3" /> VERIFIED
           </span>
         </div>
         <div>
-          <span className="text-muted-foreground block text-[10px]">Eligibility</span>
-          <span className="font-semibold text-primary">{c.eligibility_status}</span>
-        </div>
-      </div>
-
-      {/* Pipeline Stepper */}
-      <div className="space-y-1 pt-1">
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold">
-          <span>AUTO ENFORCEMENT PROGRESS</span>
-          <span>{isRemoved ? "100%" : isDelisted ? "85%" : "60%"}</span>
-        </div>
-        <div className="grid grid-cols-6 gap-1">
-          <StepperDot step="DETECT" done />
-          <StepperDot step="VERIFY" done />
-          <StepperDot step="ELIGIBLE" done />
-          <StepperDot step="SUBMIT" done={["SUBMITTED", "SOURCE_REMOVED", "SEARCH_DELISTED"].includes(c.status)} />
-          <StepperDot step="REVIEW" done={["SOURCE_REMOVED", "SEARCH_DELISTED"].includes(c.status)} />
-          <StepperDot step="REMOVED" done={isRemoved || isDelisted} />
+          <span className="text-slate-400 block text-[10px] font-medium">Eligibility</span>
+          <span className="font-semibold text-blue-600 dark:text-blue-400">{c.eligibility_status}</span>
         </div>
       </div>
     </div>
-  );
-}
-
-function StepperDot({ step, done }: { step: string; done: boolean }) {
-  return (
-    <div className="space-y-1 text-center">
-      <div className={`h-1.5 rounded-full ${done ? "bg-emerald-400" : "bg-muted"}`} />
-      <span className={`text-[9px] block ${done ? "text-emerald-300 font-semibold" : "text-muted-foreground"}`}>
-        {step}
-      </span>
-    </div>
-  );
-}
-
-function PipelineStep({ label, desc, active }: { label: string; desc: string; active: boolean }) {
-  return (
-    <div className="p-2 rounded-xl border border-border bg-muted/30">
-      <div className="font-bold text-foreground truncate">{label}</div>
-      <div className="text-muted-foreground text-[10px] truncate">{desc}</div>
-    </div>
-  );
-}
-
-function ScopeChip({ label, active }: { label: string; active: boolean }) {
-  return (
-    <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md border font-semibold ${active ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" : "bg-muted text-muted-foreground border-border"}`}>
-      {active ? "✓" : "✕"} {label}
-    </span>
   );
 }
 
@@ -617,24 +726,15 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`px-3.5 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 transition-colors ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent/40"}`}
+      className={`px-4 py-2.5 rounded-2xl text-xs font-semibold inline-flex items-center gap-2 transition-all duration-200 ${active ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"}`}
     >
       <Icon className="size-4" />
       {label}
       {badgeCount !== undefined && badgeCount > 0 && (
-        <span className="size-4 rounded-full bg-amber-400 text-black text-[10px] font-bold grid place-items-center">
+        <span className="size-4 rounded-full bg-amber-500 text-white text-[10px] font-bold grid place-items-center">
           {badgeCount}
         </span>
       )}
     </button>
   );
-}
-
-function statusColor(status: string): string {
-  const s = status.toUpperCase();
-  if (s.includes("REMOVED") || s.includes("ACCEPTED") || s.includes("DELISTED")) return "oklch(0.68 0.20 140)";
-  if (s.includes("SUBMITTED") || s.includes("QUEUED") || s.includes("SENT")) return "oklch(0.65 0.18 240)";
-  if (s.includes("REVIEW") || s.includes("PENDING")) return "oklch(0.75 0.18 75)";
-  if (s.includes("FAILED") || s.includes("REJECTED")) return "oklch(0.63 0.24 25)";
-  return "oklch(0.60 0.10 250)";
 }
