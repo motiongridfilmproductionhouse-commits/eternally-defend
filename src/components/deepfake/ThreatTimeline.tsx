@@ -13,7 +13,7 @@ export function ThreatTimeline({ events }: { events: TimelineEvent[] }) {
   if (!events || events.length === 0) return null;
 
   return (
-    <div className="card-surface p-3.5 border border-border/70 rounded-xl space-y-2 text-xs bg-slate-950/40 backdrop-blur-sm">
+    <div className="card-surface p-3.5 border border-primary/20 rounded-xl space-y-2 text-xs shadow-sm">
       <div className="flex items-center justify-between gap-2 pb-1 border-b border-border/50">
         <div className="flex items-center gap-1.5 font-bold text-foreground">
           <Activity className="size-4 text-primary animate-pulse" />
@@ -30,9 +30,10 @@ export function ThreatTimeline({ events }: { events: TimelineEvent[] }) {
             key={ev.id}
             className={`flex items-start justify-between gap-2 p-2 rounded-md border text-[11px] transition ${
               ev.threat
-                ? "border-red-500/50 bg-red-500/10 text-red-200"
-                : "border-border/40 bg-secondary/20 text-muted-foreground"
+                ? "border-red-500/40 bg-red-500/10 text-red-600"
+                : "border-border/50 bg-secondary/30 text-muted-foreground"
             }`}
+
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <span className="font-mono text-[10px] opacity-70 shrink-0">{ev.time}</span>
@@ -49,7 +50,7 @@ export function ThreatTimeline({ events }: { events: TimelineEvent[] }) {
               </div>
             </div>
             {ev.threat && (
-              <Badge className="bg-red-600/30 text-red-300 border border-red-500/50 text-[9px] py-0 shrink-0">
+              <Badge className="bg-red-500/15 text-red-600 border border-red-500/40 text-[9px] py-0 shrink-0">
                 +1 Threat
               </Badge>
             )}

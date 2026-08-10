@@ -164,45 +164,6 @@ export type Database = {
           },
         ]
       }
-      youtube_search_cache: {
-        Row: {
-          id: string
-          normalized_query: string
-          page_number: number
-          order_mode: string
-          region_code: string | null
-          video_results: Json
-          result_count: number
-          fetched_at: string
-          expires_at: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          normalized_query: string
-          page_number?: number
-          order_mode?: string
-          region_code?: string | null
-          video_results: Json
-          result_count?: number
-          fetched_at?: string
-          expires_at: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          normalized_query?: string
-          page_number?: number
-          order_mode?: string
-          region_code?: string | null
-          video_results?: Json
-          result_count?: number
-          fetched_at?: string
-          expires_at?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
       asset_verification_events: {
         Row: {
           asset_id: string | null
@@ -6759,8 +6720,8 @@ export type Database = {
       }
       youtube_removal_findings: {
         Row: {
-          allegation_matched: boolean
-          allegation_signals: string[]
+          allegation_matched: boolean | null
+          allegation_signals: string[] | null
           analysis: Json
           assessment_reason: string | null
           channel_class: string
@@ -6777,11 +6738,11 @@ export type Database = {
           evidence_timestamps: Json
           evidence_verified: boolean
           id: string
-          is_official_news: boolean
-          is_official_news_allegation: boolean
+          is_official_news: boolean | null
+          is_official_news_allegation: boolean | null
           is_unavailable: boolean
           like_count: number | null
-          news_topic_tags: string[]
+          news_topic_tags: string[] | null
           potential_violation: string | null
           priority_score: number
           problematic_claim: string | null
@@ -6791,7 +6752,7 @@ export type Database = {
           removal_potential: string
           risk_level: string
           scan_id: string
-          source_type: string
+          source_type: string | null
           subject_confidence: number
           subject_status: string
           thumbnail_url: string | null
@@ -6806,8 +6767,8 @@ export type Database = {
           view_count: number | null
         }
         Insert: {
-          allegation_matched?: boolean
-          allegation_signals?: string[]
+          allegation_matched?: boolean | null
+          allegation_signals?: string[] | null
           analysis?: Json
           assessment_reason?: string | null
           channel_class?: string
@@ -6824,11 +6785,11 @@ export type Database = {
           evidence_timestamps?: Json
           evidence_verified?: boolean
           id?: string
-          is_official_news?: boolean
-          is_official_news_allegation?: boolean
+          is_official_news?: boolean | null
+          is_official_news_allegation?: boolean | null
           is_unavailable?: boolean
           like_count?: number | null
-          news_topic_tags?: string[]
+          news_topic_tags?: string[] | null
           potential_violation?: string | null
           priority_score?: number
           problematic_claim?: string | null
@@ -6838,7 +6799,7 @@ export type Database = {
           removal_potential?: string
           risk_level?: string
           scan_id: string
-          source_type?: string
+          source_type?: string | null
           subject_confidence?: number
           subject_status?: string
           thumbnail_url?: string | null
@@ -6853,8 +6814,8 @@ export type Database = {
           view_count?: number | null
         }
         Update: {
-          allegation_matched?: boolean
-          allegation_signals?: string[]
+          allegation_matched?: boolean | null
+          allegation_signals?: string[] | null
           analysis?: Json
           assessment_reason?: string | null
           channel_class?: string
@@ -6871,11 +6832,11 @@ export type Database = {
           evidence_timestamps?: Json
           evidence_verified?: boolean
           id?: string
-          is_official_news?: boolean
-          is_official_news_allegation?: boolean
+          is_official_news?: boolean | null
+          is_official_news_allegation?: boolean | null
           is_unavailable?: boolean
           like_count?: number | null
-          news_topic_tags?: string[]
+          news_topic_tags?: string[] | null
           potential_violation?: string | null
           priority_score?: number
           problematic_claim?: string | null
@@ -6885,7 +6846,7 @@ export type Database = {
           removal_potential?: string
           risk_level?: string
           scan_id?: string
-          source_type?: string
+          source_type?: string | null
           subject_confidence?: number
           subject_status?: string
           thumbnail_url?: string | null
@@ -6984,6 +6945,45 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verified_count?: number
+        }
+        Relationships: []
+      }
+      youtube_search_cache: {
+        Row: {
+          created_at: string
+          expires_at: string
+          fetched_at: string
+          id: string
+          normalized_query: string
+          order_mode: string
+          page_number: number
+          region_code: string | null
+          result_count: number
+          video_results: Json
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          normalized_query: string
+          order_mode?: string
+          page_number?: number
+          region_code?: string | null
+          result_count?: number
+          video_results?: Json
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          normalized_query?: string
+          order_mode?: string
+          page_number?: number
+          region_code?: string | null
+          result_count?: number
+          video_results?: Json
         }
         Relationships: []
       }
