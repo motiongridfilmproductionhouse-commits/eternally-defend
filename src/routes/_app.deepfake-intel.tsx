@@ -140,6 +140,8 @@ function DeepfakeIntelPage() {
   const findings = (selected.data?.findings ?? []) as unknown as ClientFinding[];
   const discoveries = selected.data?.discoveries ?? [];
   const threatSummary = buildThreatAlertSummary(findings);
+  const threatFeed = selectThreatFeed(findings);
+
 
   const run = useMutation({
     mutationFn: (input: {
