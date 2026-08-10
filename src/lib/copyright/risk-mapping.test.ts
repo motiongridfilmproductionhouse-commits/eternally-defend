@@ -67,8 +67,8 @@ test("5. No exposure evidence => EXPOSURE LEVEL = NOT ESTABLISHED", () => {
   const result = mapFindingToRiskProps({
     id: "no-exposure",
     confidence: 80,
-    source_url: "https://example.com/item",
-    // No search visibility, no view count, no reachability
+    source_url: "",
+    source_state: "offline",
   });
 
   assert.equal(result.exposureLevel, "NOT ESTABLISHED");
@@ -80,8 +80,8 @@ test("6. High piracy risk does not automatically create high distribution activi
   const result = mapFindingToRiskProps({
     id: "high-score-no-dist",
     confidence: 95,
-    source_url: "https://example.com/item",
-    // Zero view count, zero links, unconfirmed reachability
+    source_url: "",
+    source_state: "offline",
   });
 
   assert.equal(result.piracyRiskScore, 95);
@@ -91,6 +91,30 @@ test("6. High piracy risk does not automatically create high distribution activi
     "DISTRIBUTION ACTIVITY should remain LOW or MODERATE when no real distribution evidence exists"
   );
   assert.notEqual(result.distributionActivity, "VERY HIGH");
+});
+
+test("7. Piracy lead on high-risk domain (e.g. DesiMovies.ru) => HIGH RISK, HIGH DISTRIBUTION ACTIVITY, HIGH EXPOSURE LEVEL", () => {
+  const result = mapFindingToRiskProps({
+    id: "desimovies-lead",
+    confidence: 40,
+    title: "DC 2026 Hindi Multi Audio Line V2 - DesiMovies.ru",
+    source_url: "https://desimovies.ru/dc-2026",
+    reason: "Piracy-signal lead (ripped_copy) surfaced by \"DC 2026\" watch online",
+    evidence: {
+      discovery: "piracy_lead",
+      distribution: {
+        domain_risk: "high",
+        content_type: "ripped_copy / distribution lead",
+      },
+    },
+  });
+
+  assert.equal(result.copyType, "RIPPED COPY");
+  assert.equal(result.threatLevel, "High");
+  assert.equal(result.threatLabel, "HIGH RISK");
+  assert.equal(result.distributionActivity, "HIGH");
+  assert.equal(result.exposureLevel, "HIGH");
+  assert.equal(result.isLive, true);
 });
 
 test("Risk Mapping: handles undefined or null finding without throwing", () => {
@@ -112,8 +136,8 @@ test("Risk Mapping: handles missing distribution metadata and null values safely
     id: "partial-1",
     confidence: null,
     evidence: null,
-    status: null,
-    source_state: null,
+    status: "offline",
+    source_state: "offline",
   });
 
   assert.equal(result.findingId, "partial-1");

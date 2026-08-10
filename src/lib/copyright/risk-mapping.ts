@@ -51,7 +51,7 @@ export interface MappedRiskProps {
 }
 
 /**
- * Detect copy type based on real finding details (CAM, HDTC, WEB-DL, etc.)
+ * Detect copy type based on real finding details (CAM, HDTC, WEB-DL, RIPPED COPY, etc.)
  */
 export function detectPrintLeakType(finding?: SourceFindingData | null): string {
   if (!finding) return "UNKNOWN";
@@ -93,11 +93,11 @@ export function detectPrintLeakType(finding?: SourceFindingData | null): string 
   if (/\b(web-?dl|webrip)\b/i.test(combined)) {
     return "WEB-DL LEAK";
   }
+  if (/\b(ripped_copy|ripped copy|rip)\b/i.test(combined)) {
+    return "RIPPED COPY";
+  }
   if (/\b(download|download_page|file_host|torrent|magnet)\b/i.test(combined)) {
     return "DOWNLOAD MIRROR";
-  }
-  if (/\b(ripped_copy|ripped copy)\b/i.test(combined)) {
-    return "RIPPED COPY";
   }
   if (/\b(full_movie|full movie|full_length)\b/i.test(combined)) {
     return "FULL MOVIE REUPLOAD";
@@ -166,6 +166,14 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
   const ev = (finding.evidence && typeof finding.evidence === "object" ? finding.evidence : {}) as Record<string, unknown>;
   const dist = (ev && typeof ev.distribution === "object" && ev.distribution !== null ? ev.distribution : {}) as Record<string, unknown>;
 
+  const isPiracyLead =
+    String(ev?.discovery) === "piracy_lead" ||
+    dist?.domain_risk === "high" ||
+    String(finding.reason).includes("piracy_lead") ||
+    String(finding.detection_type).includes("piracy") ||
+    String(finding.classification).includes("piracy") ||
+    String(finding.classification).includes("ripped");
+
   // 1. PIRACY RISK SCORE (numeric value if available, else null)
   const explicitRiskScore =
     typeof dist?.piracy_risk_score === "number"
@@ -199,23 +207,21 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
     threatLevel = "High";
   }
 
-  // Enforce minimum threat levels for confirmed movie copies
+  // Enforce minimum threat levels for confirmed movie copies and piracy leads
   if (
     copyType === "CAM PRINT" ||
     copyType === "THEATRE RECORDING" ||
     copyType === "HDTC" ||
     copyType === "WEB-DL LEAK" ||
+    copyType === "RIPPED COPY" ||
     copyType === "FULL MOVIE REUPLOAD" ||
-    copyType === "STREAMING MIRROR"
+    copyType === "STREAMING MIRROR" ||
+    isPiracyLead
   ) {
     if (threatLevel === "Low" || threatLevel === "Medium") {
       threatLevel = "High";
     }
-  } else if (
-    copyType === "DOWNLOAD MIRROR" ||
-    copyType === "RIPPED COPY" ||
-    copyType === "REUPLOAD"
-  ) {
+  } else if (copyType === "DOWNLOAD MIRROR" || copyType === "REUPLOAD") {
     if (threatLevel === "Low") {
       threatLevel = "Medium";
     }
@@ -230,23 +236,26 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
           ? "MEDIUM RISK"
           : "LOW RISK";
 
-  // 4. IS LIVE
+  // 4. IS LIVE (Any active scan finding or non-dismissed public match is LIVE unless explicitly marked offline/unreachable)
   const stateStr = String(finding.source_state ?? finding.status ?? "").toLowerCase();
-  const currentReachability = finding.current_reachability;
+  const currentReachability = String(finding.current_reachability ?? "").toLowerCase();
+  const reviewStatus = String(finding.review_status ?? "").toLowerCase();
 
-  const isLive =
-    finding.review_status !== "dismissed" &&
-    stateStr !== "removed" &&
-    stateStr !== "offline" &&
-    stateStr !== "historical_unreachable" &&
-    stateStr !== "historical_preserved" &&
-    stateStr !== "historical_requires_review" &&
-    stateStr !== "redirected" &&
-    stateStr !== "unreachable" &&
-    currentReachability !== "unreachable" &&
-    (stateStr === "new_confirmed" || stateStr === "historical_reconfirmed" || stateStr === "active" || currentReachability === "reachable");
+  const isExplicitlyOffline =
+    reviewStatus === "dismissed" ||
+    reviewStatus === "removed" ||
+    stateStr === "removed" ||
+    stateStr === "offline" ||
+    stateStr === "historical_unreachable" ||
+    stateStr === "historical_preserved" ||
+    stateStr === "historical_requires_review" ||
+    stateStr === "redirected" ||
+    stateStr === "unreachable" ||
+    currentReachability === "unreachable";
 
-  // 5. DISTRIBUTION ACTIVITY (Real evidence only, not from score alone)
+  const isLive = !isExplicitlyOffline;
+
+  // 5. DISTRIBUTION ACTIVITY
   let viewCount: number | null = null;
   if (typeof dist?.view_count === "number") viewCount = dist.view_count;
   else if (typeof ev?.view_count === "number") viewCount = ev.view_count;
@@ -267,7 +276,8 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
     (engagementCount != null && engagementCount >= 500) ||
     searchVisibility === "high" ||
     searchVisibility === "critical" ||
-    (isLive && (copyType === "STREAMING MIRROR" || copyType === "DOWNLOAD MIRROR" || copyType === "CAM PRINT" || copyType === "WEB-DL LEAK"))
+    isPiracyLead ||
+    (isLive && (copyType === "STREAMING MIRROR" || copyType === "DOWNLOAD MIRROR" || copyType === "CAM PRINT" || copyType === "WEB-DL LEAK" || copyType === "RIPPED COPY"))
   ) {
     distributionActivity = "HIGH";
   } else if (isLive || distLinksCount === 1 || (viewCount != null && viewCount > 0) || searchVisibility === "medium" || searchVisibility === "moderate") {
@@ -284,8 +294,9 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
   };
   const distributionActivityFormatted = distributionActivityFormattedMap[distributionActivity];
 
-  // 6. EXPOSURE LEVEL (Public discoverability & availability; never "Unknown")
+  // 6. EXPOSURE LEVEL (Recognizes public piracy portal URLs and piracy leads)
   const platformReach = (typeof dist?.platform_reach === "string" ? dist.platform_reach : typeof ev?.platform_reach === "string" ? ev.platform_reach : null)?.toLowerCase();
+  const hasPublicUrl = Boolean(finding.source_url || finding.url);
 
   let exposureLevel: ExposureLevel;
   if (searchVisibility === "critical" || searchVisibility === "high" || (viewCount != null && viewCount >= 20000) || distLinksCount >= 5) {
@@ -294,10 +305,12 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
     (searchVisibility != null && searchVisibility !== "none" && isLive) ||
     distLinksCount >= 2 ||
     (viewCount != null && viewCount >= 2000) ||
-    platformReach === "high"
+    platformReach === "high" ||
+    isPiracyLead ||
+    (hasPublicUrl && (copyType === "RIPPED COPY" || copyType === "CAM PRINT" || copyType === "WEB-DL LEAK" || copyType === "STREAMING MIRROR"))
   ) {
     exposureLevel = "HIGH";
-  } else if (isLive || (viewCount != null && viewCount > 0) || searchVisibility === "moderate" || searchVisibility === "medium") {
+  } else if (isLive || (viewCount != null && viewCount > 0) || searchVisibility === "moderate" || searchVisibility === "medium" || hasPublicUrl) {
     exposureLevel = "MODERATE";
   } else if (searchVisibility === "low" || (viewCount != null && viewCount === 0)) {
     exposureLevel = "LOW";
@@ -324,6 +337,8 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
     alertMessage = "Unauthorised theatre-recorded copy is actively available";
   } else if (copyType === "WEB-DL LEAK") {
     alertMessage = "High-quality leaked copy is publicly distributed";
+  } else if (copyType === "RIPPED COPY") {
+    alertMessage = "Ripped copy active on high-risk piracy distribution portal";
   } else if (copyType === "STREAMING MIRROR") {
     alertMessage = "Active streaming copy detected on a public source";
   } else if (copyType === "DOWNLOAD MIRROR") {
