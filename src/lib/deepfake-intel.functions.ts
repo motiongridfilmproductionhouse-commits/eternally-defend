@@ -536,6 +536,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         .from("deepfake_scans")
         .update({
           status: "completed",
+          scan_run_token: null,
           total_queries: uniqueQueries.length,
           total_results: classified.length,
           critical_count: critical,
@@ -560,6 +561,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         .from("deepfake_scans")
         .update({
           status: "failed",
+          scan_run_token: null,
           error_message: failureStage.slice(0, 500),
           finished_at: new Date().toISOString(),
         })
