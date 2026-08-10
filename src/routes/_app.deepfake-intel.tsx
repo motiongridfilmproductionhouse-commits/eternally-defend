@@ -760,7 +760,7 @@ function DeepfakeIntelPage() {
               </div>
 
               {/* Main Section Header: VERIFIED EXPLICIT SYNTHETIC THREATS */}
-              <div className="card-surface p-4 space-y-4 border border-border/70 rounded-xl">
+              <div className="card-surface p-4 space-y-4 border border-red-500/25 rounded-xl">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-sm font-bold tracking-wider text-foreground uppercase flex items-center gap-2">
@@ -768,12 +768,18 @@ function DeepfakeIntelPage() {
                       VERIFIED EXPLICIT SYNTHETIC THREATS
                     </h2>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Strict threat feed showing only face-verified (≥85%), explicit media confirmed, synthetic-media confirmed, and media-hosting verified evidence.
+                      Face-verified synthetic and explicit media evidence. Verified threats meet all
+                      four gates; probable threats are face-matched with one confirmed signal.
                     </p>
                   </div>
-                  <Badge variant="default" className="bg-red-500/20 text-red-300 border-red-500/40">
-                    {findings.filter(qualifiesForVerifiedExplicitFeed).length} Verified Explicit Threats
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge className="bg-red-500/15 text-red-600 border-red-500/40">
+                      {countVerified(threatFeed)} Verified
+                    </Badge>
+                    <Badge variant="outline" className="border-amber-500/40 text-amber-600">
+                      {threatFeed.length - countVerified(threatFeed)} Probable
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Primary Threat Feed List */}
@@ -781,12 +787,14 @@ function DeepfakeIntelPage() {
                   <div className="p-8 text-center text-sm text-muted-foreground">
                     <Loader2 className="size-5 mx-auto animate-spin mb-2" /> Loading findings…
                   </div>
-                ) : findings.filter(qualifiesForVerifiedExplicitFeed).length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground space-y-2 border border-border/60 rounded-lg bg-secondary/10">
+                ) : threatFeed.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground space-y-2 border border-border/60 rounded-lg bg-secondary/20">
                     {scan.status === "running" ? (
                       <div className="flex flex-col items-center gap-2">
                         <Loader2 className="size-6 text-primary animate-spin" />
-                        <span>Verification sweep in progress — results stream as verification completes.</span>
+                        <span>
+                          Verification sweep in progress — results stream as verification completes.
+                        </span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-2 py-2">
@@ -795,15 +803,29 @@ function DeepfakeIntelPage() {
                           No verified explicit synthetic-media evidence found.
                         </div>
                         <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                          Sweeps across Google Images, multi-provider discovery, Telegram, Reddit, and image hosts returned zero verified explicit deepfakes or face-swap threats. Irrelevant news, Wikipedia, and biography pages were automatically filtered.
+                          Sweeps across Google Images, multi-provider discovery, Telegram, and image
+                          hosts returned zero verified explicit deepfakes or face-swap threats.
+                          Irrelevant news, Wikipedia, and biography pages were automatically
+                          filtered.
                         </p>
                       </div>
                     )}
                   </div>
                 ) : (
                   <ul className="space-y-2.5">
-                    {findings.filter(qualifiesForVerifiedExplicitFeed).map((f) => (
-                      <li key={f.id}>
+                    {threatFeed.map(({ finding: f, tier }) => (
+                      <li key={f.id} className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[9px] font-bold tracking-[0.14em] px-1.5 py-0.5 rounded border ${
+                              tier === "VERIFIED"
+                                ? "bg-red-500/15 text-red-600 border-red-500/40"
+                                : "bg-amber-500/15 text-amber-600 border-amber-500/40"
+                            }`}
+                          >
+                            {tier} DEEPFAKE
+                          </span>
+                        </div>
                         <FindingCard
                           f={f as any}
                           onUpdate={(status) =>
@@ -816,6 +838,7 @@ function DeepfakeIntelPage() {
                   </ul>
                 )}
               </div>
+
 
               {/* Collapsed Secondary Accordions: Raw Candidates */}
               {discoveries.length > 0 && (
