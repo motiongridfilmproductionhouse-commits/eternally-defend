@@ -11,6 +11,7 @@ export type ReferenceImageProviderId =
   | "bing_images"
   | "yandex_images"
   | "brave_images"
+  | "firecrawl_images"
   | "public_website"
   | "news_website"
   | "official_website"
@@ -74,6 +75,7 @@ export function providerLabel(id: ReferenceImageProviderId): string {
     bing_images: "Bing Images",
     yandex_images: "Yandex Images",
     brave_images: "Brave Image Search",
+    firecrawl_images: "Firecrawl Image Search",
     public_website: "Public Websites",
     news_website: "News Websites",
     official_website: "Official Websites",
