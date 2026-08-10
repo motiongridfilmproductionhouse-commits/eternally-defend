@@ -10,7 +10,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "test:evidence": "node --import tsx --test src/lib/evidence-review.test.ts",
-    "test:copyright": "node --import tsx --test src/lib/copyright/discover.test.ts src/lib/copyright/results.test.ts",
+    "test:copyright": "node --import tsx --test src/lib/copyright/discover.test.ts src/lib/copyright/results.test.ts src/lib/copyright/risk-mapping.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

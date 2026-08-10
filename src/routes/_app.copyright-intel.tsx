@@ -40,6 +40,8 @@ import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel"
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
 import { RuntimeValidationPanel } from "@/components/copyright/RuntimeValidationPanel";
 import { proxiedReferenceImageUrl } from "@/lib/copyright/reference-images";
+import { CopyrightFindingRiskPanel } from "@/components/copyright/CopyrightFindingRiskPanel";
+import { mapFindingToRiskProps } from "@/lib/copyright/risk-mapping";
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -483,173 +485,186 @@ function CopyrightIntelPage() {
           ? "border-amber-500/50 text-amber-500"
           : "text-muted-foreground";
 
+    const riskProps = mapFindingToRiskProps(m);
+
     return (
       <article
         key={m.id}
         className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur transition hover:border-primary/30"
       >
-        <div className="flex gap-4">
-          {m.thumbnail_url && (
-            <img
-              src={proxiedReferenceImageUrl(m.thumbnail_url)}
-              alt={`Matched evidence frame from ${m.platform ?? "source"}`}
-              loading="lazy"
-              className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover"
-            />
-          )}
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className={band.cls}>
-                {m.confidence}% · {band.label}
-              </Badge>
-              <Badge variant="outline" className="text-[10px]">
-                {TYPE_LABEL[m.detection_type] ?? m.detection_type}
-              </Badge>
-              <Badge variant="outline" className="text-[10px]">
-                {m.platform ?? "Unknown platform"}
-              </Badge>
-              {String(ev.discovery) === "piracy_lead" && (
-                <Badge variant="outline" className="text-[10px] text-primary">
-                  piracy lead
+        <div className="grid gap-4 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] items-stretch">
+          <div className="flex gap-4 min-w-0">
+            {m.thumbnail_url && (
+              <img
+                src={proxiedReferenceImageUrl(m.thumbnail_url)}
+                alt={`Matched evidence frame from ${m.platform ?? "source"}`}
+                loading="lazy"
+                className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover"
+              />
+            )}
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={band.cls}>
+                  {m.confidence}% · {band.label}
                 </Badge>
-              )}
-              {dist && (
-                <>
-                  <Badge variant="outline" className={`text-[10px] uppercase ${riskCls}`}>
-                    {dist.domain_risk} risk domain
-                  </Badge>
-                  <Badge variant="outline" className="text-[10px]">
-                    {(dist.content_type ?? "").replace(/_/g, " ")}
-                  </Badge>
-                  {dist.release_timing && dist.release_timing !== "unknown" && (
-                    <Badge variant="outline" className="text-[10px]">
-                      {dist.release_timing.replace(/_/g, " ")}
-                      {typeof dist.release_offset_days === "number"
-                        ? ` · +${dist.release_offset_days}d`
-                        : ""}
-                    </Badge>
-                  )}
-                </>
-              )}
-              {m.review_status !== "pending" && (
                 <Badge variant="outline" className="text-[10px]">
-                  {m.review_status.replace("_", " ")}
+                  {TYPE_LABEL[m.detection_type] ?? m.detection_type}
                 </Badge>
-              )}
-            </div>
-            <a
-              href={m.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 truncate text-sm text-primary hover:underline"
-            >
-              {m.page_title || m.source_url} <ExternalLink className="h-3 w-3 shrink-0" />
-            </a>
-            {m.reason && <p className="text-xs text-muted-foreground">{m.reason}</p>}
-            {dist?.piracy_indicators?.length ? (
-              <ul className="space-y-1 rounded-lg border border-border/60 bg-background/40 p-2">
-                {dist.piracy_indicators.slice(0, 6).map((i) => (
-                  <li key={i.key} className="flex gap-1.5 text-[11px] text-muted-foreground">
-                    <span className={i.strong ? "text-destructive" : "text-primary"}>●</span>
-                    <span>
-                      <span className="font-medium">{i.key.replace(/_/g, " ")}:</span> {i.detail}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {dist?.distribution_links?.length ? (
-              <p className="text-[11px] text-muted-foreground">
-                <span className="font-medium">Distribution links:</span>{" "}
-                {dist.distribution_links.length} detected
-                {" · "}
-                {dist.distribution_links.slice(0, 2).join(", ").slice(0, 120)}
-              </p>
-            ) : null}
-
-            {Array.isArray(m.transformations) && m.transformations.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {(m.transformations as string[]).map((t) => (
-                  <span
-                    key={t}
-                    className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                  >
-                    {t}
-                  </span>
-                ))}
+                <Badge variant="outline" className="text-[10px]">
+                  {m.platform ?? "Unknown platform"}
+                </Badge>
+                {String(ev.discovery) === "piracy_lead" && (
+                  <Badge variant="outline" className="text-[10px] text-primary">
+                    piracy lead
+                  </Badge>
+                )}
+                {dist && (
+                  <>
+                    <Badge variant="outline" className={`text-[10px] uppercase ${riskCls}`}>
+                      {dist.domain_risk} risk domain
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      {(dist.content_type ?? "").replace(/_/g, " ")}
+                    </Badge>
+                    {dist.release_timing && dist.release_timing !== "unknown" && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {dist.release_timing.replace(/_/g, " ")}
+                        {typeof dist.release_offset_days === "number"
+                          ? ` · +${dist.release_offset_days}d`
+                          : ""}
+                      </Badge>
+                    )}
+                  </>
+                )}
+                {m.review_status !== "pending" && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {m.review_status.replace("_", " ")}
+                  </Badge>
+                )}
               </div>
-            )}
-            {m.ocr_text && (
-              <p className="line-clamp-2 text-[11px] text-muted-foreground">
-                <span className="font-medium">OCR:</span> {m.ocr_text}
-              </p>
-            )}
-            {typeof ev.watermark === "string" && ev.watermark && (
-              <p className="text-[11px] text-muted-foreground">
-                <span className="font-medium">Watermark:</span> {ev.watermark}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-              {contact.abuseEmail && (
-                <span className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  {contact.abuseEmail}
-                </span>
+              <a
+                href={m.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 truncate text-sm text-primary hover:underline"
+              >
+                {m.page_title || m.source_url} <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
+              {m.reason && <p className="text-xs text-muted-foreground">{m.reason}</p>}
+              {dist?.piracy_indicators?.length ? (
+                <ul className="space-y-1 rounded-lg border border-border/60 bg-background/40 p-2">
+                  {dist.piracy_indicators.slice(0, 6).map((i) => (
+                    <li key={i.key} className="flex gap-1.5 text-[11px] text-muted-foreground">
+                      <span className={i.strong ? "text-destructive" : "text-primary"}>●</span>
+                      <span>
+                        <span className="font-medium">{i.key.replace(/_/g, " ")}:</span> {i.detail}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {dist?.distribution_links?.length ? (
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="font-medium">Distribution links:</span>{" "}
+                  {dist.distribution_links.length} detected
+                  {" · "}
+                  {dist.distribution_links.slice(0, 2).join(", ").slice(0, 120)}
+                </p>
+              ) : null}
+
+              {Array.isArray(m.transformations) && m.transformations.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {(m.transformations as string[]).map((t) => (
+                    <span
+                      key={t}
+                      className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
               )}
-              {contact.reportUrl && (
-                <a
-                  href={contact.reportUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:underline"
+              {m.ocr_text && (
+                <p className="line-clamp-2 text-[11px] text-muted-foreground">
+                  <span className="font-medium">OCR:</span> {m.ocr_text}
+                </p>
+              )}
+              {typeof ev.watermark === "string" && ev.watermark && (
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="font-medium">Watermark:</span> {ev.watermark}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                {contact.abuseEmail && (
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    {contact.abuseEmail}
+                  </span>
+                )}
+                {contact.reportUrl && (
+                  <a
+                    href={contact.reportUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 hover:underline"
+                  >
+                    <ShieldCheck className="h-3 w-3" />
+                    Abuse / DMCA page
+                  </a>
+                )}
+                {contact.note && (
+                  <span className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {contact.note}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => review.mutate({ matchId: m.id, reviewStatus: "evidence_ready" })}
                 >
-                  <ShieldCheck className="h-3 w-3" />
-                  Abuse / DMCA page
-                </a>
-              )}
-              {contact.note && (
-                <span className="flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  {contact.note}
-                </span>
-              )}
-            </div>
-            <div className="flex gap-2 pt-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => review.mutate({ matchId: m.id, reviewStatus: "evidence_ready" })}
-              >
-                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                Mark evidence ready
-              </Button>
+                  <Eye className="mr-1.5 h-3.5 w-3.5" />
+                  Mark evidence ready
+                </Button>
 
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  setSelectedMatch(m);
-                  setInvestigationOpen(true);
-                }}
-              >
-                Website Details
-              </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setSelectedMatch(m);
+                    setInvestigationOpen(true);
+                  }}
+                >
+                  Website Details
+                </Button>
 
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  review.mutate({
-                    matchId: m.id,
-                    reviewStatus: "dismissed",
-                  })
-                }
-              >
-                <XCircle className="mr-1.5 h-3.5 w-3.5" />
-                Dismiss
-              </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    review.mutate({
+                      matchId: m.id,
+                      reviewStatus: "dismissed",
+                    })
+                  }
+                >
+                  <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                  Dismiss
+                </Button>
+              </div>
             </div>
           </div>
+
+          <CopyrightFindingRiskPanel
+            {...riskProps}
+            onTakeAction={() => review.mutate({ matchId: m.id, reviewStatus: "evidence_ready" })}
+            onReviewEvidence={() => {
+              setSelectedMatch(m);
+              setInvestigationOpen(true);
+            }}
+          />
         </div>
       </article>
     );
