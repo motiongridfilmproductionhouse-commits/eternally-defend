@@ -164,6 +164,120 @@ export type Database = {
           },
         ]
       }
+      copyright_reference_images: {
+        Row: {
+          id: string
+          asset_id: string
+          reference_type: string
+          image_url: string
+          perceptual_hash: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          asset_id: string
+          reference_type?: string
+          image_url: string
+          perceptual_hash: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          asset_id?: string
+          reference_type?: string
+          image_url?: string
+          perceptual_hash?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      copyright_identity_verifications: {
+        Row: {
+          id: string
+          scan_id: string
+          asset_id: string
+          candidate_url: string
+          title_similarity: number
+          poster_similarity: number
+          frame_similarity: number
+          face_similarity: number
+          target_identity_score: number
+          piracy_risk_score: number
+          target_status: string
+          matched_signals: string[] | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          scan_id: string
+          asset_id: string
+          candidate_url: string
+          title_similarity?: number
+          poster_similarity?: number
+          frame_similarity?: number
+          face_similarity?: number
+          target_identity_score?: number
+          piracy_risk_score?: number
+          target_status?: string
+          matched_signals?: string[] | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          scan_id?: string
+          asset_id?: string
+          candidate_url?: string
+          title_similarity?: number
+          poster_similarity?: number
+          frame_similarity?: number
+          face_similarity?: number
+          target_identity_score?: number
+          piracy_risk_score?: number
+          target_status?: string
+          matched_signals?: string[] | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      youtube_search_cache: {
+        Row: {
+          id: string
+          normalized_query: string
+          page_number: number
+          order_mode: string
+          region_code: string | null
+          video_results: Json
+          result_count: number
+          fetched_at: string
+          expires_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          normalized_query: string
+          page_number?: number
+          order_mode?: string
+          region_code?: string | null
+          video_results: Json
+          result_count?: number
+          fetched_at?: string
+          expires_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          normalized_query?: string
+          page_number?: number
+          order_mode?: string
+          region_code?: string | null
+          video_results?: Json
+          result_count?: number
+          fetched_at?: string
+          expires_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       asset_verification_events: {
         Row: {
           asset_id: string | null

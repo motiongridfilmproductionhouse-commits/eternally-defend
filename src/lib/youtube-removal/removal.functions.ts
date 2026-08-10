@@ -175,3 +175,17 @@ export const retryYoutubeRemovalScan = createServerFn({ method: "POST" })
 
     return { scanId: data.scanId };
   });
+
+export const checkIsAdminUser = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    try {
+      const { data } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      });
+      return { isAdmin: !!data };
+    } catch {
+      return { isAdmin: false };
+    }
+  });

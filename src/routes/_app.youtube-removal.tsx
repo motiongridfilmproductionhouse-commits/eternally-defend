@@ -23,7 +23,9 @@ import {
   listYoutubeRemovalScans,
   retryYoutubeRemovalScan,
   startYoutubeRemovalScan,
+  checkIsAdminUser,
 } from "@/lib/youtube-removal/removal.functions";
+import { sanitizeProviderError } from "@/lib/security/error-sanitizer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -117,14 +119,21 @@ function YoutubeRemovalPage() {
   const [scanError, setScanError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const isDiagMode =
-    typeof window !== "undefined" &&
-    (window.location.search.includes("diag=1") || process.env.NODE_ENV === "development");
-
   const listFn = useServerFn(listYoutubeRemovalScans);
   const getFn = useServerFn(getYoutubeRemovalScan);
   const startFn = useServerFn(startYoutubeRemovalScan);
   const retryFn = useServerFn(retryYoutubeRemovalScan);
+  const adminFn = useServerFn(checkIsAdminUser);
+
+  const adminQuery = useQuery({
+    queryKey: ["yt-removal", "admin-check"],
+    queryFn: () => adminFn({}),
+  });
+
+  const isDiagMode =
+    typeof window !== "undefined" &&
+    window.location.search.includes("diag=1") &&
+    adminQuery.data?.isAdmin === true;
 
   const scans = useQuery({ queryKey: ["yt-removal", "scans"], queryFn: () => listFn({}) });
 
@@ -147,7 +156,7 @@ function YoutubeRemovalPage() {
     },
     onError: (err: any) => {
       console.error("[YT-SCAN-UI-ERROR]", err);
-      setScanError(err?.message || "Unable to start YouTube removal scan. Please try again.");
+      setScanError(sanitizeProviderError(err).message);
     },
   });
 

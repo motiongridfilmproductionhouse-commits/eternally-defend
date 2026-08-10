@@ -12,6 +12,7 @@ import {
   archivePreviousCopyrightResults,
   archiveScanCopyrightResults,
   retryCopyrightScan,
+  checkIsAdminUser,
 } from "@/lib/copyright.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ import { toast } from "sonner";
 import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
+import { RuntimeValidationPanel } from "@/components/copyright/RuntimeValidationPanel";
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -202,6 +204,13 @@ function CopyrightIntelPage() {
   const [archivingScanId, setArchivingScanId] = useState<string | null>(null);
 
   const retryFn = useServerFn(retryCopyrightScan);
+  const checkAdminFn = useServerFn(checkIsAdminUser);
+  const isAdminQuery = useQuery({
+    queryKey: ["check-is-admin-user"],
+    queryFn: () => checkAdminFn({}),
+  });
+  const isAdmin = Boolean(isAdminQuery.data?.isAdmin);
+
   const [showAdminDiagnostics, setShowAdminDiagnostics] = useState(false);
   const [showProviderFailures, setShowProviderFailures] = useState(false);
 
@@ -1056,6 +1065,12 @@ function CopyrightIntelPage() {
                               <span className="font-semibold truncate">{String(sStats.last_heartbeat || sStats.updated_at || "N/A")}</span>
                             </div>
                           </div>
+
+                          {/* Runtime Reference Validation Admin Panel */}
+                          <RuntimeValidationPanel
+                            data={sStats.verification_diagnostics as any}
+                            isAdmin={isAdmin}
+                          />
 
                           {Number(sStats.provider_requests_failed ?? sStats.provider_failures ?? 0) > 0 && (
                             <div className="pt-2 border-t border-border/40">
