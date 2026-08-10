@@ -186,44 +186,9 @@ export async function executeMultiProviderDiscovery({
       }
     }
 
-    // 2. Fallback to Brave Search if Firecrawl returned no hits
-    if (queryHits.length === 0 && process.env.BRAVE_API_KEY?.trim()) {
-      try {
-        const braveHits = await searchBrave(query, perQueryLimit);
-        if (braveHits.length > 0) {
-          queryHits = braveHits;
-          providerUsed = "brave_search";
-        }
-      } catch (err) {
-        console.warn(`[DEEPFAKE:DISCOVERY] Brave Search failed for "${query}":`, err);
-      }
-    }
+    // Firecrawl is the only discovery provider. Brave, SerpApi and Reddit are
+    // intentionally not used for deepfake discovery.
 
-    // 3. Fallback to SerpAPI if needed
-    if (queryHits.length === 0 && process.env.SERPAPI_API_KEY?.trim()) {
-      try {
-        const serpHits = await searchSerpApi(query, perQueryLimit);
-        if (serpHits.length > 0) {
-          queryHits = serpHits;
-          providerUsed = "serpapi";
-        }
-      } catch (err) {
-        console.warn(`[DEEPFAKE:DISCOVERY] SerpAPI failed for "${query}":`, err);
-      }
-    }
-
-    // 4. Always attempt Reddit public search for community deepfake queries
-    if (query.toLowerCase().includes("reddit") || queryHits.length === 0) {
-      try {
-        const redditHits = await searchRedditPublic(query, 5);
-        if (redditHits.length > 0) {
-          queryHits.push(...redditHits);
-          if (providerUsed === "none") providerUsed = "reddit";
-        }
-      } catch (err) {
-        console.warn(`[DEEPFAKE:DISCOVERY] Reddit search failed for "${query}":`, err);
-      }
-    }
 
     // Deduplicate and filter blocked hosts
     const newDiscoveryRows: Array<{
