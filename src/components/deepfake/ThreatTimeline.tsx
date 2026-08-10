@@ -13,7 +13,7 @@ export function ThreatTimeline({ events }: { events: TimelineEvent[] }) {
   if (!events || events.length === 0) return null;
 
   return (
-    <div className="card-surface p-3.5 border border-border/70 rounded-xl space-y-2 text-xs bg-slate-950/40 backdrop-blur-sm">
+    <div className="card-surface p-3.5 border border-primary/20 rounded-xl space-y-2 text-xs shadow-sm">
       <div className="flex items-center justify-between gap-2 pb-1 border-b border-border/50">
         <div className="flex items-center gap-1.5 font-bold text-foreground">
           <Activity className="size-4 text-primary animate-pulse" />
