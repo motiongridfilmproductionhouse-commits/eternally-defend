@@ -39,8 +39,10 @@ import {
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
 import { ThreatTimeline, type TimelineEvent } from "@/components/deepfake/ThreatTimeline";
-import { buildThreatAlertSummary, qualifiesForVerifiedExplicitFeed } from "@/lib/deepfake/threat-alert";
+import { buildThreatAlertSummary } from "@/lib/deepfake/threat-alert";
+import { selectThreatFeed, countVerified } from "@/lib/deepfake/verified-threat-feed";
 import type { ClientFinding } from "@/lib/deepfake/results-dashboard";
+
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
