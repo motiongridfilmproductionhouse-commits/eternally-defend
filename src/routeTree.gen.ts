@@ -57,6 +57,8 @@ import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admi
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
 import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
+import { Route as ApiPublicHooksPostmarkWebhookRouteImport } from './routes/api/public/hooks/postmark-webhook'
+import { Route as ApiPublicHooksEnforcementWorkerRouteImport } from './routes/api/public/hooks/enforcement-worker'
 import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
 import { Route as ApiPublicHooksDeepfakeScanExecuteRouteImport } from './routes/api/public/hooks/deepfake-scan-execute'
 import { Route as ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport } from './routes/api/public/hooks/deepfake-manual-evidence-execute'
@@ -316,6 +318,18 @@ const ApiPublicHooksReleaseProtectionMonitorRoute =
     path: '/api/public/hooks/release-protection-monitor',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksPostmarkWebhookRoute =
+  ApiPublicHooksPostmarkWebhookRouteImport.update({
+    id: '/api/public/hooks/postmark-webhook',
+    path: '/api/public/hooks/postmark-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksEnforcementWorkerRoute =
+  ApiPublicHooksEnforcementWorkerRouteImport.update({
+    id: '/api/public/hooks/enforcement-worker',
+    path: '/api/public/hooks/enforcement-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDistributionMonitorRoute =
   ApiPublicHooksDistributionMonitorRouteImport.update({
     id: '/api/public/hooks/distribution-monitor',
@@ -425,6 +439,8 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/deepfake-manual-evidence-execute': typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
   '/api/public/hooks/deepfake-scan-execute': typeof ApiPublicHooksDeepfakeScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
+  '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
@@ -481,6 +497,8 @@ export interface FileRoutesByTo {
   '/api/public/hooks/deepfake-manual-evidence-execute': typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
   '/api/public/hooks/deepfake-scan-execute': typeof ApiPublicHooksDeepfakeScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
+  '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
@@ -541,6 +559,8 @@ export interface FileRoutesById {
   '/api/public/hooks/deepfake-manual-evidence-execute': typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
   '/api/public/hooks/deepfake-scan-execute': typeof ApiPublicHooksDeepfakeScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
+  '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
@@ -600,6 +620,8 @@ export interface FileRouteTypes {
     | '/api/public/hooks/deepfake-manual-evidence-execute'
     | '/api/public/hooks/deepfake-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/enforcement-worker'
+    | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/release-protection-monitor'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
@@ -656,6 +678,8 @@ export interface FileRouteTypes {
     | '/api/public/hooks/deepfake-manual-evidence-execute'
     | '/api/public/hooks/deepfake-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/enforcement-worker'
+    | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/release-protection-monitor'
     | '/sensitive-protection/results'
   id:
@@ -715,6 +739,8 @@ export interface FileRouteTypes {
     | '/api/public/hooks/deepfake-manual-evidence-execute'
     | '/api/public/hooks/deepfake-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/enforcement-worker'
+    | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/release-protection-monitor'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
@@ -740,6 +766,8 @@ export interface RootRouteChildren {
   ApiPublicHooksDeepfakeManualEvidenceExecuteRoute: typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
   ApiPublicHooksDeepfakeScanExecuteRoute: typeof ApiPublicHooksDeepfakeScanExecuteRoute
   ApiPublicHooksDistributionMonitorRoute: typeof ApiPublicHooksDistributionMonitorRoute
+  ApiPublicHooksEnforcementWorkerRoute: typeof ApiPublicHooksEnforcementWorkerRoute
+  ApiPublicHooksPostmarkWebhookRoute: typeof ApiPublicHooksPostmarkWebhookRoute
   ApiPublicHooksReleaseProtectionMonitorRoute: typeof ApiPublicHooksReleaseProtectionMonitorRoute
 }
 
@@ -1081,6 +1109,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksReleaseProtectionMonitorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/postmark-webhook': {
+      id: '/api/public/hooks/postmark-webhook'
+      path: '/api/public/hooks/postmark-webhook'
+      fullPath: '/api/public/hooks/postmark-webhook'
+      preLoaderRoute: typeof ApiPublicHooksPostmarkWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/enforcement-worker': {
+      id: '/api/public/hooks/enforcement-worker'
+      path: '/api/public/hooks/enforcement-worker'
+      fullPath: '/api/public/hooks/enforcement-worker'
+      preLoaderRoute: typeof ApiPublicHooksEnforcementWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/distribution-monitor': {
       id: '/api/public/hooks/distribution-monitor'
       path: '/api/public/hooks/distribution-monitor'
@@ -1274,6 +1316,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicHooksDeepfakeScanExecuteRoute,
   ApiPublicHooksDistributionMonitorRoute:
     ApiPublicHooksDistributionMonitorRoute,
+  ApiPublicHooksEnforcementWorkerRoute: ApiPublicHooksEnforcementWorkerRoute,
+  ApiPublicHooksPostmarkWebhookRoute: ApiPublicHooksPostmarkWebhookRoute,
   ApiPublicHooksReleaseProtectionMonitorRoute:
     ApiPublicHooksReleaseProtectionMonitorRoute,
 }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { PublicSuspiciousSource } from "@/lib/copyright/suspicious-sources";
 import { CopyrightFindingRiskPanel } from "@/components/copyright/CopyrightFindingRiskPanel";
 import { mapFindingToRiskProps } from "@/lib/copyright/risk-mapping";
+import { EvidenceThumbnail } from "@/components/copyright/EvidenceThumbnail";
 
 const BAND: Record<string, { label: string; cls: string }> = {
   confirmed: { label: "90-100% EXACT", cls: "bg-red-600/15 text-red-400 border-red-600/40" },
@@ -92,7 +93,6 @@ function SourceCard({
   onInvestigate: (source: PublicSuspiciousSource) => void;
   onDismiss: (matchId: string) => void;
 }) {
-  const band = BAND[source.confidence_band ?? "review"] ?? BAND.review;
   const ev = (source.evidence ?? {}) as Record<string, unknown>;
   const dist = (ev.distribution ?? null) as null | {
     classification?: string;
@@ -126,149 +126,143 @@ function SourceCard({
   if (!riskProps.isClientThreat) return null;
 
   return (
-    <article className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur">
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] items-stretch">
-        <div className="flex gap-4 min-w-0">
-          {dist?.evidence_screenshot && (
-            <img
-              src={dist.evidence_screenshot}
-              alt={`Evidence frame from ${source.domain ?? "source"}`}
-              loading="lazy"
-              className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover"
-            />
-          )}
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {typeof source.confidence === "number" && (
-                <Badge variant="outline" className={band.cls}>
-                  {source.confidence}% · {band.label}
-                </Badge>
-              )}
-              <Badge variant="outline" className={`text-[10px] ${state.cls}`}>
-                {state.label}
-              </Badge>
+    <article
+      className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur space-y-4"
+      data-testid="copyright-finding-card"
+    >
+      <div className="flex gap-4 min-w-0">
+        <EvidenceThumbnail
+          src={dist?.evidence_screenshot}
+          alt={`Evidence frame from ${source.domain ?? "source"}`}
+        />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className={`text-[10px] ${state.cls}`}>
+              {state.label}
+            </Badge>
+            <Badge variant="outline" className="text-[10px]">
+              {TYPE_LABEL[classification] ?? classification}
+            </Badge>
+            {source.domain && (
               <Badge variant="outline" className="text-[10px]">
-                {TYPE_LABEL[classification] ?? classification}
+                {source.domain}
               </Badge>
-              {source.domain && (
-                <Badge variant="outline" className="text-[10px]">
-                  {source.domain}
+            )}
+            {dist && (
+              <>
+                <Badge variant="outline" className={`text-[10px] uppercase ${riskCls}`}>
+                  {dist.domain_risk} risk
                 </Badge>
-              )}
-              {dist && (
-                <>
-                  <Badge variant="outline" className={`text-[10px] uppercase ${riskCls}`}>
-                    {dist.domain_risk} risk
+                {dist.release_timing && dist.release_timing !== "unknown" && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {dist.release_timing.replace(/_/g, " ")}
+                    {typeof dist.release_offset_days === "number"
+                      ? ` · +${dist.release_offset_days}d`
+                      : ""}
                   </Badge>
-                  {dist.release_timing && dist.release_timing !== "unknown" && (
-                    <Badge variant="outline" className="text-[10px]">
-                      {dist.release_timing.replace(/_/g, " ")}
-                      {typeof dist.release_offset_days === "number"
-                        ? ` · +${dist.release_offset_days}d`
-                        : ""}
-                    </Badge>
-                  )}
-                </>
-              )}
-              {source.review_status && source.review_status !== "pending" && (
-                <Badge variant="outline" className="text-[10px]">
-                  {source.review_status.replace("_", " ")}
-                </Badge>
-              )}
-            </div>
-            <a
-              href={source.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 truncate text-sm text-primary hover:underline"
-            >
-              Open source page <ExternalLink className="h-3 w-3 shrink-0" />
-            </a>
-            <p className="truncate text-[11px] text-muted-foreground">{source.title || source.url}</p>
-            {source.evidence_summary && (
-              <p className="text-xs text-muted-foreground">{source.evidence_summary}</p>
+                )}
+              </>
             )}
-            {source.reason && (
-              <p className="text-xs text-muted-foreground">
-                {source.reason} Evidence for rights-holder review — not a final legal determination.
-              </p>
+            {source.review_status && source.review_status !== "pending" && (
+              <Badge variant="outline" className="text-[10px]">
+                {source.review_status.replace("_", " ")}
+              </Badge>
             )}
-            {dist?.identity_evidence?.length || dist?.access_evidence?.length ? (
-              <div className="space-y-1 text-[11px] text-muted-foreground">
-                {dist?.identity_evidence?.length ? (
-                  <p>
-                    <span className="font-medium">Title identity:</span>{" "}
-                    {dist.identity_evidence.join(", ")}
-                  </p>
-                ) : null}
-                {dist?.access_evidence?.length ? (
-                  <p>
-                    <span className="font-medium">Distribution access:</span>{" "}
-                    {dist.access_evidence.slice(0, 3).join(" ")}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-            {breakdown && (
-              <p className="text-[11px] text-muted-foreground">
-                <span className="font-medium">Confidence:</span> identity {breakdown.identity ?? 0} ·
-                access {breakdown.access ?? 0} · release {breakdown.releaseWindow ?? 0}
-                {(breakdown.penalties ?? 0) > 0 ? ` · penalties -${breakdown.penalties}` : ""}
-              </p>
+          </div>
+          <a
+            href={source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 truncate text-sm text-primary hover:underline"
+          >
+            Open source page <ExternalLink className="h-3 w-3 shrink-0" />
+          </a>
+          <p className="truncate text-[11px] text-muted-foreground">{source.title || source.url}</p>
+          {source.evidence_summary && (
+            <p className="text-xs text-muted-foreground">{source.evidence_summary}</p>
+          )}
+          {source.reason && (
+            <p className="text-xs text-muted-foreground">
+              {source.reason} Evidence for rights-holder review — not a final legal determination.
+            </p>
+          )}
+          {dist?.identity_evidence?.length || dist?.access_evidence?.length ? (
+            <div className="space-y-1 text-[11px] text-muted-foreground">
+              {dist?.identity_evidence?.length ? (
+                <p>
+                  <span className="font-medium">Title identity:</span>{" "}
+                  {dist.identity_evidence.join(", ")}
+                </p>
+              ) : null}
+              {dist?.access_evidence?.length ? (
+                <p>
+                  <span className="font-medium">Distribution access:</span>{" "}
+                  {dist.access_evidence.slice(0, 3).join(" ")}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {breakdown && (
+            <p className="text-[11px] text-muted-foreground">
+              <span className="font-medium">Confidence:</span> identity {breakdown.identity ?? 0} ·
+              access {breakdown.access ?? 0} · release {breakdown.releaseWindow ?? 0}
+              {(breakdown.penalties ?? 0) > 0 ? ` · penalties -${breakdown.penalties}` : ""}
+            </p>
+          )}
+          {dist?.piracy_indicators?.length ? (
+            <ul className="space-y-1 rounded-lg border border-border/60 bg-background/40 p-2">
+              {dist.piracy_indicators.slice(0, 6).map((i) => (
+                <li key={i.key} className="flex gap-1.5 text-[11px] text-muted-foreground">
+                  <span className={i.strong ? "text-destructive" : "text-primary"}>●</span>
+                  <span>
+                    <span className="font-medium">{i.key.replace(/_/g, " ")}:</span> {i.detail}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+            {contact.abuseEmail && (
+              <span className="flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                {contact.abuseEmail}
+              </span>
             )}
-            {dist?.piracy_indicators?.length ? (
-              <ul className="space-y-1 rounded-lg border border-border/60 bg-background/40 p-2">
-                {dist.piracy_indicators.slice(0, 6).map((i) => (
-                  <li key={i.key} className="flex gap-1.5 text-[11px] text-muted-foreground">
-                    <span className={i.strong ? "text-destructive" : "text-primary"}>●</span>
-                    <span>
-                      <span className="font-medium">{i.key.replace(/_/g, " ")}:</span> {i.detail}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-              {contact.abuseEmail && (
-                <span className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  {contact.abuseEmail}
-                </span>
-              )}
-              {contact.reportUrl && (
-                <a
-                  href={contact.reportUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:underline"
-                >
-                  <ShieldCheck className="h-3 w-3" />
-                  Abuse / DMCA page
-                </a>
-              )}
-            </div>
-            <div className="flex gap-2 pt-1">
-              <Button size="sm" variant="outline" onClick={() => onReview(source.id)}>
-                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                Mark evidence ready
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => onInvestigate(source)}>
-                Website Details
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => onDismiss(source.id)}>
-                <XCircle className="mr-1.5 h-3.5 w-3.5" />
-                Dismiss
-              </Button>
-            </div>
+            {contact.reportUrl && (
+              <a
+                href={contact.reportUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 hover:underline"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                Abuse / DMCA page
+              </a>
+            )}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" variant="outline" onClick={() => onReview(source.id)}>
+              <Eye className="mr-1.5 h-3.5 w-3.5" />
+              Mark evidence ready
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => onInvestigate(source)}>
+              Website Details
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => onDismiss(source.id)}>
+              <XCircle className="mr-1.5 h-3.5 w-3.5" />
+              Dismiss
+            </Button>
           </div>
         </div>
-
-        <CopyrightFindingRiskPanel
-          {...riskProps}
-          onTakeAction={() => onReview(source.id)}
-          onReviewEvidence={() => onInvestigate(source)}
-        />
       </div>
+
+      {/* FULL-WIDTH CopyrightFindingRiskPanel */}
+      <CopyrightFindingRiskPanel
+        {...riskProps}
+        className="w-full"
+        onTakeAction={() => onReview(source.id)}
+        onReviewEvidence={() => onInvestigate(source)}
+      />
     </article>
   );
 }

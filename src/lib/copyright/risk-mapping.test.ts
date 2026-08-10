@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mapFindingToRiskProps, detectPrintLeakType } from "./risk-mapping";
+import { mapFindingToRiskProps, detectPrintLeakType, isNonThreatHost } from "./risk-mapping";
 
 test("1. Verified CAM copy with no numeric score => HIGH RISK, active distribution, COPY TYPE = CAM PRINT", () => {
   const result = mapFindingToRiskProps({
@@ -115,6 +115,43 @@ test("7. Piracy lead on high-risk domain (e.g. DesiMovies.ru) => HIGH RISK, HIGH
   assert.equal(result.distributionActivity, "HIGH");
   assert.equal(result.exposureLevel, "HIGH");
   assert.equal(result.isLive, true);
+});
+
+test("8. Irrelevant legal service target (e.g. ishmanlaw.com) => isClientThreat = false", () => {
+  assert.equal(isNonThreatHost("https://ishmanlaw.com/copyright"), true);
+  assert.equal(isNonThreatHost("https://www.law.com/article"), true);
+
+  const result = mapFindingToRiskProps({
+    id: "law-firm-target",
+    confidence: 60,
+    title: "Ishman Law Firm - Copyright & Media Practice DC 2026 Movie",
+    source_url: "https://ishmanlaw.com/practice-areas/copyright-intel",
+  });
+
+  assert.equal(result.isClientThreat, false);
+});
+
+test("9. Target status NOT_SUBJECT, visualConflict = true or low identity score => isClientThreat = false", () => {
+  const resultNotSub = mapFindingToRiskProps({
+    id: "target-not-sub",
+    targetStatus: "NOT_SUBJECT",
+    source_url: "https://example.com/item",
+  });
+  assert.equal(resultNotSub.isClientThreat, false);
+
+  const resultConflict = mapFindingToRiskProps({
+    id: "visual-conflict-item",
+    visualConflict: true,
+    source_url: "https://example.com/item2",
+  });
+  assert.equal(resultConflict.isClientThreat, false);
+
+  const resultLowScore = mapFindingToRiskProps({
+    id: "low-identity-score",
+    targetIdentityScore: 15,
+    source_url: "https://example.com/item3",
+  });
+  assert.equal(resultLowScore.isClientThreat, false);
 });
 
 test("Risk Mapping: handles undefined or null finding without throwing", () => {

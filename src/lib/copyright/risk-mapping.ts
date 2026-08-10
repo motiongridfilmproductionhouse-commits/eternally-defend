@@ -22,6 +22,12 @@ export interface SourceFindingData {
   status?: string | null;
   source_state?: string | null;
   current_reachability?: string | null;
+  target_status?: string | null;
+  targetStatus?: string | null;
+  visual_conflict?: boolean | null;
+  visualConflict?: boolean | null;
+  target_identity_score?: number | null;
+  targetIdentityScore?: number | null;
 }
 
 export type ThreatLevel = "Critical" | "High" | "Medium" | "Low";
@@ -48,6 +54,27 @@ export interface MappedRiskProps {
   audienceReach?: string;
   distributionType?: string;
   formattedTraffic?: string | null;
+}
+
+/**
+ * Checks if host is a non-threat (law firms, legal services, news media, official studio/OTT sites).
+ */
+export function isNonThreatHost(urlStr?: string | null): boolean {
+  if (!urlStr) return false;
+  try {
+    const urlObj = new URL(urlStr);
+    const host = urlObj.hostname.toLowerCase();
+    if (
+      /\b(ishmanlaw|lawfilm|legal|attorney|lawfirm|counsel|juris|bar)\b/i.test(host) ||
+      /\b(ishmanlaw\.com|law\.com)\b/i.test(host) ||
+      /\b(reuters|bloomberg|nytimes|wsj|variety|hollywoodreporter|deadline|imdb|wikipedia|wikimedia|netflix|disney|hbo|apple|amazon|paramount|sony|warnerbros|universal|youtube|vimeo|hulu)\b/i.test(host)
+    ) {
+      return true;
+    }
+  } catch {
+    if (/\b(ishmanlaw|law\.com)\b/i.test(urlStr)) return true;
+  }
+  return false;
 }
 
 /**
@@ -136,11 +163,20 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
     };
   }
 
-  // Check if item is NOT_SUBJECT or rejected
+  // Requirement 4: Filter out irrelevant targets and non-subject items
+  const targetStatus = finding.target_status ?? finding.targetStatus;
+  const visualConflict = finding.visual_conflict ?? finding.visualConflict;
+  const targetIdentityScore = finding.target_identity_score ?? finding.targetIdentityScore;
+  const sourceUrl = finding.source_url ?? finding.url;
+
   const isNotSubject =
     finding.classification === "NOT_SUBJECT" ||
     finding.review_status === "not_subject" ||
-    finding.review_status === "rejected";
+    finding.review_status === "rejected" ||
+    targetStatus === "NOT_SUBJECT" ||
+    visualConflict === true ||
+    (typeof targetIdentityScore === "number" && targetIdentityScore < 30) ||
+    isNonThreatHost(sourceUrl);
 
   if (isNotSubject) {
     return {
@@ -296,7 +332,6 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
 
   // 6. EXPOSURE LEVEL (Recognizes public piracy portal URLs and piracy leads)
   const platformReach = (typeof dist?.platform_reach === "string" ? dist.platform_reach : typeof ev?.platform_reach === "string" ? ev.platform_reach : null)?.toLowerCase();
-  const hasPublicUrl = Boolean(finding.source_url || finding.url);
 
   let exposureLevel: ExposureLevel;
   if (searchVisibility === "critical" || searchVisibility === "high" || (viewCount != null && viewCount >= 20000) || distLinksCount >= 5) {
@@ -307,10 +342,10 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
     (viewCount != null && viewCount >= 2000) ||
     platformReach === "high" ||
     isPiracyLead ||
-    (hasPublicUrl && (copyType === "RIPPED COPY" || copyType === "CAM PRINT" || copyType === "WEB-DL LEAK" || copyType === "STREAMING MIRROR"))
+    (sourceUrl && (copyType === "RIPPED COPY" || copyType === "CAM PRINT" || copyType === "WEB-DL LEAK" || copyType === "STREAMING MIRROR"))
   ) {
     exposureLevel = "HIGH";
-  } else if (isLive || (viewCount != null && viewCount > 0) || searchVisibility === "moderate" || searchVisibility === "medium" || hasPublicUrl) {
+  } else if (isLive || (viewCount != null && viewCount > 0) || searchVisibility === "moderate" || searchVisibility === "medium" || sourceUrl) {
     exposureLevel = "MODERATE";
   } else if (searchVisibility === "low" || (viewCount != null && viewCount === 0)) {
     exposureLevel = "LOW";

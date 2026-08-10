@@ -10,6 +10,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "test:evidence": "node --import tsx --test src/lib/evidence-review.test.ts",
+    "test:auto-enforcement": "node --import tsx --test src/lib/enforcement/auto-enforcement.test.ts",
+    "test:phase1": "node --import tsx --test src/lib/enforcement/phase1-live-test.ts",
     "test:copyright": "node --import tsx --test src/lib/copyright/discover.test.ts src/lib/copyright/results.test.ts src/lib/copyright/risk-mapping.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
