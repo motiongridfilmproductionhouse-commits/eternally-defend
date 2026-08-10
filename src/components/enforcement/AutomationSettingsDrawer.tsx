@@ -15,9 +15,7 @@ import {
   Lock,
   AlertOctagon,
   FileText,
-  CheckCircle2,
   Server,
-  Activity,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -83,82 +81,83 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
       label: "Copyright Infringements",
       desc: "Original videos, photos, audio and protected creative works",
       icon: Shield,
-      autoSubtitle: "Auto processing (Website DMCA)",
+      autoBadge: "WEBSITE DMCA • Automatic processing",
     },
     {
       key: "impersonation",
       label: "Identity Impersonation",
       desc: "Fake profiles, channels and impersonating accounts",
       icon: UserCheck,
-      autoSubtitle: "AUTO EVALUATION (Human submission required)",
+      autoBadge: "AUTO EVALUATION • Human submission required",
     },
     {
       key: "deepfake",
       label: "Deepfakes & Synthetic Media",
       desc: "AI-generated image, video and audio likeness misuse",
       icon: Cpu,
-      autoSubtitle: "AUTO EVALUATION (Human submission required)",
+      autoBadge: "AUTO EVALUATION • Human submission required",
     },
     {
       key: "privacy",
       label: "Privacy Violations & Doxxing",
       desc: "Personal information and private-content exposure",
       icon: Lock,
-      autoSubtitle: "AUTO EVALUATION (Human submission required)",
+      autoBadge: "AUTO EVALUATION • Human submission required",
     },
     {
       key: "harassment",
       label: "Harassment & Defamation",
       desc: "Abusive campaigns and potentially defamatory content",
       icon: AlertOctagon,
-      autoSubtitle: "AUTO EVALUATION (Human submission required)",
+      autoBadge: "AUTO EVALUATION • Human submission required",
     },
     {
       key: "legal_escalation",
       label: "Legal Escalations",
       desc: "Formal legal notices and subpoena proceedings",
       icon: FileText,
-      autoSubtitle: "Manual action only",
+      autoBadge: "MANUAL ONLY",
     },
   ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl md:max-w-4xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+      <DialogContent className="max-w-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-3xl p-6 shadow-xl max-h-[calc(100vh-3rem)] flex flex-col gap-0 overflow-hidden">
         {/* Header */}
-        <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+        <DialogHeader className="flex flex-row items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div>
-            <DialogTitle className="flex items-center gap-2.5 text-xl font-bold tracking-tight font-mono text-slate-950 dark:text-white">
-              <Bot className="size-6 text-blue-600 dark:text-blue-400" /> AUTOMATION CONTROL
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold tracking-tight font-mono text-slate-950 dark:text-white">
+              <Bot className="size-5 text-blue-600 dark:text-blue-400" /> AUTOMATION CONTROL
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Configure how Eterna responds when verified threats are detected.
             </DialogDescription>
           </div>
 
-          <div className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono">
-            <span className="size-2 rounded-full bg-blue-500" />
-            SYSTEM SAFETY • CONTROLLED TEST MODE
+          <div className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono">
+            <span className="size-1.5 rounded-full bg-blue-500" />
+            CONTROLLED TEST MODE
           </div>
         </DialogHeader>
 
-        <div className="space-y-6 py-1">
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto py-4 space-y-5 pr-1">
           {/* Master Engine Control Card */}
-          <div className="bg-gradient-to-br from-blue-50/80 via-white to-slate-50/50 dark:from-blue-950/30 dark:via-slate-900 dark:to-slate-900 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl p-5 md:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
-            <div className="space-y-1 relative z-10">
-              <div className="font-bold text-base text-slate-950 dark:text-white font-mono flex items-center gap-2">
-                <ShieldCheck className="size-5 text-blue-600 dark:text-blue-400" /> AUTOMATIC ENFORCEMENT ENGINE
+          <div className="bg-gradient-to-r from-blue-50/80 via-white to-slate-50/50 dark:from-blue-950/20 dark:via-slate-900 dark:to-slate-900 border border-blue-200/70 dark:border-blue-900/50 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <div className="font-bold text-sm text-slate-950 dark:text-white font-mono flex items-center gap-2">
+                <ShieldCheck className="size-4 text-blue-600 dark:text-blue-400" /> AUTOMATIC ENFORCEMENT ENGINE
               </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 max-w-lg font-normal">
-                Automatically evaluate verified findings and initiate permitted actions across protected assets.
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-normal">
+                Automatically evaluate verified findings and initiate permitted actions.
               </div>
-              <div className="text-[11px] font-mono text-blue-600 dark:text-blue-400 font-medium pt-1">
+              <div className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-medium pt-0.5">
                 Controlled Test Mode • External recipients protected
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0 relative z-10">
-              <span className={`text-xs font-bold font-mono px-3 py-1 rounded-full border ${autoEnabled ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800" : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"}`}>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className={`text-[11px] font-bold font-mono px-2.5 py-0.5 rounded-full border ${autoEnabled ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800" : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"}`}>
                 {autoEnabled ? "● AUTOMATION ACTIVE" : "● PAUSED"}
               </span>
               <Switch
@@ -169,13 +168,13 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* Category Policy Cards */}
-          <div className="space-y-3">
-            <div className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider font-mono flex items-center gap-2">
-              <Sliders className="size-4 text-blue-600" /> ENFORCEMENT RULES BY CATEGORY
+          {/* Clean Flat Category Settings List */}
+          <div className="space-y-1">
+            <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono mb-2 flex items-center gap-1.5 px-1">
+              <Sliders className="size-3.5 text-blue-600" /> ENFORCEMENT RULES BY CATEGORY
             </div>
 
-            <div className="grid grid-cols-1 gap-3">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
               {categories.map((cat) => {
                 const IconComponent = cat.icon;
                 const currentMode = policies[cat.key] || "AUTO";
@@ -184,40 +183,42 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
                 return (
                   <div
                     key={cat.key}
-                    className="p-4 border border-slate-200/80 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm hover:border-blue-500/30 transition-all duration-200"
+                    className="py-3.5 px-1 flex items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 rounded-xl transition-colors"
                   >
-                    <div className="flex items-start gap-3.5 flex-1 min-w-0">
-                      <div className="size-10 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 grid place-items-center shrink-0 mt-0.5">
-                        <IconComponent className="size-5 text-blue-600 dark:text-blue-400" />
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="size-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 grid place-items-center shrink-0">
+                        <IconComponent className="size-4 text-blue-600 dark:text-blue-400" />
                       </div>
-                      <div className="space-y-0.5 min-w-0">
-                        <div className="font-bold text-sm text-slate-950 dark:text-white">{cat.label}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{cat.desc}</div>
-                        {currentMode === "AUTO" && (
-                          <div className="text-[11px] font-mono text-blue-600 dark:text-blue-400 font-medium pt-0.5">
-                            {cat.autoSubtitle}
-                          </div>
-                        )}
-                        {currentMode === "REVIEW" && (
-                          <div className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-medium pt-0.5">
-                            Human approval required
-                          </div>
-                        )}
-                        {currentMode === "MANUAL" && (
-                          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-                            Manual action only
-                          </div>
-                        )}
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-xs text-slate-900 dark:text-white truncate">{cat.label}</span>
+                          {currentMode === "AUTO" && (
+                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                              • {cat.autoBadge}
+                            </span>
+                          )}
+                          {currentMode === "REVIEW" && (
+                            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400">
+                              • Human approval required
+                            </span>
+                          )}
+                          {currentMode === "MANUAL" && (
+                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                              • Manual action only
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{cat.desc}</div>
                       </div>
                     </div>
 
-                    {/* Segmented Mode Selector */}
-                    <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 self-start md:self-center">
+                    {/* Compact Segmented Control (Height: 34px) */}
+                    <div className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 shrink-0 h-8">
                       <button
                         type="button"
                         disabled={isLegalEscalation}
                         onClick={() => setPolicies({ ...policies, [cat.key]: "AUTO" })}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all ${currentMode === "AUTO" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white disabled:opacity-40"}`}
+                        className={`h-7 px-2.5 rounded-md text-[11px] font-bold font-mono transition-all ${currentMode === "AUTO" ? "bg-blue-600 text-white shadow-xs" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-40"}`}
                       >
                         AUTO
                       </button>
@@ -226,7 +227,7 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
                         type="button"
                         disabled={isLegalEscalation}
                         onClick={() => setPolicies({ ...policies, [cat.key]: "REVIEW" })}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all ${currentMode === "REVIEW" ? "bg-amber-500 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white disabled:opacity-40"}`}
+                        className={`h-7 px-2.5 rounded-md text-[11px] font-bold font-mono transition-all ${currentMode === "REVIEW" ? "bg-amber-500 text-white shadow-xs" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-40"}`}
                       >
                         REVIEW
                       </button>
@@ -234,7 +235,7 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
                       <button
                         type="button"
                         onClick={() => setPolicies({ ...policies, [cat.key]: "MANUAL" })}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all ${currentMode === "MANUAL" ? "bg-slate-700 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white"}`}
+                        className={`h-7 px-2.5 rounded-md text-[11px] font-bold font-mono transition-all ${currentMode === "MANUAL" ? "bg-slate-700 text-white shadow-xs" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
                       >
                         MANUAL
                       </button>
@@ -245,43 +246,37 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* Safety Panel */}
-          <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 flex flex-wrap items-center justify-between gap-4 text-xs">
-            <div className="font-bold text-slate-900 dark:text-white font-mono flex items-center gap-2">
-              <Server className="size-4 text-blue-600" /> PRODUCTION SAFETY STATUS
+          {/* Compact Safety Strip */}
+          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="font-bold text-slate-800 dark:text-slate-200 font-mono text-[11px] flex items-center gap-1.5">
+              <Server className="size-3.5 text-blue-600" /> PRODUCTION SAFETY STATUS
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-slate-600 dark:text-slate-300 font-medium text-[11px] font-mono">
-              <span className="flex items-center gap-1.5">
-                Controlled Test Mode: <strong className="text-blue-600 dark:text-blue-400">ACTIVE</strong>
-              </span>
-              <span className="flex items-center gap-1.5">
-                External Recipient Sending: <strong className="text-slate-700 dark:text-slate-200">BLOCKED</strong>
-              </span>
-              <span className="flex items-center gap-1.5">
-                Kill Switch: <strong className="text-emerald-600 dark:text-emerald-400">ACTIVE</strong>
-              </span>
+            <div className="flex flex-wrap items-center gap-4 text-slate-500 dark:text-slate-400 text-[10px] font-mono">
+              <span>Controlled Test Mode: <strong className="text-blue-600 dark:text-blue-400">ACTIVE</strong></span>
+              <span>External Recipient Sending: <strong className="text-slate-700 dark:text-slate-200">BLOCKED</strong></span>
+              <span>Kill Switch: <strong className="text-emerald-600 dark:text-emerald-400">ACTIVE</strong></span>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <span className="text-xs text-slate-400 dark:text-slate-500 font-sans">
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-sans">
             Changes affect future enforcement evaluations.
           </span>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="text-xs rounded-xl border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300"
+              className="text-xs h-8 rounded-xl border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              className="text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-xl font-semibold px-5"
+              className="text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-xl font-semibold px-4"
               onClick={() => updateMutation.mutate()}
               disabled={updateMutation.isPending}
             >
