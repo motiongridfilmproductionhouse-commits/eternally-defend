@@ -359,6 +359,11 @@ export function ReferenceMaterialReel({
   const searching = active && baseCards.length === 0;
   const showEmpty = !active && baseCards.length === 0;
 
+  const resolvedOriginalPreview = useMemo(() => {
+    if (!originalPreview) return null;
+    return proxiedReferenceImageUrl(originalPreview);
+  }, [originalPreview]);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -378,12 +383,17 @@ export function ReferenceMaterialReel({
 
       <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent shadow-lg">
         <div className="relative aspect-[2/3] max-h-[280px] w-full overflow-hidden sm:max-h-[320px]">
-          {originalPreview ? (
+          {resolvedOriginalPreview ? (
             <>
               <img
-                src={originalPreview}
+                src={resolvedOriginalPreview}
                 alt={`Original reference for ${title}`}
                 className="h-full w-full object-cover"
+                onError={(e) => {
+                  if (originalPreview && !resolvedOriginalPreview.startsWith("/api/public/image-proxy")) {
+                    (e.target as HTMLImageElement).src = proxiedReferenceImageUrl(originalPreview);
+                  }
+                }}
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
               {active && !reducedMotion && (

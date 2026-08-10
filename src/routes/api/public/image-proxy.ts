@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { assertSafePublicUrlForFetch, fetchPublicHttpUrl } from "@/lib/deepfake/url-safety.server";
+import { readStoredObject } from "@/lib/copyright/storage.server";
 
-const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES = 12 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 8_000;
 const ALLOWED_CT = /^image\//i;
 
@@ -10,17 +11,40 @@ export const Route = createFileRoute("/api/public/image-proxy")({
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url);
-        const raw = url.searchParams.get("url");
-        if (!raw) return new Response("missing url", { status: 400 });
+        const raw = url.searchParams.get("key") || url.searchParams.get("url");
+        if (!raw) return new Response("missing url or key", { status: 400 });
 
+        const trimmed = raw.trim();
+
+        // 1. Storage Key Path Handling (e.g., clients/user-123/copyright/uuid-poster.jpg or copyright/...)
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+          try {
+            const bytes = await readStoredObject(trimmed);
+            if (!bytes || !bytes.length) {
+              return new Response("storage object empty", { status: 404 });
+            }
+            const ext = trimmed.split(".").pop()?.toLowerCase() ?? "";
+            const contentType =
+              ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+            return new Response(bytes.buffer as ArrayBuffer, {
+              status: 200,
+              headers: {
+                "content-type": contentType,
+                "content-length": String(bytes.length),
+                "cache-control": "public, max-age=3600, s-maxage=86400",
+              },
+            });
+          } catch (e) {
+            return new Response("storage object read failed", { status: 404 });
+          }
+        }
+
+        // 2. Absolute Remote HTTP/HTTPS URL Handling
         let target: URL;
         try {
-          target = new URL(raw);
+          target = new URL(trimmed);
         } catch {
           return new Response("invalid url", { status: 400 });
-        }
-        if (target.protocol !== "http:" && target.protocol !== "https:") {
-          return new Response("bad protocol", { status: 400 });
         }
 
         try {

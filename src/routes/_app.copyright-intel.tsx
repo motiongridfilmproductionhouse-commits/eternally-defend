@@ -39,6 +39,7 @@ import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
 import { RuntimeValidationPanel } from "@/components/copyright/RuntimeValidationPanel";
+import { proxiedReferenceImageUrl } from "@/lib/copyright/reference-images";
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -490,7 +491,7 @@ function CopyrightIntelPage() {
         <div className="flex gap-4">
           {m.thumbnail_url && (
             <img
-              src={m.thumbnail_url}
+              src={proxiedReferenceImageUrl(m.thumbnail_url)}
               alt={`Matched evidence frame from ${m.platform ?? "source"}`}
               loading="lazy"
               className="h-24 w-24 shrink-0 rounded-lg border border-border/60 object-cover"

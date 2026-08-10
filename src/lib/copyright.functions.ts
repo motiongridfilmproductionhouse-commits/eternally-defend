@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getSignedPutUrl, putObject } from "@/lib/aws/s3.server";
+import { getSignedGetUrl, getSignedPutUrl, putObject } from "@/lib/aws/s3.server";
 import { copyrightImageTypes } from "@/lib/copyright/storage.server";
 
 
@@ -183,13 +183,22 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
     const stats = (scan.stats ?? {}) as Record<string, unknown>;
     const expectedCount = Number(stats.matches ?? 0);
 
-    if (expectedCount > 0 && matchRows.length === 0) {
-      console.warn(
-        `[CopyrightScan] Diagnostic Warning: scan_id=${data.scanId} has stats.matches=${expectedCount} but copyright_matches query returned 0 rows.`,
-      );
+    let originalPreviewUrl: string | null = null;
+    const storagePath = scan.storage_path as string | null;
+    if (storagePath) {
+      const trimmed = storagePath.trim();
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:")) {
+        originalPreviewUrl = trimmed;
+      } else {
+        try {
+          originalPreviewUrl = await getSignedGetUrl(trimmed, 3600);
+        } catch {
+          originalPreviewUrl = `/api/public/image-proxy?key=${encodeURIComponent(trimmed)}`;
+        }
+      }
     }
 
-    return { scan, matches: matchRows };
+    return { scan: { ...scan, original_preview_url: originalPreviewUrl }, matches: matchRows };
   });
 
 export const retryCopyrightScan = createServerFn({ method: "POST" })

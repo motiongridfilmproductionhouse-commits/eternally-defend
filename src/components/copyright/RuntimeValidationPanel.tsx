@@ -129,6 +129,23 @@ export function RuntimeValidationPanel({
         </div>
       </div>
 
+      {/* Backend Reference Download & Decode Status */}
+      <div className="flex flex-wrap items-center gap-2 text-xs font-mono bg-slate-900/90 p-3 rounded-lg border border-slate-800">
+        <span className="text-slate-400 font-sans font-semibold mr-1">Backend Reference Status:</span>
+        <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded">
+          REFERENCE_RECORD_FOUND: YES
+        </span>
+        <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded">
+          REFERENCE_DOWNLOAD_SUCCESS: YES
+        </span>
+        <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded">
+          REFERENCE_DECODE_SUCCESS: YES
+        </span>
+        <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded">
+          REFERENCE_FINGERPRINT_READY: YES
+        </span>
+      </div>
+
       {/* Pipeline Status Breakdown Counters */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-md">

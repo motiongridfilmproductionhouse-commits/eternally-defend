@@ -185,8 +185,26 @@ export async function executeCopyrightScanPipeline(input: {
 
   try {
     tracker.enter("reference_read", "reference_unreadable");
-    const firstBytes = await readStoredObject(keys[0]!);
-    if (!firstBytes.length) throw new Error("Reference file is empty.");
+    let firstBytes: Uint8Array;
+    try {
+      firstBytes = await readStoredObject(keys[0]!);
+      if (!firstBytes.length) throw new Error("Reference file is empty.");
+    } catch (refErr) {
+      await recordCopyrightScanDiagnostic(supabase, scanId, {
+        reference_diagnostics: {
+          reference_record_found: true,
+          reference_object_found: false,
+          reference_download_success: false,
+          reference_decode_success: false,
+          reference_fingerprint_ready: false,
+          reference_storage_key: keys[0],
+          reference_status: "REFERENCE_IMAGE_UNAVAILABLE",
+          error: refErr instanceof Error ? refErr.message : String(refErr),
+        },
+      });
+      throw refErr;
+    }
+
     const sha256 = await sha256Hex(firstBytes);
     const referenceDataUrl = bytesToDataUrl(firstBytes, contentType);
 
@@ -206,6 +224,18 @@ export async function executeCopyrightScanPipeline(input: {
         title,
       ),
     ]);
+
+    await recordCopyrightScanDiagnostic(supabase, scanId, {
+      reference_diagnostics: {
+        reference_record_found: true,
+        reference_object_found: true,
+        reference_download_success: true,
+        reference_decode_success: true,
+        reference_fingerprint_ready: true,
+        reference_storage_key: keys[0],
+        reference_status: "REFERENCE_FINGERPRINT_READY",
+      },
+    });
 
     // 2. Historical suspicious URLs for the same client, seeded into the scan recheck.
     tracker.enter("historical_seed");

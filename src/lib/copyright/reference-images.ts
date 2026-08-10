@@ -351,8 +351,12 @@ export class ReferenceImageRecorder {
 /** Client-side safe image proxy path (never forwards secrets). */
 export function proxiedReferenceImageUrl(remoteUrl: string): string {
   if (!remoteUrl) return remoteUrl;
-  if (remoteUrl.startsWith("blob:") || remoteUrl.startsWith("data:") || remoteUrl.startsWith("/")) {
-    return remoteUrl;
+  const trimmed = remoteUrl.trim();
+  if (trimmed.startsWith("blob:") || trimmed.startsWith("data:")) {
+    return trimmed;
   }
-  return `/api/public/image-proxy?url=${encodeURIComponent(remoteUrl)}`;
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    return `/api/public/image-proxy?key=${encodeURIComponent(trimmed)}`;
+  }
+  return `/api/public/image-proxy?url=${encodeURIComponent(trimmed)}`;
 }
