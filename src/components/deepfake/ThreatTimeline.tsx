@@ -30,9 +30,10 @@ export function ThreatTimeline({ events }: { events: TimelineEvent[] }) {
             key={ev.id}
             className={`flex items-start justify-between gap-2 p-2 rounded-md border text-[11px] transition ${
               ev.threat
-                ? "border-red-500/50 bg-red-500/10 text-red-200"
-                : "border-border/40 bg-secondary/20 text-muted-foreground"
+                ? "border-red-500/40 bg-red-500/10 text-red-600"
+                : "border-border/50 bg-secondary/30 text-muted-foreground"
             }`}
+
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <span className="font-mono text-[10px] opacity-70 shrink-0">{ev.time}</span>
