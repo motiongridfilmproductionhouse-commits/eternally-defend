@@ -50,7 +50,7 @@ export function ThreatTimeline({ events }: { events: TimelineEvent[] }) {
               </div>
             </div>
             {ev.threat && (
-              <Badge className="bg-red-600/30 text-red-300 border border-red-500/50 text-[9px] py-0 shrink-0">
+              <Badge className="bg-red-500/15 text-red-600 border border-red-500/40 text-[9px] py-0 shrink-0">
                 +1 Threat
               </Badge>
             )}
