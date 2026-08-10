@@ -94,6 +94,29 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       }
     };
 
+    // 0. Reap stale "running" scans for this target so a new scan can start
+    const staleCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: staleScans } = await supabase
+      .from("deepfake_scans")
+      .select("id, heartbeat_at, created_at")
+      .eq("user_id", userId)
+      .eq("status", "running")
+      .ilike("target_name", data.target_name.trim());
+
+    for (const stale of staleScans ?? []) {
+      const last = stale.heartbeat_at ?? stale.created_at;
+      if (last && last > staleCutoff) continue;
+      await supabase
+        .from("deepfake_scans")
+        .update({
+          status: "failed",
+          scan_run_token: null,
+          finished_at: new Date().toISOString(),
+          error_message: "Scan abandoned (no heartbeat)",
+        })
+        .eq("id", stale.id);
+    }
+
     // 1. Create scan row
     const { data: scan, error: sErr } = await supabase
       .from("deepfake_scans")
@@ -103,11 +126,20 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         aliases: data.aliases ?? [],
         handles: data.handles ?? [],
         status: "running",
+        scan_run_token: crypto.randomUUID(),
+        heartbeat_at: new Date().toISOString(),
+        lease_expires_at: new Date(Date.now() + 3 * 60 * 1000).toISOString(),
       })
       .select("*")
       .single();
 
+    if (sErr?.message?.includes("deepfake_scans_one_active_per_target")) {
+      throw new Error(
+        `A scan for "${data.target_name}" is already running. Wait for it to finish or cancel it before starting a new one.`,
+      );
+    }
     if (sErr || !scan) throw new Error(sErr?.message ?? "failed to create scan");
+
 
     const telemetry: ScanTelemetry = {
       stage: "initializing",
