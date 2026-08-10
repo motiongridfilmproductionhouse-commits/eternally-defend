@@ -1,7 +1,7 @@
 /**
- * Helper to safely map finding data (MatchRow, PublicSuspiciousSource, ThreatResultRow, etc.)
- * into CopyrightFindingRiskPanelProps without generating fake metrics or default scores.
- * Fully null-safe for SSR and missing/partial data.
+ * Client-Facing Threat Classification & Risk Mapping Helper
+ * Formats copyright findings into clear, non-technical threat intelligence.
+ * Strictly preserves data integrity — no fabricated numbers or fake fallback scores.
  */
 
 export interface SourceFindingData {
@@ -24,22 +24,34 @@ export interface SourceFindingData {
   current_reachability?: string | null;
 }
 
+export type ThreatLevel = "Critical" | "High" | "Medium" | "Low";
+export type ThreatLabel = "CRITICAL" | "HIGH RISK" | "MEDIUM RISK" | "LOW RISK";
+export type DistributionActivity = "VERY HIGH" | "HIGH" | "MODERATE" | "LOW";
+export type ExposureLevel = "VERY HIGH" | "HIGH" | "MODERATE" | "LOW" | "NOT ESTABLISHED";
+
 export interface MappedRiskProps {
   findingId: string;
   piracyRiskScore: number | null;
-  trafficSignal: string;
-  audienceReach: string;
-  distributionType: string;
+  threatLevel: ThreatLevel;
+  threatLabel: ThreatLabel;
+  distributionActivity: DistributionActivity;
+  distributionActivityFormatted: string;
+  exposureLevel: ExposureLevel;
+  exposureLevelFormatted: string;
+  copyType: string;
   isLive: boolean;
   canTakeAction: boolean;
-  viewCount?: number | null;
-  engagementCount?: number | null;
-  searchVisibility?: string | null;
+  isClientThreat: boolean;
+  alertMessage: string;
+  // Compatibility getters for legacy callers
+  trafficSignal?: string;
+  audienceReach?: string;
+  distributionType?: string;
   formattedTraffic?: string | null;
 }
 
 /**
- * Classify print/leak type based on real finding details (CAM, HDTC, WEB-DL, etc.)
+ * Detect copy type based on real finding details (CAM, HDTC, WEB-DL, etc.)
  */
 export function detectPrintLeakType(finding?: SourceFindingData | null): string {
   if (!finding) return "UNKNOWN";
@@ -61,6 +73,7 @@ export function detectPrintLeakType(finding?: SourceFindingData | null): string 
     finding.ocr_text,
     dist?.classification,
     dist?.content_type,
+    dist?.print_leak_type,
     JSON.stringify(indicators),
     JSON.stringify(tags),
   ]
@@ -80,14 +93,17 @@ export function detectPrintLeakType(finding?: SourceFindingData | null): string 
   if (/\b(web-?dl|webrip)\b/i.test(combined)) {
     return "WEB-DL LEAK";
   }
+  if (/\b(download|download_page|file_host|torrent|magnet)\b/i.test(combined)) {
+    return "DOWNLOAD MIRROR";
+  }
   if (/\b(ripped_copy|ripped copy)\b/i.test(combined)) {
     return "RIPPED COPY";
   }
+  if (/\b(full_movie|full movie|full_length)\b/i.test(combined)) {
+    return "FULL MOVIE REUPLOAD";
+  }
   if (/\b(streaming|unauthorized_streaming)\b/i.test(combined)) {
     return "STREAMING MIRROR";
-  }
-  if (/\b(download|download_page|file_host|torrent)\b/i.test(combined)) {
-    return "DOWNLOAD MIRROR";
   }
   if (/\b(reupload|video_host_reupload)\b/i.test(combined)) {
     return "REUPLOAD";
@@ -96,26 +112,61 @@ export function detectPrintLeakType(finding?: SourceFindingData | null): string 
 }
 
 /**
- * Maps raw finding object into clean props for CopyrightFindingRiskPanel.
- * NO fake defaults are generated: metrics are strictly real, explicitly derived from real evidence, or Unknown.
+ * Maps raw finding into client-facing threat metrics.
  */
 export function mapFindingToRiskProps(finding?: SourceFindingData | null): MappedRiskProps {
   if (!finding) {
     return {
       findingId: "",
       piracyRiskScore: null,
-      trafficSignal: "Unknown",
-      audienceReach: "Unknown",
-      distributionType: "UNKNOWN",
+      threatLevel: "Low",
+      threatLabel: "LOW RISK",
+      distributionActivity: "LOW",
+      distributionActivityFormatted: "Low",
+      exposureLevel: "NOT ESTABLISHED",
+      exposureLevelFormatted: "Not Established",
+      copyType: "UNKNOWN",
       isLive: false,
       canTakeAction: false,
+      isClientThreat: false,
+      alertMessage: "No piracy threat detected",
+      trafficSignal: "Low",
+      audienceReach: "Not Established",
+      distributionType: "UNKNOWN",
+    };
+  }
+
+  // Check if item is NOT_SUBJECT or rejected
+  const isNotSubject =
+    finding.classification === "NOT_SUBJECT" ||
+    finding.review_status === "not_subject" ||
+    finding.review_status === "rejected";
+
+  if (isNotSubject) {
+    return {
+      findingId: finding.id ?? "",
+      piracyRiskScore: null,
+      threatLevel: "Low",
+      threatLabel: "LOW RISK",
+      distributionActivity: "LOW",
+      distributionActivityFormatted: "Low",
+      exposureLevel: "NOT ESTABLISHED",
+      exposureLevelFormatted: "Not Established",
+      copyType: "NOT_SUBJECT",
+      isLive: false,
+      canTakeAction: false,
+      isClientThreat: false,
+      alertMessage: "Not subject to enforcement",
+      trafficSignal: "Low",
+      audienceReach: "Not Established",
+      distributionType: "NOT_SUBJECT",
     };
   }
 
   const ev = (finding.evidence && typeof finding.evidence === "object" ? finding.evidence : {}) as Record<string, unknown>;
   const dist = (ev && typeof ev.distribution === "object" && ev.distribution !== null ? ev.distribution : {}) as Record<string, unknown>;
 
-  // 1. Piracy Risk Score (REAL VALUE ONLY - null if unmeasured)
+  // 1. PIRACY RISK SCORE (numeric value if available, else null)
   const explicitRiskScore =
     typeof dist?.piracy_risk_score === "number"
       ? dist.piracy_risk_score
@@ -126,7 +177,7 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
   const piracyRiskScore =
     explicitRiskScore ?? (typeof finding.confidence === "number" ? Math.round(finding.confidence) : null);
 
-  // 2. Print / Leak Type
+  // 2. COPY TYPE
   const explicitLeakType =
     typeof dist?.print_leak_type === "string"
       ? dist.print_leak_type
@@ -134,83 +185,52 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
         ? ev.print_leak_type
         : null;
 
-  const distributionType = explicitLeakType || detectPrintLeakType(finding);
+  const copyType = explicitLeakType || detectPrintLeakType(finding);
 
-  // 3. Traffic Signal & Numbers (ONLY FROM REAL EVIDENCE)
-  let viewCount: number | null = null;
-  if (typeof dist?.view_count === "number") viewCount = dist.view_count;
-  else if (typeof ev?.view_count === "number") viewCount = ev.view_count;
-
-  let engagementCount: number | null = null;
-  if (typeof dist?.engagement_count === "number") engagementCount = dist.engagement_count;
-  else if (typeof ev?.engagement_count === "number") engagementCount = ev.engagement_count;
-
-  let searchVisibility: string | null = null;
-  if (typeof dist?.search_visibility === "string") searchVisibility = dist.search_visibility;
-  else if (typeof ev?.search_visibility === "string") searchVisibility = ev.search_visibility;
-
-  let formattedTraffic: string | null = null;
-  if (viewCount != null && viewCount > 0) {
-    formattedTraffic = viewCount >= 1000 ? `${(viewCount / 1000).toFixed(1)}K views` : `${viewCount} views`;
-  } else if (engagementCount != null && engagementCount > 0) {
-    formattedTraffic = engagementCount >= 1000 ? `${(engagementCount / 1000).toFixed(1)}K engagements` : `${engagementCount} engagements`;
-  }
-
-  const explicitTraffic =
-    typeof dist?.traffic_signal === "string"
-      ? dist.traffic_signal
-      : typeof ev?.traffic_signal === "string"
-        ? ev.traffic_signal
-        : typeof dist?.page_traffic === "string"
-          ? dist.page_traffic
-          : typeof ev?.page_traffic === "string"
-            ? ev.page_traffic
-            : null;
-
-  let trafficSignal: string;
-  if (explicitTraffic) {
-    trafficSignal = explicitTraffic;
-  } else if (formattedTraffic) {
-    trafficSignal = formattedTraffic;
-  } else if (searchVisibility) {
-    trafficSignal = searchVisibility.charAt(0).toUpperCase() + searchVisibility.slice(1);
+  // 3. THREAT LEVEL & LABEL (Classification-aware minimum severity)
+  let threatLevel: ThreatLevel;
+  if (piracyRiskScore != null) {
+    if (piracyRiskScore >= 85) threatLevel = "Critical";
+    else if (piracyRiskScore >= 70) threatLevel = "High";
+    else if (piracyRiskScore >= 45) threatLevel = "Medium";
+    else threatLevel = "Low";
   } else {
-    const distLinks = Array.isArray(dist?.distribution_links) ? dist.distribution_links.length : 0;
-    if (distLinks >= 5) trafficSignal = "High";
-    else if (distLinks >= 2) trafficSignal = "Moderate";
-    else trafficSignal = "Unknown";
+    // Unmeasured / unscored base
+    threatLevel = "High";
   }
 
-  // 4. Audience Reach (ONLY FROM REAL EVIDENCE)
-  const explicitReach =
-    typeof dist?.audience_reach === "string"
-      ? dist.audience_reach
-      : typeof ev?.audience_reach === "string"
-        ? ev.audience_reach
-        : typeof dist?.platform_reach === "string"
-          ? dist.platform_reach
-          : typeof ev?.platform_reach === "string"
-            ? ev.platform_reach
-            : null;
-
-  let audienceReach: string;
-  if (explicitReach) {
-    audienceReach = explicitReach;
-  } else if (viewCount != null && viewCount > 0) {
-    if (viewCount >= 50000) audienceReach = "Very High";
-    else if (viewCount >= 5000) audienceReach = "High";
-    else if (viewCount >= 500) audienceReach = "Moderate";
-    else audienceReach = "Low";
-  } else if (searchVisibility) {
-    audienceReach = searchVisibility.charAt(0).toUpperCase() + searchVisibility.slice(1);
-  } else {
-    const distLinks = Array.isArray(dist?.distribution_links) ? dist.distribution_links.length : 0;
-    if (distLinks >= 5) audienceReach = "Very High";
-    else if (distLinks >= 2) audienceReach = "High";
-    else audienceReach = "Unknown";
+  // Enforce minimum threat levels for confirmed movie copies
+  if (
+    copyType === "CAM PRINT" ||
+    copyType === "THEATRE RECORDING" ||
+    copyType === "HDTC" ||
+    copyType === "WEB-DL LEAK" ||
+    copyType === "FULL MOVIE REUPLOAD" ||
+    copyType === "STREAMING MIRROR"
+  ) {
+    if (threatLevel === "Low" || threatLevel === "Medium") {
+      threatLevel = "High";
+    }
+  } else if (
+    copyType === "DOWNLOAD MIRROR" ||
+    copyType === "RIPPED COPY" ||
+    copyType === "REUPLOAD"
+  ) {
+    if (threatLevel === "Low") {
+      threatLevel = "Medium";
+    }
   }
 
-  // 5. Is Live (ONLY WHEN ACTUALLY REACHABLE / RECONFIRMED IN CURRENT SCAN)
+  const threatLabel: ThreatLabel =
+    threatLevel === "Critical"
+      ? "CRITICAL"
+      : threatLevel === "High"
+        ? "HIGH RISK"
+        : threatLevel === "Medium"
+          ? "MEDIUM RISK"
+          : "LOW RISK";
+
+  // 4. IS LIVE
   const stateStr = String(finding.source_state ?? finding.status ?? "").toLowerCase();
   const currentReachability = finding.current_reachability;
 
@@ -226,20 +246,112 @@ export function mapFindingToRiskProps(finding?: SourceFindingData | null): Mappe
     currentReachability !== "unreachable" &&
     (stateStr === "new_confirmed" || stateStr === "historical_reconfirmed" || stateStr === "active" || currentReachability === "reachable");
 
-  // 6. Can Take Action
+  // 5. DISTRIBUTION ACTIVITY (Real evidence only, not from score alone)
+  let viewCount: number | null = null;
+  if (typeof dist?.view_count === "number") viewCount = dist.view_count;
+  else if (typeof ev?.view_count === "number") viewCount = ev.view_count;
+
+  let engagementCount: number | null = null;
+  if (typeof dist?.engagement_count === "number") engagementCount = dist.engagement_count;
+  else if (typeof ev?.engagement_count === "number") engagementCount = ev.engagement_count;
+
+  const distLinksCount = Array.isArray(dist?.distribution_links) ? dist.distribution_links.length : 0;
+  const searchVisibility = (typeof dist?.search_visibility === "string" ? dist.search_visibility : typeof ev?.search_visibility === "string" ? ev.search_visibility : null)?.toLowerCase();
+
+  let distributionActivity: DistributionActivity;
+  if (distLinksCount >= 5 || (viewCount != null && viewCount >= 50000) || (engagementCount != null && engagementCount >= 10000)) {
+    distributionActivity = "VERY HIGH";
+  } else if (
+    distLinksCount >= 2 ||
+    (viewCount != null && viewCount >= 1000) ||
+    (engagementCount != null && engagementCount >= 500) ||
+    searchVisibility === "high" ||
+    searchVisibility === "critical" ||
+    (isLive && (copyType === "STREAMING MIRROR" || copyType === "DOWNLOAD MIRROR" || copyType === "CAM PRINT" || copyType === "WEB-DL LEAK"))
+  ) {
+    distributionActivity = "HIGH";
+  } else if (isLive || distLinksCount === 1 || (viewCount != null && viewCount > 0) || searchVisibility === "medium" || searchVisibility === "moderate") {
+    distributionActivity = "MODERATE";
+  } else {
+    distributionActivity = "LOW";
+  }
+
+  const distributionActivityFormattedMap: Record<DistributionActivity, string> = {
+    "VERY HIGH": "Very High",
+    HIGH: "High",
+    MODERATE: "Moderate",
+    LOW: "Low",
+  };
+  const distributionActivityFormatted = distributionActivityFormattedMap[distributionActivity];
+
+  // 6. EXPOSURE LEVEL (Public discoverability & availability; never "Unknown")
+  const platformReach = (typeof dist?.platform_reach === "string" ? dist.platform_reach : typeof ev?.platform_reach === "string" ? ev.platform_reach : null)?.toLowerCase();
+
+  let exposureLevel: ExposureLevel;
+  if (searchVisibility === "critical" || searchVisibility === "high" || (viewCount != null && viewCount >= 20000) || distLinksCount >= 5) {
+    exposureLevel = "VERY HIGH";
+  } else if (
+    (searchVisibility != null && searchVisibility !== "none" && isLive) ||
+    distLinksCount >= 2 ||
+    (viewCount != null && viewCount >= 2000) ||
+    platformReach === "high"
+  ) {
+    exposureLevel = "HIGH";
+  } else if (isLive || (viewCount != null && viewCount > 0) || searchVisibility === "moderate" || searchVisibility === "medium") {
+    exposureLevel = "MODERATE";
+  } else if (searchVisibility === "low" || (viewCount != null && viewCount === 0)) {
+    exposureLevel = "LOW";
+  } else {
+    exposureLevel = "NOT ESTABLISHED";
+  }
+
+  const exposureLevelFormattedMap: Record<ExposureLevel, string> = {
+    "VERY HIGH": "Very High",
+    HIGH: "High",
+    MODERATE: "Moderate",
+    LOW: "Low",
+    "NOT ESTABLISHED": "Not Established",
+  };
+  const exposureLevelFormatted = exposureLevelFormattedMap[exposureLevel];
+
+  // 7. ALERT MESSAGE
+  let alertMessage: string;
+  if (distLinksCount >= 3) {
+    alertMessage = "Multiple public distribution copies detected";
+  } else if (exposureLevel === "VERY HIGH" || exposureLevel === "HIGH") {
+    alertMessage = "High public exposure detected for this copy";
+  } else if (copyType === "CAM PRINT" || copyType === "THEATRE RECORDING") {
+    alertMessage = "Unauthorised theatre-recorded copy is actively available";
+  } else if (copyType === "WEB-DL LEAK") {
+    alertMessage = "High-quality leaked copy is publicly distributed";
+  } else if (copyType === "STREAMING MIRROR") {
+    alertMessage = "Active streaming copy detected on a public source";
+  } else if (copyType === "DOWNLOAD MIRROR") {
+    alertMessage = "Downloadable movie copy detected";
+  } else if (copyType === "FULL MOVIE REUPLOAD") {
+    alertMessage = "Full unauthorized movie reupload detected";
+  } else {
+    alertMessage = "Unauthorized piracy copy detected on public source";
+  }
+
   const canTakeAction = finding.review_status !== "dismissed" && finding.review_status !== "removed";
 
   return {
     findingId: finding.id ?? "",
     piracyRiskScore,
-    trafficSignal,
-    audienceReach,
-    distributionType,
+    threatLevel,
+    threatLabel,
+    distributionActivity,
+    distributionActivityFormatted,
+    exposureLevel,
+    exposureLevelFormatted,
+    copyType,
     isLive,
     canTakeAction,
-    viewCount,
-    engagementCount,
-    searchVisibility,
-    formattedTraffic,
+    isClientThreat: true,
+    alertMessage,
+    trafficSignal: distributionActivityFormatted,
+    audienceReach: exposureLevelFormatted,
+    distributionType: copyType,
   };
 }

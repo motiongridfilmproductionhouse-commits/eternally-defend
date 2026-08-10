@@ -486,6 +486,7 @@ function CopyrightIntelPage() {
           : "text-muted-foreground";
 
     const riskProps = mapFindingToRiskProps(m);
+    if (!riskProps.isClientThreat) return null;
 
     return (
       <article

@@ -123,6 +123,7 @@ function SourceCard({
   const breakdown = dist?.confidence_breakdown;
 
   const riskProps = mapFindingToRiskProps(source);
+  if (!riskProps.isClientThreat) return null;
 
   return (
     <article className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur">

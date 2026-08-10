@@ -2,13 +2,105 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { mapFindingToRiskProps, detectPrintLeakType } from "./risk-mapping";
 
+test("1. Verified CAM copy with no numeric score => HIGH RISK, active distribution, COPY TYPE = CAM PRINT", () => {
+  const result = mapFindingToRiskProps({
+    id: "cam-no-score",
+    confidence: null,
+    detection_type: "cam_threat",
+    title: "Leaked Movie 2026 CAMRip 720p",
+    source_url: "https://example.com/cam-leak",
+    source_state: "new_confirmed",
+  });
+
+  assert.equal(result.threatLevel, "High");
+  assert.equal(result.threatLabel, "HIGH RISK");
+  assert.equal(result.copyType, "CAM PRINT");
+  assert.equal(result.isLive, true);
+  assert.equal(result.isClientThreat, true);
+  assert.equal(
+    result.distributionActivity === "HIGH" || result.distributionActivity === "MODERATE",
+    true,
+    "DISTRIBUTION ACTIVITY should be at least MODERATE or HIGH for active source"
+  );
+});
+
+test("2. WEB-DL active public page => minimum HIGH RISK", () => {
+  const result = mapFindingToRiskProps({
+    id: "webdl-copy",
+    confidence: 30, // low score, but verified WEB-DL
+    title: "Movie.2026.1080p.WEB-DL.x264",
+    source_url: "https://example.com/webdl",
+    source_state: "active",
+  });
+
+  assert.equal(result.copyType, "WEB-DL LEAK");
+  assert.equal(result.threatLevel, "High");
+  assert.equal(result.threatLabel, "HIGH RISK");
+});
+
+test("3. Download mirror => minimum MEDIUM RISK", () => {
+  const result = mapFindingToRiskProps({
+    id: "download-mirror",
+    confidence: 20, // low base score
+    title: "Download Full Movie Torrent Link",
+    source_url: "https://filehost.com/download/123",
+    source_state: "active",
+  });
+
+  assert.equal(result.copyType, "DOWNLOAD MIRROR");
+  assert.equal(result.threatLevel, "Medium");
+  assert.equal(result.threatLabel, "MEDIUM RISK");
+});
+
+test("4. NOT_SUBJECT => isClientThreat = false (not rendered as client threat card)", () => {
+  const result = mapFindingToRiskProps({
+    id: "not-subject-item",
+    classification: "NOT_SUBJECT",
+    review_status: "not_subject",
+  });
+
+  assert.equal(result.isClientThreat, false);
+  assert.equal(result.copyType, "NOT_SUBJECT");
+});
+
+test("5. No exposure evidence => EXPOSURE LEVEL = NOT ESTABLISHED", () => {
+  const result = mapFindingToRiskProps({
+    id: "no-exposure",
+    confidence: 80,
+    source_url: "https://example.com/item",
+    // No search visibility, no view count, no reachability
+  });
+
+  assert.equal(result.exposureLevel, "NOT ESTABLISHED");
+  assert.equal(result.exposureLevelFormatted, "Not Established");
+  assert.notEqual(result.exposureLevelFormatted, "Unknown");
+});
+
+test("6. High piracy risk does not automatically create high distribution activity", () => {
+  const result = mapFindingToRiskProps({
+    id: "high-score-no-dist",
+    confidence: 95,
+    source_url: "https://example.com/item",
+    // Zero view count, zero links, unconfirmed reachability
+  });
+
+  assert.equal(result.piracyRiskScore, 95);
+  assert.equal(
+    result.distributionActivity === "LOW" || result.distributionActivity === "MODERATE",
+    true,
+    "DISTRIBUTION ACTIVITY should remain LOW or MODERATE when no real distribution evidence exists"
+  );
+  assert.notEqual(result.distributionActivity, "VERY HIGH");
+});
+
 test("Risk Mapping: handles undefined or null finding without throwing", () => {
   const resUndefined = mapFindingToRiskProps(undefined);
   assert.equal(resUndefined.findingId, "");
   assert.equal(resUndefined.piracyRiskScore, null);
-  assert.equal(resUndefined.trafficSignal, "Unknown");
-  assert.equal(resUndefined.audienceReach, "Unknown");
+  assert.equal(resUndefined.distributionActivity, "LOW");
+  assert.equal(resUndefined.exposureLevel, "NOT ESTABLISHED");
   assert.equal(resUndefined.isLive, false);
+  assert.equal(resUndefined.isClientThreat, false);
 
   const resNull = mapFindingToRiskProps(null);
   assert.equal(resNull.findingId, "");
@@ -26,107 +118,10 @@ test("Risk Mapping: handles missing distribution metadata and null values safely
 
   assert.equal(result.findingId, "partial-1");
   assert.equal(result.piracyRiskScore, null);
-  assert.equal(result.trafficSignal, "Unknown");
-  assert.equal(result.audienceReach, "Unknown");
-  assert.equal(result.distributionType, "UNKNOWN");
+  assert.equal(result.distributionActivity, "LOW");
+  assert.equal(result.exposureLevel, "NOT ESTABLISHED");
+  assert.equal(result.copyType, "UNKNOWN");
   assert.equal(result.isLive, false);
-});
-
-test("Risk Mapping: no risk score => Unknown (piracyRiskScore is null, no fake 50)", () => {
-  const result = mapFindingToRiskProps({
-    id: "match-no-score",
-    confidence: null,
-    source_url: "https://example.com/item",
-  });
-
-  assert.equal(result.piracyRiskScore, null);
-  assert.notEqual(result.piracyRiskScore, 50);
-});
-
-test("Risk Mapping: no traffic evidence => Unknown", () => {
-  const result = mapFindingToRiskProps({
-    id: "match-no-traffic",
-    confidence: 60,
-    source_url: "https://example.com/item",
-  });
-
-  assert.equal(result.trafficSignal, "Unknown");
-  assert.equal(result.formattedTraffic, null);
-});
-
-test("Risk Mapping: high piracy risk + no traffic evidence => Traffic remains Unknown", () => {
-  const result = mapFindingToRiskProps({
-    id: "match-high-risk-no-traffic",
-    confidence: 95,
-    source_url: "https://example.com/item",
-    evidence: {
-      distribution: {
-        piracy_risk_score: 95,
-      },
-    },
-  });
-
-  assert.equal(result.piracyRiskScore, 95);
-  assert.equal(result.trafficSignal, "Unknown");
-  assert.equal(result.audienceReach, "Unknown");
-});
-
-test("Risk Mapping: stale historical finding => not automatically Live", () => {
-  const resultPreserved = mapFindingToRiskProps({
-    id: "match-stale-preserved",
-    confidence: 80,
-    source_state: "historical_preserved",
-    source_url: "https://example.com/item",
-  });
-
-  assert.equal(resultPreserved.isLive, false);
-
-  const resultReview = mapFindingToRiskProps({
-    id: "match-stale-review",
-    confidence: 75,
-    source_state: "historical_requires_review",
-    source_url: "https://example.com/item",
-  });
-
-  assert.equal(resultReview.isLive, false);
-
-  const resultActive = mapFindingToRiskProps({
-    id: "match-active",
-    confidence: 75,
-    source_state: "new_confirmed",
-    source_url: "https://example.com/item",
-  });
-
-  assert.equal(resultActive.isLive, true);
-});
-
-test("Risk Mapping: real view count => formatted traffic value", () => {
-  const result = mapFindingToRiskProps({
-    id: "match-with-views",
-    confidence: 78,
-    source_url: "https://example.com/item",
-    evidence: {
-      distribution: {
-        view_count: 3240,
-      },
-    },
-  });
-
-  assert.equal(result.formattedTraffic, "3.2K views");
-  assert.equal(result.trafficSignal, "3.2K views");
-});
-
-test("Risk Mapping: known risk score => mapped piracyRiskScore correctly", () => {
-  const result = mapFindingToRiskProps({
-    id: "match-known-score",
-    confidence: 82,
-    source_url: "https://example.com/cam-leak",
-    detection_type: "cam_threat",
-    title: "Movie 2026 CAMRip 720p",
-  });
-
-  assert.equal(result.piracyRiskScore, 82);
-  assert.equal(result.distributionType, "CAM PRINT");
 });
 
 test("Risk Mapping: detectPrintLeakType safely handles null/empty input", () => {
