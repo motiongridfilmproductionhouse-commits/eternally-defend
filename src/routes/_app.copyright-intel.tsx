@@ -995,109 +995,111 @@ function CopyrightIntelPage() {
                     )}
 
                     {/* Admin Diagnostics Panel */}
-                    <div className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          <Bug className="h-4 w-4 text-primary" />
-                          <span>Admin Scan Diagnostics</span>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs"
-                          onClick={() => setShowAdminDiagnostics(!showAdminDiagnostics)}
-                        >
-                          {showAdminDiagnostics ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
-                          {showAdminDiagnostics ? "Hide Diagnostics" : "Show Diagnostics"}
-                        </Button>
-                      </div>
-
-                      {showAdminDiagnostics && (
-                        <div className="space-y-3 pt-2 text-xs border-t border-border/40">
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Current Stage</span>
-                              <span className="font-semibold">{String(sStats.current_stage || sStats.stage || scanStatus)}</span>
-                            </div>
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Failed Stage</span>
-                              <span className="font-semibold text-destructive">{String(sStats.failed_stage || sStats.error_stage || (scanStatus === "failed" ? "discovery" : "None"))}</span>
-                            </div>
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Failure Code</span>
-                              <span className="font-mono font-semibold text-destructive">{String(sStats.failure_code || sStats.error_code || (scanStatus === "failed" ? "EXECUTION_ERROR" : "N/A"))}</span>
-                            </div>
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Failure Message</span>
-                              <span className="truncate font-semibold text-destructive">{String(sStats.failure_reason || sStats.error || sDetail?.error || "None")}</span>
-                            </div>
-
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Queries Generated</span>
-                              <span className="font-semibold">{String(sStats.queries_generated ?? 0)}</span>
-                            </div>
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Providers Attempted</span>
-                              <span className="font-semibold">{String(sStats.provider_requests_started ?? sStats.providers_attempted ?? 0)}</span>
-                            </div>
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Successful Provider Requests</span>
-                              <span className="font-semibold text-emerald-400">{String(sStats.provider_requests_succeeded ?? sStats.provider_successes ?? 0)}</span>
-                            </div>
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Candidate Pages Discovered</span>
-                              <span className="font-semibold">{String(sStats.unique_candidate_urls ?? sStats.candidate_pages ?? 0)}</span>
-                            </div>
-
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Pages Crawled</span>
-                              <span className="font-semibold">{String(sStats.pages_crawled ?? sStats.crawled_pages ?? 0)}</span>
-                            </div>
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Findings Persisted</span>
-                              <span className="font-semibold">{String(sStats.findings_verified ?? sStats.total_matches ?? currentMatches.length)}</span>
-                            </div>
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Worker Started At</span>
-                              <span className="font-semibold truncate">{String(sStats.executor_started_at || sStats.started_at || sDetail?.created_at || "N/A")}</span>
-                            </div>
-                            <div className="rounded bg-background/50 p-2 border border-border/40">
-                              <span className="text-[10px] text-muted-foreground uppercase block font-medium">Last Heartbeat</span>
-                              <span className="font-semibold truncate">{String(sStats.last_heartbeat || sStats.updated_at || "N/A")}</span>
-                            </div>
+                    {isAdmin ? (
+                      <div className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            <Bug className="h-4 w-4 text-primary" />
+                            <span>Admin Scan Diagnostics</span>
                           </div>
-
-                          {/* Runtime Reference Validation Admin Panel */}
-                          <RuntimeValidationPanel
-                            data={sStats.verification_diagnostics as any}
-                            isAdmin={isAdmin}
-                          />
-
-                          {Number(sStats.provider_requests_failed ?? sStats.provider_failures ?? 0) > 0 && (
-                            <div className="pt-2 border-t border-border/40">
-                              <button
-                                onClick={() => setShowProviderFailures(!showProviderFailures)}
-                                className="flex items-center justify-between w-full text-xs font-semibold text-destructive hover:underline py-1"
-                              >
-                                <span>Provider Failures ({String(sStats.provider_requests_failed ?? sStats.provider_failures ?? 0)})</span>
-                                <span>{showProviderFailures ? "▲ Hide" : "▼ Show"}</span>
-                              </button>
-                              {showProviderFailures && (
-                                <div className="mt-2 space-y-1 bg-background/40 p-2.5 rounded border border-border/40 font-mono text-[11px]">
-                                  <div className="text-muted-foreground">Sanitized Provider Failure Categories:</div>
-                                  <div className="text-destructive flex items-center gap-2">
-                                    <span>• Provider Rate Limit / Quota Exceeded (Sanitized status 429)</span>
-                                  </div>
-                                  <div className="text-amber-400 flex items-center gap-2">
-                                    <span>• Provider Request Timeout (Sanitized status 408)</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() => setShowAdminDiagnostics(!showAdminDiagnostics)}
+                          >
+                            {showAdminDiagnostics ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
+                            {showAdminDiagnostics ? "Hide Diagnostics" : "Show Diagnostics"}
+                          </Button>
                         </div>
-                      )}
-                    </div>
+
+                        {showAdminDiagnostics && (
+                          <div className="space-y-3 pt-2 text-xs border-t border-border/40">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Current Stage</span>
+                                <span className="font-semibold">{String(sStats.current_stage || sStats.stage || scanStatus)}</span>
+                              </div>
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Failed Stage</span>
+                                <span className="font-semibold text-destructive">{String(sStats.failed_stage || sStats.error_stage || (scanStatus === "failed" ? "discovery" : "None"))}</span>
+                              </div>
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Failure Code</span>
+                                <span className="font-mono font-semibold text-destructive">{String(sStats.failure_code || sStats.error_code || (scanStatus === "failed" ? "EXECUTION_ERROR" : "N/A"))}</span>
+                              </div>
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Failure Message</span>
+                                <span className="truncate font-semibold text-destructive">{String(sStats.failure_reason || sStats.error || sDetail?.error || "None")}</span>
+                              </div>
+
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Queries Generated</span>
+                                <span className="font-semibold">{String(sStats.queries_generated ?? 0)}</span>
+                              </div>
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Providers Attempted</span>
+                                <span className="font-semibold">{String(sStats.provider_requests_started ?? sStats.providers_attempted ?? 0)}</span>
+                              </div>
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Successful Provider Requests</span>
+                                <span className="font-semibold text-emerald-400">{String(sStats.provider_requests_succeeded ?? sStats.provider_successes ?? 0)}</span>
+                              </div>
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Candidate Pages Discovered</span>
+                                <span className="font-semibold">{String(sStats.unique_candidate_urls ?? sStats.candidate_pages ?? 0)}</span>
+                              </div>
+
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Pages Crawled</span>
+                                <span className="font-semibold">{String(sStats.pages_crawled ?? sStats.crawled_pages ?? 0)}</span>
+                              </div>
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Findings Persisted</span>
+                                <span className="font-semibold">{String(sStats.findings_verified ?? sStats.total_matches ?? currentMatches.length)}</span>
+                              </div>
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Worker Started At</span>
+                                <span className="font-semibold truncate">{String(sStats.executor_started_at || sStats.started_at || sDetail?.created_at || "N/A")}</span>
+                              </div>
+                              <div className="rounded bg-background/50 p-2 border border-border/40">
+                                <span className="text-[10px] text-muted-foreground uppercase block font-medium">Last Heartbeat</span>
+                                <span className="font-semibold truncate">{String(sStats.last_heartbeat || sStats.updated_at || "N/A")}</span>
+                              </div>
+                            </div>
+
+                            {/* Runtime Reference Validation Admin Panel */}
+                            <RuntimeValidationPanel
+                              data={sStats.verification_diagnostics as any}
+                              isAdmin={isAdmin}
+                            />
+
+                            {Number(sStats.provider_requests_failed ?? sStats.provider_failures ?? 0) > 0 && (
+                              <div className="pt-2 border-t border-border/40">
+                                <button
+                                  onClick={() => setShowProviderFailures(!showProviderFailures)}
+                                  className="flex items-center justify-between w-full text-xs font-semibold text-destructive hover:underline py-1"
+                                >
+                                  <span>Provider Failures ({String(sStats.provider_requests_failed ?? sStats.provider_failures ?? 0)})</span>
+                                  <span>{showProviderFailures ? "▲ Hide" : "▼ Show"}</span>
+                                </button>
+                                {showProviderFailures && (
+                                  <div className="mt-2 space-y-1 bg-background/40 p-2.5 rounded border border-border/40 font-mono text-[11px]">
+                                    <div className="text-muted-foreground">Sanitized Provider Failure Categories:</div>
+                                    <div className="text-destructive flex items-center gap-2">
+                                      <span>• Provider Rate Limit / Quota Exceeded (Sanitized status 429)</span>
+                                    </div>
+                                    <div className="text-amber-400 flex items-center gap-2">
+                                      <span>• Provider Request Timeout (Sanitized status 408)</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
 
                     {/* Current Scan Results Section */}
                     <div className="flex items-center justify-between">

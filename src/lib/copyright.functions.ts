@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSignedGetUrl, getSignedPutUrl, putObject } from "@/lib/aws/s3.server";
 import { copyrightImageTypes } from "@/lib/copyright/storage.server";
+import { sanitizeCopyrightScanRowForClient } from "@/lib/copyright/public-surface";
 
 
 /** Presigned upload slot for a reference image or an extracted video frame. */
@@ -124,64 +125,72 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
     }
   });
 
+async function verifyIsAdminUserServer(supabase: unknown, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await (supabase as any).rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    if (error || !data) return false;
+    return Boolean(data);
+  } catch {
+    return false;
+  }
+}
+
 export const checkIsAdminUser = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    try {
-      const { data, error } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "admin",
-      });
-      if (error || !data) {
-        const { data: user } = await supabase.auth.getUser();
-        const email = user?.user?.email || "";
-        const isAdmin = email.includes("admin") || email.includes("eterna") || process.env.VITE_DEMO_MODE === "true";
-        return { isAdmin };
-      }
-      return { isAdmin: Boolean(data) };
-    } catch {
-      return { isAdmin: false };
-    }
+    const isAdmin = await verifyIsAdminUserServer(supabase, userId);
+    return { isAdmin };
   });
 
 export const listCopyrightScans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
       .from("copyright_scans")
       .select("*")
       .neq("status", "archived")
       .order("created_at", { ascending: false })
       .limit(30);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const rows = data ?? [];
+    const isAdmin = await verifyIsAdminUserServer(supabase, userId);
+    if (isAdmin) return rows;
+    return rows.map(
+      (r) => sanitizeCopyrightScanRowForClient(r as Record<string, unknown>) as typeof r,
+    );
   });
 
 export const getCopyrightScan = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const { data: scan, error } = await context.supabase
+    const { supabase, userId } = context;
+    const { data: scan, error } = await supabase
       .from("copyright_scans")
       .select("*")
       .eq("id", data.scanId)
       .single();
     if (error) throw new Error(error.message);
 
-    const { data: matches, error: mErr } = await context.supabase
+    const { data: matches, error: mErr } = await supabase
       .from("copyright_matches")
       .select("*")
       .eq("scan_id", data.scanId)
       .order("confidence", { ascending: false });
     if (mErr) throw new Error(mErr.message);
 
+    const isAdmin = await verifyIsAdminUserServer(supabase, userId);
+
     const matchRows = (matches ?? []).filter((m) => {
+      if (isAdmin) return true;
       const ev = (m.evidence ?? {}) as Record<string, unknown>;
       return ev.client_visible !== false;
     });
-    const stats = (scan.stats ?? {}) as Record<string, unknown>;
-    const expectedCount = Number(stats.matches ?? 0);
 
     let originalPreviewUrl: string | null = null;
     const storagePath = scan.storage_path as string | null;
@@ -198,7 +207,14 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
       }
     }
 
-    return { scan: { ...scan, original_preview_url: originalPreviewUrl }, matches: matchRows };
+    const processedScan = isAdmin
+      ? { ...scan, original_preview_url: originalPreviewUrl }
+      : ({
+          ...sanitizeCopyrightScanRowForClient(scan as Record<string, unknown>),
+          original_preview_url: originalPreviewUrl,
+        } as typeof scan & { original_preview_url: string | null });
+
+    return { scan: processedScan, matches: matchRows };
   });
 
 export const retryCopyrightScan = createServerFn({ method: "POST" })

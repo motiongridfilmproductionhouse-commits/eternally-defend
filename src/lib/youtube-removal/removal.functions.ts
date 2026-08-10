@@ -180,11 +180,12 @@ export const checkIsAdminUser = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     try {
-      const { data } = await context.supabase.rpc("has_role", {
+      const { data, error } = await context.supabase.rpc("has_role", {
         _user_id: context.userId,
         _role: "admin",
       });
-      return { isAdmin: !!data };
+      if (error || !data) return { isAdmin: false };
+      return { isAdmin: Boolean(data) };
     } catch {
       return { isAdmin: false };
     }
