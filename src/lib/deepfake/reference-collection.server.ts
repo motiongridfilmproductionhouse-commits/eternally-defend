@@ -14,16 +14,15 @@ import {
 import { assessReferenceImageQuality } from "./image-quality.server";
 import {
   buildReferenceImageQueries,
-  isReferenceImageProviderConfigured,
-  REFERENCE_IMAGE_ENGINES,
-  searchReferenceImagesForQuery,
   type ReferenceImageHit,
 } from "./image-discovery-providers.server";
 import { expandIdentityVariants } from "./identity-variants.server";
 import { getInvestigationCache, setInvestigationCache } from "./investigation-cache.server";
-import { searchBraveImagesBatch, isBraveImageSearchConfigured } from "./brave-images.server";
-import { collectGoogleImagesViaBrowser } from "./google-images-collector.server";
-import { collectWebsiteReferenceImages } from "./website-reference-providers.server";
+import {
+  searchFirecrawlImagesBatch,
+  isFirecrawlImageSearchConfigured,
+} from "./firecrawl-images.server";
+
 import { detectReferenceFace } from "./reference-face-detect.server";
 import { mergeCollectedIntoEmbeddingLibrary } from "./reference-embedding-library.server";
 import {
@@ -154,23 +153,10 @@ export async function collectReferenceImages(input: {
   });
 
   const providerStatsMap = new Map<string, ReferenceImageProviderStats>();
-  for (const engine of REFERENCE_IMAGE_ENGINES) {
-    const id =
-      engine === "google_images"
-        ? "google_images"
-        : engine === "bing_images"
-          ? "bing_images"
-          : "yandex_images";
-    providerStatsMap.set(id, emptyProviderStats(id, isReferenceImageProviderConfigured()));
-  }
   providerStatsMap.set(
-    "brave_images",
-    emptyProviderStats("brave_images", isBraveImageSearchConfigured()),
+    "firecrawl_images",
+    emptyProviderStats("firecrawl_images", isFirecrawlImageSearchConfigured()),
   );
-  providerStatsMap.set("public_website", emptyProviderStats("public_website", true));
-  providerStatsMap.set("news_website", emptyProviderStats("news_website", true));
-  providerStatsMap.set("official_website", emptyProviderStats("official_website", true));
-  providerStatsMap.set("social_public", emptyProviderStats("social_public", true));
 
   const accepted: CollectedReferenceImage[] = [];
   const seenSha = new Set<string>();
@@ -183,7 +169,7 @@ export async function collectReferenceImages(input: {
   const searchQueries = buildReferenceImageQueries(identityBatch).slice(0, 18);
 
   const ingestCtx: IngestContext = {
-    stats: providerStatsMap.get("google_images")!,
+    stats: providerStatsMap.get("firecrawl_images")!,
     accepted,
     seenSha,
     seenPhash,
@@ -193,9 +179,7 @@ export async function collectReferenceImages(input: {
     softDeadlineMs: input.softDeadlineMs,
   };
 
-  const hasAnyProvider = isReferenceImageProviderConfigured() || isBraveImageSearchConfigured();
-
-  if (!hasAnyProvider) {
+  if (!isFirecrawlImageSearchConfigured()) {
     return {
       images: [],
       provider_stats: [...providerStatsMap.values()],
@@ -205,105 +189,18 @@ export async function collectReferenceImages(input: {
     };
   }
 
-  await input.onProgress?.("Searching Google Images…");
+  await input.onProgress?.("Searching with Firecrawl…");
 
-  const providerTasks: Array<Promise<void>> = [];
+  const stats = providerStatsMap.get("firecrawl_images")!;
+  const firecrawlResult = await searchFirecrawlImagesBatch({
+    queries: searchQueries.slice(0, 12),
+    signal: input.signal,
+    softDeadlineMs: input.softDeadlineMs,
+  });
+  stats.images_found += firecrawlResult.images_found;
+  stats.failures += firecrawlResult.failures;
+  await ingestHits(firecrawlResult.hits, stats, ingestCtx, REFERENCE_IMAGE_MAX_STORED);
 
-  if (isReferenceImageProviderConfigured()) {
-    providerTasks.push(
-      (async () => {
-        await input.onProgress?.("Searching Google Images…");
-        const googleResult = await collectGoogleImagesViaBrowser({
-          queries: searchQueries.slice(0, 6),
-          signal: input.signal,
-          softDeadlineMs: input.softDeadlineMs,
-        });
-        const stats = providerStatsMap.get("google_images")!;
-        stats.images_found += googleResult.images_found;
-        if (googleResult.failure) stats.failures += 1;
-        await ingestHits(googleResult.hits, stats, ingestCtx, REFERENCE_IMAGE_MAX_STORED);
-      })(),
-    );
-
-    for (const engine of REFERENCE_IMAGE_ENGINES.filter((e) => e !== "google_images")) {
-      const providerId = engine === "bing_images" ? "bing_images" : "yandex_images";
-      providerTasks.push(
-        (async () => {
-          await input.onProgress?.(
-            providerId === "bing_images" ? "Searching Bing…" : "Searching Yandex…",
-          );
-          const stats = providerStatsMap.get(providerId)!;
-          const engineResults = await Promise.allSettled(
-            searchQueries.slice(0, 6).map((query) =>
-              searchReferenceImagesForQuery({
-                engine,
-                query,
-                signal: input.signal,
-                softDeadlineMs: input.softDeadlineMs,
-                pages: 4,
-              }),
-            ),
-          );
-
-          for (const settled of engineResults) {
-            if (settled.status !== "fulfilled") {
-              stats.failures += 1;
-              continue;
-            }
-            const result = settled.value;
-            stats.images_found += result.images_found;
-            if (result.failure) stats.failures += 1;
-            await ingestHits(result.hits, stats, ingestCtx, REFERENCE_IMAGE_MAX_STORED);
-          }
-        })(),
-      );
-    }
-  }
-
-  if (isBraveImageSearchConfigured()) {
-    providerTasks.push(
-      (async () => {
-        await input.onProgress?.("Searching Brave Image Search…");
-        const stats = providerStatsMap.get("brave_images")!;
-        const braveResult = await searchBraveImagesBatch({
-          queries: searchQueries.slice(0, 6),
-          signal: input.signal,
-          softDeadlineMs: input.softDeadlineMs,
-        });
-        if (!braveResult.skipped) {
-          stats.images_found += braveResult.images_found;
-          stats.failures += braveResult.failures;
-          await ingestHits(braveResult.hits, stats, ingestCtx, REFERENCE_IMAGE_MAX_STORED);
-        }
-      })(),
-    );
-  }
-
-  if (isReferenceImageProviderConfigured()) {
-    providerTasks.push(
-      (async () => {
-        await input.onProgress?.("Searching Public Websites…");
-        const websiteResult = await collectWebsiteReferenceImages({
-          identities: identityBatch,
-          signal: input.signal,
-          softDeadlineMs: input.softDeadlineMs,
-        });
-
-        for (const hit of websiteResult.hits) {
-          const stats = providerStatsMap.get(hit.provider)!;
-          stats.images_found += 1;
-        }
-
-        for (const hit of websiteResult.hits) {
-          if (accepted.length >= REFERENCE_IMAGE_MAX_STORED) break;
-          const stats = providerStatsMap.get(hit.provider)!;
-          await ingestHit(hit, { ...ingestCtx, stats });
-        }
-      })(),
-    );
-  }
-
-  await Promise.allSettled(providerTasks);
 
   await input.onProgress?.("Generating Face Embeddings…");
 
