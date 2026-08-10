@@ -34,10 +34,15 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
   const router = useRouter();
   useEffect(() => {
-    console.error("[Eterna] root error:", error);
+    const errorName = error?.name || "Error";
+    const message = error?.message || "Unknown error";
+    const stack = error?.stack || "";
+    const currentRoute = typeof window !== "undefined" ? window.location.pathname : "/";
+    console.error(
+      `[ETERNA_ROUTE_CRASH]\nroute=${currentRoute}\nrequestId=req_${Date.now()}\nerrorName=${errorName}\nsanitizedMessage=${message}\nserverStack=${stack}`,
+    );
   }, [error]);
 
   return (
