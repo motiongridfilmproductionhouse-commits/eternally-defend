@@ -6948,6 +6948,45 @@ export type Database = {
         }
         Relationships: []
       }
+      youtube_search_cache: {
+        Row: {
+          created_at: string
+          expires_at: string
+          fetched_at: string
+          id: string
+          normalized_query: string
+          order_mode: string
+          page_number: number
+          region_code: string | null
+          result_count: number
+          video_results: Json
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          normalized_query: string
+          order_mode?: string
+          page_number?: number
+          region_code?: string | null
+          result_count?: number
+          video_results?: Json
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          normalized_query?: string
+          order_mode?: string
+          page_number?: number
+          region_code?: string | null
+          result_count?: number
+          video_results?: Json
+        }
+        Relationships: []
+      }
       youtube_verification_challenges: {
         Row: {
           asset_id: string
