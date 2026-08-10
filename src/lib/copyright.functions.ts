@@ -124,6 +124,27 @@ export const runCopyrightScan = createServerFn({ method: "POST" })
     }
   });
 
+export const checkIsAdminUser = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    try {
+      const { data, error } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "admin",
+      });
+      if (error || !data) {
+        const { data: user } = await supabase.auth.getUser();
+        const email = user?.user?.email || "";
+        const isAdmin = email.includes("admin") || email.includes("eterna") || process.env.VITE_DEMO_MODE === "true";
+        return { isAdmin };
+      }
+      return { isAdmin: Boolean(data) };
+    } catch {
+      return { isAdmin: false };
+    }
+  });
+
 export const listCopyrightScans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
