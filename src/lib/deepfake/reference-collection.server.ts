@@ -14,16 +14,15 @@ import {
 import { assessReferenceImageQuality } from "./image-quality.server";
 import {
   buildReferenceImageQueries,
-  isReferenceImageProviderConfigured,
-  REFERENCE_IMAGE_ENGINES,
-  searchReferenceImagesForQuery,
   type ReferenceImageHit,
 } from "./image-discovery-providers.server";
 import { expandIdentityVariants } from "./identity-variants.server";
 import { getInvestigationCache, setInvestigationCache } from "./investigation-cache.server";
-import { searchBraveImagesBatch, isBraveImageSearchConfigured } from "./brave-images.server";
-import { collectGoogleImagesViaBrowser } from "./google-images-collector.server";
-import { collectWebsiteReferenceImages } from "./website-reference-providers.server";
+import {
+  searchFirecrawlImagesBatch,
+  isFirecrawlImageSearchConfigured,
+} from "./firecrawl-images.server";
+
 import { detectReferenceFace } from "./reference-face-detect.server";
 import { mergeCollectedIntoEmbeddingLibrary } from "./reference-embedding-library.server";
 import {
