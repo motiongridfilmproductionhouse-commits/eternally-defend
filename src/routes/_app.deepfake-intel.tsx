@@ -152,11 +152,17 @@ function DeepfakeIntelPage() {
       google_images_url?: string;
     }) => runFn({ data: input }),
     onSuccess: (res) => {
+      setSelectedScanId(res.scan_id);
+      qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
+
+      if (res.already_running) {
+        toast.info(`Attached to the active scan for “${targetName.trim()}”.`);
+        return;
+      }
+
       toast.success(
         `Scan complete — ${res.total_results} threats classified from ${res.discovered_results} latest public leads`,
       );
-      setSelectedScanId(res.scan_id);
-      qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
   });

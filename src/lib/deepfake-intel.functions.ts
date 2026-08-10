@@ -134,9 +134,26 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       .single();
 
     if (sErr?.message?.includes("deepfake_scans_one_active_per_target")) {
-      throw new Error(
-        `A scan for "${data.target_name}" is already running. Wait for it to finish or cancel it before starting a new one.`,
-      );
+      const { data: activeScan, error: activeScanError } = await supabase
+        .from("deepfake_scans")
+        .select("id, total_results")
+        .eq("user_id", userId)
+        .eq("status", "running")
+        .ilike("target_name", data.target_name.trim())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeScanError || !activeScan) {
+        throw new Error("The active scan could not be loaded. Refresh the scan list and try again.");
+      }
+
+      return {
+        scan_id: activeScan.id,
+        total_results: activeScan.total_results ?? 0,
+        discovered_results: 0,
+        already_running: true as const,
+      };
     }
     if (sErr || !scan) throw new Error(sErr?.message ?? "failed to create scan");
 
@@ -554,6 +571,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         scan_id: scan.id,
         total_results: classified.length,
         discovered_results: allHits.length,
+        already_running: false as const,
       };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "unknown error";
