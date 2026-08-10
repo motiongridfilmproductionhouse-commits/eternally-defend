@@ -170,6 +170,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           error_message: JSON.stringify(telemetry),
           total_queries: telemetry.queries_generated,
           total_results: telemetry.candidates_found,
+          heartbeat_at: new Date().toISOString(),
+          lease_expires_at: new Date(Date.now() + 3 * 60 * 1000).toISOString(),
         })
         .eq("id", scan.id);
     };
