@@ -49,92 +49,10 @@ const canonicalUrl = (url: string): string => {
 };
 
 /**
- * Searches Brave Search for web and image leads.
+ * Discovery is Firecrawl-only. Brave Search, SerpApi and Reddit providers were
+ * removed intentionally — do not reintroduce them.
  */
-async function searchBrave(query: string, maxResults = 10): Promise<DiscoveredLead[]> {
-  const apiKey = process.env.BRAVE_API_KEY?.trim();
-  if (!apiKey) return [];
 
-  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${maxResults}`;
-  const res = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "X-Subscription-Token": apiKey,
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Brave Search returned ${res.status}`);
-  }
-
-  const json = (await res.json()) as {
-    web?: { results?: Array<{ url: string; title: string; description: string }> };
-  };
-
-  const results = json.web?.results ?? [];
-  return results.map((item) => ({
-    url: item.url,
-    title: item.title ?? "",
-    description: item.description ?? "",
-    query,
-    source: "brave_search",
-  }));
-}
-
-/**
- * Searches SerpAPI for web and image leads.
- */
-async function searchSerpApi(query: string, maxResults = 10): Promise<DiscoveredLead[]> {
-  const apiKey = process.env.SERPAPI_API_KEY?.trim();
-  if (!apiKey) return [];
-
-  const url = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${apiKey}&num=${maxResults}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`SerpAPI returned ${res.status}`);
-  }
-
-  const json = (await res.json()) as {
-    organic_results?: Array<{ link: string; title: string; snippet: string }>;
-  };
-
-  const results = json.organic_results ?? [];
-  return results.map((item) => ({
-    url: item.link,
-    title: item.title ?? "",
-    description: item.snippet ?? "",
-    query,
-    source: "serpapi_web",
-  }));
-}
-
-/**
- * Searches Reddit JSON API for discussions and leads.
- */
-async function searchRedditPublic(query: string, maxResults = 10): Promise<DiscoveredLead[]> {
-  try {
-    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=${maxResults}&sort=relevance`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; EternaBot/1.0)" },
-    });
-    if (!res.ok) return [];
-
-    const json = (await res.json()) as {
-      data?: { children?: Array<{ data: { url: string; title: string; selftext?: string } }> };
-    };
-
-    const items = json.data?.children ?? [];
-    return items.map((child) => ({
-      url: child.data.url,
-      title: child.data.title ?? "",
-      description: child.data.selftext?.slice(0, 300) ?? "",
-      query,
-      source: "reddit_public",
-    }));
-  } catch {
-    return [];
-  }
-}
 
 /**
  * Executes multi-provider deepfake discovery across queries.
