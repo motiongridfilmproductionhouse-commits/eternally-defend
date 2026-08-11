@@ -7136,6 +7136,107 @@ export type Database = {
           },
         ]
       }
+      web_scan_leads: {
+        Row: {
+          canonical_url: string
+          created_at: string
+          exclusion_reason: string | null
+          extractor: string | null
+          failed_signals: string[]
+          id: string
+          identity_confidence: number
+          identity_tier: string
+          matched_signals: string[]
+          page_excerpt: string | null
+          platform: string | null
+          query: string | null
+          run_id: string
+          severity: string | null
+          source: string | null
+          stage: string
+          threat_score: number | null
+          title: string | null
+          url: string
+        }
+        Insert: {
+          canonical_url: string
+          created_at?: string
+          exclusion_reason?: string | null
+          extractor?: string | null
+          failed_signals?: string[]
+          id?: string
+          identity_confidence?: number
+          identity_tier: string
+          matched_signals?: string[]
+          page_excerpt?: string | null
+          platform?: string | null
+          query?: string | null
+          run_id: string
+          severity?: string | null
+          source?: string | null
+          stage: string
+          threat_score?: number | null
+          title?: string | null
+          url: string
+        }
+        Update: {
+          canonical_url?: string
+          created_at?: string
+          exclusion_reason?: string | null
+          extractor?: string | null
+          failed_signals?: string[]
+          id?: string
+          identity_confidence?: number
+          identity_tier?: string
+          matched_signals?: string[]
+          page_excerpt?: string | null
+          platform?: string | null
+          query?: string | null
+          run_id?: string
+          severity?: string | null
+          source?: string | null
+          stage?: string
+          threat_score?: number | null
+          title?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_scan_leads_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "web_scan_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_scan_runs: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          funnel: Json
+          id: string
+          query: string
+          sources: string[]
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          funnel?: Json
+          id?: string
+          query: string
+          sources?: string[]
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          funnel?: Json
+          id?: string
+          query?: string
+          sources?: string[]
+        }
+        Relationships: []
+      }
       youtube_removal_findings: {
         Row: {
           allegation_matched: boolean | null

@@ -6,6 +6,13 @@ import {
   logRankingDiagnostics,
   canonicalCategoryFor,
 } from "@/lib/reputation/ranking.server";
+import { scoreIdentity } from "@/lib/scan/identity-confidence";
+import {
+  emptyScanFunnel,
+  countExclusion,
+  type ScanPipelineFunnel,
+} from "@/lib/scan/pipeline-funnel";
+import type { PersistLeadInput } from "@/lib/scan/persist.server";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
@@ -171,6 +178,16 @@ export interface ScanHit {
   copyrightEnforcementPotential?: number;
   whyItMatters?: string;
   contentPosition?: ContentPosition;
+  /** Identity confidence grading (VERIFIED / PROBABLE / AMBIGUOUS). */
+  identityTier?: "VERIFIED" | "PROBABLE" | "AMBIGUOUS" | "NOT_SUBJECT";
+  identityConfidence?: number;
+  identityReason?: string;
+  /** VERIFIED = risk evidenced; NEEDS_REVIEW = kept for human review. */
+  reviewStatus?: "VERIFIED" | "NEEDS_REVIEW";
+  /** Search phrase that surfaced this result. */
+  searchQueryUsed?: string;
+  /** Excerpt of the full page captured during extraction. */
+  pageExcerpt?: string;
   metricsAvailable?: { views: boolean; likes: boolean; comments: boolean };
   scoring?: {
     relevance: number;
@@ -1317,6 +1334,12 @@ interface RawHit {
   date?: string;
   publishedDate?: string;
   media?: MediaMeta;
+  /** Search phrase that discovered this hit (provenance for auditing). */
+  queryUsed?: string;
+  /** Full page text captured by the extraction stage, when available. */
+  pageText?: string;
+  /** Which extractor produced pageText. */
+  extractor?: string;
   /** Reddit-only reputation-risk classification (see classifyRedditRisk). */
   redditRisk?: {
     categories: string[];
@@ -1382,42 +1405,65 @@ async function runFirecrawl(
   handles: string[],
   sources: SourceKey[],
   limit: number,
-): Promise<{ runs: { source: string; raw: RawHit[] }[]; error?: string; queriesExecuted: number }> {
+): Promise<{
+  runs: { source: string; raw: RawHit[] }[];
+  error?: string;
+  queriesExecuted: number;
+  queriesPlanned: number;
+  queriesFailed: number;
+}> {
   const { generateExpandedQueries } = await import("@/lib/firecrawl/query-generator");
   const queryGroups = generateExpandedQueries(query, aliases, handles);
 
   const runsMap = new Map<string, RawHit[]>();
-  let queriesExecuted = 0;
   const errors: string[] = [];
 
-  for (const group of queryGroups) {
-    const settled = await Promise.allSettled(
-      group.queries.slice(0, 4).map(async (q) => {
-        queriesExecuted++;
-        return fcSearch(q, limit);
-      }),
-    );
-    for (const r of settled) {
-      if (r.status === "fulfilled") {
-        for (const hit of r.value) {
+  /*
+   * COVERAGE FIX: previously only the first 4 queries of every group ran, which
+   * threw away most of the planned query plan before any discovery happened.
+   * Every planned query now executes, through a bounded concurrency pool.
+   */
+  const plan = Array.from(
+    new Set(queryGroups.flatMap((group) => group.queries.map((q) => q.trim()).filter(Boolean))),
+  );
+  const queriesPlanned = plan.length;
+  let queriesExecuted = 0;
+  let queriesFailed = 0;
+  let cursor = 0;
+  const CONCURRENCY = 6;
+
+  async function worker() {
+    while (cursor < plan.length) {
+      const q = plan[cursor++];
+      queriesExecuted++;
+      try {
+        const hits = await fcSearch(q, limit);
+        for (const hit of hits) {
           const { source } = platformFromUrl(hit.url || "");
           const label = source || "Web";
           if (!runsMap.has(label)) runsMap.set(label, []);
-          runsMap.get(label)!.push(hit);
+          runsMap.get(label)!.push({ ...hit, queryUsed: q });
         }
-      } else {
-        const errMsg = r.reason instanceof Error ? r.reason.message : String(r.reason);
-        errors.push(errMsg);
+      } catch (e) {
+        queriesFailed++;
+        errors.push(e instanceof Error ? e.message : String(e));
       }
     }
   }
 
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, plan.length) }, worker));
+
+  console.log(
+    `[scan:queries] planned=${queriesPlanned} executed=${queriesExecuted} failed=${queriesFailed}`,
+  );
+
   const runs = Array.from(runsMap.entries()).map(([source, raw]) => ({ source, raw }));
   if (runs.length === 0 && errors.length > 0) {
-    return { runs: [], error: errors.join("; "), queriesExecuted };
+    return { runs: [], error: errors.join("; "), queriesExecuted, queriesPlanned, queriesFailed };
   }
-  return { runs, queriesExecuted };
+  return { runs, queriesExecuted, queriesPlanned, queriesFailed };
 }
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    FIRECRAWL DISCOVERY MODE
@@ -2555,6 +2601,7 @@ function buildReport(
   sourcesRequested: SourceKey[],
   runs: { source: string; raw: RawHit[] }[],
   err?: string,
+  audit?: { funnel: ScanPipelineFunnel; leads: PersistLeadInput[] },
 ): ReputationReport {
   const now = new Date().toISOString();
   const dedupe = new Map<string, ScanHit>();
@@ -2589,29 +2636,52 @@ function buildReport(
       const title = (o.title ?? url).slice(0, 240);
       const description = (o.description ?? o.snippet ?? "").slice(0, 800);
       const { platform, source } = platformFromUrl(url);
-      const haystack = normalizeEntity(
-        `${title} ${description} ${o.author ?? o.media?.channelTitle ?? ""}`,
-      );
-      const isRedditResult = source === "Reddit" || run.source === "Reddit";
-      const isYouTubeApiResult =
-        (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
-      let entityMatched = entityForms.some((form) => haystack.includes(form));
+      const pageText = o.pageText ?? null;
       /*
-       * Reddit threads and YouTube videos often reference the identity partially
-       * (first name, surname, handle) or only in the URL slug / channel name.
-       * YouTube API results already come from exact named-entity searches, so a
-       * distinctive-token match is enough — requiring the full name string here
-       * was silently dropping defamatory videos titled with a partial name.
+       * IDENTITY GATE (confidence-scored, not binary).
+       * Only NOT_SUBJECT is dropped, and that verdict requires page text —
+       * a missing search snippet can never delete a candidate any more.
        */
-      if (!entityMatched && (isRedditResult || isYouTubeApiResult)) {
-        const looseHaystack = `${haystack} ${normalizeEntity(url)}`;
-        entityMatched =
-          entityForms.some((form) => looseHaystack.includes(form)) ||
-          entityTokenSets.some(
-            (tokens) => tokens.length > 0 && tokens.some((token) => looseHaystack.includes(token)),
-          );
+      const identity = scoreIdentity({
+        target: query,
+        aliases,
+        title,
+        description,
+        snippet: o.snippet,
+        url,
+        author: o.author ?? o.media?.channelTitle,
+        pageText,
+      });
+      if (audit) {
+        audit.funnel.discovered++;
+        if (identity.tier === "VERIFIED") audit.funnel.verified++;
+        else if (identity.tier === "PROBABLE") audit.funnel.probable++;
       }
-      if (!entityMatched) continue;
+      if (identity.tier === "NOT_SUBJECT") {
+        if (audit) {
+          countExclusion(audit.funnel, "identity_not_subject");
+          audit.leads.push({
+            url,
+            canonicalUrl: url,
+            title,
+            source: source || run.source,
+            platform,
+            query: o.queryUsed ?? null,
+            stage: "excluded",
+            identity_tier: identity.tier,
+            identity_confidence: identity.confidence,
+            matched_signals: identity.matchedSignals,
+            failed_signals: identity.failedSignals,
+            exclusion_reason: "identity_not_subject",
+            extractor: o.extractor ?? null,
+            page_excerpt: pageText ? pageText.slice(0, 1200) : null,
+            severity: null,
+            threat_score: null,
+          });
+        }
+        continue;
+      }
+
 
 
       let c = classify(title, description);
@@ -2640,17 +2710,18 @@ function buildReport(
         };
       }
       const riskMatched = c.keywords.length > 0 || sent === "Negative";
-      /*
-       * Official YouTube API results are already exact entity-search leads.
-       * Keep neutral matching videos as low-risk monitoring leads instead of
-       * silently dropping them just because their title lacks a risk keyword.
-       * Web results still require an explicit risk or negative-sentiment signal.
-       */
       const isOfficialYouTubeLead =
         (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
       const isYouTubeLead = source === "YouTube" || run.source === "YouTube";
       const isRedditEntityLead = source === "Reddit" || run.source === "Reddit";
-      if (!riskMatched && !isOfficialYouTubeLead && !isRedditEntityLead && !isYouTubeLead) continue;
+      /*
+       * NO SNIPPET-ONLY DELETION. Previously a web result without a risk keyword
+       * in its 800-char snippet was discarded outright. Uncertain candidates are
+       * now kept and flagged NEEDS_REVIEW so coverage is auditable.
+       */
+      const needsReview =
+        !riskMatched || identity.tier === "AMBIGUOUS" || identity.tier === "PROBABLE";
+      if (audit && needsReview) audit.funnel.needs_review++;
       const cred = credibilityScore(source, platform);
       const realViews = o.media?.views ?? 0;
       const viewsAvailable = o.media?.viewsAvailable === true;
@@ -2743,13 +2814,19 @@ function buildReport(
         copyrightEnforcementPotential: c.copyrightEnforce,
         whyItMatters: whyItMattersFor(c.category, c.sev, sent),
         contentPosition,
+        identityTier: identity.tier,
+        identityConfidence: identity.confidence,
+        identityReason: identity.reason,
+        reviewStatus: needsReview ? "NEEDS_REVIEW" : "VERIFIED",
+        searchQueryUsed: o.queryUsed,
+        pageExcerpt: pageText ? pageText.slice(0, 600) : undefined,
         metricsAvailable: {
           views: viewsAvailable,
           likes: likesAvailable,
           comments: commentsAvailable,
         },
         scoring: {
-          relevance: entityMatched ? 100 : 0,
+          relevance: identity.confidence,
           harm: c.score,
           credibility: cred,
           virality,
@@ -2763,13 +2840,37 @@ function buildReport(
         },
       };
 
+      if (audit) {
+        audit.leads.push({
+          url,
+          canonicalUrl: url,
+          title,
+          source: source || run.source,
+          platform,
+          query: o.queryUsed ?? null,
+          stage: needsReview ? "needs_review" : "verified",
+          identity_tier: identity.tier,
+          identity_confidence: identity.confidence,
+          matched_signals: identity.matchedSignals,
+          failed_signals: identity.failedSignals,
+          exclusion_reason: null,
+          extractor: o.extractor ?? null,
+          page_excerpt: pageText ? pageText.slice(0, 1200) : null,
+          severity: c.sev,
+          threat_score: threat,
+        });
+      }
+
       if (dedupe.has(url)) {
         duplicates.push(hit);
+        if (audit) audit.funnel.duplicates_removed++;
         continue;
       }
       dedupe.set(url, hit);
     }
   }
+  if (audit) audit.funnel.unique = dedupe.size;
+
 
   // ── Month filter ────────────────────────────────────────────────────────
   //
@@ -3295,10 +3396,14 @@ export const Route = createFileRoute("/api/scan")({
           let fcRuns: { source: string; raw: RawHit[] }[] = [];
           let fcError: string | undefined = undefined;
           let fcQueriesExecuted = 0;
+          let fcQueriesPlanned = 0;
+          let fcQueriesFailed = 0;
 
           if (fcSettled.status === "fulfilled") {
             const val = fcSettled.value;
             fcQueriesExecuted = val.queriesExecuted;
+            fcQueriesPlanned = val.queriesPlanned;
+            fcQueriesFailed = val.queriesFailed;
             fcRuns = val.runs;
             if (val.error && !val.runs.length) {
               fcError = val.error;
@@ -3818,6 +3923,53 @@ export const Route = createFileRoute("/api/scan")({
               ? "No results returned"
               : undefined;
 
+          /* ── EXTRACTION STAGE ────────────────────────────────────────────
+           * Crawl4AI (with plain-fetch fallback) fetches the full page for
+           * non-API leads BEFORE identity/risk decisions are made, so nothing
+           * is judged on a search snippet alone.
+           */
+          const pipelineFunnel = emptyScanFunnel();
+          pipelineFunnel.queries_planned = fcQueriesPlanned + ytQueriesUsed;
+          pipelineFunnel.queries_executed = fcQueriesExecuted + ytQueriesUsed;
+          pipelineFunnel.queries_failed = fcQueriesFailed;
+
+          const extractTargets: string[] = [];
+          for (const run of mergedRuns) {
+            for (const hit of run.raw) {
+              if (!hit.url) continue;
+              if (hit.media?.videoId) continue; // YouTube API leads already have metadata
+              extractTargets.push(hit.url);
+            }
+          }
+          try {
+            const { extractPages } = await import("@/lib/scan/page-extract.server");
+            const extracted = await extractPages(extractTargets, {
+              concurrency: 6,
+              timeoutMs: 12_000,
+              max: 150,
+            });
+            pipelineFunnel.extraction_attempted = extracted.size;
+            for (const run of mergedRuns) {
+              for (const hit of run.raw) {
+                const page = hit.url ? extracted.get(hit.url) : undefined;
+                if (!page) continue;
+                hit.extractor = page.extractor;
+                if (page.ok && page.pageText) {
+                  hit.pageText = page.pageText;
+                  pipelineFunnel.extracted++;
+                } else {
+                  pipelineFunnel.extraction_failed++;
+                }
+              }
+            }
+          } catch (e) {
+            console.warn(
+              `[scan:extract] extraction stage failed: ${e instanceof Error ? e.message : String(e)}`,
+            );
+          }
+
+          const audit = { funnel: pipelineFunnel, leads: [] as PersistLeadInput[] };
+
           const report = buildReport(
             query,
             [...aliases, ...variations, ...handles],
@@ -3825,9 +3977,30 @@ export const Route = createFileRoute("/api/scan")({
             sources,
             mergedRuns,
             overallErr,
+            audit,
           );
 
           report.results = uniqueNormalized;
+
+          /* ── PERSIST EVERY STAGE (admin auditable) ─────────────────────── */
+          pipelineFunnel.persisted = audit.leads.length;
+          console.log(`[scan:funnel] ${JSON.stringify(pipelineFunnel)}`);
+          try {
+            const { persistScanRun } = await import("@/lib/scan/persist.server");
+            const persisted = await persistScanRun({
+              query,
+              aliases: [...aliases, ...variations, ...handles],
+              sources,
+              funnel: pipelineFunnel,
+              leads: audit.leads,
+            });
+            if (persisted.error) console.warn(`[scan:persist] ${persisted.error}`);
+          } catch (e) {
+            console.warn(
+              `[scan:persist] failed: ${e instanceof Error ? e.message : String(e)}`,
+            );
+          }
+
 
           // ══════════════════════════════════════════════════════════════════════
           // Admin Diagnostics & Coverage Counters
@@ -3846,6 +4019,7 @@ const fcConfig = getFirecrawlConfigInfo();
           (report as unknown as Record<string, unknown>).diagnostics = {
             funnel: {
               ...funnelCounters,
+              ...pipelineFunnel,
               persisted_results: uniqueNormalized.length,
               rejected_candidates: rejectedCandidates,
               removal: {
@@ -3853,6 +4027,7 @@ const fcConfig = getFirecrawlConfigInfo();
                 per_video_records: perVideoAnalysisRecords,
               },
             },
+            pipeline: pipelineFunnel,
             queriesGenerated: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesExecuted: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesFailed: (fcError ? 1 : 0) + (ytError ? 1 : 0) + (redditError ? 1 : 0),
