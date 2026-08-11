@@ -2810,7 +2810,7 @@ function buildReport(
           comments: commentsAvailable,
         },
         scoring: {
-          relevance: entityMatched ? 100 : 0,
+          relevance: identity.confidence,
           harm: c.score,
           credibility: cred,
           virality,
