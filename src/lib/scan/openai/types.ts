@@ -102,6 +102,13 @@ export interface ScanAiDiagnostics {
   expansion_queries_generated: number;
   expansion_queries_executed: number;
   expansion_new_urls: number;
+  /** Query-dedup accounting for the expansion pass. */
+  ai_queries_suggested: number;
+  ai_queries_duplicate: number;
+  ai_queries_executed: number;
+  ai_queries_failed: number;
+  /** Normalized base-discovery queries handed to the Research Agent. */
+  base_queries_passed: number;
   reasoning_status: AiLayerStatus;
   evidence_analyzed: number;
   high_risk: number;
@@ -121,6 +128,11 @@ export function emptyScanAiDiagnostics(): ScanAiDiagnostics {
     expansion_queries_generated: 0,
     expansion_queries_executed: 0,
     expansion_new_urls: 0,
+    ai_queries_suggested: 0,
+    ai_queries_duplicate: 0,
+    ai_queries_executed: 0,
+    ai_queries_failed: 0,
+    base_queries_passed: 0,
     reasoning_status: "SKIPPED",
     evidence_analyzed: 0,
     high_risk: 0,
