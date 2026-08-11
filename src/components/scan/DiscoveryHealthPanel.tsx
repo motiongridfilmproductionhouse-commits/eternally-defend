@@ -12,7 +12,9 @@ const STATE_STYLES: Record<string, string> = {
   RATE_LIMITED: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
   CREDITS_EXHAUSTED: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
   AUTH_ERROR: "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+  AUTH_FAILED: "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400",
   TIMEOUT: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  UNAVAILABLE: "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400",
   PROVIDER_ERROR: "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400",
   DISABLED: "border-border/60 bg-muted/40 text-muted-foreground",
 };
