@@ -464,18 +464,19 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           stage_logs: [...telemetry.stage_logs, "✓ AI analysis complete"],
         });
       } catch (classErr) {
-        console.warn("[DEEPFAKE] Classification error, preserving discovered leads:", classErr);
-        classified = candidateFilter.accepted.map((item) => ({
-          ...item,
-          risk_level: "MEDIUM",
-          content_category: "deepfake",
-          confidence: 60,
-          is_synthetic: true,
-          face_referenced: true,
-          takedown_recommended: false,
-          ai_reasoning: "Preserved lead from multi-provider discovery.",
-          classification_status: "completed",
-        }));
+        /*
+         * Classification failure must NEVER promote discovery leads into
+         * findings. Leads stay internal-only (NOT_SUBJECT) until target
+         * verification and synthetic verification pass.
+         */
+        console.warn("[DEEPFAKE] Classification error; leads kept unverified:", classErr);
+        classified = [];
+        await updateTelemetry({
+          stage_logs: [
+            ...telemetry.stage_logs,
+            "⚠ Classification unavailable — discovery leads retained internally, none promoted to findings.",
+          ],
+        });
       }
 
       // 8. Persist Findings
@@ -485,12 +486,48 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         low = 0;
 
       if (classified.length) {
+        const { verifyTargetIdentity, decideTargetThreat, isClientVisibleDecision, decisionToFindingClassification } =
+          await import("./deepfake/target-identity");
+
         const rows = classified.map((c) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const pageUrl = (c as any).evidence_page_url ?? c.url;
-          if (c.risk_level === "CRITICAL") critical++;
-          else if (c.risk_level === "HIGH") high++;
-          else if (c.risk_level === "MEDIUM") medium++;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const raw = c as any;
+
+          // GATE 1 — strict target verification (never uses the search query).
+          const identity = verifyTargetIdentity({
+            target: target.name,
+            aliases: target.aliases,
+            title: c.title ?? null,
+            url: pageUrl,
+            snippet: c.description ?? null,
+            pageText: raw.page_text ?? raw.pageText ?? null,
+            altText: raw.image_alt ?? null,
+            faceSimilarity: raw.face_similarity ?? null,
+            targetFaceMatch: raw.target_face_match ?? false,
+          });
+
+          // GATE 2 — synthetic / explicit content verification.
+          const decision = decideTargetThreat(identity, {
+            explicitConfirmed:
+              raw.explicit_media_confirmed ??
+              /explicit|nud|intimate|sexual/i.test(String(c.content_category ?? "")),
+            syntheticConfirmed: c.is_synthetic === true,
+            syntheticConfidence: raw.synthetic_media_confidence ?? c.confidence ?? 0,
+            hostingConfirmed: raw.hosting_or_distribution_confirmed ?? raw.target_face_match ?? false,
+          });
+
+          const clientVisible = isClientVisibleDecision(decision);
+          const riskLevel = !clientVisible
+            ? "LOW"
+            : decision === "VERIFIED_TARGET_THREAT"
+              ? "CRITICAL"
+              : "HIGH";
+
+          if (riskLevel === "CRITICAL") critical++;
+          else if (riskLevel === "HIGH") high++;
+          else if (riskLevel === "MEDIUM") medium++;
           else low++;
 
           return {
@@ -501,19 +538,26 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
             page_title: c.title ?? null,
             snippet: c.description ?? null,
             query: c.query,
-            risk_level: c.risk_level ?? "MEDIUM",
-            content_category: c.content_category ?? "deepfake",
-            confidence: c.confidence ?? 60,
-            is_synthetic: c.is_synthetic ?? true,
-            face_referenced: c.face_referenced ?? true,
-            takedown_recommended: c.takedown_recommended ?? false,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            target_face_match: (c as any).target_face_match ?? false,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            face_similarity: (c as any).face_similarity ?? null,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            matched_face_id: (c as any).matched_face_id ?? null,
-            ai_reasoning: c.ai_reasoning ?? "Discovered synthetic media lead",
+            risk_level: riskLevel,
+            content_category: clientVisible
+              ? (c.content_category ?? "deepfake")
+              : "not_subject",
+            confidence: clientVisible ? (c.confidence ?? 60) : 0,
+            is_synthetic: clientVisible ? (c.is_synthetic ?? false) : false,
+            face_referenced: identity.status !== "NOT_VERIFIED",
+            takedown_recommended: clientVisible && decision === "VERIFIED_TARGET_THREAT",
+            target_face_match: raw.target_face_match ?? false,
+            face_similarity: raw.face_similarity ?? null,
+            matched_face_id: raw.matched_face_id ?? null,
+            identity_confidence: identity.confidence,
+            matched_evidence: identity.evidence,
+            finding_classification: decisionToFindingClassification(decision),
+            classification_explanation: clientVisible
+              ? `Target identity ${identity.status} via ${identity.evidence.join(", ") || "face match"}; synthetic/explicit evidence confirmed.`
+              : `Excluded (${decision}): ${identity.rejectionReason ?? "insufficient synthetic/explicit evidence for this target"}.`,
+            ai_reasoning: clientVisible
+              ? (c.ai_reasoning ?? "Target-verified synthetic media evidence")
+              : `Excluded — ${decision}. Search-query provenance is not identity evidence.`,
           };
         });
 
