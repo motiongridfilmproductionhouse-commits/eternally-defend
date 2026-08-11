@@ -38,10 +38,10 @@ from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 # ---------------------------------------------------------------------------
 # Tunables (env-overridable, safe defaults for a 1–2 vCPU container)
 # ---------------------------------------------------------------------------
-MAX_CONCURRENCY = int(os.getenv("CRAWL_MAX_CONCURRENCY", "4"))
+MAX_CONCURRENCY = int(os.getenv("CRAWL_MAX_CONCURRENCY", "6"))
 PAGE_TIMEOUT_MS = int(os.getenv("CRAWL_PAGE_TIMEOUT_MS", "12000"))
 SETTLE_MS = int(os.getenv("CRAWL_SETTLE_MS", "400"))
-QUEUE_WAIT_TIMEOUT_S = float(os.getenv("CRAWL_QUEUE_WAIT_TIMEOUT_S", "8"))
+QUEUE_WAIT_TIMEOUT_S = float(os.getenv("CRAWL_QUEUE_WAIT_TIMEOUT_S", "20"))
 HARD_TIMEOUT_S = float(os.getenv("CRAWL_HARD_TIMEOUT_S", "20"))
 
 # Circuit breaker
@@ -228,8 +228,8 @@ class CrawlService:
             await asyncio.wait_for(self._semaphore.acquire(), timeout=QUEUE_WAIT_TIMEOUT_S)
         except asyncio.TimeoutError:
             timings["queue_ms"] = round((time.perf_counter() - t) * 1000, 1)
+            # Saturation is not a health failure — it must not trip the breaker.
             self.stats["rejected_queue_timeout"] += 1
-            self.breaker.record_failure()
             return self._failure(
                 url, "queue_timeout", "crawler saturated; try fallback", timings, t_start, status=503
             )
