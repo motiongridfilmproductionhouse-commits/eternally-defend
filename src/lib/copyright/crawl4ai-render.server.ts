@@ -103,9 +103,8 @@ export async function crawl4aiRenderPage(
       timings_ms?: Record<string, number>;
     };
     const markdown = typeof json.markdown === "string" ? json.markdown : "";
-    const links = Array.isArray(json.links)
-      ? json.links.filter((l): l is string => typeof l === "string")
-      : [];
+    const links = normalizeLinks(json.links);
+
     const pageTitle = typeof json.title === "string" ? json.title : null;
     if (!json.success || (!markdown.trim() && links.length === 0)) {
       return {
