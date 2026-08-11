@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getClientEnforcementSettings, updateClientEnforcementSettings } from "@/lib/auto-enforcement.functions";
@@ -16,6 +16,7 @@ import {
   AlertOctagon,
   FileText,
   Server,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,6 +29,8 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
   const qc = useQueryClient();
   const getSettingsFn = useServerFn(getClientEnforcementSettings);
   const updateSettingsFn = useServerFn(updateClientEnforcementSettings);
+
+  const formInitializedRef = useRef(false);
 
   const settingsQuery = useQuery({
     queryKey: ["client_enforcement_settings"],
@@ -48,19 +51,39 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
     }
   );
 
-  // Sync state ONLY when query data resolves/changes
+  // Initialize local form state ONLY ONCE per modal open cycle
   useEffect(() => {
-    if (!settings) return;
+    if (!open) {
+      formInitializedRef.current = false;
+      return;
+    }
+
+    if (!settings || formInitializedRef.current) {
+      return;
+    }
+
+    console.log("[DEV DIAGNOSTIC] Initializing form from loaded DB settings:", settings.automatic_enforcement_enabled);
 
     setAutoEnabled(Boolean(settings.automatic_enforcement_enabled));
 
     if (settings.enforcement_basis_policies) {
       setPolicies(settings.enforcement_basis_policies as Record<string, string>);
     }
-  }, [settings]);
+
+    formInitializedRef.current = true;
+  }, [open, settings]);
+
+  const handleAutoEnabledChange = (checked: boolean) => {
+    console.log("[DEV DIAGNOSTIC] Master switch toggled to:", checked);
+    setAutoEnabled(checked);
+  };
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      console.log("[DEV DIAGNOSTIC] Executing updateSettingsFn with payload:", {
+        automaticEnforcementEnabled: autoEnabled,
+        enforcementBasisPolicies: policies,
+      });
       return await updateSettingsFn({
         data: {
           automaticEnforcementEnabled: autoEnabled,
@@ -68,7 +91,8 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
         },
       });
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      console.log("[DEV DIAGNOSTIC] Mutation succeeded. Returned DB setting:", res?.settings?.automatic_enforcement_enabled);
       toast.success("Enforcement automation settings updated");
       qc.invalidateQueries({ queryKey: ["client_enforcement_settings"] });
       onOpenChange(false);
@@ -143,6 +167,16 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
           </div>
         </DialogHeader>
 
+        {/* Query Error Notice */}
+        {settingsQuery.isError && (
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-mono rounded-xl flex items-center gap-2 mt-3">
+            <AlertTriangle className="size-4 shrink-0 text-rose-600" />
+            <span>
+              SETTINGS LOAD FAILED: {settingsQuery.error instanceof Error ? settingsQuery.error.message : String(settingsQuery.error)}
+            </span>
+          </div>
+        )}
+
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto py-4 space-y-5 pr-1">
           {/* Master Engine Control Card */}
@@ -165,8 +199,8 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
               </span>
               <Switch
                 checked={autoEnabled}
-                onCheckedChange={setAutoEnabled}
-                disabled={settingsQuery.isLoading}
+                onCheckedChange={handleAutoEnabledChange}
+                disabled={settingsQuery.isLoading || updateMutation.isPending}
                 className="data-[state=checked]:bg-blue-600"
               />
             </div>
@@ -239,7 +273,7 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
                       <button
                         type="button"
                         onClick={() => setPolicies({ ...policies, [cat.key]: "MANUAL" })}
-                        className={`h-7 px-2.5 rounded-md text-[11px] font-bold font-mono transition-all ${currentMode === "MANUAL" ? "bg-slate-700 text-white shadow-xs" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
+                        className={`h-7 px-2.5 rounded-md text-[11px] font-bold font-mono transition-all ${currentMode === "MANUAL" ? "bg-slate-700 text-white shadow-xs" : "text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white"}`}
                       >
                         MANUAL
                       </button>

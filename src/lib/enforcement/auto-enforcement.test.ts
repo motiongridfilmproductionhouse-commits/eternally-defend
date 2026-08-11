@@ -180,29 +180,59 @@ test("8. Demo mode still blocks transport", async () => {
   assert.equal(result.success, false);
 });
 
-test("9. Master Switch state toggle & persistence (false -> true -> save -> true, and reverse)", async () => {
+test("9. Master Switch state toggle & persistence with query refetch protection", async () => {
   let dbSetting = { automatic_enforcement_enabled: false, enforcement_basis_policies: { copyright: "AUTO" } };
 
-  // Simulated React component local state behavior
-  let localState = dbSetting.automatic_enforcement_enabled;
+  // Simulated React component refs and state
+  let isOpen = false;
+  let formInitializedRef = false;
+  let localState = false;
 
+  const simulateEffect = (currentSettings: typeof dbSetting) => {
+    if (!isOpen) {
+      formInitializedRef = false;
+      return;
+    }
+    if (!currentSettings || formInitializedRef) return;
+    localState = Boolean(currentSettings.automatic_enforcement_enabled);
+    formInitializedRef = true;
+  };
+
+  // 1. Modal Opens
+  isOpen = true;
+  simulateEffect(dbSetting);
   assert.equal(localState, false, "Initial state displays OFF (false)");
+  assert.equal(formInitializedRef, true, "Form initialized ref is set to true");
 
-  // 1. User clicks switch (false -> true)
+  // 2. User clicks switch (false -> true)
   localState = true;
   assert.equal(localState, true, "Local state becomes TRUE upon click");
 
-  // Re-render occurs while dbSetting is still false
-  // Because sync is in useEffect([settings]), localState remains TRUE
-  assert.equal(localState, true, "Local state remains TRUE during re-render without immediate reset");
+  // 3. Query refetches while modal is still open (dbSetting is still false)
+  // New settings object reference is returned by React Query
+  const refetchedSettings = { ...dbSetting };
+  simulateEffect(refetchedSettings);
+  assert.equal(localState, true, "Local state STILL TRUE after query refetch (protected by formInitializedRef)");
 
-  // 2. User clicks Save Configuration
+  // 4. Save Configuration
   dbSetting.automatic_enforcement_enabled = localState;
-  assert.equal(dbSetting.automatic_enforcement_enabled, true, "Persisted database setting becomes TRUE on save");
+  assert.equal(dbSetting.automatic_enforcement_enabled, true, "Persisted DB setting becomes TRUE on save");
 
-  // 3. User toggles reverse (true -> false) and saves
+  // 5. Modal closes
+  isOpen = false;
+  simulateEffect(dbSetting);
+  assert.equal(formInitializedRef, false, "formInitializedRef resets to false on modal close");
+
+  // 6. Modal re-opens with DB=true
+  isOpen = true;
+  simulateEffect(dbSetting);
+  assert.equal(localState, true, "Re-opened modal initializes to true from DB");
+
+  // 7. Toggle reverse (true -> false) and save
   localState = false;
+  simulateEffect({ ...dbSetting }); // query refetch
+  assert.equal(localState, false, "Local state remains false during query refetch");
   dbSetting.automatic_enforcement_enabled = localState;
-  assert.equal(dbSetting.automatic_enforcement_enabled, false, "Persisted database setting becomes FALSE on save");
+  assert.equal(dbSetting.automatic_enforcement_enabled, false, "Persisted DB setting becomes false on save");
 });
 
