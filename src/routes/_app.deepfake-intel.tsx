@@ -990,10 +990,26 @@ function TelemetryDashboard({
   const rejectedMatches = telemetry?.rejected_matches ?? scan.low_count;
   const needsReview = findingsCount - (verifiedMatches + probableMatches);
 
+  const rawProvider = telemetry?.current_provider;
   const currentProvider =
-    telemetry?.current_provider ?? (isRunning ? "google_images" : "completed");
+    rawProvider && rawProvider.toLowerCase() !== "none"
+      ? rawProvider
+      : isRunning
+        ? "Firecrawl"
+        : "Completed";
   const currentQuery = telemetry?.current_query ?? scan.target_name;
-  const currentStage = telemetry?.stage ?? (isRunning ? "executing_discovery" : scan.status);
+  const rawStage = telemetry?.stage ?? (isRunning ? "executing_discovery" : scan.status);
+  
+  const displayStage = (() => {
+    const s = rawStage.toLowerCase();
+    if (s.includes("completed") || s.includes("done")) return "COMPLETED";
+    if (s.includes("face") || s.includes("matching") || s.includes("comparing")) return "FACE VERIFICATION";
+    if (s.includes("media") || s.includes("downloading") || s.includes("extract")) return "MEDIA EXTRACTION";
+    if (s.includes("crawl") || s.includes("inspecting")) return "CRAWL";
+    if (s.includes("saving") || s.includes("checkpoint") || s.includes("classifying")) return "CLASSIFICATION";
+    return "DISCOVERY";
+  })();
+
   const estimatedTime =
     telemetry?.estimated_remaining_time ?? (isRunning ? "25s remaining" : "Completed");
   const heartbeat = telemetry?.last_heartbeat
@@ -1011,7 +1027,7 @@ function TelemetryDashboard({
       label: "Google Images Discovery",
       status: isCompleted
         ? "completed"
-        : currentProvider.includes("google")
+        : currentProvider.toLowerCase().includes("google")
           ? "active"
           : "completed",
     },
@@ -1020,7 +1036,7 @@ function TelemetryDashboard({
       label: "Web Discovery",
       status: isCompleted
         ? "completed"
-        : currentStage.includes("discovery")
+        : displayStage === "DISCOVERY"
           ? "active"
           : queriesExec > 5
             ? "completed"
@@ -1031,7 +1047,7 @@ function TelemetryDashboard({
       label: "Reddit Discovery",
       status: isCompleted
         ? "completed"
-        : currentProvider.includes("reddit")
+        : currentProvider.toLowerCase().includes("reddit")
           ? "active"
           : queriesExec > 10
             ? "completed"
@@ -1042,7 +1058,7 @@ function TelemetryDashboard({
       label: "X Discovery",
       status: isCompleted
         ? "completed"
-        : currentProvider.includes("x") || currentProvider.includes("twitter")
+        : currentProvider.toLowerCase().includes("x") || currentProvider.toLowerCase().includes("twitter")
           ? "active"
           : queriesExec > 15
             ? "completed"
@@ -1053,7 +1069,7 @@ function TelemetryDashboard({
       label: "Telegram Discovery",
       status: isCompleted
         ? "completed"
-        : currentProvider.includes("telegram")
+        : currentProvider.toLowerCase().includes("telegram")
           ? "active"
           : queriesExec > 20
             ? "completed"
@@ -1064,7 +1080,7 @@ function TelemetryDashboard({
       label: "Face Verification",
       status: isCompleted
         ? "completed"
-        : currentStage.includes("face")
+        : displayStage === "FACE VERIFICATION"
           ? "active"
           : imagesCompared > 0
             ? "completed"
@@ -1075,7 +1091,7 @@ function TelemetryDashboard({
       label: "AI Analysis",
       status: isCompleted
         ? "completed"
-        : currentStage.includes("classifying")
+        : displayStage === "CLASSIFICATION"
           ? "active"
           : findingsCount > 0
             ? "completed"
@@ -1086,7 +1102,7 @@ function TelemetryDashboard({
       label: "Evidence Classification",
       status: isCompleted
         ? "completed"
-        : currentStage.includes("saving") || currentStage.includes("checkpoint")
+        : displayStage === "CLASSIFICATION"
           ? "active"
           : findingsCount > 0
             ? "completed"
@@ -1108,13 +1124,16 @@ function TelemetryDashboard({
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-[10px]">
-            Coverage: {coverage}%
+            Query Execution: {coverage}%
           </Badge>
           <Badge variant="outline" className="text-[10px]">
-            ETA: {estimatedTime}
+            Candidate Crawl: {pagesCrawled}/{candidatesFound}
+          </Badge>
+          <Badge variant="outline" className="text-[10px]">
+            Verification: {imagesCompared}/{imagesDownloaded || pagesCrawled}
           </Badge>
           <Badge variant={isRunning ? "default" : isFailed ? "destructive" : "outline"}>
-            {currentStage.toUpperCase()}
+            {displayStage}
           </Badge>
         </div>
       </div>
