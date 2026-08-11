@@ -17,6 +17,10 @@ export interface Crawl4AiRenderResult {
   metadata: Record<string, unknown>;
   failureCategory?: CrawlFailureCategory;
   failureReason?: string;
+  /** Per-stage timings reported by the crawler service (warm browser profile). */
+  timingsMs?: Record<string, number>;
+  /** True when the crawler service short-circuited via its breaker. */
+  circuitOpen?: boolean;
 }
 
 export function isCrawl4AiConfigured(): boolean {
@@ -59,6 +63,22 @@ export async function crawl4aiRenderPage(
       headers: { accept: "application/json" },
     });
     if (!response.ok) {
+      // 503 = crawler breaker open or saturated: fail fast so the caller can
+      // fall back to plain fetch instead of burning its timeout budget.
+      let reason = `Crawl4AI HTTP ${response.status}`;
+      let circuitOpen = false;
+      if (response.status === 503) {
+        try {
+          const body = (await response.json()) as {
+            failure_category?: string;
+            failure_reason?: string;
+          };
+          circuitOpen = body.failure_category === "circuit_open";
+          reason = `${body.failure_category ?? "unavailable"}: ${body.failure_reason ?? reason}`;
+        } catch {
+          /* keep default reason */
+        }
+      }
       return {
         ok: false,
         html: "",
@@ -66,8 +86,9 @@ export async function crawl4aiRenderPage(
         links: [],
         pageTitle: null,
         metadata: {},
+        circuitOpen,
         failureCategory: response.status === 403 ? "access_denied" : "provider_failure",
-        failureReason: `Crawl4AI HTTP ${response.status}`,
+        failureReason: reason,
       };
     }
     const json = (await response.json()) as {
@@ -77,6 +98,9 @@ export async function crawl4aiRenderPage(
       links?: unknown;
       media?: unknown;
       url?: string;
+      failure_category?: string;
+      failure_reason?: string;
+      timings_ms?: Record<string, number>;
     };
     const markdown = typeof json.markdown === "string" ? json.markdown : "";
     const links = Array.isArray(json.links)
@@ -91,8 +115,11 @@ export async function crawl4aiRenderPage(
         links,
         pageTitle,
         metadata: { source: "crawl4ai" },
-        failureCategory: "browser_render_empty",
-        failureReason: "Crawl4AI returned empty rendered content",
+        timingsMs: json.timings_ms,
+        failureCategory:
+          json.failure_category === "navigation_timeout" ? "navigation_timeout" : "browser_render_empty",
+        failureReason:
+          json.failure_reason ?? "Crawl4AI returned empty rendered content",
       };
     }
     return {
@@ -102,6 +129,7 @@ export async function crawl4aiRenderPage(
       links,
       pageTitle,
       metadata: { source: "crawl4ai", final_url: json.url ?? url },
+      timingsMs: json.timings_ms,
     };
   } catch (e) {
     if (signal?.aborted) {

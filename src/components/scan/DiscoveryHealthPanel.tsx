@@ -96,6 +96,15 @@ export function DiscoveryHealthPanel({
             {extraction.FETCH_SUCCESS}/{extraction.FETCH_FALLBACK_USED} · failed{" "}
             {extraction.FETCH_FAILED + extraction.CRAWL4AI_FAILED}
           </span>
+          {typeof extraction.crawl4ai_avg_ms === "number" && extraction.crawl4ai_avg_ms > 0 && (
+            <span>avg crawl {(extraction.crawl4ai_avg_ms / 1000).toFixed(1)}s</span>
+          )}
+          {(extraction.crawl4ai_circuit_open_skips ?? 0) > 0 && (
+            <span className="text-amber-600 dark:text-amber-400">
+              breaker open · {extraction.crawl4ai_circuit_open_skips} skipped
+            </span>
+          )}
+
           {!extraction.CRAWL4AI_CONFIGURED && extraction.crawl4ai_config_hint && (
             <span className="text-amber-600 dark:text-amber-400">
               {extraction.crawl4ai_config_hint}
