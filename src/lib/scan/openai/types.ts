@@ -95,6 +95,31 @@ export interface ReasoningVerdict {
   evidence_urls?: string[];
 }
 
+/** Per-pass expansion accounting (pass 1 and pass 2 reported separately). */
+export interface AiExpansionPassStats {
+  pass: 1 | 2;
+  status: "OK" | "SKIPPED" | "FAILED";
+  skip_reason?: string;
+  queries_generated: number;
+  queries_deduplicated: number;
+  queries_executed: number;
+  queries_failed: number;
+  urls_discovered: number;
+  new_unique_urls: number;
+  new_domains: number;
+  new_narratives: number;
+  latency_ms: number;
+  queries: Array<{
+    query: string;
+    priority: string;
+    narrative: string;
+    language: string;
+    source_target: string;
+    expected_information_gain: number;
+    new_urls: number;
+  }>;
+}
+
 export interface ScanAiDiagnostics {
   research_status: AiLayerStatus;
   coverage_assessment: CoverageAssessment;
@@ -109,6 +134,18 @@ export interface ScanAiDiagnostics {
   ai_queries_failed: number;
   /** Normalized base-discovery queries handed to the Research Agent. */
   base_queries_passed: number;
+  /* ── Incremental-recall metrics (bounded two-pass expansion) ── */
+  ai_queries_generated: number;
+  ai_queries_deduplicated: number;
+  ai_urls_discovered: number;
+  ai_new_unique_urls: number;
+  ai_new_domains: number;
+  ai_new_narratives: number;
+  ai_new_verified_findings: number;
+  ai_new_needs_review: number;
+  ai_incremental_recall_percent: number;
+  cost_per_new_unique_url: number;
+  ai_passes: AiExpansionPassStats[];
   reasoning_status: AiLayerStatus;
   evidence_analyzed: number;
   high_risk: number;
@@ -133,6 +170,17 @@ export function emptyScanAiDiagnostics(): ScanAiDiagnostics {
     ai_queries_executed: 0,
     ai_queries_failed: 0,
     base_queries_passed: 0,
+    ai_queries_generated: 0,
+    ai_queries_deduplicated: 0,
+    ai_urls_discovered: 0,
+    ai_new_unique_urls: 0,
+    ai_new_domains: 0,
+    ai_new_narratives: 0,
+    ai_new_verified_findings: 0,
+    ai_new_needs_review: 0,
+    ai_incremental_recall_percent: 0,
+    cost_per_new_unique_url: 0,
+    ai_passes: [],
     reasoning_status: "SKIPPED",
     evidence_analyzed: 0,
     high_risk: 0,
@@ -144,3 +192,4 @@ export function emptyScanAiDiagnostics(): ScanAiDiagnostics {
     notes: [],
   };
 }
+
