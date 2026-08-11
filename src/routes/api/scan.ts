@@ -2626,29 +2626,52 @@ function buildReport(
       const title = (o.title ?? url).slice(0, 240);
       const description = (o.description ?? o.snippet ?? "").slice(0, 800);
       const { platform, source } = platformFromUrl(url);
-      const haystack = normalizeEntity(
-        `${title} ${description} ${o.author ?? o.media?.channelTitle ?? ""}`,
-      );
-      const isRedditResult = source === "Reddit" || run.source === "Reddit";
-      const isYouTubeApiResult =
-        (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
-      let entityMatched = entityForms.some((form) => haystack.includes(form));
+      const pageText = o.pageText ?? null;
       /*
-       * Reddit threads and YouTube videos often reference the identity partially
-       * (first name, surname, handle) or only in the URL slug / channel name.
-       * YouTube API results already come from exact named-entity searches, so a
-       * distinctive-token match is enough — requiring the full name string here
-       * was silently dropping defamatory videos titled with a partial name.
+       * IDENTITY GATE (confidence-scored, not binary).
+       * Only NOT_SUBJECT is dropped, and that verdict requires page text —
+       * a missing search snippet can never delete a candidate any more.
        */
-      if (!entityMatched && (isRedditResult || isYouTubeApiResult)) {
-        const looseHaystack = `${haystack} ${normalizeEntity(url)}`;
-        entityMatched =
-          entityForms.some((form) => looseHaystack.includes(form)) ||
-          entityTokenSets.some(
-            (tokens) => tokens.length > 0 && tokens.some((token) => looseHaystack.includes(token)),
-          );
+      const identity = scoreIdentity({
+        target: query,
+        aliases,
+        title,
+        description,
+        snippet: o.snippet,
+        url,
+        author: o.author ?? o.media?.channelTitle,
+        pageText,
+      });
+      if (audit) {
+        audit.funnel.discovered++;
+        if (identity.tier === "VERIFIED") audit.funnel.verified++;
+        else if (identity.tier === "PROBABLE") audit.funnel.probable++;
       }
-      if (!entityMatched) continue;
+      if (identity.tier === "NOT_SUBJECT") {
+        if (audit) {
+          countExclusion(audit.funnel, "identity_not_subject");
+          audit.leads.push({
+            url,
+            canonicalUrl: url,
+            title,
+            source: source || run.source,
+            platform,
+            query: o.queryUsed ?? null,
+            stage: "excluded",
+            identity_tier: identity.tier,
+            identity_confidence: identity.confidence,
+            matched_signals: identity.matchedSignals,
+            failed_signals: identity.failedSignals,
+            exclusion_reason: "identity_not_subject",
+            extractor: o.extractor ?? null,
+            page_excerpt: pageText ? pageText.slice(0, 1200) : null,
+            severity: null,
+            threat_score: null,
+          });
+        }
+        continue;
+      }
+
 
 
       let c = classify(title, description);
