@@ -3396,10 +3396,14 @@ export const Route = createFileRoute("/api/scan")({
           let fcRuns: { source: string; raw: RawHit[] }[] = [];
           let fcError: string | undefined = undefined;
           let fcQueriesExecuted = 0;
+          let fcQueriesPlanned = 0;
+          let fcQueriesFailed = 0;
 
           if (fcSettled.status === "fulfilled") {
             const val = fcSettled.value;
             fcQueriesExecuted = val.queriesExecuted;
+            fcQueriesPlanned = val.queriesPlanned;
+            fcQueriesFailed = val.queriesFailed;
             fcRuns = val.runs;
             if (val.error && !val.runs.length) {
               fcError = val.error;
