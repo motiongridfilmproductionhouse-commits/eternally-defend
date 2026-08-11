@@ -6,6 +6,9 @@ import {
   logRankingDiagnostics,
   canonicalCategoryFor,
 } from "@/lib/reputation/ranking.server";
+import { scoreIdentity } from "@/lib/scan/identity-confidence";
+import { emptyFunnel, type ScanPipelineFunnel } from "@/lib/scan/pipeline-funnel";
+import type { PersistLeadInput } from "@/lib/scan/persist.server";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
