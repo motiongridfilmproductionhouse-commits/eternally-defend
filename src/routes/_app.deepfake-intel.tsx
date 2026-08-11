@@ -36,6 +36,7 @@ import {
   Link,
   RefreshCw,
 } from "lucide-react";
+import { useUserRoles } from "@/hooks/use-user-roles";
 import { IdentityScanVisualization } from "@/components/deepfake/IdentityScanVisualization";
 import { useReferenceFaceThumbnail } from "@/components/deepfake/useReferenceFaceThumbnail";
 import { ThreatTimeline, type TimelineEvent } from "@/components/deepfake/ThreatTimeline";
@@ -971,6 +972,7 @@ function TelemetryDashboard({
   discoveriesCount: number;
   findingsCount: number;
 }) {
+  const { isAdmin } = useUserRoles();
   const telemetry = parseTelemetry(scan);
   const isRunning = scan.status === "running";
   const isFailed = scan.status === "failed" || Boolean(telemetry?.stage_failure);
@@ -978,9 +980,6 @@ function TelemetryDashboard({
 
   const queriesGen = telemetry?.queries_generated ?? scan.total_queries ?? 56;
   const queriesExec = telemetry?.queries_executed ?? (isCompleted ? queriesGen : 0);
-  const providers = telemetry?.providers_used?.length
-    ? telemetry.providers_used.join(", ")
-    : "Google Images, Firecrawl, Reddit, Web";
   const candidatesFound = telemetry?.candidates_found ?? discoveriesCount;
   const pagesCrawled = telemetry?.pages_crawled ?? discoveriesCount;
   const imagesDownloaded = telemetry?.images_downloaded ?? discoveriesCount;
@@ -995,9 +994,9 @@ function TelemetryDashboard({
     rawProvider && rawProvider.toLowerCase() !== "none"
       ? rawProvider
       : isRunning
-        ? "Firecrawl"
+        ? "Active"
         : "Completed";
-  const currentQuery = telemetry?.current_query ?? scan.target_name;
+  const rawQuery = telemetry?.current_query ?? scan.target_name;
   const rawStage = telemetry?.stage ?? (isRunning ? "executing_discovery" : scan.status);
   
   const displayStage = (() => {
@@ -1019,59 +1018,76 @@ function TelemetryDashboard({
     telemetry?.coverage_pct ??
     (isCompleted ? 100 : Math.round((queriesExec / Math.max(1, queriesGen)) * 100));
 
+  const queryActivityMessage = (() => {
+    if (isAdmin) return rawQuery;
+    if (isCompleted) return "Target association verified";
+    if (displayStage === "FACE VERIFICATION") return "Verifying target association...";
+    if (displayStage === "MEDIA EXTRACTION") return "Analyzing candidate media...";
+    if (displayStage === "CRAWL") return "Scanning high-risk sources...";
+    if (displayStage === "CLASSIFICATION") return "Searching indexed threat sources...";
+    return "Scanning high-risk sources...";
+  })();
+
+  const sanitizedErrorMessage = (() => {
+    if (isAdmin && scan.error_message && !scan.error_message.startsWith("{")) {
+      return scan.error_message;
+    }
+    return "Discovery source temporarily unavailable";
+  })();
+
   const stagesChecklist = [
     { id: "identity_loaded", label: "Identity Loaded", status: "completed" },
-    { id: "reference_ready", label: "Reference Photos Ready", status: "completed" },
+    { id: "reference_ready", label: "Reference Media Ready", status: "completed" },
     {
-      id: "google_images",
-      label: "Google Images Discovery",
+      id: "visual_discovery",
+      label: "Visual Discovery",
       status: isCompleted
         ? "completed"
-        : currentProvider.toLowerCase().includes("google")
+        : displayStage === "DISCOVERY" && queriesExec <= 5
           ? "active"
           : "completed",
     },
     {
-      id: "web_discovery",
-      label: "Web Discovery",
+      id: "threat_web_discovery",
+      label: "Threat Web Discovery",
       status: isCompleted
         ? "completed"
-        : displayStage === "DISCOVERY"
-          ? "active"
-          : queriesExec > 5
-            ? "completed"
-            : "pending",
-    },
-    {
-      id: "reddit_discovery",
-      label: "Reddit Discovery",
-      status: isCompleted
-        ? "completed"
-        : currentProvider.toLowerCase().includes("reddit")
-          ? "active"
-          : queriesExec > 10
-            ? "completed"
-            : "pending",
-    },
-    {
-      id: "x_discovery",
-      label: "X Discovery",
-      status: isCompleted
-        ? "completed"
-        : currentProvider.toLowerCase().includes("x") || currentProvider.toLowerCase().includes("twitter")
+        : displayStage === "DISCOVERY" && queriesExec > 5 && queriesExec <= 15
           ? "active"
           : queriesExec > 15
             ? "completed"
             : "pending",
     },
     {
-      id: "telegram_discovery",
-      label: "Telegram Discovery",
+      id: "social_discovery",
+      label: "Social Discovery",
       status: isCompleted
         ? "completed"
-        : currentProvider.toLowerCase().includes("telegram")
+        : displayStage === "DISCOVERY" && queriesExec > 15 && queriesExec <= 25
           ? "active"
-          : queriesExec > 20
+          : queriesExec > 25
+            ? "completed"
+            : "pending",
+    },
+    {
+      id: "indexed_network_discovery",
+      label: "Indexed Network Discovery",
+      status: isCompleted
+        ? "completed"
+        : displayStage === "DISCOVERY" && queriesExec > 25
+          ? "active"
+          : queriesExec > 25
+            ? "completed"
+            : "pending",
+    },
+    {
+      id: "media_extraction",
+      label: "Media Extraction",
+      status: isCompleted
+        ? "completed"
+        : displayStage === "MEDIA EXTRACTION"
+          ? "active"
+          : pagesCrawled > 0
             ? "completed"
             : "pending",
     },
@@ -1087,8 +1103,8 @@ function TelemetryDashboard({
             : "pending",
     },
     {
-      id: "ai_analysis",
-      label: "AI Analysis",
+      id: "synthetic_analysis",
+      label: "Synthetic Media Analysis",
       status: isCompleted
         ? "completed"
         : displayStage === "CLASSIFICATION"
@@ -1102,11 +1118,9 @@ function TelemetryDashboard({
       label: "Evidence Classification",
       status: isCompleted
         ? "completed"
-        : displayStage === "CLASSIFICATION"
-          ? "active"
-          : findingsCount > 0
-            ? "completed"
-            : "pending",
+        : displayStage === "CLASSIFICATION" && findingsCount > 0
+          ? "completed"
+          : "pending",
     },
     {
       id: "completed",
@@ -1143,13 +1157,11 @@ function TelemetryDashboard({
           <div className="font-bold flex items-center gap-1.5">
             <AlertTriangle className="size-4" />
             {telemetry?.stage_failure
-              ? telemetry.stage_failure
+              ? (isAdmin ? telemetry.stage_failure : "Discovery Interrupted")
               : `FAILED DURING ${displayStage}`}
           </div>
           <p className="text-[11px] opacity-90">
-            {scan.error_message && !scan.error_message.startsWith("{")
-              ? scan.error_message
-              : "Provider exception encountered during deepfake discovery."}
+            {sanitizedErrorMessage}
           </p>
         </div>
       )}
@@ -1165,9 +1177,9 @@ function TelemetryDashboard({
           <div className="font-bold text-sm text-primary">{queriesExec}</div>
         </div>
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20">
-          <div className="text-[10px] text-muted-foreground">Current Provider</div>
-          <div className="font-semibold text-xs truncate capitalize text-amber-400">
-            {currentProvider}
+          <div className="text-[10px] text-muted-foreground">Discovery Network</div>
+          <div className="font-semibold text-xs truncate capitalize text-emerald-400">
+            {isAdmin ? currentProvider : isCompleted ? "Completed" : isRunning ? "Active" : "Ready"}
           </div>
         </div>
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20">
@@ -1205,8 +1217,8 @@ function TelemetryDashboard({
         </div>
 
         <div className="rounded-md border border-border/60 p-2 bg-secondary/20 col-span-2 sm:col-span-4">
-          <div className="text-[10px] text-muted-foreground">Current Query</div>
-          <div className="font-medium text-xs truncate text-foreground">“{currentQuery}”</div>
+          <div className="text-[10px] text-muted-foreground">Current Activity</div>
+          <div className="font-medium text-xs truncate text-foreground">“{queryActivityMessage}”</div>
         </div>
       </div>
 
@@ -1253,37 +1265,27 @@ function TelemetryDashboard({
       {/* Animated Stage Progression Checklist */}
       <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2 text-xs">
         <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase flex items-center justify-between flex-wrap gap-2">
-          <span>Animated Stage Progression</span>
-          <div className="flex items-center gap-1.5 text-[10px]">
-            <span>Providers: {providers}</span>
-            <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/10">
-              Brave — DISABLED
-            </Badge>
-            <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/10">
-              SerpAPI — DISABLED
-            </Badge>
-          </div>
+          <span>MULTI-SOURCE THREAT DISCOVERY</span>
+          <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+            DISCOVERY NETWORK — ACTIVE
+          </Badge>
         </div>
 
-        {/* Discovery Provider & Search Surface Architecture */}
+        {/* Discovery Engine Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
           <div className="p-2 rounded border border-sky-500/30 bg-sky-500/10 space-y-1">
             <div className="font-bold text-sky-300 flex items-center justify-between">
-              <span>1. GOOGLE IMAGES ENGINE</span>
-              <Badge className="bg-sky-500/20 text-sky-300 border-sky-500/40 text-[9px]">ENABLED</Badge>
+              <span>VISUAL THREAT DISCOVERY</span>
+              <Badge className="bg-sky-500/20 text-sky-300 border-sky-500/40 text-[9px]">ACTIVE</Badge>
             </div>
-            <div className="text-[10px] text-muted-foreground">Direct image candidate discovery & visual similarity indexing</div>
+            <div className="text-[10px] text-muted-foreground">Visual similarity and synthetic-media candidate discovery</div>
           </div>
           <div className="p-2 rounded border border-blue-500/30 bg-blue-500/10 space-y-1">
             <div className="font-bold text-blue-300 flex items-center justify-between">
-              <span>2. FIRECRAWL / WEB DISCOVERY</span>
-              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[9px]">ENABLED</Badge>
+              <span>THREAT WEB DISCOVERY</span>
+              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[9px]">ACTIVE</Badge>
             </div>
-            <div className="text-[10px] text-muted-foreground space-y-0.5 font-mono">
-              <div>├ Reddit search surface (site:reddit.com)</div>
-              <div>├ Telegram search surface (site:t.me)</div>
-              <div>└ X search surface (site:x.com)</div>
-            </div>
+            <div className="text-[10px] text-muted-foreground">High-risk source and indexed threat intelligence</div>
           </div>
         </div>
 

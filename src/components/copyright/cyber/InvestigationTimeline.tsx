@@ -33,8 +33,8 @@ export function InvestigationTimeline({
     const rows: TimelineEntry[] = [];
     if (scanStartedAt) {
       rows.push({ time: clock(scanStartedAt), label: "Scan Started" });
-      rows.push({ time: clock(scanStartedAt), label: "Google Discovery" });
-      rows.push({ time: clock(scanStartedAt), label: "Firecrawl Discovery" });
+      rows.push({ time: clock(scanStartedAt), label: "Visual Discovery" });
+      rows.push({ time: clock(scanStartedAt), label: "Threat Web Discovery" });
       rows.push({ time: clock(scanStartedAt), label: "Search Expansion" });
       rows.push({ time: clock(scanStartedAt), label: "Candidate Verification" });
     }

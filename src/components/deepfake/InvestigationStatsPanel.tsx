@@ -20,6 +20,8 @@ import {
   parseGoogleImagesDiagnostics,
 } from "@/lib/deepfake/google-images-diagnostics";
 
+import { useUserRoles } from "@/hooks/use-user-roles";
+
 export function buildInvestigationDiagnostics(
   metrics: Record<string, unknown> | null | undefined,
 ): InvestigationDiagnostics {
@@ -36,6 +38,7 @@ export function InvestigationStatsPanel({
   metrics: Record<string, unknown> | null | undefined;
   status?: string | null;
 }) {
+  const { isAdmin } = useUserRoles();
   const d = buildInvestigationDiagnostics(metrics);
   const google = parseGoogleImagesDiagnostics(metrics);
   const googleBackground = googleImagesBackgroundStatus(metrics);
@@ -57,7 +60,7 @@ export function InvestigationStatsPanel({
         <StatCard label="Embeddings" value={d.embeddings} />
         <StatCard label="Aliases Generated" value={d.aliases_generated} />
         <StatCard label="Queries Generated" value={d.queries_generated} />
-        <StatCard label="Providers Used" value={d.providers_used} />
+        <StatCard label={isAdmin ? "Providers Used" : "Sources Investigated"} value={d.providers_used} />
         <StatCard label="Pages Crawled" value={d.pages_crawled} />
         <StatCard label="Images Compared" value={d.images_compared} />
         <StatCard label="Verified Matches" value={d.verified_matches} />
@@ -72,10 +75,13 @@ export function InvestigationStatsPanel({
 
       {googleBackground === "queued" || googleBackground === "running" ? (
         <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-3 text-sm">
-          <div className="font-medium text-primary">Google Images Investigation Running</div>
+          <div className="font-medium text-primary">
+            {isAdmin ? "Google Images Investigation Running" : "Visual Threat Discovery Running"}
+          </div>
           <div className="mt-2 text-xs text-muted-foreground space-y-1">
             <div>
-              {googleProgress.completed} / {googleProgress.total} Google queries completed
+              {googleProgress.completed} / {googleProgress.total}{" "}
+              {isAdmin ? "Google queries completed" : "discovery queries completed"}
             </div>
             <div>{google.images_discovered} images collected</div>
             <div>{google.face_comparisons} face comparisons completed</div>
@@ -87,7 +93,7 @@ export function InvestigationStatsPanel({
         </div>
       ) : null}
 
-      {(() => {
+      {isAdmin && (() => {
         const startup =
           metrics?.startup_diagnostic && typeof metrics.startup_diagnostic === "object"
             ? (metrics.startup_diagnostic as Record<string, unknown>)
@@ -119,10 +125,10 @@ export function InvestigationStatsPanel({
         );
       })()}
 
-      {google.provider_status !== "not_started" && (
+      {isAdmin && google.provider_status !== "not_started" && (
         <div className="rounded-md border border-border/70 bg-secondary/20 p-3">
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-2">
-            Google Images
+            Google Images Diagnostics
           </div>
           <div className="text-xs text-muted-foreground space-y-1">
             {formatGoogleImagesDiagnosticLines(google).map((line) => (
@@ -132,7 +138,7 @@ export function InvestigationStatsPanel({
         </div>
       )}
 
-      {d.provider_stats.length > 0 && (
+      {isAdmin && d.provider_stats.length > 0 && (
         <div className="rounded-md border border-border/70 bg-secondary/20 p-3">
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-2">
             Reference Image Sources
@@ -156,7 +162,7 @@ export function InvestigationStatsPanel({
         </div>
       )}
 
-      {formatProviderStatsLines(d.provider_stats).length > 0 && (
+      {isAdmin && formatProviderStatsLines(d.provider_stats).length > 0 && (
         <details className="text-[11px] text-muted-foreground">
           <summary className="cursor-pointer">Provider detail log</summary>
           <ul className="mt-2 list-disc pl-4 space-y-1">

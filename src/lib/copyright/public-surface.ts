@@ -157,8 +157,12 @@ export function sanitizeDiscoveryQueryForClient(query: string | null | undefined
   if (/^known_risk_domain:/i.test(q)) return "Known-risk domain search";
   if (/^brightdata:/i.test(q)) return "Expanded discovery";
   if (/^serpapi:/i.test(q)) return "Public search";
-  if (/\btelegram\b/i.test(q)) return "Public messaging";
-  if (/\bfirecrawl\b/i.test(q)) return "Public web";
+  if (/site:reddit\.com/i.test(q)) return "Social threat discovery";
+  if (/site:t\.me|site:telegram\.me|\btelegram\b/i.test(q)) return "Public messaging discovery";
+  if (/site:x\.com|site:twitter\.com/i.test(q)) return "Indexed network discovery";
+  if (/site:/i.test(q)) return "Scanning high-risk sources...";
+  if (/deepfake|nude|fake|swap/i.test(q)) return "Analyzing candidate media...";
+  if (/firecrawl/i.test(q)) return "Public web discovery";
   return q.length > 80 ? `${q.slice(0, 77)}…` : q;
 }
 

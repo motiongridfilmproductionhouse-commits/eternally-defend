@@ -36,11 +36,12 @@ export function sanitizeProviderError(error: unknown): SanitizedErrorResponse {
     rawCode.includes("quota") ||
     rawMessage.includes("quotaexceeded") ||
     rawMessage.includes("dailylimitexceeded") ||
-    rawMessage.includes("quota")
+    rawMessage.includes("quota") ||
+    rawMessage.includes("402")
   ) {
     return {
       code: "DISCOVERY_LIMIT_REACHED",
-      message: "Discovery limit reached. Please try again later.",
+      message: "Discovery source temporarily unavailable",
       userFacing: true,
     };
   }
@@ -49,14 +50,18 @@ export function sanitizeProviderError(error: unknown): SanitizedErrorResponse {
     rawCode.includes("auth") ||
     rawCode.includes("missing") ||
     rawCode.includes("enabled") ||
-    rawMessage.includes("api_key_invalid") ||
+    rawMessage.includes("api_key") ||
+    rawMessage.includes("api key") ||
     rawMessage.includes("accessnotconfigured") ||
     rawMessage.includes("firecrawl") ||
-    rawMessage.includes("crawl4ai")
+    rawMessage.includes("serpapi") ||
+    rawMessage.includes("brave") ||
+    rawMessage.includes("crawl4ai") ||
+    rawMessage.includes("providerused")
   ) {
     return {
       code: "DISCOVERY_UNAVAILABLE",
-      message: "Discovery service is temporarily unavailable.",
+      message: "Discovery source temporarily unavailable",
       userFacing: true,
     };
   }
