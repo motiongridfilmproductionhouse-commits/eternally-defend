@@ -55,4 +55,21 @@ export function validateServerEnv() {
   return parsed.data;
 }
 
-export const env = validateServerEnv();
+type ServerEnv = ReturnType<typeof validateServerEnv>;
+
+let cachedEnv: ServerEnv | undefined;
+
+function getServerEnv(): ServerEnv {
+  if (!cachedEnv) cachedEnv = validateServerEnv();
+  return cachedEnv;
+}
+
+// Lazy proxy: env vars are injected at request time, not at module init,
+// so validation must happen on first access instead of on import.
+export const env = new Proxy({} as ServerEnv, {
+  get: (_target, prop: string) => getServerEnv()[prop as keyof ServerEnv],
+  has: (_target, prop: string) => prop in getServerEnv(),
+  ownKeys: () => Reflect.ownKeys(getServerEnv()),
+  getOwnPropertyDescriptor: (_target, prop) =>
+    Reflect.getOwnPropertyDescriptor(getServerEnv(), prop),
+});
