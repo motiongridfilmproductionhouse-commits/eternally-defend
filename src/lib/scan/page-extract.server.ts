@@ -17,6 +17,31 @@ export interface ExtractedPage {
   failureReason?: string;
 }
 
+/**
+ * Extraction telemetry. Plain fetch is NEVER counted as a Crawl4AI success —
+ * CRAWL4AI_SUCCESS and FETCH_FALLBACK_USED are reported separately.
+ */
+export type { ExtractionStats } from "./page-extract-types";
+import type { ExtractionStats } from "./page-extract-types";
+
+export function emptyExtractionStats(): ExtractionStats {
+  const configured = isCrawl4AiConfigured();
+  return {
+    CRAWL4AI_CONFIGURED: configured,
+    CRAWL4AI_ATTEMPTED: 0,
+    CRAWL4AI_SUCCESS: 0,
+    CRAWL4AI_FAILED: 0,
+    FETCH_FALLBACK_USED: 0,
+    FETCH_SUCCESS: 0,
+    FETCH_FAILED: 0,
+    crawl4ai_config_hint: configured
+      ? undefined
+      : "CRAWLER_SERVICE_URL is not set — set it to the deployed crawler-service origin (e.g. https://<host>) exposing GET /crawl?url=",
+    crawl4ai_failure_samples: [],
+  };
+}
+
+
 const MAX_TEXT = 24_000;
 
 function htmlToText(html: string): string {
@@ -81,15 +106,21 @@ async function plainFetch(url: string, timeoutMs: number): Promise<ExtractedPage
   }
 }
 
-export async function extractPage(url: string, timeoutMs = 15_000): Promise<ExtractedPage> {
+export async function extractPage(
+  url: string,
+  timeoutMs = 15_000,
+  stats?: ExtractionStats,
+): Promise<ExtractedPage> {
   if (isCrawl4AiConfigured()) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    if (stats) stats.CRAWL4AI_ATTEMPTED++;
     try {
       const rendered = await crawl4aiRenderPage(url, controller.signal);
       if (rendered.ok) {
         const text = (rendered.markdown || rendered.html || "").slice(0, MAX_TEXT);
         if (text.trim().length >= 200) {
+          if (stats) stats.CRAWL4AI_SUCCESS++;
           return {
             url,
             ok: true,
@@ -99,19 +130,40 @@ export async function extractPage(url: string, timeoutMs = 15_000): Promise<Extr
           };
         }
       }
-    } catch {
-      /* fall through to plain fetch */
+      if (stats) {
+        stats.CRAWL4AI_FAILED++;
+        if (stats.crawl4ai_failure_samples.length < 5) {
+          stats.crawl4ai_failure_samples.push(
+            `${rendered.failureCategory ?? "empty"}: ${(rendered.failureReason ?? "no text").slice(0, 120)}`,
+          );
+        }
+      }
+    } catch (e) {
+      if (stats) {
+        stats.CRAWL4AI_FAILED++;
+        if (stats.crawl4ai_failure_samples.length < 5) {
+          stats.crawl4ai_failure_samples.push(
+            e instanceof Error ? e.message.slice(0, 120) : "crawl4ai_failed",
+          );
+        }
+      }
     } finally {
       clearTimeout(timer);
     }
   }
-  return plainFetch(url, timeoutMs);
+  if (stats) stats.FETCH_FALLBACK_USED++;
+  const fetched = await plainFetch(url, timeoutMs);
+  if (stats) {
+    if (fetched.ok) stats.FETCH_SUCCESS++;
+    else stats.FETCH_FAILED++;
+  }
+  return fetched;
 }
 
 /** Extract many pages with a bounded concurrency pool. */
 export async function extractPages(
   urls: string[],
-  opts: { concurrency?: number; timeoutMs?: number; max?: number } = {},
+  opts: { concurrency?: number; timeoutMs?: number; max?: number; stats?: ExtractionStats } = {},
 ): Promise<Map<string, ExtractedPage>> {
   const concurrency = opts.concurrency ?? 6;
   const list = Array.from(new Set(urls)).slice(0, opts.max ?? 120);
@@ -122,7 +174,7 @@ export async function extractPages(
     while (cursor < list.length) {
       const url = list[cursor++];
       try {
-        out.set(url, await extractPage(url, opts.timeoutMs));
+        out.set(url, await extractPage(url, opts.timeoutMs, opts.stats));
       } catch (e) {
         out.set(url, {
           url,

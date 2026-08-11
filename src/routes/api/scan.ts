@@ -1370,33 +1370,27 @@ function fcItemToRaw(item: Record<string, unknown>): RawHit {
   };
 }
 
-/** Run a single Firecrawl search query using the centralized v2 client. */
-async function fcSearch(q: string, limit: number, scrape = false): Promise<RawHit[]> {
-  const { firecrawlSearch } = await import("@/lib/firecrawl/firecrawl.server");
-  const res = await firecrawlSearch({
-    query: q,
-    limit: Math.min(Math.max(limit, 1), 10),
-    sources: ["web", "news"],
-    scrapeOptions: scrape ? { formats: ["markdown"] } : undefined,
-  });
+/**
+ * Run a single discovery query through the provider-agnostic Discovery Router.
+ *
+ * Firecrawl is now only ONE optional provider inside the router: if it is out
+ * of credits, rate limited, unauthenticated or unreachable, the router keeps
+ * serving results from any other configured provider (SerpApi, Brave), so a
+ * Firecrawl outage can never zero out general-web discovery.
+ */
+async function fcSearch(q: string, limit: number, _scrape = false): Promise<RawHit[]> {
+  const { currentDiscoveryRouter } = await import("@/lib/scan/discovery/router.server");
+  const router = currentDiscoveryRouter();
+  const hits = await router.search(q, limit);
+  return hits as unknown as RawHit[];
+}
 
-  if (!res.success) {
-    throw new Error(res.error || `Firecrawl search failed with status ${res.statusCode}`);
-  }
-
-  const parsed: RawHit[] = res.items.map((item) => ({
-    url: item.url,
-    title: item.title || "",
-    description: item.snippet || item.description || "",
-    snippet: item.snippet,
-    author: item.author,
-    date: item.publishedDate || item.date,
-    publishedDate: item.publishedDate || item.date,
-    media: item.ogImage ? { thumbnail: item.ogImage, thumbnailHi: item.ogImage } : undefined,
-  }));
-
-  console.log(`[firecrawl] query="${q}" rawCandidates=${res.rawCandidatesCount} parsed=${parsed.length}`);
-  return parsed;
+/** Same as fcSearch but skips queries already executed during this scan. */
+async function routerSearchUnique(q: string, limit: number): Promise<RawHit[]> {
+  const { currentDiscoveryRouter } = await import("@/lib/scan/discovery/router.server");
+  const router = currentDiscoveryRouter();
+  const hits = await router.search(q, limit, { skipDuplicates: true });
+  return hits as unknown as RawHit[];
 }
 
 async function runFirecrawl(
@@ -3281,6 +3275,23 @@ export const Route = createFileRoute("/api/scan")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const { DiscoveryRouter, withDiscoveryRouter } = await import(
+          "@/lib/scan/discovery/router.server"
+        );
+        /*
+         * Acceptance-test switch: ?disableProviders=firecrawl forces the router
+         * to run without Firecrawl so the secondary-provider path is provable.
+         */
+        const disabledParam = new URL(request.url).searchParams.get("disableProviders") ?? "";
+        const discoveryRouter = new DiscoveryRouter({
+          disable: disabledParam
+            .split(",")
+            .map((v) => v.trim().toLowerCase())
+            .filter((v): v is "firecrawl" | "serpapi" | "brave" =>
+              v === "firecrawl" || v === "serpapi" || v === "brave",
+            ),
+        });
+        return withDiscoveryRouter(discoveryRouter, async () => {
         try {
           const body = await request.json().catch(() => ({}));
           const query = String(body?.query ?? "")
@@ -3941,12 +3952,16 @@ export const Route = createFileRoute("/api/scan")({
               extractTargets.push(hit.url);
             }
           }
+          const { emptyExtractionStats } = await import("@/lib/scan/page-extract.server");
+          const extractionStats = emptyExtractionStats();
+          pipelineFunnel.extraction = extractionStats;
           try {
             const { extractPages } = await import("@/lib/scan/page-extract.server");
             const extracted = await extractPages(extractTargets, {
               concurrency: 6,
               timeoutMs: 12_000,
               max: 150,
+              stats: extractionStats,
             });
             pipelineFunnel.extraction_attempted = extracted.size;
             for (const run of mergedRuns) {
@@ -3993,13 +4008,24 @@ export const Route = createFileRoute("/api/scan")({
               const { runResearchAgent } = await import(
                 "@/lib/scan/openai/research-agent.server"
               );
+              /*
+               * FIX: previously derived from hit provenance, which produced an
+               * empty list whenever discovery providers failed. The router
+               * registry holds every query actually dispatched.
+               */
+              const { currentDiscoveryRouter } = await import(
+                "@/lib/scan/discovery/router.server"
+              );
+              const routerForQueries = currentDiscoveryRouter();
               const executedQueries = Array.from(
-                new Set(
-                  mergedRuns
+                new Set([
+                  ...routerForQueries.executed(),
+                  ...mergedRuns
                     .flatMap((r) => r.raw.map((h) => h.queryUsed))
                     .filter((q): q is string => Boolean(q)),
-                ),
+                ]),
               );
+              aiDiag.base_queries_passed = executedQueries.length;
               const domainsCovered = Array.from(
                 new Set(
                   Array.from(knownUrls).map((u) => {
@@ -4047,16 +4073,42 @@ export const Route = createFileRoute("/api/scan")({
                 const { planExpansionQueries, runExpansionPass } = await import(
                   "@/lib/scan/openai/expansion.server"
                 );
-                const expansionQueries = planExpansionQueries(research.data, executedQueries);
+                const suggested = planExpansionQueries(research.data, executedQueries);
+                aiDiag.ai_queries_suggested = suggested.length;
+                /* Dedup against base discovery AND against each other. */
+                const seenExpansion = new Set(
+                  executedQueries.map((q) => q.trim().replace(/\s+/g, " ").toLowerCase()),
+                );
+                const expansionQueries: string[] = [];
+                for (const q of suggested) {
+                  const key = q.trim().replace(/\s+/g, " ").toLowerCase();
+                  if (!key || seenExpansion.has(key)) {
+                    aiDiag.ai_queries_duplicate++;
+                    continue;
+                  }
+                  seenExpansion.add(key);
+                  expansionQueries.push(q);
+                }
                 aiDiag.expansion_queries_generated = expansionQueries.length;
 
                 if (expansionQueries.length) {
+                  /* Expansion uses the SAME resilient discovery router as base
+                   * discovery — never Firecrawl directly. */
                   const expansion = await runExpansionPass(
                     expansionQueries,
-                    (q, limit) => fcSearch(q, limit) as Promise<never[]>,
+                    (q, limit) => routerSearchUnique(q, limit) as Promise<never[]>,
                     { concurrency: 4, limitPerQuery: 5, knownUrls },
                   );
                   aiDiag.expansion_queries_executed = expansion.queriesExecuted;
+                  aiDiag.ai_queries_executed = expansion.queriesExecuted;
+                  aiDiag.ai_queries_failed = expansion.queriesFailed;
+                  /* No healthy provider = the queries did not really run. */
+                  if (currentDiscoveryRouter().report().all_providers_down) {
+                    aiDiag.ai_queries_failed = expansion.queriesGenerated;
+                    aiDiag.notes.push(
+                      "Expansion queries could not be dispatched: no healthy discovery provider (configure SERPAPI_API_KEY or BRAVE_API_KEY).",
+                    );
+                  }
                   aiDiag.expansion_new_urls = expansion.hits.length;
                   pipelineFunnel.queries_planned += expansionQueries.length;
                   pipelineFunnel.queries_executed += expansion.queriesExecuted;
@@ -4071,7 +4123,7 @@ export const Route = createFileRoute("/api/scan")({
                       );
                       const newExtracted = await extractPages(
                         newHits.map((h) => h.url).filter((u): u is string => Boolean(u)),
-                        { concurrency: 4, timeoutMs: 12_000, max: 60 },
+                        { concurrency: 4, timeoutMs: 12_000, max: 60, stats: extractionStats },
                       );
                       pipelineFunnel.extraction_attempted += newExtracted.size;
                       for (const hit of newHits) {
@@ -4204,6 +4256,16 @@ export const Route = createFileRoute("/api/scan")({
 
 
 
+          /* ── PROVIDER HEALTH (failure is never reported as "0 results") ── */
+          pipelineFunnel.discovery = discoveryRouter.report();
+          console.log(
+            `[scan:providers] ${pipelineFunnel.discovery.providers
+              .map((pv) => `${pv.provider}=${pv.state}`)
+              .join(" ")} crawl4ai=${
+              extractionStats.CRAWL4AI_CONFIGURED ? "CONFIGURED" : "NOT_CONFIGURED"
+            }`,
+          );
+
           /* ── PERSIST EVERY STAGE (admin auditable) ─────────────────────── */
           pipelineFunnel.persisted = audit.leads.length;
           console.log(`[scan:funnel] ${JSON.stringify(pipelineFunnel)}`);
@@ -4251,6 +4313,8 @@ const fcConfig = getFirecrawlConfigInfo();
             },
             pipeline: pipelineFunnel,
             openai: aiDiag,
+            providers: pipelineFunnel.discovery,
+            extraction: extractionStats,
 
             queriesGenerated: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesExecuted: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
@@ -4360,6 +4424,7 @@ const fcConfig = getFirecrawlConfigInfo();
           console.error("scan route failed:", msg);
           return Response.json({ ok: false, error: msg }, { status: 500 });
         }
+        });
       },
     },
   },

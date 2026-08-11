@@ -31,6 +31,7 @@ import {
 import { PersistedResultCard, type HitLike } from "@/components/scan/PersistedResultCard";
 import { FunnelDebugPanel } from "@/components/scan/FunnelDebugPanel";
 import { OpenAiIntelPanel } from "@/components/scan/OpenAiIntelPanel";
+import { DiscoveryHealthPanel } from "@/components/scan/DiscoveryHealthPanel";
 
 import { DetailDrawer } from "@/components/scan/DetailDrawer";
 import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
@@ -1397,6 +1398,10 @@ function AdminDiagnosticsPanel({ report }: { report: ReportWithDiagnostics }) {
       <div className="mt-4">
         <FunnelDebugPanel funnel={(diag as any)?.funnel} />
         <OpenAiIntelPanel ai={(diag as any)?.openai} />
+        <DiscoveryHealthPanel
+          discovery={(diag as any)?.providers}
+          extraction={(diag as any)?.extraction}
+        />
 
         <LiveScanStatus
           sourceCounts={diag.sourceCounts ?? {}}
