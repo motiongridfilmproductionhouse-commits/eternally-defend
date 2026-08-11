@@ -4004,13 +4004,24 @@ export const Route = createFileRoute("/api/scan")({
               const { runResearchAgent } = await import(
                 "@/lib/scan/openai/research-agent.server"
               );
+              /*
+               * FIX: previously derived from hit provenance, which produced an
+               * empty list whenever discovery providers failed. The router
+               * registry holds every query actually dispatched.
+               */
+              const { currentDiscoveryRouter } = await import(
+                "@/lib/scan/discovery/router.server"
+              );
+              const routerForQueries = currentDiscoveryRouter();
               const executedQueries = Array.from(
-                new Set(
-                  mergedRuns
+                new Set([
+                  ...routerForQueries.executed(),
+                  ...mergedRuns
                     .flatMap((r) => r.raw.map((h) => h.queryUsed))
                     .filter((q): q is string => Boolean(q)),
-                ),
+                ]),
               );
+              aiDiag.base_queries_passed = executedQueries.length;
               const domainsCovered = Array.from(
                 new Set(
                   Array.from(knownUrls).map((u) => {
@@ -4058,16 +4069,35 @@ export const Route = createFileRoute("/api/scan")({
                 const { planExpansionQueries, runExpansionPass } = await import(
                   "@/lib/scan/openai/expansion.server"
                 );
-                const expansionQueries = planExpansionQueries(research.data, executedQueries);
+                const suggested = planExpansionQueries(research.data, executedQueries);
+                aiDiag.ai_queries_suggested = suggested.length;
+                /* Dedup against base discovery AND against each other. */
+                const seenExpansion = new Set(
+                  executedQueries.map((q) => q.trim().replace(/\s+/g, " ").toLowerCase()),
+                );
+                const expansionQueries: string[] = [];
+                for (const q of suggested) {
+                  const key = q.trim().replace(/\s+/g, " ").toLowerCase();
+                  if (!key || seenExpansion.has(key)) {
+                    aiDiag.ai_queries_duplicate++;
+                    continue;
+                  }
+                  seenExpansion.add(key);
+                  expansionQueries.push(q);
+                }
                 aiDiag.expansion_queries_generated = expansionQueries.length;
 
                 if (expansionQueries.length) {
+                  /* Expansion uses the SAME resilient discovery router as base
+                   * discovery — never Firecrawl directly. */
                   const expansion = await runExpansionPass(
                     expansionQueries,
-                    (q, limit) => fcSearch(q, limit) as Promise<never[]>,
+                    (q, limit) => routerSearchUnique(q, limit) as Promise<never[]>,
                     { concurrency: 4, limitPerQuery: 5, knownUrls },
                   );
                   aiDiag.expansion_queries_executed = expansion.queriesExecuted;
+                  aiDiag.ai_queries_executed = expansion.queriesExecuted;
+                  aiDiag.ai_queries_failed = expansion.queriesFailed;
                   aiDiag.expansion_new_urls = expansion.hits.length;
                   pipelineFunnel.queries_planned += expansionQueries.length;
                   pipelineFunnel.queries_executed += expansion.queriesExecuted;
