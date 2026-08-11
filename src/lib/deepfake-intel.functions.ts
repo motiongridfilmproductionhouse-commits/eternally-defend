@@ -5,6 +5,10 @@ import type { Database } from "@/integrations/supabase/types";
 import { filterDeepfakeCandidates } from "./deepfake/filter.server";
 import { generateDeepfakeQueries } from "./deepfake/query-generator.server";
 import { executeMultiProviderDiscovery } from "./deepfake/multi-provider-discovery.server";
+import {
+  recordQualifiedDomainFinding,
+  determineLeadOrigin,
+} from "./deepfake/high-risk-registry.server";
 
 type ScanRow = Database["public"]["Tables"]["deepfake_scans"]["Row"];
 type FindingRow = Database["public"]["Tables"]["deepfake_findings"]["Row"];
@@ -29,6 +33,10 @@ export interface ScanTelemetry {
   estimated_remaining_time: string;
   stage_logs: string[];
   stage_failure?: string | null;
+  // Threat Discovery Telemetry
+  high_risk_domain_queries?: { executed: number; total: number };
+  open_web_threat_queries?: { executed: number; total: number };
+  new_source_domains_discovered?: number;
   // Discard Diagnostics
   synthetic_candidates_found?: number;
   unrelated_pages_discarded?: number;
@@ -227,9 +235,17 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         new Set(combinedQueries.map((q) => q.trim()).filter(Boolean)),
       ).slice(0, data.max_queries ?? 56);
 
+      const totalHighRiskQueries = uniqueQueries.filter((q) => /\bsite:(?:desifakes|imgfy)\b/i.test(q)).length;
+      const totalOpenWebQueries = uniqueQueries.length - totalHighRiskQueries;
+      let executedHighRiskQueries = 0;
+      let executedOpenWebQueries = 0;
+
       await updateTelemetry({
         stage: "queries_generated",
         queries_generated: uniqueQueries.length,
+        high_risk_domain_queries: { executed: 0, total: totalHighRiskQueries },
+        open_web_threat_queries: { executed: 0, total: totalOpenWebQueries },
+        new_source_domains_discovered: 0,
         stage_logs: [
           ...telemetry.stage_logs,
           `✓ ${uniqueQueries.length} queries generated`,
@@ -251,6 +267,11 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           perQueryLimit: data.per_query_limit ?? 10,
           onProgress: async (p) => {
             executedQueriesCount++;
+            if (/\bsite:(?:desifakes|imgfy)\b/i.test(p.query)) {
+              executedHighRiskQueries++;
+            } else {
+              executedOpenWebQueries++;
+            }
             if (p.provider && p.provider !== "none") providersSet.add(p.provider);
             const remainingQueries = uniqueQueries.length - executedQueriesCount;
             const remSec = remainingQueries * 2;
@@ -260,6 +281,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
               current_provider: p.provider,
               current_query: p.query,
               queries_executed: executedQueriesCount,
+              high_risk_domain_queries: { executed: executedHighRiskQueries, total: totalHighRiskQueries },
+              open_web_threat_queries: { executed: executedOpenWebQueries, total: totalOpenWebQueries },
               providers_used: Array.from(providersSet),
               candidates_found: telemetry.candidates_found + p.hitsFound,
               coverage_pct: Math.round((executedQueriesCount / uniqueQueries.length) * 100),
@@ -529,6 +552,18 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           else if (riskLevel === "HIGH") high++;
           else low++;
 
+          const origin = determineLeadOrigin(pageUrl, c.source);
+          if (clientVisible && decision === "VERIFIED_TARGET_THREAT" && origin === "REAL_NETWORK_DISCOVERY") {
+            const host = hostOf(pageUrl);
+            if (host) {
+              recordQualifiedDomainFinding({
+                hostname: host,
+                provider: c.source || "firecrawl",
+                query: c.query,
+              });
+            }
+          }
+
           return {
             scan_id: scan.id,
             user_id: userId,
@@ -549,11 +584,11 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
             face_similarity: raw.face_similarity ?? null,
             matched_face_id: raw.matched_face_id ?? null,
             identity_confidence: identity.confidence,
-            matched_evidence: identity.evidence,
+            matched_evidence: [...identity.evidence, `origin:${origin}`],
             finding_classification: decisionToFindingClassification(decision),
             classification_explanation: clientVisible
-              ? `Target identity ${identity.status} via ${identity.evidence.join(", ") || "face match"}; synthetic/explicit evidence confirmed.`
-              : `Excluded (${decision}): ${identity.rejectionReason ?? "insufficient synthetic/explicit evidence for this target"}.`,
+              ? `Target identity ${identity.status} via ${identity.evidence.join(", ") || "face match"}; synthetic/explicit evidence confirmed. [Origin: ${origin}]`
+              : `Excluded (${decision}): ${identity.rejectionReason ?? "insufficient synthetic/explicit evidence for this target"}. [Origin: ${origin}]`,
             ai_reasoning: clientVisible
               ? (c.ai_reasoning ?? "Target-verified synthetic media evidence")
               : `Excluded — ${decision}. Search-query provenance is not identity evidence.`,

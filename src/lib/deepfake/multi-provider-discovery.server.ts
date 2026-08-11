@@ -14,13 +14,51 @@ export interface DiscoveredLead {
   is_sensitive?: boolean;
 }
 
+export type ProviderErrorCode =
+  | "AUTH_FAILED"
+  | "QUOTA_EXHAUSTED"
+  | "RATE_LIMITED"
+  | "PROVIDER_ERROR"
+  | "TIMEOUT"
+  | "NONE";
+
 export interface DiscoveryProgress {
   provider: string;
   query: string;
   queryIndex: number;
   totalQueries: number;
   hitsFound: number;
-  providerStatus: "success" | "skipped" | "failed";
+  providerStatus: "success" | "skipped" | "failed" | "quota_exhausted" | "rate_limited" | "auth_failed";
+  errorCode?: ProviderErrorCode;
+  errorMessage?: string;
+  httpStatus?: number | null;
+}
+
+export function classifyProviderError(err: unknown): {
+  code: ProviderErrorCode;
+  status: number | null;
+  message: string;
+} {
+  const msg = err instanceof Error ? err.message : String(err);
+  const statusMatch = msg.match(/\b(401|402|403|429|5\d\d)\b/);
+  const status = statusMatch ? parseInt(statusMatch[1], 10) : null;
+
+  if (status === 401 || status === 403 || /auth|unauthorized|forbidden|invalid key/i.test(msg)) {
+    return { code: "AUTH_FAILED", status, message: msg };
+  }
+  if (status === 402 || /insufficient credits|quota|billing|payment/i.test(msg)) {
+    return { code: "QUOTA_EXHAUSTED", status: 402, message: msg };
+  }
+  if (status === 429 || /rate limit|too many requests/i.test(msg)) {
+    return { code: "RATE_LIMITED", status: 429, message: msg };
+  }
+  if (/\b(?:timeout|timed out|abort|etimedout)\b/i.test(msg)) {
+    return { code: "TIMEOUT", status: null, message: msg };
+  }
+  if (status && status >= 500) {
+    return { code: "PROVIDER_ERROR", status, message: msg };
+  }
+  return { code: "PROVIDER_ERROR", status, message: msg };
 }
 
 const hostOf = (url: string): string | null => {
@@ -49,14 +87,9 @@ const canonicalUrl = (url: string): string => {
 };
 
 /**
- * Discovery is Firecrawl-only. Brave Search, SerpApi and Reddit providers were
- * removed intentionally — do not reintroduce them.
- */
-
-
-/**
  * Executes multi-provider deepfake discovery across queries.
  * Persists discovered candidate rows immediately into Supabase.
+ * Records explicit provider error telemetry (quota, rate-limit, auth) without swallowing into fake zero hits.
  */
 export async function executeMultiProviderDiscovery({
   queries,
@@ -80,33 +113,38 @@ export async function executeMultiProviderDiscovery({
   for (let idx = 0; idx < queries.length; idx++) {
     const query = queries[idx];
     let queryHits: DiscoveredLead[] = [];
-    let providerUsed = "none";
+    let providerUsed = "firecrawl";
+    let providerStatus: DiscoveryProgress["providerStatus"] = "success";
+    let lastError: { code: ProviderErrorCode; status: number | null; message: string } | null = null;
 
     // 1. Try Firecrawl
     if (process.env.FIRECRAWL_API_KEY?.trim()) {
       try {
         const fcHits = await firecrawlSearch(query, perQueryLimit);
-        if (fcHits.length > 0) {
-          queryHits = fcHits.map((h) => ({
-            url: h.url,
-            title: h.title ?? "",
-            description: h.description ?? "",
-            query,
-            source: h.source ?? "firecrawl",
-            thumbnail_url: h.thumbnail_url,
-            image_url: h.image_url,
-            is_sensitive: h.is_sensitive,
-          }));
-          providerUsed = "firecrawl";
-        }
+        queryHits = fcHits.map((h) => ({
+          url: h.url,
+          title: h.title ?? "",
+          description: h.description ?? "",
+          query,
+          source: h.source ?? "firecrawl",
+          thumbnail_url: h.thumbnail_url,
+          image_url: h.image_url,
+          is_sensitive: h.is_sensitive,
+        }));
+        providerStatus = "success";
       } catch (err) {
-        console.warn(`[DEEPFAKE:DISCOVERY] Firecrawl failed for "${query}":`, err);
+        lastError = classifyProviderError(err);
+        if (lastError.code === "QUOTA_EXHAUSTED") providerStatus = "quota_exhausted";
+        else if (lastError.code === "RATE_LIMITED") providerStatus = "rate_limited";
+        else if (lastError.code === "AUTH_FAILED") providerStatus = "auth_failed";
+        else providerStatus = "failed";
+
+        console.warn(`[DEEPFAKE:DISCOVERY] Firecrawl query "${query}" failed (${lastError.code}):`, lastError.message);
       }
+    } else {
+      providerStatus = "skipped";
+      providerUsed = "none";
     }
-
-    // Firecrawl is the only discovery provider. Brave, SerpApi and Reddit are
-    // intentionally not used for deepfake discovery.
-
 
     // Deduplicate and filter blocked hosts
     const newDiscoveryRows: Array<{
@@ -188,7 +226,10 @@ export async function executeMultiProviderDiscovery({
         queryIndex: idx + 1,
         totalQueries: queries.length,
         hitsFound: queryHits.length,
-        providerStatus: queryHits.length > 0 ? "success" : "skipped",
+        providerStatus,
+        errorCode: lastError?.code ?? "NONE",
+        errorMessage: lastError?.message,
+        httpStatus: lastError?.status ?? null,
       });
     }
   }

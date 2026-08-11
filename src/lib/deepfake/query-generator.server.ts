@@ -1,3 +1,5 @@
+import { generateHighRiskSiteQueries } from "./high-risk-registry.server";
+
 export type DeepfakeTarget = {
   name: string;
   aliases?: string[];
@@ -12,59 +14,70 @@ export function generateDeepfakeQueries(target: DeepfakeTarget): string[] {
   const identities = unique([
     target.name,
     ...(target.aliases ?? []),
-    ...(target.handles ?? []).map((handle) => handle.replace(/^@/, "")),
+    ...(target.handles ?? [])
+      .map((h) => h.replace(/^@/, "").trim())
+      .filter((h) => !h.includes("not-used-as-identity")),
   ])
     .map((value) => value.trim())
     .filter(Boolean);
 
-  const primaryPhrases = [
+  // Tier 1 — Known High-Risk Domain Queries (site:desifakes.com, site:imgfy.net, etc.)
+  const highRiskQueries = generateHighRiskSiteQueries({
+    name: target.name,
+    aliases: target.aliases,
+  });
+
+  // Tier 2 — Threat-Intent Web Queries
+  const threatPhrases = [
     "deepfake",
-    "ai generated",
+    "deep fake",
+    "faceswap",
     "face swap",
-    "fake video",
-    "fake image",
+    "fake nude",
+    "nude fake",
+    "ai fake",
+    "ai generated",
     "synthetic media",
-    "ai nude",
-    "manipulated",
+    "fake video",
+    "fake images",
     "explicit ai",
-    "fake instagram",
     "leaked ai",
-    "deepfake reddit",
-    "deepfake telegram",
-    "deepfake twitter",
-    "face swap video",
-    "voice clone",
     "face morph",
-    "fake endorsement",
-    "celebrity impersonation",
-    "terabox deepfake",
   ];
 
-  const queries: string[] = [];
-
+  const threatWebQueries: string[] = [];
   for (const identity of identities) {
     const person = quote(identity);
-    const unquoted = identity;
-
-    // 1. Direct targeted queries
-    for (const phrase of primaryPhrases) {
-      queries.push(`${unquoted} ${phrase}`);
+    for (const phrase of threatPhrases) {
+      threatWebQueries.push(`${person} ${phrase}`);
     }
+  }
 
-    // 2. Specialized platform & archive queries
-    queries.push(
+  // Tier 3 — Indexed Social / Platform Discovery
+  const socialQueries: string[] = [];
+  for (const identity of identities) {
+    const person = quote(identity);
+    socialQueries.push(
       `${person} deepfake site:reddit.com`,
       `${person} face swap site:reddit.com`,
       `${person} ai nude site:t.me`,
       `${person} deepfake site:t.me`,
-      `${person} face swap site:terabox.com`,
-      `${person} deepfake site:archive.org`,
       `${person} fake video site:x.com`,
-      `${person} synthetic media site:pinterest.com`,
-      `${person} (deepfake OR "face swap" OR "ai nude") (gallery OR video OR link)`,
-      `${person} ("voice clone" OR "fake endorsement" OR "impersonation")`,
+      `${person} synthetic media site:terabox.com`,
     );
   }
 
-  return unique(queries).slice(0, 100);
+  // Bounded focused budget: 64 queries max (40% High-Risk Domains, 40% Open-Web Threat, 20% Social/Indexed)
+  const maxTotal = 64;
+  const highRiskTargetCount = 28;
+  const openWebTargetCount = 26;
+  const socialTargetCount = 10;
+
+  const slicedHighRisk = unique(highRiskQueries).slice(0, highRiskTargetCount);
+  const slicedOpenWeb = unique(threatWebQueries).slice(0, openWebTargetCount);
+  const slicedSocial = unique(socialQueries).slice(0, socialTargetCount);
+
+  const combined = unique([...slicedHighRisk, ...slicedOpenWeb, ...slicedSocial]);
+
+  return combined.slice(0, maxTotal);
 }

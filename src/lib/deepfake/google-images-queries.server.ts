@@ -1,26 +1,30 @@
 /**
- * Mandatory Google Images investigation query generation.
- * Crosses identity aliases with investigation keywords — never search one name only.
+ * Mandatory Google Images threat discovery query generation.
+ * Searches specifically for indexed images associated with target synthetic impersonation.
  */
 
 import { expandIdentityVariants } from "./identity-variants.server";
 
 export const GOOGLE_IMAGES_INVESTIGATION_KEYWORDS = [
-  "",
   "deepfake",
-  "AI",
   "face swap",
-  "fake",
-  "synthetic",
-  "manipulated",
+  "faceswap",
   "fake nude",
-  "fake intimate",
-  "AI generated",
-  "morphed",
+  "nude fake",
+  "AI fake",
+  "synthetic media",
+  "fake video",
+  "fake images",
+  "explicit AI",
   "leaked AI",
 ] as const;
 
-export const GOOGLE_IMAGES_PRIORITY_KEYWORDS = ["deepfake", "AI", "face swap", "fake"] as const;
+export const GOOGLE_IMAGES_PRIORITY_KEYWORDS = [
+  "deepfake",
+  "face swap",
+  "fake nude",
+  "AI fake",
+] as const;
 
 export const GOOGLE_IMAGES_MAX_QUERIES = 58;
 export const GOOGLE_IMAGES_TARGET_MIN = 300;
@@ -29,9 +33,6 @@ export const GOOGLE_IMAGES_TARGET_MAX = 1000;
 function quoteIdentity(identity: string): string {
   const clean = identity.replaceAll('"', "").trim();
   if (!clean) return "";
-  if (clean.split(/\s+/).length === 1 && clean.length <= 6) {
-    return clean;
-  }
   return `"${clean}"`;
 }
 
@@ -52,7 +53,7 @@ function uniquePreserve(items: string[]): string[] {
 }
 
 /**
- * Build mandatory Google Images search queries for a protected identity.
+ * Build target-specific Google Images threat search queries for a protected identity.
  */
 export function buildGoogleImagesInvestigationQueries(input: {
   name: string;
@@ -103,7 +104,7 @@ export function buildGoogleImagesInvestigationQueries(input: {
     const quoted = quoteIdentity(identity);
     if (!quoted) return;
     for (const keyword of keywords) {
-      push(keyword ? `${quoted} ${keyword}` : quoted);
+      push(`${quoted} ${keyword}`);
       if (out.length >= max) return;
     }
   };
@@ -123,14 +124,6 @@ export function buildGoogleImagesInvestigationQueries(input: {
 
   for (const identity of otherIdentities.slice(0, 10)) {
     pushIdentityKeywords(identity, GOOGLE_IMAGES_INVESTIGATION_KEYWORDS);
-    if (out.length >= max) return out.slice(0, max);
-  }
-
-  for (const identity of [primary, ...shortNicknames, ...nativeVariants].slice(0, 6)) {
-    const quoted = quoteIdentity(identity);
-    if (!quoted) continue;
-    push(`${quoted} photos`);
-    push(`${quoted} images`);
     if (out.length >= max) return out.slice(0, max);
   }
 

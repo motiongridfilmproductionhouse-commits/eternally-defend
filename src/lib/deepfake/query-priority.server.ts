@@ -1,27 +1,38 @@
 /**
- * Prioritize deepfake discovery queries so exact-name / deepfake /
- * face-swap / fake-nude work runs before lower-priority expansion.
+ * Prioritize deepfake discovery queries so known high-risk domain queries
+ * and exact-target threat-intent queries run before open-web expansion.
  */
+
+import { SEED_HIGH_RISK_DOMAINS } from "./high-risk-registry.server";
 
 export function scoreDeepfakeQueryPriority(query: string): number {
   const q = query.toLowerCase();
   let score = 0;
 
+  // Tier 1 High-Risk Domain bonus
+  const isHighRiskDomainQuery = SEED_HIGH_RISK_DOMAINS.some((domain) =>
+    q.includes(`site:${domain}`),
+  ) || /\bsite:(?:desifakes|imgfy)\b/.test(q);
+
+  if (isHighRiskDomainQuery) {
+    score += 120;
+  } else if (/\bsite:/.test(q)) {
+    if (/\bsite:(?:reddit\.com|t\.me|x\.com)\b/.test(q)) {
+      score += 40;
+    } else if (/\bsite:archive\.org\b/.test(q)) {
+      score -= 100; // Deprioritize generic archive queries
+    } else {
+      score += 20;
+    }
+  }
+
+  // Tier 2 Threat terms
   if (/\bdeepfake\b/.test(q)) score += 75;
   if (/\b(?:face\s*swap|faceswap)\b/.test(q)) score += 65;
-  if (/\b(?:fake\s*nude|ai\s*nude)\b/.test(q)) score += 55;
-  if (/\b(?:deepfake\s*porn|ai\s*porn)\b/.test(q)) score += 30;
-  if (/\b(?:morphed|synthetic\s*media)\b/.test(q)) score += 20;
-  if (/\b(?:leaked|fake\s*leak)\b/.test(q)) score += 15;
-  if (/\b(?:nude|nsfw|explicit|porn)\b/.test(q)) score += 10;
-  if (/\b(?:gallery|images|video|mirror|download)\b/.test(q)) score += 5;
-
-  // Prefer shorter exact-name high-signal queries over long domain-expansion ones.
-  const lengthPenalty = Math.min(20, Math.floor(q.length / 20));
-  score -= lengthPenalty;
-
-  // Domain-expansion / site exclusions are lower priority once core terms ran.
-  if ((q.match(/-site:/g) ?? []).length >= 8) score -= 8;
+  if (/\b(?:fake\s*nude|ai\s*nude|nude\s*fake)\b/.test(q)) score += 60;
+  if (/\b(?:ai\s*fake|synthetic\s*media)\b/.test(q)) score += 50;
+  if (/\b(?:fake\s*video|fake\s*images)\b/.test(q)) score += 40;
+  if (/\b(?:explicit\s*ai|leaked\s*ai)\b/.test(q)) score += 30;
 
   return score;
 }
@@ -46,10 +57,6 @@ export function buildAdaptiveQuerySchedule(input: {
   initialCount?: number;
 }): string[] {
   const prioritized = prioritizeDeepfakeQueries(input.queries);
-  const initial = Math.max(1, Math.min(input.initialCount ?? 15, prioritized.length));
-  // Full prioritized list is retained; callers slice by next_query_index.
-  // initialCount only documents the preferred first wave size.
-  void initial;
   return prioritized;
 }
 
