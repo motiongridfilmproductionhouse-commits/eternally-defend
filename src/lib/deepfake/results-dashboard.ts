@@ -45,6 +45,7 @@ export type ClientFinding = EvidenceUrlFields & {
   explicit_media_confirmed?: boolean | null;
   synthetic_media_confirmed?: boolean | null;
   hosting_or_distribution_confirmed?: boolean | null;
+  finding_origin?: "NEW_DISCOVERY" | "HISTORICAL_FINDING" | "MANUAL_EVIDENCE" | string | null;
 };
 
 export type OverviewMetrics = {
@@ -220,6 +221,7 @@ export function normalizeClientFinding(row: unknown): ClientFinding | null {
     redirect_chain: asStringArray(readField(source, "redirect_chain", "redirectChain")),
     crawled_at: asString(readField(source, "crawled_at", "crawledAt")),
     created_at: asString(readField(source, "created_at", "createdAt")),
+    finding_origin: asString(readField(source, "finding_origin", "findingOrigin")),
   };
 }
 

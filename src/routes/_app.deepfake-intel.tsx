@@ -42,6 +42,11 @@ import { ThreatTimeline, type TimelineEvent } from "@/components/deepfake/Threat
 import { buildThreatAlertSummary } from "@/lib/deepfake/threat-alert";
 import { selectThreatFeed, countVerified } from "@/lib/deepfake/verified-threat-feed";
 import type { ClientFinding } from "@/lib/deepfake/results-dashboard";
+import { DeepfakeIntelligenceSummary } from "@/components/deepfake/analytics/DeepfakeIntelligenceSummary";
+import { DeepfakeExposureMap } from "@/components/deepfake/analytics/DeepfakeExposureMap";
+import { DomainConcentrationChart } from "@/components/deepfake/analytics/DomainConcentrationChart";
+import { SourceIntelligencePanel } from "@/components/deepfake/analytics/SourceIntelligencePanel";
+import { getFindingNormalizedDomain, resolveFindingOrigin } from "@/lib/deepfake/analytics-helpers";
 
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
@@ -107,6 +112,7 @@ function DeepfakeIntelPage() {
   const [manualUrlsText, setManualUrlsText] = useState("");
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
   const [showGeneralMentions, setShowGeneralMentions] = useState(false);
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
 
   const profiles = useQuery({
     queryKey: ["deepfake-target-profiles"],
@@ -140,7 +146,7 @@ function DeepfakeIntelPage() {
   const findings = (selected.data?.findings ?? []) as unknown as ClientFinding[];
   const discoveries = selected.data?.discoveries ?? [];
   const threatSummary = buildThreatAlertSummary(findings);
-  const threatFeed = selectThreatFeed(
+  const allThreatFeed = selectThreatFeed(
     findings,
     scan?.target_name
       ? {
@@ -149,6 +155,12 @@ function DeepfakeIntelPage() {
         }
       : null,
   );
+
+  const threatFeed = selectedDomain
+    ? allThreatFeed.filter(
+        (t) => getFindingNormalizedDomain(t.finding) === selectedDomain,
+      )
+    : allThreatFeed;
 
 
   const run = useMutation({
@@ -702,6 +714,31 @@ function DeepfakeIntelPage() {
             </div>
           ) : (
             <>
+              {/* RESTORED DEEPFAKE INTELLIGENCE ANALYTICS SUITE */}
+              <DeepfakeIntelligenceSummary findings={findings} />
+
+              <DeepfakeExposureMap
+                findings={findings}
+                selectedDomain={selectedDomain}
+                onSelectDomain={setSelectedDomain}
+              />
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <DomainConcentrationChart
+                  findings={findings}
+                  selectedDomain={selectedDomain}
+                  onSelectDomain={setSelectedDomain}
+                />
+                <SourceIntelligencePanel
+                  findings={findings}
+                  selectedDomain={selectedDomain}
+                  onUpdateFinding={(findingId, status) =>
+                    upd.mutate({ finding_id: findingId, review_status: status })
+                  }
+                  pending={upd.isPending}
+                />
+              </div>
+
               {/* B. Live Telemetry Dashboard */}
               <TelemetryDashboard
                 scan={scan}
@@ -943,7 +980,7 @@ function TelemetryDashboard({
   const queriesExec = telemetry?.queries_executed ?? (isCompleted ? queriesGen : 0);
   const providers = telemetry?.providers_used?.length
     ? telemetry.providers_used.join(", ")
-    : "Google Images, Firecrawl, Brave, SerpAPI, Reddit, Web";
+    : "Google Images, Firecrawl, Reddit, Web";
   const candidatesFound = telemetry?.candidates_found ?? discoveriesCount;
   const pagesCrawled = telemetry?.pages_crawled ?? discoveriesCount;
   const imagesDownloaded = telemetry?.images_downloaded ?? discoveriesCount;
@@ -1196,9 +1233,39 @@ function TelemetryDashboard({
 
       {/* Animated Stage Progression Checklist */}
       <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2 text-xs">
-        <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase flex items-center justify-between">
+        <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase flex items-center justify-between flex-wrap gap-2">
           <span>Animated Stage Progression</span>
-          <span>Providers: {providers}</span>
+          <div className="flex items-center gap-1.5 text-[10px]">
+            <span>Providers: {providers}</span>
+            <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/10">
+              Brave — DISABLED
+            </Badge>
+            <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/10">
+              SerpAPI — DISABLED
+            </Badge>
+          </div>
+        </div>
+
+        {/* Discovery Provider & Search Surface Architecture */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+          <div className="p-2 rounded border border-sky-500/30 bg-sky-500/10 space-y-1">
+            <div className="font-bold text-sky-300 flex items-center justify-between">
+              <span>1. GOOGLE IMAGES ENGINE</span>
+              <Badge className="bg-sky-500/20 text-sky-300 border-sky-500/40 text-[9px]">ENABLED</Badge>
+            </div>
+            <div className="text-[10px] text-muted-foreground">Direct image candidate discovery & visual similarity indexing</div>
+          </div>
+          <div className="p-2 rounded border border-blue-500/30 bg-blue-500/10 space-y-1">
+            <div className="font-bold text-blue-300 flex items-center justify-between">
+              <span>2. FIRECRAWL / WEB DISCOVERY</span>
+              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[9px]">ENABLED</Badge>
+            </div>
+            <div className="text-[10px] text-muted-foreground space-y-0.5 font-mono">
+              <div>├ Reddit search surface (site:reddit.com)</div>
+              <div>├ Telegram search surface (site:t.me)</div>
+              <div>└ X search surface (site:x.com)</div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
@@ -1391,11 +1458,17 @@ function FindingCard({
             >
               {severityLabelMap[risk]}
             </span>
-            {isNew && (
-              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[9px] uppercase animate-pulse">
-                NEW
-              </Badge>
-            )}
+            <Badge
+              className={`text-[9px] font-bold uppercase tracking-wider border ${
+                resolveFindingOrigin(f as any) === "NEW_DISCOVERY"
+                  ? "bg-sky-500/20 text-sky-300 border-sky-500/50 animate-pulse"
+                  : resolveFindingOrigin(f as any) === "MANUAL_EVIDENCE"
+                    ? "bg-purple-500/20 text-purple-300 border-purple-500/50"
+                    : "bg-slate-700/40 text-slate-300 border-slate-600/50"
+              }`}
+            >
+              {resolveFindingOrigin(f as any).replace("_", " ")}
+            </Badge>
             <Badge
               variant="outline"
               className="text-[10px] py-0 border-primary/50 text-primary uppercase font-mono"
