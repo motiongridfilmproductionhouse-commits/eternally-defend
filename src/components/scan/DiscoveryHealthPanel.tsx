@@ -3,7 +3,7 @@
  * Makes provider failure explicit so an outage is never read as "0 results".
  */
 
-import type { DiscoveryRouterReport } from "@/lib/scan/discovery/router.server";
+import type { DiscoveryRouterReport, ProviderHealthReport } from "@/lib/scan/discovery/types";
 import type { ExtractionStats } from "@/lib/scan/page-extract-types";
 
 const STATE_STYLES: Record<string, string> = {
@@ -55,7 +55,7 @@ export function DiscoveryHealthPanel({
               </tr>
             </thead>
             <tbody>
-              {discovery.providers.map((p) => (
+              {discovery.providers.map((p: ProviderHealthReport) => (
                 <tr key={p.provider} className="border-t border-border/50">
                   <td className="py-1 pr-3 font-semibold text-foreground">{p.provider}</td>
                   <td className="py-1 pr-3">
