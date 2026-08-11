@@ -900,12 +900,12 @@ function DeepfakeIntelPage() {
                 <div className="space-y-3">
                   <details className="card-surface p-4 rounded-xl border border-border/60 group">
                     <summary className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase flex items-center justify-between">
-                      <span>Verification Queue ({discoveries.filter((d: any) => d.analysis_status === "pending_verification").length})</span>
+                      <span>Verification Queue ({discoveries.filter((d: any) => d.analysis_status === "pending_verification" || d.analysis_status === "discovered").length})</span>
                       <span className="text-[10px] text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
                     </summary>
                     <div className="mt-3 space-y-2 text-xs text-muted-foreground divide-y divide-border/40">
                       {discoveries
-                        .filter((d: any) => d.analysis_status === "pending_verification")
+                        .filter((d: any) => d.analysis_status === "pending_verification" || d.analysis_status === "discovered")
                         .slice(0, 15)
                         .map((d: any) => (
                           <div key={d.id} className="pt-2 flex items-center justify-between gap-2">
@@ -918,12 +918,12 @@ function DeepfakeIntelPage() {
 
                   <details className="card-surface p-4 rounded-xl border border-border/60 group">
                     <summary className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase flex items-center justify-between">
-                      <span>General Mentions ({discoveries.filter((d: any) => d.analysis_status === "general_mention").length})</span>
+                      <span>General Mentions ({discoveries.filter((d: any) => d.analysis_status === "general_mention" || d.analysis_status === "mention").length})</span>
                       <span className="text-[10px] text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
                     </summary>
                     <div className="mt-3 space-y-2 text-xs text-muted-foreground divide-y divide-border/40">
                       {discoveries
-                        .filter((d: any) => d.analysis_status === "general_mention")
+                        .filter((d: any) => d.analysis_status === "general_mention" || d.analysis_status === "mention")
                         .slice(0, 15)
                         .map((d: any) => (
                           <div key={d.id} className="pt-2 flex items-center justify-between gap-2">
@@ -936,12 +936,12 @@ function DeepfakeIntelPage() {
 
                   <details className="card-surface p-4 rounded-xl border border-border/60 group">
                     <summary className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase flex items-center justify-between">
-                      <span>Rejected / Filtered Hosts ({discoveries.filter((d: any) => d.analysis_status === "rejected").length})</span>
+                      <span>Rejected / Filtered Hosts ({discoveries.filter((d: any) => d.analysis_status === "rejected" || d.analysis_status === "filtered").length})</span>
                       <span className="text-[10px] text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
                     </summary>
                     <div className="mt-3 space-y-2 text-xs text-muted-foreground divide-y divide-border/40">
                       {discoveries
-                        .filter((d: any) => d.analysis_status === "rejected")
+                        .filter((d: any) => d.analysis_status === "rejected" || d.analysis_status === "filtered")
                         .slice(0, 15)
                         .map((d: any) => (
                           <div key={d.id} className="pt-2 flex items-center justify-between gap-2">
