@@ -36,6 +36,28 @@ function crawlerServiceBase(): string | null {
   return raw.replace(/\/$/, "");
 }
 
+/**
+ * The crawler service returns `links` either as a flat string array or as
+ * Crawl4AI's `{ internal: [...], external: [...] }` object of link records.
+ * Normalize both shapes to a flat href list.
+ */
+function normalizeLinks(raw: unknown): string[] {
+  const out: string[] = [];
+  const push = (v: unknown) => {
+    if (typeof v === "string") out.push(v);
+    else if (v && typeof v === "object" && typeof (v as { href?: unknown }).href === "string") {
+      out.push((v as { href: string }).href);
+    }
+  };
+  if (Array.isArray(raw)) raw.forEach(push);
+  else if (raw && typeof raw === "object") {
+    for (const group of Object.values(raw as Record<string, unknown>)) {
+      if (Array.isArray(group)) group.forEach(push);
+    }
+  }
+  return Array.from(new Set(out));
+}
+
 export async function crawl4aiRenderPage(
   url: string,
   signal?: AbortSignal,
@@ -103,9 +125,8 @@ export async function crawl4aiRenderPage(
       timings_ms?: Record<string, number>;
     };
     const markdown = typeof json.markdown === "string" ? json.markdown : "";
-    const links = Array.isArray(json.links)
-      ? json.links.filter((l): l is string => typeof l === "string")
-      : [];
+    const links = normalizeLinks(json.links);
+
     const pageTitle = typeof json.title === "string" ? json.title : null;
     if (!json.success || (!markdown.trim() && links.length === 0)) {
       return {
