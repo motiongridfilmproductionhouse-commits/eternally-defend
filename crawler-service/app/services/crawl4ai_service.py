@@ -39,10 +39,10 @@ from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 # Tunables (env-overridable, safe defaults for a 1–2 vCPU container)
 # ---------------------------------------------------------------------------
 MAX_CONCURRENCY = int(os.getenv("CRAWL_MAX_CONCURRENCY", "6"))
-PAGE_TIMEOUT_MS = int(os.getenv("CRAWL_PAGE_TIMEOUT_MS", "12000"))
+PAGE_TIMEOUT_MS = int(os.getenv("CRAWL_PAGE_TIMEOUT_MS", "10000"))
 SETTLE_MS = int(os.getenv("CRAWL_SETTLE_MS", "400"))
 QUEUE_WAIT_TIMEOUT_S = float(os.getenv("CRAWL_QUEUE_WAIT_TIMEOUT_S", "20"))
-HARD_TIMEOUT_S = float(os.getenv("CRAWL_HARD_TIMEOUT_S", "20"))
+HARD_TIMEOUT_S = float(os.getenv("CRAWL_HARD_TIMEOUT_S", "13"))
 
 # Circuit breaker
 BREAKER_FAILURE_THRESHOLD = int(os.getenv("CRAWL_BREAKER_THRESHOLD", "8"))
