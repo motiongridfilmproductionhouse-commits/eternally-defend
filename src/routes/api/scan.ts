@@ -3968,7 +3968,143 @@ export const Route = createFileRoute("/api/scan")({
             );
           }
 
+          /* ── OPENAI RESEARCH LAYER (additive, best-effort) ────────────────
+           * Coverage-gap detection -> new queries -> EXISTING discovery
+           * providers -> Crawl4AI extraction of the new URLs only.
+           * Depth is hard-capped at one research pass + one expansion pass.
+           * Any failure marks OPENAI_RESEARCH_UNAVAILABLE and the scan continues.
+           */
+          const aiDiag = (await import("@/lib/scan/openai/types")).emptyScanAiDiagnostics();
+          const { AiCallBudget, getScanAiModel, isResearchEnabled, isReasoningEnabled } =
+            await import("@/lib/scan/openai/client.server");
+          const aiBudget = new AiCallBudget(10);
+          aiDiag.model = getScanAiModel();
+          pipelineFunnel.ai = aiDiag;
+
+          const knownUrls = new Set<string>();
+          for (const run of mergedRuns) {
+            for (const hit of run.raw) if (hit.url) knownUrls.add(hit.url);
+          }
+
+          if (!isResearchEnabled()) {
+            aiDiag.research_status = "DISABLED";
+          } else {
+            try {
+              const { runResearchAgent } = await import(
+                "@/lib/scan/openai/research-agent.server"
+              );
+              const executedQueries = Array.from(
+                new Set(
+                  mergedRuns
+                    .flatMap((r) => r.raw.map((h) => h.queryUsed))
+                    .filter((q): q is string => Boolean(q)),
+                ),
+              );
+              const domainsCovered = Array.from(
+                new Set(
+                  Array.from(knownUrls).map((u) => {
+                    try {
+                      return new URL(u).hostname.replace(/^www\./, "");
+                    } catch {
+                      return "";
+                    }
+                  }),
+                ),
+              ).filter(Boolean);
+              const evidenceSummaries = mergedRuns
+                .flatMap((r) => r.raw)
+                .filter((h) => h.url && (h.pageText || h.snippet || h.description))
+                .slice(0, 25)
+                .map((h) => ({
+                  title: h.title ?? "",
+                  url: h.url ?? "",
+                  excerpt: (h.pageText || h.snippet || h.description || "").slice(0, 400),
+                }));
+
+              const research = await runResearchAgent(
+                {
+                  target: query,
+                  aliases,
+                  variations,
+                  queriesExecuted: executedQueries,
+                  domainsCovered,
+                  narrativeClusters: Array.from(
+                    new Set(uniqueNormalized.map((h) => h.title).filter(Boolean)),
+                  ).slice(0, 30),
+                  evidenceSummaries,
+                },
+                aiBudget,
+              );
+
+              if (!research.ok) {
+                aiDiag.research_status = "OPENAI_RESEARCH_UNAVAILABLE";
+                aiDiag.notes.push(`research: ${research.error}`);
+              } else {
+                aiDiag.research_status = "OK";
+                aiDiag.coverage_assessment = research.data.coverage_assessment;
+                aiDiag.missing_narratives = research.data.missing_narratives.length;
+
+                const { planExpansionQueries, runExpansionPass } = await import(
+                  "@/lib/scan/openai/expansion.server"
+                );
+                const expansionQueries = planExpansionQueries(research.data, executedQueries);
+                aiDiag.expansion_queries_generated = expansionQueries.length;
+
+                if (expansionQueries.length) {
+                  const expansion = await runExpansionPass(
+                    expansionQueries,
+                    (q, limit) => fcSearch(q, limit) as Promise<never[]>,
+                    { concurrency: 4, limitPerQuery: 5, knownUrls },
+                  );
+                  aiDiag.expansion_queries_executed = expansion.queriesExecuted;
+                  aiDiag.expansion_new_urls = expansion.hits.length;
+                  pipelineFunnel.queries_planned += expansionQueries.length;
+                  pipelineFunnel.queries_executed += expansion.queriesExecuted;
+                  pipelineFunnel.queries_failed += expansion.queriesFailed;
+
+                  if (expansion.hits.length) {
+                    const newHits = expansion.hits as unknown as RawHit[];
+                    // Extract full pages for the AI-discovered URLs (Crawl4AI first).
+                    try {
+                      const { extractPages } = await import(
+                        "@/lib/scan/page-extract.server"
+                      );
+                      const newExtracted = await extractPages(
+                        newHits.map((h) => h.url).filter((u): u is string => Boolean(u)),
+                        { concurrency: 4, timeoutMs: 12_000, max: 60 },
+                      );
+                      pipelineFunnel.extraction_attempted += newExtracted.size;
+                      for (const hit of newHits) {
+                        const page = hit.url ? newExtracted.get(hit.url) : undefined;
+                        if (!page) continue;
+                        hit.extractor = page.extractor;
+                        if (page.ok && page.pageText) {
+                          hit.pageText = page.pageText;
+                          pipelineFunnel.extracted++;
+                        } else {
+                          pipelineFunnel.extraction_failed++;
+                        }
+                      }
+                    } catch (e) {
+                      console.warn(
+                        `[scan:ai-extract] ${e instanceof Error ? e.message : String(e)}`,
+                      );
+                    }
+
+                    const aiRun = mergedRuns.find((r) => r.source === "AI Research");
+                    if (aiRun) aiRun.raw.push(...newHits);
+                    else mergedRuns.push({ source: "AI Research", raw: newHits });
+                  }
+                }
+              }
+            } catch (e) {
+              aiDiag.research_status = "OPENAI_RESEARCH_UNAVAILABLE";
+              aiDiag.notes.push(e instanceof Error ? e.message.slice(0, 200) : "research failed");
+            }
+          }
+
           const audit = { funnel: pipelineFunnel, leads: [] as PersistLeadInput[] };
+
 
           const report = buildReport(
             query,
