@@ -49,6 +49,9 @@ BREAKER_FAILURE_THRESHOLD = int(os.getenv("CRAWL_BREAKER_THRESHOLD", "8"))
 BREAKER_OPEN_SECONDS = float(os.getenv("CRAWL_BREAKER_OPEN_SECONDS", "60"))
 BREAKER_HALF_OPEN_PROBES = int(os.getenv("CRAWL_BREAKER_PROBES", "2"))
 
+# Recycle the browser page pool periodically so long-lived processes don't leak.
+MAX_PAGES_BEFORE_RECYCLE = int(os.getenv("CRAWL_MAX_PAGES_BEFORE_RECYCLE", "200"))
+
 
 class CircuitOpen(Exception):
     """Raised when the breaker is open and the request should fail fast."""
@@ -109,8 +112,13 @@ def _browser_config() -> BrowserConfig:
     return BrowserConfig(
         browser_type="chromium",
         headless=True,
-        text_mode=True,  # skips images/fonts at the browser level
+        # NOTE: crawl4ai's text_mode also passes --disable-javascript, which
+        # empties JS-rendered pages. We block only the heavy subresources.
         light_mode=True,
+        memory_saving_mode=True,
+        max_pages_before_recycle=MAX_PAGES_BEFORE_RECYCLE,
+        viewport_width=1280,
+        viewport_height=900,
         verbose=False,
         extra_args=[
             "--disable-dev-shm-usage",
@@ -122,6 +130,8 @@ def _browser_config() -> BrowserConfig:
             "--metrics-recording-only",
             "--mute-audio",
             "--no-first-run",
+            "--blink-settings=imagesEnabled=false",
+            "--disable-remote-fonts",
         ],
     )
 
