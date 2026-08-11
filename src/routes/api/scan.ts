@@ -3919,6 +3919,53 @@ export const Route = createFileRoute("/api/scan")({
               ? "No results returned"
               : undefined;
 
+          /* ── EXTRACTION STAGE ────────────────────────────────────────────
+           * Crawl4AI (with plain-fetch fallback) fetches the full page for
+           * non-API leads BEFORE identity/risk decisions are made, so nothing
+           * is judged on a search snippet alone.
+           */
+          const pipelineFunnel = emptyScanFunnel();
+          pipelineFunnel.queries_planned = fcQueriesPlanned + ytQueriesUsed;
+          pipelineFunnel.queries_executed = fcQueriesExecuted + ytQueriesUsed;
+          pipelineFunnel.queries_failed = fcQueriesFailed;
+
+          const extractTargets: string[] = [];
+          for (const run of mergedRuns) {
+            for (const hit of run.raw) {
+              if (!hit.url) continue;
+              if (hit.media?.videoId) continue; // YouTube API leads already have metadata
+              extractTargets.push(hit.url);
+            }
+          }
+          try {
+            const { extractPages } = await import("@/lib/scan/page-extract.server");
+            const extracted = await extractPages(extractTargets, {
+              concurrency: 6,
+              timeoutMs: 12_000,
+              max: 150,
+            });
+            pipelineFunnel.extraction_attempted = extracted.size;
+            for (const run of mergedRuns) {
+              for (const hit of run.raw) {
+                const page = hit.url ? extracted.get(hit.url) : undefined;
+                if (!page) continue;
+                hit.extractor = page.extractor;
+                if (page.ok && page.pageText) {
+                  hit.pageText = page.pageText;
+                  pipelineFunnel.extracted++;
+                } else {
+                  pipelineFunnel.extraction_failed++;
+                }
+              }
+            }
+          } catch (e) {
+            console.warn(
+              `[scan:extract] extraction stage failed: ${e instanceof Error ? e.message : String(e)}`,
+            );
+          }
+
+          const audit = { funnel: pipelineFunnel, leads: [] as PersistLeadInput[] };
+
           const report = buildReport(
             query,
             [...aliases, ...variations, ...handles],
@@ -3926,9 +3973,30 @@ export const Route = createFileRoute("/api/scan")({
             sources,
             mergedRuns,
             overallErr,
+            audit,
           );
 
           report.results = uniqueNormalized;
+
+          /* ── PERSIST EVERY STAGE (admin auditable) ─────────────────────── */
+          pipelineFunnel.persisted = audit.leads.length;
+          console.log(`[scan:funnel] ${JSON.stringify(pipelineFunnel)}`);
+          try {
+            const { persistScanRun } = await import("@/lib/scan/persist.server");
+            const persisted = await persistScanRun({
+              query,
+              aliases: [...aliases, ...variations, ...handles],
+              sources,
+              funnel: pipelineFunnel,
+              leads: audit.leads,
+            });
+            if (persisted.error) console.warn(`[scan:persist] ${persisted.error}`);
+          } catch (e) {
+            console.warn(
+              `[scan:persist] failed: ${e instanceof Error ? e.message : String(e)}`,
+            );
+          }
+
 
           // ══════════════════════════════════════════════════════════════════════
           // Admin Diagnostics & Coverage Counters
