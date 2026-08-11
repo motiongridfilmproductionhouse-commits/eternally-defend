@@ -17,6 +17,40 @@ export interface ExtractedPage {
   failureReason?: string;
 }
 
+/**
+ * Extraction telemetry. Plain fetch is NEVER counted as a Crawl4AI success —
+ * CRAWL4AI_SUCCESS and FETCH_FALLBACK_USED are reported separately.
+ */
+export interface ExtractionStats {
+  CRAWL4AI_CONFIGURED: boolean;
+  CRAWL4AI_ATTEMPTED: number;
+  CRAWL4AI_SUCCESS: number;
+  CRAWL4AI_FAILED: number;
+  FETCH_FALLBACK_USED: number;
+  FETCH_SUCCESS: number;
+  FETCH_FAILED: number;
+  crawl4ai_config_hint?: string;
+  crawl4ai_failure_samples: string[];
+}
+
+export function emptyExtractionStats(): ExtractionStats {
+  const configured = isCrawl4AiConfigured();
+  return {
+    CRAWL4AI_CONFIGURED: configured,
+    CRAWL4AI_ATTEMPTED: 0,
+    CRAWL4AI_SUCCESS: 0,
+    CRAWL4AI_FAILED: 0,
+    FETCH_FALLBACK_USED: 0,
+    FETCH_SUCCESS: 0,
+    FETCH_FAILED: 0,
+    crawl4ai_config_hint: configured
+      ? undefined
+      : "CRAWLER_SERVICE_URL is not set — set it to the deployed crawler-service origin (e.g. https://<host>) exposing GET /crawl?url=",
+    crawl4ai_failure_samples: [],
+  };
+}
+
+
 const MAX_TEXT = 24_000;
 
 function htmlToText(html: string): string {
