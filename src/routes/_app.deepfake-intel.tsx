@@ -1144,7 +1144,7 @@ function TelemetryDashboard({
             <AlertTriangle className="size-4" />
             {telemetry?.stage_failure
               ? telemetry.stage_failure
-              : `FAILED DURING ${currentStage.toUpperCase()}`}
+              : `FAILED DURING ${displayStage}`}
           </div>
           <p className="text-[11px] opacity-90">
             {scan.error_message && !scan.error_message.startsWith("{")
