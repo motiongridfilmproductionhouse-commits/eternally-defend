@@ -2584,6 +2584,7 @@ function buildReport(
   sourcesRequested: SourceKey[],
   runs: { source: string; raw: RawHit[] }[],
   err?: string,
+  audit?: { funnel: ScanPipelineFunnel; leads: PersistLeadInput[] },
 ): ReputationReport {
   const now = new Date().toISOString();
   const dedupe = new Map<string, ScanHit>();
