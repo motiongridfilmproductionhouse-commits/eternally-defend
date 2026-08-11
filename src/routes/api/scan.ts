@@ -4102,6 +4102,13 @@ export const Route = createFileRoute("/api/scan")({
                   aiDiag.expansion_queries_executed = expansion.queriesExecuted;
                   aiDiag.ai_queries_executed = expansion.queriesExecuted;
                   aiDiag.ai_queries_failed = expansion.queriesFailed;
+                  /* No healthy provider = the queries did not really run. */
+                  if (currentDiscoveryRouter().report().all_providers_down) {
+                    aiDiag.ai_queries_failed = expansion.queriesGenerated;
+                    aiDiag.notes.push(
+                      "Expansion queries could not be dispatched: no healthy discovery provider (configure SERPAPI_API_KEY or BRAVE_API_KEY).",
+                    );
+                  }
                   aiDiag.expansion_new_urls = expansion.hits.length;
                   pipelineFunnel.queries_planned += expansionQueries.length;
                   pipelineFunnel.queries_executed += expansion.queriesExecuted;
