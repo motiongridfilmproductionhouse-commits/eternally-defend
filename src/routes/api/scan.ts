@@ -4250,6 +4250,8 @@ const fcConfig = getFirecrawlConfigInfo();
               },
             },
             pipeline: pipelineFunnel,
+            openai: aiDiag,
+
             queriesGenerated: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesExecuted: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesFailed: (fcError ? 1 : 0) + (ytError ? 1 : 0) + (redditError ? 1 : 0),
