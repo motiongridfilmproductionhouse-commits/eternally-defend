@@ -2804,6 +2804,12 @@ function buildReport(
         copyrightEnforcementPotential: c.copyrightEnforce,
         whyItMatters: whyItMattersFor(c.category, c.sev, sent),
         contentPosition,
+        identityTier: identity.tier,
+        identityConfidence: identity.confidence,
+        identityReason: identity.reason,
+        reviewStatus: needsReview ? "NEEDS_REVIEW" : "VERIFIED",
+        searchQueryUsed: o.queryUsed,
+        pageExcerpt: pageText ? pageText.slice(0, 600) : undefined,
         metricsAvailable: {
           views: viewsAvailable,
           likes: likesAvailable,
@@ -2824,13 +2830,37 @@ function buildReport(
         },
       };
 
+      if (audit) {
+        audit.leads.push({
+          url,
+          canonicalUrl: url,
+          title,
+          source: source || run.source,
+          platform,
+          query: o.queryUsed ?? null,
+          stage: needsReview ? "needs_review" : "verified",
+          identity_tier: identity.tier,
+          identity_confidence: identity.confidence,
+          matched_signals: identity.matchedSignals,
+          failed_signals: identity.failedSignals,
+          exclusion_reason: null,
+          extractor: o.extractor ?? null,
+          page_excerpt: pageText ? pageText.slice(0, 1200) : null,
+          severity: c.sev,
+          threat_score: threat,
+        });
+      }
+
       if (dedupe.has(url)) {
         duplicates.push(hit);
+        if (audit) audit.funnel.duplicates_removed++;
         continue;
       }
       dedupe.set(url, hit);
     }
   }
+  if (audit) audit.funnel.unique = dedupe.size;
+
 
   // ── Month filter ────────────────────────────────────────────────────────
   //
