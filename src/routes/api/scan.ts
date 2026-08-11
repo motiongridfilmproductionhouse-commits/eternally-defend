@@ -4001,22 +4001,31 @@ export const Route = createFileRoute("/api/scan")({
             for (const hit of run.raw) if (hit.url) knownUrls.add(hit.url);
           }
 
+          /* URLs discovered by AI-generated queries (provenance for metrics). */
+          const aiDiscoveredUrls = new Set<string>();
+          const baselineUrlCount = knownUrls.size;
+
           if (!isResearchEnabled()) {
             aiDiag.research_status = "DISABLED";
           } else {
             try {
-              const { runResearchAgent } = await import(
-                "@/lib/scan/openai/research-agent.server"
+              const {
+                dedupeAndPrioritize,
+                normalizeQuery,
+                hasStrongCoverage,
+                marginalGainExhausted,
+                AI_PASS1_QUERY_CEILING,
+                AI_PASS2_QUERY_CEILING,
+              } = await import("@/lib/scan/openai/query-plan");
+              const { planPass1, planPass2 } = await import(
+                "@/lib/scan/openai/query-planner.server"
               );
-              /*
-               * FIX: previously derived from hit provenance, which produced an
-               * empty list whenever discovery providers failed. The router
-               * registry holds every query actually dispatched.
-               */
+              const { runExpansionPass } = await import("@/lib/scan/openai/expansion.server");
               const { currentDiscoveryRouter } = await import(
                 "@/lib/scan/discovery/router.server"
               );
               const routerForQueries = currentDiscoveryRouter();
+              /* The REAL executed-query list (router registry + hit provenance). */
               const executedQueries = Array.from(
                 new Set([
                   ...routerForQueries.executed(),
@@ -4026,134 +4035,277 @@ export const Route = createFileRoute("/api/scan")({
                 ]),
               );
               aiDiag.base_queries_passed = executedQueries.length;
-              const domainsCovered = Array.from(
-                new Set(
-                  Array.from(knownUrls).map((u) => {
-                    try {
-                      return new URL(u).hostname.replace(/^www\./, "");
-                    } catch {
-                      return "";
-                    }
-                  }),
-                ),
-              ).filter(Boolean);
+
+              const hostOf = (u: string): string => {
+                try {
+                  return new URL(u).hostname.replace(/^www\./, "");
+                } catch {
+                  return "";
+                }
+              };
+              const domainSet = new Set(
+                Array.from(knownUrls).map(hostOf).filter(Boolean),
+              );
+              const narrativeSet = new Set<string>(
+                uniqueNormalized
+                  .map((h) => (h.title ?? "").toLowerCase().slice(0, 90))
+                  .filter(Boolean),
+              );
+              const sourceTypes = Array.from(new Set(mergedRuns.map((r) => r.source)));
               const evidenceSummaries = mergedRuns
                 .flatMap((r) => r.raw)
                 .filter((h) => h.url && (h.pageText || h.snippet || h.description))
-                .slice(0, 25)
+                .slice(0, 20)
                 .map((h) => ({
                   title: h.title ?? "",
                   url: h.url ?? "",
                   excerpt: (h.pageText || h.snippet || h.description || "").slice(0, 400),
                 }));
 
-              const research = await runResearchAgent(
-                {
-                  target: query,
-                  aliases,
-                  variations,
-                  queriesExecuted: executedQueries,
-                  domainsCovered,
-                  narrativeClusters: Array.from(
-                    new Set(uniqueNormalized.map((h) => h.title).filter(Boolean)),
-                  ).slice(0, 30),
-                  evidenceSummaries,
-                },
-                aiBudget,
-              );
+              /* Global dedupe ledger: base + executed + every AI pass. */
+              const seenQueries = new Set(executedQueries.map(normalizeQuery));
 
-              if (!research.ok) {
-                aiDiag.research_status = "OPENAI_RESEARCH_UNAVAILABLE";
-                aiDiag.notes.push(`research: ${research.error}`);
-              } else {
-                aiDiag.research_status = "OK";
-                aiDiag.coverage_assessment = research.data.coverage_assessment;
-                aiDiag.missing_narratives = research.data.missing_narratives.length;
+              const plannerCtx = {
+                target: query,
+                aliases,
+                variations,
+                queriesExecuted: executedQueries,
+                domainsCovered: Array.from(domainSet),
+                sourceTypes,
+                narrativeClusters: Array.from(narrativeSet).slice(0, 40),
+                evidenceSummaries,
+                knownUrlCount: knownUrls.size,
+                evidenceGaps: [] as string[],
 
-                const { planExpansionQueries, runExpansionPass } = await import(
-                  "@/lib/scan/openai/expansion.server"
-                );
-                const suggested = planExpansionQueries(research.data, executedQueries);
-                aiDiag.ai_queries_suggested = suggested.length;
-                /* Dedup against base discovery AND against each other. */
-                const seenExpansion = new Set(
-                  executedQueries.map((q) => q.trim().replace(/\s+/g, " ").toLowerCase()),
-                );
-                const expansionQueries: string[] = [];
-                for (const q of suggested) {
-                  const key = q.trim().replace(/\s+/g, " ").toLowerCase();
-                  if (!key || seenExpansion.has(key)) {
-                    aiDiag.ai_queries_duplicate++;
-                    continue;
-                  }
-                  seenExpansion.add(key);
-                  expansionQueries.push(q);
+              };
+
+              type PassStats = import("@/lib/scan/openai/types").AiExpansionPassStats;
+
+              /** Runs one bounded expansion pass end-to-end. Never recurses. */
+              const runPass = async (
+                pass: 1 | 2,
+                ceiling: number,
+                extraCtx: Partial<typeof plannerCtx> = {},
+              ): Promise<PassStats> => {
+                const started = Date.now();
+                const stats: PassStats = {
+                  pass,
+                  status: "OK",
+                  queries_generated: 0,
+                  queries_deduplicated: 0,
+                  queries_executed: 0,
+                  queries_failed: 0,
+                  urls_discovered: 0,
+                  new_unique_urls: 0,
+                  new_domains: 0,
+                  new_narratives: 0,
+                  latency_ms: 0,
+                  queries: [],
+                };
+
+                const plan =
+                  pass === 1
+                    ? await planPass1({ ...plannerCtx, ...extraCtx }, aiBudget)
+                    : await planPass2({ ...plannerCtx, ...extraCtx }, aiBudget);
+                if (!plan.ok) {
+                  stats.status = "FAILED";
+                  stats.skip_reason = plan.error;
+                  stats.latency_ms = Date.now() - started;
+                  aiDiag.notes.push(`expansion pass ${pass}: ${plan.error}`);
+                  return stats;
                 }
-                aiDiag.expansion_queries_generated = expansionQueries.length;
 
-                if (expansionQueries.length) {
-                  /* Expansion uses the SAME resilient discovery router as base
-                   * discovery — never Firecrawl directly. */
-                  const expansion = await runExpansionPass(
-                    expansionQueries,
-                    (q, limit) => routerSearchUnique(q, limit) as Promise<never[]>,
-                    { concurrency: 4, limitPerQuery: 5, knownUrls },
+                if (pass === 1) {
+                  aiDiag.coverage_assessment = plan.data.coverage_assessment;
+                  aiDiag.missing_narratives = plan.data.narratives_missing.length;
+                  aiDiag.research_status = "OK";
+                }
+
+                const deduped = dedupeAndPrioritize(plan.data.queries, seenQueries, ceiling);
+                stats.queries_generated = plan.data.queries.length;
+                stats.queries_deduplicated = deduped.duplicates + deduped.rejected;
+                if (!deduped.accepted.length) {
+                  stats.skip_reason = "all proposed queries were duplicates";
+                  stats.latency_ms = Date.now() - started;
+                  return stats;
+                }
+
+                /* AI queries go through the SAME resilient DiscoveryRouter. */
+                const expansion = await runExpansionPass(
+                  deduped.accepted.map((s) => s.query),
+                  (q, limit) => routerSearchUnique(q, limit) as Promise<never[]>,
+                  { concurrency: 4, limitPerQuery: 5, knownUrls },
+                );
+                stats.queries_executed = expansion.queriesExecuted;
+                stats.queries_failed = expansion.queriesFailed;
+                stats.urls_discovered = expansion.hits.length;
+
+                if (currentDiscoveryRouter().report().all_providers_down) {
+                  stats.queries_failed = deduped.accepted.length;
+                  aiDiag.notes.push(
+                    `Pass ${pass} queries could not be dispatched: no healthy discovery provider.`,
                   );
-                  aiDiag.expansion_queries_executed = expansion.queriesExecuted;
-                  aiDiag.ai_queries_executed = expansion.queriesExecuted;
-                  aiDiag.ai_queries_failed = expansion.queriesFailed;
-                  /* No healthy provider = the queries did not really run. */
-                  if (currentDiscoveryRouter().report().all_providers_down) {
-                    aiDiag.ai_queries_failed = expansion.queriesGenerated;
-                    aiDiag.notes.push(
-                      "Expansion queries could not be dispatched: no healthy discovery provider (configure SERPAPI_API_KEY or BRAVE_API_KEY).",
+                }
+
+                const perQuery = new Map<string, number>();
+                for (const hit of expansion.hits) {
+                  if (!hit.url) continue;
+                  aiDiscoveredUrls.add(hit.url);
+                  stats.new_unique_urls++;
+                  const host = hostOf(hit.url);
+                  if (host && !domainSet.has(host)) {
+                    domainSet.add(host);
+                    stats.new_domains++;
+                  }
+                  const narrative = (hit.title ?? "").toLowerCase().slice(0, 90);
+                  if (narrative && !narrativeSet.has(narrative)) {
+                    narrativeSet.add(narrative);
+                    stats.new_narratives++;
+                  }
+                  const q = hit.queryUsed ?? "";
+                  perQuery.set(q, (perQuery.get(q) ?? 0) + 1);
+                }
+                stats.queries = deduped.accepted.map((s) => ({
+                  query: s.query,
+                  priority: s.priority,
+                  narrative: s.narrative,
+                  language: s.language,
+                  source_target: s.source_target,
+                  expected_information_gain: s.expected_information_gain,
+                  new_urls: perQuery.get(s.query) ?? 0,
+                }));
+
+                pipelineFunnel.queries_planned += deduped.accepted.length;
+                pipelineFunnel.queries_executed += expansion.queriesExecuted;
+                pipelineFunnel.queries_failed += expansion.queriesFailed;
+
+                if (expansion.hits.length) {
+                  const newHits = expansion.hits as unknown as RawHit[];
+                  try {
+                    const { extractPages } = await import("@/lib/scan/page-extract.server");
+                    const newExtracted = await extractPages(
+                      newHits.map((h) => h.url).filter((u): u is string => Boolean(u)),
+                      { concurrency: 4, timeoutMs: 12_000, max: 60, stats: extractionStats },
+                    );
+                    pipelineFunnel.extraction_attempted += newExtracted.size;
+                    for (const hit of newHits) {
+                      const page = hit.url ? newExtracted.get(hit.url) : undefined;
+                      if (!page) continue;
+                      hit.extractor = page.extractor;
+                      if (page.ok && page.pageText) {
+                        hit.pageText = page.pageText;
+                        pipelineFunnel.extracted++;
+                      } else {
+                        pipelineFunnel.extraction_failed++;
+                      }
+                    }
+                  } catch (e) {
+                    console.warn(
+                      `[scan:ai-extract] ${e instanceof Error ? e.message : String(e)}`,
                     );
                   }
-                  aiDiag.expansion_new_urls = expansion.hits.length;
-                  pipelineFunnel.queries_planned += expansionQueries.length;
-                  pipelineFunnel.queries_executed += expansion.queriesExecuted;
-                  pipelineFunnel.queries_failed += expansion.queriesFailed;
 
-                  if (expansion.hits.length) {
-                    const newHits = expansion.hits as unknown as RawHit[];
-                    // Extract full pages for the AI-discovered URLs (Crawl4AI first).
-                    try {
-                      const { extractPages } = await import(
-                        "@/lib/scan/page-extract.server"
-                      );
-                      const newExtracted = await extractPages(
-                        newHits.map((h) => h.url).filter((u): u is string => Boolean(u)),
-                        { concurrency: 4, timeoutMs: 12_000, max: 60, stats: extractionStats },
-                      );
-                      pipelineFunnel.extraction_attempted += newExtracted.size;
-                      for (const hit of newHits) {
-                        const page = hit.url ? newExtracted.get(hit.url) : undefined;
-                        if (!page) continue;
-                        hit.extractor = page.extractor;
-                        if (page.ok && page.pageText) {
-                          hit.pageText = page.pageText;
-                          pipelineFunnel.extracted++;
-                        } else {
-                          pipelineFunnel.extraction_failed++;
-                        }
-                      }
-                    } catch (e) {
-                      console.warn(
-                        `[scan:ai-extract] ${e instanceof Error ? e.message : String(e)}`,
-                      );
-                    }
-
-                    const aiRun = mergedRuns.find((r) => r.source === "AI Research");
-                    if (aiRun) aiRun.raw.push(...newHits);
-                    else mergedRuns.push({ source: "AI Research", raw: newHits });
-                  }
+                  const aiRun = mergedRuns.find((r) => r.source === "AI Research");
+                  if (aiRun) aiRun.raw.push(...newHits);
+                  else mergedRuns.push({ source: "AI Research", raw: newHits });
                 }
+
+                stats.latency_ms = Date.now() - started;
+                return stats;
+              };
+
+              /* ── PASS 1 (up to 30 queries) ── */
+              const pass1 = await runPass(1, AI_PASS1_QUERY_CEILING);
+              aiDiag.ai_passes.push(pass1);
+              if (pass1.status === "FAILED" && aiDiag.research_status !== "OK") {
+                aiDiag.research_status = "OPENAI_RESEARCH_UNAVAILABLE";
               }
+
+              /* ── PASS 2 (up to 10 gap queries) — early-stop gated, final ── */
+              const strong = hasStrongCoverage({
+                coverageAssessment: aiDiag.coverage_assessment,
+                uniqueDomains: domainSet.size,
+                narratives: narrativeSet.size,
+                newUrlsFromPass1: pass1.new_unique_urls,
+              });
+              const exhausted = marginalGainExhausted({
+                newUniqueUrls: pass1.new_unique_urls,
+                newDomains: pass1.new_domains,
+                newNarratives: pass1.new_narratives,
+              });
+              if (pass1.status === "FAILED") {
+                aiDiag.ai_passes.push({
+                  ...pass1,
+                  pass: 2,
+                  status: "SKIPPED",
+                  skip_reason: "pass 1 failed",
+                  queries: [],
+                });
+              } else if (strong || exhausted) {
+                aiDiag.ai_passes.push({
+                  pass: 2,
+                  status: "SKIPPED",
+                  skip_reason: strong
+                    ? "pass 1 already achieved strong coverage"
+                    : "marginal information gain too low after pass 1",
+                  queries_generated: 0,
+                  queries_deduplicated: 0,
+                  queries_executed: 0,
+                  queries_failed: 0,
+                  urls_discovered: 0,
+                  new_unique_urls: 0,
+                  new_domains: 0,
+                  new_narratives: 0,
+                  latency_ms: 0,
+                  queries: [],
+                });
+              } else {
+                const pass2 = await runPass(2, AI_PASS2_QUERY_CEILING, {
+                  queriesExecuted: Array.from(seenQueries),
+                  domainsCovered: Array.from(domainSet),
+                  narrativeClusters: Array.from(narrativeSet).slice(0, 40),
+                  knownUrlCount: knownUrls.size,
+                  evidenceGaps: [
+                    ...(pass1.new_domains === 0 ? ["no new domains from pass 1"] : []),
+                    ...(pass1.new_narratives < 3 ? ["few new narratives from pass 1"] : []),
+                  ],
+                });
+                aiDiag.ai_passes.push(pass2);
+              }
+
+              /* ── Aggregate incremental-recall metrics ── */
+              for (const p of aiDiag.ai_passes) {
+                aiDiag.ai_queries_generated += p.queries_generated;
+                aiDiag.ai_queries_deduplicated += p.queries_deduplicated;
+                aiDiag.ai_queries_executed += p.queries_executed;
+                aiDiag.ai_queries_failed += p.queries_failed;
+                aiDiag.ai_urls_discovered += p.urls_discovered;
+                aiDiag.ai_new_unique_urls += p.new_unique_urls;
+                aiDiag.ai_new_domains += p.new_domains;
+                aiDiag.ai_new_narratives += p.new_narratives;
+              }
+              aiDiag.ai_queries_suggested = aiDiag.ai_queries_generated;
+              aiDiag.ai_queries_duplicate = aiDiag.ai_queries_deduplicated;
+              aiDiag.expansion_queries_generated = aiDiag.ai_passes.reduce(
+                (s, p) => s + p.queries.length,
+                0,
+              );
+              aiDiag.expansion_queries_executed = aiDiag.ai_queries_executed;
+              aiDiag.expansion_new_urls = aiDiag.ai_new_unique_urls;
+              aiDiag.ai_incremental_recall_percent = baselineUrlCount
+                ? Math.round((aiDiag.ai_new_unique_urls / baselineUrlCount) * 1000) / 10
+                : 0;
+              /* Cost proxy: model calls spent per genuinely new unique URL. */
+              const aiCallsSpent = aiDiag.ai_passes.filter((p) => p.status !== "SKIPPED").length;
+              aiDiag.cost_per_new_unique_url = aiDiag.ai_new_unique_urls
+                ? Math.round((aiCallsSpent / aiDiag.ai_new_unique_urls) * 1000) / 1000
+                : 0;
             } catch (e) {
               aiDiag.research_status = "OPENAI_RESEARCH_UNAVAILABLE";
               aiDiag.notes.push(e instanceof Error ? e.message.slice(0, 200) : "research failed");
             }
           }
+
 
           const audit = { funnel: pipelineFunnel, leads: [] as PersistLeadInput[] };
 
@@ -4251,8 +4403,15 @@ export const Route = createFileRoute("/api/scan")({
 
           // Provenance: mark leads discovered by AI-generated queries.
           for (const lead of audit.leads) {
-            if (lead.source === "AI Research") lead.query_origin = "OPENAI_RESEARCH";
+            if (lead.source === "AI Research" || aiDiscoveredUrls.has(lead.url)) {
+              lead.query_origin = "OPENAI_RESEARCH";
+              aiDiag.ai_new_verified_findings++;
+              if (lead.ai_recommended_action?.startsWith("HUMAN_REVIEW"))
+                aiDiag.ai_new_needs_review++;
+            }
           }
+
+
 
 
 
