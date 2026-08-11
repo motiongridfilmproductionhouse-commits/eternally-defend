@@ -1317,6 +1317,12 @@ interface RawHit {
   date?: string;
   publishedDate?: string;
   media?: MediaMeta;
+  /** Search phrase that discovered this hit (provenance for auditing). */
+  queryUsed?: string;
+  /** Full page text captured by the extraction stage, when available. */
+  pageText?: string;
+  /** Which extractor produced pageText. */
+  extractor?: string;
   /** Reddit-only reputation-risk classification (see classifyRedditRisk). */
   redditRisk?: {
     categories: string[];
