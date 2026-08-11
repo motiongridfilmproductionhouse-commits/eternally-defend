@@ -7,6 +7,9 @@
  * fields here is what makes verified threats visible again in the UI.
  */
 import type { ClientFinding } from "./results-dashboard";
+import { verifyTargetIdentity } from "./target-identity";
+
+export type ThreatFeedTarget = { name: string; aliases?: string[] };
 
 export type ThreatTier = "VERIFIED" | "PROBABLE";
 
@@ -47,7 +50,10 @@ function faceScore(f: ClientFinding): number {
  * VERIFIED — face ≥85 plus confirmed explicit + synthetic signals.
  * PROBABLE — face ≥70 with at least one explicit/synthetic confirmation.
  */
-export function gradeThreatFinding(f: ClientFinding | null | undefined): ThreatTier | null {
+export function gradeThreatFinding(
+  f: ClientFinding | null | undefined,
+  target?: ThreatFeedTarget | null,
+): ThreatTier | null {
   if (!f) return null;
   const url = threatFeedUrl(f).toLowerCase();
   const title = (f.page_title || "").toLowerCase();
@@ -56,6 +62,22 @@ export function gradeThreatFinding(f: ClientFinding | null | undefined): ThreatT
 
   if (url && NEVER_DISPLAY.some((host) => url.includes(host))) return null;
   if ((f.review_status || "").toLowerCase() === "dismissed") return null;
+
+  // Gate 1 — the evidence itself must identify the scan target. Generic
+  // deepfake news/policy coverage can never enter a target's threat feed.
+  if (cls === "NOT_SUBJECT" || category === "NOT_SUBJECT") return null;
+  if (target?.name) {
+    const identity = verifyTargetIdentity({
+      target: target.name,
+      aliases: target.aliases,
+      title: f.page_title ?? null,
+      url: threatFeedUrl(f),
+      snippet: f.snippet ?? null,
+      faceSimilarity: f.face_similarity ?? null,
+      targetFaceMatch: (f as { target_face_match?: boolean }).target_face_match ?? false,
+    });
+    if (identity.status === "NOT_VERIFIED") return null;
+  }
 
   const face = faceScore(f);
 
@@ -87,20 +109,25 @@ export function gradeThreatFinding(f: ClientFinding | null | undefined): ThreatT
     title.includes("gallery") ||
     title.includes("download");
 
+  // Gate 2 — target-specific synthetic/explicit misuse must be evidenced.
+  if (!explicit && !synthetic) return null;
+  if (face < 70) return null;
   if (face >= 85 && explicit && synthetic && hosting) return "VERIFIED";
-  if (face >= 70 && (explicit || synthetic)) return "PROBABLE";
-  if (cls.includes("VERIFIED") && (explicit || synthetic)) return "VERIFIED";
-  return null;
+  if (cls.includes("VERIFIED_DEEPFAKE") && explicit && synthetic) return "VERIFIED";
+  return "PROBABLE";
 }
 
 export type GradedThreat = { finding: ClientFinding; tier: ThreatTier };
 
 /** Deduplicated, verified-first threat feed for the results list. */
-export function selectThreatFeed(findings: ClientFinding[] | null | undefined): GradedThreat[] {
+export function selectThreatFeed(
+  findings: ClientFinding[] | null | undefined,
+  target?: ThreatFeedTarget | null,
+): GradedThreat[] {
   const seen = new Set<string>();
   const rows: GradedThreat[] = [];
   for (const finding of findings ?? []) {
-    const tier = gradeThreatFinding(finding);
+    const tier = gradeThreatFinding(finding, target);
     if (!tier) continue;
     const key = threatFeedUrl(finding).toLowerCase() || `id:${finding.id}`;
     if (seen.has(key)) continue;
