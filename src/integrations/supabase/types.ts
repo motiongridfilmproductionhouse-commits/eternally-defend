@@ -164,6 +164,33 @@ export type Database = {
           },
         ]
       }
+      asset_enforcement_settings: {
+        Row: {
+          asset_id: string
+          created_at: string
+          id: string
+          production_enforcement_approved: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          id?: string
+          production_enforcement_approved?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          id?: string
+          production_enforcement_approved?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       asset_verification_events: {
         Row: {
           asset_id: string | null
@@ -1454,6 +1481,33 @@ export type Database = {
           updated_at?: string
           user_id?: string
           version?: number
+        }
+        Relationships: []
+      }
+      client_enforcement_settings: {
+        Row: {
+          automatic_enforcement_enabled: boolean
+          created_at: string
+          enforcement_basis_policies: Json
+          production_enforcement_approved: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          automatic_enforcement_enabled?: boolean
+          created_at?: string
+          enforcement_basis_policies?: Json
+          production_enforcement_approved?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          automatic_enforcement_enabled?: boolean
+          created_at?: string
+          enforcement_basis_policies?: Json
+          production_enforcement_approved?: boolean
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2784,6 +2838,60 @@ export type Database = {
           },
         ]
       }
+      domain_enforcement_routes: {
+        Row: {
+          abuse_email: string | null
+          confidence: number | null
+          contact: string | null
+          contact_type: string | null
+          copyright_email: string | null
+          created_at: string
+          domain: string
+          id: string
+          notes: string | null
+          preferred_method: string | null
+          source_url: string | null
+          updated_at: string
+          verification_method: string | null
+          verification_status: string
+          verified_at: string | null
+        }
+        Insert: {
+          abuse_email?: string | null
+          confidence?: number | null
+          contact?: string | null
+          contact_type?: string | null
+          copyright_email?: string | null
+          created_at?: string
+          domain: string
+          id?: string
+          notes?: string | null
+          preferred_method?: string | null
+          source_url?: string | null
+          updated_at?: string
+          verification_method?: string | null
+          verification_status?: string
+          verified_at?: string | null
+        }
+        Update: {
+          abuse_email?: string | null
+          confidence?: number | null
+          contact?: string | null
+          contact_type?: string | null
+          copyright_email?: string | null
+          created_at?: string
+          domain?: string
+          id?: string
+          notes?: string | null
+          preferred_method?: string | null
+          source_url?: string | null
+          updated_at?: string
+          verification_method?: string | null
+          verification_status?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       enforcement_actions: {
         Row: {
           action_type: string
@@ -2837,6 +2945,148 @@ export type Database = {
           },
         ]
       }
+      enforcement_cases: {
+        Row: {
+          attempts: number
+          authorization_status: string | null
+          connector_id: string | null
+          created_at: string
+          domain: string | null
+          eligibility_reason: Json | null
+          eligibility_status: string | null
+          enforcement_basis: string | null
+          id: string
+          last_verification_at: string | null
+          next_verification_at: string | null
+          platform: string | null
+          protected_asset_id: string | null
+          reupload_count: number
+          scan_hit_id: string | null
+          selected_route: string | null
+          status: string
+          target_url: string
+          updated_at: string
+          user_id: string
+          verification_details: Json | null
+        }
+        Insert: {
+          attempts?: number
+          authorization_status?: string | null
+          connector_id?: string | null
+          created_at?: string
+          domain?: string | null
+          eligibility_reason?: Json | null
+          eligibility_status?: string | null
+          enforcement_basis?: string | null
+          id?: string
+          last_verification_at?: string | null
+          next_verification_at?: string | null
+          platform?: string | null
+          protected_asset_id?: string | null
+          reupload_count?: number
+          scan_hit_id?: string | null
+          selected_route?: string | null
+          status?: string
+          target_url: string
+          updated_at?: string
+          user_id: string
+          verification_details?: Json | null
+        }
+        Update: {
+          attempts?: number
+          authorization_status?: string | null
+          connector_id?: string | null
+          created_at?: string
+          domain?: string | null
+          eligibility_reason?: Json | null
+          eligibility_status?: string | null
+          enforcement_basis?: string | null
+          id?: string
+          last_verification_at?: string | null
+          next_verification_at?: string | null
+          platform?: string | null
+          protected_asset_id?: string | null
+          reupload_count?: number
+          scan_hit_id?: string | null
+          selected_route?: string | null
+          status?: string
+          target_url?: string
+          updated_at?: string
+          user_id?: string
+          verification_details?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_cases_scan_hit_id_fkey"
+            columns: ["scan_hit_id"]
+            isOneToOne: false
+            referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enforcement_events: {
+        Row: {
+          actor_type: string
+          authorization_id: string | null
+          case_id: string | null
+          connector_id: string | null
+          created_at: string
+          enforcement_basis: string | null
+          event_type: string
+          id: string
+          metadata: Json
+          new_state: string | null
+          previous_state: string | null
+          protected_asset_id: string | null
+          target_url: string | null
+          user_id: string
+          worker_id: string | null
+        }
+        Insert: {
+          actor_type?: string
+          authorization_id?: string | null
+          case_id?: string | null
+          connector_id?: string | null
+          created_at?: string
+          enforcement_basis?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json
+          new_state?: string | null
+          previous_state?: string | null
+          protected_asset_id?: string | null
+          target_url?: string | null
+          user_id: string
+          worker_id?: string | null
+        }
+        Update: {
+          actor_type?: string
+          authorization_id?: string | null
+          case_id?: string | null
+          connector_id?: string | null
+          created_at?: string
+          enforcement_basis?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json
+          new_state?: string | null
+          previous_state?: string | null
+          protected_asset_id?: string | null
+          target_url?: string | null
+          user_id?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enforcement_evidence: {
         Row: {
           created_at: string
@@ -2874,6 +3124,65 @@ export type Database = {
             columns: ["enforcement_request_id"]
             isOneToOne: false
             referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enforcement_jobs: {
+        Row: {
+          attempts: number
+          case_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          job_type: string
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          payload: Json
+          scheduled_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          case_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          job_type: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          payload?: Json
+          scheduled_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          case_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          job_type?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          payload?: Json
+          scheduled_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_jobs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_cases"
             referencedColumns: ["id"]
           },
         ]
@@ -3023,6 +3332,53 @@ export type Database = {
             columns: ["scan_hit_id"]
             isOneToOne: false
             referencedRelation: "scan_hits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enforcement_review_queue: {
+        Row: {
+          case_id: string
+          created_at: string
+          decided_at: string | null
+          id: string
+          reason: Json | null
+          review_status: string
+          reviewer_id: string | null
+          reviewer_notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          reason?: Json | null
+          review_status?: string
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          reason?: Json | null
+          review_status?: string
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_review_queue_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_cases"
             referencedColumns: ["id"]
           },
         ]
@@ -4879,6 +5235,68 @@ export type Database = {
             columns: ["enforcement_request_id"]
             isOneToOne: false
             referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_submission_snapshots: {
+        Row: {
+          authorization_id: string | null
+          case_id: string | null
+          copyright_owner: string | null
+          created_at: string
+          enforcement_basis: string | null
+          id: string
+          notice_hash: string | null
+          notice_subject: string | null
+          protected_asset_id: string | null
+          recipient: string | null
+          target_domain: string | null
+          target_url: string
+          user_id: string
+          verified_route: Json | null
+          worker_id: string | null
+        }
+        Insert: {
+          authorization_id?: string | null
+          case_id?: string | null
+          copyright_owner?: string | null
+          created_at?: string
+          enforcement_basis?: string | null
+          id?: string
+          notice_hash?: string | null
+          notice_subject?: string | null
+          protected_asset_id?: string | null
+          recipient?: string | null
+          target_domain?: string | null
+          target_url: string
+          user_id: string
+          verified_route?: Json | null
+          worker_id?: string | null
+        }
+        Update: {
+          authorization_id?: string | null
+          case_id?: string | null
+          copyright_owner?: string | null
+          created_at?: string
+          enforcement_basis?: string | null
+          id?: string
+          notice_hash?: string | null
+          notice_subject?: string | null
+          protected_asset_id?: string | null
+          recipient?: string | null
+          target_domain?: string | null
+          target_url?: string
+          user_id?: string
+          verified_route?: Json | null
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_submission_snapshots_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_cases"
             referencedColumns: ["id"]
           },
         ]
