@@ -4075,6 +4075,8 @@ export const Route = createFileRoute("/api/scan")({
                 narrativeClusters: Array.from(narrativeSet).slice(0, 40),
                 evidenceSummaries,
                 knownUrlCount: knownUrls.size,
+                evidenceGaps: [] as string[],
+
               };
 
               type PassStats = import("@/lib/scan/openai/types").AiExpansionPassStats;
