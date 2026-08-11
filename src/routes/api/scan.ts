@@ -3952,12 +3952,16 @@ export const Route = createFileRoute("/api/scan")({
               extractTargets.push(hit.url);
             }
           }
+          const { emptyExtractionStats } = await import("@/lib/scan/page-extract.server");
+          const extractionStats = emptyExtractionStats();
+          pipelineFunnel.extraction = extractionStats;
           try {
             const { extractPages } = await import("@/lib/scan/page-extract.server");
             const extracted = await extractPages(extractTargets, {
               concurrency: 6,
               timeoutMs: 12_000,
               max: 150,
+              stats: extractionStats,
             });
             pipelineFunnel.extraction_attempted = extracted.size;
             for (const run of mergedRuns) {
@@ -4112,7 +4116,7 @@ export const Route = createFileRoute("/api/scan")({
                       );
                       const newExtracted = await extractPages(
                         newHits.map((h) => h.url).filter((u): u is string => Boolean(u)),
-                        { concurrency: 4, timeoutMs: 12_000, max: 60 },
+                        { concurrency: 4, timeoutMs: 12_000, max: 60, stats: extractionStats },
                       );
                       pipelineFunnel.extraction_attempted += newExtracted.size;
                       for (const hit of newHits) {
@@ -4245,6 +4249,16 @@ export const Route = createFileRoute("/api/scan")({
 
 
 
+          /* ── PROVIDER HEALTH (failure is never reported as "0 results") ── */
+          pipelineFunnel.discovery = discoveryRouter.report();
+          console.log(
+            `[scan:providers] ${pipelineFunnel.discovery.providers
+              .map((pv) => `${pv.provider}=${pv.state}`)
+              .join(" ")} crawl4ai=${
+              extractionStats.CRAWL4AI_CONFIGURED ? "CONFIGURED" : "NOT_CONFIGURED"
+            }`,
+          );
+
           /* ── PERSIST EVERY STAGE (admin auditable) ─────────────────────── */
           pipelineFunnel.persisted = audit.leads.length;
           console.log(`[scan:funnel] ${JSON.stringify(pipelineFunnel)}`);
@@ -4292,6 +4306,8 @@ const fcConfig = getFirecrawlConfigInfo();
             },
             pipeline: pipelineFunnel,
             openai: aiDiag,
+            providers: pipelineFunnel.discovery,
+            extraction: extractionStats,
 
             queriesGenerated: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesExecuted: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
