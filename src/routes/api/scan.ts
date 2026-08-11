@@ -4411,7 +4411,7 @@ export const Route = createFileRoute("/api/scan")({
             }
           }
 
-          }
+
 
 
 
