@@ -53,6 +53,8 @@ export async function persistScanRun(input: {
         aliases: input.aliases,
         sources: input.sources,
         funnel: input.funnel as unknown as never,
+        ai_diagnostics: (input.funnel.ai ?? null) as unknown as never,
+
       })
       .select("id")
       .single();
