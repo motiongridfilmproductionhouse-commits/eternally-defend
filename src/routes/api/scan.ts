@@ -4118,6 +4118,92 @@ export const Route = createFileRoute("/api/scan")({
 
           report.results = uniqueNormalized;
 
+          /* ── OPENAI REASONING LAYER (additive, best-effort) ───────────────
+           * Reasons over RETRIEVED evidence only, after identity verification.
+           * It annotates existing findings; it never creates one. A verdict
+           * without grounded page text stays MODEL_SUGGESTED / HUMAN_REVIEW.
+           */
+          if (!isReasoningEnabled()) {
+            aiDiag.reasoning_status = "DISABLED";
+          } else {
+            try {
+              const { runReasoningAgent } = await import(
+                "@/lib/scan/openai/reasoning-agent.server"
+              );
+              const { createReasoningCache } = await import("@/lib/scan/openai/cache.server");
+              const packets = report.hits
+                .filter((h) => h.url)
+                .slice(0, 48)
+                .map((h) => ({
+                  id: h.url,
+                  title: (h.title ?? "").slice(0, 200),
+                  canonical_url: h.url,
+                  platform: h.platform ?? "web",
+                  source: h.source ?? "web",
+                  published_date: h.published ?? null,
+                  author: h.author ?? null,
+                  passages: (h.pageExcerpt || h.description || "").slice(0, 1200),
+                  entity_confidence: h.identityConfidence ?? h.confidence ?? 0,
+                  identity_tier: h.identityTier ?? "AMBIGUOUS",
+                  classifier_output: `${h.category ?? ""}/${h.contentLabel ?? ""}/${h.severity ?? ""}`,
+                }));
+
+              const reasoning = await runReasoningAgent(
+                packets,
+                aiBudget,
+                createReasoningCache(),
+              );
+              aiDiag.evidence_analyzed = reasoning.analyzed;
+              aiDiag.cache_hits = reasoning.cacheHits;
+              aiDiag.ai_failures = reasoning.failures;
+              aiDiag.reasoning_status =
+                reasoning.verdicts.size > 0
+                  ? "OK"
+                  : reasoning.error
+                    ? "OPENAI_REASONING_UNAVAILABLE"
+                    : "SKIPPED";
+              if (reasoning.error) aiDiag.notes.push(`reasoning: ${reasoning.error}`);
+
+              for (const hit of report.hits) {
+                const verdict = hit.url ? reasoning.verdicts.get(hit.url) : undefined;
+                if (!verdict) continue;
+                (hit as unknown as Record<string, unknown>).aiAnalysis = verdict;
+                if (verdict.reputation_risk === "HIGH") aiDiag.high_risk++;
+                else if (verdict.reputation_risk === "MEDIUM") aiDiag.medium_risk++;
+                if (
+                  verdict.recommended_action === "HUMAN_REVIEW" ||
+                  verdict.recommended_action === "HUMAN_REVIEW_REQUIRED" ||
+                  verdict.recommended_action === "POTENTIAL_LEGAL_REVIEW"
+                ) {
+                  aiDiag.needs_review++;
+                }
+              }
+
+              for (const lead of audit.leads) {
+                const verdict =
+                  reasoning.verdicts.get(lead.url) ?? reasoning.verdicts.get(lead.canonicalUrl);
+                if (!verdict) continue;
+                lead.ai_content_type = verdict.content_type;
+                lead.ai_reputation_risk = verdict.reputation_risk;
+                lead.ai_subject_confidence = verdict.subject_confidence;
+                lead.ai_evidence_confidence = verdict.evidence_confidence;
+                lead.ai_recommended_action = verdict.recommended_action;
+                lead.ai_evidence_basis = verdict.evidence_basis ?? "MODEL_SUGGESTED";
+                lead.ai_reasoning_summary = verdict.reasoning_summary;
+              }
+            } catch (e) {
+              aiDiag.reasoning_status = "OPENAI_REASONING_UNAVAILABLE";
+              aiDiag.notes.push(e instanceof Error ? e.message.slice(0, 200) : "reasoning failed");
+            }
+          }
+
+          // Provenance: mark leads discovered by AI-generated queries.
+          for (const lead of audit.leads) {
+            if (lead.source === "AI Research") lead.query_origin = "OPENAI_RESEARCH";
+          }
+
+
+
           /* ── PERSIST EVERY STAGE (admin auditable) ─────────────────────── */
           pipelineFunnel.persisted = audit.leads.length;
           console.log(`[scan:funnel] ${JSON.stringify(pipelineFunnel)}`);
