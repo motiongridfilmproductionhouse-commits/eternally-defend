@@ -38,11 +38,28 @@ export function emptyExtractionStats(): ExtractionStats {
       ? undefined
       : "CRAWLER_SERVICE_URL is not set — set it to the deployed crawler-service origin (e.g. https://<host>) exposing GET /crawl?url=",
     crawl4ai_failure_samples: [],
+    crawl4ai_avg_ms: 0,
+    crawl4ai_total_ms: 0,
+    crawl4ai_circuit_open_skips: 0,
   };
 }
 
 
 const MAX_TEXT = 24_000;
+
+/**
+ * Local mirror of the crawler service's circuit breaker. Once the service tells
+ * us it is open, stop paying request latency for the rest of this window and go
+ * straight to plain fetch.
+ */
+const BREAKER_COOLDOWN_MS = 60_000;
+let breakerOpenUntil = 0;
+function crawlerBreakerOpen(): boolean {
+  return Date.now() < breakerOpenUntil;
+}
+function openCrawlerBreaker(): void {
+  breakerOpenUntil = Date.now() + BREAKER_COOLDOWN_MS;
+}
 
 function htmlToText(html: string): string {
   return html
@@ -111,12 +128,22 @@ export async function extractPage(
   timeoutMs = 15_000,
   stats?: ExtractionStats,
 ): Promise<ExtractedPage> {
-  if (isCrawl4AiConfigured()) {
+  if (isCrawl4AiConfigured() && !crawlerBreakerOpen()) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     if (stats) stats.CRAWL4AI_ATTEMPTED++;
     try {
       const rendered = await crawl4aiRenderPage(url, controller.signal);
+      const elapsed = rendered.timingsMs?.total_ms;
+      if (stats && typeof elapsed === "number") {
+        stats.crawl4ai_total_ms = (stats.crawl4ai_total_ms ?? 0) + elapsed;
+        const done = stats.CRAWL4AI_SUCCESS + stats.CRAWL4AI_FAILED + 1;
+        stats.crawl4ai_avg_ms = Math.round((stats.crawl4ai_total_ms ?? 0) / done);
+      }
+      if (rendered.circuitOpen) {
+        openCrawlerBreaker();
+        if (stats) stats.crawl4ai_circuit_open_skips = (stats.crawl4ai_circuit_open_skips ?? 0) + 1;
+      }
       if (rendered.ok) {
         const text = (rendered.markdown || rendered.html || "").slice(0, MAX_TEXT);
         if (text.trim().length >= 200) {
