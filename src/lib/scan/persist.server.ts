@@ -25,7 +25,17 @@ export interface PersistLeadInput {
   page_excerpt: string | null;
   severity: string | null;
   threat_score: number | null;
+  /** PIPELINE (default) or OPENAI_RESEARCH when the query came from the AI layer. */
+  query_origin?: "PIPELINE" | "OPENAI_RESEARCH";
+  ai_content_type?: string | null;
+  ai_reputation_risk?: string | null;
+  ai_subject_confidence?: number | null;
+  ai_evidence_confidence?: number | null;
+  ai_recommended_action?: string | null;
+  ai_evidence_basis?: string | null;
+  ai_reasoning_summary?: string | null;
 }
+
 
 export async function persistScanRun(input: {
   query: string;
