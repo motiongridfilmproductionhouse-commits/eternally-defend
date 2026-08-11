@@ -26,9 +26,13 @@ export const firecrawlProvider: SearchProviderAdapter = {
 
     if (!res.success) {
       const kind =
-        res.errorCode === "INSUFFICIENT_CREDITS"
-          ? "credits_exhausted"
-          : classifyHttpFailure(res.statusCode ?? 0, res.error ?? "");
+        res.errorCode === "RATE_LIMITED"
+          ? "rate_limited"
+          : res.errorCode === "AUTH_ERROR"
+            ? "auth_failed"
+            : res.errorCode === "TIMEOUT"
+              ? "timeout"
+              : classifyHttpFailure(res.statusCode ?? 0, res.error ?? "");
       throw new ProviderError(kind, res.error ?? "Firecrawl search failed", res.statusCode);
     }
 
