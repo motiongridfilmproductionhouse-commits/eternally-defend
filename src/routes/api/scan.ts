@@ -4403,7 +4403,14 @@ export const Route = createFileRoute("/api/scan")({
 
           // Provenance: mark leads discovered by AI-generated queries.
           for (const lead of audit.leads) {
-            if (lead.source === "AI Research") lead.query_origin = "OPENAI_RESEARCH";
+            if (lead.source === "AI Research" || aiDiscoveredUrls.has(lead.url)) {
+              lead.query_origin = "OPENAI_RESEARCH";
+              aiDiag.ai_new_verified_findings++;
+              if (lead.ai_recommended_action?.startsWith("HUMAN_REVIEW"))
+                aiDiag.ai_new_needs_review++;
+            }
+          }
+
           }
 
 
