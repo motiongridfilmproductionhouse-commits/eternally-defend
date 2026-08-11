@@ -74,7 +74,7 @@ export function gradeThreatFinding(
       url: threatFeedUrl(f),
       snippet: f.snippet ?? null,
       faceSimilarity: f.face_similarity ?? null,
-      targetFaceMatch: f.target_face_match ?? false,
+      targetFaceMatch: (f as { target_face_match?: boolean }).target_face_match ?? false,
     });
     if (identity.status === "NOT_VERIFIED") return null;
   }
