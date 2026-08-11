@@ -178,6 +178,16 @@ export interface ScanHit {
   copyrightEnforcementPotential?: number;
   whyItMatters?: string;
   contentPosition?: ContentPosition;
+  /** Identity confidence grading (VERIFIED / PROBABLE / AMBIGUOUS). */
+  identityTier?: "VERIFIED" | "PROBABLE" | "AMBIGUOUS" | "NOT_SUBJECT";
+  identityConfidence?: number;
+  identityReason?: string;
+  /** VERIFIED = risk evidenced; NEEDS_REVIEW = kept for human review. */
+  reviewStatus?: "VERIFIED" | "NEEDS_REVIEW";
+  /** Search phrase that surfaced this result. */
+  searchQueryUsed?: string;
+  /** Excerpt of the full page captured during extraction. */
+  pageExcerpt?: string;
   metricsAvailable?: { views: boolean; likes: boolean; comments: boolean };
   scoring?: {
     relevance: number;
