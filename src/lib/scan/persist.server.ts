@@ -42,7 +42,7 @@ export async function persistScanRun(input: {
         query: input.query,
         aliases: input.aliases,
         sources: input.sources,
-        funnel: input.funnel as unknown as Record<string, unknown>,
+        funnel: input.funnel as unknown as never,
       })
       .select("id")
       .single();
