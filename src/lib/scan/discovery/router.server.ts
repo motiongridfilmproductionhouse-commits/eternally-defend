@@ -15,6 +15,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { ProviderError, type SearchProviderAdapter } from "./provider";
 import { braveProvider } from "./brave-provider.server";
 import { firecrawlProvider } from "./firecrawl-provider.server";
+import { googleProvider } from "./google-provider.server";
 import { serpapiProvider } from "./serpapi-provider.server";
 import type {
   DiscoveryHit,
@@ -90,7 +91,7 @@ export class DiscoveryRouter {
 
   constructor(options: DiscoveryRouterOptions = {}) {
     const registry: SearchProviderAdapter[] =
-      options.adapters ?? [firecrawlProvider, serpapiProvider, braveProvider];
+      options.adapters ?? [firecrawlProvider, serpapiProvider, googleProvider, braveProvider];
     const disabled = new Set(options.disable ?? []);
     const envDisabled = new Set(
       (process.env.SCAN_DISABLE_PROVIDERS ?? "")
