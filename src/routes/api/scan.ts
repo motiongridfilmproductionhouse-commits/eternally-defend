@@ -2700,17 +2700,18 @@ function buildReport(
         };
       }
       const riskMatched = c.keywords.length > 0 || sent === "Negative";
-      /*
-       * Official YouTube API results are already exact entity-search leads.
-       * Keep neutral matching videos as low-risk monitoring leads instead of
-       * silently dropping them just because their title lacks a risk keyword.
-       * Web results still require an explicit risk or negative-sentiment signal.
-       */
       const isOfficialYouTubeLead =
         (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
       const isYouTubeLead = source === "YouTube" || run.source === "YouTube";
       const isRedditEntityLead = source === "Reddit" || run.source === "Reddit";
-      if (!riskMatched && !isOfficialYouTubeLead && !isRedditEntityLead && !isYouTubeLead) continue;
+      /*
+       * NO SNIPPET-ONLY DELETION. Previously a web result without a risk keyword
+       * in its 800-char snippet was discarded outright. Uncertain candidates are
+       * now kept and flagged NEEDS_REVIEW so coverage is auditable.
+       */
+      const needsReview =
+        !riskMatched || identity.tier === "AMBIGUOUS" || identity.tier === "PROBABLE";
+      if (audit && needsReview) audit.funnel.needs_review++;
       const cred = credibilityScore(source, platform);
       const realViews = o.media?.views ?? 0;
       const viewsAvailable = o.media?.viewsAvailable === true;
