@@ -4019,6 +4019,7 @@ const fcConfig = getFirecrawlConfigInfo();
           (report as unknown as Record<string, unknown>).diagnostics = {
             funnel: {
               ...funnelCounters,
+              ...pipelineFunnel,
               persisted_results: uniqueNormalized.length,
               rejected_candidates: rejectedCandidates,
               removal: {
@@ -4026,6 +4027,7 @@ const fcConfig = getFirecrawlConfigInfo();
                 per_video_records: perVideoAnalysisRecords,
               },
             },
+            pipeline: pipelineFunnel,
             queriesGenerated: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesExecuted: fcQueriesExecuted + ytQueriesUsed + (fcDiscovery?.diagnostics?.queriesExecuted ?? 0),
             queriesFailed: (fcError ? 1 : 0) + (ytError ? 1 : 0) + (redditError ? 1 : 0),
