@@ -1370,33 +1370,27 @@ function fcItemToRaw(item: Record<string, unknown>): RawHit {
   };
 }
 
-/** Run a single Firecrawl search query using the centralized v2 client. */
-async function fcSearch(q: string, limit: number, scrape = false): Promise<RawHit[]> {
-  const { firecrawlSearch } = await import("@/lib/firecrawl/firecrawl.server");
-  const res = await firecrawlSearch({
-    query: q,
-    limit: Math.min(Math.max(limit, 1), 10),
-    sources: ["web", "news"],
-    scrapeOptions: scrape ? { formats: ["markdown"] } : undefined,
-  });
+/**
+ * Run a single discovery query through the provider-agnostic Discovery Router.
+ *
+ * Firecrawl is now only ONE optional provider inside the router: if it is out
+ * of credits, rate limited, unauthenticated or unreachable, the router keeps
+ * serving results from any other configured provider (SerpApi, Brave), so a
+ * Firecrawl outage can never zero out general-web discovery.
+ */
+async function fcSearch(q: string, limit: number, _scrape = false): Promise<RawHit[]> {
+  const { currentDiscoveryRouter } = await import("@/lib/scan/discovery/router.server");
+  const router = currentDiscoveryRouter();
+  const hits = await router.search(q, limit);
+  return hits as unknown as RawHit[];
+}
 
-  if (!res.success) {
-    throw new Error(res.error || `Firecrawl search failed with status ${res.statusCode}`);
-  }
-
-  const parsed: RawHit[] = res.items.map((item) => ({
-    url: item.url,
-    title: item.title || "",
-    description: item.snippet || item.description || "",
-    snippet: item.snippet,
-    author: item.author,
-    date: item.publishedDate || item.date,
-    publishedDate: item.publishedDate || item.date,
-    media: item.ogImage ? { thumbnail: item.ogImage, thumbnailHi: item.ogImage } : undefined,
-  }));
-
-  console.log(`[firecrawl] query="${q}" rawCandidates=${res.rawCandidatesCount} parsed=${parsed.length}`);
-  return parsed;
+/** Same as fcSearch but skips queries already executed during this scan. */
+async function routerSearchUnique(q: string, limit: number): Promise<RawHit[]> {
+  const { currentDiscoveryRouter } = await import("@/lib/scan/discovery/router.server");
+  const router = currentDiscoveryRouter();
+  const hits = await router.search(q, limit, { skipDuplicates: true });
+  return hits as unknown as RawHit[];
 }
 
 async function runFirecrawl(
@@ -3281,6 +3275,23 @@ export const Route = createFileRoute("/api/scan")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const { DiscoveryRouter, withDiscoveryRouter } = await import(
+          "@/lib/scan/discovery/router.server"
+        );
+        /*
+         * Acceptance-test switch: ?disableProviders=firecrawl forces the router
+         * to run without Firecrawl so the secondary-provider path is provable.
+         */
+        const disabledParam = new URL(request.url).searchParams.get("disableProviders") ?? "";
+        const discoveryRouter = new DiscoveryRouter({
+          disable: disabledParam
+            .split(",")
+            .map((v) => v.trim().toLowerCase())
+            .filter((v): v is "firecrawl" | "serpapi" | "brave" =>
+              v === "firecrawl" || v === "serpapi" || v === "brave",
+            ),
+        });
+        return withDiscoveryRouter(discoveryRouter, async () => {
         try {
           const body = await request.json().catch(() => ({}));
           const query = String(body?.query ?? "")
@@ -4360,6 +4371,7 @@ const fcConfig = getFirecrawlConfigInfo();
           console.error("scan route failed:", msg);
           return Response.json({ ok: false, error: msg }, { status: 500 });
         }
+        });
       },
     },
   },
