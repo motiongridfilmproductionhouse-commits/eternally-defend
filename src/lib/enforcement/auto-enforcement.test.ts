@@ -236,3 +236,24 @@ test("9. Master Switch state toggle & persistence with query refetch protection"
   assert.equal(dbSetting.automatic_enforcement_enabled, false, "Persisted DB setting becomes false on save");
 });
 
+test("10. Save Verification Guard throws SAVE_VERIFICATION_FAILED on returned value mismatch", async () => {
+  const saveWithVerification = (requested: boolean, returnedFromDb: boolean) => {
+    const res = { settings: { automatic_enforcement_enabled: returnedFromDb } };
+    const returnedState = Boolean(res.settings.automatic_enforcement_enabled);
+    if (returnedState !== requested) {
+      throw new Error(`SAVE_VERIFICATION_FAILED: Server returned automatic_enforcement_enabled = ${returnedState} but requested ${requested}`);
+    }
+    return res;
+  };
+
+  // Matching requested and returned
+  const validRes = saveWithVerification(true, true);
+  assert.equal(validRes.settings.automatic_enforcement_enabled, true);
+
+  // Mismatched requested and returned
+  assert.throws(
+    () => saveWithVerification(true, false),
+    /SAVE_VERIFICATION_FAILED/
+  );
+});
+

@@ -61,8 +61,14 @@ export const updateClientEnforcementSettings = createServerFn({ method: "POST" }
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
+    // Step 1: Check if user row exists
+    const { data: existing } = await (supabase as any)
+      .from("client_enforcement_settings")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
     const updatePayload: Record<string, unknown> = {
-      user_id: userId,
       automatic_enforcement_enabled: data.automaticEnforcementEnabled,
       updated_at: new Date().toISOString(),
     };
@@ -70,13 +76,54 @@ export const updateClientEnforcementSettings = createServerFn({ method: "POST" }
       updatePayload.enforcement_basis_policies = data.enforcementBasisPolicies;
     }
 
-    const { data: updated, error } = await (supabase as any)
-      .from("client_enforcement_settings")
-      .upsert(updatePayload)
-      .select()
-      .single();
+    let updated: any = null;
+    let dbError: any = null;
 
-    if (error) throw error;
+    if (existing) {
+      // Step 2: UPDATE existing row
+      const { data: resData, error: err } = await (supabase as any)
+        .from("client_enforcement_settings")
+        .update(updatePayload)
+        .eq("user_id", userId)
+        .select("user_id, automatic_enforcement_enabled, enforcement_basis_policies, updated_at")
+        .single();
+
+      updated = resData;
+      dbError = err;
+    } else {
+      // Step 3: INSERT new row if missing
+      const insertPayload = {
+        user_id: userId,
+        ...updatePayload,
+      };
+
+      const { data: resData, error: err } = await (supabase as any)
+        .from("client_enforcement_settings")
+        .insert(insertPayload)
+        .select("user_id, automatic_enforcement_enabled, enforcement_basis_policies, updated_at")
+        .single();
+
+      updated = resData;
+      dbError = err;
+    }
+
+    console.log("[ENFORCEMENT_SETTINGS_UPDATE]", {
+      user_id: userId,
+      requested_auto_enabled: data.automaticEnforcementEnabled,
+      database_auto_enabled_after_update: updated?.automatic_enforcement_enabled,
+      success: !dbError && Boolean(updated),
+      supabase_error_code: dbError?.code || null,
+      supabase_error_message: dbError?.message || null,
+    });
+
+    if (dbError) {
+      throw new Error(`[Database Error ${dbError.code || "UNKNOWN"}]: ${dbError.message || "Failed to save client enforcement settings"}`);
+    }
+
+    if (!updated) {
+      throw new Error("[Database Error]: Update executed but no record was returned.");
+    }
+
     return { settings: updated };
   });
 

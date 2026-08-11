@@ -51,10 +51,13 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
     }
   );
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   // Initialize local form state ONLY ONCE per modal open cycle
   useEffect(() => {
     if (!open) {
       formInitializedRef.current = false;
+      setSaveError(null);
       return;
     }
 
@@ -75,6 +78,7 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
 
   const handleAutoEnabledChange = (checked: boolean) => {
     console.log("[DEV DIAGNOSTIC] Master switch toggled to:", checked);
+    setSaveError(null);
     setAutoEnabled(checked);
   };
 
@@ -84,21 +88,37 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
         automaticEnforcementEnabled: autoEnabled,
         enforcementBasisPolicies: policies,
       });
-      return await updateSettingsFn({
+
+      const res = await updateSettingsFn({
         data: {
           automaticEnforcementEnabled: autoEnabled,
           enforcementBasisPolicies: policies,
         },
       });
+
+      if (!res || !res.settings) {
+        throw new Error("SAVE_VERIFICATION_FAILED: No settings record returned from server.");
+      }
+
+      const returnedState = Boolean(res.settings.automatic_enforcement_enabled);
+      if (returnedState !== autoEnabled) {
+        throw new Error(`SAVE_VERIFICATION_FAILED: Server returned automatic_enforcement_enabled = ${returnedState} but requested ${autoEnabled}`);
+      }
+
+      return res;
     },
-    onSuccess: (res) => {
-      console.log("[DEV DIAGNOSTIC] Mutation succeeded. Returned DB setting:", res?.settings?.automatic_enforcement_enabled);
-      toast.success("Enforcement automation settings updated");
-      qc.invalidateQueries({ queryKey: ["client_enforcement_settings"] });
+    onSuccess: async (res) => {
+      console.log("[DEV DIAGNOSTIC] Mutation succeeded & verified. Returned DB setting:", res?.settings?.automatic_enforcement_enabled);
+      setSaveError(null);
+      toast.success("Enforcement automation settings saved & verified");
+      await qc.invalidateQueries({ queryKey: ["client_enforcement_settings"] });
       onOpenChange(false);
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Failed to update settings");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[DEV DIAGNOSTIC] Mutation error:", msg);
+      setSaveError(msg);
+      toast.error(`AUTOMATION SETTINGS NOT SAVED: ${msg}`);
     },
   });
 
@@ -296,6 +316,16 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Inline Save Error Alert */}
+        {saveError && (
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-mono rounded-xl flex items-center gap-2 shrink-0">
+            <AlertTriangle className="size-4 shrink-0 text-rose-600" />
+            <div className="flex-1">
+              <strong>AUTOMATION SETTINGS NOT SAVED:</strong> {saveError}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
