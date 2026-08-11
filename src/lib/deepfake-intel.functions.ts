@@ -677,9 +677,55 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       LOW: 1,
     };
 
+    const scan = scanRes.data as (ScanRow & { aliases?: string[] }) | null;
+    let findingRows = (findingsRes.data ?? []) as FindingRow[];
+
+    /*
+     * Retroactive cleanup: legacy rows persisted before the strict target gate
+     * (generic deepfake news, unrelated victims) are demoted to NOT_SUBJECT so
+     * they permanently disappear from the client feed.
+     */
+    if (scan?.target_name && findingRows.length) {
+      const { verifyTargetIdentity } = await import("./deepfake/target-identity");
+      const stale: string[] = [];
+      for (const row of findingRows) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const r = row as any;
+        if (String(r.finding_classification ?? "") === "NOT_SUBJECT") continue;
+        const identity = verifyTargetIdentity({
+          target: scan.target_name as string,
+          aliases: scan.aliases ?? [],
+          title: r.page_title ?? null,
+          url: r.url ?? r.final_url ?? r.canonical_url ?? null,
+          snippet: r.snippet ?? null,
+          faceSimilarity: r.face_similarity ?? null,
+          targetFaceMatch: r.target_face_match ?? false,
+        });
+        if (identity.status === "NOT_VERIFIED") stale.push(r.id as string);
+      }
+      if (stale.length) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (context.supabase as any)
+          .from("deepfake_findings")
+          .update({
+            finding_classification: "NOT_SUBJECT",
+            content_category: "not_subject",
+            risk_level: "LOW",
+            confidence: 0,
+            is_synthetic: false,
+            takedown_recommended: false,
+            classification_explanation:
+              "Excluded (NOT_SUBJECT): scan target is not evidenced on this page.",
+          })
+          .in("id", stale);
+        const staleSet = new Set(stale);
+        findingRows = findingRows.filter((row) => !staleSet.has((row as { id: string }).id));
+      }
+    }
+
     return {
-      scan: scanRes.data as ScanRow | null,
-      findings: ((findingsRes.data ?? []) as FindingRow[]).sort(
+      scan,
+      findings: findingRows.sort(
         (a, b) =>
           (riskRank[b.risk_level] ?? 0) - (riskRank[a.risk_level] ?? 0) ||
           b.confidence - a.confidence,
