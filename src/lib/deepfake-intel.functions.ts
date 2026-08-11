@@ -527,7 +527,6 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 
           if (riskLevel === "CRITICAL") critical++;
           else if (riskLevel === "HIGH") high++;
-          else if (riskLevel === "MEDIUM") medium++;
           else low++;
 
           return {
