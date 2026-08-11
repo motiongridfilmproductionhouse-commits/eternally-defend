@@ -7,6 +7,8 @@
  */
 
 import type { ScanAiDiagnostics } from "./openai/types";
+import type { DiscoveryRouterReport } from "./discovery/types";
+import type { ExtractionStats } from "./page-extract-types";
 
 export interface ScanPipelineFunnel {
   queries_planned: number;
@@ -26,6 +28,10 @@ export interface ScanPipelineFunnel {
   persisted: number;
   /** OpenAI Research & Reasoning layer counters (optional, additive). */
   ai?: ScanAiDiagnostics;
+  /** Per-provider discovery health — failure is never reported as "0 results". */
+  discovery?: DiscoveryRouterReport;
+  /** Crawl4AI vs plain-fetch extraction telemetry. */
+  extraction?: ExtractionStats;
 }
 
 
