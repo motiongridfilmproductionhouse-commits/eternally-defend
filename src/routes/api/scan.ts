@@ -1382,42 +1382,65 @@ async function runFirecrawl(
   handles: string[],
   sources: SourceKey[],
   limit: number,
-): Promise<{ runs: { source: string; raw: RawHit[] }[]; error?: string; queriesExecuted: number }> {
+): Promise<{
+  runs: { source: string; raw: RawHit[] }[];
+  error?: string;
+  queriesExecuted: number;
+  queriesPlanned: number;
+  queriesFailed: number;
+}> {
   const { generateExpandedQueries } = await import("@/lib/firecrawl/query-generator");
   const queryGroups = generateExpandedQueries(query, aliases, handles);
 
   const runsMap = new Map<string, RawHit[]>();
-  let queriesExecuted = 0;
   const errors: string[] = [];
 
-  for (const group of queryGroups) {
-    const settled = await Promise.allSettled(
-      group.queries.slice(0, 4).map(async (q) => {
-        queriesExecuted++;
-        return fcSearch(q, limit);
-      }),
-    );
-    for (const r of settled) {
-      if (r.status === "fulfilled") {
-        for (const hit of r.value) {
+  /*
+   * COVERAGE FIX: previously only the first 4 queries of every group ran, which
+   * threw away most of the planned query plan before any discovery happened.
+   * Every planned query now executes, through a bounded concurrency pool.
+   */
+  const plan = Array.from(
+    new Set(queryGroups.flatMap((group) => group.queries.map((q) => q.trim()).filter(Boolean))),
+  );
+  const queriesPlanned = plan.length;
+  let queriesExecuted = 0;
+  let queriesFailed = 0;
+  let cursor = 0;
+  const CONCURRENCY = 6;
+
+  async function worker() {
+    while (cursor < plan.length) {
+      const q = plan[cursor++];
+      queriesExecuted++;
+      try {
+        const hits = await fcSearch(q, limit);
+        for (const hit of hits) {
           const { source } = platformFromUrl(hit.url || "");
           const label = source || "Web";
           if (!runsMap.has(label)) runsMap.set(label, []);
-          runsMap.get(label)!.push(hit);
+          runsMap.get(label)!.push({ ...hit, queryUsed: q });
         }
-      } else {
-        const errMsg = r.reason instanceof Error ? r.reason.message : String(r.reason);
-        errors.push(errMsg);
+      } catch (e) {
+        queriesFailed++;
+        errors.push(e instanceof Error ? e.message : String(e));
       }
     }
   }
 
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, plan.length) }, worker));
+
+  console.log(
+    `[scan:queries] planned=${queriesPlanned} executed=${queriesExecuted} failed=${queriesFailed}`,
+  );
+
   const runs = Array.from(runsMap.entries()).map(([source, raw]) => ({ source, raw }));
   if (runs.length === 0 && errors.length > 0) {
-    return { runs: [], error: errors.join("; "), queriesExecuted };
+    return { runs: [], error: errors.join("; "), queriesExecuted, queriesPlanned, queriesFailed };
   }
-  return { runs, queriesExecuted };
+  return { runs, queriesExecuted, queriesPlanned, queriesFailed };
 }
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    FIRECRAWL DISCOVERY MODE
