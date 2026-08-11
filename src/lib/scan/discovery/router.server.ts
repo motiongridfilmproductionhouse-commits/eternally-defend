@@ -74,6 +74,8 @@ export interface DiscoveryRouterOptions {
   only?: ProviderId[];
   /** Force-disable providers (used for the Firecrawl-unavailable acceptance run). */
   disable?: ProviderId[];
+  /** Override the adapter registry (tests only). */
+  adapters?: SearchProviderAdapter[];
 }
 
 export class DiscoveryRouter {
@@ -87,7 +89,8 @@ export class DiscoveryRouter {
   private urlsReturned = 0;
 
   constructor(options: DiscoveryRouterOptions = {}) {
-    const registry: SearchProviderAdapter[] = [firecrawlProvider, serpapiProvider, braveProvider];
+    const registry: SearchProviderAdapter[] =
+      options.adapters ?? [firecrawlProvider, serpapiProvider, braveProvider];
     const disabled = new Set(options.disable ?? []);
     const envDisabled = new Set(
       (process.env.SCAN_DISABLE_PROVIDERS ?? "")
