@@ -25,7 +25,17 @@ export interface PersistLeadInput {
   page_excerpt: string | null;
   severity: string | null;
   threat_score: number | null;
+  /** PIPELINE (default) or OPENAI_RESEARCH when the query came from the AI layer. */
+  query_origin?: "PIPELINE" | "OPENAI_RESEARCH";
+  ai_content_type?: string | null;
+  ai_reputation_risk?: string | null;
+  ai_subject_confidence?: number | null;
+  ai_evidence_confidence?: number | null;
+  ai_recommended_action?: string | null;
+  ai_evidence_basis?: string | null;
+  ai_reasoning_summary?: string | null;
 }
+
 
 export async function persistScanRun(input: {
   query: string;
@@ -43,6 +53,8 @@ export async function persistScanRun(input: {
         aliases: input.aliases,
         sources: input.sources,
         funnel: input.funnel as unknown as never,
+        ai_diagnostics: (input.funnel.ai ?? null) as unknown as never,
+
       })
       .select("id")
       .single();
@@ -66,7 +78,16 @@ export async function persistScanRun(input: {
       page_excerpt: lead.page_excerpt?.slice(0, 4000) ?? null,
       severity: lead.severity,
       threat_score: lead.threat_score,
+      query_origin: lead.query_origin ?? "PIPELINE",
+      ai_content_type: lead.ai_content_type ?? null,
+      ai_reputation_risk: lead.ai_reputation_risk ?? null,
+      ai_subject_confidence: lead.ai_subject_confidence ?? null,
+      ai_evidence_confidence: lead.ai_evidence_confidence ?? null,
+      ai_recommended_action: lead.ai_recommended_action ?? null,
+      ai_evidence_basis: lead.ai_evidence_basis ?? null,
+      ai_reasoning_summary: lead.ai_reasoning_summary?.slice(0, 1000) ?? null,
     }));
+
 
     if (rows.length) {
       const { error: leadErr } = await supabaseAdmin.from("web_scan_leads").insert(rows);

@@ -5821,6 +5821,24 @@ export type Database = {
           },
         ]
       }
+      scan_ai_analysis_cache: {
+        Row: {
+          created_at: string
+          evidence_hash: string
+          verdict: Json
+        }
+        Insert: {
+          created_at?: string
+          evidence_hash: string
+          verdict: Json
+        }
+        Update: {
+          created_at?: string
+          evidence_hash?: string
+          verdict?: Json
+        }
+        Relationships: []
+      }
       scan_hits: {
         Row: {
           author: string | null
@@ -7138,6 +7156,13 @@ export type Database = {
       }
       web_scan_leads: {
         Row: {
+          ai_content_type: string | null
+          ai_evidence_basis: string | null
+          ai_evidence_confidence: number | null
+          ai_reasoning_summary: string | null
+          ai_recommended_action: string | null
+          ai_reputation_risk: string | null
+          ai_subject_confidence: number | null
           canonical_url: string
           created_at: string
           exclusion_reason: string | null
@@ -7150,6 +7175,7 @@ export type Database = {
           page_excerpt: string | null
           platform: string | null
           query: string | null
+          query_origin: string
           run_id: string
           severity: string | null
           source: string | null
@@ -7159,6 +7185,13 @@ export type Database = {
           url: string
         }
         Insert: {
+          ai_content_type?: string | null
+          ai_evidence_basis?: string | null
+          ai_evidence_confidence?: number | null
+          ai_reasoning_summary?: string | null
+          ai_recommended_action?: string | null
+          ai_reputation_risk?: string | null
+          ai_subject_confidence?: number | null
           canonical_url: string
           created_at?: string
           exclusion_reason?: string | null
@@ -7171,6 +7204,7 @@ export type Database = {
           page_excerpt?: string | null
           platform?: string | null
           query?: string | null
+          query_origin?: string
           run_id: string
           severity?: string | null
           source?: string | null
@@ -7180,6 +7214,13 @@ export type Database = {
           url: string
         }
         Update: {
+          ai_content_type?: string | null
+          ai_evidence_basis?: string | null
+          ai_evidence_confidence?: number | null
+          ai_reasoning_summary?: string | null
+          ai_recommended_action?: string | null
+          ai_reputation_risk?: string | null
+          ai_subject_confidence?: number | null
           canonical_url?: string
           created_at?: string
           exclusion_reason?: string | null
@@ -7192,6 +7233,7 @@ export type Database = {
           page_excerpt?: string | null
           platform?: string | null
           query?: string | null
+          query_origin?: string
           run_id?: string
           severity?: string | null
           source?: string | null
@@ -7212,6 +7254,7 @@ export type Database = {
       }
       web_scan_runs: {
         Row: {
+          ai_diagnostics: Json | null
           aliases: string[]
           created_at: string
           funnel: Json
@@ -7220,6 +7263,7 @@ export type Database = {
           sources: string[]
         }
         Insert: {
+          ai_diagnostics?: Json | null
           aliases?: string[]
           created_at?: string
           funnel?: Json
@@ -7228,6 +7272,7 @@ export type Database = {
           sources?: string[]
         }
         Update: {
+          ai_diagnostics?: Json | null
           aliases?: string[]
           created_at?: string
           funnel?: Json

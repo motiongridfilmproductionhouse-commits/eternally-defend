@@ -6,6 +6,8 @@
  * carry a reason code.
  */
 
+import type { ScanAiDiagnostics } from "./openai/types";
+
 export interface ScanPipelineFunnel {
   queries_planned: number;
   queries_executed: number;
@@ -22,7 +24,10 @@ export interface ScanPipelineFunnel {
   excluded: number;
   excluded_reasons: Record<string, number>;
   persisted: number;
+  /** OpenAI Research & Reasoning layer counters (optional, additive). */
+  ai?: ScanAiDiagnostics;
 }
+
 
 export function emptyScanFunnel(): ScanPipelineFunnel {
   return {

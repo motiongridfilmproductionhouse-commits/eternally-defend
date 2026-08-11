@@ -30,6 +30,8 @@ import {
 } from "@/lib/media-utils";
 import { PersistedResultCard, type HitLike } from "@/components/scan/PersistedResultCard";
 import { FunnelDebugPanel } from "@/components/scan/FunnelDebugPanel";
+import { OpenAiIntelPanel } from "@/components/scan/OpenAiIntelPanel";
+
 import { DetailDrawer } from "@/components/scan/DetailDrawer";
 import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
 import {
@@ -1394,6 +1396,8 @@ function AdminDiagnosticsPanel({ report }: { report: ReportWithDiagnostics }) {
       </summary>
       <div className="mt-4">
         <FunnelDebugPanel funnel={(diag as any)?.funnel} />
+        <OpenAiIntelPanel ai={(diag as any)?.openai} />
+
         <LiveScanStatus
           sourceCounts={diag.sourceCounts ?? {}}
           totalRaw={diag.totalRawFetched ?? 0}
