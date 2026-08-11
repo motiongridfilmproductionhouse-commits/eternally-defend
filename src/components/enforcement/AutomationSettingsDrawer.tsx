@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getClientEnforcementSettings, updateClientEnforcementSettings } from "@/lib/auto-enforcement.functions";
@@ -48,13 +48,16 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
     }
   );
 
-  // Sync state when query resolves
-  if (settings && autoEnabled !== settings.automatic_enforcement_enabled && !settingsQuery.isFetching) {
-    setAutoEnabled(settings.automatic_enforcement_enabled);
+  // Sync state ONLY when query data resolves/changes
+  useEffect(() => {
+    if (!settings) return;
+
+    setAutoEnabled(Boolean(settings.automatic_enforcement_enabled));
+
     if (settings.enforcement_basis_policies) {
       setPolicies(settings.enforcement_basis_policies as Record<string, string>);
     }
-  }
+  }, [settings]);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -163,6 +166,7 @@ export function AutomationSettingsDrawer({ open, onOpenChange }: Props) {
               <Switch
                 checked={autoEnabled}
                 onCheckedChange={setAutoEnabled}
+                disabled={settingsQuery.isLoading}
                 className="data-[state=checked]:bg-blue-600"
               />
             </div>

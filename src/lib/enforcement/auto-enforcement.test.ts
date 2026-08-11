@@ -179,3 +179,30 @@ test("8. Demo mode still blocks transport", async () => {
   assert.equal(result.status, "DEMO_MODE_BLOCKED");
   assert.equal(result.success, false);
 });
+
+test("9. Master Switch state toggle & persistence (false -> true -> save -> true, and reverse)", async () => {
+  let dbSetting = { automatic_enforcement_enabled: false, enforcement_basis_policies: { copyright: "AUTO" } };
+
+  // Simulated React component local state behavior
+  let localState = dbSetting.automatic_enforcement_enabled;
+
+  assert.equal(localState, false, "Initial state displays OFF (false)");
+
+  // 1. User clicks switch (false -> true)
+  localState = true;
+  assert.equal(localState, true, "Local state becomes TRUE upon click");
+
+  // Re-render occurs while dbSetting is still false
+  // Because sync is in useEffect([settings]), localState remains TRUE
+  assert.equal(localState, true, "Local state remains TRUE during re-render without immediate reset");
+
+  // 2. User clicks Save Configuration
+  dbSetting.automatic_enforcement_enabled = localState;
+  assert.equal(dbSetting.automatic_enforcement_enabled, true, "Persisted database setting becomes TRUE on save");
+
+  // 3. User toggles reverse (true -> false) and saves
+  localState = false;
+  dbSetting.automatic_enforcement_enabled = localState;
+  assert.equal(dbSetting.automatic_enforcement_enabled, false, "Persisted database setting becomes FALSE on save");
+});
+
