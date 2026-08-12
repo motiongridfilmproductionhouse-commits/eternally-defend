@@ -191,9 +191,11 @@ export async function renderAuthorizationLetterPdf(
   // ---- Parties & authorization record ----------------------------------
   // Legal identifiers only — no internal status, classifier or provider fields.
   const party = resolveClientParty(snapshot.profile);
-  sectionHeading("1. Client and authorization details");
-  field("Client Full Legal Name", party.legalName);
-  field("Public / Display Name", party.displayName);
+  const partyLabel = partySectionLabel(snapshot.profile);
+  const proName = professionalName(snapshot.profile);
+  sectionHeading(`1. ${partyLabel} and authorization details`);
+  field("Legal Name", party.legalName);
+  if (proName) field("Professional / Display Name", proName);
   field("Client ID", snapshot.profile?.client_id ?? "");
   field("Country", party.country);
   field("Authorization ID", authNumber);
