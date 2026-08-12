@@ -126,6 +126,12 @@ export const saveV2ClientProfile = createServerFn({ method: "POST" })
       throw new Error("Company / production house name is required.");
     }
 
+    const publicProfile = {
+      aliases: data.aliases ?? [],
+      handles: data.social_handles ?? [],
+      photo_url: data.profile_photo_url?.trim() || null,
+    };
+
     const { data: row, error } = await supabase
       .from("client_profiles")
       .update({
@@ -137,6 +143,8 @@ export const saveV2ClientProfile = createServerFn({ method: "POST" })
         phone: data.phone ?? null,
         country: data.country,
         address: data.address ?? null,
+        website: data.website?.trim() || null,
+        social_profiles: publicProfile,
         onboarding_step: 2,
       })
       .eq("user_id", userId)
