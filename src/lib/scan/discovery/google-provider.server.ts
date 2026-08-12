@@ -120,11 +120,18 @@ export const googleProvider: SearchProviderAdapter = {
 
       if (status !== 200) {
         // Daily-quota exhaustion arrives as 429 or 403 with a quota reason.
-        const kind = /quota|dailyLimitExceeded|rateLimitExceeded/i.test(text)
-          ? status === 403
-            ? "credits_exhausted"
-            : "rate_limited"
-          : classifyHttpFailure(status, text);
+        // Project-access 403 ("does not have the access to Custom Search JSON
+        // API") means the API is not enabled — treat as auth failure so the
+        // router marks the provider unavailable for the whole scan.
+        const kind = /does not have the access|SERVICE_DISABLED|has not been used in project|accessNotConfigured/i.test(
+          text,
+        )
+          ? "auth_failed"
+          : /quota|dailyLimitExceeded|rateLimitExceeded/i.test(text)
+            ? status === 403
+              ? "credits_exhausted"
+              : "rate_limited"
+            : classifyHttpFailure(status, text);
         if (hits.length) break;
         throw new ProviderError(
           kind,
