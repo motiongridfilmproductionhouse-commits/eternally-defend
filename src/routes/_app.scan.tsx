@@ -45,6 +45,18 @@ import {
 
 import { listEvidenceStatus, hideScanHit } from "@/lib/scan-actions.functions";
 import {
+  ScanRadar,
+  type ScanStage,
+  type ScanRadarProviderNode,
+  type ScanRadarMetrics,
+} from "@/components/scan/ScanRadar";
+import { sanitizeProviderError } from "@/lib/security/error-sanitizer";
+import { coarseProviderNodes, finalProviderNodes } from "@/lib/scan/provider-nodes";
+import type { ScanPipelineFunnel } from "@/lib/scan/pipeline-funnel";
+import type { ScanAiDiagnostics } from "@/lib/scan/openai/types";
+import type { DiscoveryRouterReport } from "@/lib/scan/discovery/types";
+import type { ExtractionStats } from "@/lib/scan/page-extract-types";
+import {
   Radar,
   Search,
   ExternalLink,
@@ -184,6 +196,11 @@ interface ReportWithDiagnostics extends ReputationReport {
     breakingCount?: number;
     recent3dCount?: number;
     recent7dCount?: number;
+    /** Already sent by the server (see src/routes/api/scan.ts) — was previously read via `as any`. */
+    funnel?: ScanPipelineFunnel & Record<string, unknown>;
+    openai?: ScanAiDiagnostics;
+    providers?: DiscoveryRouterReport;
+    extraction?: ExtractionStats;
   };
 }
 
@@ -246,6 +263,37 @@ function ScanPage() {
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [persistedScanId, setPersistedScanId] = useState<string | null>(null);
+
+  /*
+   * Live Web Scan visualization — reveal-phase state machine.
+   *
+   * "scanning" and "complete-hold" are real states driven off the mutation's
+   * actual lifecycle (isPending / isSuccess). "complete-hold" is a brief,
+   * fixed ~800ms pause purely for the completion animation before swapping
+   * to the results UI — it does not delay or alter when the scan itself
+   * finished, and it never occurs on a scan that hasn't actually succeeded.
+   */
+  type RevealPhase = "idle" | "scanning" | "complete-hold" | "revealed" | "failed";
+  const [revealPhase, setRevealPhase] = useState<RevealPhase>("idle");
+  const [scanStartedAt, setScanStartedAt] = useState<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const lastMutationInputRef = useRef<Record<string, unknown> | null>(null);
+  const lastScanSourcesRef = useRef<SourceKey[]>(DEFAULT_SOURCES);
+
+  /*
+   * Live progress polling (POST /api/scan/start + GET /api/scan/:id/status).
+   * scanRunId is best-effort: if /start fails, the scan still runs exactly as
+   * before (via POST /api/scan directly) — it just falls back to the coarse
+   * "RUNNING" state instead of real stages/counters. Nothing here gates or
+   * delays the actual scan or its report.
+   */
+  const [currentScanRunId, setCurrentScanRunId] = useState<string | null>(null);
+  const [pollStatus, setPollStatus] = useState<{
+    stage: ScanStage;
+    counters: Record<string, number>;
+    providers: ScanRadarProviderNode[];
+  } | null>(null);
+
   const [persistSummary, setPersistSummary] = useState<{
     newHits: number;
     updatedHits: number;
@@ -280,7 +328,7 @@ function ScanPage() {
     setSources(DEFAULT_SOURCES);
     setMonthFilter("12m");
     setAdded(new Set());
-    m.mutate({
+    const autoPayload = {
       query,
       aliases: [],
       variations: [],
@@ -293,11 +341,74 @@ function ScanPage() {
       resultCap: 300,
       assetId,
       context: "person; uploaded identity reference",
-    });
+    };
+    void beginScan(autoPayload, DEFAULT_SOURCES);
     window.history.replaceState({}, "", "/scan");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [m]);
 
   const report = m.data as ReportWithDiagnostics | undefined;
+
+  // Drive revealPhase off the mutation's real lifecycle only — never a timer.
+  useEffect(() => {
+    if (m.isPending) {
+      setRevealPhase("scanning");
+      return;
+    }
+    if (m.isError) {
+      setRevealPhase("failed");
+      return;
+    }
+    if (m.isSuccess && m.data) {
+      setRevealPhase((prev) => (prev === "revealed" ? prev : "complete-hold"));
+    }
+  }, [m.isPending, m.isError, m.isSuccess, m.data]);
+
+  // ~800ms completion hold, purely for the "SCAN COMPLETE" pulse animation.
+  useEffect(() => {
+    if (revealPhase !== "complete-hold") return;
+    const t = setTimeout(() => setRevealPhase("revealed"), 800);
+    return () => clearTimeout(t);
+  }, [revealPhase]);
+
+  // Real elapsed-time ticker — the only "progress" signal shown while scanning.
+  useEffect(() => {
+    if (revealPhase !== "scanning" || !scanStartedAt) return;
+    const tick = () => setElapsedMs(Date.now() - scanStartedAt);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [revealPhase, scanStartedAt]);
+
+  // Live status polling — the only source of real per-stage/counter data
+  // during a scan. Stops as soon as revealPhase leaves "scanning" (report
+  // landed, or the request failed) — polling never gates report delivery.
+  useEffect(() => {
+    if (revealPhase !== "scanning" || !currentScanRunId) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/scan/${currentScanRunId}/status`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled || !data?.ok) return;
+        setPollStatus({
+          stage: data.stage as ScanStage,
+          counters: (data.counters ?? {}) as Record<string, number>,
+          providers: (data.providers ?? []) as ScanRadarProviderNode[],
+        });
+      } catch {
+        // Best-effort only — a poll failure never affects the actual scan.
+      }
+    };
+    void poll();
+    const id = setInterval(poll, 2500);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [revealPhase, currentScanRunId]);
+
   const autoTabReportRef = useRef<ReportWithDiagnostics | undefined>(undefined);
 
   // Default to the most actionable tab for each new report: Reputation Risk if it
@@ -461,6 +572,40 @@ function ScanPage() {
       .map((x) => x.trim())
       .filter(Boolean);
 
+  /*
+   * Best-effort: create a progress row so scan.ts can report real checkpoints.
+   * Never blocks or gates the actual scan beyond one small round-trip — if it
+   * fails, scanRunId stays null and the scan runs exactly as it always has,
+   * just without live per-stage/counter data.
+   */
+  const startScanProgress = async (query: string): Promise<string | null> => {
+    try {
+      const res = await fetch("/api/scan/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return typeof data?.scanRunId === "string" ? data.scanRunId : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const beginScan = async (payload: Record<string, unknown>, activeSources: SourceKey[]) => {
+    lastMutationInputRef.current = payload;
+    lastScanSourcesRef.current = activeSources;
+    setScanStartedAt(Date.now());
+    setElapsedMs(0);
+    setPollStatus(null);
+    setCurrentScanRunId(null);
+    setRevealPhase("scanning");
+    const scanRunId = await startScanProgress(String(payload.query ?? ""));
+    setCurrentScanRunId(scanRunId);
+    m.mutate(scanRunId ? { ...payload, scanRunId } : payload);
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!q.trim() || m.isPending) return;
@@ -469,19 +614,113 @@ function ScanPage() {
     const variationList = split(variations);
     const hashtagList = split(hashtags);
     const handleList = split(handles);
-    m.mutate({
+    const activeSources = sources.length ? sources : DEFAULT_SOURCES;
+    const payload = {
       query: q.trim(),
       aliases: aliasList,
       variations: variationList,
       hashtags: hashtagList,
       handles: handleList,
       monthFilter,
-      sources: sources.length ? sources : DEFAULT_SOURCES,
+      sources: activeSources,
       limit: 8,
       youtubeTarget: 1500,
       context: [industry, country, site].filter(Boolean).join(" "),
-    });
+    };
+    void beginScan(payload, activeSources);
   };
+
+  const retryLastScan = () => {
+    if (!lastMutationInputRef.current) return;
+    // A retry is a new attempt — it gets its own progress row via beginScan,
+    // not the stale scanRunId (if any) from the failed attempt.
+    const { scanRunId: _prevScanRunId, ...payload } = lastMutationInputRef.current as Record<
+      string,
+      unknown
+    > & { scanRunId?: string };
+    void beginScan(payload, lastScanSourcesRef.current);
+  };
+
+  /*
+   * Provider nodes for ScanRadar — reuses the exact same pure mapping the
+   * server uses for its own COMPLETE checkpoint (src/lib/scan/provider-nodes.ts),
+   * so the two never drift into different rules for what counts as
+   * "complete" vs "degraded" vs "failed".
+   *
+   *  - While scanning: prefer the live-polled `pollStatus.providers` (real,
+   *    written by scan.ts as it runs). Until the first poll response lands,
+   *    fall back to `coarseProviderNodes` — still real (which sources were
+   *    actually requested), just not yet outcome-aware.
+   *  - A failed attempt never produced a diagnostics payload of its own —
+   *    `report` here (if defined) would be stale data from a previous,
+   *    unrelated successful scan, so it must never color nodes for it.
+   *  - Once the report resolves, derive final state from its real
+   *    diagnostics (same fields AdminDiagnosticsPanel already displays).
+   */
+  const providerNodes: ScanRadarProviderNode[] = useMemo(() => {
+    if (revealPhase === "scanning") {
+      return pollStatus?.providers?.length
+        ? pollStatus.providers
+        : coarseProviderNodes(lastScanSourcesRef.current);
+    }
+    if (!report || revealPhase === "failed") {
+      return coarseProviderNodes([]);
+    }
+    const diag = report.diagnostics;
+    return finalProviderNodes({
+      sourcesRequested: report.sourcesRequested ?? [],
+      sourcesReturned: report.sourcesReturned ?? [],
+      youtube: diag?.youtube,
+      providers: diag?.providers,
+      extraction: diag?.extraction,
+      openai: diag?.openai,
+    });
+  }, [revealPhase, report, pollStatus]);
+
+  const radarStage: ScanStage =
+    revealPhase === "complete-hold"
+      ? "COMPLETE"
+      : revealPhase === "failed"
+        ? "FAILED"
+        : revealPhase === "scanning" && pollStatus?.stage
+          ? pollStatus.stage
+          : "RUNNING";
+
+  const radarMetrics: ScanRadarMetrics | undefined = useMemo(() => {
+    if (revealPhase === "scanning") {
+      if (!pollStatus?.counters) return undefined;
+      const c = pollStatus.counters;
+      return {
+        queriesPlanned: c.queries_planned,
+        queriesExecuted: c.queries_executed,
+        urlsDiscovered: c.urls_discovered,
+        uniqueCandidates: c.unique_candidates,
+        pagesExtracted: c.pages_extracted,
+        verifiedSubjects: c.verified_subjects,
+        needsReview: c.needs_review,
+        findings: c.findings,
+        aiExpansionUrls: c.ai_expansion_urls,
+      };
+    }
+    if (revealPhase === "failed" || !report) return undefined;
+    const funnel = report.diagnostics?.funnel;
+    const ai = report.diagnostics?.openai;
+    return {
+      queriesPlanned: funnel?.queries_planned,
+      queriesExecuted: funnel?.queries_executed,
+      urlsDiscovered: funnel?.discovered,
+      uniqueCandidates: funnel?.unique,
+      pagesExtracted: funnel?.extracted,
+      verifiedSubjects: funnel?.verified,
+      needsReview: funnel?.needs_review,
+      findings: report.totals?.total ?? report.hits?.length,
+      aiExpansionUrls: ai?.ai_urls_discovered,
+    };
+  }, [revealPhase, report, pollStatus]);
+
+  const radarErrorMessage = m.isError
+    ? sanitizeProviderError(m.error instanceof Error ? m.error : new Error(String(m.error))).message
+    : null;
 
   const entityTerms = useMemo(
     () => [q, ...split(aliases), ...split(variations)].map((s) => s.trim()).filter(Boolean),
@@ -774,11 +1013,6 @@ function ScanPage() {
             </div>
           </form>
 
-          {m.isError && (
-            <div className="mt-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              Scan failed: {(m.error as Error).message}
-            </div>
-          )}
           {report?.error && !report.error.toLowerCase().includes("youtube quota exhausted") && (
             <div className="mt-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               Scan warning: {report.error}
@@ -787,7 +1021,20 @@ function ScanPage() {
         </div>
       </div>
 
-      {report && report.hits.length === 0 && (
+      {(revealPhase === "scanning" ||
+        revealPhase === "complete-hold" ||
+        revealPhase === "failed") && (
+        <ScanRadar
+          stage={radarStage}
+          providers={providerNodes}
+          metrics={radarMetrics}
+          elapsedMs={elapsedMs}
+          errorMessage={radarErrorMessage}
+          onRetry={retryLastScan}
+        />
+      )}
+
+      {revealPhase === "revealed" && report && report.hits.length === 0 && (
         <PageCard
           title="NO RESULTS"
           sub="No public results were returned for this query. Try broader terms, add aliases, or expand sources."
@@ -798,7 +1045,7 @@ function ScanPage() {
         </PageCard>
       )}
 
-      {report && report.hits.length > 0 && (
+      {revealPhase === "revealed" && report && report.hits.length > 0 && (
         <>
           {/* Executive summary + score */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1180,8 +1427,8 @@ function ScanPage() {
                     <>
                       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
                         Borderline findings — risk signals present but subject identity, evidence
-                        strength, or severity is not yet confirmed. Requires human review before
-                        any enforcement or legal characterisation.
+                        strength, or severity is not yet confirmed. Requires human review before any
+                        enforcement or legal characterisation.
                       </div>
                       {reviewRequired.length > 0 ? (
                         <Bucket
@@ -1205,8 +1452,8 @@ function ScanPage() {
                   {resultsTab === "mentions" && (
                     <>
                       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-                        Complete discovery corpus — neutral, official and general mentions
-                        included. Nothing discovered is deleted; this is the full evidence set.
+                        Complete discovery corpus — neutral, official and general mentions included.
+                        Nothing discovered is deleted; this is the full evidence set.
                       </div>
                       {mentionsFiltered.length > 0 ? (
                         <Bucket
@@ -1258,7 +1505,7 @@ function ScanPage() {
         </>
       )}
 
-      {!report && !m.isPending && (
+      {revealPhase === "idle" && (
         <PageCard title="HOW IT WORKS" sub="Powered by Firecrawl + Eterna AI risk model">
           <ol className="text-sm text-muted-foreground space-y-2 list-decimal pl-5">
             <li>Enter the subject's name, aliases, handles, website, and industry context.</li>
@@ -2401,12 +2648,12 @@ function ResultCard({
         {!h.riskEvidence?.riskEvidenceFound && h.riskEvidence && (
           <div className="rounded-xl border border-dashed border-border bg-muted/30 p-3 text-[11px] text-muted-foreground text-left">
             <span className="font-semibold text-foreground">
-              {h.classificationTier === "TIER_2_NEEDS_REVIEW" ? "Needs Review" : "Neutral mention"}:{" "}
+              {h.classificationTier === "TIER_2_NEEDS_REVIEW" ? "Needs Review" : "Neutral mention"}
+              :{" "}
             </span>
             {h.riskEvidence.reason}
           </div>
         )}
-
 
         {isYouTube && h.media?.videoId && (
           <div className="flex items-center justify-between gap-2 -mt-1">

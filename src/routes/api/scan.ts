@@ -28,6 +28,9 @@ import {
   type ScanPipelineFunnel,
 } from "@/lib/scan/pipeline-funnel";
 import type { PersistLeadInput } from "@/lib/scan/persist.server";
+import { reportScanCheckpoint, snapshotCounters } from "@/lib/scan/progress.server";
+import { coarseProviderNodes, finalProviderNodes } from "@/lib/scan/provider-nodes";
+import { sanitizeProviderError } from "@/lib/security/error-sanitizer";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
@@ -2653,6 +2656,8 @@ function buildReport(
   runs: { source: string; raw: RawHit[] }[],
   err?: string,
   audit?: { funnel: ScanPipelineFunnel; leads: PersistLeadInput[] },
+  /** Optional — drives fire-and-forget live-progress checkpoints only; never read back. */
+  scanRunId?: string | null,
 ): ReputationReport {
   const now = new Date().toISOString();
   const dedupe = new Map<string, ScanHit>();
@@ -2822,6 +2827,19 @@ function buildReport(
         (likesAvailable ? (o.media?.likes ?? 0) : 0) +
         (commentsAvailable ? (o.media?.comments ?? 0) : 0);
       idx++;
+      // Identity verification and evidence classification happen together for
+      // every hit in this loop (not as separate sequential phases) — reporting
+      // EVIDENCE_ANALYSIS here reflects both real, ongoing steps. Throttled to
+      // avoid a DB write per hit.
+      if (scanRunId && idx % 20 === 0) {
+        reportScanCheckpoint(scanRunId, {
+          stage: "EVIDENCE_ANALYSIS",
+          counters: snapshotCounters(audit?.funnel, {
+            unique_candidates: dedupe.size,
+            findings: idx,
+          }),
+        });
+      }
       const virality = Math.min(
         100,
         Math.round(reach / 5000 + (c.sev === "Critical" ? 28 : c.sev === "High" ? 18 : 7)),
@@ -3039,6 +3057,13 @@ function buildReport(
   // Sort hits by deterministic threat ranking score descending so critical/high
   // actionable threats (defamation, deepfakes, leaks, impersonation) rank first.
   const hits = sortScanHitsByThreat(filteredHits);
+  reportScanCheckpoint(scanRunId, {
+    stage: "RANKING",
+    counters: snapshotCounters(audit?.funnel, {
+      unique_candidates: dedupe.size,
+      findings: hits.length,
+    }),
+  });
 
   // Step 1: Log classification per result
   hits.forEach((h) => {
@@ -3396,13 +3421,23 @@ export const Route = createFileRoute("/api/scan")({
               v === "firecrawl" || v === "serpapi" || v === "brave",
             ),
         });
+        // Declared outside the try block so the catch block below can still
+        // report a FAILED checkpoint for whichever run this request belongs to.
+        let scanRunId: string | null = null;
         return withDiscoveryRouter(discoveryRouter, async () => {
         try {
           const body = await request.json().catch(() => ({}));
+          /* Optional — set only when the client started this run via POST
+             /api/scan/start first. Absent for any direct caller of this
+             endpoint, which keeps behaving exactly as before. */
+          scanRunId = String((body as { scanRunId?: unknown })?.scanRunId ?? "").trim() || null;
           const query = String(body?.query ?? "")
             .trim()
             .slice(0, 200);
-          if (!query) return Response.json({ ok: false, error: "Query required" }, { status: 400 });
+          if (!query) {
+            reportScanCheckpoint(scanRunId, { stage: "FAILED", error: "Query required" });
+            return Response.json({ ok: false, error: "Query required" }, { status: 400 });
+          }
 
           const aliases: string[] = Array.isArray(body?.aliases)
             ? body.aliases.map((a: unknown) => String(a).slice(0, 60)).slice(0, 20)
@@ -3459,6 +3494,11 @@ export const Route = createFileRoute("/api/scan")({
             ? `${query} OR ${aliases.map((a) => `"${a}"`).join(" OR ")}`
             : query;
           const controversyQuery = `${expansionQuery} controversy OR allegations OR scandal OR expose OR leaked`;
+
+          reportScanCheckpoint(scanRunId, {
+            stage: "DISCOVERY",
+            providers: coarseProviderNodes(sources),
+          });
 
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 1 — Run YouTube, baseline Firecrawl, and Reddit concurrently
@@ -3586,6 +3626,10 @@ export const Route = createFileRoute("/api/scan")({
 
           if (failedProvidersCount === activeProvidersCount) {
             console.error("[scan] All active search providers failed.");
+            reportScanCheckpoint(scanRunId, {
+              stage: "FAILED",
+              error: "All discovery providers were unavailable for this scan.",
+            });
             return Response.json(
               {
                 ok: false,
@@ -4059,6 +4103,21 @@ export const Route = createFileRoute("/api/scan")({
           pipelineFunnel.queries_planned = fcQueriesPlanned + ytQueriesUsed;
           pipelineFunnel.queries_executed = fcQueriesExecuted + ytQueriesUsed;
           pipelineFunnel.queries_failed = fcQueriesFailed;
+          /*
+           * NOTE: pipelineFunnel.discovered itself must not be assigned here —
+           * buildReport's per-hit loop later does `audit.funnel.discovered++`
+           * starting from whatever this field already holds (audit.funnel IS
+           * pipelineFunnel, same object), so pre-setting it would double-count
+           * and corrupt the real diagnostics.funnel.discovered value in the
+           * actual API response. funnelCounters.discovered_total is a separate,
+           * already-final count used here for reporting only.
+           */
+          reportScanCheckpoint(scanRunId, {
+            stage: "EXTRACTION",
+            counters: snapshotCounters(pipelineFunnel, {
+              urls_discovered: funnelCounters.discovered_total,
+            }),
+          });
 
           const extractTargets: string[] = [];
           for (const run of mergedRuns) {
@@ -4445,6 +4504,10 @@ export const Route = createFileRoute("/api/scan")({
 
           const audit = { funnel: pipelineFunnel, leads: [] as PersistLeadInput[] };
 
+          reportScanCheckpoint(scanRunId, {
+            stage: "IDENTITY_VERIFICATION",
+            counters: snapshotCounters(pipelineFunnel),
+          });
 
           const report = buildReport(
             query,
@@ -4454,6 +4517,7 @@ export const Route = createFileRoute("/api/scan")({
             mergedRuns,
             overallErr,
             audit,
+            scanRunId,
           );
 
           report.results = uniqueNormalized;
@@ -4713,6 +4777,31 @@ const fcConfig = getFirecrawlConfigInfo();
               windowEnd: monthWindow.endIso,
             },
           };
+
+          {
+            const diag = (report as unknown as { diagnostics?: Record<string, unknown> }).diagnostics;
+            const youtubeDiagForCheckpoint = diag?.youtube as
+              | { status?: "ok" | "quota_exhausted" | "no_results" | "disabled" }
+              | undefined;
+            reportScanCheckpoint(scanRunId, {
+              stage: "FINALIZING",
+              counters: snapshotCounters(pipelineFunnel, { findings: report.hits.length }),
+            });
+            reportScanCheckpoint(scanRunId, {
+              stage: "COMPLETE",
+              status: "complete",
+              counters: snapshotCounters(pipelineFunnel, { findings: report.hits.length }),
+              providers: finalProviderNodes({
+                sourcesRequested: report.sourcesRequested,
+                sourcesReturned: report.sourcesReturned,
+                youtube: youtubeDiagForCheckpoint,
+                providers: pipelineFunnel.discovery,
+                extraction: extractionStats,
+                openai: aiDiag,
+              }),
+            });
+          }
+
           /* DEMO_SAFE_MODE: paginate findings so the JSON payload stays small
            * enough to serialize/transfer inside the hosted request budget.
            * Ranking and totals are untouched — only the transported page. */
@@ -4740,6 +4829,11 @@ const fcConfig = getFirecrawlConfigInfo();
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Scan failed";
           console.error("scan route failed:", msg);
+          reportScanCheckpoint(scanRunId, {
+            stage: "FAILED",
+            status: "failed",
+            error: sanitizeProviderError(e).message,
+          });
           return Response.json({ ok: false, error: msg }, { status: 500 });
         }
         });

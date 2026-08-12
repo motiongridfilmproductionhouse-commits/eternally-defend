@@ -40,6 +40,7 @@ import { Route as AppCasesRouteImport } from './routes/_app.cases'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 import { Route as PartnerPartnerIndexRouteImport } from './routes/_partner.partner.index'
 import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
+import { Route as ApiScanStartRouteImport } from './routes/api/scan.start'
 import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
 import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public/image-proxy'
 import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
@@ -56,6 +57,7 @@ import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.adm
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
+import { Route as ApiScanScanRunIdStatusRouteImport } from './routes/api/scan.$scanRunId.status'
 import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
 import { Route as ApiPublicHooksPostmarkWebhookRouteImport } from './routes/api/public/hooks/postmark-webhook'
 import { Route as ApiPublicHooksEnforcementWorkerRouteImport } from './routes/api/public/hooks/enforcement-worker'
@@ -224,6 +226,11 @@ const AppSensitiveProtectionIndexRoute =
     path: '/sensitive-protection/',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiScanStartRoute = ApiScanStartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => ApiScanRoute,
+} as any)
 const ApiPublicVeriffWebhookRoute = ApiPublicVeriffWebhookRouteImport.update({
   id: '/api/public/veriff-webhook',
   path: '/api/public/veriff-webhook',
@@ -312,6 +319,11 @@ const AppSensitiveProtectionResultsIndexRoute =
     path: '/sensitive-protection/results/',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiScanScanRunIdStatusRoute = ApiScanScanRunIdStatusRouteImport.update({
+  id: '/$scanRunId/status',
+  path: '/$scanRunId/status',
+  getParentRoute: () => ApiScanRoute,
+} as any)
 const ApiPublicHooksReleaseProtectionMonitorRoute =
   ApiPublicHooksReleaseProtectionMonitorRouteImport.update({
     id: '/api/public/hooks/release-protection-monitor',
@@ -411,7 +423,7 @@ export interface FileRoutesByFullPath {
   '/threat-radar': typeof AppThreatRadarRoute
   '/youtube-removal': typeof AppYoutubeRemovalRoute
   '/partner': typeof PartnerPartnerRouteWithChildren
-  '/api/scan': typeof ApiScanRoute
+  '/api/scan': typeof ApiScanRouteWithChildren
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
@@ -428,6 +440,7 @@ export interface FileRoutesByFullPath {
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
+  '/api/scan/start': typeof ApiScanStartRoute
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/partner/': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
@@ -442,6 +455,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
+  '/api/scan/$scanRunId/status': typeof ApiScanScanRunIdStatusRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -469,7 +483,7 @@ export interface FileRoutesByTo {
   '/threat-monitoring': typeof AppThreatMonitoringRoute
   '/threat-radar': typeof AppThreatRadarRoute
   '/youtube-removal': typeof AppYoutubeRemovalRoute
-  '/api/scan': typeof ApiScanRoute
+  '/api/scan': typeof ApiScanRouteWithChildren
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
@@ -486,6 +500,7 @@ export interface FileRoutesByTo {
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
+  '/api/scan/start': typeof ApiScanStartRoute
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/partner': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
@@ -500,6 +515,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
+  '/api/scan/$scanRunId/status': typeof ApiScanScanRunIdStatusRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
@@ -530,7 +546,7 @@ export interface FileRoutesById {
   '/_app/threat-radar': typeof AppThreatRadarRoute
   '/_app/youtube-removal': typeof AppYoutubeRemovalRoute
   '/_partner/partner': typeof PartnerPartnerRouteWithChildren
-  '/api/scan': typeof ApiScanRoute
+  '/api/scan': typeof ApiScanRouteWithChildren
   '/verify/$slug': typeof VerifySlugRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -548,6 +564,7 @@ export interface FileRoutesById {
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
+  '/api/scan/start': typeof ApiScanStartRoute
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_partner/partner/': typeof PartnerPartnerIndexRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
@@ -562,6 +579,7 @@ export interface FileRoutesById {
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
+  '/api/scan/$scanRunId/status': typeof ApiScanScanRunIdStatusRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -609,6 +627,7 @@ export interface FileRouteTypes {
     | '/api/media/preview'
     | '/api/public/image-proxy'
     | '/api/public/veriff-webhook'
+    | '/api/scan/start'
     | '/sensitive-protection/'
     | '/partner/'
     | '/sensitive-protection/results/$id'
@@ -623,6 +642,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/release-protection-monitor'
+    | '/api/scan/$scanRunId/status'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -667,6 +687,7 @@ export interface FileRouteTypes {
     | '/api/media/preview'
     | '/api/public/image-proxy'
     | '/api/public/veriff-webhook'
+    | '/api/scan/start'
     | '/sensitive-protection'
     | '/partner'
     | '/sensitive-protection/results/$id'
@@ -681,6 +702,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/release-protection-monitor'
+    | '/api/scan/$scanRunId/status'
     | '/sensitive-protection/results'
   id:
     | '__root__'
@@ -728,6 +750,7 @@ export interface FileRouteTypes {
     | '/api/media/preview'
     | '/api/public/image-proxy'
     | '/api/public/veriff-webhook'
+    | '/api/scan/start'
     | '/_app/sensitive-protection/'
     | '/_partner/partner/'
     | '/_app/sensitive-protection/results/$id'
@@ -742,6 +765,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/release-protection-monitor'
+    | '/api/scan/$scanRunId/status'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
@@ -753,7 +777,7 @@ export interface RootRouteChildren {
   PartnerApplyRoute: typeof PartnerApplyRoute
   PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
-  ApiScanRoute: typeof ApiScanRoute
+  ApiScanRoute: typeof ApiScanRouteWithChildren
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
   ApiPublicImageProxyRoute: typeof ApiPublicImageProxyRoute
@@ -990,6 +1014,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/scan/start': {
+      id: '/api/scan/start'
+      path: '/start'
+      fullPath: '/api/scan/start'
+      preLoaderRoute: typeof ApiScanStartRouteImport
+      parentRoute: typeof ApiScanRoute
+    }
     '/api/public/veriff-webhook': {
       id: '/api/public/veriff-webhook'
       path: '/api/public/veriff-webhook'
@@ -1101,6 +1132,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sensitive-protection/results/'
       preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/scan/$scanRunId/status': {
+      id: '/api/scan/$scanRunId/status'
+      path: '/$scanRunId/status'
+      fullPath: '/api/scan/$scanRunId/status'
+      preLoaderRoute: typeof ApiScanScanRunIdStatusRouteImport
+      parentRoute: typeof ApiScanRoute
     }
     '/api/public/hooks/release-protection-monitor': {
       id: '/api/public/hooks/release-protection-monitor'
@@ -1290,6 +1328,19 @@ const PartnerRouteChildren: PartnerRouteChildren = {
 const PartnerRouteWithChildren =
   PartnerRoute._addFileChildren(PartnerRouteChildren)
 
+interface ApiScanRouteChildren {
+  ApiScanStartRoute: typeof ApiScanStartRoute
+  ApiScanScanRunIdStatusRoute: typeof ApiScanScanRunIdStatusRoute
+}
+
+const ApiScanRouteChildren: ApiScanRouteChildren = {
+  ApiScanStartRoute: ApiScanStartRoute,
+  ApiScanScanRunIdStatusRoute: ApiScanScanRunIdStatusRoute,
+}
+
+const ApiScanRouteWithChildren =
+  ApiScanRoute._addFileChildren(ApiScanRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   PartnerRoute: PartnerRouteWithChildren,
@@ -1298,7 +1349,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartnerApplyRoute: PartnerApplyRoute,
   PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
-  ApiScanRoute: ApiScanRoute,
+  ApiScanRoute: ApiScanRouteWithChildren,
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
   ApiPublicImageProxyRoute: ApiPublicImageProxyRoute,
@@ -1324,3 +1375,4 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+

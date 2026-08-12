@@ -7261,6 +7261,48 @@ export type Database = {
           },
         ]
       }
+      web_scan_progress: {
+        Row: {
+          counters: Json
+          error: string | null
+          finished_at: string | null
+          id: string
+          providers: Json
+          query: string
+          stage: string
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          counters?: Json
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          providers?: Json
+          query: string
+          stage?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          counters?: Json
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          providers?: Json
+          query?: string
+          stage?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       web_scan_runs: {
         Row: {
           ai_diagnostics: Json | null
