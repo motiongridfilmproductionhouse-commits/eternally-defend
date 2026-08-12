@@ -15,7 +15,7 @@ export function FaceScanRing({
 }: {
   progress: number;
   active?: boolean;
-  tone?: "cyan" | "emerald" | "amber";
+  tone?: "cyan" | "emerald" | "amber" | "red";
   children: ReactNode;
   className?: string;
 }) {
@@ -25,7 +25,10 @@ export function FaceScanRing({
       ? "rgb(52 211 153)"
       : tone === "amber"
         ? "rgb(251 191 36)"
-        : "rgb(56 189 248)";
+        : tone === "red"
+          ? "rgb(248 113 113)"
+          : "rgb(56 189 248)";
+
 
   return (
     <div className={`relative aspect-square w-full max-w-[360px] mx-auto ${className}`}>
