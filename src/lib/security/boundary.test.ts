@@ -68,6 +68,14 @@ describe("Eterna Security Hardening & Client/Server Boundary Test Suite", () => 
     assert.doesNotMatch(source, /Permissions-Policy[^\n]+camera=\(\)/);
   });
 
+  it("5b. CSP permits the secure AWS Face Liveness stream", async () => {
+    const source = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("../../server.ts", import.meta.url), "utf8"),
+    );
+    assert.match(source, /connect-src[^;]+wss:\/\/\*\.amazonaws\.com/);
+    assert.doesNotMatch(source, /connect-src[^;]+wss:\/\/\*/);
+  });
+
   it("6. sanitizeProviderError maps AWS Rekognition & OpenAI failures to ANALYSIS_UNAVAILABLE", () => {
     const errAWS = new Error("AWS Rekognition CompareFaces failed: AccessDeniedException");
     const resAWS = sanitizeProviderError(errAWS);
