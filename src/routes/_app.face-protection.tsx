@@ -83,43 +83,7 @@ function FaceProtection() {
         </div>
       </header>
 
-      <section className="card-surface p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold">
-            Protected Faces ({facesQuery.data?.length ?? 0})
-          </h2>
-          <span className="text-[11px] text-muted-foreground">
-            Faces are indexed automatically when you confirm an official account or add asset
-            images.
-          </span>
-        </div>
-        {facesQuery.isLoading ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {(facesQuery.data ?? []).map((f) => (
-              <div key={f.id} className="rounded-lg border border-border p-3 text-xs space-y-1">
-                <div className="font-medium truncate">{f.label ?? "Reference"}</div>
-                <div className="text-muted-foreground truncate">{f.platform ?? "asset"}</div>
-                <div className="text-[10px] text-muted-foreground truncate">
-                  conf {Math.round(Number(f.confidence ?? 0))}%
-                </div>
-                <button
-                  onClick={() => deleteMut.mutate(f.id)}
-                  className="inline-flex items-center gap-1 text-destructive text-[11px] mt-1"
-                >
-                  <Trash2 className="size-3" /> Remove
-                </button>
-              </div>
-            ))}
-            {facesQuery.data && facesQuery.data.length === 0 && (
-              <div className="col-span-full text-xs text-muted-foreground py-4 text-center">
-                No protected faces yet.
-              </div>
-            )}
-          </div>
-        )}
-      </section>
+      <ProtectedFacesPanel />
 
       <section className="card-surface p-5">
         <div className="flex items-center justify-between mb-3">
