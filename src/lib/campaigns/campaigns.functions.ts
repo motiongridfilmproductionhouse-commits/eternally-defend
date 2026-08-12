@@ -40,6 +40,10 @@ const CreateSchema = z.object({
   notes: z.string().trim().max(2000).optional(),
   hashtags: z.array(z.string().trim().max(80)).max(30).default([]),
   official_urls: z.array(z.string().trim().url().max(1000)).max(30).default([]),
+  approved_accounts: z.array(z.string().trim().max(200)).max(50).default([]),
+  approved_media_urls: z.array(z.string().trim().url().max(1000)).max(50).default([]),
+  starts_at: z.string().trim().min(4).max(40).optional(),
+  ends_at: z.string().trim().min(4).max(40).optional(),
   assets: z.array(AssetSchema).max(50).default([]),
   start_monitoring: z.boolean().default(true),
 });
