@@ -5,15 +5,48 @@ export const V2_ACCOUNT_TYPES = [
   "individual",
   "enterprise",
   "production_house",
+  "manager_agent",
+  "pr_team",
+  "legal_representative",
 ] as const;
 
 export type V2AccountType = (typeof V2_ACCOUNT_TYPES)[number];
 
+/**
+ * Friction-light routes: these accounts complete setup with public profile
+ * details only. No identity document is requested during initial onboarding;
+ * verification is requested later, when a sensitive action is attempted.
+ */
+export const V2_LIGHT_ACCOUNT_TYPES = [
+  "celebrity",
+  "manager_agent",
+  "pr_team",
+  "legal_representative",
+] as const;
+
+export function isLightVerificationAccount(accountType: V2AccountType | null): boolean {
+  return (
+    !!accountType && (V2_LIGHT_ACCOUNT_TYPES as readonly string[]).includes(accountType)
+  );
+}
+
+/** Representative routes act on behalf of a public figure. */
+export function isRepresentativeAccount(accountType: V2AccountType | null): boolean {
+  return (
+    accountType === "manager_agent" ||
+    accountType === "pr_team" ||
+    accountType === "legal_representative"
+  );
+}
+
 export const V2_ACCOUNT_LABELS: Record<V2AccountType, string> = {
   celebrity: "Celebrity / Public Figure",
   individual: "Individual",
-  enterprise: "Enterprise / Company",
+  enterprise: "Brand / Organization",
   production_house: "Production House",
+  manager_agent: "Manager / Agent",
+  pr_team: "PR / Reputation Team",
+  legal_representative: "Legal Representative",
 };
 
 export const V2_BADGES: Record<V2AccountType, string> = {
@@ -21,6 +54,9 @@ export const V2_BADGES: Record<V2AccountType, string> = {
   individual: "Verified Individual",
   enterprise: "Verified Enterprise",
   production_house: "Verified Production House",
+  manager_agent: "Verified Representative",
+  pr_team: "Verified Representative",
+  legal_representative: "Verified Legal Representative",
 };
 
 /** Alternate badge labels accepted for display/certificate copy. */
@@ -29,6 +65,9 @@ export const V2_BADGE_ALTERNATES: Record<V2AccountType, readonly string[]> = {
   individual: ["Verified Individual"],
   enterprise: ["Verified Enterprise", "Verified Organization"],
   production_house: ["Verified Production House", "Verified Rights Holder"],
+  manager_agent: ["Verified Representative", "Verified Manager"],
+  pr_team: ["Verified Representative", "Verified PR Team"],
+  legal_representative: ["Verified Legal Representative", "Verified Representative"],
 };
 
 export const V2_VERIFICATION_METHODS: Record<V2AccountType, string> = {
@@ -36,6 +75,9 @@ export const V2_VERIFICATION_METHODS: Record<V2AccountType, string> = {
   individual: "veriff_identity_and_face_liveness",
   enterprise: "company_document_review",
   production_house: "production_rights_review",
+  manager_agent: "representative_authorization_review",
+  pr_team: "representative_authorization_review",
+  legal_representative: "legal_representative_authorization_review",
 };
 
 export const V2_EVIDENCE_TYPES = [
