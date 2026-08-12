@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Bell, Copyright, ScanFace, ShieldCheck, Search } from "lucide-react";
@@ -6,8 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NewCampaignDialog } from "@/components/celebrity/CampaignsWorkspace";
+import { LiveFindingsFeed } from "@/components/celebrity/LiveFindingsFeed";
+import { LiveProtectionRadar } from "@/components/celebrity/LiveProtectionRadar";
 import { useVerificationStatus } from "@/hooks/use-verification-status";
 import { listCampaigns } from "@/lib/campaigns/campaigns.functions";
+import { getCelebrityRadarState } from "@/lib/celebrity/radar.functions";
+import type { RadarFinding } from "@/lib/celebrity/radar-model";
 
 /**
  * Simplified home for Celebrity / Public Figure accounts. Intentionally free of
