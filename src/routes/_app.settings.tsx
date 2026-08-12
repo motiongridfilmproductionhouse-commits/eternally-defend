@@ -53,6 +53,12 @@ function SettingsPage() {
         </div>
       </PageCard>
 
+      <PageCard title="OFFICIAL PROFILES" sub="Public social profile links used as trusted references">
+        <div className="rounded-xl bg-[#0A1128] p-4">
+          <SocialProfilesPanel compact />
+        </div>
+      </PageCard>
+
       <PageCard title="PLAN" sub="Elite Protection">
         <div
           className="rounded-xl p-4 flex items-center gap-4"
