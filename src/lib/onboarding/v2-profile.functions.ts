@@ -21,6 +21,11 @@ const V2ProfileSchema = z.object({
   phone: z.string().trim().max(40).optional().nullable(),
   country: z.string().trim().min(1).max(80),
   address: z.string().trim().max(500).optional().nullable(),
+  // Public profile details (no identity proof) used by friction-light routes.
+  website: z.string().trim().max(300).optional().nullable(),
+  aliases: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
+  social_handles: z.array(z.string().trim().min(1).max(200)).max(30).optional(),
+  profile_photo_url: z.string().trim().max(600).optional().nullable(),
 });
 
 function newClientId() {
