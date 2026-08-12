@@ -111,6 +111,8 @@ export const listCampaigns = createServerFn({ method: "GET" })
         ...c,
         hashtags: c.hashtags ?? [],
         official_urls: c.official_urls ?? [],
+        approved_accounts: c.approved_accounts ?? [],
+        approved_media_urls: c.approved_media_urls ?? [],
         assets: assets[c.id] ?? [],
       })) as CampaignRow[],
     };
