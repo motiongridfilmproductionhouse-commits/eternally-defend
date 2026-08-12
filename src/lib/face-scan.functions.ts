@@ -103,7 +103,8 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
 
 
       const eventIds: string[] = [];
-      for (const m of matches) {
+      const activeMatches = matches.filter((m) => byFace.has(m.faceId));
+      for (const m of activeMatches) {
         const pf = byFace.get(m.faceId);
         const { data: inserted } = await supabase
           .from("face_match_events")
@@ -131,8 +132,8 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
       results.push({
         sourceUrl: img.url,
         sourceType: img.type,
-        matches: matches.length,
-        topSimilarity: matches[0]?.similarity ?? null,
+        matches: activeMatches.length,
+        topSimilarity: activeMatches[0]?.similarity ?? null,
         eventIds,
       });
     }
