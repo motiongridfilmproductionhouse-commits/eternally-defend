@@ -114,7 +114,9 @@ export async function renderAuthorizationLetterPdf(
   };
 
   const sectionHeading = (t: string) => {
-    ensure(30);
+    // Reserve room for the heading, its rule and the first lines beneath it so
+    // a heading never strands alone at the bottom of a page.
+    ensure(78);
     y -= 6;
     text(t.toUpperCase(), { size: 10, bold: true, color: navy, gap: 4 });
     rule(rgb(0.75, 0.82, 0.94));
