@@ -129,14 +129,18 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
   };
 
 
-  const handleViewPdf = async (docId: string, download: boolean = false) => {
+  const handleViewPdf = async (
+    docId: string,
+    download: boolean = false,
+    filename = "Eterna_Authorization_Signed.pdf",
+  ) => {
     setLoadingUrl(docId);
     try {
       const { url } = await fetchUrl({ data: { doc_id: docId } });
       if (download) {
         const a = document.createElement("a");
         a.href = url;
-        a.download = "Eterna_Authorization_Signed.pdf";
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -149,6 +153,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       setLoadingUrl(null);
     }
   };
+
 
   if (isLoading) {
     return (
