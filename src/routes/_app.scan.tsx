@@ -2292,7 +2292,7 @@ function ResultCard({
         <div className="flex flex-wrap items-center gap-1.5">
           <Pill color="oklch(0.55 0.22 295)">{h.category}</Pill>
           <Pill color={sentimentColor(h.sentiment)}>{h.sentiment}</Pill>
-          <Pill color="oklch(0.55 0.03 275)">{h.contentLabel}</Pill>
+          <Pill color="oklch(0.55 0.03 275)">{safeRiskLabel(h.contentLabel)}</Pill>
         </div>
 
         {/* Threat score cards */}
