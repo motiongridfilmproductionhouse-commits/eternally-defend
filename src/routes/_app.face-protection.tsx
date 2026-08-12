@@ -4,11 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { listFaceMatches, reviewFaceMatch } from "@/lib/face-scan.functions";
-import {
-  listProtectedFaces as listPFaces,
-  deleteProtectedFace as delPFace,
-} from "@/lib/face-protection.functions";
-import { ShieldCheck, Trash2, ExternalLink, Loader2, ScanFace } from "lucide-react";
+import { ProtectedFacesPanel } from "@/components/face-protection/ProtectedFacesPanel";
+import { ShieldCheck, ExternalLink, Loader2, ScanFace } from "lucide-react";
 
 export const Route = createFileRoute("/_app/face-protection")({
   head: () => ({ meta: [{ title: "Face Protection · Eterna AI" }] }),
@@ -27,17 +24,11 @@ function FaceProtection() {
   const qc = useQueryClient();
   const listMatchesFn = useServerFn(listFaceMatches);
   const reviewFn = useServerFn(reviewFaceMatch);
-  const listFacesFn = useServerFn(listPFaces);
-  const delFn = useServerFn(delPFace);
 
   const [status, setStatus] = useState<
     "pending" | "authorized" | "harmless" | "threat_created" | "dismissed"
   >("pending");
 
-  const facesQuery = useQuery({
-    queryKey: ["protected-faces"],
-    queryFn: () => listFacesFn(),
-  });
   const matchesQuery = useQuery({
     queryKey: ["face-matches", status],
     queryFn: () => listMatchesFn({ data: { status, limit: 100 } }),
@@ -53,15 +44,6 @@ function FaceProtection() {
     onSuccess: () => {
       toast.success("Match reviewed");
       qc.invalidateQueries({ queryKey: ["face-matches"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => delFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Face removed");
-      qc.invalidateQueries({ queryKey: ["protected-faces"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -83,43 +65,7 @@ function FaceProtection() {
         </div>
       </header>
 
-      <section className="card-surface p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold">
-            Protected Faces ({facesQuery.data?.length ?? 0})
-          </h2>
-          <span className="text-[11px] text-muted-foreground">
-            Faces are indexed automatically when you confirm an official account or add asset
-            images.
-          </span>
-        </div>
-        {facesQuery.isLoading ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {(facesQuery.data ?? []).map((f) => (
-              <div key={f.id} className="rounded-lg border border-border p-3 text-xs space-y-1">
-                <div className="font-medium truncate">{f.label ?? "Reference"}</div>
-                <div className="text-muted-foreground truncate">{f.platform ?? "asset"}</div>
-                <div className="text-[10px] text-muted-foreground truncate">
-                  conf {Math.round(Number(f.confidence ?? 0))}%
-                </div>
-                <button
-                  onClick={() => deleteMut.mutate(f.id)}
-                  className="inline-flex items-center gap-1 text-destructive text-[11px] mt-1"
-                >
-                  <Trash2 className="size-3" /> Remove
-                </button>
-              </div>
-            ))}
-            {facesQuery.data && facesQuery.data.length === 0 && (
-              <div className="col-span-full text-xs text-muted-foreground py-4 text-center">
-                No protected faces yet.
-              </div>
-            )}
-          </div>
-        )}
-      </section>
+      <ProtectedFacesPanel />
 
       <section className="card-surface p-5">
         <div className="flex items-center justify-between mb-3">

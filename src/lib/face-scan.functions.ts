@@ -18,12 +18,13 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => AnalyzeInput.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: col } = await supabase
-      .from("rekognition_collections")
-      .select("collection_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (!col?.collection_id) return { ok: true, matches: [], reason: "no_collection" };
+    const { resolveActiveFaceMonitoring } = await import("./face-protection/monitoring.server");
+    const monitoring = await resolveActiveFaceMonitoring(supabase as never, userId);
+    if (!monitoring.collectionId) return { ok: true, matches: [], reason: "no_collection" };
+    if (monitoring.activeFaceIds.length === 0)
+      return { ok: true, matches: [], reason: "no_active_protected_faces" };
+    const col = { collection_id: monitoring.collectionId };
+
 
     const { fetchImageBytes, putObject, getBucket } = await import("./aws/s3.server");
     const { searchFacesByImage } = await import("./aws/rekognition.server");
@@ -83,13 +84,16 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
         /* keep going; S3 failure shouldn't drop matches */
       }
 
-      // Look up the protected_faces rows for the matched face_ids
-      const faceIds = matches.map((m) => m.faceId);
+      // Look up the ACTIVE protected_faces rows for the matched face_ids
+      const faceIds = matches
+        .map((m) => m.faceId)
+        .filter((id) => monitoring.activeFaceIds.includes(id));
       const { data: protectedRows } = await supabase
         .from("protected_faces")
         .select("id,face_id,asset_id,discovered_account_id,label,platform,source_url")
-        .in("face_id", faceIds)
-        .eq("user_id", userId);
+        .in("face_id", faceIds.length > 0 ? faceIds : ["__none__"])
+        .eq("user_id", userId)
+        .eq("status", "ACTIVE");
 
       const byFace = new Map<
         string,
@@ -97,8 +101,10 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
       >();
       for (const p of protectedRows ?? []) byFace.set(p.face_id, p);
 
+
       const eventIds: string[] = [];
-      for (const m of matches) {
+      const activeMatches = matches.filter((m) => byFace.has(m.faceId));
+      for (const m of activeMatches) {
         const pf = byFace.get(m.faceId);
         const { data: inserted } = await supabase
           .from("face_match_events")
@@ -126,8 +132,8 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
       results.push({
         sourceUrl: img.url,
         sourceType: img.type,
-        matches: matches.length,
-        topSimilarity: matches[0]?.similarity ?? null,
+        matches: activeMatches.length,
+        topSimilarity: activeMatches[0]?.similarity ?? null,
         eventIds,
       });
     }

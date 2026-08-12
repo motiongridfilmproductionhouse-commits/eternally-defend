@@ -5523,10 +5523,13 @@ export type Database = {
           id: string
           image_id: string | null
           label: string | null
+          last_verified_at: string | null
           platform: string | null
           s3_bucket: string
           s3_key: string
+          source: string | null
           source_url: string | null
+          status: string
           user_id: string
         }
         Insert: {
@@ -5541,10 +5544,13 @@ export type Database = {
           id?: string
           image_id?: string | null
           label?: string | null
+          last_verified_at?: string | null
           platform?: string | null
           s3_bucket: string
           s3_key: string
+          source?: string | null
           source_url?: string | null
+          status?: string
           user_id: string
         }
         Update: {
@@ -5559,10 +5565,13 @@ export type Database = {
           id?: string
           image_id?: string | null
           label?: string | null
+          last_verified_at?: string | null
           platform?: string | null
           s3_bucket?: string
           s3_key?: string
+          source?: string | null
           source_url?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: [
