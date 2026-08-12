@@ -24,17 +24,11 @@ function FaceProtection() {
   const qc = useQueryClient();
   const listMatchesFn = useServerFn(listFaceMatches);
   const reviewFn = useServerFn(reviewFaceMatch);
-  const listFacesFn = useServerFn(listPFaces);
-  const delFn = useServerFn(delPFace);
 
   const [status, setStatus] = useState<
     "pending" | "authorized" | "harmless" | "threat_created" | "dismissed"
   >("pending");
 
-  const facesQuery = useQuery({
-    queryKey: ["protected-faces"],
-    queryFn: () => listFacesFn(),
-  });
   const matchesQuery = useQuery({
     queryKey: ["face-matches", status],
     queryFn: () => listMatchesFn({ data: { status, limit: 100 } }),
@@ -50,15 +44,6 @@ function FaceProtection() {
     onSuccess: () => {
       toast.success("Match reviewed");
       qc.invalidateQueries({ queryKey: ["face-matches"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => delFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Face removed");
-      qc.invalidateQueries({ queryKey: ["protected-faces"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
