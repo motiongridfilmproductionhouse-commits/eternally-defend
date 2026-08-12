@@ -660,9 +660,16 @@ export function FaceEnrollmentStep({
             {camera.state === "requesting" ? (
               <Loader2 className="size-8 animate-spin text-sky-400" />
             ) : camera.state === "denied" ? (
-              <p className="text-xs text-amber-200">
-                Camera access is required for face protection enrollment.
-              </p>
+              <div className="space-y-2 max-w-[260px]">
+                <div className="flex items-center justify-center gap-2 text-amber-200 font-medium text-sm">
+                  <Camera className="size-4" />
+                  Camera access required
+                </div>
+                <p className="text-[11px] text-white/60 leading-relaxed">
+                  Face protection enrollment needs your camera to build a secure facial reference.
+                  Allow camera access in your browser, then click retry below.
+                </p>
+              </div>
             ) : (
               <ScanFace className="size-14 text-sky-400/50" />
             )}
@@ -690,8 +697,9 @@ export function FaceEnrollmentStep({
         )}
         <Button
           onClick={startLiveness}
+          disabled={camera.state !== "ready" || busy}
           data-testid="start-face-scan"
-          className="bg-sky-600 hover:bg-sky-500 text-white border-0"
+          className="bg-sky-600 hover:bg-sky-500 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {failed ? (
             <>
