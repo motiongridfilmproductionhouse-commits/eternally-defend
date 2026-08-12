@@ -239,6 +239,10 @@ export function NewCampaignDialog({ trigger }: { trigger?: React.ReactNode }) {
       setUrls("");
       setHashtags("");
       setNotes("");
+      setStartsAt("");
+      setEndsAt("");
+      setApprovedAccounts("");
+      setApprovedMedia("");
       setFiles([]);
       await queryClient.invalidateQueries({ queryKey: ["celebrity-campaigns"] });
     },
