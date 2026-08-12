@@ -454,10 +454,15 @@ export const getFaceEnrollment = createServerFn({ method: "GET" })
       .maybeSingle();
 
     const dbStatus = profile?.status ?? "NOT_STARTED";
-    const status =
-      (dbStatus === "NOT_STARTED" || dbStatus === "CONSENT_REQUIRED") && consent
+    // Consent presence is authoritative: without an active consent the user must
+    // never land on the scan screen (the liveness session would hard-fail).
+    const status = consent
+      ? dbStatus === "NOT_STARTED" || dbStatus === "CONSENT_REQUIRED"
         ? "CAMERA_PERMISSION_REQUIRED"
-        : dbStatus;
+        : dbStatus
+      : dbStatus === "FACE_VERIFIED" || dbStatus === "DEFERRED" || dbStatus === "DELETED"
+        ? dbStatus
+        : "CONSENT_REQUIRED";
 
     return profile ? { ...profile, status } : { status };
   });
