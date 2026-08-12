@@ -36,6 +36,9 @@ export type DetailFinding = {
   first_seen_at: string;
   last_seen_at: string;
   times_detected: number;
+  classification_tier?: string | null;
+  risk_evidence_found?: boolean | null;
+  evidence_classification?: Record<string, unknown> | null;
 };
 
 function fmt(n: number) {

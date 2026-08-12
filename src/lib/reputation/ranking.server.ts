@@ -1,4 +1,5 @@
 import type { ScanHit, Severity } from "@/routes/api/scan";
+import type { RiskCategory } from "./evidence-classifier";
 
 export type CanonicalThreatCategory =
   | "defamation"
@@ -14,10 +15,62 @@ export type CanonicalThreatCategory =
   | "official_content"
   | "unrelated";
 
+/** Maps an evidence-classifier risk category to a canonical threat category. */
+function evidenceRiskToCanonical(category: RiskCategory | undefined): CanonicalThreatCategory {
+  switch (category) {
+    case "MANIPULATED_MEDIA":
+      return "deepfake";
+    case "IMPERSONATION":
+      return "impersonation";
+    case "PRIVACY_RISK":
+      return "privacy_or_leak";
+    case "HARASSMENT":
+      return "harassment_or_abuse";
+    case "ALLEGATION":
+    case "ACCUSATION":
+    case "LEGAL_DISPUTE":
+    case "MISLEADING_NARRATIVE":
+      return "defamation";
+    case "MISINFORMATION":
+      return "misinformation";
+    case "CONTROVERSY":
+    case "CRITICISM":
+    default:
+      return "negative_media";
+  }
+}
+
+/**
+ * When the evidence-gated classifier already ran for this hit
+ * (`classificationTier` present), its verdict is authoritative — keyword
+ * matching is a legacy fallback reached only for hits persisted before the
+ * evidence gate existed. Source type never enters this decision.
+ */
+function canonicalCategoryFromEvidence(hit: ScanHit): CanonicalThreatCategory | null {
+  if (!hit.classificationTier) return null;
+  switch (hit.classificationTier) {
+    case "TIER_0_IRRELEVANT":
+      return "unrelated";
+    case "TIER_1_NEUTRAL":
+      return hit.riskClassification === "OFFICIAL_OR_PROMOTIONAL"
+        ? "official_content"
+        : "neutral_mention";
+    case "TIER_2_NEEDS_REVIEW":
+    case "TIER_3_REPUTATION_RISK":
+    case "TIER_4_HIGH_RISK":
+      return evidenceRiskToCanonical(hit.riskEvidence?.riskCategory ?? undefined);
+  }
+}
+
 /**
  * Classifies a ScanHit into one of 12 canonical threat categories.
  */
 export function canonicalCategoryFor(hit: ScanHit): CanonicalThreatCategory {
+  const fromEvidence = canonicalCategoryFromEvidence(hit);
+  if (fromEvidence) return fromEvidence;
+
+  // Legacy keyword fallback — only reached for hits with no classificationTier
+  // (persisted before the evidence-gated classifier existed).
   const title = (hit.title || "").toLowerCase();
   const desc = (hit.description || "").toLowerCase();
   const url = (hit.url || "").toLowerCase();
@@ -253,7 +306,17 @@ export function sortScanHitsByThreat(hits: ScanHit[]): ScanHit[] {
       h.category = "Mention";
       h.contentLabel = "Neutral mention";
     }
-    h.threatScore = calculateThreatRankingScore(h);
+    /*
+     * Evidence-gated hits already carry a threat score computed by the
+     * evidence-gated guardrail (evidence confidence, credibility, reach,
+     * recency, virality) at scan time — recomputing it here from keyword
+     * category bonuses would silently replace an evidence-backed ranking
+     * with a keyword-derived one. Only hits with no classification tier
+     * (true legacy rows, no evidence gate ran) use the keyword-derived score.
+     */
+    if (!h.classificationTier) {
+      h.threatScore = calculateThreatRankingScore(h);
+    }
   }
 
   return [...hits].sort((a, b) => {

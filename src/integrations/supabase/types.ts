@@ -5844,11 +5844,13 @@ export type Database = {
           author: string | null
           author_handle: string | null
           canonical_url: string | null
+          classification_tier: string | null
           country: string | null
           created_at: string
           description: string | null
           detected_at: string
           engagement: number | null
+          evidence_classification: Json | null
           evidence_refs: Json
           external_id: string | null
           first_seen_at: string
@@ -5871,6 +5873,7 @@ export type Database = {
           purge_after: string | null
           reach: number | null
           retention_class: string
+          risk_evidence_found: boolean
           risk_score: number | null
           risk_type: string | null
           scan_id: string
@@ -5891,11 +5894,13 @@ export type Database = {
           author?: string | null
           author_handle?: string | null
           canonical_url?: string | null
+          classification_tier?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
           detected_at?: string
           engagement?: number | null
+          evidence_classification?: Json | null
           evidence_refs?: Json
           external_id?: string | null
           first_seen_at?: string
@@ -5918,6 +5923,7 @@ export type Database = {
           purge_after?: string | null
           reach?: number | null
           retention_class?: string
+          risk_evidence_found?: boolean
           risk_score?: number | null
           risk_type?: string | null
           scan_id: string
@@ -5938,11 +5944,13 @@ export type Database = {
           author?: string | null
           author_handle?: string | null
           canonical_url?: string | null
+          classification_tier?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
           detected_at?: string
           engagement?: number | null
+          evidence_classification?: Json | null
           evidence_refs?: Json
           external_id?: string | null
           first_seen_at?: string
@@ -5965,6 +5973,7 @@ export type Database = {
           purge_after?: string | null
           reach?: number | null
           retention_class?: string
+          risk_evidence_found?: boolean
           risk_score?: number | null
           risk_type?: string | null
           scan_id?: string

@@ -298,6 +298,20 @@ function ScanPage() {
   }, [m]);
 
   const report = m.data as ReportWithDiagnostics | undefined;
+  const autoTabReportRef = useRef<ReportWithDiagnostics | undefined>(undefined);
+
+  // Default to the most actionable tab for each new report: Reputation Risk if it
+  // has results, else Needs Review, else All Mentions. Never invents risk to fill
+  // a tab — this only picks among tabs that already have real results.
+  useEffect(() => {
+    if (!report || autoTabReportRef.current === report) return;
+    autoTabReportRef.current = report;
+    const counts = splitForPresentation(report.hits);
+    if (counts.reputationRisk.length > 0) setResultsTab("risk");
+    else if (counts.needsReview.length > 0) setResultsTab("review");
+    else setResultsTab("mentions");
+  }, [report]);
+
   const persistFn = useServerFn(persistScan);
   const analyzeFn = useServerFn(analyzeYoutubeVideo);
   const persistedReportKeyRef = useRef<string | null>(null);
@@ -354,6 +368,21 @@ function ScanPage() {
             unknown
           >,
           evidenceRefs: [],
+          classificationTier: h.classificationTier ?? null,
+          riskEvidenceFound: h.riskEvidence?.riskEvidenceFound ?? false,
+          evidenceClassification: h.riskEvidence
+            ? ({
+                riskClassification: h.riskClassification ?? null,
+                contentType: h.contentType ?? null,
+                evidenceLevel: h.evidenceLevel ?? null,
+                riskCategory: h.riskEvidence.riskCategory,
+                evidenceText: h.riskEvidence.evidenceText,
+                evidenceSource: h.riskEvidence.evidenceSource,
+                confidence: h.riskEvidence.confidence,
+                reason: h.riskEvidence.reason,
+                detectionReason: h.detectionReason ?? null,
+              } as Record<string, unknown>)
+            : null,
         }));
         const res = await persistFn({
           data: {
@@ -2646,9 +2675,28 @@ type PersistedHit = {
   last_seen_at: string;
   hidden_at?: string | null;
   hidden_reason?: string | null;
+  classification_tier?: string | null;
+  risk_evidence_found?: boolean | null;
+  evidence_classification?: Record<string, unknown> | null;
 };
 
-// Source priority order — YouTube always first for reputation/defamation/impersonation impact.
+/** Presentation priority for persisted hits — evidence tier first, never source type. */
+const TIER_PRIORITY: Record<string, number> = {
+  TIER_4_HIGH_RISK: 0,
+  TIER_3_REPUTATION_RISK: 0,
+  TIER_2_NEEDS_REVIEW: 1,
+  TIER_1_NEUTRAL: 2,
+  TIER_0_IRRELEVANT: 3,
+};
+
+/** 0 = evidence-backed reputation risk, 1 = needs review, 2 = everything else (incl. legacy rows). */
+function riskPriority(h: PersistedHit): number {
+  if (!h.classification_tier) return 2;
+  if (h.risk_evidence_found) return 0;
+  return TIER_PRIORITY[h.classification_tier] ?? 2;
+}
+
+// Source display order for the filter chips only — never used to rank results by risk.
 const SOURCE_PRIORITY: { key: string; label: string; icon: React.ReactNode }[] = [
   { key: "YouTube", label: "YouTube", icon: <Youtube className="size-3.5" /> },
   { key: "News", label: "News", icon: <Newspaper className="size-3.5" /> },
@@ -2664,11 +2712,6 @@ const SOURCE_PRIORITY: { key: string; label: string; icon: React.ReactNode }[] =
   { key: "Complaints", label: "Complaints", icon: <AlertTriangle className="size-3.5" /> },
   { key: "Archive", label: "Archive", icon: <Database className="size-3.5" /> },
 ];
-const SOURCE_RANK: Record<string, number> = Object.fromEntries(
-  SOURCE_PRIORITY.map((s, i) => [s.key.toLowerCase(), i]),
-);
-const rankSource = (s: string | null | undefined) =>
-  s ? (SOURCE_RANK[s.toLowerCase()] ?? 999) : 999;
 
 type TimeWindow = "all" | "24h" | "7d" | "30d";
 type QuickFilter = "all" | "critical" | "defamation" | "impersonation" | "deepfake" | "copyright";
@@ -2699,7 +2742,7 @@ function PersistedResults({
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<string>("YouTube");
+  const [source, setSource] = useState<string>("");
   const [onlyNew, setOnlyNew] = useState(false);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
@@ -2836,9 +2879,12 @@ function PersistedResults({
         return matchesQuick(h);
       })
       .sort((a, b) => {
-        const ra = rankSource(a.source);
-        const rb = rankSource(b.source);
-        if (ra !== rb) return ra - rb;
+        // Evidence-backed reputation risk first, then needs-review, then everything
+        // else — source type never determines rank (a Reddit allegation with evidence
+        // outranks a YouTube video without it, and vice versa).
+        const pa0 = riskPriority(a);
+        const pb0 = riskPriority(b);
+        if (pa0 !== pb0) return pa0 - pb0;
         const sa = SEV_RANK[a.severity ?? ""] ?? 0;
         const sb = SEV_RANK[b.severity ?? ""] ?? 0;
         if (sa !== sb) return sb - sa;

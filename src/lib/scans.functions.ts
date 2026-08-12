@@ -31,6 +31,10 @@ const HitInput = z.object({
   metrics: z.record(z.string(), z.unknown()).optional(),
   sourceMetadata: z.record(z.string(), z.unknown()).optional(),
   evidenceRefs: z.array(z.record(z.string(), z.unknown())).optional(),
+  /** Evidence-gated classifier verdict (see src/lib/reputation/evidence-classifier.ts). */
+  classificationTier: z.string().optional().nullable(),
+  riskEvidenceFound: z.boolean().optional(),
+  evidenceClassification: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
 export function normalizeIntegerCount(val: unknown): number | null {
@@ -227,6 +231,9 @@ export const persistScan = createServerFn({ method: "POST" })
       evidence_refs: unknown[];
       previous_scan_id: string | null;
       times_detected: number;
+      classification_tier: string | null;
+      risk_evidence_found: boolean;
+      evidence_classification: Record<string, unknown> | null;
     };
     const rows: Row[] = [];
     let dupsInBatch = 0;
@@ -272,6 +279,12 @@ export const persistScan = createServerFn({ method: "POST" })
         evidence_refs: Array.isArray(h.evidenceRefs) ? h.evidenceRefs : [],
         previous_scan_id: previousScanId,
         times_detected: 1,
+        classification_tier: h.classificationTier ?? null,
+        risk_evidence_found: h.riskEvidenceFound ?? false,
+        evidence_classification:
+          h.evidenceClassification && typeof h.evidenceClassification === "object"
+            ? h.evidenceClassification
+            : null,
       });
     }
 
@@ -428,7 +441,7 @@ export const listScanHits = createServerFn({ method: "GET" })
     let q = supabase
       .from("scan_hits")
       .select(
-        "id, scan_id, source, source_type, external_id, canonical_url, permalink, title, description, author, thumbnail_url, published_at, detected_at, reach, engagement, velocity, risk_score, threat_score, severity, growth_pct, narrative_claim, risk_type, tags, is_new_since_last_scan, times_detected, first_seen_at, last_seen_at, hidden_at, hidden_reason",
+        "id, scan_id, source, source_type, external_id, canonical_url, permalink, title, description, author, thumbnail_url, published_at, detected_at, reach, engagement, velocity, risk_score, threat_score, severity, growth_pct, narrative_claim, risk_type, tags, is_new_since_last_scan, times_detected, first_seen_at, last_seen_at, hidden_at, hidden_reason, classification_tier, risk_evidence_found, evidence_classification",
       )
       .eq("user_id", userId)
       .order("published_at", { ascending: false, nullsFirst: false })

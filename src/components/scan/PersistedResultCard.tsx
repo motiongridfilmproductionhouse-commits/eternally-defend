@@ -47,11 +47,25 @@ export type HitLike = DetailFinding & {
   detection_reason?: string | null;
 };
 
-
 function fmt(n: number) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
   return String(n);
+}
+
+/**
+ * The scan pipeline is synchronous — classifyWithEvidence() always finishes
+ * before a hit is persisted, so there is no genuine "still analyzing" state
+ * for rows written after the evidence-classification columns shipped. Only
+ * rows persisted before that (classification_tier is null) are truly unknown.
+ */
+export function analysisStatusLabel(hit: HitLike): string {
+  if (!hit.classification_tier) return "Analysis not recorded for this result";
+  if (hit.risk_evidence_found) return "Evidence-backed reputation risk recorded";
+  if (hit.classification_tier === "TIER_2_NEEDS_REVIEW") {
+    return "Flagged for human review — evidence inconclusive";
+  }
+  return "No reputation-risk evidence detected";
 }
 
 export function PersistedResultCard({
@@ -306,7 +320,6 @@ export function PersistedResultCard({
                 )}
               </div>
             )}
-
         </div>
       </button>
 
@@ -317,7 +330,11 @@ export function PersistedResultCard({
           {status ? (
             <span className="truncate">· {status}</span>
           ) : (
-            <span className="truncate text-amber-500 font-medium">· Evidence analysis pending</span>
+            <span
+              className={`truncate font-medium ${hit.risk_evidence_found ? "text-amber-500" : "text-muted-foreground"}`}
+            >
+              · {analysisStatusLabel(hit)}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-1">
