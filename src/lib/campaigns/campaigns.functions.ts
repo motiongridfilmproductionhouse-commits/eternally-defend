@@ -132,6 +132,10 @@ export const createCampaign = createServerFn({ method: "POST" })
         notes: data.notes ?? null,
         hashtags: data.hashtags,
         official_urls: data.official_urls,
+        approved_accounts: data.approved_accounts,
+        approved_media_urls: data.approved_media_urls,
+        starts_at: data.starts_at ? new Date(data.starts_at).toISOString() : null,
+        ends_at: data.ends_at ? new Date(data.ends_at).toISOString() : null,
         status: "ACTIVE",
         monitoring_started_at: data.start_monitoring ? new Date().toISOString() : null,
       })
