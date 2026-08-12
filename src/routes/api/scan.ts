@@ -4239,8 +4239,11 @@ export const Route = createFileRoute("/api/scan")({
                 return stats;
               };
 
-              /* ── PASS 1 (up to 30 queries) ── */
-              const pass1 = await runPass(1, AI_PASS1_QUERY_CEILING);
+              /* ── PASS 1 (query ceiling reduced under DEMO_SAFE_MODE) ── */
+              const pass1Ceiling = DEMO_SAFE_MODE_ENABLED
+                ? Math.min(AI_PASS1_QUERY_CEILING, DEMO_SAFE_CAPS.aiPass1Ceiling)
+                : AI_PASS1_QUERY_CEILING;
+              const pass1 = await runPass(1, pass1Ceiling);
               aiDiag.ai_passes.push(pass1);
               if (pass1.status === "FAILED" && aiDiag.research_status !== "OK") {
                 aiDiag.research_status = "OPENAI_RESEARCH_UNAVAILABLE";
