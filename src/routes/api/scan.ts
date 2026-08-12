@@ -8,6 +8,16 @@ import {
 } from "@/lib/reputation/ranking.server";
 import { scoreIdentity } from "@/lib/scan/identity-confidence";
 import {
+  classifyWithEvidence,
+  type Classification,
+  type ClassificationTier,
+  type ContentType,
+  type EvidenceLevel,
+  type RiskCategory,
+  type RiskEvidence,
+} from "@/lib/reputation/evidence-classifier";
+
+import {
   DEMO_SAFE_CAPS,
   DEMO_SAFE_MODE_ENABLED,
   demoAllowsSecondPass,
