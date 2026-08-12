@@ -85,6 +85,11 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       const res = await signDoc({
         data: {
           typed_name: typedName.trim(),
+          device: {
+            platform: typeof navigator !== "undefined" ? navigator.platform : undefined,
+            language: typeof navigator !== "undefined" ? navigator.language : undefined,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          },
           confirmations: {
             reviewed: true,
             owner: true,
@@ -96,6 +101,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
           },
         },
       });
+
       if (res?.duplicate) {
         toast.success("Authorization already digitally signed.");
       } else {
