@@ -217,6 +217,10 @@ export function NewCampaignDialog({ trigger }: { trigger?: React.ReactNode }) {
             notes: notes || undefined,
             hashtags: splitLines(hashtags).map((h) => (h.startsWith("#") ? h : `#${h}`)),
             official_urls: officialUrls,
+            approved_accounts: splitLines(approvedAccounts),
+            approved_media_urls: splitLines(approvedMedia),
+            starts_at: startsAt || undefined,
+            ends_at: endsAt || undefined,
             assets: [
               ...uploaded,
               ...officialUrls.map((u) => ({ asset_kind: "link" as const, source_url: u })),
