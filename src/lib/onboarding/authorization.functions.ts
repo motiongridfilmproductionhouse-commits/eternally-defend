@@ -315,6 +315,17 @@ export const finalizeSignature = createServerFn({ method: "POST" })
 
       const snap = await buildSnapshot(supabase, userId, auth.id);
 
+      // Typed name must match the client's legal name on record (case/spacing tolerant).
+      const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+      const legalOnRecord = String(
+        snap.profile?.legal_name || snap.profile?.full_name || "",
+      ).trim();
+      if (legalOnRecord && norm(data.typed_name) !== norm(legalOnRecord)) {
+        throw new Error(`NAME_MISMATCH:${legalOnRecord}`);
+      }
+
+      const signedAt = new Date().toISOString();
+
       // Generate BOTH PDFs (letter + certificate) before we touch signatures/certificates rows,
       // so we never leave a partial audit state on failure.
       const { renderAuthorizationLetterPdf } = await import(
@@ -323,11 +334,14 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       const bytes = await renderAuthorizationLetterPdf(snap, {
         signed: true,
         signerName: data.typed_name,
-        signatureSvg: data.drawn_signature_svg,
-        signedAt: new Date().toISOString(),
+        signedAt,
       });
       const doc_sha = createHash("sha256").update(bytes).digest("hex");
-      const signature_sha = createHash("sha256").update(data.drawn_signature_svg).digest("hex");
+      // Digital signature evidence: typed name + authorization id + version + timestamp.
+      const signature_sha = createHash("sha256")
+        .update(`${data.typed_name}|${auth.auth_number}|v${auth.version}|${signedAt}`)
+        .digest("hex");
+
 
       const { normalizeOnboardingVersion, upsertProgressPreservingVersion } =
         await import("./version.server");
