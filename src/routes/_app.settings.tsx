@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageCard } from "@/components/dashboard/PageCard";
 import { Switch } from "@/components/ui/switch";
+import { SocialProfilesPanel } from "@/components/onboarding/SocialProfilesPanel";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings — Eterna AI" }] }),
