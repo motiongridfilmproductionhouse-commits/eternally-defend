@@ -56,6 +56,10 @@ function classifyAwsError(e: any): AwsErrorInfo {
   return { code: "UNKNOWN", message: raw || "Face Protection error", retryable: true };
 }
 
+// AWS Face Liveness confidence gate for enrollment. AWS guidance for
+// enrollment-grade checks is 70+; 80 rejected valid users in normal lighting.
+const LIVENESS_MIN_CONFIDENCE = 70;
+
 function describeLivenessFailure(
   status: string | undefined,
   confidence: number,
@@ -275,7 +279,7 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
 
     const conf = Number(res.Confidence ?? 0);
     const awsStatus = String(res.Status ?? "UNKNOWN");
-    const pass = awsStatus === "SUCCEEDED" && conf >= 80;
+    const pass = awsStatus === "SUCCEEDED" && conf >= LIVENESS_MIN_CONFIDENCE;
 
     if (!pass) {
       const detail = describeLivenessFailure(awsStatus, conf);
