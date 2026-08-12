@@ -22,8 +22,10 @@ export function SensitiveAccessGate({ children }: { children: React.ReactNode })
     );
   }
 
-  // Access is only granted if onboarding is fully complete and active
-  const isFullyOnboarded = progress?.overall_status === "COMPLETED";
+  // Sensitive identity data is a high-trust action: setup completion alone is
+  // not enough — the account must also be verified.
+  const isFullyOnboarded =
+    progress?.overall_status === "COMPLETED" && verification.canPerformSensitiveAction;
 
   if (!isFullyOnboarded) {
     return (
