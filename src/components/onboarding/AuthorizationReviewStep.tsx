@@ -35,6 +35,7 @@ export function AuthorizationReviewStep({
   const fetchAuth = useServerFn(getAuthorizationBundle);
   const generateDraft = useServerFn(generateDraftPdf);
   const fetchUrl = useServerFn(getSignedDocUrl);
+  const fetchBytes = useServerFn(getDocBase64);
 
   const {
     data: authBundle,
