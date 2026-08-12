@@ -293,7 +293,26 @@ export async function renderAuthorizationLetterPdf(
       color: rgb(0.6, 0.65, 0.72),
     });
     y = signatureLineY - 18;
-    field("Date", dateValue);
+    if (dateValue) {
+      field("Date", dateValue);
+    } else {
+      // Unsigned draft: leave a blank rule for a handwritten date.
+      drawUnicodeText(page, "Date:", {
+        x: MARGIN,
+        y,
+        size: 9.5,
+        stack: stack.bold,
+        color: navy,
+      });
+      page.drawRectangle({
+        x: MARGIN + VALUE_X,
+        y: y - 3,
+        width: 140,
+        height: 0.7,
+        color: rgb(0.6, 0.65, 0.72),
+      });
+      y -= 15.5;
+    }
     y -= 10;
   };
 
