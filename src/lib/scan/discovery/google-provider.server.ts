@@ -57,11 +57,19 @@ function toHit(item: CseItem): DiscoveryHit | null {
   };
 }
 
+/**
+ * DISABLED BY DEFAULT. The saved key's Google Cloud project does not have the
+ * Custom Search JSON API enabled (hard 403 "project does not have the access"),
+ * so the adapter is kept but reports NOT_CONFIGURED unless explicitly re-enabled
+ * with SCAN_ENABLE_GOOGLE_CSE=true. Google-backed discovery now runs through
+ * the Gemini grounding provider instead.
+ */
 export const googleProvider: SearchProviderAdapter = {
   id: "google",
   label: "Google Programmable Search",
 
   isConfigured() {
+    if (process.env.SCAN_ENABLE_GOOGLE_CSE?.trim() !== "true") return false;
     const { key, cx } = creds();
     return Boolean(key && cx);
   },
@@ -112,11 +120,18 @@ export const googleProvider: SearchProviderAdapter = {
 
       if (status !== 200) {
         // Daily-quota exhaustion arrives as 429 or 403 with a quota reason.
-        const kind = /quota|dailyLimitExceeded|rateLimitExceeded/i.test(text)
-          ? status === 403
-            ? "credits_exhausted"
-            : "rate_limited"
-          : classifyHttpFailure(status, text);
+        // Project-access 403 ("does not have the access to Custom Search JSON
+        // API") means the API is not enabled — treat as auth failure so the
+        // router marks the provider unavailable for the whole scan.
+        const kind = /does not have the access|SERVICE_DISABLED|has not been used in project|accessNotConfigured/i.test(
+          text,
+        )
+          ? "auth_failed"
+          : /quota|dailyLimitExceeded|rateLimitExceeded/i.test(text)
+            ? status === 403
+              ? "credits_exhausted"
+              : "rate_limited"
+            : classifyHttpFailure(status, text);
         if (hits.length) break;
         throw new ProviderError(
           kind,
