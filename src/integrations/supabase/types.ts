@@ -1185,6 +1185,92 @@ export type Database = {
         }
         Relationships: []
       }
+      celebrity_campaign_assets: {
+        Row: {
+          asset_kind: string
+          campaign_id: string
+          created_at: string
+          id: string
+          source_url: string | null
+          storage_path: string | null
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          asset_kind?: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+          source_url?: string | null
+          storage_path?: string | null
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          asset_kind?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          source_url?: string | null
+          storage_path?: string | null
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "celebrity_campaign_assets_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "celebrity_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      celebrity_campaigns: {
+        Row: {
+          archived_at: string | null
+          campaign_type: string
+          created_at: string
+          hashtags: string[]
+          id: string
+          monitoring_started_at: string | null
+          name: string
+          notes: string | null
+          official_urls: string[]
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          campaign_type?: string
+          created_at?: string
+          hashtags?: string[]
+          id?: string
+          monitoring_started_at?: string | null
+          name: string
+          notes?: string | null
+          official_urls?: string[]
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          campaign_type?: string
+          created_at?: string
+          hashtags?: string[]
+          id?: string
+          monitoring_started_at?: string | null
+          name?: string
+          notes?: string | null
+          official_urls?: string[]
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       channel_watch_events: {
         Row: {
           created_at: string
