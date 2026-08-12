@@ -118,6 +118,9 @@ export async function renderAuthorizationLetterPdf(
     rule(rgb(0.75, 0.82, 0.94));
   };
 
+  const VALUE_X = 168;
+
+  /** Label/value row; long values wrap inside the value column. */
   const field = (label: string, value: string) => {
     const size = 9.5;
     ensure(size + 6);
@@ -128,15 +131,35 @@ export async function renderAuthorizationLetterPdf(
       stack: stack.bold,
       color: navy,
     });
-    drawUnicodeText(page, value || "Not provided", {
-      x: MARGIN + 168,
-      y,
-      size,
-      stack: stack.regular,
-      color: ink,
-    });
-    y -= size + 6;
+    const maxWidth = CONTENT - VALUE_X;
+    const words = (value || "Not provided").split(/\s+/).filter(Boolean);
+    let line = "";
+    const lines: string[] = [];
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (measure(candidate, size) > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) lines.push(line);
+    for (const [index, l] of lines.entries()) {
+      if (index > 0) {
+        ensure(size + 6);
+      }
+      drawUnicodeText(page, l, {
+        x: MARGIN + VALUE_X,
+        y,
+        size,
+        stack: stack.regular,
+        color: ink,
+      });
+      y -= size + (index === lines.length - 1 ? 6 : 3);
+    }
   };
+
 
   // ---- Letterhead -------------------------------------------------------
   y = 792 - MARGIN;
