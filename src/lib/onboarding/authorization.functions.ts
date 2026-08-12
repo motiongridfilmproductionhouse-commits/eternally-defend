@@ -230,14 +230,15 @@ export const finalizeSignature = createServerFn({ method: "POST" })
     (d: {
       typed_name: string;
       role_title?: string;
-      drawn_signature_svg: string;
+      drawn_signature_svg?: string;
       confirmations: Record<string, boolean>;
     }) =>
       z
         .object({
           typed_name: z.string().min(2),
           role_title: z.string().optional(),
-          drawn_signature_svg: z.string().min(32, "Drawn signature is required"),
+          // Legacy field — electronic signing no longer captures drawn strokes.
+          drawn_signature_svg: z.string().optional(),
           confirmations: z.record(z.string(), z.boolean()),
         })
         .parse(d),
@@ -245,16 +246,8 @@ export const finalizeSignature = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     try {
-      const required = [
-        "reviewed",
-        "owner",
-        "assets_mine",
-        "accurate",
-        "false_claims",
-        "scope_only",
-        "final_approval",
-      ];
-      for (const k of required) if (!data.confirmations[k]) throw new Error(`DECL_MISSING:${k}`);
+      if (!data.confirmations["reviewed"]) throw new Error("DECL_MISSING:reviewed");
+
 
       const { data: auth } = await supabase
         .from("client_authorizations")
@@ -322,6 +315,17 @@ export const finalizeSignature = createServerFn({ method: "POST" })
 
       const snap = await buildSnapshot(supabase, userId, auth.id);
 
+      // Typed name must match the client's legal name on record (case/spacing tolerant).
+      const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+      const legalOnRecord = String(
+        snap.profile?.legal_name || snap.profile?.full_name || "",
+      ).trim();
+      if (legalOnRecord && norm(data.typed_name) !== norm(legalOnRecord)) {
+        throw new Error(`NAME_MISMATCH:${legalOnRecord}`);
+      }
+
+      const signedAt = new Date().toISOString();
+
       // Generate BOTH PDFs (letter + certificate) before we touch signatures/certificates rows,
       // so we never leave a partial audit state on failure.
       const { renderAuthorizationLetterPdf } = await import(
@@ -330,11 +334,14 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       const bytes = await renderAuthorizationLetterPdf(snap, {
         signed: true,
         signerName: data.typed_name,
-        signatureSvg: data.drawn_signature_svg,
-        signedAt: new Date().toISOString(),
+        signedAt,
       });
       const doc_sha = createHash("sha256").update(bytes).digest("hex");
-      const signature_sha = createHash("sha256").update(data.drawn_signature_svg).digest("hex");
+      // Digital signature evidence: typed name + authorization id + version + timestamp.
+      const signature_sha = createHash("sha256")
+        .update(`${data.typed_name}|${auth.auth_number}|v${auth.version}|${signedAt}`)
+        .digest("hex");
+
 
       const { normalizeOnboardingVersion, upsertProgressPreservingVersion } =
         await import("./version.server");
@@ -471,8 +478,9 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         status: "SIGNED",
         typed_name: data.typed_name,
         role_title: data.role_title ?? null,
-        drawn_signature_svg: data.drawn_signature_svg,
-        signed_at: new Date().toISOString(),
+        drawn_signature_svg: null,
+        signed_at: signedAt,
+
         document_sha256: doc_sha,
         ip_address: ipAddress,
         user_agent: userAgent,

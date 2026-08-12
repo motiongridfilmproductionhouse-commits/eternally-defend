@@ -331,102 +331,42 @@ export async function renderAuthorizationLetterPdf(
   }
 
 
-  // ---- Signatures -------------------------------------------------------
-  ensure(180);
-  ensure(300); // keep both signature blocks together on one page
+  // ---- Execution (electronic) -------------------------------------------
+  // Digital-only execution: no handwriting, image or scanned signature.
+  ensure(260);
   sectionHeading(`${8 + n}. Execution`);
 
-  const signatureBlock = (
-    heading: string,
-    subtitle: string | null,
-    name: string,
-    dateValue: string,
-    drawImage: boolean,
-  ) => {
-    ensure(120);
-    text(heading, { size: 9.5, bold: true, color: navy, gap: 6 });
-    if (subtitle) text(subtitle, { size: 9, bold: true, gap: 6 });
-    field("Name", name);
-    const signatureLineY = y - 34;
-    if (drawImage && signaturePng) {
-      page.drawImage(signaturePng, {
-        x: MARGIN + 168,
-        y: signatureLineY + 4,
-        width: 140,
-        height: 40,
-      });
-    }
-    drawUnicodeText(page, "Signature:", {
-      x: MARGIN,
-      y: signatureLineY,
-      size: 9.5,
-      stack: stack.bold,
-      color: navy,
-    });
-    page.drawRectangle({
-      x: MARGIN + 168,
-      y: signatureLineY - 3,
-      width: 240,
-      height: 0.7,
-      color: rgb(0.6, 0.65, 0.72),
-    });
-    y = signatureLineY - 18;
-    if (dateValue) {
-      field("Date", dateValue);
-    } else {
-      // Unsigned draft: leave a blank rule for a handwritten date.
-      drawUnicodeText(page, "Date:", {
-        x: MARGIN,
-        y,
-        size: 9.5,
-        stack: stack.bold,
-        color: navy,
-      });
-      page.drawRectangle({
-        x: MARGIN + VALUE_X,
-        y: y - 3,
-        width: 140,
-        height: 0.7,
-        color: rgb(0.6, 0.65, 0.72),
-      });
-      y -= 15.5;
-    }
-    y -= 10;
-  };
+  const signedAtIso = opts.signed ? (opts.signedAt ?? "") : "";
+  const signedStamp = signedAtIso
+    ? `${signedAtIso.slice(0, 10)} ${signedAtIso.slice(11, 19)} UTC`
+    : "";
 
-  let signaturePng: any = null;
-  if (opts.signed && opts.signatureSvg?.startsWith("data:image/png;base64,")) {
-    try {
-      const b64 = opts.signatureSvg.split(",")[1];
-      signaturePng = await doc.embedPng(Buffer.from(b64, "base64"));
-    } catch {
-      signaturePng = null;
-    }
-  }
-
-  const signedDate = opts.signed ? (opts.signedAt ?? "").slice(0, 10) : "";
-  signatureBlock(
-    partyLabel.toUpperCase(),
-    null,
-    opts.signed ? (opts.signerName ?? party.legalName) : party.legalName,
-    signedDate,
-    true,
+  ensure(120);
+  text(
+    opts.signed
+      ? `${partyLabel.toUpperCase()} — ELECTRONICALLY SIGNED`
+      : `${partyLabel.toUpperCase()} — AWAITING ELECTRONIC SIGNATURE`,
+    { size: 9.5, bold: true, color: navy, gap: 6 },
   );
-  signatureBlock(
-    "AUTHORIZED SERVICE PROVIDER",
-    SERVICE_PROVIDER_NAME,
-    "Authorized Representative",
-    signedDate,
-    false,
+  field("Name", opts.signed ? (opts.signerName ?? party.legalName) : party.legalName);
+  if (proName) field("Professional Name", proName);
+  field("Signed", opts.signed ? signedStamp : "Pending");
+  field("Authorization ID", authNumber);
+  field("Document Version", `v${version}`);
+  y -= 4;
+  paragraph(
+    opts.signed
+      ? "Executed electronically by the named party through the Eterna Sentinel Defence LLC authorization portal. This electronic execution is intended to have the same legal effect as a handwritten signature; no printed, handwritten or scanned signature is required."
+      : "This document is an unsigned draft prepared for the Client's review. It becomes effective once the Client executes it electronically through the Eterna Sentinel Defence LLC authorization portal.",
+    { size: 8.5, color: muted, gap: 12 },
   );
 
-  if (!opts.signed) {
-    y -= 4;
-    paragraph(
-      "This document is an unsigned draft prepared for the Client's review. It becomes effective only once executed by both parties.",
-      { size: 8.5, color: muted },
-    );
-  }
+  ensure(90);
+  text("AUTHORIZED SERVICE PROVIDER", { size: 9.5, bold: true, color: navy, gap: 6 });
+  text(SERVICE_PROVIDER_NAME, { size: 9, bold: true, gap: 6 });
+  field("Accepted By", "Authorized Representative");
+  field("Acceptance", opts.signed ? `Recorded electronically ${signedStamp}` : "Pending");
+
 
   drawFooter(page);
   return await doc.save();

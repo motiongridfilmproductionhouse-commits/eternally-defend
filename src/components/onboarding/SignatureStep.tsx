@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import SignatureCanvas from "react-signature-canvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,10 +10,10 @@ import {
   Loader2,
   ChevronRight,
   ChevronLeft,
-  PenTool,
   ShieldCheck,
   Download,
   ExternalLink,
+  BadgeCheck,
 } from "lucide-react";
 import {
   finalizeSignature,
@@ -22,16 +21,6 @@ import {
   getSignedDocUrl,
 } from "@/lib/onboarding/authorization.functions";
 import { getClientProfile } from "@/lib/onboarding/profile.functions";
-
-const DECLARATIONS = [
-  { key: "reviewed", label: "I reviewed the complete Authorization Letter." },
-  { key: "owner", label: "I own or represent the listed rights." },
-  { key: "assets_mine", label: "The listed assets belong to me or my organization." },
-  { key: "accurate", label: "The supplied information is accurate." },
-  { key: "false_claims", label: "False complaints may create legal liability." },
-  { key: "scope_only", label: "Eterna is authorized only within selected scopes." },
-  { key: "final_approval", label: "Final submissions may require separate approval." },
-] as const;
 
 export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   const qc = useQueryClient();
@@ -54,38 +43,34 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
     queryFn: () => fetchProfile(),
   });
 
-  const sigCanvas = useRef<any>(null);
   const [typedName, setTypedName] = useState("");
-  const [roleTitle, setRoleTitle] = useState("");
-  const [confirmations, setConfirmations] = useState<Record<string, boolean>>({});
-  const [hasStrokes, setHasStrokes] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
 
+  const legalName = String(
+    (profile as any)?.legal_name || (profile as any)?.full_name || "",
+  ).trim();
+  const displayName = String((profile as any)?.display_name || "").trim();
+
   useEffect(() => {
-    if (profile && !typedName) {
-      setTypedName((profile as any).legal_name || profile.full_name || profile.display_name || "");
-      setRoleTitle(profile.role_title || "");
-    }
-  }, [profile]);
+    if (profile) setTypedName((p) => p || legalName);
+  }, [profile, legalName]);
 
-  const allConfirmed = DECLARATIONS.every((d) => confirmations[d.key]);
-  const nameOk = typedName.trim().length >= 2;
-  const canSign = allConfirmed && nameOk && hasStrokes && !busy;
+  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const nameMatches =
+    typedName.trim().length >= 2 &&
+    (!legalName || normalize(typedName) === normalize(legalName));
+  const canSign = accepted && nameMatches && !busy;
 
-  const missingReason = !allConfirmed
-    ? "Please check all declarations above."
-    : !nameOk
+  const missingReason = !accepted
+    ? "Please accept this authorization to continue."
+    : typedName.trim().length < 2
       ? "Enter your full legal name."
-      : !hasStrokes
-        ? "Draw your signature in the box."
+      : !nameMatches
+        ? `Typed name must exactly match your legal name on record${legalName ? ` (${legalName})` : ""}.`
         : null;
-
-  const handleClearSig = () => {
-    sigCanvas.current?.clear();
-    setHasStrokes(false);
-  };
 
   const handleSign = async () => {
     setSignError(null);
@@ -94,26 +79,27 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       toast.error(missingReason);
       return;
     }
-    if (sigCanvas.current?.isEmpty?.()) {
-      toast.error("Signature cannot be empty");
-      return;
-    }
 
     setBusy(true);
     try {
-      const svg = sigCanvas.current.toDataURL("image/png");
       const res = await signDoc({
         data: {
           typed_name: typedName.trim(),
-          role_title: roleTitle.trim() || undefined,
-          drawn_signature_svg: svg,
-          confirmations,
+          confirmations: {
+            reviewed: true,
+            owner: true,
+            assets_mine: true,
+            accurate: true,
+            false_claims: true,
+            scope_only: true,
+            final_approval: true,
+          },
         },
       });
       if (res?.duplicate) {
-        toast.success("Authorization already signed — restoring your certificate.");
+        toast.success("Authorization already digitally signed.");
       } else {
-        toast.success("Authorization signed and certificate issued.");
+        toast.success("Authorization digitally signed.");
       }
       await Promise.all([
         refetch(),
@@ -124,7 +110,10 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       ]);
       onNext();
     } catch (e: any) {
-      const msg = e?.message ?? "Signature failed. Please try again.";
+      const raw = e?.message ?? "Signature failed. Please try again.";
+      const msg = String(raw).startsWith("NAME_MISMATCH:")
+        ? `Typed name must exactly match your legal name on record (${String(raw).split(":")[1]}).`
+        : raw;
       console.error("[SignatureStep] finalizeSignature failed", e);
       setSignError(msg);
       toast.error(msg);
@@ -132,6 +121,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       setBusy(false);
     }
   };
+
 
   const handleViewPdf = async (docId: string, download: boolean = false) => {
     setLoadingUrl(docId);
@@ -180,17 +170,27 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
         <CardContent className="p-8 space-y-6">
           <div className="flex flex-col items-center justify-center text-center space-y-4 pt-4">
             <div className="size-16 bg-emerald-500/20 rounded-full flex items-center justify-center border border-emerald-500/30">
-              <ShieldCheck className="size-8 text-emerald-400" />
+              <BadgeCheck className="size-8 text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-emerald-400">Authorization Signed</h2>
+              <h2 className="text-2xl font-bold text-emerald-400">Digitally Signed</h2>
               <p className="text-white/60 mt-1">
-                Your authorization document is sealed and legally binding.
+                This authorization was executed electronically and is sealed for audit.
               </p>
             </div>
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-sm space-y-3">
+            <div className="flex justify-between border-b border-white/10 pb-2">
+              <span className="text-white/50">Signed By</span>
+              <span className="text-white">{signatureRec.typed_name || legalName}</span>
+            </div>
+            {displayName && (
+              <div className="flex justify-between border-b border-white/10 pb-2">
+                <span className="text-white/50">Professional Name</span>
+                <span className="text-white">{displayName}</span>
+              </div>
+            )}
             <div className="flex justify-between border-b border-white/10 pb-2">
               <span className="text-white/50">Authorization ID</span>
               <span className="font-mono text-white">{auth.auth_number}</span>
@@ -200,7 +200,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               <span className="text-white">v{auth.version}</span>
             </div>
             <div className="flex justify-between border-b border-white/10 pb-2">
-              <span className="text-white/50">Signed Date</span>
+              <span className="text-white/50">Signed Timestamp</span>
               <span className="text-white">
                 {signatureRec.signed_at
                   ? new Date(signatureRec.signed_at).toLocaleString()
@@ -230,8 +230,9 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               ) : (
                 <Download className="size-4 mr-2" />
               )}
-              Download
+              Download Signed PDF
             </Button>
+
             <Button
               onClick={() => handleViewPdf(signedDoc.id, false)}
               disabled={loadingUrl === signedDoc.id}
@@ -265,95 +266,56 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
   return (
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
       <CardHeader>
-        <CardTitle className="text-xl">Electronic Signature</CardTitle>
+        <CardTitle className="text-xl">Electronic Signature &amp; Authorization</CardTitle>
         <CardDescription className="text-white/60">
-          Sign the authorization letter to grant Eterna AI legal permission to act on your behalf.
-          Your signature is securely hashed and sealed alongside the document.
+          Execute the Authorization Letter digitally. No printing, handwriting or scanning is
+          required — your typed legal name, timestamp and document version are recorded as your
+          digital signature.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <div className="text-sm font-semibold text-white/80 uppercase tracking-wider">
-            Required Declarations
-          </div>
-          <div className="space-y-2 bg-white/5 border border-white/10 p-3 rounded-lg">
-            {DECLARATIONS.map((d) => (
-              <label
-                key={d.key}
-                className="flex gap-3 items-start cursor-pointer hover:bg-white/5 p-1.5 rounded transition-colors"
-              >
-                <Checkbox
-                  checked={confirmations[d.key] || false}
-                  onCheckedChange={(c) => setConfirmations((p) => ({ ...p, [d.key]: !!c }))}
-                  className="mt-0.5 border-white/30 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
-                  disabled={busy}
-                />
-                <span className="text-sm text-white/90">{d.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs text-white/50 uppercase tracking-wider">
-              Full Legal Name
-            </label>
-            <Input
-              value={typedName}
-              onChange={(e) => setTypedName(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white"
-              placeholder="e.g. John Doe"
-              disabled={busy}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-white/50 uppercase tracking-wider">
-              Role / Designation (Optional)
-            </label>
-            <Input
-              value={roleTitle}
-              onChange={(e) => setRoleTitle(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white"
-              placeholder="e.g. Creator, CEO"
-              disabled={busy}
-            />
-          </div>
-        </div>
+        <label className="flex gap-3 items-start cursor-pointer bg-white/5 border border-white/10 p-4 rounded-lg hover:bg-white/[0.07] transition-colors">
+          <Checkbox
+            checked={accepted}
+            onCheckedChange={(c) => setAccepted(!!c)}
+            className="mt-0.5 border-white/30 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
+            disabled={busy}
+          />
+          <span className="text-sm text-white/90">
+            I have reviewed and accept this authorization.
+          </span>
+        </label>
 
         <div className="space-y-1.5">
-          <label className="text-xs text-white/50 uppercase tracking-wider flex justify-between">
-            <span>Draw Signature</span>
-            <button
-              onClick={handleClearSig}
-              disabled={busy}
-              className="text-blue-400 hover:text-blue-300 text-[10px]"
-            >
-              Clear
-            </button>
-          </label>
-          <div
-            className="bg-white rounded-lg border-2 border-white/20 overflow-hidden relative"
-            style={{ height: "150px" }}
-          >
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
-              <PenTool className="size-16 text-black" />
-            </div>
-            <SignatureCanvas
-              ref={sigCanvas}
-              penColor="black"
-              onEnd={() => setHasStrokes(!sigCanvas.current?.isEmpty())}
-              canvasProps={{
-                className: "w-full h-full cursor-crosshair",
-                style: { width: "100%", height: "100%" },
-              }}
-            />
-          </div>
-          <div className="text-[10px] text-white/40 pt-1">
-            Your signature will be hashed (SHA-256) and stored alongside your identity, IP, and
-            user-agent for audit purposes.
+          <label className="text-xs text-white/50 uppercase tracking-wider">Full Legal Name</label>
+          <Input
+            value={typedName}
+            onChange={(e) => setTypedName(e.target.value)}
+            className="bg-[#0F172A] border-white/10 text-white"
+            placeholder={legalName || "Your full legal name"}
+            disabled={busy}
+          />
+          <div className="text-[10px] text-white/40">
+            Must match your legal name on record
+            {legalName ? `: ${legalName}` : ""}.
           </div>
         </div>
+
+        <div className="grid gap-2 rounded-lg border border-white/10 bg-white/5 p-4 text-xs text-white/60">
+          <div className="flex justify-between">
+            <span>Authorization ID</span>
+            <span className="font-mono text-white/80">{auth?.auth_number ?? "—"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Document Version</span>
+            <span className="text-white/80">v{auth?.version ?? 1}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Signature Method</span>
+            <span className="text-white/80">Digital signature (typed name)</span>
+          </div>
+        </div>
+
 
         {signError && (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
@@ -383,7 +345,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               ) : (
                 <ShieldCheck className="size-4 mr-2" />
               )}
-              Sign &amp; Complete Onboarding
+              Sign &amp; Authorize
             </Button>
             {missingReason && !busy && (
               <div className="text-[10px] text-amber-300/80">{missingReason}</div>
