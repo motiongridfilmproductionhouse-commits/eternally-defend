@@ -137,18 +137,16 @@ export function v2FlowForAccount(accountType: V2AccountType | null): V2FlowStep[
     return [{ step: 1, key: "account_type", title: "Account Type" }];
   }
 
-  if (accountType === "celebrity") {
+  // Friction-light routes: public profile only, no identity document at signup.
+  if (isLightVerificationAccount(accountType)) {
     return [
       { step: 1, key: "account_type", title: "Account Type" },
-      { step: 2, key: "profile", title: "Celebrity Profile" },
-      { step: 3, key: "evidence", title: "Official Contact / Evidence" },
-      { step: 4, key: "face", title: "Face Protection" },
-      { step: 5, key: "assets", title: "Digital Assets" },
-      { step: 6, key: "scope", title: "Authorization Scope" },
-      { step: 7, key: "review", title: "Authorization Review" },
-      { step: 8, key: "signature", title: "Electronic Signature" },
-      { step: 9, key: "certificate", title: "Certificate" },
-      { step: 10, key: "complete", title: "Complete" },
+      {
+        step: 2,
+        key: "profile",
+        title: accountType === "celebrity" ? "Public Profile" : "Workspace Profile",
+      },
+      { step: 3, key: "complete", title: "Start Monitoring" },
     ];
   }
 
