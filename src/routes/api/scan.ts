@@ -8,6 +8,16 @@ import {
 } from "@/lib/reputation/ranking.server";
 import { scoreIdentity } from "@/lib/scan/identity-confidence";
 import {
+  classifyWithEvidence,
+  type Classification,
+  type ClassificationTier,
+  type ContentType,
+  type EvidenceLevel,
+  type RiskCategory,
+  type RiskEvidence,
+} from "@/lib/reputation/evidence-classifier";
+
+import {
   DEMO_SAFE_CAPS,
   DEMO_SAFE_MODE_ENABLED,
   demoAllowsSecondPass,
@@ -183,12 +193,20 @@ export interface ScanHit {
   copyrightEnforcementPotential?: number;
   whyItMatters?: string;
   contentPosition?: ContentPosition;
+  /** Evidence-gated classification tier (TIER_0 … TIER_4). */
+  classificationTier?: ClassificationTier;
+  riskClassification?: Classification;
+  contentType?: ContentType;
+  evidenceLevel?: EvidenceLevel;
+  /** Structured, quote-backed evidence supporting the classification. */
+  riskEvidence?: RiskEvidence;
   /** Identity confidence grading (VERIFIED / PROBABLE / AMBIGUOUS). */
   identityTier?: "VERIFIED" | "PROBABLE" | "AMBIGUOUS" | "NOT_SUBJECT";
   identityConfidence?: number;
   identityReason?: string;
   /** VERIFIED = risk evidenced; NEEDS_REVIEW = kept for human review. */
   reviewStatus?: "VERIFIED" | "NEEDS_REVIEW";
+
   /** Search phrase that surfaced this result. */
   searchQueryUsed?: string;
   /** Excerpt of the full page captured during extraction. */
@@ -1179,7 +1197,41 @@ function sentimentOf(text: string): Sentiment {
   return "Neutral";
 }
 
+/** Maps an evidence-backed risk category onto the legacy display category. */
+function riskCategoryToCategory(category: RiskCategory): Category {
+  switch (category) {
+    case "MANIPULATED_MEDIA":
+      return "Deepfake";
+    case "IMPERSONATION":
+      return "Impersonation";
+    case "PRIVACY_RISK":
+      return "Leak";
+    case "HARASSMENT":
+      return "Harassment";
+    case "ALLEGATION":
+    case "ACCUSATION":
+      return "Allegation";
+    case "LEGAL_DISPUTE":
+      return "Legal Dispute";
+    case "MISINFORMATION":
+    case "MISLEADING_NARRATIVE":
+      return "Reputation Risk";
+    case "CONTROVERSY":
+      return "Controversy";
+    case "CRITICISM":
+      return "Criticism";
+    default:
+      return "Mention";
+  }
+}
+
+/**
+ * LEGACY keyword classifier. Retained only as a discovery/relevance signal —
+ * its category and severity are overridden by the evidence gate unless
+ * subject-directed risk evidence is found.
+ */
 function classify(
+
   title: string,
   desc: string,
 ): {
@@ -2686,41 +2738,80 @@ function buildReport(
       let c = classify(title, description);
       const sent = sentimentOf(`${title} ${description}`);
       const contentPosition = inferAutomatedContentPosition(title, description);
-      const contextOnlyTerms = new Set([
-        "controversy",
-        "controversial",
-        "backlash",
-        "responds to",
-        "response video",
-        "reaction video",
-        "trolled",
-        "moral policing",
-      ]);
-      const onlyContextSignals =
-        c.keywords.length > 0 && c.keywords.every((term) => contextOnlyTerms.has(term));
-      if (contentPosition === "SUPPORTIVE" || onlyContextSignals) {
+
+      /*
+       * EVIDENCE GATE — classification precedes scoring.
+       *
+       * Keyword presence in metadata ("review", "controversy", "legal",
+       * "copyright", …) is a discovery/relevance signal only. A candidate can
+       * only become a reputation-risk finding when subject-directed risk
+       * evidence is extracted from retrieved material at sufficient
+       * confidence. Everything else stays persisted as a neutral /
+       * entertainment / needs-review mention.
+       */
+      const verdict = classifyWithEvidence({
+        target: query,
+        aliases,
+        title,
+        description,
+        pageText,
+        author: o.author ?? o.media?.channelTitle,
+        url,
+        identityTier: identity.tier,
+        identityConfidence: identity.confidence,
+      });
+      const riskEvidenced = verdict.evidence.riskEvidenceFound;
+      const evidenceCategory = riskCategoryToCategory(verdict.evidence.riskCategory);
+
+      if (!riskEvidenced) {
+        /* Neutral baseline: no keyword-derived category, severity or harm. */
         c = {
-          ...c,
+          category: "Mention",
           sev: "Low",
-          score: Math.min(c.score, 28),
+          score: 20,
           legalTakedown: 0,
           copyrightEnforce: 0,
-          reputation: Math.min(c.reputation, 18),
+          reputation: verdict.reputationRisk,
+          keywords: c.keywords,
+        };
+      } else if (verdict.tier === "TIER_4_HIGH_RISK") {
+        c = {
+          category: evidenceCategory,
+          sev: verdict.evidence.confidence >= 0.85 ? "Critical" : "High",
+          score: Math.round(60 + verdict.evidence.confidence * 35),
+          legalTakedown: Math.round(verdict.evidence.confidence * 70),
+          copyrightEnforce: 0,
+          reputation: verdict.reputationRisk,
+          keywords: c.keywords,
+        };
+      } else {
+        c = {
+          category: evidenceCategory,
+          sev: "Medium",
+          score: Math.round(40 + verdict.evidence.confidence * 22),
+          legalTakedown: Math.round(verdict.evidence.confidence * 40),
+          copyrightEnforce: 0,
+          reputation: verdict.reputationRisk,
+          keywords: c.keywords,
         };
       }
-      const riskMatched = c.keywords.length > 0 || sent === "Negative";
+      /* Supportive framing can never be a risk finding. */
+      const onlyContextSignals = !riskEvidenced;
+      const riskMatched = riskEvidenced;
       const isOfficialYouTubeLead =
         (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
       const isYouTubeLead = source === "YouTube" || run.source === "YouTube";
       const isRedditEntityLead = source === "Reddit" || run.source === "Reddit";
       /*
-       * NO SNIPPET-ONLY DELETION. Previously a web result without a risk keyword
-       * in its 800-char snippet was discarded outright. Uncertain candidates are
-       * now kept and flagged NEEDS_REVIEW so coverage is auditable.
+       * NO DELETION anywhere in this stage. Ambiguous material is flagged
+       * NEEDS_REVIEW so coverage stays auditable and searchable.
        */
       const needsReview =
-        !riskMatched || identity.tier === "AMBIGUOUS" || identity.tier === "PROBABLE";
+        verdict.tier === "TIER_2_NEEDS_REVIEW" ||
+        (riskEvidenced && identity.tier === "AMBIGUOUS") ||
+        (riskEvidenced && verdict.evidenceLevel === "METADATA_ONLY");
       if (audit && needsReview) audit.funnel.needs_review++;
+
       const cred = credibilityScore(source, platform);
       const realViews = o.media?.views ?? 0;
       const viewsAvailable = o.media?.viewsAvailable === true;
@@ -2741,7 +2832,7 @@ function buildReport(
       const ageDays = ageDaysOf(published);
       // Recency curve: 24h → 100, 7d → 85, 30d → 65, 90d → 45, 365d → 22
       const recency = Math.max(10, Math.round(100 * Math.exp(-ageDays / 40)));
-      const threat = Math.min(
+      const rawThreat = Math.min(
         100,
         Math.round(
           c.score * 0.2 +
@@ -2753,23 +2844,22 @@ function buildReport(
             60 * 0.05,
         ),
       );
+      /*
+       * THREAT GUARDRAIL: with no subject-directed risk evidence the finding
+       * carries the neutral baseline only — reach and freshness alone never
+       * produce a reputation threat score.
+       */
+      const threat = riskEvidenced
+        ? rawThreat
+        : Math.min(20, Math.round(recency * 0.12 + Math.min(100, reach / 5000) * 0.08));
 
       /* Reddit results carry their own reputation-risk classification. */
       const redditRisk = isRedditEntityLead ? o.redditRisk : undefined;
 
-      const detectionReason = redditRisk
-        ? redditRisk.categories.length
-          ? `Reddit risk ${redditRisk.score}/100 · ${redditRisk.categories.join(", ")} · ${redditRisk.reason}`
-          : `Reddit risk ${redditRisk.score}/100 · ${redditRisk.reason}`
-        : c.keywords.length
-          ? `Matched: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
-          : sent === "Negative"
-            ? "Negative sentiment in title/description"
-            : isOfficialYouTubeLead
-              ? "Official YouTube API · named-entity monitoring lead"
-              : isRedditEntityLead
-                ? "Indexed Reddit discussion · exact named-entity match"
-                : "Named-entity match";
+      const detectionReason = riskEvidenced
+        ? `${verdict.label} · ${verdict.evidence.reason} (source: ${verdict.evidence.evidenceSource.replace(/_/g, " ")}, confidence ${Math.round(verdict.evidence.confidence * 100)}%)`
+        : verdict.evidence.reason;
+
 
       const hit: ScanHit = {
         id: `hit-${idx}`,
@@ -2783,7 +2873,11 @@ function buildReport(
         discoveredAt: now,
         lastChecked: now,
         category: c.category,
-        contentLabel: labelOf(c.category, sent, source || run.source),
+        contentLabel: riskEvidenced
+          ? labelOf(c.category, sent, source || run.source)
+          : verdict.tier === "TIER_2_NEEDS_REVIEW"
+            ? "Needs human review"
+            : "Neutral mention",
         severity: c.sev,
         sentiment: sent,
         confidence: Math.min(97, 52 + Math.round(c.score / 3.5)),
@@ -2791,16 +2885,16 @@ function buildReport(
         credibilityScore: cred,
         viralityScore: virality,
         copyrightRisk: c.copyrightEnforce,
-        reputationRisk: Math.max(
-          redditRisk?.score ?? 0,
-          Math.min(100, c.reputation + (sent === "Negative" ? 8 : 0)),
-        ),
+        reputationRisk: riskEvidenced
+          ? Math.min(100, Math.max(redditRisk?.score ?? 0, c.reputation))
+          : verdict.reputationRisk,
         reachEstimate: reach,
         engagement,
-        recommendedAction:
-          contentPosition === "SUPPORTIVE" || onlyContextSignals
-            ? "Preserve and review; no apparent violation from title or metadata alone"
-            : "Preserve and conduct human review before selecting any platform or legal action",
+        recommendedAction: riskEvidenced
+          ? "Preserve evidence and conduct human review before selecting any platform or legal action"
+          : verdict.tier === "TIER_2_NEEDS_REVIEW"
+            ? "Retrieve full content and review manually; metadata alone is not sufficient evidence"
+            : "No action indicated; retained for coverage and search",
         keywords: redditRisk?.categories.length
           ? Array.from(new Set([...redditRisk.categories, ...c.keywords]))
           : c.keywords,
@@ -2811,12 +2905,18 @@ function buildReport(
         freshnessWindow: freshnessWindowOf(ageDays),
         legalTakedownPotential: c.legalTakedown,
         copyrightEnforcementPotential: c.copyrightEnforce,
-        whyItMatters: whyItMattersFor(c.category, c.sev, sent),
+        whyItMatters: riskEvidenced ? whyItMattersFor(c.category, c.sev, sent) : undefined,
         contentPosition,
+        classificationTier: verdict.tier,
+        riskClassification: verdict.classification,
+        contentType: verdict.contentType,
+        evidenceLevel: verdict.evidenceLevel,
+        riskEvidence: verdict.evidence,
         identityTier: identity.tier,
         identityConfidence: identity.confidence,
         identityReason: identity.reason,
         reviewStatus: needsReview ? "NEEDS_REVIEW" : "VERIFIED",
+
         searchQueryUsed: o.queryUsed,
         pageExcerpt: pageText ? pageText.slice(0, 600) : undefined,
         metricsAvailable: {

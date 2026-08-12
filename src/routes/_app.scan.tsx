@@ -35,14 +35,14 @@ import { DiscoveryHealthPanel } from "@/components/scan/DiscoveryHealthPanel";
 
 import { DetailDrawer } from "@/components/scan/DetailDrawer";
 import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
-import {
-  canonicalCategoryFor,
-  generateThreatExplanation,
-} from "@/lib/reputation/ranking.server";
+import { canonicalCategoryFor } from "@/lib/reputation/ranking.server";
+
 import {
   splitForPresentation,
   safeRiskLabel,
+  riskHeadlineLabel,
 } from "@/lib/reputation/presentation-filter";
+
 import { listEvidenceStatus, hideScanHit } from "@/lib/scan-actions.functions";
 import {
   Radar,
@@ -2325,30 +2325,59 @@ function ResultCard({
           <span className="font-semibold text-foreground">Recommended:</span> {h.recommendedAction}
         </div>
 
-        {/* Why this is dangerous explanation box for critical/high threats */}
-        {(h.severity === "Critical" || h.severity === "High") && (
+        {/*
+          Risk explanation — shown ONLY when subject-directed risk evidence was
+          actually extracted from retrieved material. Keyword matches alone
+          never render this panel.
+        */}
+        {h.riskEvidence?.riskEvidenceFound && (
           <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs space-y-1.5 text-left">
             <div className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-1.5">
-              <AlertTriangle className="size-3.5" /> Why this is dangerous
+              <AlertTriangle className="size-3.5" /> Why this is flagged
             </div>
-            {(() => {
-              const exp = generateThreatExplanation(h);
-              return (
-                <>
-                  <div className="text-muted-foreground font-medium">{exp.reason}</div>
-                  <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
-                    {exp.points.map((p, idx) => (
-                      <li key={idx}>{p}</li>
-                    ))}
-                  </ul>
-                  <div className="text-[11px] font-semibold text-red-600 dark:text-red-400 pt-0.5">
-                    Impact: {exp.impact}
-                  </div>
-                </>
-              );
-            })()}
+            <div>
+              <span className="text-muted-foreground">Risk signal: </span>
+              <span className="font-medium">
+                {h.classificationTier === "TIER_4_HIGH_RISK"
+                  ? "High risk — "
+                  : "Potential reputation risk — "}
+                {riskHeadlineLabel(h)}
+                {h.riskEvidence.riskCategory
+                  ? ` (${h.riskEvidence.riskCategory.replace(/_/g, " ").toLowerCase()})`
+                  : ""}
+              </span>
+            </div>
+            {h.riskEvidence.evidenceText && (
+              <div>
+                <span className="text-muted-foreground">Evidence: </span>
+                <span className="italic">“{h.riskEvidence.evidenceText}”</span>
+              </div>
+            )}
+            <div className="text-muted-foreground">{h.riskEvidence.reason}</div>
+            <div className="grid grid-cols-2 gap-x-3 text-[11px] text-muted-foreground">
+              <span>Subject confidence: {h.identityConfidence ?? h.confidence}%</span>
+              <span>Risk confidence: {Math.round(h.riskEvidence.confidence * 100)}%</span>
+              <span>Source: {h.riskEvidence.evidenceSource.replace(/_/g, " ")}</span>
+              <span>Evidence level: {(h.evidenceLevel ?? "METADATA_ONLY").toLowerCase()}</span>
+            </div>
+            {h.whyItMatters && (
+              <div className="text-[11px] font-semibold text-red-600 dark:text-red-400 pt-0.5">
+                Potential impact: {h.whyItMatters}
+              </div>
+            )}
           </div>
         )}
+
+        {/* Neutral / entertainment classification note (no risk claim made). */}
+        {!h.riskEvidence?.riskEvidenceFound && h.riskEvidence && (
+          <div className="rounded-xl border border-dashed border-border bg-muted/30 p-3 text-[11px] text-muted-foreground text-left">
+            <span className="font-semibold text-foreground">
+              {h.classificationTier === "TIER_2_NEEDS_REVIEW" ? "Needs Review" : "Neutral mention"}:{" "}
+            </span>
+            {h.riskEvidence.reason}
+          </div>
+        )}
+
 
         {isYouTube && h.media?.videoId && (
           <div className="flex items-center justify-between gap-2 -mt-1">

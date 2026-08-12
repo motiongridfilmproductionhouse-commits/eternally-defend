@@ -98,6 +98,23 @@ export function isMediumOrHigherRisk(hit: ScanHit): boolean {
  * - ALL_MENTIONS:    neutral / official / general mentions (never deleted)
  */
 export function presentationTabFor(hit: ScanHit): PresentationTab {
+  /*
+   * EVIDENCE-GATED ROUTING takes precedence. When the classifier ran, the tab
+   * follows the tier — never keyword text. Keyword heuristics below remain only
+   * for legacy findings persisted before the evidence gate existed.
+   */
+  if (hit.classificationTier) {
+    switch (hit.classificationTier) {
+      case "TIER_3_REPUTATION_RISK":
+      case "TIER_4_HIGH_RISK":
+        return hit.riskEvidence?.riskEvidenceFound ? "REPUTATION_RISK" : "NEEDS_REVIEW";
+      case "TIER_2_NEEDS_REVIEW":
+        return "NEEDS_REVIEW";
+      default:
+        return "ALL_MENTIONS";
+    }
+  }
+
   const flaggedForReview =
     hit.contentLabel === "Needs human review" ||
     hit.reviewStatus === "NEEDS_REVIEW" ||
@@ -115,6 +132,7 @@ export function presentationTabFor(hit: ScanHit): PresentationTab {
   if (flaggedForReview && hit.confidence >= 50) return "NEEDS_REVIEW";
   return "ALL_MENTIONS";
 }
+
 
 export interface PresentationBuckets {
   reputationRisk: ScanHit[];
