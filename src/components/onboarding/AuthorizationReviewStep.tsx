@@ -20,6 +20,7 @@ import {
   getAuthorizationBundle,
   generateDraftPdf,
   getSignedDocUrl,
+  getDocBase64,
 } from "@/lib/onboarding/authorization.functions";
 
 export function AuthorizationReviewStep({
