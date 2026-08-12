@@ -557,7 +557,7 @@ export const finalizeSignature = createServerFn({ method: "POST" })
 
 export const getSignedDocUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { doc_id: string }) => d)
+  .inputValidator((d: { doc_id: string; disposition?: "inline" | "attachment" }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: doc } = await supabase
@@ -568,5 +568,12 @@ export const getSignedDocUrl = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!doc) throw new Error("Not found");
     const { getSignedGetUrl } = await import("@/lib/aws/s3.server");
-    return { url: await getSignedGetUrl(doc.s3_key, 300) };
+    return {
+      url: await getSignedGetUrl(doc.s3_key, 300, {
+        // Inline lets the letter render inside the onboarding step instead of downloading.
+        disposition: data.disposition === "attachment" ? "attachment" : "inline",
+        filename: "Eterna_Authorization_Letter.pdf",
+        contentType: "application/pdf",
+      }),
+    };
   });

@@ -23,10 +23,26 @@ export async function putObject(opts: {
   return { bucket, key: opts.key };
 }
 
-export async function getSignedGetUrl(key: string, expiresInSeconds = 300) {
-  return getSignedUrl(getS3(), new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
-    expiresIn: expiresInSeconds,
-  });
+export async function getSignedGetUrl(
+  key: string,
+  expiresInSeconds = 300,
+  opts?: { disposition?: "inline" | "attachment"; filename?: string; contentType?: string },
+) {
+  const disposition = opts?.disposition
+    ? opts.filename
+      ? `${opts.disposition}; filename="${opts.filename}"`
+      : opts.disposition
+    : undefined;
+  return getSignedUrl(
+    getS3(),
+    new GetObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+      ResponseContentDisposition: disposition,
+      ResponseContentType: opts?.contentType,
+    }),
+    { expiresIn: expiresInSeconds },
+  );
 }
 
 export async function getSignedPutUrl(key: string, contentType: string, expiresInSeconds = 300) {

@@ -67,7 +67,7 @@ export function AuthorizationReviewStep({
   const handleDownloadPdf = async (docId: string) => {
     setLoadingUrl(docId);
     try {
-      const { url } = await fetchUrl({ data: { doc_id: docId } });
+      const { url } = await fetchUrl({ data: { doc_id: docId, disposition: "attachment" } });
       const a = document.createElement("a");
       a.href = url;
       a.download = "Eterna_Authorization_Letter.pdf";
@@ -89,7 +89,7 @@ export function AuthorizationReviewStep({
     }
     setLoadingUrl(docId);
     try {
-      const { url } = await fetchUrl({ data: { doc_id: docId } });
+      const { url } = await fetchUrl({ data: { doc_id: docId, disposition: "inline" } });
       setPreviewUrl(url);
     } catch {
       toast.error("Failed to load the authorization letter");
