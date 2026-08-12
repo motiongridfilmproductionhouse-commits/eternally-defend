@@ -26,12 +26,22 @@ export async function ensureCollection(userId: string): Promise<string> {
   }
 }
 
+export interface FaceLandmark {
+  type: string;
+  x: number;
+  y: number;
+}
+
 export interface IndexedFace {
   faceId: string;
   imageId?: string;
   confidence?: number;
   boundingBox?: unknown;
   externalImageId?: string;
+  /** Real AWS Rekognition FaceDetail.Landmarks (normalized 0..1 image coords). */
+  landmarks?: FaceLandmark[];
+  quality?: { sharpness?: number; brightness?: number };
+  pose?: { yaw?: number; pitch?: number; roll?: number };
 }
 
 export async function indexFace(opts: {
