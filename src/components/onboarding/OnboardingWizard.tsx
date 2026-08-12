@@ -240,7 +240,7 @@ function LegacyOnboardingWizard({
         </div>
 
         <div className="relative z-10 text-xs text-white/50 pt-4 border-t border-white/10">
-          Step {step} of {STEP_TITLES.length} · Enterprise Security
+          Step {visiblePosition} of {visibleSteps.length} · Enterprise Security
         </div>
       </aside>
 
@@ -249,7 +249,7 @@ function LegacyOnboardingWizard({
           <div className="w-full max-w-2xl mx-auto">
             <div className="mb-8">
               <div className="text-[11px] font-semibold tracking-[0.24em] text-blue-400 mb-2">
-                STEP {step} / {STEP_TITLES.length}
+                STEP {visiblePosition} / {visibleSteps.length}
               </div>
               <h2 className="font-display text-3xl font-bold">{STEP_TITLES[stepIndex]}</h2>
             </div>
@@ -259,10 +259,10 @@ function LegacyOnboardingWizard({
                 <Step1Profile
                   profile={profile}
                   onRefetch={refetchProfile}
-                  onNext={() => advanceStep(2)}
+                  onNext={() => advanceStep(skipsKyc ? 3 : 2)}
                 />
               )}
-              {step === 2 && (
+              {step === 2 && !skipsKyc && (
                 <Step2Kyc
                   kyc={kyc}
                   profile={profile}
