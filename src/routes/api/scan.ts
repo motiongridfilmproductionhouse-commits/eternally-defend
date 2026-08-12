@@ -4261,6 +4261,12 @@ export const Route = createFileRoute("/api/scan")({
                 newDomains: pass1.new_domains,
                 newNarratives: pass1.new_narratives,
               });
+              /* DEMO_SAFE_MODE: pass 2 only when pass-1 coverage is weak. */
+              const demoBlocksPass2 = !demoAllowsSecondPass({
+                coverageAssessment: aiDiag.coverage_assessment,
+                newUrlsFromPass1: pass1.new_unique_urls,
+                uniqueDomains: domainSet.size,
+              });
               if (pass1.status === "FAILED") {
                 aiDiag.ai_passes.push({
                   ...pass1,
@@ -4269,13 +4275,15 @@ export const Route = createFileRoute("/api/scan")({
                   skip_reason: "pass 1 failed",
                   queries: [],
                 });
-              } else if (strong || exhausted) {
+              } else if (strong || exhausted || demoBlocksPass2) {
                 aiDiag.ai_passes.push({
                   pass: 2,
                   status: "SKIPPED",
                   skip_reason: strong
                     ? "pass 1 already achieved strong coverage"
-                    : "marginal information gain too low after pass 1",
+                    : exhausted
+                      ? "marginal information gain too low after pass 1"
+                      : "DEMO_SAFE_MODE: pass 1 coverage sufficient",
                   queries_generated: 0,
                   queries_deduplicated: 0,
                   queries_executed: 0,
