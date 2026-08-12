@@ -27,8 +27,15 @@ import {
   Archive,
   Lock,
   Copyright,
+  Megaphone,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
+import { useVerificationStatus } from "@/hooks/use-verification-status";
+import {
+  CELEBRITY_NAV_LABELS,
+  visibleNavRoutes,
+  workspaceModeFor,
+} from "@/lib/workspace/workspace-nav";
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/integrations/supabase/client";
 import { useSidebarLayout } from "@/lib/layout-context";
@@ -59,6 +66,7 @@ const mainNav: NavItem[] = [
   { icon: Lock, label: "Intimate Image & Deepfake Protection", to: "/sensitive-protection" },
   { icon: ScanFace, label: "Deepfake Intel", to: "/deepfake-intel", badge: "AI" },
   { icon: Copyright, label: "Copyright Intelligence", to: "/copyright-intel", badge: "NEW" },
+  { icon: Megaphone, label: "Campaign Protection", to: "/campaigns" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
   { icon: Briefcase, label: "Cases", to: "/cases" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
@@ -84,6 +92,21 @@ export function Sidebar() {
   const { session } = useSession();
   const navigate = useNavigate();
   const { collapsed, toggleCollapsed } = useSidebarLayout();
+  const { accountType } = useVerificationStatus();
+
+  // Client-type based visibility: modules stay in the codebase and remain
+  // reachable by URL — simplified workspaces only hide them from navigation.
+  const workspaceMode = workspaceModeFor(accountType);
+  const allowed = visibleNavRoutes(workspaceMode);
+  const navItems: NavItem[] = allowed
+    ? allowed.reduce<NavItem[]>((acc, route) => {
+        if (route === "/settings") return acc;
+        const item = mainNav.find((n) => n.to === route);
+        if (item) acc.push({ ...item, label: CELEBRITY_NAV_LABELS[route] ?? item.label });
+        return acc;
+      }, [])
+    : mainNav;
+
 
   const user = session?.user;
   const meta = (user?.user_metadata ?? {}) as {
@@ -140,9 +163,9 @@ export function Sidebar() {
           </button>
         </div>
 
-        <NavGroup items={mainNav} pathname={pathname} collapsed={collapsed} />
+        <NavGroup items={navItems} pathname={pathname} collapsed={collapsed} />
 
-        {isAdmin && (
+        {isAdmin && workspaceMode === "enterprise" && (
           <>
             {!collapsed && <SectionLabel>ADMIN · SYSTEM</SectionLabel>}
             <NavGroup items={adminSystemNav} pathname={pathname} collapsed={collapsed} />

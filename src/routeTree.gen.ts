@@ -37,6 +37,7 @@ import { Route as AppDeepfakeIntelRouteImport } from './routes/_app.deepfake-int
 import { Route as AppCopyrightIntelRouteImport } from './routes/_app.copyright-intel'
 import { Route as AppChannelWatchRouteImport } from './routes/_app.channel-watch'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
+import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 import { Route as PartnerPartnerIndexRouteImport } from './routes/_partner.partner.index'
 import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
@@ -206,6 +207,11 @@ const AppChannelWatchRoute = AppChannelWatchRouteImport.update({
 const AppCasesRoute = AppCasesRouteImport.update({
   id: '/cases',
   path: '/cases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCampaignsRoute = AppCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAssetsRoute = AppAssetsRouteImport.update({
@@ -393,6 +399,7 @@ export interface FileRoutesByFullPath {
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
+  '/campaigns': typeof AppCampaignsRoute
   '/cases': typeof AppCasesRoute
   '/channel-watch': typeof AppChannelWatchRoute
   '/copyright-intel': typeof AppCopyrightIntelRoute
@@ -452,6 +459,7 @@ export interface FileRoutesByTo {
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/assets': typeof AppAssetsRoute
+  '/campaigns': typeof AppCampaignsRoute
   '/cases': typeof AppCasesRoute
   '/channel-watch': typeof AppChannelWatchRoute
   '/copyright-intel': typeof AppCopyrightIntelRoute
@@ -512,6 +520,7 @@ export interface FileRoutesById {
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/_app/assets': typeof AppAssetsRoute
+  '/_app/campaigns': typeof AppCampaignsRoute
   '/_app/cases': typeof AppCasesRoute
   '/_app/channel-watch': typeof AppChannelWatchRoute
   '/_app/copyright-intel': typeof AppCopyrightIntelRoute
@@ -574,6 +583,7 @@ export interface FileRouteTypes {
     | '/partner-status'
     | '/privacy'
     | '/assets'
+    | '/campaigns'
     | '/cases'
     | '/channel-watch'
     | '/copyright-intel'
@@ -633,6 +643,7 @@ export interface FileRouteTypes {
     | '/partner-status'
     | '/privacy'
     | '/assets'
+    | '/campaigns'
     | '/cases'
     | '/channel-watch'
     | '/copyright-intel'
@@ -692,6 +703,7 @@ export interface FileRouteTypes {
     | '/partner-status'
     | '/privacy'
     | '/_app/assets'
+    | '/_app/campaigns'
     | '/_app/cases'
     | '/_app/channel-watch'
     | '/_app/copyright-intel'
@@ -969,6 +981,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCasesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/campaigns': {
+      id: '/_app/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof AppCampaignsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets': {
       id: '/_app/assets'
       path: '/assets'
@@ -1191,6 +1210,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAssetsRoute: typeof AppAssetsRoute
+  AppCampaignsRoute: typeof AppCampaignsRoute
   AppCasesRoute: typeof AppCasesRoute
   AppChannelWatchRoute: typeof AppChannelWatchRoute
   AppCopyrightIntelRoute: typeof AppCopyrightIntelRoute
@@ -1223,6 +1243,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAssetsRoute: AppAssetsRoute,
+  AppCampaignsRoute: AppCampaignsRoute,
   AppCasesRoute: AppCasesRoute,
   AppChannelWatchRoute: AppChannelWatchRoute,
   AppCopyrightIntelRoute: AppCopyrightIntelRoute,
