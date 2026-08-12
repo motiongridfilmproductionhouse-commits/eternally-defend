@@ -170,17 +170,27 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
         <CardContent className="p-8 space-y-6">
           <div className="flex flex-col items-center justify-center text-center space-y-4 pt-4">
             <div className="size-16 bg-emerald-500/20 rounded-full flex items-center justify-center border border-emerald-500/30">
-              <ShieldCheck className="size-8 text-emerald-400" />
+              <BadgeCheck className="size-8 text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-emerald-400">Authorization Signed</h2>
+              <h2 className="text-2xl font-bold text-emerald-400">Digitally Signed</h2>
               <p className="text-white/60 mt-1">
-                Your authorization document is sealed and legally binding.
+                This authorization was executed electronically and is sealed for audit.
               </p>
             </div>
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-sm space-y-3">
+            <div className="flex justify-between border-b border-white/10 pb-2">
+              <span className="text-white/50">Signed By</span>
+              <span className="text-white">{signatureRec.typed_name || legalName}</span>
+            </div>
+            {displayName && (
+              <div className="flex justify-between border-b border-white/10 pb-2">
+                <span className="text-white/50">Professional Name</span>
+                <span className="text-white">{displayName}</span>
+              </div>
+            )}
             <div className="flex justify-between border-b border-white/10 pb-2">
               <span className="text-white/50">Authorization ID</span>
               <span className="font-mono text-white">{auth.auth_number}</span>
@@ -190,7 +200,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               <span className="text-white">v{auth.version}</span>
             </div>
             <div className="flex justify-between border-b border-white/10 pb-2">
-              <span className="text-white/50">Signed Date</span>
+              <span className="text-white/50">Signed Timestamp</span>
               <span className="text-white">
                 {signatureRec.signed_at
                   ? new Date(signatureRec.signed_at).toLocaleString()
@@ -220,8 +230,9 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               ) : (
                 <Download className="size-4 mr-2" />
               )}
-              Download
+              Download Signed PDF
             </Button>
+
             <Button
               onClick={() => handleViewPdf(signedDoc.id, false)}
               disabled={loadingUrl === signedDoc.id}
