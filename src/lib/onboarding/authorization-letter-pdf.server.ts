@@ -333,6 +333,7 @@ export async function renderAuthorizationLetterPdf(
 
   // ---- Signatures -------------------------------------------------------
   ensure(180);
+  ensure(300); // keep both signature blocks together on one page
   sectionHeading(`${8 + n}. Execution`);
 
   const signatureBlock = (
