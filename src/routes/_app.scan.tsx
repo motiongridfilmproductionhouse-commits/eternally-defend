@@ -40,6 +40,10 @@ import {
   canonicalCategoryFor,
   generateThreatExplanation,
 } from "@/lib/reputation/ranking.server";
+import {
+  splitForPresentation,
+  safeRiskLabel,
+} from "@/lib/reputation/presentation-filter";
 import { listEvidenceStatus, hideScanHit } from "@/lib/scan-actions.functions";
 import {
   Radar,
