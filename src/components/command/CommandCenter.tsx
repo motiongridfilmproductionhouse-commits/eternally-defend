@@ -129,6 +129,11 @@ export function CommandCenter() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <HudSweepRadar d={d} />
+        <DirectionalRadar d={d} />
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
         <div className="xl:col-span-5">
           <LiveScannerPanel d={d} />
