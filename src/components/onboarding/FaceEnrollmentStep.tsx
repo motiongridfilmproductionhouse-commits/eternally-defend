@@ -371,7 +371,7 @@ export function FaceEnrollmentStep({
                   variant="outline"
                   onClick={handleDefer}
                   disabled={busy}
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
                 >
                   <Clock className="size-4 mr-1" /> Do It Later
                 </Button>
@@ -619,7 +619,7 @@ export function FaceEnrollmentStep({
                 variant="outline"
                 onClick={handleDefer}
                 disabled={busy}
-                className="border-white/20 text-white hover:bg-white/10"
+                className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
               >
                 <Clock className="size-4 mr-1" /> Do It Later
               </Button>
