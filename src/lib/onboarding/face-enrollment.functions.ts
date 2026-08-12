@@ -357,6 +357,31 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
       referenceImage = `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}`;
 
 
+      // Reusable protected reference: registering the collection is what makes
+      // the enrolled face available to automatic monitoring and manual scans.
+      const { error: collectionError } = await supabase
+        .from("rekognition_collections")
+        .upsert(
+          { user_id: userId, collection_id: collectionId, status: "active" },
+          { onConflict: "user_id" },
+        );
+      if (collectionError) throw collectionError;
+
+      const { data: clientProfile } = await supabase
+        .from("client_profiles")
+        .select("display_name,full_name")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const referenceLabel =
+        clientProfile?.display_name?.trim() ||
+        clientProfile?.full_name?.trim() ||
+        "Verified liveness reference";
+      const verifiedAt = new Date().toISOString();
+
+      const { buildEnrollmentFaceRow } = await import(
+        "@/lib/face-protection/protected-face-registry"
+      );
+
       for (const f of faces) {
         const { data: existing, error: lookupError } = await supabase
           .from("protected_faces")
@@ -366,22 +391,44 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
           .maybeSingle();
         if (lookupError) throw lookupError;
 
-        if (!existing) {
-          const { error: insertError } = await supabase.from("protected_faces").insert({
-            user_id: userId,
-            collection_id: collectionId,
-            platform: "onboarding",
-            label: "Verified liveness reference",
-            s3_bucket: stored.bucket,
-            s3_key: stored.key,
-            face_id: f.faceId,
-            image_id: f.imageId ?? null,
-            external_image_id: f.externalImageId ?? null,
-            confidence: f.confidence ?? null,
-            bounding_box: (f.boundingBox ?? null) as never,
-          });
+        const row = buildEnrollmentFaceRow({
+          userId,
+          collectionId,
+          faceId: f.faceId,
+          imageId: f.imageId ?? null,
+          externalImageId: f.externalImageId ?? null,
+          confidence: f.confidence ?? null,
+          boundingBox: f.boundingBox ?? null,
+          s3Bucket: stored.bucket,
+          s3Key: stored.key,
+          label: referenceLabel,
+          verifiedAt,
+        });
+
+        if (existing) {
+          // Re-enrollment refreshes the same reference instead of duplicating it.
+          const { error: updateError } = await supabase
+            .from("protected_faces")
+            .update({
+              status: row.status,
+              last_verified_at: row.last_verified_at,
+              s3_bucket: row.s3_bucket,
+              s3_key: row.s3_key,
+              confidence: row.confidence,
+              bounding_box: row.bounding_box as never,
+              label: row.label,
+              source: row.source,
+            })
+            .eq("id", existing.id)
+            .eq("user_id", userId);
+          if (updateError) throw updateError;
+        } else {
+          const { error: insertError } = await supabase
+            .from("protected_faces")
+            .insert(row as never);
           if (insertError) throw insertError;
         }
+
 
         savedFaceIds.push(f.faceId);
       }
