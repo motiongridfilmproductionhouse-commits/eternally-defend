@@ -46,7 +46,8 @@ export function useCameraPreview() {
   });
 
   const stop = useCallback(() => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    const tracks = streamRef.current?.getTracks() ?? [];
+    tracks.forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setState("idle");
