@@ -54,8 +54,11 @@ function applySecurityHeaders(response: Response): Response {
   headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
   headers.set(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss://*.amazonaws.com; frame-ancestors 'none';",
+    // frame-src/object-src must allow blob: so generated PDFs (authorization letter)
+    // can render inline from a same-origin blob URL.
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss://*.amazonaws.com; frame-src 'self' blob:; object-src 'self' blob:; frame-ancestors 'none';",
   );
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
