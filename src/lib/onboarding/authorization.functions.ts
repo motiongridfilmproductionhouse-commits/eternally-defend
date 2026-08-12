@@ -494,25 +494,39 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       const certBytes = await certDoc.save();
       const certSha = createHash("sha256").update(certBytes).digest("hex");
 
-      // Both PDFs generated successfully — now persist everything.
+      // All PDFs generated successfully — now persist everything.
       const { putObject } = await import("@/lib/aws/s3.server");
       const letterKey = `clients/${userId}/authorization/${auth.auth_number}-v${auth.version}-signed.pdf`;
       const certKey = `clients/${userId}/certificates/${cert_number}.pdf`;
+      const sigCertKey = `clients/${userId}/authorization/${auth.auth_number}-v${auth.version}-signature-certificate.pdf`;
       await Promise.all([
         putObject({ key: letterKey, body: Buffer.from(bytes), contentType: "application/pdf" }),
         putObject({ key: certKey, body: Buffer.from(certBytes), contentType: "application/pdf" }),
+        putObject({
+          key: sigCertKey,
+          body: Buffer.from(sigCertBytes),
+          contentType: "application/pdf",
+        }),
       ]);
 
-      await supabase
-        .from("authorization_documents")
-        .insert({
+      await supabase.from("authorization_documents").insert([
+        {
           authorization_id: auth.id,
           user_id: userId,
           kind: "signed",
           version: auth.version,
           s3_key: letterKey,
           sha256: doc_sha,
-        });
+        },
+        {
+          authorization_id: auth.id,
+          user_id: userId,
+          kind: "signature_certificate",
+          version: auth.version,
+          s3_key: sigCertKey,
+          sha256: sigCertSha,
+        },
+      ]);
 
       // Clean up any stale draft signature rows for this version.
       await supabase
@@ -531,11 +545,19 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         role_title: data.role_title ?? null,
         drawn_signature_svg: null,
         signed_at: signedAt,
-
         document_sha256: doc_sha,
         ip_address: ipAddress,
         user_agent: userAgent,
+        signer_email: signerEmail,
+        client_id: auditRecord.client_id,
+        auth_number: auth.auth_number,
+        signature_method: "typed-name electronic signature",
+        consent_accepted: true,
+        consent_text: CONSENT_TEXT,
+        signature_sha256: signature_sha,
+        device_metadata: deviceMetadata,
       });
+
 
       await supabase
         .from("client_authorizations")
