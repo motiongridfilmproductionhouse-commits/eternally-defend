@@ -429,15 +429,23 @@ export type Database = {
       }
       authorization_signatures: {
         Row: {
+          auth_number: string | null
           authorization_id: string
+          client_id: string | null
+          consent_accepted: boolean
+          consent_text: string | null
           created_at: string
+          device_metadata: Json | null
           document_sha256: string | null
           drawn_signature_svg: string | null
           id: string
           ip_address: string | null
           otp_verified_at: string | null
           role_title: string | null
+          signature_method: string | null
+          signature_sha256: string | null
           signed_at: string | null
+          signer_email: string | null
           status: Database["public"]["Enums"]["signature_status"]
           typed_name: string | null
           user_agent: string | null
@@ -445,15 +453,23 @@ export type Database = {
           version: number
         }
         Insert: {
+          auth_number?: string | null
           authorization_id: string
+          client_id?: string | null
+          consent_accepted?: boolean
+          consent_text?: string | null
           created_at?: string
+          device_metadata?: Json | null
           document_sha256?: string | null
           drawn_signature_svg?: string | null
           id?: string
           ip_address?: string | null
           otp_verified_at?: string | null
           role_title?: string | null
+          signature_method?: string | null
+          signature_sha256?: string | null
           signed_at?: string | null
+          signer_email?: string | null
           status?: Database["public"]["Enums"]["signature_status"]
           typed_name?: string | null
           user_agent?: string | null
@@ -461,15 +477,23 @@ export type Database = {
           version: number
         }
         Update: {
+          auth_number?: string | null
           authorization_id?: string
+          client_id?: string | null
+          consent_accepted?: boolean
+          consent_text?: string | null
           created_at?: string
+          device_metadata?: Json | null
           document_sha256?: string | null
           drawn_signature_svg?: string | null
           id?: string
           ip_address?: string | null
           otp_verified_at?: string | null
           role_title?: string | null
+          signature_method?: string | null
+          signature_sha256?: string | null
           signed_at?: string | null
+          signer_email?: string | null
           status?: Database["public"]["Enums"]["signature_status"]
           typed_name?: string | null
           user_agent?: string | null
