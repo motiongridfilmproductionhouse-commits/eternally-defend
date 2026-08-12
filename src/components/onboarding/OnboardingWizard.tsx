@@ -3,6 +3,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import {
+  buildStep1Payload,
+  isStep1Valid,
+  showsCompanyFields,
+  type Step1Form,
+} from "@/lib/onboarding/step1-profile-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -346,13 +352,14 @@ function Step1Profile({
   }, [profile]);
 
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
-  const isValid = form.legal_name.trim() && form.country.trim() && form.email.trim();
+  const showCompanyFields = showsCompanyFields(form.client_type);
+  const isValid = isStep1Valid(form as Step1Form);
 
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
     try {
-      await saveAction({ data: form as any });
+      await saveAction({ data: buildStep1Payload(form as Step1Form) as any });
       await onRefetch();
       toast.success("Profile saved successfully");
       onNext();
@@ -408,21 +415,25 @@ function Step1Profile({
               placeholder="Optional alias"
             />
           </Field>
-          <Field label="Company Name">
-            <Input
-              className="bg-[#0F172A] border-white/10 text-white"
-              value={form.company_name}
-              onChange={set("company_name")}
-            />
-          </Field>
-          <Field label="Role / Title">
-            <Input
-              className="bg-[#0F172A] border-white/10 text-white"
-              value={form.role_title}
-              onChange={set("role_title")}
-              placeholder="e.g. CEO, Manager"
-            />
-          </Field>
+          {showCompanyFields && (
+            <>
+              <Field label="Company Name">
+                <Input
+                  className="bg-[#0F172A] border-white/10 text-white"
+                  value={form.company_name}
+                  onChange={set("company_name")}
+                />
+              </Field>
+              <Field label="Role / Title">
+                <Input
+                  className="bg-[#0F172A] border-white/10 text-white"
+                  value={form.role_title}
+                  onChange={set("role_title")}
+                  placeholder="e.g. CEO, Manager"
+                />
+              </Field>
+            </>
+          )}
           <Field label="Email" required>
             <Input
               className="bg-[#0F172A] border-white/10 text-white"
