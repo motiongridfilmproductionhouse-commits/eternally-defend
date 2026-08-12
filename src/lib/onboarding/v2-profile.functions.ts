@@ -127,6 +127,8 @@ export const saveV2ClientProfile = createServerFn({ method: "POST" })
     }
 
     const publicProfile = {
+      // Preserve optional official profile links managed elsewhere.
+      ...((profile?.social_profiles ?? {}) as Record<string, unknown>),
       aliases: data.aliases ?? [],
       handles: data.social_handles ?? [],
       photo_url: data.profile_photo_url?.trim() || null,
