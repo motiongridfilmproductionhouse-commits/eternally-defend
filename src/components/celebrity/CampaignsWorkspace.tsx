@@ -322,6 +322,53 @@ export function NewCampaignDialog({ trigger }: { trigger?: React.ReactNode }) {
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="campaign-start">Campaign start</Label>
+              <Input
+                id="campaign-start"
+                type="date"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="campaign-end">Campaign end</Label>
+              <Input
+                id="campaign-end"
+                type="date"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            During this authorized period, approved accounts and media are not treated as threats.
+            After it ends, monitoring continues and new advertising use is flagged for review.
+          </p>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="campaign-accounts">Approved social accounts</Label>
+            <Textarea
+              id="campaign-accounts"
+              rows={2}
+              placeholder={"@officialbrand\nhttps://instagram.com/officialbrand"}
+              value={approvedAccounts}
+              onChange={(e) => setApprovedAccounts(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="campaign-media">Approved media URLs</Label>
+            <Textarea
+              id="campaign-media"
+              rows={2}
+              placeholder={"https://cdn.brand.com/poster.jpg"}
+              value={approvedMedia}
+              onChange={(e) => setApprovedMedia(e.target.value)}
+            />
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="campaign-tags">Campaign hashtags</Label>
             <Input
