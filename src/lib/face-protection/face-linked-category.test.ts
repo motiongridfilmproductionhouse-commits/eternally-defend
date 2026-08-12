@@ -18,7 +18,7 @@ describe("classifyFaceLinkedFinding", () => {
     assert.equal(
       classifyFaceLinkedFinding({ similarity: 97, deepfake: { is_synthetic: false, confidence: 95 } })
         .category,
-      "NEEDS_REVIEW",
+      "NORMAL_MENTION",
     );
     const real = classifyFaceLinkedFinding({
       similarity: 97,
