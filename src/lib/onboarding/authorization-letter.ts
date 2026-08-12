@@ -397,3 +397,66 @@ export const CLIENT_DECLARATIONS = [
   "Final decisions on reported content rest with the relevant platforms and competent authorities.",
   "No specific removal, suspension, de-indexing or legal outcome is guaranteed.",
 ];
+
+/* ------------------------------------------------------------------------- *
+ * Protected likeness & facial reference
+ * ------------------------------------------------------------------------- */
+
+/** True when the account should read as a celebrity / rights holder. */
+export function isCelebrityParty(profile: Record<string, any> | null | undefined): boolean {
+  const raw = String(profile?.client_type ?? profile?.account_type ?? "").toLowerCase();
+  return /celebrit|public[_ -]?figure|artist|rights[_ -]?holder/.test(raw);
+}
+
+/** Heading used for the party details section and the execution block. */
+export function partySectionLabel(profile: Record<string, any> | null | undefined): string {
+  return isCelebrityParty(profile) ? "Celebrity / Rights Holder" : "Client / Rights Holder";
+}
+
+/**
+ * The professional/display name, only when it was actually supplied and is
+ * distinct from the legal name — otherwise the letter omits the row entirely.
+ */
+export function professionalName(
+  profile: Record<string, any> | null | undefined,
+): string | null {
+  const legal = String(profile?.legal_name ?? profile?.full_name ?? "").trim().toLowerCase();
+  const display = String(profile?.display_name ?? profile?.artist_name ?? "").trim();
+  if (!display) return null;
+  if (display.toLowerCase() === legal) return null;
+  return display;
+}
+
+export const FACE_REFERENCE_PROTECTION_TYPE = "Facial Identity & Likeness Protection";
+export const FACE_REFERENCE_ACTIVE_STATUS = "Face Protection Active";
+
+export const FACE_REFERENCE_PURPOSE =
+  "This facial reference is registered solely for the Client's authorized identity, likeness, impersonation, manipulated-media, and deepfake protection services.";
+
+export const FACE_REFERENCE_AUTHORIZATION =
+  "The Client authorizes ETERNA SENTINEL DEFENCE LLC to use the enrolled facial reference for automated and manual comparison against supported public content for the purpose of identifying suspected impersonation, unauthorized likeness use, manipulated imagery, synthetic/deepfake media, and related identity threats.";
+
+/** Client-safe view of the enrolled reference — never technical identifiers. */
+export type FaceReferenceView = {
+  subject: string;
+  protectionType: string;
+  enrollmentStatus: string;
+  enrollmentDate: string;
+  hasImage: boolean;
+};
+
+export function faceReferenceView(
+  profile: Record<string, any> | null | undefined,
+  reference: { enrolled_at?: string | null; image_base64?: string | null } | null | undefined,
+): FaceReferenceView | null {
+  if (!reference) return null;
+  const party = resolveClientParty(profile);
+  const date = String(reference.enrolled_at ?? "").slice(0, 10);
+  return {
+    subject: professionalName(profile) ?? party.legalName,
+    protectionType: FACE_REFERENCE_PROTECTION_TYPE,
+    enrollmentStatus: FACE_REFERENCE_ACTIVE_STATUS,
+    enrollmentDate: date || "Not recorded",
+    hasImage: !!reference.image_base64,
+  };
+}
