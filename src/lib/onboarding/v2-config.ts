@@ -102,6 +102,7 @@ export function clientTypeForV2(accountType: V2AccountType) {
   if (accountType === "celebrity") return "celebrity" as const;
   if (accountType === "individual") return "individual" as const;
   if (accountType === "production_house") return "agency" as const;
+  if (isRepresentativeAccount(accountType)) return "agency" as const;
   return "corporate" as const;
 }
 
