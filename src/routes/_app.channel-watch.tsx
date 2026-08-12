@@ -59,13 +59,13 @@ import { formatDistanceToNow } from "date-fns";
 export const Route = createFileRoute("/_app/channel-watch")({
   head: () => ({
     meta: [
-      { title: "Channel Watch — Persistent Creator Monitoring | Eterna" },
+      { title: "Channel Watch — Persistent Creator Monitoring | Eterna Sentinel" },
       {
         name: "description",
         content:
           "Continuously monitor external YouTube creator channels for content concerning the verified user. Detect, analyze, and route potential violations to human review.",
       },
-      { property: "og:title", content: "Channel Watch — Persistent Creator Monitoring" },
+      { property: "og:title", content: "Channel Watch — Persistent Creator Monitoring | Eterna Sentinel" },
       {
         property: "og:description",
         content:

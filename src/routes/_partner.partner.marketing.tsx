@@ -8,7 +8,7 @@ import { getPartnerDashboard } from "@/lib/partners/dashboard.functions";
 import { Copy, Megaphone } from "lucide-react";
 
 export const Route = createFileRoute("/_partner/partner/marketing")({
-  head: () => ({ meta: [{ title: "Marketing — Eterna Partner" }] }),
+  head: () => ({ meta: [{ title: "Marketing — Eterna Sentinel Partner" }] }),
   component: PartnerMarketingPage,
 });
 

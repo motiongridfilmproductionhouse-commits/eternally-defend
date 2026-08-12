@@ -8,7 +8,7 @@ import { FileText, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/reports")({
-  head: () => ({ meta: [{ title: "Reports — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Reports — Eterna Sentinel" }] }),
   component: ReportsPage,
 });
 

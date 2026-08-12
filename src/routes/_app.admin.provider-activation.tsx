@@ -11,7 +11,7 @@ import { AdminGuard } from "@/components/AdminGuard";
 import { CheckCircle2, XCircle, ShieldAlert, PlayCircle, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/admin/provider-activation")({
-  head: () => ({ meta: [{ title: "Provider Activation — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Provider Activation — Eterna Sentinel" }] }),
   component: () => (
     <AdminGuard>
       <ProviderActivationPage />

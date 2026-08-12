@@ -7,7 +7,7 @@ import { PartnerStat, PartnerStatusPill, fmtInr } from "@/components/partners/pa
 import { IndianRupee } from "lucide-react";
 
 export const Route = createFileRoute("/_partner/partner/commissions")({
-  head: () => ({ meta: [{ title: "Commissions — Eterna Partner" }] }),
+  head: () => ({ meta: [{ title: "Commissions — Eterna Sentinel Partner" }] }),
   component: PartnerCommissionsPage,
 });
 

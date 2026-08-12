@@ -11,7 +11,7 @@ import {
 import { FileText } from "lucide-react";
 
 export const Route = createFileRoute("/_partner/partner/proposals")({
-  head: () => ({ meta: [{ title: "Proposals — Eterna Partner" }] }),
+  head: () => ({ meta: [{ title: "Proposals — Eterna Sentinel Partner" }] }),
   component: PartnerProposalsPage,
 });
 

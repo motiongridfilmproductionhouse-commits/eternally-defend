@@ -17,7 +17,7 @@ import { listScanHits, getThreatTrends } from "@/lib/scans.functions";
 import { cleanTitle, readableFromSlug } from "@/lib/media-utils";
 
 export const Route = createFileRoute("/_app/threat-monitoring")({
-  head: () => ({ meta: [{ title: "Threat Monitoring — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Threat Monitoring — Eterna Sentinel" }] }),
   component: ThreatMonitoringPage,
 });
 

@@ -8,7 +8,7 @@ import { CheckCircle2, ShieldAlert, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_app/admin/diagnostics")({
-  head: () => ({ meta: [{ title: "System Diagnostics — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "System Diagnostics — Eterna Sentinel" }] }),
   component: () => (
     <AdminGuard>
       <DiagnosticsPage />

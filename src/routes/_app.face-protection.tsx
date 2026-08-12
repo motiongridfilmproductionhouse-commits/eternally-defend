@@ -8,7 +8,7 @@ import { ProtectedFacesPanel } from "@/components/face-protection/ProtectedFaces
 import { ShieldCheck, ExternalLink, Loader2, ScanFace } from "lucide-react";
 
 export const Route = createFileRoute("/_app/face-protection")({
-  head: () => ({ meta: [{ title: "Face Protection · Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Face Protection · Eterna Sentinel" }] }),
   component: FaceProtection,
 });
 

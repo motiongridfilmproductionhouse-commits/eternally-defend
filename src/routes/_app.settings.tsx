@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { SocialProfilesPanel } from "@/components/onboarding/SocialProfilesPanel";
 
 export const Route = createFileRoute("/_app/settings")({
-  head: () => ({ meta: [{ title: "Settings — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Settings — Eterna Sentinel" }] }),
   component: SettingsPage,
 });
 
