@@ -231,12 +231,20 @@ export function FaceEnrollmentStep({
       setMilestone("liveness_capturing");
       await onRefetch();
     } catch (e: any) {
+      const msg = String(e?.message ?? "");
+      if (/consent required|CONSENT_REQUIRED/i.test(msg)) {
+        setMilestone("idle");
+        setLivenessData(null);
+        toast.error("Please accept the biometric consent to continue.");
+        await onRefetch();
+        return;
+      }
       const isTech = /temporarily unavailable|permissions|credential|region|expired|throttl/i.test(
-        String(e?.message),
+        msg,
       );
-      if (isTech) setTechnicalError(e.message);
+      if (isTech) setTechnicalError(msg);
       setMilestone("failed");
-      toast.error(e?.message ?? "Failed to start liveness session");
+      toast.error(msg || "Failed to start liveness session");
     } finally {
       setBusy(false);
       setProcessingText("");
