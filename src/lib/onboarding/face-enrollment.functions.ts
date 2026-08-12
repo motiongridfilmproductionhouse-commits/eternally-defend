@@ -304,7 +304,27 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
     }
 
     const collectionId = await ensureCollection(userId);
-    const ref = res.ReferenceImage?.Bytes;
+    // With OutputConfig set, AWS returns the reference/audit images as S3 objects
+    // instead of inline bytes, so resolve either shape.
+    const { getObjectBytes } = await import("@/lib/aws/s3.server");
+    const candidates = [res.ReferenceImage, ...(res.AuditImages ?? [])].filter(Boolean) as Array<{
+      Bytes?: Uint8Array;
+      S3Object?: { Bucket?: string; Name?: string };
+    }>;
+    let ref: Uint8Array | undefined;
+    for (const c of candidates) {
+      if (c.Bytes && c.Bytes.length > 0) {
+        ref = c.Bytes;
+        break;
+      }
+      if (c.S3Object?.Name) {
+        const bytes = await getObjectBytes(c.S3Object.Name, c.S3Object.Bucket);
+        if (bytes && bytes.length > 0) {
+          ref = bytes;
+          break;
+        }
+      }
+    }
     const savedFaceIds: string[] = [];
     let landmarks: { type: string; x: number; y: number }[] = [];
     let boundingBox: { Width?: number; Height?: number; Left?: number; Top?: number } | null = null;
