@@ -35,11 +35,6 @@ export function showsCompanyFields(clientType: string | null | undefined): boole
   return COMPANY_FIELD_CLIENT_TYPES.has(clientType);
 }
 
-/** Whether Company Name is a required field for this client type. */
-export function requiresCompanyName(clientType: string | null | undefined): boolean {
-  return clientType === "business" || clientType === "corporate" || clientType === "agency";
-}
-
 export type Step1Form = {
   legal_name: string;
   display_name: string;
@@ -64,7 +59,5 @@ export function buildStep1Payload(form: Step1Form): Step1Form {
 
 /** Validation depends only on visible, required fields. */
 export function isStep1Valid(form: Step1Form): boolean {
-  if (!form.legal_name.trim() || !form.country.trim() || !form.email.trim()) return false;
-  if (requiresCompanyName(form.client_type) && !form.company_name.trim()) return false;
-  return true;
+  return Boolean(form.legal_name.trim() && form.country.trim() && form.email.trim());
 }
