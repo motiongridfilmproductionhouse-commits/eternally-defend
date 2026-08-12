@@ -293,7 +293,7 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
     const ref = res.ReferenceImage?.Bytes;
     const savedFaceIds: string[] = [];
     let landmarks: { type: string; x: number; y: number }[] = [];
-    let boundingBox: unknown = null;
+    let boundingBox: { Width?: number; Height?: number; Left?: number; Top?: number } | null = null;
     let quality: { sharpness?: number; brightness?: number } | null = null;
     let referenceImage: string | null = null;
     try {
@@ -318,7 +318,7 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
 
       // Real AWS-provided signals used by the enrollment visualization.
       landmarks = faces[0].landmarks ?? [];
-      boundingBox = faces[0].boundingBox ?? null;
+      boundingBox = (faces[0].boundingBox ?? null) as typeof boundingBox;
       quality = faces[0].quality ?? null;
       referenceImage = `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}`;
 
