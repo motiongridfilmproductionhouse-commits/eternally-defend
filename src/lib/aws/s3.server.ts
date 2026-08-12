@@ -37,6 +37,19 @@ export async function getSignedPutUrl(key: string, contentType: string, expiresI
   );
 }
 
+export async function getObjectBytes(key: string, bucket?: string): Promise<Uint8Array | null> {
+  try {
+    const out = await getS3().send(
+      new GetObjectCommand({ Bucket: bucket ?? getBucket(), Key: key }),
+    );
+    const body = out.Body as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
+    if (!body?.transformToByteArray) return null;
+    return await body.transformToByteArray();
+  } catch {
+    return null;
+  }
+}
+
 export async function headObject(key: string) {
   try {
     return await getS3().send(new HeadObjectCommand({ Bucket: getBucket(), Key: key }));
