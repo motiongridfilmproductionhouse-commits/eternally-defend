@@ -103,9 +103,9 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       });
 
       if (res?.duplicate) {
-        toast.success("Authorization already digitally signed.");
+        toast.success("Authorization already electronically signed.");
       } else {
-        toast.success("Authorization digitally signed.");
+        toast.success("Authorization electronically signed.");
       }
       await Promise.all([
         refetch(),
@@ -190,7 +190,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
             <div>
               <h2 className="text-2xl font-bold text-emerald-400">Digitally Signed</h2>
               <p className="text-white/60 mt-1">
-                This authorization was executed electronically and is sealed for audit.
+                This authorization was executed with an electronic signature. This version is frozen and sealed for audit.
               </p>
             </div>
           </div>
@@ -222,8 +222,14 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
                   : "Unknown"}
               </span>
             </div>
+            <div className="flex justify-between border-b border-white/10 pb-2">
+              <span className="text-white/50">Signature Method</span>
+              <span className="text-white">
+                {signatureRec.signature_method || "typed-name electronic signature"}
+              </span>
+            </div>
             <div className="flex justify-between">
-              <span className="text-white/50">Document Hash</span>
+              <span className="text-white/50">Document Hash (SHA-256)</span>
               <span
                 className="font-mono text-xs text-white/80 max-w-[200px] truncate"
                 title={signedDoc.sha256 ?? undefined}
@@ -304,7 +310,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
         <CardDescription className="text-white/60">
           Execute the Authorization Letter digitally. No printing, handwriting or scanning is
           required — your typed legal name, timestamp and document version are recorded as your
-          digital signature.
+          electronic signature.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -346,7 +352,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
           </div>
           <div className="flex justify-between">
             <span>Signature Method</span>
-            <span className="text-white/80">Digital signature (typed name)</span>
+            <span className="text-white/80">Electronic signature (typed name)</span>
           </div>
         </div>
 
