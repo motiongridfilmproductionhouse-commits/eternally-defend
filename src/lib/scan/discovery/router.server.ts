@@ -15,6 +15,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { ProviderError, type SearchProviderAdapter } from "./provider";
 import { braveProvider } from "./brave-provider.server";
 import { firecrawlProvider } from "./firecrawl-provider.server";
+import { geminiGroundingProvider } from "./gemini-grounding-provider.server";
 import { googleProvider } from "./google-provider.server";
 import { serpapiProvider } from "./serpapi-provider.server";
 import type {
@@ -91,7 +92,10 @@ export class DiscoveryRouter {
 
   constructor(options: DiscoveryRouterOptions = {}) {
     const registry: SearchProviderAdapter[] =
-      options.adapters ?? [firecrawlProvider, serpapiProvider, googleProvider, braveProvider];
+      options.adapters ??
+      // Brave stays primary discovery; Gemini grounding is the Google-backed layer.
+      // googleProvider (Custom Search JSON API) is retained but disabled by default.
+      [braveProvider, geminiGroundingProvider, firecrawlProvider, serpapiProvider, googleProvider];
     const disabled = new Set(options.disable ?? []);
     const envDisabled = new Set(
       (process.env.SCAN_DISABLE_PROVIDERS ?? "")
