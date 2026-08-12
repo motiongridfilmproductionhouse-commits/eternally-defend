@@ -973,28 +973,35 @@ function ScanPage() {
                 )}
 
                 <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setThreatsOnly(true)}
-                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
-                      threatsOnly
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Threats Only
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setThreatsOnly(false)}
-                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
-                      !threatsOnly
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Show All Mentions
-                  </button>
+                  {(
+                    [
+                      ["risk", "Reputation Risk"],
+                      ["review", "Needs Review"],
+                      ["mentions", "All Mentions"],
+                    ] as const
+                  ).map(([key, label]) => {
+                    const counts = splitForPresentation(report.hits);
+                    const n =
+                      key === "risk"
+                        ? counts.reputationRisk.length
+                        : key === "review"
+                          ? counts.needsReview.length
+                          : counts.allMentions.length;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setResultsTab(key)}
+                        className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                          resultsTab === key
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {label} ({n})
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
