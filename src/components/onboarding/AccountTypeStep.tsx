@@ -1,11 +1,22 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Building2, Camera, ChevronRight, Loader2, UserRound, UsersRound } from "lucide-react";
+import {
+  Briefcase,
+  Building2,
+  Camera,
+  ChevronRight,
+  Info,
+  Loader2,
+  Megaphone,
+  Scale,
+  UserRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { selectV2AccountType } from "@/lib/onboarding/v2-profile.functions";
-import type { V2AccountType } from "@/lib/onboarding/v2-config";
+import { isLightVerificationAccount, type V2AccountType } from "@/lib/onboarding/v2-config";
+import { VERIFICATION_OPTIONAL_MESSAGE } from "@/lib/verification/verification-status";
 
 const OPTIONS: Array<{
   value: V2AccountType;
@@ -15,27 +26,39 @@ const OPTIONS: Array<{
 }> = [
   {
     value: "celebrity",
-    title: "Celebrity",
+    title: "Celebrity / Public Figure",
     description: "Public figures, artists and recognized personalities.",
     icon: Camera,
+  },
+  {
+    value: "manager_agent",
+    title: "Manager / Agent",
+    description: "Manage protection on behalf of a public figure.",
+    icon: Briefcase,
+  },
+  {
+    value: "pr_team",
+    title: "PR / Reputation Team",
+    description: "Communications teams monitoring public perception.",
+    icon: Megaphone,
+  },
+  {
+    value: "legal_representative",
+    title: "Legal Representative",
+    description: "Counsel acting for a client's rights and reputation.",
+    icon: Scale,
+  },
+  {
+    value: "enterprise",
+    title: "Brand / Organization",
+    description: "Registered businesses and corporate organizations.",
+    icon: Building2,
   },
   {
     value: "individual",
     title: "Individual",
     description: "Personal identity, reputation and likeness protection.",
     icon: UserRound,
-  },
-  {
-    value: "enterprise",
-    title: "Enterprise",
-    description: "Registered businesses and corporate organizations.",
-    icon: Building2,
-  },
-  {
-    value: "production_house",
-    title: "Production House",
-    description: "Studios, labels and rights-holding production teams.",
-    icon: UsersRound,
   },
 ];
 
@@ -63,7 +86,7 @@ export function AccountTypeStep({ onSelected }: { onSelected: () => Promise<void
       <CardHeader>
         <CardTitle className="text-xl">Choose your protection account</CardTitle>
         <CardDescription className="text-white/60">
-          Your selection creates a verification path matched to the rights you need to protect.
+          Your selection creates a setup path matched to the rights you need to protect.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -87,6 +110,14 @@ export function AccountTypeStep({ onSelected }: { onSelected: () => Promise<void
             );
           })}
         </div>
+
+        {isLightVerificationAccount(selected) && (
+          <div className="flex items-start gap-3 rounded-lg border border-blue-400/25 bg-blue-500/10 p-4 text-xs leading-relaxed text-blue-100">
+            <Info className="mt-0.5 size-4 shrink-0 text-blue-300" />
+            <span>{VERIFICATION_OPTIONAL_MESSAGE}</span>
+          </div>
+        )}
+
         <div className="flex justify-end border-t border-white/10 pt-4">
           <Button
             onClick={handleContinue}
