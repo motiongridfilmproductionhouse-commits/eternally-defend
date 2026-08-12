@@ -145,78 +145,308 @@ async function renderPdf(
 ) {
   const { PDFDocument, rgb } = await import("pdf-lib");
   const { embedUnicodeFontStack, drawUnicodeText } = await import("@/lib/pdf/unicode-fonts.server");
+  const {
+    SERVICE_PROVIDER_NAME,
+    LETTER_TITLE,
+    selectedCategories,
+    limitationClauses,
+    resolveClientParty,
+    coveredAssets,
+    footerText,
+    authorizingParagraph,
+    authorizationLevel,
+    AUTHORIZATION_LEVEL_LABELS,
+  } = await import("@/lib/onboarding/authorization-letter");
+
   const doc = await PDFDocument.create();
   const stack = await embedUnicodeFontStack(doc);
-  const page = doc.addPage([612, 792]);
-  const { height } = page.getSize();
-  let y = height - 60;
-  const line = (t: string, bold = false, size = 10, color = rgb(0.1, 0.1, 0.15)) => {
-    drawUnicodeText(page, t, { x: 50, y, size, stack: bold ? stack.bold : stack.regular, color });
-    y -= size + 6;
-  };
-  line("ETERNA — CLIENT AUTHORIZATION LETTER", true, 16, rgb(0.05, 0.1, 0.35));
-  line(
-    `Authorization ID: ${snapshot.auth?.auth_number}   Version: ${snapshot.auth?.version}`,
-    true,
-    10,
-  );
-  line(`Client ID: ${snapshot.profile?.client_id ?? ""}`);
-  line(`Legal Name: ${snapshot.profile?.legal_name ?? snapshot.profile?.full_name ?? ""}`);
-  line(`Display Name: ${snapshot.profile?.display_name ?? ""}`);
-  line(`Company: ${snapshot.profile?.company_name ?? ""}`);
-  line(`Role: ${snapshot.profile?.role_title ?? ""}`);
-  line(`Country: ${snapshot.profile?.country ?? ""}`);
-  line(`Email verified: ${snapshot.profile?.email_verified_at ? "Yes" : "No"}`);
-  line(`Veriff KYC: ${snapshot.kyc?.verification_status ?? "NOT_STARTED"}`);
-  line(`Face liveness: ${snapshot.face?.status ?? "NOT_STARTED"}`);
-  line(
-    `Effective: ${snapshot.auth?.effective_date}   Expires: ${snapshot.auth?.expiry_date}   Territory: ${snapshot.auth?.territory}`,
-  );
-  y -= 8;
-  line("Verified Assets:", true, 11);
-  for (const a of (snapshot.assets ?? []).filter(
-    (x: any) => x.verification_status === "VERIFIED",
-  )) {
-    line(
-      `  • ${a.kind.toUpperCase()} — ${a.name ?? a.handle ?? a.channel_id} (${a.verification_method})`,
-    );
-  }
-  y -= 8;
-  line("Authorized Scopes:", true, 11);
-  for (const s of (snapshot.scopes ?? []).filter((x: any) => x.granted)) {
-    line(`  ✓ ${s.scope_key}`);
-  }
-  y -= 10;
-  line("Client Declarations:", true, 11);
-  for (const t of [
-    "I own the listed rights or am legally authorized to represent the owner.",
-    "The listed accounts and assets belong to me or my organization.",
-    "The information supplied is accurate.",
-    "I understand that false complaints may create legal liability.",
-    "I authorize Eterna only within the selected scope.",
-    "I understand final platform submissions may require separate approval.",
-    "Final platform decisions remain solely with the relevant platforms and authorities.",
-    "Eterna does not guarantee content removal, account suspension, or legal outcomes.",
-  ])
-    line(`  • ${t}`);
+  const ink = rgb(0.09, 0.11, 0.16);
+  const navy = rgb(0.04, 0.11, 0.32);
+  const muted = rgb(0.38, 0.42, 0.5);
 
-  if (opts.signed) {
-    y -= 20;
-    line("SIGNATURE", true, 12);
-    line(`Signer: ${opts.signerName ?? ""}`);
-    line(`Signed at: ${opts.signedAt ?? ""}`);
-    if (opts.signatureSvg && opts.signatureSvg.startsWith("data:image/png;base64,")) {
-      try {
-        const b64 = opts.signatureSvg.split(",")[1];
-        const png = await doc.embedPng(Buffer.from(b64, "base64"));
-        page.drawImage(png, { x: 50, y: y - 40, width: 160, height: 50 });
-      } catch {
-        /* ignore */
+  const MARGIN = 56;
+  const WIDTH = 612;
+  const CONTENT = WIDTH - MARGIN * 2;
+  const authNumber = snapshot.auth?.auth_number ?? "";
+  const version = snapshot.auth?.version ?? 1;
+  const footer = footerText(authNumber, version);
+
+  let page = doc.addPage([WIDTH, 792]);
+  let y = 0;
+
+  const measure = (t: string, size: number, bold = false) => {
+    try {
+      return (bold ? stack.bold[0] : stack.regular[0]).widthOfTextAtSize(t, size);
+    } catch {
+      return t.length * size * 0.5;
+    }
+  };
+
+  const drawFooter = (p: typeof page) => {
+    drawUnicodeText(p, footer, {
+      x: MARGIN,
+      y: 38,
+      size: 7.5,
+      stack: stack.regular,
+      color: muted,
+    });
+  };
+
+  const newPage = () => {
+    drawFooter(page);
+    page = doc.addPage([WIDTH, 792]);
+    y = 792 - MARGIN;
+  };
+
+  const ensure = (needed: number) => {
+    if (y - needed < 70) newPage();
+  };
+
+  const text = (
+    t: string,
+    o: { size?: number; bold?: boolean; color?: any; indent?: number; gap?: number } = {},
+  ) => {
+    const size = o.size ?? 9.5;
+    ensure(size + 6);
+    drawUnicodeText(page, t, {
+      x: MARGIN + (o.indent ?? 0),
+      y,
+      size,
+      stack: o.bold ? stack.bold : stack.regular,
+      color: o.color ?? ink,
+    });
+    y -= size + (o.gap ?? 5);
+  };
+
+  /** Word-wrapped paragraph. */
+  const paragraph = (
+    t: string,
+    o: { size?: number; bold?: boolean; indent?: number; color?: any; gap?: number } = {},
+  ) => {
+    const size = o.size ?? 9.5;
+    const indent = o.indent ?? 0;
+    const maxWidth = CONTENT - indent;
+    const words = t.split(/\s+/).filter(Boolean);
+    let line = "";
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (measure(candidate, size, o.bold) > maxWidth && line) {
+        text(line, { ...o, size, indent });
+        line = word;
+      } else {
+        line = candidate;
       }
     }
+    if (line) text(line, { ...o, size, indent });
+    y -= o.gap ?? 4;
+  };
+
+  const rule = (color = rgb(0.82, 0.85, 0.9)) => {
+    ensure(12);
+    page.drawRectangle({ x: MARGIN, y, width: CONTENT, height: 0.8, color });
+    y -= 12;
+  };
+
+  const sectionHeading = (t: string) => {
+    ensure(30);
+    y -= 6;
+    text(t.toUpperCase(), { size: 10, bold: true, color: navy, gap: 4 });
+    rule(rgb(0.75, 0.82, 0.94));
+  };
+
+  const field = (label: string, value: string) => {
+    const size = 9.5;
+    ensure(size + 6);
+    drawUnicodeText(page, `${label}:`, {
+      x: MARGIN,
+      y,
+      size,
+      stack: stack.bold,
+      color: navy,
+    });
+    drawUnicodeText(page, value || "Not provided", {
+      x: MARGIN + 168,
+      y,
+      size,
+      stack: stack.regular,
+      color: ink,
+    });
+    y -= size + 6;
+  };
+
+  // ---- Letterhead -------------------------------------------------------
+  y = 792 - MARGIN;
+  page.drawRectangle({
+    x: MARGIN,
+    y: y - 4,
+    width: CONTENT,
+    height: 3,
+    color: navy,
+  });
+  y -= 24;
+  text(SERVICE_PROVIDER_NAME, { size: 15, bold: true, color: navy, gap: 4 });
+  text("Authorized Digital Protection & Monitoring Services", {
+    size: 8.5,
+    color: muted,
+    gap: 14,
+  });
+  paragraph(LETTER_TITLE, { size: 13, bold: true, color: ink, gap: 6 });
+  text(
+    `Issued to ${SERVICE_PROVIDER_NAME} by the Client identified below.`,
+    { size: 8.5, color: muted, gap: 10 },
+  );
+  rule();
+
+  // ---- Parties & authorization record ----------------------------------
+  const party = resolveClientParty(snapshot.profile);
+  sectionHeading("1. Client and authorization details");
+  field("Client Full Legal Name", party.legalName);
+  field("Artist / Public Display Name", party.displayName);
+  field("Client Type", party.clientType);
+  field("Country", party.country);
+  field("Authorization ID", authNumber);
+  field("Document Version", `v${version}`);
+  field("Effective Date", snapshot.auth?.effective_date ?? "");
+  field("Expiry Date", snapshot.auth?.expiry_date ?? "");
+  field("Territory", snapshot.auth?.territory ?? "");
+
+  // ---- Authorization statement -----------------------------------------
+  sectionHeading("2. Authorization");
+  paragraph(authorizingParagraph(party), { gap: 6 });
+
+  // ---- Verified assets --------------------------------------------------
+  sectionHeading("3. Verified digital assets and accounts covered");
+  const assets = coveredAssets(snapshot.assets);
+  if (assets.length === 0) {
+    paragraph(
+      "No verified digital assets are currently covered by this authorization. Coverage applies only to assets verified and listed in a subsequent version of this document.",
+      { color: muted },
+    );
+  } else {
+    for (const a of assets) {
+      paragraph(`•  ${a.label}`, { indent: 6, gap: 0 });
+      if (a.meta) text(a.meta, { size: 8, color: muted, indent: 18, gap: 4 });
+    }
+    y -= 4;
   }
+
+  // ---- Approved scope ---------------------------------------------------
+  const categories = selectedCategories(snapshot.scopes);
+  const level = authorizationLevel(snapshot.scopes);
+  sectionHeading("4. Approved monitoring scope");
+  paragraph(
+    "The Client authorizes the Service Provider to perform only the following selected protection services:",
+    { gap: 6 },
+  );
+  if (categories.length === 0) {
+    paragraph("No protection services have been selected by the Client.", { color: muted });
+  } else {
+    categories.forEach((c, i) => {
+      paragraph(`${i + 1}.  ${c.title}`, { bold: true, indent: 6, gap: 1 });
+      paragraph(c.detail, { size: 8.8, color: muted, indent: 20, gap: 5 });
+    });
+  }
+  field("Authorization Level", AUTHORIZATION_LEVEL_LABELS[level]);
+
+  // ---- Limitations ------------------------------------------------------
+  sectionHeading("5. Scope limitations and reservations");
+  limitationClauses(snapshot.scopes).forEach((clause, i) => {
+    paragraph(`5.${i + 1}  ${clause}`, { gap: 5 });
+  });
+
+  // ---- Client declarations ---------------------------------------------
+  sectionHeading("6. Client declarations");
+  for (const t of [
+    "The Client owns the listed rights or is legally authorized to represent the rights owner.",
+    "The listed accounts and assets belong to the Client or the Client's organization.",
+    "The information supplied in this authorization is accurate and complete.",
+    "The Client understands that false or abusive complaints may create legal liability.",
+    "The Client authorizes the Service Provider only within the selected scope stated above.",
+  ]) {
+    paragraph(`•  ${t}`, { indent: 6, gap: 3 });
+  }
+
+  // ---- Signatures -------------------------------------------------------
+  ensure(230);
+  sectionHeading("7. Execution");
+
+  const signatureBlock = (
+    heading: string,
+    subtitle: string | null,
+    name: string,
+    dateValue: string,
+    drawImage: boolean,
+  ) => {
+    ensure(120);
+    text(heading, { size: 9.5, bold: true, color: navy, gap: 6 });
+    if (subtitle) text(subtitle, { size: 9, bold: true, gap: 6 });
+    field("Name", name);
+    const signatureLineY = y - 34;
+    if (drawImage && signaturePng) {
+      page.drawImage(signaturePng, {
+        x: MARGIN + 168,
+        y: signatureLineY + 4,
+        width: 140,
+        height: 40,
+      });
+    }
+    drawUnicodeText(page, "Signature:", {
+      x: MARGIN,
+      y: signatureLineY,
+      size: 9.5,
+      stack: stack.bold,
+      color: navy,
+    });
+    page.drawRectangle({
+      x: MARGIN + 168,
+      y: signatureLineY - 3,
+      width: 240,
+      height: 0.7,
+      color: rgb(0.6, 0.65, 0.72),
+    });
+    y = signatureLineY - 18;
+    field("Date", dateValue);
+    y -= 10;
+  };
+
+  let signaturePng: any = null;
+  if (opts.signed && opts.signatureSvg?.startsWith("data:image/png;base64,")) {
+    try {
+      const b64 = opts.signatureSvg.split(",")[1];
+      signaturePng = await doc.embedPng(Buffer.from(b64, "base64"));
+    } catch {
+      signaturePng = null;
+    }
+  }
+
+  const signedDate = opts.signed ? (opts.signedAt ?? "").slice(0, 10) : "";
+  signatureBlock(
+    "CLIENT / RIGHTS HOLDER",
+    null,
+    opts.signed ? (opts.signerName ?? party.legalName) : party.legalName,
+    signedDate,
+    true,
+  );
+  signatureBlock(
+    "AUTHORIZED SERVICE PROVIDER",
+    SERVICE_PROVIDER_NAME,
+    "Authorized Representative",
+    signedDate,
+    false,
+  );
+
+  if (!opts.signed) {
+    y -= 4;
+    paragraph(
+      "This document is an unsigned draft prepared for the Client's review. It becomes effective only once executed by both parties.",
+      { size: 8.5, color: muted },
+    );
+  }
+
+  drawFooter(page);
   return await doc.save();
 }
+
 
 export const generateDraftPdf = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
