@@ -84,19 +84,23 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
         /* keep going; S3 failure shouldn't drop matches */
       }
 
-      // Look up the protected_faces rows for the matched face_ids
-      const faceIds = matches.map((m) => m.faceId);
+      // Look up the ACTIVE protected_faces rows for the matched face_ids
+      const faceIds = matches
+        .map((m) => m.faceId)
+        .filter((id) => monitoring.activeFaceIds.includes(id));
       const { data: protectedRows } = await supabase
         .from("protected_faces")
         .select("id,face_id,asset_id,discovered_account_id,label,platform,source_url")
-        .in("face_id", faceIds)
-        .eq("user_id", userId);
+        .in("face_id", faceIds.length > 0 ? faceIds : ["__none__"])
+        .eq("user_id", userId)
+        .eq("status", "ACTIVE");
 
       const byFace = new Map<
         string,
         typeof protectedRows extends null ? never : NonNullable<typeof protectedRows>[number]
       >();
       for (const p of protectedRows ?? []) byFace.set(p.face_id, p);
+
 
       const eventIds: string[] = [];
       for (const m of matches) {
