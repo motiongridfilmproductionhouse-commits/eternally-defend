@@ -171,9 +171,13 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
   const signedDoc = authBundle?.documents?.find(
     (d: any) => d.kind === "signed" && d.version === auth?.version,
   );
+  const sigCertDoc = authBundle?.documents?.find(
+    (d: any) => d.kind === "signature_certificate" && d.version === auth?.version,
+  );
   const signatureRec = authBundle?.signatures?.find(
     (s: any) => s.status === "SIGNED" && s.version === auth?.version,
   );
+
 
   if (isSigned && signedDoc && signatureRec) {
     return (
