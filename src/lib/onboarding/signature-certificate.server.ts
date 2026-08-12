@@ -81,7 +81,7 @@ export async function renderSignatureCertificatePdf(rec: SignatureAuditRecord): 
       stack: stack.regular,
       color: muted,
     });
-    const chunks = wrap(value || "—", 62);
+    const chunks = wrap(value || "—", 44);
     chunks.forEach((line, i) => {
       drawUnicodeText(page, line, {
         x: left + 190,
