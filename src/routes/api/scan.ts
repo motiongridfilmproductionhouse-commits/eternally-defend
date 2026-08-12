@@ -8,6 +8,11 @@ import {
 } from "@/lib/reputation/ranking.server";
 import { scoreIdentity } from "@/lib/scan/identity-confidence";
 import {
+  DEMO_SAFE_CAPS,
+  DEMO_SAFE_MODE_ENABLED,
+  demoAllowsSecondPass,
+} from "@/lib/scan/demo-safe-mode";
+import {
   emptyScanFunnel,
   countExclusion,
   type ScanPipelineFunnel,
