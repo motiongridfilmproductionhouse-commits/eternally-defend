@@ -25,6 +25,7 @@ import {
   generateChallenge,
   verifyChallenge,
 } from "@/lib/onboarding/assets.functions";
+import { SocialProfilesPanel } from "@/components/onboarding/SocialProfilesPanel";
 
 export function AssetVerificationStep({
   onBack,
