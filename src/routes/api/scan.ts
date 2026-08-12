@@ -3316,8 +3316,19 @@ export const Route = createFileRoute("/api/scan")({
           const handles: string[] = Array.isArray(body?.handles)
             ? body.handles.map((a: unknown) => String(a).slice(0, 40)).slice(0, 20)
             : [];
-          const limit = Math.min(Math.max(Number(body?.limit ?? 8), 1), 10);
-          const ytTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 1500), 25), 2000);
+          const rawLimit = Math.min(Math.max(Number(body?.limit ?? 8), 1), 10);
+          const limit = DEMO_SAFE_MODE_ENABLED
+            ? Math.min(rawLimit, DEMO_SAFE_CAPS.perQueryLimit)
+            : rawLimit;
+          const rawYtTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 1500), 25), 2000);
+          const ytTarget = DEMO_SAFE_MODE_ENABLED
+            ? Math.min(rawYtTarget, DEMO_SAFE_CAPS.youtubeTarget)
+            : rawYtTarget;
+          if (DEMO_SAFE_MODE_ENABLED) {
+            console.log(
+              `[scan:demo-safe] active — ytTarget=${ytTarget} limit=${limit} extractMax=${DEMO_SAFE_CAPS.extraction.max} aiPass1=${DEMO_SAFE_CAPS.aiPass1Ceiling}`,
+            );
+          }
           const sources: SourceKey[] =
             Array.isArray(body?.sources) && body.sources.length
               ? body.sources.filter(
