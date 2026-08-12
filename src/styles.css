@@ -572,3 +572,19 @@
     stroke-dashoffset: 0 !important;
   }
 }
+
+/* Manual protected-face scan: vertical sweep inside the circular scanner. */
+@keyframes scanline {
+  0% {
+    top: 0%;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[scanline_1\.6s_linear_infinite\] {
+    animation: none !important;
+  }
+}
