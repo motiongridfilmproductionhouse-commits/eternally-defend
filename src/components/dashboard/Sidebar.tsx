@@ -99,15 +99,12 @@ export function Sidebar() {
   const workspaceMode = workspaceModeFor(accountType);
   const allowed = visibleNavRoutes(workspaceMode);
   const navItems: NavItem[] = allowed
-    ? allowed
-        .filter((route) => route !== "/settings")
-        .map((route) => {
-          const item = mainNav.find((n) => n.to === route);
-          if (!item) return null;
-          const label = CELEBRITY_NAV_LABELS[route] ?? item.label;
-          return { ...item, label, badge: undefined };
-        })
-        .filter((n): n is NavItem => n !== null)
+    ? allowed.reduce<NavItem[]>((acc, route) => {
+        if (route === "/settings") return acc;
+        const item = mainNav.find((n) => n.to === route);
+        if (item) acc.push({ ...item, label: CELEBRITY_NAV_LABELS[route] ?? item.label });
+        return acc;
+      }, [])
     : mainNav;
 
 
