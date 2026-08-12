@@ -221,7 +221,12 @@ export function FaceEnrollmentStep({
     setProcessingText("Creating secure session...");
     try {
       const data = await createSession();
-      camera.stop(); // release preview so AWS detector owns the camera
+      // Release the preview stream and give the browser a moment to fully free
+      // the device before the AWS detector requests exclusive camera access.
+      // Without this gap the detector can start with a stalled stream and the
+      // liveness check times out waiting for frames.
+      camera.stop();
+      await new Promise((resolve) => setTimeout(resolve, 400));
       setMilestone("session_created");
       setLivenessData({
         sessionId: data.sessionId,
@@ -229,7 +234,8 @@ export function FaceEnrollmentStep({
         credentials: data.credentials,
       });
       setMilestone("liveness_capturing");
-      await onRefetch();
+      // Don't block detector mount on a refetch — the session is short-lived.
+      void onRefetch();
     } catch (e: any) {
       const msg = String(e?.message ?? "");
       if (/consent required|CONSENT_REQUIRED/i.test(msg)) {
@@ -335,6 +341,13 @@ export function FaceEnrollmentStep({
       await onRefetch();
     }
     toast.error(message);
+
+    // Timeouts and expired sessions are recoverable: bring the preview back so
+    // the next attempt starts from a fresh session without extra clicks.
+    if (/TIMEOUT|TIMED_OUT|SESSION|EXPIRED|NOT_FOUND/i.test(diagnostic)) {
+      const ok = await camera.start();
+      if (ok) setMilestone("camera_ready");
+    }
   };
 
   const handleRevoke = async () => {
