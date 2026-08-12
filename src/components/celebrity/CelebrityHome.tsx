@@ -19,13 +19,26 @@ import type { RadarFinding } from "@/lib/celebrity/radar-model";
  */
 export function CelebrityHome() {
   const { status } = useVerificationStatus();
+  const navigate = useNavigate();
   const fetchCampaigns = useServerFn(listCampaigns);
+  const fetchRadar = useServerFn(getCelebrityRadarState);
   const campaignsQuery = useQuery({
     queryKey: ["celebrity-campaigns"],
     queryFn: () => fetchCampaigns(),
   });
+  const radarQuery = useQuery({
+    queryKey: ["celebrity-radar"],
+    queryFn: () => fetchRadar(),
+    refetchInterval: 60_000,
+  });
 
   const active = (campaignsQuery.data?.campaigns ?? []).filter((c) => c.status === "ACTIVE");
+  const radar = radarQuery.data;
+  const counters = radar?.counters;
+
+  const openEvidence = (finding: RadarFinding) => {
+    void navigate({ to: finding.deepLink });
+  };
 
   return (
     <div className="space-y-5">
@@ -35,6 +48,27 @@ export function CelebrityHome() {
           Your reputation, likeness and campaigns are monitored continuously.
         </p>
       </div>
+
+      <LiveProtectionRadar
+        nodes={radar?.nodes ?? []}
+        scanning={radar?.radar === "SCANNING"}
+        protection={radar?.protection ?? "SETUP_REQUIRED"}
+        counters={[
+          { label: "Protected faces", value: counters?.protectedFaces ?? 0 },
+          { label: "Reputation findings", value: counters?.reputationFindings ?? 0 },
+          { label: "Face matches", value: counters?.faceMatches ?? 0 },
+          { label: "Deepfake alerts", value: counters?.deepfakeAlerts ?? 0 },
+          { label: "Impersonation", value: counters?.impersonation ?? 0 },
+          { label: "Fake endorsements", value: counters?.fakeEndorsements ?? 0 },
+          { label: "Campaign misuse", value: counters?.campaignMisuse ?? 0 },
+          { label: "Copyright findings", value: counters?.copyrightFindings ?? 0 },
+          { label: "Evidence vault", value: counters?.evidenceItems ?? 0 },
+        ]}
+        onSelect={openEvidence}
+      />
+
+      <LiveFindingsFeed nodes={radar?.nodes ?? []} onReview={openEvidence} />
+
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="card-surface">
