@@ -27,6 +27,7 @@ import {
   Archive,
   Lock,
   Copyright,
+  Megaphone,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useSession } from "@/hooks/use-session";
