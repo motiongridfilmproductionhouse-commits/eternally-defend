@@ -405,7 +405,7 @@ export async function renderAuthorizationLetterPdf(
 
   const signedDate = opts.signed ? (opts.signedAt ?? "").slice(0, 10) : "";
   signatureBlock(
-    "CLIENT / RIGHTS HOLDER",
+    partyLabel.toUpperCase(),
     null,
     opts.signed ? (opts.signerName ?? party.legalName) : party.legalName,
     signedDate,
