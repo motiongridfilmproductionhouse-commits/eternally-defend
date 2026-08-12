@@ -665,7 +665,9 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         certificate_number: cert_number,
         signature_sha256: signature_sha,
         document_sha256: doc_sha,
+        signature_certificate_sha256: sigCertSha,
       };
+
     } catch (err: any) {
       // Log the real error server-side; surface a safe, user-facing message.
       // Preserved codes let the UI hint at what to retry vs. what to fix.
