@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { getCommandCenterStats } from "@/lib/command-center.functions";
+import { DirectionalRadar, HudSweepRadar } from "@/components/command/DualRadars";
 import { getFaceProtectionStats } from "@/lib/face-scan.functions";
 import { ScanFace, UserX, Award, Archive as ArchiveIcon, Eye as EyeIcon } from "lucide-react";
 
@@ -127,6 +128,11 @@ export function CommandCenter() {
         <div className="xl:col-span-3">
           <ExecutiveSummary d={d} />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <HudSweepRadar d={d} />
+        <DirectionalRadar d={d} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
