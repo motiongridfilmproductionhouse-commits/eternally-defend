@@ -229,6 +229,7 @@ export async function renderAuthorizationLetterPdf(
     paragraph("No protection services have been selected by the Client.", { color: muted });
   } else {
     categories.forEach((c, i) => {
+      ensure(34); // keep the numbered title with its description
       paragraph(`${i + 1}.  ${c.title}`, { bold: true, indent: 6, gap: 1 });
       paragraph(c.detail, { size: 8.8, color: muted, indent: 20, gap: 5 });
     });
@@ -254,7 +255,7 @@ export async function renderAuthorizationLetterPdf(
   }
 
   // ---- Signatures -------------------------------------------------------
-  ensure(230);
+  ensure(180);
   sectionHeading("7. Execution");
 
   const signatureBlock = (
