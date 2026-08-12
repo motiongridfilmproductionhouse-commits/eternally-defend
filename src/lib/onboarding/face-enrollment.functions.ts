@@ -141,7 +141,7 @@ export const createLivenessSession = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     try {
-      const { data: consent } = await supabase
+      const { data: consent, error: consentError } = await supabase
         .from("biometric_consents")
         .select("id")
         .eq("user_id", userId)
@@ -149,7 +149,17 @@ export const createLivenessSession = createServerFn({ method: "POST" })
         .order("signed_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!consent) throw new Error("Biometric consent required");
+      if (consentError) throw new Error(`Consent lookup failed: ${consentError.message}`);
+      if (!consent) {
+        // Reset enrollment state so the wizard sends the user back to the consent screen.
+        await supabase
+          .from("protected_face_profiles")
+          .upsert(
+            { user_id: userId, collection_id: collectionIdForUser(userId), status: "CONSENT_REQUIRED" } as any,
+            { onConflict: "user_id" },
+          );
+        throw new Error("CONSENT_REQUIRED: Please accept the biometric consent before scanning.");
+      }
       const { CreateFaceLivenessSessionCommand } = await import("@aws-sdk/client-rekognition");
       const { getRekognition, getBucket } = await import("@/lib/aws/clients.server");
       const { STSClient, GetSessionTokenCommand } = await import("@aws-sdk/client-sts");
