@@ -223,7 +223,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               variant="outline"
               onClick={() => handleViewPdf(signedDoc.id, true)}
               disabled={loadingUrl === signedDoc.id}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
             >
               {loadingUrl === signedDoc.id ? (
                 <Loader2 className="size-4 animate-spin mr-2" />

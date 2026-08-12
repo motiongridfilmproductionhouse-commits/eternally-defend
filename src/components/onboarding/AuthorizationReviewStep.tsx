@@ -181,7 +181,7 @@ export function AuthorizationReviewStep({
                   variant="outline"
                   onClick={() => handleGenerate()}
                   disabled={generating}
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
                   title="Regenerate Draft"
                 >
                   <RefreshCw className={`size-4 ${generating ? "animate-spin" : ""}`} />
@@ -190,7 +190,7 @@ export function AuthorizationReviewStep({
                   variant="outline"
                   onClick={() => handleViewPdf(draftDoc.id, true)}
                   disabled={loadingUrl === draftDoc.id}
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
                 >
                   {loadingUrl === draftDoc.id ? (
                     <Loader2 className="size-4 animate-spin mr-2" />

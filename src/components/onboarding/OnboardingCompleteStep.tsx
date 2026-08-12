@@ -100,7 +100,7 @@ export function OnboardingCompleteStep({
           <Button
             variant="outline"
             onClick={() => onGoToStep(1)}
-            className="border-white/20 text-white"
+            className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
           >
             Return to Start
           </Button>
@@ -250,7 +250,7 @@ export function OnboardingCompleteStep({
               variant="outline"
               onClick={handleDownloadCert}
               disabled={loadingUrl === cert.id}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
             >
               {loadingUrl === cert.id ? (
                 <Loader2 className="size-4 animate-spin mr-2" />
@@ -263,7 +263,7 @@ export function OnboardingCompleteStep({
               variant="outline"
               onClick={handleDownloadPackage}
               disabled={loadingPkg}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
             >
               {loadingPkg ? (
                 <Loader2 className="size-4 animate-spin mr-2" />
@@ -275,12 +275,12 @@ export function OnboardingCompleteStep({
             <Button
               variant="outline"
               onClick={() => window.open(`/verify/${cert.public_slug}`, "_blank")}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
             >
               <ShieldCheck className="size-4 mr-2" /> Public Registry
             </Button>
             <Link to="/assets">
-              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
+              <Button variant="outline" className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white">
                 <Settings className="size-4 mr-2" /> Manage Assets
               </Button>
             </Link>

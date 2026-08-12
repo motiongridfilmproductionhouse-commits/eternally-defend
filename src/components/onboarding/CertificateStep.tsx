@@ -181,7 +181,7 @@ export function CertificateStep({
             variant="outline"
             size="sm"
             onClick={() => refetchCert()}
-            className="border-white/20 text-white hover:bg-white/10"
+            className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
           >
             <RefreshCw className="size-4 mr-2" /> Refresh
           </Button>
@@ -338,7 +338,7 @@ export function CertificateStep({
             variant="outline"
             onClick={() => handleDownloadCert(true)}
             disabled={loadingUrl === cert.id}
-            className="border-white/20 text-white hover:bg-white/10 flex-1"
+            className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white flex-1"
           >
             {loadingUrl === cert.id ? (
               <Loader2 className="size-4 animate-spin mr-2" />
@@ -351,7 +351,7 @@ export function CertificateStep({
             variant="outline"
             onClick={() => handleDownloadCert(false)}
             disabled={loadingUrl === cert.id}
-            className="border-white/20 text-white hover:bg-white/10 flex-1"
+            className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white flex-1"
           >
             {loadingUrl === cert.id ? (
               <Loader2 className="size-4 animate-spin mr-2" />
@@ -364,7 +364,7 @@ export function CertificateStep({
             variant="outline"
             onClick={() => handleDownloadPackage()}
             disabled={loadingPkg}
-            className="border-white/20 text-white hover:bg-white/10 flex-1"
+            className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white flex-1"
           >
             {loadingPkg ? (
               <Loader2 className="size-4 animate-spin mr-2" />
