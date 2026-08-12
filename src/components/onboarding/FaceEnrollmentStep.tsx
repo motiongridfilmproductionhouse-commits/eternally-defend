@@ -137,7 +137,10 @@ export function FaceEnrollmentStep({
   const [technicalError, setTechnicalError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [milestone, setMilestone] = useState<FaceScanMilestone>("idle");
+  const [shieldReady, setShieldReady] = useState(false);
+  const handleShieldReady = useCallback(() => setShieldReady(true), []);
   const [result, setResult] = useState<EnrollResult | null>(null);
+
   const [livenessData, setLivenessData] = useState<{
     sessionId: string;
     region: string;
