@@ -4201,7 +4201,16 @@ export const Route = createFileRoute("/api/scan")({
                     const { extractPages } = await import("@/lib/scan/page-extract.server");
                     const newExtracted = await extractPages(
                       newHits.map((h) => h.url).filter((u): u is string => Boolean(u)),
-                      { concurrency: 4, timeoutMs: 12_000, max: 60, stats: extractionStats },
+                      {
+                        concurrency: DEMO_SAFE_MODE_ENABLED
+                          ? DEMO_SAFE_CAPS.aiExtraction.concurrency
+                          : 4,
+                        timeoutMs: DEMO_SAFE_MODE_ENABLED
+                          ? DEMO_SAFE_CAPS.aiExtraction.timeoutMs
+                          : 12_000,
+                        max: DEMO_SAFE_MODE_ENABLED ? DEMO_SAFE_CAPS.aiExtraction.max : 60,
+                        stats: extractionStats,
+                      },
                     );
                     pipelineFunnel.extraction_attempted += newExtracted.size;
                     for (const hit of newHits) {
