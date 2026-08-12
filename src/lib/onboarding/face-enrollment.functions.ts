@@ -292,6 +292,10 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
     const collectionId = await ensureCollection(userId);
     const ref = res.ReferenceImage?.Bytes;
     const savedFaceIds: string[] = [];
+    let landmarks: { type: string; x: number; y: number }[] = [];
+    let boundingBox: unknown = null;
+    let quality: { sharpness?: number; brightness?: number } | null = null;
+    let referenceImage: string | null = null;
     try {
       if (!ref) {
         throw new Error("AWS returned no reference image. Please repeat the face scan.");
