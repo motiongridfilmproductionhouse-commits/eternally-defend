@@ -10,9 +10,11 @@ import {
   ChevronLeft,
   FileText,
   Download,
-  ExternalLink,
+  Eye,
+  EyeOff,
   RefreshCw,
   CheckCircle2,
+  ShieldCheck,
 } from "lucide-react";
 import {
   getAuthorizationBundle,
@@ -44,12 +46,16 @@ export function AuthorizationReviewStep({
 
   const [generating, setGenerating] = useState(false);
   const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [hasRead, setHasRead] = useState(false);
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
       await generateDraft();
       await refetch();
+      setPreviewUrl(null);
+      setHasRead(false);
       toast.success("Authorization draft generated successfully.");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to generate draft");
@@ -58,22 +64,35 @@ export function AuthorizationReviewStep({
     }
   };
 
-  const handleViewPdf = async (docId: string, download: boolean = false) => {
+  const handleDownloadPdf = async (docId: string) => {
     setLoadingUrl(docId);
     try {
-      const { url } = await fetchUrl({ data: { doc_id: docId } });
-      if (download) {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "Eterna_Authorization_Draft.pdf";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        window.open(url, "_blank");
-      }
-    } catch (e: any) {
+      const { url } = await fetchUrl({ data: { doc_id: docId, disposition: "attachment" } });
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Eterna_Authorization_Letter.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
       toast.error("Failed to load PDF URL");
+    } finally {
+      setLoadingUrl(null);
+    }
+  };
+
+  /** Loads the signed URL and renders the letter inline — never a new tab. */
+  const handleTogglePreview = async (docId: string) => {
+    if (previewUrl) {
+      setPreviewUrl(null);
+      return;
+    }
+    setLoadingUrl(docId);
+    try {
+      const { url } = await fetchUrl({ data: { doc_id: docId, disposition: "inline" } });
+      setPreviewUrl(url);
+    } catch {
+      toast.error("Failed to load the authorization letter");
     } finally {
       setLoadingUrl(null);
     }
@@ -105,7 +124,7 @@ export function AuthorizationReviewStep({
   );
   const scopesCount = authBundle?.scopes?.filter((s: any) => s.granted).length ?? 0;
 
-  const isReady = !!draftDoc;
+  const isReady = !!draftDoc && hasRead;
 
   return (
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
@@ -190,7 +209,7 @@ export function AuthorizationReviewStep({
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => handleViewPdf(draftDoc.id, true)}
+                  onClick={() => handleDownloadPdf(draftDoc.id)}
                   disabled={loadingUrl === draftDoc.id}
                   className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
                 >
@@ -202,21 +221,99 @@ export function AuthorizationReviewStep({
                   Download
                 </Button>
                 <Button
-                  onClick={() => handleViewPdf(draftDoc.id, false)}
+                  onClick={() => handleTogglePreview(draftDoc.id)}
                   disabled={loadingUrl === draftDoc.id}
                   className="bg-white/10 hover:bg-white/20 text-white border border-white/10"
                 >
                   {loadingUrl === draftDoc.id ? (
                     <Loader2 className="size-4 animate-spin mr-2" />
+                  ) : previewUrl ? (
+                    <EyeOff className="size-4 mr-2" />
                   ) : (
-                    <ExternalLink className="size-4 mr-2" />
+                    <Eye className="size-4 mr-2" />
                   )}
-                  View PDF
+                  {previewUrl ? "Hide Letter" : "View Letter"}
                 </Button>
               </>
             )}
           </div>
         </div>
+
+        {previewUrl && (
+          <div className="rounded-xl border border-sky-500/25 bg-slate-950/70 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-white/5">
+              <div className="text-xs uppercase tracking-wider text-sky-200/80">
+                Authorization Letter Preview
+              </div>
+              <button
+                onClick={() => setPreviewUrl(null)}
+                className="text-xs text-white/50 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+            <iframe
+              src={previewUrl}
+              title="Eterna Sentinel Defence LLC Authorization Letter"
+              className="w-full h-[640px] bg-white"
+            />
+            <div className="px-4 py-3 border-t border-white/10 bg-white/5 text-xs text-white/50">
+              Scroll through all pages of the letter. Once you have read it, confirm below to
+              continue to the electronic signature step.
+            </div>
+          </div>
+        )}
+
+        {draftDoc && (
+          <div
+            className={`rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between ${
+              hasRead
+                ? "border-emerald-500/30 bg-emerald-500/10"
+                : "border-amber-500/25 bg-amber-500/5"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <ShieldCheck
+                className={`size-5 shrink-0 mt-0.5 ${hasRead ? "text-emerald-400" : "text-amber-300"}`}
+              />
+              <div>
+                <div className={`font-semibold ${hasRead ? "text-emerald-200" : "text-amber-100"}`}>
+                  {hasRead
+                    ? "You confirmed you have read the authorization letter."
+                    : "Read the authorization letter before signing"}
+                </div>
+                <div className="text-xs text-white/50">
+                  {hasRead
+                    ? "You can now continue to the electronic signature step."
+                    : "Open the letter above, review every page, then confirm you are ready to proceed."}
+                </div>
+              </div>
+            </div>
+            {hasRead ? (
+              <Button
+                variant="outline"
+                onClick={() => setHasRead(false)}
+                className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white shrink-0"
+              >
+                Review Again
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  setHasRead(true);
+                  toast.success("Confirmed. You can now proceed to the electronic signature.");
+                }}
+                disabled={!previewUrl}
+                title={
+                  previewUrl ? undefined : "Open the letter preview first"
+                }
+                className="bg-emerald-600 hover:bg-emerald-500 text-white border-0 shrink-0"
+              >
+                <CheckCircle2 className="size-4 mr-2" /> I have read it — Ready to Proceed
+              </Button>
+            )}
+          </div>
+        )}
 
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-sm space-y-2 text-white/70">
           <p>Please review the generated PDF thoroughly. It contains:</p>
@@ -266,7 +363,7 @@ export function AuthorizationReviewStep({
               disabled={!isReady || generating}
               className="bg-blue-600 hover:bg-blue-500 text-white border-0"
             >
-              Continue to Signature <ChevronRight className="size-4 ml-1" />
+              Continue to Electronic Signature <ChevronRight className="size-4 ml-1" />
             </Button>
           </div>
         </div>
