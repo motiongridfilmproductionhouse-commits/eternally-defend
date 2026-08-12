@@ -233,7 +233,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
             </div>
           </div>
 
-          <div className="flex gap-3 justify-center">
+          <div className="flex flex-wrap gap-3 justify-center">
             <Button
               variant="outline"
               onClick={() => handleViewPdf(signedDoc.id, true)}
@@ -248,6 +248,24 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               Download Signed PDF
             </Button>
 
+            {sigCertDoc && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  handleViewPdf(sigCertDoc.id, true, "Eterna_Signature_Certificate.pdf")
+                }
+                disabled={loadingUrl === sigCertDoc.id}
+                className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
+              >
+                {loadingUrl === sigCertDoc.id ? (
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="size-4 mr-2" />
+                )}
+                Download Signature Certificate
+              </Button>
+            )}
+
             <Button
               onClick={() => handleViewPdf(signedDoc.id, false)}
               disabled={loadingUrl === signedDoc.id}
@@ -261,6 +279,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               View PDF
             </Button>
           </div>
+
 
           <div className="flex justify-between pt-4 mt-6 border-t border-white/10">
             <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
