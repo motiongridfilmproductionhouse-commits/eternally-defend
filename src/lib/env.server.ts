@@ -15,6 +15,8 @@ const serverEnvSchema = z.object({
   BRAVE_API_KEY: z.string().optional(),
   GOOGLE_SEARCH_API_KEY: z.string().optional(),
   GOOGLE_SEARCH_ENGINE_ID: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_GROUNDING_MODEL: z.string().optional(),
   CRAWLER_SERVICE_URL: z.string().url("CRAWLER_SERVICE_URL must be a valid URL").optional(),
   GOOGLE_API_KEY: z.string().optional(),
   GOOGLE_PLACES_API_KEY: z.string().optional(),
