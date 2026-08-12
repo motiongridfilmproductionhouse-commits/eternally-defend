@@ -413,7 +413,16 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
       });
     }
 
-    return { ok: true, status: "FACE_VERIFIED" as const, confidence: conf, faceIds: savedFaceIds };
+    return {
+      ok: true,
+      status: "FACE_VERIFIED" as const,
+      confidence: conf,
+      faceIds: savedFaceIds,
+      landmarks,
+      boundingBox,
+      quality,
+      referenceImage,
+    };
   });
 
 export const getFaceEnrollment = createServerFn({ method: "GET" })
