@@ -139,85 +139,6 @@ async function buildSnapshot(supabase: any, userId: string, authId: string) {
   return { profile, kyc, face, assets, scopes, auth, generated_at: new Date().toISOString() };
 }
 
-async function renderPdf(
-  snapshot: any,
-  opts: { signed?: boolean; signatureSvg?: string | null; signerName?: string; signedAt?: string },
-) {
-  const { PDFDocument, rgb } = await import("pdf-lib");
-  const { embedUnicodeFontStack, drawUnicodeText } = await import("@/lib/pdf/unicode-fonts.server");
-  const doc = await PDFDocument.create();
-  const stack = await embedUnicodeFontStack(doc);
-  const page = doc.addPage([612, 792]);
-  const { height } = page.getSize();
-  let y = height - 60;
-  const line = (t: string, bold = false, size = 10, color = rgb(0.1, 0.1, 0.15)) => {
-    drawUnicodeText(page, t, { x: 50, y, size, stack: bold ? stack.bold : stack.regular, color });
-    y -= size + 6;
-  };
-  line("ETERNA — CLIENT AUTHORIZATION LETTER", true, 16, rgb(0.05, 0.1, 0.35));
-  line(
-    `Authorization ID: ${snapshot.auth?.auth_number}   Version: ${snapshot.auth?.version}`,
-    true,
-    10,
-  );
-  line(`Client ID: ${snapshot.profile?.client_id ?? ""}`);
-  line(`Legal Name: ${snapshot.profile?.legal_name ?? snapshot.profile?.full_name ?? ""}`);
-  line(`Display Name: ${snapshot.profile?.display_name ?? ""}`);
-  line(`Company: ${snapshot.profile?.company_name ?? ""}`);
-  line(`Role: ${snapshot.profile?.role_title ?? ""}`);
-  line(`Country: ${snapshot.profile?.country ?? ""}`);
-  line(`Email verified: ${snapshot.profile?.email_verified_at ? "Yes" : "No"}`);
-  line(`Veriff KYC: ${snapshot.kyc?.verification_status ?? "NOT_STARTED"}`);
-  line(`Face liveness: ${snapshot.face?.status ?? "NOT_STARTED"}`);
-  line(
-    `Effective: ${snapshot.auth?.effective_date}   Expires: ${snapshot.auth?.expiry_date}   Territory: ${snapshot.auth?.territory}`,
-  );
-  y -= 8;
-  line("Verified Assets:", true, 11);
-  for (const a of (snapshot.assets ?? []).filter(
-    (x: any) => x.verification_status === "VERIFIED",
-  )) {
-    line(
-      `  • ${a.kind.toUpperCase()} — ${a.name ?? a.handle ?? a.channel_id} (${a.verification_method})`,
-    );
-  }
-  y -= 8;
-  line("Authorized Scopes:", true, 11);
-  for (const s of (snapshot.scopes ?? []).filter((x: any) => x.granted)) {
-    line(`  ✓ ${s.scope_key}`);
-  }
-  y -= 10;
-  line("Client Declarations:", true, 11);
-  for (const t of [
-    "I own the listed rights or am legally authorized to represent the owner.",
-    "The listed accounts and assets belong to me or my organization.",
-    "The information supplied is accurate.",
-    "I understand that false complaints may create legal liability.",
-    "I authorize Eterna only within the selected scope.",
-    "I understand final platform submissions may require separate approval.",
-    "Final platform decisions remain solely with the relevant platforms and authorities.",
-    "Eterna does not guarantee content removal, account suspension, or legal outcomes.",
-  ])
-    line(`  • ${t}`);
-
-  if (opts.signed) {
-    y -= 20;
-    line("SIGNATURE", true, 12);
-    line(`Signer: ${opts.signerName ?? ""}`);
-    line(`Signed at: ${opts.signedAt ?? ""}`);
-    if (opts.signatureSvg && opts.signatureSvg.startsWith("data:image/png;base64,")) {
-      try {
-        const b64 = opts.signatureSvg.split(",")[1];
-        const png = await doc.embedPng(Buffer.from(b64, "base64"));
-        page.drawImage(png, { x: 50, y: y - 40, width: 160, height: 50 });
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-  return await doc.save();
-}
-
 export const generateDraftPdf = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -231,7 +152,10 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!auth) throw new Error("No authorization draft");
     const snap = await buildSnapshot(supabase, userId, auth.id);
-    const bytes = await renderPdf(snap, { signed: false });
+    const { renderAuthorizationLetterPdf } = await import(
+      "@/lib/onboarding/authorization-letter-pdf.server"
+    );
+    const bytes = await renderAuthorizationLetterPdf(snap, { signed: false });
     const { putObject, getSignedGetUrl } = await import("@/lib/aws/s3.server");
     const key = `clients/${userId}/authorization/${auth.auth_number}-v${auth.version}-draft.pdf`;
     await putObject({ key, body: Buffer.from(bytes), contentType: "application/pdf" });
@@ -356,7 +280,10 @@ export const finalizeSignature = createServerFn({ method: "POST" })
 
       // Generate BOTH PDFs (letter + certificate) before we touch signatures/certificates rows,
       // so we never leave a partial audit state on failure.
-      const bytes = await renderPdf(snap, {
+      const { renderAuthorizationLetterPdf } = await import(
+        "@/lib/onboarding/authorization-letter-pdf.server"
+      );
+      const bytes = await renderAuthorizationLetterPdf(snap, {
         signed: true,
         signerName: data.typed_name,
         signatureSvg: data.drawn_signature_svg,
