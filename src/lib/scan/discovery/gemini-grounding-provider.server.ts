@@ -19,7 +19,7 @@ import {
 } from "./provider";
 import type { DiscoveryHit } from "./types";
 
-const MODEL = () => process.env.GEMINI_GROUNDING_MODEL?.trim() || "gemini-2.5-flash";
+const MODEL = () => process.env.GEMINI_GROUNDING_MODEL?.trim() || "gemini-flash-latest";
 const TIMEOUT_MS = 20_000;
 const REDIRECT_TIMEOUT_MS = 6_000;
 
