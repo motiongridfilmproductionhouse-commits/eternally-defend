@@ -2821,7 +2821,11 @@ function buildReport(
         discoveredAt: now,
         lastChecked: now,
         category: c.category,
-        contentLabel: labelOf(c.category, sent, source || run.source),
+        contentLabel: riskEvidenced
+          ? labelOf(c.category, sent, source || run.source)
+          : verdict.tier === "TIER_2_NEEDS_REVIEW"
+            ? "Needs human review"
+            : "Neutral mention",
         severity: c.sev,
         sentiment: sent,
         confidence: Math.min(97, 52 + Math.round(c.score / 3.5)),
@@ -2829,16 +2833,16 @@ function buildReport(
         credibilityScore: cred,
         viralityScore: virality,
         copyrightRisk: c.copyrightEnforce,
-        reputationRisk: Math.max(
-          redditRisk?.score ?? 0,
-          Math.min(100, c.reputation + (sent === "Negative" ? 8 : 0)),
-        ),
+        reputationRisk: riskEvidenced
+          ? Math.min(100, Math.max(redditRisk?.score ?? 0, c.reputation))
+          : verdict.reputationRisk,
         reachEstimate: reach,
         engagement,
-        recommendedAction:
-          contentPosition === "SUPPORTIVE" || onlyContextSignals
-            ? "Preserve and review; no apparent violation from title or metadata alone"
-            : "Preserve and conduct human review before selecting any platform or legal action",
+        recommendedAction: riskEvidenced
+          ? "Preserve evidence and conduct human review before selecting any platform or legal action"
+          : verdict.tier === "TIER_2_NEEDS_REVIEW"
+            ? "Retrieve full content and review manually; metadata alone is not sufficient evidence"
+            : "No action indicated; retained for coverage and search",
         keywords: redditRisk?.categories.length
           ? Array.from(new Set([...redditRisk.categories, ...c.keywords]))
           : c.keywords,
@@ -2849,12 +2853,18 @@ function buildReport(
         freshnessWindow: freshnessWindowOf(ageDays),
         legalTakedownPotential: c.legalTakedown,
         copyrightEnforcementPotential: c.copyrightEnforce,
-        whyItMatters: whyItMattersFor(c.category, c.sev, sent),
+        whyItMatters: riskEvidenced ? whyItMattersFor(c.category, c.sev, sent) : undefined,
         contentPosition,
+        classificationTier: verdict.tier,
+        riskClassification: verdict.classification,
+        contentType: verdict.contentType,
+        evidenceLevel: verdict.evidenceLevel,
+        riskEvidence: verdict.evidence,
         identityTier: identity.tier,
         identityConfidence: identity.confidence,
         identityReason: identity.reason,
         reviewStatus: needsReview ? "NEEDS_REVIEW" : "VERIFIED",
+
         searchQueryUsed: o.queryUsed,
         pageExcerpt: pageText ? pageText.slice(0, 600) : undefined,
         metricsAvailable: {
