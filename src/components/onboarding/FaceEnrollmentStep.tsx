@@ -38,10 +38,12 @@ import { FaceScanRing } from "./face-scan/FaceScanRing";
 import { FaceMeshOverlay } from "./face-scan/FaceMeshOverlay";
 import { useCameraPreview } from "./face-scan/useCameraPreview";
 
-const LazyFaceLivenessDetector = lazy(async () => {
+const loadFaceLivenessDetector = async () => {
   const { FaceLivenessDetectorCore } = await import("@aws-amplify/ui-react-liveness");
   return { default: FaceLivenessDetectorCore };
-});
+};
+
+const LazyFaceLivenessDetector = lazy(loadFaceLivenessDetector);
 
 const CONSENT_VERSION = "1.0";
 
@@ -218,15 +220,15 @@ export function FaceEnrollmentStep({
   const startLiveness = async () => {
     setBusy(true);
     setTechnicalError(null);
-    setProcessingText("Creating secure session...");
+    setProcessingText("Preparing camera...");
     try {
-      const data = await createSession();
-      // Release the preview stream and give the browser a moment to fully free
-      // the device before the AWS detector requests exclusive camera access.
-      // Without this gap the detector can start with a stalled stream and the
-      // liveness check times out waiting for frames.
+      // Finish all local camera and bundle preparation before creating the
+      // short-lived AWS session. Starting the AWS clock before this handoff
+      // can make slower devices expire while the detector is still loading.
       camera.stop();
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      await loadFaceLivenessDetector();
+      setProcessingText("Creating secure session...");
+      const data = await createSession();
       setMilestone("session_created");
       setLivenessData({
         sessionId: data.sessionId,
@@ -259,7 +261,12 @@ export function FaceEnrollmentStep({
 
   const handleEnableCamera = async () => {
     const ok = await camera.start();
-    if (ok) setMilestone("camera_ready");
+    if (ok) {
+      setMilestone("camera_ready");
+      // Warm the detector bundle while the user aligns their face. This keeps
+      // its download and initialization outside the AWS session lifetime.
+      void loadFaceLivenessDetector();
+    }
   };
 
   const handleAnalysisComplete = async () => {
@@ -319,7 +326,11 @@ export function FaceEnrollmentStep({
 
     const message = /CAMERA|PERMISSION|NotAllowed/i.test(diagnostic)
       ? "Camera access is required for face protection enrollment. Allow camera permission, then retry."
-      : /TIMEOUT|TIMED_OUT/i.test(diagnostic)
+      : /CONNECTION_TIMEOUT/i.test(diagnostic)
+        ? "The secure connection to AWS Face Liveness timed out before capture began. Check your connection, then retry."
+        : /SERVER_ERROR|RUNTIME_ERROR/i.test(diagnostic)
+          ? "AWS Face Liveness could not start the secure scan. Please retry with a stable connection."
+          : /TIMEOUT|TIMED_OUT/i.test(diagnostic)
         ? "The face scan timed out. Keep your face centered in good lighting, then retry."
         : /SESSION|EXPIRED|NOT_FOUND/i.test(diagnostic)
           ? "The secure face scan session expired. Please enable the camera and start a new scan."
@@ -344,7 +355,7 @@ export function FaceEnrollmentStep({
 
     // Timeouts and expired sessions are recoverable: bring the preview back so
     // the next attempt starts from a fresh session without extra clicks.
-    if (/TIMEOUT|TIMED_OUT|SESSION|EXPIRED|NOT_FOUND/i.test(diagnostic)) {
+    if (/TIMEOUT|TIMED_OUT|SERVER_ERROR|RUNTIME_ERROR|SESSION|EXPIRED|NOT_FOUND/i.test(diagnostic)) {
       const ok = await camera.start();
       if (ok) setMilestone("camera_ready");
     }
