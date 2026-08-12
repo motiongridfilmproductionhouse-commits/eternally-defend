@@ -341,6 +341,13 @@ export function FaceEnrollmentStep({
       await onRefetch();
     }
     toast.error(message);
+
+    // Timeouts and expired sessions are recoverable: bring the preview back so
+    // the next attempt starts from a fresh session without extra clicks.
+    if (/TIMEOUT|TIMED_OUT|SESSION|EXPIRED|NOT_FOUND/i.test(diagnostic)) {
+      const ok = await camera.start();
+      if (ok) setMilestone("camera_ready");
+    }
   };
 
   const handleRevoke = async () => {
