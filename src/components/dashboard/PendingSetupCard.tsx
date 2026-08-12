@@ -18,7 +18,7 @@ export function PendingSetupCard() {
     queryFn: () => fetchFace(),
   });
 
-  const status = data?.status;
+  const status: string | undefined = data?.status;
   const isDeferred = status === "DEFERRED";
   const isMissing =
     status === "NOT_STARTED" ||
