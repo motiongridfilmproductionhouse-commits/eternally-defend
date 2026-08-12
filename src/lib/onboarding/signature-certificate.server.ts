@@ -102,12 +102,14 @@ export async function renderSignatureCertificatePdf(rec: SignatureAuditRecord): 
   };
 
   const paragraph = (t: string) => {
-    for (const line of wrap(t, 96)) {
-      ensure(18);
+    const lines = wrap(t, 96);
+    ensure(lines.length * 13 + 8);
+    for (const line of lines) {
       text(line, { size: 9, color: muted });
     }
     y -= 4;
   };
+
 
   text("ETERNA SENTINEL DEFENCE LLC", { size: 10, bold: true, color: muted });
   y -= 2;
