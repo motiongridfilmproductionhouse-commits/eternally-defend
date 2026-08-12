@@ -349,10 +349,49 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         signedAt,
       });
       const doc_sha = createHash("sha256").update(bytes).digest("hex");
-      // Digital signature evidence: typed name + authorization id + version + timestamp.
+      // Electronic signature evidence: typed name + authorization id + version + timestamp.
       const signature_sha = createHash("sha256")
         .update(`${data.typed_name}|${auth.auth_number}|v${auth.version}|${signedAt}`)
         .digest("hex");
+
+      // Tamper-evident audit record — every value below is captured server-side from real data.
+      const claims = (context as { claims?: Record<string, unknown> }).claims ?? {};
+      const signerEmail =
+        (snap.profile?.email as string | undefined) ||
+        (typeof claims["email"] === "string" ? (claims["email"] as string) : null) ||
+        null;
+      const emailVerified =
+        !!snap.profile?.email_verified_at || claims["email_verified"] === true;
+      const deviceMetadata = {
+        user_agent: userAgent,
+        platform: data.device?.platform ?? null,
+        timezone: data.device?.timezone ?? null,
+        language: data.device?.language ?? null,
+      };
+      const auditRecord = {
+        legal_name: data.typed_name,
+        display_name: (snap.profile?.display_name as string | undefined) ?? null,
+        signer_email: signerEmail,
+        email_verified: emailVerified,
+        client_id: (snap.profile?.client_id as string | undefined) ?? null,
+        user_id: userId,
+        auth_number: auth.auth_number,
+        authorization_id: auth.id,
+        document_version: auth.version,
+        signed_at_utc: signedAt,
+        signature_method: "typed-name electronic signature",
+        consent_accepted: true,
+        consent_text: CONSENT_TEXT,
+        document_sha256: doc_sha,
+        signature_sha256: signature_sha,
+        ip_address: ipAddress,
+        device_metadata: deviceMetadata,
+      };
+      const { renderSignatureCertificatePdf } = await import("./signature-certificate.server");
+      const sigCertBytes = await renderSignatureCertificatePdf(auditRecord);
+      const sigCertSha = createHash("sha256").update(sigCertBytes).digest("hex");
+
+
 
 
       const { normalizeOnboardingVersion, upsertProgressPreservingVersion } =
