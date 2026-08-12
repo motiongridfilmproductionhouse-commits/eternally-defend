@@ -73,7 +73,7 @@ describe("Eterna Security Hardening & Client/Server Boundary Test Suite", () => 
       fs.readFile(new URL("../../server.ts", import.meta.url), "utf8"),
     );
     assert.match(source, /connect-src[^;]+wss:\/\/\*\.amazonaws\.com/);
-    assert.doesNotMatch(source, /connect-src[^;]+wss:\/\/\*/);
+    assert.equal(source.includes(" wss://*;"), false);
   });
 
   it("6. sanitizeProviderError maps AWS Rekognition & OpenAI failures to ANALYSIS_UNAVAILABLE", () => {
