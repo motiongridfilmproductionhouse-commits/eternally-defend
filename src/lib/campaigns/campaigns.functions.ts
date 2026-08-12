@@ -40,6 +40,10 @@ const CreateSchema = z.object({
   notes: z.string().trim().max(2000).optional(),
   hashtags: z.array(z.string().trim().max(80)).max(30).default([]),
   official_urls: z.array(z.string().trim().url().max(1000)).max(30).default([]),
+  approved_accounts: z.array(z.string().trim().max(200)).max(50).default([]),
+  approved_media_urls: z.array(z.string().trim().url().max(1000)).max(50).default([]),
+  starts_at: z.string().trim().min(4).max(40).optional(),
+  ends_at: z.string().trim().min(4).max(40).optional(),
   assets: z.array(AssetSchema).max(50).default([]),
   start_monitoring: z.boolean().default(true),
 });
@@ -60,6 +64,10 @@ export type CampaignRow = {
   notes: string | null;
   hashtags: string[];
   official_urls: string[];
+  approved_accounts: string[];
+  approved_media_urls: string[];
+  starts_at: string | null;
+  ends_at: string | null;
   monitoring_started_at: string | null;
   archived_at: string | null;
   created_at: string;
@@ -103,6 +111,8 @@ export const listCampaigns = createServerFn({ method: "GET" })
         ...c,
         hashtags: c.hashtags ?? [],
         official_urls: c.official_urls ?? [],
+        approved_accounts: c.approved_accounts ?? [],
+        approved_media_urls: c.approved_media_urls ?? [],
         assets: assets[c.id] ?? [],
       })) as CampaignRow[],
     };
@@ -122,6 +132,10 @@ export const createCampaign = createServerFn({ method: "POST" })
         notes: data.notes ?? null,
         hashtags: data.hashtags,
         official_urls: data.official_urls,
+        approved_accounts: data.approved_accounts,
+        approved_media_urls: data.approved_media_urls,
+        starts_at: data.starts_at ? new Date(data.starts_at).toISOString() : null,
+        ends_at: data.ends_at ? new Date(data.ends_at).toISOString() : null,
         status: "ACTIVE",
         monitoring_started_at: data.start_monitoring ? new Date().toISOString() : null,
       })

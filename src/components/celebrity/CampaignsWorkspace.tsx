@@ -183,6 +183,10 @@ export function NewCampaignDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [urls, setUrls] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [notes, setNotes] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
+  const [approvedAccounts, setApprovedAccounts] = useState("");
+  const [approvedMedia, setApprovedMedia] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
@@ -213,6 +217,10 @@ export function NewCampaignDialog({ trigger }: { trigger?: React.ReactNode }) {
             notes: notes || undefined,
             hashtags: splitLines(hashtags).map((h) => (h.startsWith("#") ? h : `#${h}`)),
             official_urls: officialUrls,
+            approved_accounts: splitLines(approvedAccounts),
+            approved_media_urls: splitLines(approvedMedia),
+            starts_at: startsAt || undefined,
+            ends_at: endsAt || undefined,
             assets: [
               ...uploaded,
               ...officialUrls.map((u) => ({ asset_kind: "link" as const, source_url: u })),
@@ -231,6 +239,10 @@ export function NewCampaignDialog({ trigger }: { trigger?: React.ReactNode }) {
       setUrls("");
       setHashtags("");
       setNotes("");
+      setStartsAt("");
+      setEndsAt("");
+      setApprovedAccounts("");
+      setApprovedMedia("");
       setFiles([]);
       await queryClient.invalidateQueries({ queryKey: ["celebrity-campaigns"] });
     },
@@ -307,6 +319,53 @@ export function NewCampaignDialog({ trigger }: { trigger?: React.ReactNode }) {
               placeholder={"https://youtube.com/watch?v=...\nhttps://instagram.com/p/..."}
               value={urls}
               onChange={(e) => setUrls(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="campaign-start">Campaign start</Label>
+              <Input
+                id="campaign-start"
+                type="date"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="campaign-end">Campaign end</Label>
+              <Input
+                id="campaign-end"
+                type="date"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            During this authorized period, approved accounts and media are not treated as threats.
+            After it ends, monitoring continues and new advertising use is flagged for review.
+          </p>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="campaign-accounts">Approved social accounts</Label>
+            <Textarea
+              id="campaign-accounts"
+              rows={2}
+              placeholder={"@officialbrand\nhttps://instagram.com/officialbrand"}
+              value={approvedAccounts}
+              onChange={(e) => setApprovedAccounts(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="campaign-media">Approved media URLs</Label>
+            <Textarea
+              id="campaign-media"
+              rows={2}
+              placeholder={"https://cdn.brand.com/poster.jpg"}
+              value={approvedMedia}
+              onChange={(e) => setApprovedMedia(e.target.value)}
             />
           </div>
 
