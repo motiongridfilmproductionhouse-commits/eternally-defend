@@ -18,12 +18,17 @@ export async function analyzeHitForFaces(opts: {
   sourceType: "youtube_thumb" | "profile" | "news" | "website" | "screenshot" | "other";
 }): Promise<{ ok: boolean; matches?: number; reason?: string }> {
   try {
-    const { data: col } = await opts.supabase
-      .from("rekognition_collections")
-      .select("collection_id")
-      .eq("user_id", opts.userId)
-      .maybeSingle();
-    if (!col?.collection_id) return { ok: false, reason: "no_collection" };
+    // Reuse the SAME enrolled protected-face registry as onboarding.
+    const { resolveActiveFaceMonitoring } = await import(
+      "./face-protection/monitoring.server"
+    );
+    const monitoring = await resolveActiveFaceMonitoring(
+      opts.supabase as never,
+      opts.userId,
+    );
+    const collectionId = monitoring.collectionId;
+    if (!collectionId) return { ok: false, reason: "no_collection" };
+    if (monitoring.activeFaces.length === 0) return { ok: false, reason: "no_active_faces" };
 
     const { fetchImageBytes, putObject, getBucket } = await import("./aws/s3.server");
     const { searchFacesByImage } = await import("./aws/rekognition.server");
@@ -32,7 +37,7 @@ export async function analyzeHitForFaces(opts: {
     if (!img) return { ok: false, reason: "fetch_failed" };
 
     const { matches, searchedFaceConfidence, searchedFaceBoundingBox } = await searchFacesByImage({
-      collectionId: col.collection_id,
+      collectionId,
       bytes: img.bytes,
       threshold: 80,
       maxFaces: 5,
@@ -48,7 +53,12 @@ export async function analyzeHitForFaces(opts: {
       /* ignore */
     }
 
-    const faceIds = matches.map((m) => m.faceId);
+    // Only accept matches against this user's ACTIVE protected faces.
+    const activeIds = new Set(monitoring.activeFaceIds);
+    const accepted = matches.filter((m) => activeIds.has(m.faceId));
+    if (accepted.length === 0) return { ok: true, matches: 0 };
+
+    const faceIds = accepted.map((m) => m.faceId);
     const { data: prot } = await opts.supabase
       .from("protected_faces")
       .select("id,face_id,asset_id")
@@ -56,11 +66,43 @@ export async function analyzeHitForFaces(opts: {
       .eq("user_id", opts.userId);
     const byFace = new Map((prot ?? []).map((p) => [p.face_id, p]));
 
-    for (const m of matches) {
+    // Existing-evidence context used ONLY to categorise a real match.
+    const { classifyFaceLinkedFinding } = await import(
+      "./face-protection/face-linked-category"
+    );
+    const [{ data: hitRow }, { data: dfRow }, { data: existing }] = await Promise.all([
+      opts.supabase
+        .from("scan_hits")
+        .select("severity,risk_type,tags,threat_score")
+        .eq("id", opts.scanHitId)
+        .maybeSingle(),
+      opts.supabase
+        .from("deepfake_findings")
+        .select("is_synthetic,risk_level,confidence,review_status,finding_classification")
+        .eq("user_id", opts.userId)
+        .or(`url.eq.${opts.imageUrl},canonical_url.eq.${opts.imageUrl}`)
+        .limit(1)
+        .maybeSingle(),
+      opts.supabase
+        .from("face_match_events")
+        .select("id,matched_face_id")
+        .eq("user_id", opts.userId)
+        .eq("scan_hit_id", opts.scanHitId),
+    ]);
+    const seen = new Set((existing ?? []).map((e: { matched_face_id: string | null }) => e.matched_face_id));
+
+    let inserted = 0;
+    for (const m of accepted) {
+      if (seen.has(m.faceId)) continue; // never duplicate a finding
       const pf = byFace.get(m.faceId);
+      const verdict = classifyFaceLinkedFinding({
+        similarity: m.similarity ?? null,
+        hit: hitRow ?? null,
+        deepfake: dfRow ?? null,
+      });
       await opts.supabase.from("face_match_events").insert({
         user_id: opts.userId,
-        collection_id: col.collection_id,
+        collection_id: collectionId,
         matched_face_id: m.faceId,
         matched_protected_face_id: pf?.id ?? null,
         matched_asset_id: pf?.asset_id ?? null,
@@ -72,10 +114,13 @@ export async function analyzeHitForFaces(opts: {
         image_s3_bucket: bucket,
         image_s3_key: key,
         bounding_box: (searchedFaceBoundingBox as never) ?? null,
-        review_status: "pending",
+        threat_category: verdict.category,
+        context_notes: verdict.reason,
+        review_status: verdict.reviewStatus,
       });
+      inserted += 1;
     }
-    return { ok: true, matches: matches.length };
+    return { ok: true, matches: inserted };
   } catch (e) {
     console.warn("[face-scan] analyzeHit failed", (e as Error).message);
     return { ok: false, reason: (e as Error).message };
