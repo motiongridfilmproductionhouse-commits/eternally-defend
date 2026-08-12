@@ -614,7 +614,20 @@ export const finalizeSignature = createServerFn({ method: "POST" })
           target: auth.auth_number,
         },
         { user_id: userId, actor_id: userId, action: "certificate_issued", target: cert_number },
+        {
+          user_id: userId,
+          actor_id: userId,
+          action: "signature_certificate_issued",
+          target: `${auth.auth_number} v${auth.version}`,
+        },
+        {
+          user_id: userId,
+          actor_id: userId,
+          action: "authorization_version_frozen",
+          target: `${auth.auth_number} v${auth.version}`,
+        },
       ]);
+
 
       const { data: progress } = await supabase
         .from("onboarding_progress")
