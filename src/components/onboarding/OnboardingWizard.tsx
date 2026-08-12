@@ -190,7 +190,7 @@ function LegacyOnboardingWizard({
               className="absolute left-[15px] top-4 bottom-4 w-px bg-white/15"
             />
             <ol className="relative space-y-1">
-              {STEP_TITLES.map((title, i) => {
+              {visibleSteps.map(({ title, index: i }, position) => {
                 const isActive = i === stepIndex;
                 const isPast = i < stepIndex;
                 const isLocked =
@@ -218,7 +218,7 @@ function LegacyOnboardingWizard({
                       ) : isLocked ? (
                         <Lock className="size-3.5 opacity-50" />
                       ) : (
-                        i + 1
+                        position + 1
                       )}
                     </span>
                     <span
