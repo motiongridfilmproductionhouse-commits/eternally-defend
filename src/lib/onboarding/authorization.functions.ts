@@ -479,7 +479,6 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         typed_name: data.typed_name,
         role_title: data.role_title ?? null,
         drawn_signature_svg: null,
-        signature_sha256: signature_sha,
         signed_at: signedAt,
 
         document_sha256: doc_sha,
