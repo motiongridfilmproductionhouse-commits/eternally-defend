@@ -12,15 +12,17 @@ export async function renderAuthorizationLetterPdf(
   const {
     SERVICE_PROVIDER_NAME,
     LETTER_TITLE,
-    selectedCategories,
     limitationClauses,
     resolveClientParty,
-    coveredAssets,
     footerText,
     authorizingParagraph,
-    authorizationLevel,
-    AUTHORIZATION_LEVEL_LABELS,
+    selectedServices,
+    officialDigitalPresence,
+    REMOVAL_AUTHORITY_CLAUSE,
+    NO_GUARANTEE_CLAUSE,
+    CLIENT_DECLARATIONS,
   } = await import("@/lib/onboarding/authorization-letter");
+
 
   const doc = await PDFDocument.create();
   const stack = await embedUnicodeFontStack(doc);
@@ -112,7 +114,9 @@ export async function renderAuthorizationLetterPdf(
   };
 
   const sectionHeading = (t: string) => {
-    ensure(30);
+    // Reserve room for the heading, its rule and the first lines beneath it so
+    // a heading never strands alone at the bottom of a page.
+    ensure(78);
     y -= 6;
     text(t.toUpperCase(), { size: 10, bold: true, color: navy, gap: 4 });
     rule(rgb(0.75, 0.82, 0.94));
@@ -185,11 +189,12 @@ export async function renderAuthorizationLetterPdf(
   rule();
 
   // ---- Parties & authorization record ----------------------------------
+  // Legal identifiers only — no internal status, classifier or provider fields.
   const party = resolveClientParty(snapshot.profile);
   sectionHeading("1. Client and authorization details");
   field("Client Full Legal Name", party.legalName);
-  field("Artist / Public Display Name", party.displayName);
-  field("Client Type", party.clientType);
+  field("Public / Display Name", party.displayName);
+  field("Client ID", snapshot.profile?.client_id ?? "");
   field("Country", party.country);
   field("Authorization ID", authNumber);
   field("Document Version", `v${version}`);
@@ -201,62 +206,80 @@ export async function renderAuthorizationLetterPdf(
   sectionHeading("2. Authorization");
   paragraph(authorizingParagraph(party), { gap: 6 });
 
-  // ---- Verified assets --------------------------------------------------
-  sectionHeading("3. Verified digital assets and accounts covered");
-  const assets = coveredAssets(snapshot.assets);
-  if (assets.length === 0) {
+  // ---- Authorized protection services -----------------------------------
+  const services = selectedServices(snapshot.scopes);
+  sectionHeading("3. Authorized protection services");
+  paragraph(
+    "The Client authorizes the Service Provider to provide the following protection services, and no others:",
+    { gap: 6 },
+  );
+  if (services.length === 0) {
+    paragraph("No protection services have been selected by the Client.", { color: muted });
+  } else {
+    services.forEach((s, i) => {
+      ensure(46); // keep the service title with its opening sentence
+      paragraph(`${i + 1}.  ${s.title.toUpperCase()}`, { bold: true, color: navy, indent: 0, gap: 2 });
+      paragraph(s.intro, { indent: 10, gap: 3 });
+      for (const b of s.bullets) {
+        paragraph(`•  ${b}`, { size: 9, indent: 20, gap: 1 });
+      }
+      if (s.closing) {
+        y -= 3;
+        paragraph(s.closing, { size: 8.8, color: muted, indent: 10, gap: 6 });
+      } else {
+        y -= 6;
+      }
+    });
+  }
+
+  // ---- Official digital presence ----------------------------------------
+  sectionHeading("4. Official digital presence");
+  const presence = officialDigitalPresence(snapshot.profile, snapshot.assets);
+  if (presence.length === 0) {
     paragraph(
-      "No verified digital assets are currently covered by this authorization. Coverage applies only to assets verified and listed in a subsequent version of this document.",
+      "No official profiles have been supplied by the Client. Coverage applies only to profiles supplied and listed in this or a subsequent version of this document.",
       { color: muted },
     );
   } else {
-    for (const a of assets) {
-      paragraph(`•  ${a.label}`, { indent: 6, gap: 0 });
-      if (a.meta) text(a.meta, { size: 8, color: muted, indent: 18, gap: 4 });
+    for (const group of presence) {
+      ensure(30);
+      paragraph(`${group.platform}:`, { bold: true, color: navy, indent: 6, gap: 2 });
+      for (const entry of group.entries) {
+        paragraph(entry.label, { indent: 18, gap: 0 });
+        if (entry.url && entry.url !== entry.label) {
+          text(entry.url, { size: 8, color: muted, indent: 18, gap: 3 });
+        }
+      }
+      y -= 4;
     }
-    y -= 4;
-  }
-
-  // ---- Approved scope ---------------------------------------------------
-  const categories = selectedCategories(snapshot.scopes);
-  const level = authorizationLevel(snapshot.scopes);
-  sectionHeading("4. Approved monitoring scope");
-  paragraph(
-    "The Client authorizes the Service Provider to perform only the following selected protection services:",
-    { gap: 6 },
-  );
-  if (categories.length === 0) {
-    paragraph("No protection services have been selected by the Client.", { color: muted });
-  } else {
-    categories.forEach((c, i) => {
-      ensure(34); // keep the numbered title with its description
-      paragraph(`${i + 1}.  ${c.title}`, { bold: true, indent: 6, gap: 1 });
-      paragraph(c.detail, { size: 8.8, color: muted, indent: 20, gap: 5 });
+    paragraph("All profiles listed above are client-supplied official profiles.", {
+      size: 8.5,
+      color: muted,
+      gap: 4,
     });
   }
-  field("Authorization Level", AUTHORIZATION_LEVEL_LABELS[level]);
+
+  // ---- Removal authority and outcome disclaimer -------------------------
+  sectionHeading("5. Removal requests and platform outcomes");
+  paragraph(REMOVAL_AUTHORITY_CLAUSE, { gap: 5 });
+  paragraph(NO_GUARANTEE_CLAUSE, { gap: 5 });
 
   // ---- Limitations ------------------------------------------------------
-  sectionHeading("5. Scope limitations and reservations");
+  sectionHeading("6. Scope limitations and reservations");
   limitationClauses(snapshot.scopes).forEach((clause, i) => {
-    paragraph(`5.${i + 1}  ${clause}`, { gap: 5 });
+    paragraph(`6.${i + 1}  ${clause}`, { gap: 5 });
   });
 
   // ---- Client declarations ---------------------------------------------
-  sectionHeading("6. Client declarations");
-  for (const t of [
-    "The Client owns the listed rights or is legally authorized to represent the rights owner.",
-    "The listed accounts and assets belong to the Client or the Client's organization.",
-    "The information supplied in this authorization is accurate and complete.",
-    "The Client understands that false or abusive complaints may create legal liability.",
-    "The Client authorizes the Service Provider only within the selected scope stated above.",
-  ]) {
+  sectionHeading("7. Client declarations");
+  for (const t of CLIENT_DECLARATIONS) {
     paragraph(`•  ${t}`, { indent: 6, gap: 3 });
   }
 
+
   // ---- Signatures -------------------------------------------------------
   ensure(180);
-  sectionHeading("7. Execution");
+  sectionHeading("8. Execution");
 
   const signatureBlock = (
     heading: string,

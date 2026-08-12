@@ -194,3 +194,206 @@ export function footerText(authNumber: string, version: number | string): string
 export function authorizingParagraph(party: LetterParty): string {
   return `The undersigned, ${party.legalName}${party.displayName && party.displayName !== party.legalName ? ` (professionally known as ${party.displayName})` : ""}, hereinafter the "Client", hereby authorizes ${SERVICE_PROVIDER_NAME}, hereinafter the "Service Provider", to provide authorized digital protection and monitoring services on the Client's behalf, strictly limited to the services selected by the Client and set out in this authorization.`;
 }
+
+// ---------------------------------------------------------------------------
+// AUTHORIZED PROTECTION SERVICES — client-facing presentation model.
+// Plain-language service descriptions for the issued letter. No internal
+// scope keys, classifier values, verification-provider names or biometric
+// implementation details are ever rendered from here.
+// ---------------------------------------------------------------------------
+
+export type ProtectionService = {
+  id: string;
+  title: string;
+  intro: string;
+  bullets: string[];
+  closing?: string;
+  scopeKeys: string[];
+};
+
+export const PROTECTION_SERVICES: ProtectionService[] = [
+  {
+    id: "internet_reputation",
+    title: "Internet & Reputation Protection",
+    intro:
+      "Monitor publicly accessible internet sources for references to the Client, including search engines, websites, news, blogs, forums and supported social platforms, in order to identify potentially:",
+    bullets: [
+      "defamatory or harmful content",
+      "impersonation",
+      "false or misleading representations",
+      "reputation threats",
+      "unauthorized use of the Client's identity",
+    ],
+    closing:
+      "Where legally and contractually permitted, the Service Provider may collect and preserve evidence and prepare appropriate platform reports or removal requests. Lawful criticism, opinion, journalism and other legitimate content are not automatically removable, and no such outcome is promised.",
+    scopeKeys: ["monitor_public", "monitoring_reports"],
+  },
+  {
+    id: "social_media",
+    title: "Social Media Protection",
+    intro:
+      "Monitor the official social profiles supplied by the Client, together with public references across supported platforms, including:",
+    bullets: ["Instagram", "Facebook", "YouTube", "X", "TikTok", "Threads", "other supplied profiles"],
+    closing:
+      "The purpose of this monitoring is to detect suspected fake accounts, impersonation, unauthorized identity use and suspicious copies of the Client's profiles or content.",
+    scopeKeys: ["monitor_verified_assets", "prepare_impersonation", "monitor_public"],
+  },
+  {
+    id: "youtube_video",
+    title: "YouTube & Video Protection",
+    intro:
+      "Monitor the YouTube channels and videos supplied by the Client, and supported public video sources, for:",
+    bullets: [
+      "unauthorized copies",
+      "copyright misuse",
+      "impersonation",
+      "misleading edits",
+      "unauthorized promotional use",
+      "identity or face misuse",
+    ],
+    scopeKeys: ["monitor_verified_assets", "prepare_copyright"],
+  },
+  {
+    id: "face_likeness",
+    title: "Face & Likeness Protection",
+    intro:
+      "Use the facial reference enrolled by the Client during onboarding solely for authorized identity-protection scanning, and monitor supported sources for suspected:",
+    bullets: [
+      "unauthorized use of the Client's face",
+      "impersonation",
+      "manipulated imagery",
+      "synthetic or deepfake content",
+      "misleading use of the Client's likeness",
+    ],
+    scopeKeys: ["detect_face_misuse"],
+  },
+  {
+    id: "copyright_campaign",
+    title: "Copyright & Campaign Protection",
+    intro:
+      "Monitor copyright-protected assets and campaign materials supplied by the Client, including:",
+    bullets: [
+      "photographs",
+      "posters",
+      "videos",
+      "trailers",
+      "music and promotional material",
+      "advertisements",
+      "campaign assets",
+    ],
+    closing:
+      "The Service Provider may detect suspected unauthorized copies or misuse of these materials and preserve the relevant evidence.",
+    scopeKeys: ["prepare_copyright", "monitor_verified_assets"],
+  },
+  {
+    id: "evidence_removal",
+    title: "Evidence & Removal Assistance",
+    intro: "The Client authorizes the Service Provider to:",
+    bullets: [
+      "identify suspected violations",
+      "collect relevant public evidence",
+      "preserve URLs, screenshots and metadata where supported",
+      "prepare platform complaints",
+      "prepare copyright notices",
+      "prepare impersonation reports",
+      "prepare privacy and identity-misuse reports",
+      "track submitted cases",
+      "communicate with platforms where authorized",
+    ],
+    closing:
+      "Any final submission or enforcement action must follow the authorization level selected by the Client and applicable law and platform rules.",
+    scopeKeys: [
+      "collect_evidence",
+      "prepare_copyright",
+      "prepare_privacy",
+      "prepare_impersonation",
+      "prepare_hosting",
+      "communicate_platforms",
+      "track_enforcement",
+      "follow_up_cases",
+      "submit_final_after_approval",
+    ],
+  },
+];
+
+/** Services covered by this authorization — only those backed by a granted scope. */
+export function selectedServices(scopes: ScopeRow[] | null | undefined): ProtectionService[] {
+  const granted = new Set(grantedScopeKeys(scopes));
+  return PROTECTION_SERVICES.filter((s) => s.scopeKeys.some((k) => granted.has(k)));
+}
+
+/** Mandatory removal-authority wording. Never an unconditional right to remove. */
+export const REMOVAL_AUTHORITY_CLAUSE = `The Client authorizes ${SERVICE_PROVIDER_NAME} to request removal, restriction, correction, de-indexing, or other appropriate platform action concerning content reasonably believed to infringe the Client's rights, subject to applicable law, platform policies, the Client's authorization scope, and any required client approval.`;
+
+/** Mandatory no-guarantee wording. */
+export const NO_GUARANTEE_CLAUSE = `${SERVICE_PROVIDER_NAME} does not control third-party platforms and cannot guarantee removal, suspension, de-indexing, or any particular legal or platform outcome.`;
+
+export type PresenceGroup = { platform: string; entries: { label: string; url: string }[] };
+
+const PLATFORM_MATCHERS: { platform: string; test: RegExp }[] = [
+  { platform: "YouTube", test: /youtu\.?be|youtube/i },
+  { platform: "Instagram", test: /instagram/i },
+  { platform: "Facebook", test: /facebook|fb\.com/i },
+  { platform: "X", test: /(^|\W)(x\.com|twitter)/i },
+  { platform: "TikTok", test: /tiktok/i },
+  { platform: "Threads", test: /threads\./i },
+];
+
+function platformOf(value: string): string {
+  const hit = PLATFORM_MATCHERS.find((m) => m.test.test(value));
+  return hit ? hit.platform : "Other";
+}
+
+/**
+ * Official digital presence supplied by the Client, grouped per platform.
+ * Presentation only — nothing here asserts that a profile was verified.
+ */
+export function officialDigitalPresence(
+  profile: Record<string, any> | null | undefined,
+  assets: any[] | null | undefined,
+): PresenceGroup[] {
+  const groups = new Map<string, { label: string; url: string }[]>();
+  const push = (platform: string, label: string, url: string) => {
+    const list = groups.get(platform) ?? [];
+    if (list.some((e) => (e.url || e.label) === (url || label))) return;
+    list.push({ label, url });
+    groups.set(platform, list);
+  };
+
+  for (const a of assets ?? []) {
+    const url = String(a?.url ?? a?.channel_url ?? "").trim();
+    const handle = String(a?.handle ?? "").trim();
+    const name = String(a?.name ?? "").trim();
+    const kind = String(a?.kind ?? "").trim();
+    const reference = url || handle || name;
+    if (!reference) continue;
+    const platform = platformOf(`${kind} ${url} ${handle}`);
+    push(platform, name || handle || reference, url || handle);
+  }
+
+  const handles = (profile?.social_profiles as any)?.handles;
+  for (const raw of Array.isArray(handles) ? handles : []) {
+    const value = String(raw ?? "").trim();
+    if (!value) continue;
+    push(platformOf(value), value, /^https?:\/\//i.test(value) ? value : "");
+  }
+
+  const website = String(profile?.website ?? "").trim();
+  if (website) push("Other", website, website);
+
+  const order = ["YouTube", "Instagram", "Facebook", "X", "TikTok", "Threads", "Other"];
+  return order
+    .filter((p) => groups.has(p))
+    .map((platform) => ({ platform, entries: groups.get(platform)! }));
+}
+
+/** Declarations printed in the issued letter. */
+export const CLIENT_DECLARATIONS = [
+  "The Client owns the listed rights or is legally authorized to represent the rights owner.",
+  "The accounts, profiles and assets listed in this authorization belong to the Client or the Client's organization.",
+  "The information supplied in this authorization is accurate and complete.",
+  "The Client understands that false or abusive complaints may create legal liability.",
+  "The Client authorizes the Service Provider only within the protection services stated in this authorization.",
+  "Final decisions on reported content rest with the relevant platforms and competent authorities.",
+  "No specific removal, suspension, de-indexing or legal outcome is guaranteed.",
+];
