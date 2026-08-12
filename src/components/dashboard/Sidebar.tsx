@@ -30,6 +30,12 @@ import {
   Megaphone,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
+import { useVerificationStatus } from "@/hooks/use-verification-status";
+import {
+  CELEBRITY_NAV_LABELS,
+  visibleNavRoutes,
+  workspaceModeFor,
+} from "@/lib/workspace/workspace-nav";
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/integrations/supabase/client";
 import { useSidebarLayout } from "@/lib/layout-context";
