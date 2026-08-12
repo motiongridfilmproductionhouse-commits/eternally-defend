@@ -59,6 +59,7 @@ const mainNav: NavItem[] = [
   { icon: Lock, label: "Intimate Image & Deepfake Protection", to: "/sensitive-protection" },
   { icon: ScanFace, label: "Deepfake Intel", to: "/deepfake-intel", badge: "AI" },
   { icon: Copyright, label: "Copyright Intelligence", to: "/copyright-intel", badge: "NEW" },
+  { icon: Megaphone, label: "Campaign Protection", to: "/campaigns" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
   { icon: Briefcase, label: "Cases", to: "/cases" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
