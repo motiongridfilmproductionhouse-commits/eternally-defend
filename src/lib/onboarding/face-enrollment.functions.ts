@@ -209,7 +209,7 @@ export const createLivenessSession = createServerFn({ method: "POST" })
         },
       };
     } catch (e: any) {
-      if (/Biometric consent/i.test(String(e?.message))) throw e;
+      if (/Biometric consent|CONSENT_REQUIRED/i.test(String(e?.message))) throw e;
       const info = classifyAwsError(e);
       await supabase.from("protected_face_profiles").upsert(
         {

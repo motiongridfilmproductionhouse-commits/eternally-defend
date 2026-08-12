@@ -295,6 +295,48 @@ export function FaceEnrollmentStep({
     }
   };
 
+  const handleLivenessError = async (error: unknown) => {
+    const errorRecord = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+    const nestedError =
+      errorRecord.error && typeof errorRecord.error === "object"
+        ? (errorRecord.error as Record<string, unknown>)
+        : {};
+    const diagnostic = [
+      errorRecord.state,
+      errorRecord.message,
+      errorRecord.name,
+      nestedError.name,
+      nestedError.message,
+    ]
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+      .join(" ");
+
+    const message = /CAMERA|PERMISSION|NotAllowed/i.test(diagnostic)
+      ? "Camera access is required for face protection enrollment. Allow camera permission, then retry."
+      : /TIMEOUT|TIMED_OUT/i.test(diagnostic)
+        ? "The face scan timed out. Keep your face centered in good lighting, then retry."
+        : /SESSION|EXPIRED|NOT_FOUND/i.test(diagnostic)
+          ? "The secure face scan session expired. Please enable the camera and start a new scan."
+          : /FACE_DISTANCE|FACE_TOO_CLOSE|FACE_TOO_FAR/i.test(diagnostic)
+            ? "Move your face fully inside the guide and keep the device steady, then retry."
+            : diagnostic
+              ? `Face scan stopped: ${diagnostic}`
+              : "The face scan stopped before analysis completed. Please enable the camera and retry.";
+
+    setTechnicalError(message);
+    setMilestone("failed");
+    setLivenessData(null);
+    camera.stop();
+
+    try {
+      await resume();
+      await onRefetch();
+    } catch {
+      await onRefetch();
+    }
+    toast.error(message);
+  };
+
   const handleRevoke = async () => {
     if (
       !confirm(
@@ -459,17 +501,7 @@ export function FaceEnrollmentStep({
                 config={{ credentialProvider }}
                 onAnalysisComplete={handleAnalysisComplete}
                 onError={(error) => {
-                  const stateStr = String(error?.state ?? "");
-                  const isCamera = /CAMERA|PERMISSION/i.test(stateStr);
-                  setTechnicalError(
-                    isCamera
-                      ? "Camera access is required for face protection enrollment. Enable camera permission and try again."
-                      : "Face enrollment couldn't be completed. Please try again.",
-                  );
-                  setMilestone("failed");
-                  toast.error(`Scanner error: ${stateStr || "unknown"}`);
-                  setLivenessData(null);
-                  onRefetch();
+                  void handleLivenessError(error);
                 }}
               />
             </Suspense>
