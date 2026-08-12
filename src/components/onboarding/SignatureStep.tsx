@@ -266,95 +266,56 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
   return (
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
       <CardHeader>
-        <CardTitle className="text-xl">Electronic Signature</CardTitle>
+        <CardTitle className="text-xl">Electronic Signature &amp; Authorization</CardTitle>
         <CardDescription className="text-white/60">
-          Sign the authorization letter to grant Eterna AI legal permission to act on your behalf.
-          Your signature is securely hashed and sealed alongside the document.
+          Execute the Authorization Letter digitally. No printing, handwriting or scanning is
+          required — your typed legal name, timestamp and document version are recorded as your
+          digital signature.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <div className="text-sm font-semibold text-white/80 uppercase tracking-wider">
-            Required Declarations
-          </div>
-          <div className="space-y-2 bg-white/5 border border-white/10 p-3 rounded-lg">
-            {DECLARATIONS.map((d) => (
-              <label
-                key={d.key}
-                className="flex gap-3 items-start cursor-pointer hover:bg-white/5 p-1.5 rounded transition-colors"
-              >
-                <Checkbox
-                  checked={confirmations[d.key] || false}
-                  onCheckedChange={(c) => setConfirmations((p) => ({ ...p, [d.key]: !!c }))}
-                  className="mt-0.5 border-white/30 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
-                  disabled={busy}
-                />
-                <span className="text-sm text-white/90">{d.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs text-white/50 uppercase tracking-wider">
-              Full Legal Name
-            </label>
-            <Input
-              value={typedName}
-              onChange={(e) => setTypedName(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white"
-              placeholder="e.g. John Doe"
-              disabled={busy}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-white/50 uppercase tracking-wider">
-              Role / Designation (Optional)
-            </label>
-            <Input
-              value={roleTitle}
-              onChange={(e) => setRoleTitle(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white"
-              placeholder="e.g. Creator, CEO"
-              disabled={busy}
-            />
-          </div>
-        </div>
+        <label className="flex gap-3 items-start cursor-pointer bg-white/5 border border-white/10 p-4 rounded-lg hover:bg-white/[0.07] transition-colors">
+          <Checkbox
+            checked={accepted}
+            onCheckedChange={(c) => setAccepted(!!c)}
+            className="mt-0.5 border-white/30 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
+            disabled={busy}
+          />
+          <span className="text-sm text-white/90">
+            I have reviewed and accept this authorization.
+          </span>
+        </label>
 
         <div className="space-y-1.5">
-          <label className="text-xs text-white/50 uppercase tracking-wider flex justify-between">
-            <span>Draw Signature</span>
-            <button
-              onClick={handleClearSig}
-              disabled={busy}
-              className="text-blue-400 hover:text-blue-300 text-[10px]"
-            >
-              Clear
-            </button>
-          </label>
-          <div
-            className="bg-white rounded-lg border-2 border-white/20 overflow-hidden relative"
-            style={{ height: "150px" }}
-          >
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
-              <PenTool className="size-16 text-black" />
-            </div>
-            <SignatureCanvas
-              ref={sigCanvas}
-              penColor="black"
-              onEnd={() => setHasStrokes(!sigCanvas.current?.isEmpty())}
-              canvasProps={{
-                className: "w-full h-full cursor-crosshair",
-                style: { width: "100%", height: "100%" },
-              }}
-            />
-          </div>
-          <div className="text-[10px] text-white/40 pt-1">
-            Your signature will be hashed (SHA-256) and stored alongside your identity, IP, and
-            user-agent for audit purposes.
+          <label className="text-xs text-white/50 uppercase tracking-wider">Full Legal Name</label>
+          <Input
+            value={typedName}
+            onChange={(e) => setTypedName(e.target.value)}
+            className="bg-[#0F172A] border-white/10 text-white"
+            placeholder={legalName || "Your full legal name"}
+            disabled={busy}
+          />
+          <div className="text-[10px] text-white/40">
+            Must match your legal name on record
+            {legalName ? `: ${legalName}` : ""}.
           </div>
         </div>
+
+        <div className="grid gap-2 rounded-lg border border-white/10 bg-white/5 p-4 text-xs text-white/60">
+          <div className="flex justify-between">
+            <span>Authorization ID</span>
+            <span className="font-mono text-white/80">{auth?.auth_number ?? "—"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Document Version</span>
+            <span className="text-white/80">v{auth?.version ?? 1}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Signature Method</span>
+            <span className="text-white/80">Digital signature (typed name)</span>
+          </div>
+        </div>
+
 
         {signError && (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
