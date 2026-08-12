@@ -333,7 +333,7 @@ export async function renderAuthorizationLetterPdf(
 
   // ---- Signatures -------------------------------------------------------
   ensure(180);
-  sectionHeading("8. Execution");
+  sectionHeading(`${8 + n}. Execution`);
 
   const signatureBlock = (
     heading: string,
