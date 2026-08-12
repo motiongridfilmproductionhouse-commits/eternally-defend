@@ -269,15 +269,33 @@ export function AuthorizationReviewStep({
                 Close
               </button>
             </div>
-            <iframe
-              src={previewUrl}
-              title="Eterna Sentinel Defence LLC Authorization Letter"
+            <object
+              data={previewUrl}
+              type="application/pdf"
               className="w-full h-[640px] bg-white"
-            />
-            <div className="px-4 py-3 border-t border-white/10 bg-white/5 text-xs text-white/50">
-              Scroll through all pages of the letter. Once you have read it, confirm below to
-              continue to the electronic signature step.
+              aria-label="Eterna Sentinel Defence LLC Authorization Letter"
+            >
+              <iframe
+                src={previewUrl}
+                title="Eterna Sentinel Defence LLC Authorization Letter"
+                className="w-full h-[640px] bg-white"
+              />
+            </object>
+            <div className="px-4 py-3 border-t border-white/10 bg-white/5 text-xs text-white/50 flex items-center justify-between gap-3">
+              <span>
+                Scroll through all pages of the letter. Once you have read it, confirm below to
+                continue to the electronic signature step.
+              </span>
+              <a
+                href={previewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sky-300 hover:text-sky-200 whitespace-nowrap"
+              >
+                Open in new tab
+              </a>
             </div>
+
           </div>
         )}
 
