@@ -85,6 +85,11 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       const res = await signDoc({
         data: {
           typed_name: typedName.trim(),
+          device: {
+            platform: typeof navigator !== "undefined" ? navigator.platform : undefined,
+            language: typeof navigator !== "undefined" ? navigator.language : undefined,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          },
           confirmations: {
             reviewed: true,
             owner: true,
@@ -96,10 +101,11 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
           },
         },
       });
+
       if (res?.duplicate) {
-        toast.success("Authorization already digitally signed.");
+        toast.success("Authorization already electronically signed.");
       } else {
-        toast.success("Authorization digitally signed.");
+        toast.success("Authorization electronically signed.");
       }
       await Promise.all([
         refetch(),
@@ -123,14 +129,18 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
   };
 
 
-  const handleViewPdf = async (docId: string, download: boolean = false) => {
+  const handleViewPdf = async (
+    docId: string,
+    download: boolean = false,
+    filename = "Eterna_Authorization_Signed.pdf",
+  ) => {
     setLoadingUrl(docId);
     try {
       const { url } = await fetchUrl({ data: { doc_id: docId } });
       if (download) {
         const a = document.createElement("a");
         a.href = url;
-        a.download = "Eterna_Authorization_Signed.pdf";
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -143,6 +153,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       setLoadingUrl(null);
     }
   };
+
 
   if (isLoading) {
     return (
@@ -160,9 +171,13 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
   const signedDoc = authBundle?.documents?.find(
     (d: any) => d.kind === "signed" && d.version === auth?.version,
   );
+  const sigCertDoc = authBundle?.documents?.find(
+    (d: any) => d.kind === "signature_certificate" && d.version === auth?.version,
+  );
   const signatureRec = authBundle?.signatures?.find(
     (s: any) => s.status === "SIGNED" && s.version === auth?.version,
   );
+
 
   if (isSigned && signedDoc && signatureRec) {
     return (
@@ -175,7 +190,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
             <div>
               <h2 className="text-2xl font-bold text-emerald-400">Digitally Signed</h2>
               <p className="text-white/60 mt-1">
-                This authorization was executed electronically and is sealed for audit.
+                This authorization was executed with an electronic signature. This version is frozen and sealed for audit.
               </p>
             </div>
           </div>
@@ -207,8 +222,14 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
                   : "Unknown"}
               </span>
             </div>
+            <div className="flex justify-between border-b border-white/10 pb-2">
+              <span className="text-white/50">Signature Method</span>
+              <span className="text-white">
+                {signatureRec.signature_method || "typed-name electronic signature"}
+              </span>
+            </div>
             <div className="flex justify-between">
-              <span className="text-white/50">Document Hash</span>
+              <span className="text-white/50">Document Hash (SHA-256)</span>
               <span
                 className="font-mono text-xs text-white/80 max-w-[200px] truncate"
                 title={signedDoc.sha256 ?? undefined}
@@ -218,7 +239,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
             </div>
           </div>
 
-          <div className="flex gap-3 justify-center">
+          <div className="flex flex-wrap gap-3 justify-center">
             <Button
               variant="outline"
               onClick={() => handleViewPdf(signedDoc.id, true)}
@@ -233,6 +254,24 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               Download Signed PDF
             </Button>
 
+            {sigCertDoc && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  handleViewPdf(sigCertDoc.id, true, "Eterna_Signature_Certificate.pdf")
+                }
+                disabled={loadingUrl === sigCertDoc.id}
+                className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
+              >
+                {loadingUrl === sigCertDoc.id ? (
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="size-4 mr-2" />
+                )}
+                Download Signature Certificate
+              </Button>
+            )}
+
             <Button
               onClick={() => handleViewPdf(signedDoc.id, false)}
               disabled={loadingUrl === signedDoc.id}
@@ -246,6 +285,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               View PDF
             </Button>
           </div>
+
 
           <div className="flex justify-between pt-4 mt-6 border-t border-white/10">
             <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
@@ -270,7 +310,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
         <CardDescription className="text-white/60">
           Execute the Authorization Letter digitally. No printing, handwriting or scanning is
           required — your typed legal name, timestamp and document version are recorded as your
-          digital signature.
+          electronic signature.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -312,7 +352,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
           </div>
           <div className="flex justify-between">
             <span>Signature Method</span>
-            <span className="text-white/80">Digital signature (typed name)</span>
+            <span className="text-white/80">Electronic signature (typed name)</span>
           </div>
         </div>
 

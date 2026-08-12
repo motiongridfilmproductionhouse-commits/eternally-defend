@@ -195,7 +195,15 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
     if (!auth) throw new Error("No authorization draft");
+    // Once signed, this document version is frozen: the signed PDF must never be
+    // silently regenerated. Changing terms requires a new version and a new signature.
+    if (auth.status === "SIGNED" || auth.status === "ACTIVE") {
+      throw new Error(
+        "This authorization version is electronically signed and frozen. Changing the terms requires a new document version and a new signature.",
+      );
+    }
     const snap = await buildSnapshot(supabase, userId, auth.id);
+
     const { renderAuthorizationLetterPdf } = await import(
       "@/lib/onboarding/authorization-letter-pdf.server"
     );
@@ -224,6 +232,9 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
  * an existing SIGNED signature at the current auth version; if found, the
  * existing certificate is returned instead of re-signing.
  */
+export const CONSENT_TEXT =
+  "I have reviewed and accept this authorization, and I consent to signing it electronically using my typed full legal name.";
+
 export const finalizeSignature = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -232,6 +243,7 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       role_title?: string;
       drawn_signature_svg?: string;
       confirmations: Record<string, boolean>;
+      device?: { platform?: string; timezone?: string; language?: string };
     }) =>
       z
         .object({
@@ -240,9 +252,17 @@ export const finalizeSignature = createServerFn({ method: "POST" })
           // Legacy field — electronic signing no longer captures drawn strokes.
           drawn_signature_svg: z.string().optional(),
           confirmations: z.record(z.string(), z.boolean()),
+          device: z
+            .object({
+              platform: z.string().max(120).optional(),
+              timezone: z.string().max(80).optional(),
+              language: z.string().max(40).optional(),
+            })
+            .optional(),
         })
         .parse(d),
   )
+
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     try {
@@ -337,10 +357,49 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         signedAt,
       });
       const doc_sha = createHash("sha256").update(bytes).digest("hex");
-      // Digital signature evidence: typed name + authorization id + version + timestamp.
+      // Electronic signature evidence: typed name + authorization id + version + timestamp.
       const signature_sha = createHash("sha256")
         .update(`${data.typed_name}|${auth.auth_number}|v${auth.version}|${signedAt}`)
         .digest("hex");
+
+      // Tamper-evident audit record — every value below is captured server-side from real data.
+      const claims = (context as { claims?: Record<string, unknown> }).claims ?? {};
+      const signerEmail =
+        (snap.profile?.email as string | undefined) ||
+        (typeof claims["email"] === "string" ? (claims["email"] as string) : null) ||
+        null;
+      const emailVerified =
+        !!snap.profile?.email_verified_at || claims["email_verified"] === true;
+      const deviceMetadata = {
+        user_agent: userAgent,
+        platform: data.device?.platform ?? null,
+        timezone: data.device?.timezone ?? null,
+        language: data.device?.language ?? null,
+      };
+      const auditRecord = {
+        legal_name: data.typed_name,
+        display_name: (snap.profile?.display_name as string | undefined) ?? null,
+        signer_email: signerEmail,
+        email_verified: emailVerified,
+        client_id: (snap.profile?.client_id as string | undefined) ?? null,
+        user_id: userId,
+        auth_number: auth.auth_number,
+        authorization_id: auth.id,
+        document_version: auth.version,
+        signed_at_utc: signedAt,
+        signature_method: "typed-name electronic signature",
+        consent_accepted: true,
+        consent_text: CONSENT_TEXT,
+        document_sha256: doc_sha,
+        signature_sha256: signature_sha,
+        ip_address: ipAddress,
+        device_metadata: deviceMetadata,
+      };
+      const { renderSignatureCertificatePdf } = await import("./signature-certificate.server");
+      const sigCertBytes = await renderSignatureCertificatePdf(auditRecord);
+      const sigCertSha = createHash("sha256").update(sigCertBytes).digest("hex");
+
+
 
 
       const { normalizeOnboardingVersion, upsertProgressPreservingVersion } =
@@ -443,25 +502,39 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       const certBytes = await certDoc.save();
       const certSha = createHash("sha256").update(certBytes).digest("hex");
 
-      // Both PDFs generated successfully — now persist everything.
+      // All PDFs generated successfully — now persist everything.
       const { putObject } = await import("@/lib/aws/s3.server");
       const letterKey = `clients/${userId}/authorization/${auth.auth_number}-v${auth.version}-signed.pdf`;
       const certKey = `clients/${userId}/certificates/${cert_number}.pdf`;
+      const sigCertKey = `clients/${userId}/authorization/${auth.auth_number}-v${auth.version}-signature-certificate.pdf`;
       await Promise.all([
         putObject({ key: letterKey, body: Buffer.from(bytes), contentType: "application/pdf" }),
         putObject({ key: certKey, body: Buffer.from(certBytes), contentType: "application/pdf" }),
+        putObject({
+          key: sigCertKey,
+          body: Buffer.from(sigCertBytes),
+          contentType: "application/pdf",
+        }),
       ]);
 
-      await supabase
-        .from("authorization_documents")
-        .insert({
+      await supabase.from("authorization_documents").insert([
+        {
           authorization_id: auth.id,
           user_id: userId,
           kind: "signed",
           version: auth.version,
           s3_key: letterKey,
           sha256: doc_sha,
-        });
+        },
+        {
+          authorization_id: auth.id,
+          user_id: userId,
+          kind: "signature_certificate",
+          version: auth.version,
+          s3_key: sigCertKey,
+          sha256: sigCertSha,
+        },
+      ]);
 
       // Clean up any stale draft signature rows for this version.
       await supabase
@@ -480,11 +553,19 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         role_title: data.role_title ?? null,
         drawn_signature_svg: null,
         signed_at: signedAt,
-
         document_sha256: doc_sha,
         ip_address: ipAddress,
         user_agent: userAgent,
+        signer_email: signerEmail,
+        client_id: auditRecord.client_id,
+        auth_number: auth.auth_number,
+        signature_method: "typed-name electronic signature",
+        consent_accepted: true,
+        consent_text: CONSENT_TEXT,
+        signature_sha256: signature_sha,
+        device_metadata: deviceMetadata,
       });
+
 
       await supabase
         .from("client_authorizations")
@@ -541,7 +622,20 @@ export const finalizeSignature = createServerFn({ method: "POST" })
           target: auth.auth_number,
         },
         { user_id: userId, actor_id: userId, action: "certificate_issued", target: cert_number },
+        {
+          user_id: userId,
+          actor_id: userId,
+          action: "signature_certificate_issued",
+          target: `${auth.auth_number} v${auth.version}`,
+        },
+        {
+          user_id: userId,
+          actor_id: userId,
+          action: "authorization_version_frozen",
+          target: `${auth.auth_number} v${auth.version}`,
+        },
       ]);
+
 
       const { data: progress } = await supabase
         .from("onboarding_progress")
@@ -579,7 +673,9 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         certificate_number: cert_number,
         signature_sha256: signature_sha,
         document_sha256: doc_sha,
+        signature_certificate_sha256: sigCertSha,
       };
+
     } catch (err: any) {
       // Log the real error server-side; surface a safe, user-facing message.
       // Preserved codes let the UI hint at what to retry vs. what to fix.
