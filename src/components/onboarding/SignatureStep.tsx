@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import SignatureCanvas from "react-signature-canvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,10 +10,10 @@ import {
   Loader2,
   ChevronRight,
   ChevronLeft,
-  PenTool,
   ShieldCheck,
   Download,
   ExternalLink,
+  BadgeCheck,
 } from "lucide-react";
 import {
   finalizeSignature,
@@ -22,16 +21,6 @@ import {
   getSignedDocUrl,
 } from "@/lib/onboarding/authorization.functions";
 import { getClientProfile } from "@/lib/onboarding/profile.functions";
-
-const DECLARATIONS = [
-  { key: "reviewed", label: "I reviewed the complete Authorization Letter." },
-  { key: "owner", label: "I own or represent the listed rights." },
-  { key: "assets_mine", label: "The listed assets belong to me or my organization." },
-  { key: "accurate", label: "The supplied information is accurate." },
-  { key: "false_claims", label: "False complaints may create legal liability." },
-  { key: "scope_only", label: "Eterna is authorized only within selected scopes." },
-  { key: "final_approval", label: "Final submissions may require separate approval." },
-] as const;
 
 export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   const qc = useQueryClient();
@@ -54,38 +43,34 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
     queryFn: () => fetchProfile(),
   });
 
-  const sigCanvas = useRef<any>(null);
   const [typedName, setTypedName] = useState("");
-  const [roleTitle, setRoleTitle] = useState("");
-  const [confirmations, setConfirmations] = useState<Record<string, boolean>>({});
-  const [hasStrokes, setHasStrokes] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
 
+  const legalName = String(
+    (profile as any)?.legal_name || (profile as any)?.full_name || "",
+  ).trim();
+  const displayName = String((profile as any)?.display_name || "").trim();
+
   useEffect(() => {
-    if (profile && !typedName) {
-      setTypedName((profile as any).legal_name || profile.full_name || profile.display_name || "");
-      setRoleTitle(profile.role_title || "");
-    }
-  }, [profile]);
+    if (profile) setTypedName((p) => p || legalName);
+  }, [profile, legalName]);
 
-  const allConfirmed = DECLARATIONS.every((d) => confirmations[d.key]);
-  const nameOk = typedName.trim().length >= 2;
-  const canSign = allConfirmed && nameOk && hasStrokes && !busy;
+  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const nameMatches =
+    typedName.trim().length >= 2 &&
+    (!legalName || normalize(typedName) === normalize(legalName));
+  const canSign = accepted && nameMatches && !busy;
 
-  const missingReason = !allConfirmed
-    ? "Please check all declarations above."
-    : !nameOk
+  const missingReason = !accepted
+    ? "Please accept this authorization to continue."
+    : typedName.trim().length < 2
       ? "Enter your full legal name."
-      : !hasStrokes
-        ? "Draw your signature in the box."
+      : !nameMatches
+        ? `Typed name must exactly match your legal name on record${legalName ? ` (${legalName})` : ""}.`
         : null;
-
-  const handleClearSig = () => {
-    sigCanvas.current?.clear();
-    setHasStrokes(false);
-  };
 
   const handleSign = async () => {
     setSignError(null);
@@ -94,26 +79,27 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       toast.error(missingReason);
       return;
     }
-    if (sigCanvas.current?.isEmpty?.()) {
-      toast.error("Signature cannot be empty");
-      return;
-    }
 
     setBusy(true);
     try {
-      const svg = sigCanvas.current.toDataURL("image/png");
       const res = await signDoc({
         data: {
           typed_name: typedName.trim(),
-          role_title: roleTitle.trim() || undefined,
-          drawn_signature_svg: svg,
-          confirmations,
+          confirmations: {
+            reviewed: true,
+            owner: true,
+            assets_mine: true,
+            accurate: true,
+            false_claims: true,
+            scope_only: true,
+            final_approval: true,
+          },
         },
       });
       if (res?.duplicate) {
-        toast.success("Authorization already signed — restoring your certificate.");
+        toast.success("Authorization already digitally signed.");
       } else {
-        toast.success("Authorization signed and certificate issued.");
+        toast.success("Authorization digitally signed.");
       }
       await Promise.all([
         refetch(),
@@ -124,7 +110,10 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       ]);
       onNext();
     } catch (e: any) {
-      const msg = e?.message ?? "Signature failed. Please try again.";
+      const raw = e?.message ?? "Signature failed. Please try again.";
+      const msg = String(raw).startsWith("NAME_MISMATCH:")
+        ? `Typed name must exactly match your legal name on record (${String(raw).split(":")[1]}).`
+        : raw;
       console.error("[SignatureStep] finalizeSignature failed", e);
       setSignError(msg);
       toast.error(msg);
@@ -132,6 +121,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
       setBusy(false);
     }
   };
+
 
   const handleViewPdf = async (docId: string, download: boolean = false) => {
     setLoadingUrl(docId);
