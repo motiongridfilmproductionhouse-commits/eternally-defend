@@ -111,7 +111,7 @@ export const saveV2ClientProfile = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: profile } = await supabase
       .from("client_profiles")
-      .select("onboarding_version, onboarding_account_type")
+      .select("onboarding_version, onboarding_account_type, social_profiles")
       .eq("user_id", userId)
       .maybeSingle();
     if (profile?.onboarding_version !== ONBOARDING_V2 || !profile.onboarding_account_type) {
