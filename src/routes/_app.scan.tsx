@@ -36,7 +36,6 @@ import { DiscoveryHealthPanel } from "@/components/scan/DiscoveryHealthPanel";
 import { DetailDrawer } from "@/components/scan/DetailDrawer";
 import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
 import {
-  isHarmlessOrOfficial,
   canonicalCategoryFor,
   generateThreatExplanation,
 } from "@/lib/reputation/ranking.server";
