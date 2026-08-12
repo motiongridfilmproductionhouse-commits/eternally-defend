@@ -474,3 +474,101 @@
     animation: none !important;
   }
 }
+
+/* ===== Face Protection Enrollment (Face ID style scanner) ===== */
+@keyframes face-scan-sweep {
+  0% {
+    transform: translateY(-20%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(340%);
+    opacity: 0;
+  }
+}
+
+.face-scan-sweep {
+  top: 0;
+  animation: face-scan-sweep 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes face-mesh-point-in {
+  from {
+    opacity: 0;
+    r: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.face-mesh-point {
+  opacity: 0;
+  animation: face-mesh-point-in 0.5s ease-out forwards;
+}
+
+@keyframes face-mesh-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.face-mesh-pulse {
+  animation:
+    face-mesh-point-in 0.5s ease-out forwards,
+    face-mesh-pulse 2s ease-in-out infinite 0.6s;
+}
+
+@keyframes face-mesh-line-in {
+  from {
+    opacity: 0;
+    stroke-dashoffset: 40;
+  }
+  to {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+.face-mesh-line {
+  opacity: 0;
+  stroke-dasharray: 40;
+  animation: face-mesh-line-in 0.6s ease-out forwards;
+}
+
+@keyframes face-success-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.face-success-pulse {
+  animation: face-success-pulse 2.2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .face-scan-sweep,
+  .face-mesh-point,
+  .face-mesh-pulse,
+  .face-mesh-line,
+  .face-success-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+  }
+}

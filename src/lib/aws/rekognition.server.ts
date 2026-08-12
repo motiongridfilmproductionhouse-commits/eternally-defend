@@ -26,12 +26,22 @@ export async function ensureCollection(userId: string): Promise<string> {
   }
 }
 
+export interface FaceLandmark {
+  type: string;
+  x: number;
+  y: number;
+}
+
 export interface IndexedFace {
   faceId: string;
   imageId?: string;
   confidence?: number;
   boundingBox?: unknown;
   externalImageId?: string;
+  /** Real AWS Rekognition FaceDetail.Landmarks (normalized 0..1 image coords). */
+  landmarks?: FaceLandmark[];
+  quality?: { sharpness?: number; brightness?: number };
+  pose?: { yaw?: number; pitch?: number; roll?: number };
 }
 
 export async function indexFace(opts: {
@@ -110,6 +120,22 @@ export async function indexFace(opts: {
       confidence: r.Face?.Confidence,
       boundingBox: r.Face?.BoundingBox,
       externalImageId: r.Face?.ExternalImageId,
+      landmarks: (r.FaceDetail?.Landmarks ?? [])
+        .filter((l) => typeof l.X === "number" && typeof l.Y === "number")
+        .map((l) => ({ type: String(l.Type ?? ""), x: l.X as number, y: l.Y as number })),
+      quality: r.FaceDetail?.Quality
+        ? {
+            sharpness: r.FaceDetail.Quality.Sharpness,
+            brightness: r.FaceDetail.Quality.Brightness,
+          }
+        : undefined,
+      pose: r.FaceDetail?.Pose
+        ? {
+            yaw: r.FaceDetail.Pose.Yaw,
+            pitch: r.FaceDetail.Pose.Pitch,
+            roll: r.FaceDetail.Pose.Roll,
+          }
+        : undefined,
     }))
     .filter((f) => f.faceId);
 }

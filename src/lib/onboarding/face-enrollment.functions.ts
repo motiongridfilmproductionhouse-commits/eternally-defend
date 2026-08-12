@@ -292,6 +292,10 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
     const collectionId = await ensureCollection(userId);
     const ref = res.ReferenceImage?.Bytes;
     const savedFaceIds: string[] = [];
+    let landmarks: { type: string; x: number; y: number }[] = [];
+    let boundingBox: { Width?: number; Height?: number; Left?: number; Top?: number } | null = null;
+    let quality: { sharpness?: number; brightness?: number } | null = null;
+    let referenceImage: string | null = null;
     try {
       if (!ref) {
         throw new Error("AWS returned no reference image. Please repeat the face scan.");
@@ -311,6 +315,13 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
       if (faces.length === 0) {
         throw new Error("AWS did not index a valid face. Please repeat the face scan.");
       }
+
+      // Real AWS-provided signals used by the enrollment visualization.
+      landmarks = faces[0].landmarks ?? [];
+      boundingBox = (faces[0].boundingBox ?? null) as typeof boundingBox;
+      quality = faces[0].quality ?? null;
+      referenceImage = `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}`;
+
 
       for (const f of faces) {
         const { data: existing, error: lookupError } = await supabase
@@ -402,7 +413,16 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
       });
     }
 
-    return { ok: true, status: "FACE_VERIFIED" as const, confidence: conf, faceIds: savedFaceIds };
+    return {
+      ok: true,
+      status: "FACE_VERIFIED" as const,
+      confidence: conf,
+      faceIds: savedFaceIds,
+      landmarks,
+      boundingBox,
+      quality,
+      referenceImage,
+    };
   });
 
 export const getFaceEnrollment = createServerFn({ method: "GET" })
