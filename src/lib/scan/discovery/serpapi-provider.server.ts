@@ -13,7 +13,7 @@ import {
 import type { DiscoveryHit } from "./types";
 
 const ENDPOINT = "https://serpapi.com/search.json";
-const TIMEOUT_MS = 14_000;
+const TIMEOUT_MS = 20_000;
 
 interface SerpApiOrganicResult {
   link?: string;
@@ -39,16 +39,29 @@ function sourceName(source: SerpApiNewsResult["source"]): string | undefined {
   return undefined;
 }
 
+/**
+ * The SerpApi key is stored under either name in this project (`SERPAPI_API_KEY`
+ * or the legacy lowercase `serp_api`), so both are accepted.
+ */
+function serpapiKey(): string | undefined {
+  return (
+    process.env.SERPAPI_API_KEY?.trim() ||
+    process.env["serp_api"]?.trim() ||
+    process.env["SERP_API"]?.trim() ||
+    undefined
+  );
+}
+
 export const serpapiProvider: SearchProviderAdapter = {
   id: "serpapi",
   label: "SerpApi (Google)",
 
   isConfigured() {
-    return Boolean(process.env.SERPAPI_API_KEY?.trim());
+    return Boolean(serpapiKey());
   },
 
   async search(query, limit, signal) {
-    const key = process.env.SERPAPI_API_KEY?.trim();
+    const key = serpapiKey();
     if (!key) throw new ProviderError("auth_failed", "SERPAPI_API_KEY is not configured");
 
     const url = new URL(ENDPOINT);
