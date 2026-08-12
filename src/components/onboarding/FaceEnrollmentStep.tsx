@@ -36,7 +36,9 @@ import {
 } from "@/lib/onboarding/face-scan-progress";
 import { FaceScanRing } from "./face-scan/FaceScanRing";
 import { FaceMeshOverlay } from "./face-scan/FaceMeshOverlay";
+import { DigitalFaceShield } from "./face-scan/DigitalFaceShield";
 import { useCameraPreview } from "./face-scan/useCameraPreview";
+
 
 const loadFaceLivenessDetector = async () => {
   const { FaceLivenessDetectorCore } = await import("@aws-amplify/ui-react-liveness");
