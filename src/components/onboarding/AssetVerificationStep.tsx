@@ -303,6 +303,8 @@ export function AssetVerificationStep({
           </div>
         )}
 
+        <SocialProfilesPanel />
+
         <div className="flex justify-between pt-4">
           <Button
             variant="ghost"
