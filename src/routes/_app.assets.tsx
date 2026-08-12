@@ -18,7 +18,7 @@ import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
 import { prepareAssetUpload, registerAssetAndSearch } from "@/lib/asset-registration.functions";
 
 export const Route = createFileRoute("/_app/assets")({
-  head: () => ({ meta: [{ title: "Assets — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Assets — Eterna Sentinel" }] }),
   component: AssetsPage,
 });
 

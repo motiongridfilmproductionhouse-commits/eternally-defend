@@ -15,7 +15,7 @@ import { PartnerStat, PartnerStatusPill, fmtInr } from "@/components/partners/pa
 import { Copy, IndianRupee, Users, CheckCircle2, FileText, Link as LinkIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_partner/partner/")({
-  head: () => ({ meta: [{ title: "Partner Dashboard — Eterna" }] }),
+  head: () => ({ meta: [{ title: "Partner Dashboard — Eterna Sentinel" }] }),
   component: PartnerDashboard,
 });
 

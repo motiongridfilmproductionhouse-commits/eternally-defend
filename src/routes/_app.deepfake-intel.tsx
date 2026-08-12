@@ -53,13 +53,13 @@ import { getFindingNormalizedDomain, resolveFindingOrigin } from "@/lib/deepfake
 export const Route = createFileRoute("/_app/deepfake-intel")({
   head: () => ({
     meta: [
-      { title: "Deepfake & Synthetic Media Intelligence — Eterna" },
+      { title: "Deepfake & Synthetic Media Intelligence — Eterna Sentinel" },
       {
         name: "description",
         content:
           "Scan the public web for deepfakes, AI-generated intimate imagery, face swaps, and synthetic media targeting protected identities.",
       },
-      { property: "og:title", content: "Deepfake & Synthetic Media Intelligence — Eterna" },
+      { property: "og:title", content: "Deepfake & Synthetic Media Intelligence — Eterna Sentinel" },
       {
         property: "og:description",
         content:

@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/intelligence")({
-  head: () => ({ meta: [{ title: "Evidence Analysis Center — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Evidence Analysis Center — Eterna Sentinel" }] }),
   component: IntelligenceEnginePage,
 });
 

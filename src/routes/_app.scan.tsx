@@ -79,7 +79,7 @@ import {
 export const Route = createFileRoute("/_app/scan")({
   head: () => ({
     meta: [
-      { title: "Reputation Intelligence Report — Eterna AI" },
+      { title: "Reputation Intelligence Report — Eterna Sentinel" },
       {
         name: "description",
         content: "Evidence-based reputation intelligence across news, social, video, and forums.",

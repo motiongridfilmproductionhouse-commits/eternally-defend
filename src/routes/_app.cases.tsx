@@ -9,7 +9,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/cases")({
-  head: () => ({ meta: [{ title: "Case Management — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Case Management — Eterna Sentinel" }] }),
   component: CasesPage,
 });
 

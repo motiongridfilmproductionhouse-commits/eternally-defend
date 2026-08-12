@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_app/sensitive-protection/results/")({
   component: SensitiveResultsList,
-  head: () => ({ meta: [{ title: "Discovered Sensitive Content · Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Discovered Sensitive Content · Eterna Sentinel" }] }),
 });
 
 function SensitiveResultsList() {

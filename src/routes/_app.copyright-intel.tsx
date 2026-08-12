@@ -91,13 +91,13 @@ type MatchRow = {
 export const Route = createFileRoute("/_app/copyright-intel")({
   head: () => ({
     meta: [
-      { title: "Copyright Intelligence Detection — Eterna" },
+      { title: "Copyright Intelligence Detection — Eterna Sentinel" },
       {
         name: "description",
         content:
           "Detect unauthorized re-uploads, ripped copies, screenshots and edited derivatives of your protected artwork and video, with graded evidence for takedown preparation.",
       },
-      { property: "og:title", content: "Copyright Intelligence Detection — Eterna" },
+      { property: "og:title", content: "Copyright Intelligence Detection — Eterna Sentinel" },
       {
         property: "og:description",
         content: "Evidence-graded detection of unauthorized copies of your protected visual works.",

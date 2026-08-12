@@ -78,13 +78,13 @@ export interface FindingItem {
 export const Route = createFileRoute("/_app/youtube-removal")({
   head: () => ({
     meta: [
-      { title: "YouTube Removal Intelligence | Eterna" },
+      { title: "YouTube Removal Intelligence | Eterna Sentinel" },
       {
         name: "description",
         content:
           "Discover, verify and assess non-official & official news YouTube videos about a protected person using the official YouTube Data API.",
       },
-      { property: "og:title", content: "YouTube Removal Intelligence | Eterna" },
+      { property: "og:title", content: "YouTube Removal Intelligence | Eterna Sentinel" },
       {
         property: "og:description",
         content:

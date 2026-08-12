@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/admin/onboarding-reviews")({
-  head: () => ({ meta: [{ title: "Onboarding Reviews — Eterna Admin" }] }),
+  head: () => ({ meta: [{ title: "Onboarding Reviews — Eterna Sentinel Admin" }] }),
   component: () => (
     <AdminGuard>
       <OnboardingReviewsPage />

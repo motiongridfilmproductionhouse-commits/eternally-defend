@@ -35,7 +35,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/threat-radar")({
-  head: () => ({ meta: [{ title: "Threat Radar — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Threat Radar — Eterna Sentinel" }] }),
   component: ThreatRadarPage,
 });
 

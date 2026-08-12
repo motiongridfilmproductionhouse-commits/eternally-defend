@@ -9,11 +9,11 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Sign In — Eterna AI" },
+      { title: "Sign In — Eterna Sentinel" },
       {
         name: "description",
         content:
-          "Sign in to Eterna AI — AI-powered digital protection, content fingerprinting and automated takedowns.",
+          "Sign in to Eterna Sentinel — AI-powered digital protection, content fingerprinting and automated takedowns.",
       },
     ],
   }),

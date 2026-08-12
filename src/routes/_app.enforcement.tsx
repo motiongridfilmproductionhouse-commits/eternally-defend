@@ -46,7 +46,7 @@ import {
 import { signPackageUrl } from "@/lib/enforcement-packages.functions";
 
 export const Route = createFileRoute("/_app/enforcement")({
-  head: () => ({ meta: [{ title: "Automated Enforcement Center — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Automated Enforcement Center — Eterna Sentinel" }] }),
   component: EnforcementPage,
 });
 

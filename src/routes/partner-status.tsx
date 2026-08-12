@@ -12,7 +12,7 @@ import { ShieldCheck, FileText, Clock, CheckCircle2, XCircle, AlertCircle } from
 
 export const Route = createFileRoute("/partner-status")({
   ssr: false,
-  head: () => ({ meta: [{ title: "Partner Application Status — Eterna" }] }),
+  head: () => ({ meta: [{ title: "Partner Application Status — Eterna Sentinel" }] }),
   component: PartnerStatusPage,
 });
 

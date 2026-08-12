@@ -6,7 +6,7 @@ import { AlertTriangle, ShieldCheck, Send, Sparkles, Loader2, Inbox } from "luci
 import { getNotifications } from "@/lib/command-center.functions";
 
 export const Route = createFileRoute("/_app/notifications")({
-  head: () => ({ meta: [{ title: "Notifications — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Notifications — Eterna Sentinel" }] }),
   component: NotificationsPage,
 });
 

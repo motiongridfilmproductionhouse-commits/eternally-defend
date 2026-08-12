@@ -6,7 +6,7 @@ import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/removals")({
-  head: () => ({ meta: [{ title: "Removal Center — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Removal Center — Eterna Sentinel" }] }),
   component: RemovalsPage,
 });
 

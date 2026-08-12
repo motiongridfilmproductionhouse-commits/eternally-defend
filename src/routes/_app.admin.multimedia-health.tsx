@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/admin/multimedia-health")({
-  head: () => ({ meta: [{ title: "Multimedia Health — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Multimedia Health — Eterna Sentinel" }] }),
   component: () => (
     <AdminGuard>
       <HealthPage />

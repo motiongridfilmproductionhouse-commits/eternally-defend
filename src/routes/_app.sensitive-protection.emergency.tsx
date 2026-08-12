@@ -6,7 +6,7 @@ import { ShieldAlert, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sensitive-protection/emergency")({
   component: EmergencyProtection,
-  head: () => ({ meta: [{ title: "Emergency Protection · Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Emergency Protection · Eterna Sentinel" }] }),
 });
 
 function EmergencyProtection() {

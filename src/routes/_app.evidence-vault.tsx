@@ -12,7 +12,7 @@ import { Archive, Download, Trash2, Upload, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 export const Route = createFileRoute("/_app/evidence-vault")({
-  head: () => ({ meta: [{ title: "Evidence Vault · Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Evidence Vault · Eterna Sentinel" }] }),
   component: EvidenceVault,
 });
 

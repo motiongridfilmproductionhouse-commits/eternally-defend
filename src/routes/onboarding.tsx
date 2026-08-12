@@ -12,7 +12,7 @@ const DEMO_USER_EMAIL = (import.meta.env.VITE_DEMO_USER_EMAIL ?? "").trim().toLo
 
 export const Route = createFileRoute("/onboarding")({
   ssr: false,
-  head: () => ({ meta: [{ title: "Onboarding — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Onboarding — Eterna Sentinel" }] }),
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });

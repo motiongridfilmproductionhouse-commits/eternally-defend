@@ -6,7 +6,7 @@ import { ShieldAlert, Image, Activity, FileText, Settings } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sensitive-protection/")({
   component: SensitiveProtectionDashboard,
-  head: () => ({ meta: [{ title: "Intimate Image & Deepfake Protection · Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Intimate Image & Deepfake Protection · Eterna Sentinel" }] }),
 });
 
 function SensitiveProtectionDashboard() {

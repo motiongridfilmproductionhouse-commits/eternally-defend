@@ -9,7 +9,7 @@ import { getPartnerDashboard, registerPartnerLead } from "@/lib/partners/dashboa
 import { PartnerStatusPill, fmtInr } from "@/components/partners/partner-ui";
 
 export const Route = createFileRoute("/_partner/partner/clients")({
-  head: () => ({ meta: [{ title: "Clients & Leads — Eterna Partner" }] }),
+  head: () => ({ meta: [{ title: "Clients & Leads — Eterna Sentinel Partner" }] }),
   component: PartnerClientsPage,
 });
 

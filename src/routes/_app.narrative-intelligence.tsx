@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/narrative-intelligence")({
-  head: () => ({ meta: [{ title: "Narrative Intelligence — Eterna AI" }] }),
+  head: () => ({ meta: [{ title: "Narrative Intelligence — Eterna Sentinel" }] }),
   component: NarrativeIntelligencePage,
 });
 
