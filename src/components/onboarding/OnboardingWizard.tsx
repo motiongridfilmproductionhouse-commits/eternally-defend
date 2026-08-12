@@ -125,15 +125,33 @@ function LegacyOnboardingWizard({
     }
   };
 
-  const goBack = () => setStep((s) => Math.max(1, s - 1));
+  // Celebrity / public figure accounts skip Veriff identity verification entirely.
+  const skipsKyc = (profile?.client_type ?? "") === "celebrity";
+
+  const goBack = () =>
+    setStep((s) => {
+      const prev = Math.max(1, s - 1);
+      return skipsKyc && prev === 2 ? 1 : prev;
+    });
+
+  useEffect(() => {
+    if (skipsKyc && step === 2) setStep(3);
+  }, [skipsKyc, step]);
 
   const stepIndex = step - 1;
-  const isKycApproved = kyc?.verification_status === "APPROVED";
+  const isKycApproved = skipsKyc || kyc?.verification_status === "APPROVED";
   const isFaceVerified = faceEnrollment?.status === "FACE_VERIFIED";
   const isFaceDeferred = faceEnrollment?.status === "DEFERRED";
   const isFaceHandled = isFaceVerified || isFaceDeferred;
   const hasVerifiedAsset = assets?.some((a: any) => a.verification_status === "VERIFIED") ?? false;
   const hasScopes = (authBundle?.scopes?.filter((s: any) => s.granted)?.length ?? 0) > 0;
+  const visibleSteps = STEP_TITLES.map((title, i) => ({ title, step: i + 1, index: i })).filter(
+    (s) => !(skipsKyc && s.step === 2),
+  );
+  const visiblePosition = Math.max(
+    1,
+    visibleSteps.findIndex((s) => s.step === step) + 1,
+  );
 
   const auth = authBundle?.auth;
   const isDraftReady =
