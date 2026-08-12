@@ -316,6 +316,13 @@ export const finalizeLiveness = createServerFn({ method: "POST" })
         throw new Error("AWS did not index a valid face. Please repeat the face scan.");
       }
 
+      // Real AWS-provided signals used by the enrollment visualization.
+      landmarks = faces[0].landmarks ?? [];
+      boundingBox = faces[0].boundingBox ?? null;
+      quality = faces[0].quality ?? null;
+      referenceImage = `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}`;
+
+
       for (const f of faces) {
         const { data: existing, error: lookupError } = await supabase
           .from("protected_faces")
