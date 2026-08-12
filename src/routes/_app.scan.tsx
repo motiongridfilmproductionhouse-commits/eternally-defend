@@ -190,8 +190,36 @@ async function runScan(payload: unknown): Promise<ReportWithDiagnostics> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const j = await r.json();
-  return j as ReportWithDiagnostics;
+
+  const contentType = r.headers.get("content-type") ?? "";
+  const rawBody = await r.text();
+
+  if (!contentType.includes("application/json")) {
+    const snippet = rawBody.trim().slice(0, 300) || "(empty response body)";
+    throw new Error(
+      `Scan failed — server returned HTTP ${r.status} ${r.statusText || ""} ` +
+        `(content-type: ${contentType || "unknown"}). Response: ${snippet}`,
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    throw new Error(
+      `Scan failed — HTTP ${r.status}: response was not valid JSON. ` +
+        `Body: ${rawBody.trim().slice(0, 300) || "(empty)"}`,
+    );
+  }
+
+  if (!r.ok) {
+    const err =
+      (parsed as { error?: string } | null)?.error ??
+      `HTTP ${r.status} ${r.statusText || ""}`.trim();
+    throw new Error(`Scan failed — ${err}`);
+  }
+
+  return parsed as ReportWithDiagnostics;
 }
 
 function ScanPage() {
