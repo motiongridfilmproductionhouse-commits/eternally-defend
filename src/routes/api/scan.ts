@@ -183,12 +183,20 @@ export interface ScanHit {
   copyrightEnforcementPotential?: number;
   whyItMatters?: string;
   contentPosition?: ContentPosition;
+  /** Evidence-gated classification tier (TIER_0 … TIER_4). */
+  classificationTier?: ClassificationTier;
+  riskClassification?: Classification;
+  contentType?: ContentType;
+  evidenceLevel?: EvidenceLevel;
+  /** Structured, quote-backed evidence supporting the classification. */
+  riskEvidence?: RiskEvidence;
   /** Identity confidence grading (VERIFIED / PROBABLE / AMBIGUOUS). */
   identityTier?: "VERIFIED" | "PROBABLE" | "AMBIGUOUS" | "NOT_SUBJECT";
   identityConfidence?: number;
   identityReason?: string;
   /** VERIFIED = risk evidenced; NEEDS_REVIEW = kept for human review. */
   reviewStatus?: "VERIFIED" | "NEEDS_REVIEW";
+
   /** Search phrase that surfaced this result. */
   searchQueryUsed?: string;
   /** Excerpt of the full page captured during extraction. */
