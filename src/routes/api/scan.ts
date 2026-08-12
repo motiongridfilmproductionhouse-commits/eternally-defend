@@ -2780,7 +2780,7 @@ function buildReport(
       const ageDays = ageDaysOf(published);
       // Recency curve: 24h → 100, 7d → 85, 30d → 65, 90d → 45, 365d → 22
       const recency = Math.max(10, Math.round(100 * Math.exp(-ageDays / 40)));
-      const threat = Math.min(
+      const rawThreat = Math.min(
         100,
         Math.round(
           c.score * 0.2 +
@@ -2792,23 +2792,22 @@ function buildReport(
             60 * 0.05,
         ),
       );
+      /*
+       * THREAT GUARDRAIL: with no subject-directed risk evidence the finding
+       * carries the neutral baseline only — reach and freshness alone never
+       * produce a reputation threat score.
+       */
+      const threat = riskEvidenced
+        ? rawThreat
+        : Math.min(20, Math.round(recency * 0.12 + Math.min(100, reach / 5000) * 0.08));
 
       /* Reddit results carry their own reputation-risk classification. */
       const redditRisk = isRedditEntityLead ? o.redditRisk : undefined;
 
-      const detectionReason = redditRisk
-        ? redditRisk.categories.length
-          ? `Reddit risk ${redditRisk.score}/100 · ${redditRisk.categories.join(", ")} · ${redditRisk.reason}`
-          : `Reddit risk ${redditRisk.score}/100 · ${redditRisk.reason}`
-        : c.keywords.length
-          ? `Matched: ${c.keywords.slice(0, 4).join(", ")}${sent === "Negative" ? " · negative sentiment" : ""}`
-          : sent === "Negative"
-            ? "Negative sentiment in title/description"
-            : isOfficialYouTubeLead
-              ? "Official YouTube API · named-entity monitoring lead"
-              : isRedditEntityLead
-                ? "Indexed Reddit discussion · exact named-entity match"
-                : "Named-entity match";
+      const detectionReason = riskEvidenced
+        ? `${verdict.label} · ${verdict.evidence.reason} (source: ${verdict.evidence.evidenceSource.replace(/_/g, " ")}, confidence ${Math.round(verdict.evidence.confidence * 100)}%)`
+        : verdict.evidence.reason;
+
 
       const hit: ScanHit = {
         id: `hit-${idx}`,
