@@ -197,7 +197,8 @@ export function v2FlowForAccount(accountType: V2AccountType | null): V2FlowStep[
 export function primaryEvidenceTypeForAccount(
   accountType: V2AccountType,
 ): Exclude<V2EvidenceType, "representative" | "authorization"> | null {
-  if (accountType === "celebrity") return "official_contact";
+  // Light routes submit no onboarding evidence; verification happens later.
+  if (isLightVerificationAccount(accountType)) return null;
   if (accountType === "enterprise") return "company";
   if (accountType === "production_house") return "rights";
   return null;
@@ -208,7 +209,7 @@ export function requiresVeriff(accountType: V2AccountType): boolean {
 }
 
 export function requiresFaceProtection(accountType: V2AccountType): boolean {
-  return accountType === "individual" || accountType === "celebrity";
+  return accountType === "individual";
 }
 
 export function requiresRepresentative(accountType: V2AccountType): boolean {
