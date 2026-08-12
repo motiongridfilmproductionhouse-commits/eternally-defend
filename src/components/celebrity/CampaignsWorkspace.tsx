@@ -183,6 +183,10 @@ export function NewCampaignDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [urls, setUrls] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [notes, setNotes] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
+  const [approvedAccounts, setApprovedAccounts] = useState("");
+  const [approvedMedia, setApprovedMedia] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
