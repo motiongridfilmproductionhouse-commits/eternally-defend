@@ -5,15 +5,48 @@ export const V2_ACCOUNT_TYPES = [
   "individual",
   "enterprise",
   "production_house",
+  "manager_agent",
+  "pr_team",
+  "legal_representative",
 ] as const;
 
 export type V2AccountType = (typeof V2_ACCOUNT_TYPES)[number];
 
+/**
+ * Friction-light routes: these accounts complete setup with public profile
+ * details only. No identity document is requested during initial onboarding;
+ * verification is requested later, when a sensitive action is attempted.
+ */
+export const V2_LIGHT_ACCOUNT_TYPES = [
+  "celebrity",
+  "manager_agent",
+  "pr_team",
+  "legal_representative",
+] as const;
+
+export function isLightVerificationAccount(accountType: V2AccountType | null): boolean {
+  return (
+    !!accountType && (V2_LIGHT_ACCOUNT_TYPES as readonly string[]).includes(accountType)
+  );
+}
+
+/** Representative routes act on behalf of a public figure. */
+export function isRepresentativeAccount(accountType: V2AccountType | null): boolean {
+  return (
+    accountType === "manager_agent" ||
+    accountType === "pr_team" ||
+    accountType === "legal_representative"
+  );
+}
+
 export const V2_ACCOUNT_LABELS: Record<V2AccountType, string> = {
   celebrity: "Celebrity / Public Figure",
   individual: "Individual",
-  enterprise: "Enterprise / Company",
+  enterprise: "Brand / Organization",
   production_house: "Production House",
+  manager_agent: "Manager / Agent",
+  pr_team: "PR / Reputation Team",
+  legal_representative: "Legal Representative",
 };
 
 export const V2_BADGES: Record<V2AccountType, string> = {
@@ -21,6 +54,9 @@ export const V2_BADGES: Record<V2AccountType, string> = {
   individual: "Verified Individual",
   enterprise: "Verified Enterprise",
   production_house: "Verified Production House",
+  manager_agent: "Verified Representative",
+  pr_team: "Verified Representative",
+  legal_representative: "Verified Legal Representative",
 };
 
 /** Alternate badge labels accepted for display/certificate copy. */
@@ -29,6 +65,9 @@ export const V2_BADGE_ALTERNATES: Record<V2AccountType, readonly string[]> = {
   individual: ["Verified Individual"],
   enterprise: ["Verified Enterprise", "Verified Organization"],
   production_house: ["Verified Production House", "Verified Rights Holder"],
+  manager_agent: ["Verified Representative", "Verified Manager"],
+  pr_team: ["Verified Representative", "Verified PR Team"],
+  legal_representative: ["Verified Legal Representative", "Verified Representative"],
 };
 
 export const V2_VERIFICATION_METHODS: Record<V2AccountType, string> = {
@@ -36,6 +75,9 @@ export const V2_VERIFICATION_METHODS: Record<V2AccountType, string> = {
   individual: "veriff_identity_and_face_liveness",
   enterprise: "company_document_review",
   production_house: "production_rights_review",
+  manager_agent: "representative_authorization_review",
+  pr_team: "representative_authorization_review",
+  legal_representative: "legal_representative_authorization_review",
 };
 
 export const V2_EVIDENCE_TYPES = [
@@ -60,6 +102,7 @@ export function clientTypeForV2(accountType: V2AccountType) {
   if (accountType === "celebrity") return "celebrity" as const;
   if (accountType === "individual") return "individual" as const;
   if (accountType === "production_house") return "agency" as const;
+  if (isRepresentativeAccount(accountType)) return "agency" as const;
   return "corporate" as const;
 }
 
@@ -94,18 +137,16 @@ export function v2FlowForAccount(accountType: V2AccountType | null): V2FlowStep[
     return [{ step: 1, key: "account_type", title: "Account Type" }];
   }
 
-  if (accountType === "celebrity") {
+  // Friction-light routes: public profile only, no identity document at signup.
+  if (isLightVerificationAccount(accountType)) {
     return [
       { step: 1, key: "account_type", title: "Account Type" },
-      { step: 2, key: "profile", title: "Celebrity Profile" },
-      { step: 3, key: "evidence", title: "Official Contact / Evidence" },
-      { step: 4, key: "face", title: "Face Protection" },
-      { step: 5, key: "assets", title: "Digital Assets" },
-      { step: 6, key: "scope", title: "Authorization Scope" },
-      { step: 7, key: "review", title: "Authorization Review" },
-      { step: 8, key: "signature", title: "Electronic Signature" },
-      { step: 9, key: "certificate", title: "Certificate" },
-      { step: 10, key: "complete", title: "Complete" },
+      {
+        step: 2,
+        key: "profile",
+        title: accountType === "celebrity" ? "Public Profile" : "Workspace Profile",
+      },
+      { step: 3, key: "complete", title: "Start Monitoring" },
     ];
   }
 
@@ -156,7 +197,8 @@ export function v2FlowForAccount(accountType: V2AccountType | null): V2FlowStep[
 export function primaryEvidenceTypeForAccount(
   accountType: V2AccountType,
 ): Exclude<V2EvidenceType, "representative" | "authorization"> | null {
-  if (accountType === "celebrity") return "official_contact";
+  // Light routes submit no onboarding evidence; verification happens later.
+  if (isLightVerificationAccount(accountType)) return null;
   if (accountType === "enterprise") return "company";
   if (accountType === "production_house") return "rights";
   return null;
@@ -167,7 +209,7 @@ export function requiresVeriff(accountType: V2AccountType): boolean {
 }
 
 export function requiresFaceProtection(accountType: V2AccountType): boolean {
-  return accountType === "individual" || accountType === "celebrity";
+  return accountType === "individual";
 }
 
 export function requiresRepresentative(accountType: V2AccountType): boolean {

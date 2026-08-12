@@ -10,6 +10,7 @@ import { getFaceEnrollment } from "@/lib/onboarding/face-enrollment.functions";
 import { listAssets } from "@/lib/onboarding/assets.functions";
 import { getAuthorizationBundle } from "@/lib/onboarding/authorization.functions";
 import {
+  isLightVerificationAccount,
   isV2AccountType,
   requiresVeriff,
   v2FlowForAccount,
@@ -17,6 +18,8 @@ import {
 } from "@/lib/onboarding/v2-config";
 import { AccountTypeStep } from "@/components/onboarding/AccountTypeStep";
 import { V2ProfileStep } from "@/components/onboarding/V2ProfileStep";
+import { LightProfileStep } from "@/components/onboarding/LightProfileStep";
+import { LightCompleteStep } from "@/components/onboarding/LightCompleteStep";
 import { V2EvidenceStep } from "@/components/onboarding/V2EvidenceStep";
 import { V2RepresentativeStep } from "@/components/onboarding/V2RepresentativeStep";
 import { VeriffIdentityStep } from "@/components/onboarding/VeriffIdentityStep";
@@ -50,6 +53,7 @@ export function V2OnboardingWizard({
   const accountType: V2AccountType | null = isV2AccountType(profile?.onboarding_account_type)
     ? profile.onboarding_account_type
     : null;
+  const isLightRoute = isLightVerificationAccount(accountType);
   const flow = v2FlowForAccount(accountType);
   const maxStep = flow[flow.length - 1]?.step ?? 1;
 
@@ -211,7 +215,18 @@ export function V2OnboardingWizard({
                 />
               )}
 
-              {current.key === "profile" && accountType && (
+              {current.key === "profile" && accountType && isLightRoute && (
+                <LightProfileStep
+                  profile={profile}
+                  accountType={accountType}
+                  onSaved={async () => {
+                    await refetchProfile();
+                    await advanceStep(2);
+                  }}
+                />
+              )}
+
+              {current.key === "profile" && accountType && !isLightRoute && (
                 <V2ProfileStep
                   profile={profile}
                   accountType={accountType}
@@ -301,7 +316,16 @@ export function V2OnboardingWizard({
                 />
               )}
 
-              {current.key === "complete" && isApproved && (
+              {current.key === "complete" && isLightRoute && (
+                <LightCompleteStep
+                  onCompleted={async () => {
+                    await refetchProfile();
+                    await qc.invalidateQueries({ queryKey: ["onboarding-progress"] });
+                  }}
+                />
+              )}
+
+              {current.key === "complete" && !isLightRoute && isApproved && (
                 <OnboardingCompleteStep
                   onGoToStep={goToStep}
                   accountType={accountType}
@@ -311,15 +335,18 @@ export function V2OnboardingWizard({
                 />
               )}
 
-              {(current.key === "certificate" || current.key === "complete") && !isApproved && (
-                <div className="rounded-xl border border-white/10 bg-[#0A1128] p-8 text-center text-white/70">
-                  Authorization must be signed before this step unlocks.
-                  <div className="mt-4 text-xs text-white/40">
-                    Draft ready: {String(isDraftReady)} · Review visible: {String(isReviewVisible)}{" "}
-                    · Face handled: {String(isFaceHandled)} · Scopes: {String(hasScopes)}
+              {(current.key === "certificate" || current.key === "complete") &&
+                !isLightRoute &&
+                !isApproved && (
+                  <div className="rounded-xl border border-white/10 bg-[#0A1128] p-8 text-center text-white/70">
+                    Authorization must be signed before this step unlocks.
+                    <div className="mt-4 text-xs text-white/40">
+                      Draft ready: {String(isDraftReady)} · Review visible:{" "}
+                      {String(isReviewVisible)} · Face handled: {String(isFaceHandled)} · Scopes:{" "}
+                      {String(hasScopes)}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </div>
         </div>

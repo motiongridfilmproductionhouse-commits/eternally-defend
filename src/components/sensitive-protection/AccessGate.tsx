@@ -4,14 +4,16 @@ import { Link } from "@tanstack/react-router";
 import { ShieldAlert, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useVerificationStatus } from "@/hooks/use-verification-status";
 
 export function SensitiveAccessGate({ children }: { children: React.ReactNode }) {
   const { data: progress, isLoading } = useQuery({
     queryKey: ["onboarding_progress"],
     queryFn: () => getProgress(),
   });
+  const verification = useVerificationStatus();
 
-  if (isLoading) {
+  if (isLoading || verification.loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center text-white/50">
         <Loader2 className="size-6 animate-spin mr-3" />
@@ -20,8 +22,10 @@ export function SensitiveAccessGate({ children }: { children: React.ReactNode })
     );
   }
 
-  // Access is only granted if onboarding is fully complete and active
-  const isFullyOnboarded = progress?.overall_status === "COMPLETED";
+  // Sensitive identity data is a high-trust action: setup completion alone is
+  // not enough — the account must also be verified.
+  const isFullyOnboarded =
+    progress?.overall_status === "COMPLETED" && verification.canPerformSensitiveAction;
 
   if (!isFullyOnboarded) {
     return (
