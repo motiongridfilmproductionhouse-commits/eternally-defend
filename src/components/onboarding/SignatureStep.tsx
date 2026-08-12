@@ -345,7 +345,7 @@ export function SignatureStep({ onBack, onNext }: { onBack: () => void; onNext: 
               ) : (
                 <ShieldCheck className="size-4 mr-2" />
               )}
-              Sign &amp; Complete Onboarding
+              Sign &amp; Authorize
             </Button>
             {missingReason && !busy && (
               <div className="text-[10px] text-amber-300/80">{missingReason}</div>
