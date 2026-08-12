@@ -21,6 +21,11 @@ export async function renderAuthorizationLetterPdf(
     REMOVAL_AUTHORITY_CLAUSE,
     NO_GUARANTEE_CLAUSE,
     CLIENT_DECLARATIONS,
+    partySectionLabel,
+    professionalName,
+    faceReferenceView,
+    FACE_REFERENCE_PURPOSE,
+    FACE_REFERENCE_AUTHORIZATION,
   } = await import("@/lib/onboarding/authorization-letter");
 
 
