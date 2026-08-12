@@ -236,11 +236,9 @@ function ScanPage() {
   const [country, setCountry] = useState("");
   const [industry, setIndustry] = useState("");
   const [monthFilter, setMonthFilter] = useState<"24h" | "7d" | "30d" | "12m" | "all">("12m");
-  const [threatsOnly, setThreatsOnly] = useState<boolean>(true);
+  const [resultsTab, setResultsTab] = useState<"risk" | "review" | "mentions">("risk");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [activeSeverityFilter, setActiveSeverityFilter] = useState<string | null>(null);
-  const [showLowRiskSection, setShowLowRiskSection] = useState<boolean>(false);
-  const [showNeutralSection, setShowNeutralSection] = useState<boolean>(false);
 
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
