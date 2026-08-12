@@ -224,6 +224,9 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
  * an existing SIGNED signature at the current auth version; if found, the
  * existing certificate is returned instead of re-signing.
  */
+export const CONSENT_TEXT =
+  "I have reviewed and accept this authorization, and I consent to signing it electronically using my typed full legal name.";
+
 export const finalizeSignature = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -232,6 +235,7 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       role_title?: string;
       drawn_signature_svg?: string;
       confirmations: Record<string, boolean>;
+      device?: { platform?: string; timezone?: string; language?: string };
     }) =>
       z
         .object({
@@ -240,9 +244,17 @@ export const finalizeSignature = createServerFn({ method: "POST" })
           // Legacy field — electronic signing no longer captures drawn strokes.
           drawn_signature_svg: z.string().optional(),
           confirmations: z.record(z.string(), z.boolean()),
+          device: z
+            .object({
+              platform: z.string().max(120).optional(),
+              timezone: z.string().max(80).optional(),
+              language: z.string().max(40).optional(),
+            })
+            .optional(),
         })
         .parse(d),
   )
+
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     try {
