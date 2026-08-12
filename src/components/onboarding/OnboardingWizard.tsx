@@ -125,15 +125,33 @@ function LegacyOnboardingWizard({
     }
   };
 
-  const goBack = () => setStep((s) => Math.max(1, s - 1));
+  // Celebrity / public figure accounts skip Veriff identity verification entirely.
+  const skipsKyc = (profile?.client_type ?? "") === "celebrity";
+
+  const goBack = () =>
+    setStep((s) => {
+      const prev = Math.max(1, s - 1);
+      return skipsKyc && prev === 2 ? 1 : prev;
+    });
+
+  useEffect(() => {
+    if (skipsKyc && step === 2) setStep(3);
+  }, [skipsKyc, step]);
 
   const stepIndex = step - 1;
-  const isKycApproved = kyc?.verification_status === "APPROVED";
+  const isKycApproved = skipsKyc || kyc?.verification_status === "APPROVED";
   const isFaceVerified = faceEnrollment?.status === "FACE_VERIFIED";
   const isFaceDeferred = faceEnrollment?.status === "DEFERRED";
   const isFaceHandled = isFaceVerified || isFaceDeferred;
   const hasVerifiedAsset = assets?.some((a: any) => a.verification_status === "VERIFIED") ?? false;
   const hasScopes = (authBundle?.scopes?.filter((s: any) => s.granted)?.length ?? 0) > 0;
+  const visibleSteps = STEP_TITLES.map((title, i) => ({ title, step: i + 1, index: i })).filter(
+    (s) => !(skipsKyc && s.step === 2),
+  );
+  const visiblePosition = Math.max(
+    1,
+    visibleSteps.findIndex((s) => s.step === step) + 1,
+  );
 
   const auth = authBundle?.auth;
   const isDraftReady =
@@ -172,7 +190,7 @@ function LegacyOnboardingWizard({
               className="absolute left-[15px] top-4 bottom-4 w-px bg-white/15"
             />
             <ol className="relative space-y-1">
-              {STEP_TITLES.map((title, i) => {
+              {visibleSteps.map(({ title, index: i }, position) => {
                 const isActive = i === stepIndex;
                 const isPast = i < stepIndex;
                 const isLocked =
@@ -200,7 +218,7 @@ function LegacyOnboardingWizard({
                       ) : isLocked ? (
                         <Lock className="size-3.5 opacity-50" />
                       ) : (
-                        i + 1
+                        position + 1
                       )}
                     </span>
                     <span
@@ -222,7 +240,7 @@ function LegacyOnboardingWizard({
         </div>
 
         <div className="relative z-10 text-xs text-white/50 pt-4 border-t border-white/10">
-          Step {step} of {STEP_TITLES.length} · Enterprise Security
+          Step {visiblePosition} of {visibleSteps.length} · Enterprise Security
         </div>
       </aside>
 
@@ -231,7 +249,7 @@ function LegacyOnboardingWizard({
           <div className="w-full max-w-2xl mx-auto">
             <div className="mb-8">
               <div className="text-[11px] font-semibold tracking-[0.24em] text-blue-400 mb-2">
-                STEP {step} / {STEP_TITLES.length}
+                STEP {visiblePosition} / {visibleSteps.length}
               </div>
               <h2 className="font-display text-3xl font-bold">{STEP_TITLES[stepIndex]}</h2>
             </div>
@@ -241,10 +259,10 @@ function LegacyOnboardingWizard({
                 <Step1Profile
                   profile={profile}
                   onRefetch={refetchProfile}
-                  onNext={() => advanceStep(2)}
+                  onNext={() => advanceStep(skipsKyc ? 3 : 2)}
                 />
               )}
-              {step === 2 && (
+              {step === 2 && !skipsKyc && (
                 <Step2Kyc
                   kyc={kyc}
                   profile={profile}
