@@ -417,7 +417,7 @@ export function FaceEnrollmentStep({
               <Button
                 onClick={onNext}
                 variant="outline"
-                className="border-white/20 text-white hover:bg-white/10"
+                className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
               >
                 Continue <ChevronRight className="size-4 ml-1" />
               </Button>
@@ -618,7 +618,7 @@ export function FaceEnrollmentStep({
               <Button
                 variant="outline"
                 onClick={onBack}
-                className="border-white/20 text-white hover:bg-white/10"
+                className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
               >
                 <ChevronLeft className="size-4 mr-1" /> Back
               </Button>

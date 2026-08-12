@@ -271,7 +271,7 @@ export function AssetVerificationStep({
                               variant="outline"
                               onClick={() => handleGenerate(asset.id)}
                               disabled={busy}
-                              className="border-white/20 text-white shrink-0"
+                              className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 shrink-0"
                               title="Regenerate Code"
                             >
                               <RefreshCcw className="size-4" />
@@ -317,7 +317,7 @@ export function AssetVerificationStep({
               variant="outline"
               onClick={() => refetch()}
               disabled={busy}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
             >
               Refresh Status
             </Button>

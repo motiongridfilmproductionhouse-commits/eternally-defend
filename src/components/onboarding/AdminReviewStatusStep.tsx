@@ -119,7 +119,7 @@ export function AdminReviewStatusStep({
             variant="outline"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="border-white/20 text-white hover:bg-white/10"
+            className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
           >
             <RefreshCw className={`size-4 mr-2 ${isFetching ? "animate-spin" : ""}`} /> Refresh
           </Button>
@@ -177,7 +177,7 @@ export function AdminReviewStatusStep({
                     variant="outline"
                     size="sm"
                     onClick={() => onGoToStep(1)}
-                    className="border-orange-500/30 text-orange-200 hover:bg-orange-500/20"
+                    className="bg-orange-950/40 border-orange-500/30 text-orange-200 hover:bg-orange-900/50"
                   >
                     Edit Profile
                   </Button>
@@ -185,7 +185,7 @@ export function AdminReviewStatusStep({
                     variant="outline"
                     size="sm"
                     onClick={() => onGoToStep(4)}
-                    className="border-orange-500/30 text-orange-200 hover:bg-orange-500/20"
+                    className="bg-orange-950/40 border-orange-500/30 text-orange-200 hover:bg-orange-900/50"
                   >
                     Edit Assets
                   </Button>
@@ -193,7 +193,7 @@ export function AdminReviewStatusStep({
                     variant="outline"
                     size="sm"
                     onClick={() => onGoToStep(5)}
-                    className="border-orange-500/30 text-orange-200 hover:bg-orange-500/20"
+                    className="bg-orange-950/40 border-orange-500/30 text-orange-200 hover:bg-orange-900/50"
                   >
                     Edit Scopes
                   </Button>
@@ -201,7 +201,7 @@ export function AdminReviewStatusStep({
                     variant="outline"
                     size="sm"
                     onClick={() => onGoToStep(6)}
-                    className="border-orange-500/30 text-orange-200 hover:bg-orange-500/20"
+                    className="bg-orange-950/40 border-orange-500/30 text-orange-200 hover:bg-orange-900/50"
                   >
                     Regenerate Draft
                   </Button>
@@ -280,7 +280,7 @@ export function AdminReviewStatusStep({
               variant="outline"
               onClick={() => handleViewPdf(signedDoc.id, true)}
               disabled={loadingUrl === signedDoc.id}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
             >
               {loadingUrl === signedDoc.id ? (
                 <Loader2 className="size-4 animate-spin mr-2" />
