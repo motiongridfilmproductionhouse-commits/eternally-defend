@@ -4613,6 +4613,29 @@ const fcConfig = getFirecrawlConfigInfo();
               windowEnd: monthWindow.endIso,
             },
           };
+          /* DEMO_SAFE_MODE: paginate findings so the JSON payload stays small
+           * enough to serialize/transfer inside the hosted request budget.
+           * Ranking and totals are untouched — only the transported page. */
+          if (DEMO_SAFE_MODE_ENABLED && report.hits.length > DEMO_SAFE_CAPS.responsePageSize) {
+            const total = report.hits.length;
+            const page = report.hits.slice(0, DEMO_SAFE_CAPS.responsePageSize);
+            (report as unknown as Record<string, unknown>).pagination = {
+              demoSafeMode: true,
+              pageSize: DEMO_SAFE_CAPS.responsePageSize,
+              returned: page.length,
+              totalFindings: total,
+              truncated: total - page.length,
+            };
+            report.hits = page;
+          } else if (DEMO_SAFE_MODE_ENABLED) {
+            (report as unknown as Record<string, unknown>).pagination = {
+              demoSafeMode: true,
+              pageSize: DEMO_SAFE_CAPS.responsePageSize,
+              returned: report.hits.length,
+              totalFindings: report.hits.length,
+              truncated: 0,
+            };
+          }
           return Response.json(report);
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Scan failed";
