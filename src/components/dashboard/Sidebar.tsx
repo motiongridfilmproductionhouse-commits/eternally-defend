@@ -142,9 +142,9 @@ export function Sidebar() {
           </button>
         </div>
 
-        <NavGroup items={mainNav} pathname={pathname} collapsed={collapsed} />
+        <NavGroup items={navItems} pathname={pathname} collapsed={collapsed} />
 
-        {isAdmin && (
+        {isAdmin && workspaceMode === "enterprise" && (
           <>
             {!collapsed && <SectionLabel>ADMIN · SYSTEM</SectionLabel>}
             <NavGroup items={adminSystemNav} pathname={pathname} collapsed={collapsed} />
