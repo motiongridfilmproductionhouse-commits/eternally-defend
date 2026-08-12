@@ -49,7 +49,9 @@ function applySecurityHeaders(response: Response): Response {
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // Face Protection enrollment needs camera access. Keep it restricted to the
+  // app's own origin; cross-origin frames and every other sensor stay blocked.
+  headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
   headers.set(
     "Content-Security-Policy",
     "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';",
