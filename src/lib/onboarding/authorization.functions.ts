@@ -195,7 +195,15 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
     if (!auth) throw new Error("No authorization draft");
+    // Once signed, this document version is frozen: the signed PDF must never be
+    // silently regenerated. Changing terms requires a new version and a new signature.
+    if (auth.status === "SIGNED" || auth.status === "ACTIVE") {
+      throw new Error(
+        "This authorization version is electronically signed and frozen. Changing the terms requires a new document version and a new signature.",
+      );
+    }
     const snap = await buildSnapshot(supabase, userId, auth.id);
+
     const { renderAuthorizationLetterPdf } = await import(
       "@/lib/onboarding/authorization-letter-pdf.server"
     );
