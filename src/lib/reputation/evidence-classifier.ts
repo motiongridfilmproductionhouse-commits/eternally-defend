@@ -388,7 +388,7 @@ export function classifyWithEvidence(input: EvidenceClassifierInput): EvidenceCl
 
   const subjectMatched = identityTier !== "NOT_SUBJECT";
   const hasFullContent = Boolean(
-    (pageText && pageText.length > 200) || transcript.length > 80 || comments.length > 80,
+    (pageText && pageText.length > 120) || transcript.length > 80 || comments.length > 80,
   );
   const evidenceLevel: EvidenceLevel = hasFullContent ? "FULL_CONTENT" : "METADATA_ONLY";
 
