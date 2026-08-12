@@ -43,7 +43,10 @@ import type { ActionTarget } from "./ActionDrawer";
 export type HitLike = DetailFinding & {
   is_new_since_last_scan: boolean;
   hidden_at?: string | null;
+  /** Stored evidence/classification reason, when persisted. */
+  detection_reason?: string | null;
 };
+
 
 function fmt(n: number) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
