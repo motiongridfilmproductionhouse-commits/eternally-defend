@@ -35,6 +35,17 @@ export const SENSITIVE_ACTIONS = [
 
 export type SensitiveAction = (typeof SENSITIVE_ACTIONS)[number];
 
+/** Human-readable copy for each sensitive action. */
+export const SENSITIVE_ACTION_LABELS: Record<SensitiveAction, string> = {
+  platform_takedown: "Platform takedown requests",
+  legal_enforcement_request: "Legal enforcement requests",
+  impersonation_ownership_claim: "Impersonation ownership claims",
+  removal_on_behalf: "Removals on behalf of someone",
+  sensitive_identity_data: "Sensitive identity data access",
+  transfer_protected_identity: "Transferring a protected profile",
+  authorize_representative: "Authorizing a representative",
+};
+
 export function isSensitiveAction(value: unknown): value is SensitiveAction {
   return typeof value === "string" && (SENSITIVE_ACTIONS as readonly string[]).includes(value);
 }
