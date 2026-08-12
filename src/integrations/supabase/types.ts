@@ -1228,48 +1228,104 @@ export type Database = {
       }
       celebrity_campaigns: {
         Row: {
+          approved_accounts: string[]
+          approved_media_urls: string[]
           archived_at: string | null
           campaign_type: string
           created_at: string
+          ends_at: string | null
           hashtags: string[]
           id: string
           monitoring_started_at: string | null
           name: string
           notes: string | null
           official_urls: string[]
+          starts_at: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          approved_accounts?: string[]
+          approved_media_urls?: string[]
           archived_at?: string | null
           campaign_type?: string
           created_at?: string
+          ends_at?: string | null
           hashtags?: string[]
           id?: string
           monitoring_started_at?: string | null
           name: string
           notes?: string | null
           official_urls?: string[]
+          starts_at?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          approved_accounts?: string[]
+          approved_media_urls?: string[]
           archived_at?: string | null
           campaign_type?: string
           created_at?: string
+          ends_at?: string | null
           hashtags?: string[]
           id?: string
           monitoring_started_at?: string | null
           name?: string
           notes?: string | null
           official_urls?: string[]
+          starts_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      celebrity_finding_links: {
+        Row: {
+          association: string
+          campaign_id: string | null
+          created_at: string
+          finding_id: string
+          finding_kind: string
+          id: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          association?: string
+          campaign_id?: string | null
+          created_at?: string
+          finding_id: string
+          finding_kind: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          association?: string
+          campaign_id?: string | null
+          created_at?: string
+          finding_id?: string
+          finding_kind?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "celebrity_finding_links_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "celebrity_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       channel_watch_events: {
         Row: {
