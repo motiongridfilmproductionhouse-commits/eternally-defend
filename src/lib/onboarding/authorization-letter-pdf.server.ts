@@ -266,19 +266,66 @@ export async function renderAuthorizationLetterPdf(
     });
   }
 
+  // ---- Protected likeness & facial reference ----------------------------
+  // Presentation only: enrolled portrait plus client-safe descriptors.
+  const faceRef = faceReferenceView(snapshot.profile, snapshot.face_reference);
+  if (faceRef) {
+    sectionHeading("5. Protected likeness & facial reference");
+    let portrait: any = null;
+    const b64 = snapshot.face_reference?.image_base64;
+    if (b64) {
+      const buf = Buffer.from(b64, "base64");
+      for (const embed of [() => doc.embedJpg(buf), () => doc.embedPng(buf)]) {
+        try {
+          portrait = await embed();
+          break;
+        } catch {
+          portrait = null;
+        }
+      }
+    }
+    // ID-style portrait: modest fixed width, aspect preserved, thin border.
+    const PORTRAIT_W = 104;
+    if (portrait) {
+      const scale = PORTRAIT_W / portrait.width;
+      const h = Math.min(portrait.height * scale, 132);
+      const w = (h / portrait.height) * portrait.width;
+      ensure(h + 16);
+      page.drawRectangle({
+        x: MARGIN - 2,
+        y: y - h - 2,
+        width: w + 4,
+        height: h + 4,
+        borderColor: rgb(0.75, 0.8, 0.88),
+        borderWidth: 0.8,
+      });
+      page.drawImage(portrait, { x: MARGIN, y: y - h, width: w, height: h });
+      y -= h + 14;
+    }
+    field("Subject", faceRef.subject);
+    field("Protection Type", faceRef.protectionType);
+    field("Enrollment Status", faceRef.enrollmentStatus);
+    field("Enrollment Date", faceRef.enrollmentDate);
+    y -= 2;
+    paragraph("Purpose:", { bold: true, color: navy, gap: 2 });
+    paragraph(FACE_REFERENCE_PURPOSE, { gap: 5 });
+    paragraph(FACE_REFERENCE_AUTHORIZATION, { gap: 5 });
+  }
+  const n = faceRef ? 1 : 0;
+
   // ---- Removal authority and outcome disclaimer -------------------------
-  sectionHeading("5. Removal requests and platform outcomes");
+  sectionHeading(`${5 + n}. Removal requests and platform outcomes`);
   paragraph(REMOVAL_AUTHORITY_CLAUSE, { gap: 5 });
   paragraph(NO_GUARANTEE_CLAUSE, { gap: 5 });
 
   // ---- Limitations ------------------------------------------------------
-  sectionHeading("6. Scope limitations and reservations");
+  sectionHeading(`${6 + n}. Scope limitations and reservations`);
   limitationClauses(snapshot.scopes).forEach((clause, i) => {
-    paragraph(`6.${i + 1}  ${clause}`, { gap: 5 });
+    paragraph(`${6 + n}.${i + 1}  ${clause}`, { gap: 5 });
   });
 
   // ---- Client declarations ---------------------------------------------
-  sectionHeading("7. Client declarations");
+  sectionHeading(`${7 + n}. Client declarations`);
   for (const t of CLIENT_DECLARATIONS) {
     paragraph(`•  ${t}`, { indent: 6, gap: 3 });
   }
