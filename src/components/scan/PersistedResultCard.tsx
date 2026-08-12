@@ -283,21 +283,27 @@ export function PersistedResultCard({
             {hit.times_detected > 1 && <span>Seen ×{hit.times_detected}</span>}
           </div>
 
-          {/* Why this is dangerous explanation */}
-          {(hit.severity === "Critical" || hit.severity === "High") && (
-            <div className="mt-2.5 rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-[10px] space-y-1 text-left">
-              <div className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">
-                <AlertTriangle className="size-3" /> Why this is dangerous
-              </div>
-              <ul className="list-disc pl-3 text-muted-foreground space-y-0.5">
-                <li>Flagged as actionable reputation threat on {hit.source}</li>
+          {/*
+            Risk note — only for findings whose stored detection reason carries
+            evidence-backed classification, never bare keyword matches.
+          */}
+          {(hit.severity === "Critical" || hit.severity === "High") &&
+            !/^matched:/i.test(hit.detection_reason ?? "") && (
+              <div className="mt-2.5 rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-[10px] space-y-1 text-left">
+                <div className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">
+                  <AlertTriangle className="size-3" /> Why this is flagged
+                </div>
+                <div className="text-muted-foreground">
+                  {hit.detection_reason ?? "Evidence-backed reputation risk recorded for review."}
+                </div>
                 {typeof hit.reach === "number" && hit.reach > 0 && (
-                  <li>Indexed public reach (~{fmt(hit.reach)} audience impressions)</li>
+                  <div className="text-muted-foreground">
+                    Indexed public reach ~{fmt(hit.reach)} impressions.
+                  </div>
                 )}
-                <li>High probability of search persistence and cross-platform spread</li>
-              </ul>
-            </div>
-          )}
+              </div>
+            )}
+
         </div>
       </button>
 
