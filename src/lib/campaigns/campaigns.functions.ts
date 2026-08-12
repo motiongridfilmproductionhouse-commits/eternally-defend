@@ -64,6 +64,10 @@ export type CampaignRow = {
   notes: string | null;
   hashtags: string[];
   official_urls: string[];
+  approved_accounts: string[];
+  approved_media_urls: string[];
+  starts_at: string | null;
+  ends_at: string | null;
   monitoring_started_at: string | null;
   archived_at: string | null;
   created_at: string;
