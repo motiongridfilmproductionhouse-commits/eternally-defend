@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageCard } from "@/components/dashboard/PageCard";
 import { Switch } from "@/components/ui/switch";
+import { SocialProfilesPanel } from "@/components/onboarding/SocialProfilesPanel";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings — Eterna AI" }] }),
@@ -50,6 +51,12 @@ function SettingsPage() {
               className="mt-1 w-full px-3 py-2 rounded-lg border border-border text-sm"
             />
           </label>
+        </div>
+      </PageCard>
+
+      <PageCard title="OFFICIAL PROFILES" sub="Public social profile links used as trusted references">
+        <div className="rounded-xl bg-[#0A1128] p-4">
+          <SocialProfilesPanel compact />
         </div>
       </PageCard>
 

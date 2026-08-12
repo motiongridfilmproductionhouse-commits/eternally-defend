@@ -629,3 +629,26 @@ export const getSignedDocUrl = createServerFn({ method: "POST" })
       }),
     };
   });
+
+/**
+ * Streams the document bytes through the server as base64 so the browser can render it
+ * from a same-origin blob. Fetching the signed S3 URL directly from the page fails when
+ * the bucket has no CORS rule for this origin, which showed as an empty preview panel.
+ */
+export const getDocBase64 = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { doc_id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: doc } = await supabase
+      .from("authorization_documents")
+      .select("s3_key")
+      .eq("id", data.doc_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!doc) throw new Error("Not found");
+    const { getObjectBytes } = await import("@/lib/aws/s3.server");
+    const bytes = await getObjectBytes(doc.s3_key);
+    if (!bytes) throw new Error("Document file not available");
+    return { base64: Buffer.from(bytes).toString("base64") };
+  });

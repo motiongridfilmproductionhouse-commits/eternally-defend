@@ -20,6 +20,7 @@ import {
   getAuthorizationBundle,
   generateDraftPdf,
   getSignedDocUrl,
+  getDocBase64,
 } from "@/lib/onboarding/authorization.functions";
 
 export function AuthorizationReviewStep({
@@ -34,6 +35,7 @@ export function AuthorizationReviewStep({
   const fetchAuth = useServerFn(getAuthorizationBundle);
   const generateDraft = useServerFn(generateDraftPdf);
   const fetchUrl = useServerFn(getSignedDocUrl);
+  const fetchBytes = useServerFn(getDocBase64);
 
   const {
     data: authBundle,
@@ -82,9 +84,9 @@ export function AuthorizationReviewStep({
   };
 
   /**
-   * Loads the signed URL, downloads the PDF and renders it from a same-origin blob URL.
-   * Some browsers refuse to render cross-origin PDFs inside an iframe, which shows a
-   * blank grey panel — the blob keeps the preview inside this step.
+   * The bytes come through the server as base64 and render from a same-origin blob URL:
+   * fetching the signed storage URL from the page is blocked without a CORS rule, and
+   * cross-origin PDFs in an iframe render as a blank panel.
    */
   const handleTogglePreview = async (docId: string) => {
     if (previewUrl) {
@@ -94,13 +96,13 @@ export function AuthorizationReviewStep({
     }
     setLoadingUrl(docId);
     try {
-      const { url } = await fetchUrl({ data: { doc_id: docId, disposition: "inline" } });
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch letter");
-      const blob = await res.blob();
-      setPreviewUrl(URL.createObjectURL(new Blob([blob], { type: "application/pdf" })));
-    } catch {
-      toast.error("Failed to load the authorization letter");
+      const { base64 } = await fetchBytes({ data: { doc_id: docId } });
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+      setPreviewUrl(URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })));
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to load the authorization letter");
     } finally {
       setLoadingUrl(null);
     }
