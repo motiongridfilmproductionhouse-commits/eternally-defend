@@ -12,15 +12,17 @@ export async function renderAuthorizationLetterPdf(
   const {
     SERVICE_PROVIDER_NAME,
     LETTER_TITLE,
-    selectedCategories,
     limitationClauses,
     resolveClientParty,
-    coveredAssets,
     footerText,
     authorizingParagraph,
-    authorizationLevel,
-    AUTHORIZATION_LEVEL_LABELS,
+    selectedServices,
+    officialDigitalPresence,
+    REMOVAL_AUTHORITY_CLAUSE,
+    NO_GUARANTEE_CLAUSE,
+    CLIENT_DECLARATIONS,
   } = await import("@/lib/onboarding/authorization-letter");
+
 
   const doc = await PDFDocument.create();
   const stack = await embedUnicodeFontStack(doc);
