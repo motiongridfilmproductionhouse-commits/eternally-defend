@@ -81,22 +81,37 @@ export function AuthorizationReviewStep({
     }
   };
 
-  /** Loads the signed URL and renders the letter inline — never a new tab. */
+  /**
+   * Loads the signed URL, downloads the PDF and renders it from a same-origin blob URL.
+   * Some browsers refuse to render cross-origin PDFs inside an iframe, which shows a
+   * blank grey panel — the blob keeps the preview inside this step.
+   */
   const handleTogglePreview = async (docId: string) => {
     if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
       return;
     }
     setLoadingUrl(docId);
     try {
       const { url } = await fetchUrl({ data: { doc_id: docId, disposition: "inline" } });
-      setPreviewUrl(url);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch letter");
+      const blob = await res.blob();
+      setPreviewUrl(URL.createObjectURL(new Blob([blob], { type: "application/pdf" })));
     } catch {
       toast.error("Failed to load the authorization letter");
     } finally {
       setLoadingUrl(null);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
 
   if (isLoading) {
     return (
