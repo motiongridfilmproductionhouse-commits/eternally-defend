@@ -72,7 +72,7 @@ function describeLivenessFailure(
       message: "The liveness session expired before completing. Please start a new scan.",
     };
   }
-  if (status === "SUCCEEDED" && confidence < 80) {
+  if (status === "SUCCEEDED" && confidence < LIVENESS_MIN_CONFIDENCE) {
     return {
       code: "LOW_CONFIDENCE",
       message: `Liveness confidence too low (${confidence.toFixed(1)}%). Please retry in a well-lit area, without masks or heavy glasses.`,
