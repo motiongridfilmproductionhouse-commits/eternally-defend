@@ -136,7 +136,51 @@ async function buildSnapshot(supabase: any, userId: string, authId: string) {
     supabase.from("authorization_scopes").select("*").eq("authorization_id", authId),
     supabase.from("client_authorizations").select("*").eq("id", authId).maybeSingle(),
   ]);
-  return { profile, kyc, face, assets, scopes, auth, generated_at: new Date().toISOString() };
+  const face_reference = await loadFaceReference(supabase, userId);
+  return {
+    profile,
+    kyc,
+    face,
+    assets,
+    scopes,
+    auth,
+    face_reference,
+    generated_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * Client-safe facial reference for the authorization letter: the enrolled
+ * portrait bytes plus the enrollment date. No Rekognition IDs, collection
+ * names, S3 locations or confidence values leave this function.
+ */
+async function loadFaceReference(supabase: any, userId: string) {
+  const { data: faces } = await supabase
+    .from("protected_faces")
+    .select("s3_key,s3_bucket,created_at,status")
+    .eq("user_id", userId)
+    .eq("status", "ACTIVE")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const face = faces?.[0];
+  if (!face?.s3_key) return null;
+  const { data: profileRow } = await supabase
+    .from("protected_face_profiles")
+    .select("enrollment_date,created_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  try {
+    const { getObjectBytes } = await import("@/lib/aws/s3.server");
+    const bytes = await getObjectBytes(face.s3_key, face.s3_bucket ?? undefined);
+    if (!bytes) return null;
+    return {
+      enrolled_at:
+        profileRow?.enrollment_date ?? profileRow?.created_at ?? face.created_at ?? null,
+      image_base64: Buffer.from(bytes).toString("base64"),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export const generateDraftPdf = createServerFn({ method: "POST" })
