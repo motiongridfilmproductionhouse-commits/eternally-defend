@@ -588,10 +588,17 @@ export function FaceEnrollmentStep({
   // 4. Success — only reached from a real backend FACE_VERIFIED result
   if (status === "FACE_VERIFIED") {
     const landmarksReal = hasRealLandmarks(result?.landmarks);
+    // Post-enrollment protection visualization (no AWS enrollment work here).
+    const showShield = !!result?.referenceImage;
+    const continueBlocked = showShield && !shieldReady;
     return (
       <ScanShell
         title="Face Protection Registered"
-        subtitle="Your facial reference has been securely enrolled for identity protection."
+        subtitle={
+          showShield
+            ? "Building your Digital Face Shield from the enrolled reference."
+            : "Your facial reference has been securely enrolled for identity protection."
+        }
         tone="success"
         footer={
           <div className="flex flex-col sm:flex-row gap-3 justify-between">
@@ -612,8 +619,9 @@ export function FaceEnrollmentStep({
               </Button>
               <Button
                 onClick={onNext}
+                disabled={continueBlocked}
                 data-testid="face-continue"
-                className="bg-blue-600 hover:bg-blue-500 text-white border-0"
+                className="bg-blue-600 hover:bg-blue-500 text-white border-0 disabled:opacity-50"
               >
                 Continue <ChevronRight className="size-4 ml-1" />
               </Button>
@@ -621,44 +629,44 @@ export function FaceEnrollmentStep({
           </div>
         }
       >
-        <div className="relative">
-          <FaceScanRing progress={100} tone="emerald">
-            {result?.referenceImage ? (
-              <div className="relative size-full">
-                <img
-                  src={result.referenceImage}
-                  alt="Your enrolled facial reference"
-                  className="size-full object-cover"
-                />
-                <FaceMeshOverlay landmarks={result.landmarks} pulse />
+        {showShield ? (
+          <DigitalFaceShield
+            referenceImage={result?.referenceImage}
+            landmarks={result?.landmarks}
+            onComplete={handleShieldReady}
+          />
+        ) : (
+          <>
+            <div className="relative">
+              <FaceScanRing progress={100} tone="emerald">
+                <div className="grid place-items-center size-full">
+                  <ShieldCheck className="size-16 text-emerald-400" />
+                </div>
+              </FaceScanRing>
+              <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                <div className="size-24 rounded-full border border-emerald-400/40 face-success-pulse" />
               </div>
-            ) : (
-              <div className="grid place-items-center size-full">
-                <ShieldCheck className="size-16 text-emerald-400" />
-              </div>
-            )}
-          </FaceScanRing>
-          <div className="pointer-events-none absolute inset-0 grid place-items-center">
-            <div className="size-24 rounded-full border border-emerald-400/40 face-success-pulse" />
-          </div>
-        </div>
+            </div>
 
-        <div className="max-w-sm mx-auto space-y-2 rounded-xl border border-white/10 bg-white/[0.04] p-4">
-          <Row label="Face detected & indexed (AWS Rekognition)" />
-          <Row label="Liveness verified by AWS Face Liveness" />
-          {typeof result?.confidence === "number" && (
-            <Row label={`Liveness confidence ${result.confidence.toFixed(1)}%`} />
-          )}
-          <Row label="Protected face profile created" />
-          <p className="pt-1 text-[11px] text-white/40">
-            {landmarksReal
-              ? "Facial map rendered from AWS Rekognition landmark coordinates."
-              : "Facial landmark coordinates were not returned for this capture, so no facial map is displayed."}
-          </p>
-        </div>
+            <div className="max-w-sm mx-auto space-y-2 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+              <Row label="Face detected & indexed (AWS Rekognition)" />
+              <Row label="Liveness verified by AWS Face Liveness" />
+              {typeof result?.confidence === "number" && (
+                <Row label={`Liveness confidence ${result.confidence.toFixed(1)}%`} />
+              )}
+              <Row label="Protected face profile created" />
+              <p className="pt-1 text-[11px] text-white/40">
+                {landmarksReal
+                  ? "Facial map rendered from AWS Rekognition landmark coordinates."
+                  : "Facial landmark coordinates were not returned for this capture, so no facial map is displayed."}
+              </p>
+            </div>
+          </>
+        )}
       </ScanShell>
     );
   }
+
 
   // 5. Ready to scan / retry
   const failed = !!technicalError || status === "LIVENESS_FAILED" || status === "QUALITY_FAILED";
