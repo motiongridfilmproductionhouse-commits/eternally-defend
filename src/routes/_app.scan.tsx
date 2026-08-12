@@ -42,7 +42,9 @@ import {
 import {
   splitForPresentation,
   safeRiskLabel,
+  riskHeadlineLabel,
 } from "@/lib/reputation/presentation-filter";
+
 import { listEvidenceStatus, hideScanHit } from "@/lib/scan-actions.functions";
 import {
   Radar,
