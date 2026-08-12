@@ -153,7 +153,9 @@ export function AuthorizationReviewStep({
               <FileText className="size-5 text-blue-400" />
             </div>
             <div>
-              <div className="font-semibold text-blue-200">Official Authorization Draft</div>
+              <div className="font-semibold text-blue-200">
+                Eterna Sentinel Defence LLC Authorization Letter
+              </div>
               <div className="text-xs text-blue-300/70">
                 {draftDoc
                   ? "Draft generated and ready for review."
