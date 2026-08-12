@@ -59,6 +59,83 @@ export function normalizePercentage(val: unknown): number | null {
   return Number(bounded.toFixed(3));
 }
 
+/**
+ * A parsed Date is only usable as a real-world "published at" timestamp if
+ * its year fits the standard 4-digit ISO-8601 range (0000-9999). JS's `Date`
+ * constructor is far more permissive than Postgres: loose slash-delimited
+ * strings like "272023/04/" (a corrupted/concatenated year from upstream
+ * provider metadata) parse "successfully" into a real Date many thousands of
+ * years in the future rather than producing NaN. `Date#toISOString()` flags
+ * exactly this case by switching to extended year notation ("+272023-04-...
+ * " / "-000001-..."), so checking for that prefix is a generic, provider-
+ * agnostic way to reject implausible years without special-casing any one
+ * malformed string.
+ */
+function isPlausibleIsoTimestamp(iso: string): boolean {
+  return /^\d{4}-/.test(iso);
+}
+
+/**
+ * Providers disagree on epoch units and often JSON-encode them as strings
+ * rather than numbers (Reddit's `created_utc` is seconds; others emit
+ * milliseconds; some stringify either). A bare `new Date("1682590500")`
+ * does NOT treat a numeric string as an epoch value the way `new
+ * Date(1682590500000)` does, so without this, purely-numeric epoch strings
+ * would silently fail to parse. Anything under 1e11 is treated as seconds
+ * (valid for any date up to roughly the year 5138); at/above that it's
+ * treated as milliseconds (valid for any real epoch-ms value since ~1973).
+ */
+function coerceEpochToMs(num: number): number {
+  return Math.abs(num) < 1e11 ? num * 1000 : num;
+}
+
+/**
+ * Normalization boundary for every externally-derived timestamp written to a
+ * Postgres `timestamptz` column (e.g. scan_hits.published_at).
+ *
+ * Provider metadata (SerpApi, Reddit, general-web scraping, YouTube, etc.) is
+ * untrusted and frequently malformed ("272023/04/", "unknown", "Apr 2023?",
+ * partial ISO strings, ...). Postgres will hard-reject an insert/upsert batch
+ * if any row's timestamptz column can't be parsed, which would fail hits that
+ * have nothing to do with the bad date. Rather than special-casing specific
+ * garbage strings, everything is routed through `new Date(...)` and only kept
+ * if it parses to a valid, plausible instant. Anything else becomes `null` -
+ * never a substituted "now", since that would corrupt scan-period/ranking
+ * semantics that assume published_at reflects the real publish time.
+ */
+export function normalizeTimestamp(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    const iso = value.toISOString();
+    return isPlausibleIsoTimestamp(iso) ? iso : null;
+  }
+
+  if (typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
+
+  if (typeof value === "string" && value.trim() === "") return null;
+
+  let date: Date;
+  if (typeof value === "number") {
+    date = new Date(coerceEpochToMs(value));
+  } else if (/^-?\d+$/.test(value.trim())) {
+    // Purely numeric string (e.g. "1682590500" or "1682590500000") — treat
+    // as an epoch value rather than letting Date's loose string parser
+    // reinterpret the digits as something like a year.
+    date = new Date(coerceEpochToMs(Number(value.trim())));
+  } else {
+    date = new Date(value);
+  }
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  const iso = date.toISOString();
+  return isPlausibleIsoTimestamp(iso) ? iso : null;
+}
+
 export type ScanHitInput = z.infer<typeof HitInput>;
 
 const PersistInput = z.object({
@@ -178,7 +255,7 @@ export const persistScan = createServerFn({ method: "POST" })
         thumbnail_url: h.thumbnailUrl ?? null,
         language: h.language ?? null,
         country: h.country ?? null,
-        published_at: h.publishedAt ?? null,
+        published_at: normalizeTimestamp(h.publishedAt),
         reach: normalizeIntegerCount(h.reach),
         engagement: normalizeIntegerCount(h.engagement),
         velocity: h.velocity ?? null,
