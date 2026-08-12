@@ -659,16 +659,39 @@ export function FaceEnrollmentStep({
           <div className="absolute inset-0 grid place-items-center text-center px-6">
             {camera.state === "requesting" ? (
               <Loader2 className="size-8 animate-spin text-sky-400" />
-            ) : camera.state === "denied" ? (
+            ) : camera.state === "denied" || camera.state === "unavailable" ? (
               <div className="space-y-2 max-w-[260px]">
                 <div className="flex items-center justify-center gap-2 text-amber-200 font-medium text-sm">
                   <Camera className="size-4" />
                   Camera access required
                 </div>
                 <p className="text-[11px] text-white/60 leading-relaxed">
-                  Face protection enrollment needs your camera to build a secure facial reference.
-                  Allow camera access in your browser, then click retry below.
+                  {camera.diagnostics.blockedByFrame
+                    ? "This embedded preview window blocks camera access, so your browser never shows the permission prompt. Open the app in its own tab to continue."
+                    : camera.diagnostics.insecureContext
+                      ? "Camera access requires a secure (https) connection. Open the app over https to continue."
+                      : camera.diagnostics.errorName === "NotFoundError" ||
+                          camera.diagnostics.errorName === "OverconstrainedError"
+                        ? "No camera was detected on this device. Connect a webcam and click retry."
+                        : camera.diagnostics.errorName === "NotReadableError"
+                          ? "Your camera is in use by another app. Close it, then click retry."
+                          : "Face protection enrollment needs your camera. Allow camera access in your browser (check the camera icon in the address bar), then click retry."}
                 </p>
+                {camera.diagnostics.blockedByFrame && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(window.location.href, "_blank", "noopener")}
+                    className="border-sky-500/30 bg-slate-950/60 text-sky-50 hover:bg-sky-950/40"
+                  >
+                    Open in new tab
+                  </Button>
+                )}
+                {camera.diagnostics.errorName && (
+                  <div className="font-mono text-[10px] text-white/30">
+                    {camera.diagnostics.errorName}
+                  </div>
+                )}
               </div>
             ) : (
               <ScanFace className="size-14 text-sky-400/50" />
