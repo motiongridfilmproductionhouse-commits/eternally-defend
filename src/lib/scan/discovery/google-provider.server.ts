@@ -57,11 +57,19 @@ function toHit(item: CseItem): DiscoveryHit | null {
   };
 }
 
+/**
+ * DISABLED BY DEFAULT. The saved key's Google Cloud project does not have the
+ * Custom Search JSON API enabled (hard 403 "project does not have the access"),
+ * so the adapter is kept but reports NOT_CONFIGURED unless explicitly re-enabled
+ * with SCAN_ENABLE_GOOGLE_CSE=true. Google-backed discovery now runs through
+ * the Gemini grounding provider instead.
+ */
 export const googleProvider: SearchProviderAdapter = {
   id: "google",
   label: "Google Programmable Search",
 
   isConfigured() {
+    if (process.env.SCAN_ENABLE_GOOGLE_CSE?.trim() !== "true") return false;
     const { key, cx } = creds();
     return Boolean(key && cx);
   },
