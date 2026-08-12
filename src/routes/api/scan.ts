@@ -2686,41 +2686,80 @@ function buildReport(
       let c = classify(title, description);
       const sent = sentimentOf(`${title} ${description}`);
       const contentPosition = inferAutomatedContentPosition(title, description);
-      const contextOnlyTerms = new Set([
-        "controversy",
-        "controversial",
-        "backlash",
-        "responds to",
-        "response video",
-        "reaction video",
-        "trolled",
-        "moral policing",
-      ]);
-      const onlyContextSignals =
-        c.keywords.length > 0 && c.keywords.every((term) => contextOnlyTerms.has(term));
-      if (contentPosition === "SUPPORTIVE" || onlyContextSignals) {
+
+      /*
+       * EVIDENCE GATE — classification precedes scoring.
+       *
+       * Keyword presence in metadata ("review", "controversy", "legal",
+       * "copyright", …) is a discovery/relevance signal only. A candidate can
+       * only become a reputation-risk finding when subject-directed risk
+       * evidence is extracted from retrieved material at sufficient
+       * confidence. Everything else stays persisted as a neutral /
+       * entertainment / needs-review mention.
+       */
+      const verdict = classifyWithEvidence({
+        target: query,
+        aliases,
+        title,
+        description,
+        pageText,
+        author: o.author ?? o.media?.channelTitle,
+        url,
+        identityTier: identity.tier,
+        identityConfidence: identity.confidence,
+      });
+      const riskEvidenced = verdict.evidence.riskEvidenceFound;
+      const evidenceCategory = riskCategoryToCategory(verdict.evidence.riskCategory);
+
+      if (!riskEvidenced) {
+        /* Neutral baseline: no keyword-derived category, severity or harm. */
         c = {
-          ...c,
+          category: "Mention",
           sev: "Low",
-          score: Math.min(c.score, 28),
+          score: 20,
           legalTakedown: 0,
           copyrightEnforce: 0,
-          reputation: Math.min(c.reputation, 18),
+          reputation: verdict.reputationRisk,
+          keywords: c.keywords,
+        };
+      } else if (verdict.tier === "TIER_4_HIGH_RISK") {
+        c = {
+          category: evidenceCategory,
+          sev: verdict.evidence.confidence >= 0.85 ? "Critical" : "High",
+          score: Math.round(60 + verdict.evidence.confidence * 35),
+          legalTakedown: Math.round(verdict.evidence.confidence * 70),
+          copyrightEnforce: 0,
+          reputation: verdict.reputationRisk,
+          keywords: c.keywords,
+        };
+      } else {
+        c = {
+          category: evidenceCategory,
+          sev: "Medium",
+          score: Math.round(40 + verdict.evidence.confidence * 22),
+          legalTakedown: Math.round(verdict.evidence.confidence * 40),
+          copyrightEnforce: 0,
+          reputation: verdict.reputationRisk,
+          keywords: c.keywords,
         };
       }
-      const riskMatched = c.keywords.length > 0 || sent === "Negative";
+      /* Supportive framing can never be a risk finding. */
+      const onlyContextSignals = !riskEvidenced;
+      const riskMatched = riskEvidenced;
       const isOfficialYouTubeLead =
         (source === "YouTube" || run.source === "YouTube") && Boolean(o.media?.videoId);
       const isYouTubeLead = source === "YouTube" || run.source === "YouTube";
       const isRedditEntityLead = source === "Reddit" || run.source === "Reddit";
       /*
-       * NO SNIPPET-ONLY DELETION. Previously a web result without a risk keyword
-       * in its 800-char snippet was discarded outright. Uncertain candidates are
-       * now kept and flagged NEEDS_REVIEW so coverage is auditable.
+       * NO DELETION anywhere in this stage. Ambiguous material is flagged
+       * NEEDS_REVIEW so coverage stays auditable and searchable.
        */
       const needsReview =
-        !riskMatched || identity.tier === "AMBIGUOUS" || identity.tier === "PROBABLE";
+        verdict.tier === "TIER_2_NEEDS_REVIEW" ||
+        (riskEvidenced && identity.tier === "AMBIGUOUS") ||
+        (riskEvidenced && verdict.evidenceLevel === "METADATA_ONLY");
       if (audit && needsReview) audit.funnel.needs_review++;
+
       const cred = credibilityScore(source, platform);
       const realViews = o.media?.views ?? 0;
       const viewsAvailable = o.media?.viewsAvailable === true;
