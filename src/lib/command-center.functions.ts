@@ -65,8 +65,17 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
     const since24h = new Date(now - 86_400_000).toISOString();
     const since48h = new Date(now - 2 * 86_400_000).toISOString();
 
-    const [hitsRes, scansRes, enfRes, evidenceRes, assetsRes, casesRes, profileRes, jobsRes] =
-      await Promise.all([
+    const [
+      hitsRes,
+      scansRes,
+      enfRes,
+      evidenceRes,
+      assetsRes,
+      casesRes,
+      profileRes,
+      jobsRes,
+      faceMatchRes,
+    ] = await Promise.all([
         supabase
           .from("scan_hits")
           .select(
@@ -114,6 +123,15 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
           .not("reputation_score", "is", null)
           .order("created_at", { ascending: false })
           .limit(50),
+        supabase
+          .from("face_match_events")
+          .select(
+            "id, source_url, source_type, similarity, threat_category, review_status, created_at, scan_hit_id",
+          )
+          .eq("user_id", userId)
+          .gte("created_at", since14)
+          .order("created_at", { ascending: false })
+          .limit(60),
       ]);
 
     const hits = hitsRes.data ?? [];
@@ -209,6 +227,41 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       permalink: (h.permalink as string) || (h.canonical_url as string) || null,
       thumbnail: (h.thumbnail_url as string) || null,
     }));
+
+    // Face-linked radar nodes: REAL protected-face matches from the enrolled
+    // onboarding references. Severity comes from the stored category that the
+    // existing evidence/deepfake pipelines produced — never from similarity.
+    const hitById = new Map(hits.map((h) => [h.id as string, h]));
+    const representedHits = new Set(radar.map((r) => r.id));
+    const FACE_SEVERITY: Record<string, Sev> = {
+      NORMAL_MENTION: "Low",
+      NEEDS_REVIEW: "Medium",
+      REPUTATION_RISK: "High",
+      DEEPFAKE_MEDIA: "Critical",
+      IMPERSONATION: "High",
+    };
+    const faceNodes = (faceMatchRes.data ?? [])
+      .filter((m) => !(m.scan_hit_id && representedHits.has(m.scan_hit_id)))
+      .slice(0, 30)
+      .map((m) => {
+        const hit = m.scan_hit_id ? hitById.get(m.scan_hit_id) : null;
+        const category = String(m.threat_category ?? "NEEDS_REVIEW");
+        const severity: Sev = FACE_SEVERITY[category] ?? "Medium";
+        return {
+          id: `face:${m.id}`,
+          platform: bucketPlatform((hit?.source as string) ?? m.source_type),
+          title:
+            (hit?.title as string) ||
+            `Protected face match · ${category.replace(/_/g, " ").toLowerCase()}`,
+          severity,
+          threatScore: Number(hit?.threat_score ?? SEV_WEIGHT[severity] * 10),
+          reach: Number(hit?.reach ?? 0),
+          permalink: (hit?.permalink as string) || m.source_url || null,
+          thumbnail: (hit?.thumbnail_url as string) || null,
+        };
+      });
+
+    const radarAll = [...radar, ...faceNodes].sort((a, b) => b.threatScore - a.threatScore);
 
     // Trending: top 10
     const trending = radar.slice(0, 10).map((r) => ({ ...r }));
@@ -386,7 +439,8 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
         criticalTrend: trend(criticalSpark),
       },
       danger: { score: danger, zone: dangerZone, velocityDelta, totalReach },
-      radar,
+      radar: radarAll,
+      faceLinkedNodes: faceNodes.length,
       trending,
       heatmap,
       spoilers,
