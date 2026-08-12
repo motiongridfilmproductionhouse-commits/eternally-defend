@@ -230,14 +230,15 @@ export const finalizeSignature = createServerFn({ method: "POST" })
     (d: {
       typed_name: string;
       role_title?: string;
-      drawn_signature_svg: string;
+      drawn_signature_svg?: string;
       confirmations: Record<string, boolean>;
     }) =>
       z
         .object({
           typed_name: z.string().min(2),
           role_title: z.string().optional(),
-          drawn_signature_svg: z.string().min(32, "Drawn signature is required"),
+          // Legacy field — electronic signing no longer captures drawn strokes.
+          drawn_signature_svg: z.string().optional(),
           confirmations: z.record(z.string(), z.boolean()),
         })
         .parse(d),
@@ -245,16 +246,8 @@ export const finalizeSignature = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     try {
-      const required = [
-        "reviewed",
-        "owner",
-        "assets_mine",
-        "accurate",
-        "false_claims",
-        "scope_only",
-        "final_approval",
-      ];
-      for (const k of required) if (!data.confirmations[k]) throw new Error(`DECL_MISSING:${k}`);
+      if (!data.confirmations["reviewed"]) throw new Error("DECL_MISSING:reviewed");
+
 
       const { data: auth } = await supabase
         .from("client_authorizations")
