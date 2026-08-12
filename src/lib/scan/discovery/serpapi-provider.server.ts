@@ -13,7 +13,7 @@ import {
 import type { DiscoveryHit } from "./types";
 
 const ENDPOINT = "https://serpapi.com/search.json";
-const TIMEOUT_MS = 14_000;
+const TIMEOUT_MS = 20_000;
 
 interface SerpApiOrganicResult {
   link?: string;
