@@ -7,15 +7,18 @@ import {
   Loader2,
   ShieldCheck,
   Download,
-  ExternalLink,
   FileKey2,
   Settings,
   LayoutDashboard,
   CheckCircle2,
 } from "lucide-react";
-import { getMyCertificate, getCertificateSignedUrl } from "@/lib/onboarding/certificate.functions";
+import { getMyCertificate } from "@/lib/onboarding/certificate.functions";
 import { getAuthorizationBundle } from "@/lib/onboarding/authorization.functions";
-import { buildAuthorizationPackage } from "@/lib/onboarding/package.functions";
+import {
+  downloadProtectionCertificate,
+  downloadProtectionBundle,
+  getFinalDownloadStatus,
+} from "@/lib/onboarding/final-package.functions";
 import { completeOnboarding, completeV2Onboarding } from "@/lib/onboarding/progress.functions";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -32,8 +35,9 @@ export function OnboardingCompleteStep({
 }) {
   const fetchCert = useServerFn(getMyCertificate);
   const fetchAuth = useServerFn(getAuthorizationBundle);
-  const getCertUrl = useServerFn(getCertificateSignedUrl);
-  const buildPkg = useServerFn(buildAuthorizationPackage);
+  const fetchStatus = useServerFn(getFinalDownloadStatus);
+  const downloadCert = useServerFn(downloadProtectionCertificate);
+  const downloadBundle = useServerFn(downloadProtectionBundle);
   const completeV1 = useServerFn(completeOnboarding);
   const completeV2 = useServerFn(completeV2Onboarding);
   const navigate = useNavigate();
@@ -49,36 +53,60 @@ export function OnboardingCompleteStep({
     queryFn: () => fetchAuth(),
   });
 
-  const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
-  const [loadingPkg, setLoadingPkg] = useState(false);
+  const { data: downloadStatus } = useQuery({
+    queryKey: ["final_download_status"],
+    queryFn: () => fetchStatus(),
+  });
+
+  const [busy, setBusy] = useState<null | "cert" | "bundle">(null);
+  const filesReady = downloadStatus?.ready === true;
+
+  /**
+   * Saves a server-generated artifact from a same-origin blob. Presigned S3 URLs
+   * cannot be downloaded from the page (no bucket CORS rule for this origin), which
+   * is why the previous certificate/bundle buttons did nothing.
+   */
+  const saveBase64 = (base64: string, filename: string, contentType: string) => {
+    const bin = atob(base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: contentType }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  };
 
   const handleDownloadCert = async () => {
-    if (!cert?.id) return;
-    setLoadingUrl(cert.id);
+    setBusy("cert");
     try {
-      const { url } = await getCertUrl({ data: { certificate_id: cert.id } });
-      window.open(url, "_blank");
-    } catch (e: any) {
-      toast.error("Failed to load certificate");
+      const res = await downloadCert();
+      saveBase64(res.base64, res.filename, res.contentType);
+      toast.success("Protection Certificate downloaded.");
+    } catch (e: unknown) {
+      toast.error(
+        e instanceof Error ? e.message : "We couldn't generate your Protection Certificate.",
+      );
     } finally {
-      setLoadingUrl(null);
+      setBusy(null);
     }
   };
 
-  const handleDownloadPackage = async () => {
-    setLoadingPkg(true);
+  const handleDownloadBundle = async () => {
+    setBusy("bundle");
     try {
-      const { url } = await buildPkg();
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Eterna_Authorization_Package.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (e: any) {
-      toast.error("Failed to generate authorization package");
+      const res = await downloadBundle();
+      saveBase64(res.base64, res.filename, res.contentType);
+      toast.success("Complete bundle downloaded.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "We couldn't build your protection bundle.");
     } finally {
-      setLoadingPkg(false);
+      setBusy(null);
+
     }
   };
 
@@ -249,29 +277,32 @@ export function OnboardingCompleteStep({
             <Button
               variant="outline"
               onClick={handleDownloadCert}
-              disabled={loadingUrl === cert.id}
+              disabled={busy !== null || !filesReady}
+              title={filesReady ? undefined : "Available once your documents are finalized"}
               className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
             >
-              {loadingUrl === cert.id ? (
+              {busy === "cert" ? (
                 <Loader2 className="size-4 animate-spin mr-2" />
               ) : (
-                <ExternalLink className="size-4 mr-2" />
+                <FileKey2 className="size-4 mr-2" />
               )}{" "}
-              View Certificate
+              Download Certificate
             </Button>
             <Button
               variant="outline"
-              onClick={handleDownloadPackage}
-              disabled={loadingPkg}
+              onClick={handleDownloadBundle}
+              disabled={busy !== null || !filesReady}
+              title={filesReady ? undefined : "Available once your documents are finalized"}
               className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
             >
-              {loadingPkg ? (
+              {busy === "bundle" ? (
                 <Loader2 className="size-4 animate-spin mr-2" />
               ) : (
                 <Download className="size-4 mr-2" />
               )}{" "}
-              Download Package
+              Download Complete Bundle
             </Button>
+
             <Button
               variant="outline"
               onClick={() => window.open(`/verify/${cert.public_slug}`, "_blank")}
