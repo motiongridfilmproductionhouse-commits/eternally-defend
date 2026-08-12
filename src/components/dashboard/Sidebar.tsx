@@ -86,6 +86,24 @@ export function Sidebar() {
   const { session } = useSession();
   const navigate = useNavigate();
   const { collapsed, toggleCollapsed } = useSidebarLayout();
+  const { accountType } = useVerificationStatus();
+
+  // Client-type based visibility: modules stay in the codebase and remain
+  // reachable by URL — simplified workspaces only hide them from navigation.
+  const workspaceMode = workspaceModeFor(accountType);
+  const allowed = visibleNavRoutes(workspaceMode);
+  const navItems: NavItem[] = allowed
+    ? allowed
+        .filter((route) => route !== "/settings")
+        .map((route) => {
+          const item = mainNav.find((n) => n.to === route);
+          if (!item) return null;
+          const label = CELEBRITY_NAV_LABELS[route] ?? item.label;
+          return { ...item, label, badge: undefined };
+        })
+        .filter((n): n is NavItem => n !== null)
+    : mainNav;
+
 
   const user = session?.user;
   const meta = (user?.user_metadata ?? {}) as {
