@@ -36,10 +36,13 @@ import { DiscoveryHealthPanel } from "@/components/scan/DiscoveryHealthPanel";
 import { DetailDrawer } from "@/components/scan/DetailDrawer";
 import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
 import {
-  isHarmlessOrOfficial,
   canonicalCategoryFor,
   generateThreatExplanation,
 } from "@/lib/reputation/ranking.server";
+import {
+  splitForPresentation,
+  safeRiskLabel,
+} from "@/lib/reputation/presentation-filter";
 import { listEvidenceStatus, hideScanHit } from "@/lib/scan-actions.functions";
 import {
   Radar,
@@ -236,11 +239,9 @@ function ScanPage() {
   const [country, setCountry] = useState("");
   const [industry, setIndustry] = useState("");
   const [monthFilter, setMonthFilter] = useState<"24h" | "7d" | "30d" | "12m" | "all">("12m");
-  const [threatsOnly, setThreatsOnly] = useState<boolean>(true);
+  const [resultsTab, setResultsTab] = useState<"risk" | "review" | "mentions">("risk");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [activeSeverityFilter, setActiveSeverityFilter] = useState<string | null>(null);
-  const [showLowRiskSection, setShowLowRiskSection] = useState<boolean>(false);
-  const [showNeutralSection, setShowNeutralSection] = useState<boolean>(false);
 
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
@@ -973,38 +974,46 @@ function ScanPage() {
                 )}
 
                 <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setThreatsOnly(true)}
-                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
-                      threatsOnly
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Threats Only
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setThreatsOnly(false)}
-                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
-                      !threatsOnly
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Show All Mentions
-                  </button>
+                  {(
+                    [
+                      ["risk", "Reputation Risk"],
+                      ["review", "Needs Review"],
+                      ["mentions", "All Mentions"],
+                    ] as const
+                  ).map(([key, label]) => {
+                    const counts = splitForPresentation(report.hits);
+                    const n =
+                      key === "risk"
+                        ? counts.reputationRisk.length
+                        : key === "review"
+                          ? counts.needsReview.length
+                          : counts.allMentions.length;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setResultsTab(key)}
+                        className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                          resultsTab === key
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {label} ({n})
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            {/* Render 6 Ordered Threat Sections */}
+            {/* Render presentation-filtered sections */}
             {(() => {
               const allHits = report.hits;
-              const currentFilteredHits = threatsOnly
-                ? allHits.filter((h) => !isHarmlessOrOfficial(h))
-                : allHits;
+              const buckets = splitForPresentation(allHits);
+              const riskHits = buckets.reputationRisk;
+              const reviewHits = buckets.needsReview;
+              const mentionHits = buckets.allMentions;
 
               const applyFilters = (list: ScanHit[]) => {
                 let res = list;
@@ -1040,183 +1049,151 @@ function ScanPage() {
               };
 
               const criticalThreats = applyFilters(
-                currentFilteredHits.filter(
-                  (h) => h.severity === "Critical" && !isHarmlessOrOfficial(h),
-                ),
+                riskHits.filter((h) => h.severity === "Critical"),
               );
-              const highThreats = applyFilters(
-                currentFilteredHits.filter(
-                  (h) => h.severity === "High" && !isHarmlessOrOfficial(h),
-                ),
+              const highThreats = applyFilters(riskHits.filter((h) => h.severity === "High"));
+              const mediumThreats = applyFilters(riskHits.filter((h) => h.severity === "Medium"));
+              const otherRisk = applyFilters(
+                riskHits.filter((h) => !["Critical", "High", "Medium"].includes(h.severity)),
               );
-              const mediumThreats = applyFilters(
-                currentFilteredHits.filter(
-                  (h) => h.severity === "Medium" && !isHarmlessOrOfficial(h),
-                ),
-              );
-              const reviewRequired = applyFilters(
-                currentFilteredHits.filter(
-                  (h) =>
-                    (h.confidence >= 50 && h.confidence < 85) ||
-                    h.contentLabel === "Needs human review",
-                ),
-              );
-              const lowRiskHits = applyFilters(
-                allHits.filter((h) => h.severity === "Low" && !isHarmlessOrOfficial(h)),
-              );
-              const neutralHits = applyFilters(allHits.filter((h) => isHarmlessOrOfficial(h)));
+              const reviewRequired = applyFilters(reviewHits);
+              const mentionsFiltered = applyFilters(mentionHits);
 
-              const hasThreats =
+              const hasRisk =
                 criticalThreats.length > 0 ||
                 highThreats.length > 0 ||
                 mediumThreats.length > 0 ||
-                reviewRequired.length > 0;
+                otherRisk.length > 0;
 
               return (
                 <div className="space-y-6">
-                  {/* Step 8 Fallback Banner: No threats detected */}
-                  {!hasThreats && (
-                    <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 text-center space-y-2">
-                      <div className="inline-flex size-10 rounded-full bg-emerald-500/10 grid place-items-center text-emerald-600 dark:text-emerald-400 mx-auto">
-                        <CheckCircle className="size-6" />
+                  {resultsTab === "risk" && (
+                    <>
+                      {/* Legal-safety notice: nothing here is a legal conclusion */}
+                      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                        Findings are flagged as <strong>Potential Reputation Risk</strong> or{" "}
+                        <strong>Potential Defamation Review</strong>. No content is classified as
+                        legally defamatory without human or legal review. Neutral and official
+                        mentions remain available under <strong>All Mentions</strong>; all
+                        discovered evidence is preserved.
                       </div>
-                      <h3 className="text-base font-bold text-foreground">
-                        No high-risk reputation threats detected.
-                      </h3>
-                      <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                        All discovered public content for this reference consists of low-risk or
-                        official mentions.
-                      </p>
-                    </div>
-                  )}
 
-                  {/* 1. Critical Threats */}
-                  {criticalThreats.length > 0 && (
-                    <Bucket
-                      title="CRITICAL THREATS"
-                      icon={<AlertTriangle className="size-4 text-red-500" />}
-                      hits={criticalThreats}
-                      onPromote={promote}
-                      added={added}
-                      entityTerms={entityTerms}
-                      scanId={persistedScanId}
-                      analyzingVideos={analyzingVideos}
-                    />
-                  )}
-
-                  {/* 2. High-Priority Threats */}
-                  {highThreats.length > 0 && (
-                    <Bucket
-                      title="HIGH-PRIORITY THREATS"
-                      icon={<ShieldAlert className="size-4 text-amber-500" />}
-                      hits={highThreats}
-                      onPromote={promote}
-                      added={added}
-                      entityTerms={entityTerms}
-                      scanId={persistedScanId}
-                      analyzingVideos={analyzingVideos}
-                    />
-                  )}
-
-                  {/* 3. Medium Threats */}
-                  {mediumThreats.length > 0 && (
-                    <Bucket
-                      title="MEDIUM THREATS"
-                      icon={<ShieldAlert className="size-4 text-yellow-500" />}
-                      hits={mediumThreats}
-                      onPromote={promote}
-                      added={added}
-                      entityTerms={entityTerms}
-                      scanId={persistedScanId}
-                      analyzingVideos={analyzingVideos}
-                    />
-                  )}
-
-                  {/* 4. Needs Human Review */}
-                  {reviewRequired.length > 0 && (
-                    <Bucket
-                      title="NEEDS HUMAN REVIEW"
-                      icon={<Clock className="size-4 text-blue-500" />}
-                      hits={reviewRequired}
-                      onPromote={promote}
-                      added={added}
-                      entityTerms={entityTerms}
-                      scanId={persistedScanId}
-                      analyzingVideos={analyzingVideos}
-                    />
-                  )}
-
-                  {/* 5. Low-Risk Mentions (automatically expanded when no threats exist) */}
-                  {lowRiskHits.length > 0 &&
-                    (!threatsOnly || !hasThreats || showLowRiskSection) && (
-                      <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Eye className="size-4 text-muted-foreground" />
-                            <h3 className="text-sm font-semibold">
-                              Low-Risk Mentions ({lowRiskHits.length})
-                            </h3>
+                      {!hasRisk && (
+                        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 text-center space-y-2">
+                          <div className="inline-flex size-10 rounded-full bg-emerald-500/10 grid place-items-center text-emerald-600 dark:text-emerald-400 mx-auto">
+                            <CheckCircle className="size-6" />
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setShowLowRiskSection((v) => !v)}
-                            className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent font-medium cursor-pointer"
-                          >
-                            {showLowRiskSection || !hasThreats
-                              ? "Hide Low-Risk Mentions"
-                              : `Show Low-Risk Mentions (${lowRiskHits.length})`}
-                          </button>
-                        </div>
-                        {(showLowRiskSection || !hasThreats) && (
-                          <Bucket
-                            title=""
-                            icon={<Eye className="size-4" />}
-                            hits={lowRiskHits}
-                            onPromote={promote}
-                            added={added}
-                            entityTerms={entityTerms}
-                            scanId={persistedScanId}
-                            analyzingVideos={analyzingVideos}
-                            hideCard
-                          />
-                        )}
-                      </div>
-                    )}
-
-                  {/* 6. Neutral / Official Content (collapsed by default) */}
-                  {neutralHits.length > 0 && (!threatsOnly || showNeutralSection) && (
-                    <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Globe className="size-4 text-muted-foreground" />
-                          <h3 className="text-sm font-semibold">
-                            Neutral / Official Content ({neutralHits.length})
+                          <h3 className="text-base font-bold text-foreground">
+                            No medium or high reputation risk detected.
                           </h3>
+                          <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                            Borderline items are in Needs Review; neutral, official and general
+                            mentions are in All Mentions.
+                          </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowNeutralSection((v) => !v)}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent font-medium cursor-pointer"
-                        >
-                          {showNeutralSection
-                            ? "Hide Neutral / Official"
-                            : `Show Neutral / Official (${neutralHits.length})`}
-                        </button>
-                      </div>
-                      {showNeutralSection && (
+                      )}
+
+                      {criticalThreats.length > 0 && (
                         <Bucket
-                          title=""
-                          icon={<Globe className="size-4" />}
-                          hits={neutralHits}
+                          title="CRITICAL — POTENTIAL REPUTATION RISK"
+                          icon={<AlertTriangle className="size-4 text-red-500" />}
+                          hits={criticalThreats}
                           onPromote={promote}
                           added={added}
                           entityTerms={entityTerms}
                           scanId={persistedScanId}
                           analyzingVideos={analyzingVideos}
-                          hideCard
                         />
                       )}
-                    </div>
+
+                      {highThreats.length > 0 && (
+                        <Bucket
+                          title="HIGH — POTENTIAL REPUTATION RISK"
+                          icon={<ShieldAlert className="size-4 text-amber-500" />}
+                          hits={highThreats}
+                          onPromote={promote}
+                          added={added}
+                          entityTerms={entityTerms}
+                          scanId={persistedScanId}
+                          analyzingVideos={analyzingVideos}
+                        />
+                      )}
+
+                      {mediumThreats.length > 0 && (
+                        <Bucket
+                          title="MEDIUM — POTENTIAL REPUTATION RISK"
+                          icon={<ShieldAlert className="size-4 text-yellow-500" />}
+                          hits={mediumThreats}
+                          onPromote={promote}
+                          added={added}
+                          entityTerms={entityTerms}
+                          scanId={persistedScanId}
+                          analyzingVideos={analyzingVideos}
+                        />
+                      )}
+
+                      {otherRisk.length > 0 && (
+                        <Bucket
+                          title="OTHER RISK-CATEGORY FINDINGS"
+                          icon={<ShieldAlert className="size-4 text-muted-foreground" />}
+                          hits={otherRisk}
+                          onPromote={promote}
+                          added={added}
+                          entityTerms={entityTerms}
+                          scanId={persistedScanId}
+                          analyzingVideos={analyzingVideos}
+                        />
+                      )}
+                    </>
+                  )}
+
+                  {resultsTab === "review" && (
+                    <>
+                      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                        Borderline findings — risk signals present but subject identity, evidence
+                        strength, or severity is not yet confirmed. Requires human review before
+                        any enforcement or legal characterisation.
+                      </div>
+                      {reviewRequired.length > 0 ? (
+                        <Bucket
+                          title="NEEDS REVIEW"
+                          icon={<Clock className="size-4 text-blue-500" />}
+                          hits={reviewRequired}
+                          onPromote={promote}
+                          added={added}
+                          entityTerms={entityTerms}
+                          scanId={persistedScanId}
+                          analyzingVideos={analyzingVideos}
+                        />
+                      ) : (
+                        <p className="text-xs text-muted-foreground px-1">
+                          No borderline findings for this scan.
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                  {resultsTab === "mentions" && (
+                    <>
+                      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                        Complete discovery corpus — neutral, official and general mentions
+                        included. Nothing discovered is deleted; this is the full evidence set.
+                      </div>
+                      {mentionsFiltered.length > 0 ? (
+                        <Bucket
+                          title="ALL MENTIONS"
+                          icon={<Globe className="size-4 text-muted-foreground" />}
+                          hits={mentionsFiltered}
+                          onPromote={promote}
+                          added={added}
+                          entityTerms={entityTerms}
+                          scanId={persistedScanId}
+                          analyzingVideos={analyzingVideos}
+                        />
+                      ) : (
+                        <p className="text-xs text-muted-foreground px-1">No mentions found.</p>
+                      )}
+                    </>
                   )}
                 </div>
               );
@@ -2292,7 +2269,7 @@ function ResultCard({
         <div className="flex flex-wrap items-center gap-1.5">
           <Pill color="oklch(0.55 0.22 295)">{h.category}</Pill>
           <Pill color={sentimentColor(h.sentiment)}>{h.sentiment}</Pill>
-          <Pill color="oklch(0.55 0.03 275)">{h.contentLabel}</Pill>
+          <Pill color="oklch(0.55 0.03 275)">{safeRiskLabel(h.contentLabel)}</Pill>
         </div>
 
         {/* Threat score cards */}
