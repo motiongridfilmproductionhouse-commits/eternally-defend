@@ -18,12 +18,13 @@ export const analyzeImagesForFaces = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => AnalyzeInput.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: col } = await supabase
-      .from("rekognition_collections")
-      .select("collection_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (!col?.collection_id) return { ok: true, matches: [], reason: "no_collection" };
+    const { resolveActiveFaceMonitoring } = await import("./face-protection/monitoring.server");
+    const monitoring = await resolveActiveFaceMonitoring(supabase as never, userId);
+    if (!monitoring.collectionId) return { ok: true, matches: [], reason: "no_collection" };
+    if (monitoring.activeFaceIds.length === 0)
+      return { ok: true, matches: [], reason: "no_active_protected_faces" };
+    const col = { collection_id: monitoring.collectionId };
+
 
     const { fetchImageBytes, putObject, getBucket } = await import("./aws/s3.server");
     const { searchFacesByImage } = await import("./aws/rekognition.server");
