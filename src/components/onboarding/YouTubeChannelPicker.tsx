@@ -121,6 +121,7 @@ export function YouTubeChannelPicker({
           <Button
             variant="outline"
             size="sm"
+            className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
             onClick={() => {
               setResults(null);
               setQuery("");
@@ -194,7 +195,7 @@ function ChannelCard({
           <div className="text-xs text-muted-foreground line-clamp-2">{channel.description}</div>
         )}
         <div className="flex items-center gap-2 pt-1">
-          <Button size="sm" variant="outline" asChild>
+          <Button size="sm" variant="outline" className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white" asChild>
             <a href={channel.channel_url} target="_blank" rel="noreferrer">
               <ExternalLink className="size-3.5 mr-1" /> Open channel
             </a>
@@ -281,7 +282,7 @@ export function YouTubeAssetCard({
           </div>
           <div className="flex items-center gap-1.5 mt-3 flex-wrap">
             {asset.url && (
-              <Button size="sm" variant="outline" asChild>
+              <Button size="sm" variant="outline" className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white" asChild>
                 <a href={asset.url} target="_blank" rel="noreferrer">
                   <ExternalLink className="size-3.5 mr-1" /> Open channel
                 </a>
@@ -290,6 +291,7 @@ export function YouTubeAssetCard({
             <Button
               size="sm"
               variant="outline"
+              className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
               disabled={busy !== null}
               onClick={async () => {
                 setBusy("refresh");
