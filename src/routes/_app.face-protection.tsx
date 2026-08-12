@@ -4,11 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { listFaceMatches, reviewFaceMatch } from "@/lib/face-scan.functions";
-import {
-  listProtectedFaces as listPFaces,
-  deleteProtectedFace as delPFace,
-} from "@/lib/face-protection.functions";
-import { ShieldCheck, Trash2, ExternalLink, Loader2, ScanFace } from "lucide-react";
+import { ProtectedFacesPanel } from "@/components/face-protection/ProtectedFacesPanel";
+import { ShieldCheck, ExternalLink, Loader2, ScanFace } from "lucide-react";
 
 export const Route = createFileRoute("/_app/face-protection")({
   head: () => ({ meta: [{ title: "Face Protection · Eterna AI" }] }),
