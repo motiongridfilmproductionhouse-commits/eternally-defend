@@ -1197,7 +1197,41 @@ function sentimentOf(text: string): Sentiment {
   return "Neutral";
 }
 
+/** Maps an evidence-backed risk category onto the legacy display category. */
+function riskCategoryToCategory(category: RiskCategory): Category {
+  switch (category) {
+    case "MANIPULATED_MEDIA":
+      return "Deepfake";
+    case "IMPERSONATION":
+      return "Impersonation";
+    case "PRIVACY_RISK":
+      return "Leak";
+    case "HARASSMENT":
+      return "Harassment";
+    case "ALLEGATION":
+    case "ACCUSATION":
+      return "Allegation";
+    case "LEGAL_DISPUTE":
+      return "Legal Dispute";
+    case "MISINFORMATION":
+    case "MISLEADING_NARRATIVE":
+      return "Reputation Risk";
+    case "CONTROVERSY":
+      return "Controversy";
+    case "CRITICISM":
+      return "Criticism";
+    default:
+      return "Mention";
+  }
+}
+
+/**
+ * LEGACY keyword classifier. Retained only as a discovery/relevance signal —
+ * its category and severity are overridden by the evidence gate unless
+ * subject-directed risk evidence is found.
+ */
 function classify(
+
   title: string,
   desc: string,
 ): {
