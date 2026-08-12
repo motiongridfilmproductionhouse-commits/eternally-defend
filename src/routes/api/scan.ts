@@ -8,6 +8,11 @@ import {
 } from "@/lib/reputation/ranking.server";
 import { scoreIdentity } from "@/lib/scan/identity-confidence";
 import {
+  DEMO_SAFE_CAPS,
+  DEMO_SAFE_MODE_ENABLED,
+  demoAllowsSecondPass,
+} from "@/lib/scan/demo-safe-mode";
+import {
   emptyScanFunnel,
   countExclusion,
   type ScanPipelineFunnel,
@@ -3311,8 +3316,19 @@ export const Route = createFileRoute("/api/scan")({
           const handles: string[] = Array.isArray(body?.handles)
             ? body.handles.map((a: unknown) => String(a).slice(0, 40)).slice(0, 20)
             : [];
-          const limit = Math.min(Math.max(Number(body?.limit ?? 8), 1), 10);
-          const ytTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 1500), 25), 2000);
+          const rawLimit = Math.min(Math.max(Number(body?.limit ?? 8), 1), 10);
+          const limit = DEMO_SAFE_MODE_ENABLED
+            ? Math.min(rawLimit, DEMO_SAFE_CAPS.perQueryLimit)
+            : rawLimit;
+          const rawYtTarget = Math.min(Math.max(Number(body?.youtubeTarget ?? 1500), 25), 2000);
+          const ytTarget = DEMO_SAFE_MODE_ENABLED
+            ? Math.min(rawYtTarget, DEMO_SAFE_CAPS.youtubeTarget)
+            : rawYtTarget;
+          if (DEMO_SAFE_MODE_ENABLED) {
+            console.log(
+              `[scan:demo-safe] active — ytTarget=${ytTarget} limit=${limit} extractMax=${DEMO_SAFE_CAPS.extraction.max} aiPass1=${DEMO_SAFE_CAPS.aiPass1Ceiling}`,
+            );
+          }
           const sources: SourceKey[] =
             Array.isArray(body?.sources) && body.sources.length
               ? body.sources.filter(
@@ -3958,9 +3974,9 @@ export const Route = createFileRoute("/api/scan")({
           try {
             const { extractPages } = await import("@/lib/scan/page-extract.server");
             const extracted = await extractPages(extractTargets, {
-              concurrency: 6,
-              timeoutMs: 12_000,
-              max: 150,
+              concurrency: DEMO_SAFE_MODE_ENABLED ? DEMO_SAFE_CAPS.extraction.concurrency : 6,
+              timeoutMs: DEMO_SAFE_MODE_ENABLED ? DEMO_SAFE_CAPS.extraction.timeoutMs : 12_000,
+              max: DEMO_SAFE_MODE_ENABLED ? DEMO_SAFE_CAPS.extraction.max : 150,
               stats: extractionStats,
             });
             pipelineFunnel.extraction_attempted = extracted.size;
@@ -4185,7 +4201,16 @@ export const Route = createFileRoute("/api/scan")({
                     const { extractPages } = await import("@/lib/scan/page-extract.server");
                     const newExtracted = await extractPages(
                       newHits.map((h) => h.url).filter((u): u is string => Boolean(u)),
-                      { concurrency: 4, timeoutMs: 12_000, max: 60, stats: extractionStats },
+                      {
+                        concurrency: DEMO_SAFE_MODE_ENABLED
+                          ? DEMO_SAFE_CAPS.aiExtraction.concurrency
+                          : 4,
+                        timeoutMs: DEMO_SAFE_MODE_ENABLED
+                          ? DEMO_SAFE_CAPS.aiExtraction.timeoutMs
+                          : 12_000,
+                        max: DEMO_SAFE_MODE_ENABLED ? DEMO_SAFE_CAPS.aiExtraction.max : 60,
+                        stats: extractionStats,
+                      },
                     );
                     pipelineFunnel.extraction_attempted += newExtracted.size;
                     for (const hit of newHits) {
@@ -4214,8 +4239,11 @@ export const Route = createFileRoute("/api/scan")({
                 return stats;
               };
 
-              /* ── PASS 1 (up to 30 queries) ── */
-              const pass1 = await runPass(1, AI_PASS1_QUERY_CEILING);
+              /* ── PASS 1 (query ceiling reduced under DEMO_SAFE_MODE) ── */
+              const pass1Ceiling = DEMO_SAFE_MODE_ENABLED
+                ? Math.min(AI_PASS1_QUERY_CEILING, DEMO_SAFE_CAPS.aiPass1Ceiling)
+                : AI_PASS1_QUERY_CEILING;
+              const pass1 = await runPass(1, pass1Ceiling);
               aiDiag.ai_passes.push(pass1);
               if (pass1.status === "FAILED" && aiDiag.research_status !== "OK") {
                 aiDiag.research_status = "OPENAI_RESEARCH_UNAVAILABLE";
@@ -4233,6 +4261,12 @@ export const Route = createFileRoute("/api/scan")({
                 newDomains: pass1.new_domains,
                 newNarratives: pass1.new_narratives,
               });
+              /* DEMO_SAFE_MODE: pass 2 only when pass-1 coverage is weak. */
+              const demoBlocksPass2 = !demoAllowsSecondPass({
+                coverageAssessment: aiDiag.coverage_assessment,
+                newUrlsFromPass1: pass1.new_unique_urls,
+                uniqueDomains: domainSet.size,
+              });
               if (pass1.status === "FAILED") {
                 aiDiag.ai_passes.push({
                   ...pass1,
@@ -4241,13 +4275,15 @@ export const Route = createFileRoute("/api/scan")({
                   skip_reason: "pass 1 failed",
                   queries: [],
                 });
-              } else if (strong || exhausted) {
+              } else if (strong || exhausted || demoBlocksPass2) {
                 aiDiag.ai_passes.push({
                   pass: 2,
                   status: "SKIPPED",
                   skip_reason: strong
                     ? "pass 1 already achieved strong coverage"
-                    : "marginal information gain too low after pass 1",
+                    : exhausted
+                      ? "marginal information gain too low after pass 1"
+                      : "DEMO_SAFE_MODE: pass 1 coverage sufficient",
                   queries_generated: 0,
                   queries_deduplicated: 0,
                   queries_executed: 0,
@@ -4577,6 +4613,29 @@ const fcConfig = getFirecrawlConfigInfo();
               windowEnd: monthWindow.endIso,
             },
           };
+          /* DEMO_SAFE_MODE: paginate findings so the JSON payload stays small
+           * enough to serialize/transfer inside the hosted request budget.
+           * Ranking and totals are untouched — only the transported page. */
+          if (DEMO_SAFE_MODE_ENABLED && report.hits.length > DEMO_SAFE_CAPS.responsePageSize) {
+            const total = report.hits.length;
+            const page = report.hits.slice(0, DEMO_SAFE_CAPS.responsePageSize);
+            (report as unknown as Record<string, unknown>).pagination = {
+              demoSafeMode: true,
+              pageSize: DEMO_SAFE_CAPS.responsePageSize,
+              returned: page.length,
+              totalFindings: total,
+              truncated: total - page.length,
+            };
+            report.hits = page;
+          } else if (DEMO_SAFE_MODE_ENABLED) {
+            (report as unknown as Record<string, unknown>).pagination = {
+              demoSafeMode: true,
+              pageSize: DEMO_SAFE_CAPS.responsePageSize,
+              returned: report.hits.length,
+              totalFindings: report.hits.length,
+              truncated: 0,
+            };
+          }
           return Response.json(report);
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Scan failed";
