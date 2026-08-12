@@ -682,7 +682,7 @@ export function FaceEnrollmentStep({
           <Button
             onClick={handleEnableCamera}
             variant="outline"
-            className="border-white/20 text-white hover:bg-white/10"
+            className="border-sky-500/30 bg-slate-950/60 text-sky-50 hover:bg-sky-950/40 hover:border-sky-400/40"
           >
             <Camera className="size-4 mr-2" />
             {camera.state === "denied" ? "Retry camera access" : "Enable camera preview"}
