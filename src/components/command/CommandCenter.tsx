@@ -30,7 +30,19 @@ import { Link } from "@tanstack/react-router";
 import { getCommandCenterStats } from "@/lib/command-center.functions";
 import { DirectionalRadar, HudSweepRadar } from "@/components/command/DualRadars";
 import { getFaceProtectionStats } from "@/lib/face-scan.functions";
-import { ScanFace, UserX, Award, Archive as ArchiveIcon, Eye as EyeIcon } from "lucide-react";
+import { getCompanyProtectionStats } from "@/lib/company/protection-stats.functions";
+import { useVerificationStatus } from "@/hooks/use-verification-status";
+import { faceProtectionApplies } from "@/lib/onboarding/v2-config";
+import {
+  ScanFace,
+  UserX,
+  Award,
+  Archive as ArchiveIcon,
+  Eye as EyeIcon,
+  ShieldCheck as ShieldIcon,
+  BadgeCheck,
+} from "lucide-react";
+
 
 type CmdData = Awaited<ReturnType<typeof getCommandCenterStats>>;
 
