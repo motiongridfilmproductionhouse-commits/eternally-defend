@@ -34,6 +34,38 @@ export function isCompanyRelationship(value: unknown): value is CompanyRelations
   );
 }
 
+/**
+ * Official company registration / formation documents. One of these is
+ * REQUIRED before the generated authorization letter can be signed.
+ *
+ * Uploading a registration document evidences the legal existence of the
+ * company only — never that the uploader is authorized to represent it.
+ */
+export const COMPANY_REGISTRATION_DOC_TYPES = [
+  "certificate_of_incorporation",
+  "certificate_of_registration",
+  "business_registration_certificate",
+  "company_registry_extract",
+  "other_government_formation_document",
+] as const;
+
+export type CompanyRegistrationDocType = (typeof COMPANY_REGISTRATION_DOC_TYPES)[number];
+
+export const COMPANY_REGISTRATION_DOC_LABELS: Record<CompanyRegistrationDocType, string> = {
+  certificate_of_incorporation: "Certificate of Incorporation",
+  certificate_of_registration: "Certificate of Registration",
+  business_registration_certificate: "Business Registration Certificate",
+  company_registry_extract: "Company Registry Extract",
+  other_government_formation_document: "Other government-issued formation document",
+};
+
+export const COMPANY_REGISTRATION_MIME_TYPES = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+] as const;
+
 /** Authority documents a company may upload as supporting evidence. */
 export const COMPANY_AUTHORITY_DOC_TYPES = [
   "company_authorization_letter",
@@ -268,6 +300,7 @@ export type CompanyStepKey =
   | "company_representative"
   | "company_social"
   | "company_authority"
+  | "company_signature"
   | "company_review"
   | "company_complete";
 
@@ -284,9 +317,10 @@ export const COMPANY_FLOW: readonly { step: number; key: CompanyStepKey; title: 
   { step: 1, key: "company_profile", title: "Company Details" },
   { step: 2, key: "company_representative", title: "Representative Details" },
   { step: 3, key: "company_social", title: "Official Social Profiles" },
-  { step: 4, key: "company_authority", title: "Supporting Document" },
-  { step: 5, key: "company_review", title: "Review" },
-  { step: 6, key: "company_complete", title: "Complete" },
+  { step: 4, key: "company_authority", title: "Registration & Authorization" },
+  { step: 5, key: "company_signature", title: "Electronic Signature" },
+  { step: 6, key: "company_review", title: "Review" },
+  { step: 7, key: "company_complete", title: "Complete" },
 ];
 
 export const COMPANY_AUTHORIZATION_TITLE =

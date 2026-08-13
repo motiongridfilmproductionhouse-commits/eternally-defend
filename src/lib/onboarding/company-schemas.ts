@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { COMPANY_AUTHORITY_DOC_TYPES, COMPANY_RELATIONSHIPS } from "./company-config";
+import {
+  COMPANY_AUTHORITY_DOC_TYPES,
+  COMPANY_REGISTRATION_DOC_TYPES,
+  COMPANY_REGISTRATION_MIME_TYPES,
+  COMPANY_RELATIONSHIPS,
+} from "./company-config";
 import { COMPANY_SOCIAL_PLATFORMS } from "./company-official-profiles";
 
 export const CompanyProfileSchema = z.object({
@@ -53,3 +58,21 @@ export const CompanyOfficialProfilesSchema = z.object({
     .max(30),
 });
 export type CompanyOfficialProfilesInput = z.infer<typeof CompanyOfficialProfilesSchema>;
+
+export const CompanyRegistrationProofSchema = z.object({
+  doc_type: z.enum(COMPANY_REGISTRATION_DOC_TYPES),
+  filename: z.string().trim().min(1).max(200),
+  mime_type: z.enum(COMPANY_REGISTRATION_MIME_TYPES),
+  file_base64: z.string().min(16).max(14_000_000),
+});
+export type CompanyRegistrationProofInput = z.infer<typeof CompanyRegistrationProofSchema>;
+
+export const CompanyAuthorizationSignatureSchema = z.object({
+  legal_name: z.string().trim().min(2).max(200),
+  title: z.string().trim().min(1).max(160),
+  company_name: z.string().trim().min(2).max(200),
+  agreed: z.literal(true),
+});
+export type CompanyAuthorizationSignatureInput = z.infer<
+  typeof CompanyAuthorizationSignatureSchema
+>;

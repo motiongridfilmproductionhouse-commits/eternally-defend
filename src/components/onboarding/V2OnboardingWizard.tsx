@@ -32,7 +32,8 @@ import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
 import { CompanyProfileStep } from "@/components/onboarding/company/CompanyProfileStep";
 import { CompanyRepresentativeStep } from "@/components/onboarding/company/CompanyRepresentativeStep";
-import { CompanyAuthorityStep } from "@/components/onboarding/company/CompanyAuthorityStep";
+import { CompanyRegistrationStep } from "@/components/onboarding/company/CompanyRegistrationStep";
+import { CompanyAuthorizationSignatureStep } from "@/components/onboarding/company/CompanyAuthorizationSignatureStep";
 import { CompanySocialStep } from "@/components/onboarding/company/CompanySocialStep";
 import { CompanyReviewStep } from "@/components/onboarding/company/CompanyReviewStep";
 import { CompanyCompleteStep } from "@/components/onboarding/company/CompanyCompleteStep";
@@ -305,7 +306,14 @@ export function V2OnboardingWizard({
               )}
 
               {current.key === "company_authority" && (
-                <CompanyAuthorityStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+                <CompanyRegistrationStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+              )}
+
+              {current.key === "company_signature" && (
+                <CompanyAuthorizationSignatureStep
+                  onBack={goBack}
+                  onNext={() => advanceStep(current.step)}
+                />
               )}
 
               {current.key === "company_review" && (

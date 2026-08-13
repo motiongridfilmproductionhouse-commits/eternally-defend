@@ -133,6 +133,7 @@ export type V2StepKey =
   | "company_representative"
   | "company_social"
   | "company_authority"
+  | "company_signature"
   | "company_review"
   | "company_complete";
 
