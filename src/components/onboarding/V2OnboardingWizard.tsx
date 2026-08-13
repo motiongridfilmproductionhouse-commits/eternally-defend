@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -67,12 +67,17 @@ export function V2OnboardingWizard({
   const maxStep = flow[flow.length - 1]?.step ?? 1;
 
   const [step, setStep] = useState(() => Math.max(1, Number(initialProgress?.current_step) || 1));
+  const contentRef = useRef<HTMLElement | null>(null);
 
   // Restore the persisted step once the account route (and thus max step) is known.
   useEffect(() => {
     const restored = Math.min(Math.max(1, Number(initialProgress?.current_step) || 1), maxStep);
     setStep((current) => Math.min(Math.max(current, restored), maxStep));
   }, [accountType, maxStep, initialProgress?.current_step]);
+
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [step]);
 
   const { data: kyc, refetch: refetchKyc } = useQuery({
     queryKey: ["kyc_status"],
@@ -222,7 +227,10 @@ export function V2OnboardingWizard({
         </div>
       </aside>
 
-      <section className="relative flex-1 lg:h-full h-auto overflow-y-auto bg-[#050A18]">
+      <section
+        ref={contentRef}
+        className="relative flex-1 lg:h-full h-auto overflow-y-auto bg-[#050A18]"
+      >
         <div className="relative min-h-full flex flex-col justify-center px-6 md:px-12 lg:px-20 py-14">
           <div className="w-full max-w-2xl mx-auto">
             <div className="mb-8">
@@ -232,7 +240,7 @@ export function V2OnboardingWizard({
               <h2 className="font-display text-3xl font-bold">{current.title}</h2>
             </div>
 
-            <div className="animate-fade-in">
+            <div key={`${accountType ?? "unselected"}-${step}`} className="animate-fade-in">
               {current.key === "account_type" && (
                 <AccountTypeStep
                   onSelected={async () => {

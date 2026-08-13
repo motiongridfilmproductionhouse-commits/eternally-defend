@@ -395,10 +395,6 @@ export const signCompanyAuthorizationLetter = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { ctx, evidence } = await loadCompanyContext(supabase, userId);
 
-    const registration = evidence.find((row) => row.evidence_type === "company");
-    if (!registration?.storage_path) {
-      throw new Error("Upload the company registration proof before signing.");
-    }
     if (
       data.company_name.trim().toLowerCase() !== ctx.companyName.trim().toLowerCase() &&
       ctx.companyName

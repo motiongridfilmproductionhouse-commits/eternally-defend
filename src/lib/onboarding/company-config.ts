@@ -35,8 +35,8 @@ export function isCompanyRelationship(value: unknown): value is CompanyRelations
 }
 
 /**
- * Official company registration / formation documents. One of these is
- * REQUIRED before the generated authorization letter can be signed.
+ * Optional company registration / formation documents that can support a
+ * later company review but do not block the electronic signature.
  *
  * Uploading a registration document evidences the legal existence of the
  * company only — never that the uploader is authorized to represent it.
