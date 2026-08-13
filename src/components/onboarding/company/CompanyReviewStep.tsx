@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight, Loader2, Pencil } from "lucide-react";
@@ -31,10 +32,16 @@ export function CompanyReviewStep({
     queryFn: () => fetchCompany(),
   });
   const fetchAuthorization = useServerFn(getCompanyAuthorization);
-  const { data: authorization } = useQuery({
+  const { data: authorization, isLoading: isAuthorizationLoading } = useQuery({
     queryKey: ["company-authorization"],
     queryFn: () => fetchAuthorization(),
   });
+
+  useEffect(() => {
+    if (!isLoading && !isAuthorizationLoading && !authorization?.signature) {
+      onGoToStep(5);
+    }
+  }, [authorization?.signature, isAuthorizationLoading, isLoading, onGoToStep]);
 
   const profile = data?.profile;
   const rep = data?.representative;
@@ -51,7 +58,7 @@ export function CompanyReviewStep({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {isLoading ? (
+        {isLoading || isAuthorizationLoading ? (
           <div className="grid place-items-center py-10">
             <Loader2 className="size-5 animate-spin text-blue-400" />
           </div>
@@ -127,6 +134,7 @@ export function CompanyReviewStep({
             onClick={onNext}
             disabled={
               isLoading ||
+              isAuthorizationLoading ||
               !profile?.legal_company_name ||
               !rep?.full_legal_name ||
               !authorization?.registration_proof ||
