@@ -100,7 +100,7 @@ export function Sidebar() {
   // reachable by URL — simplified workspaces only hide them from navigation.
   const workspaceMode = workspaceModeFor(accountType);
   const allowed = visibleNavRoutes(workspaceMode);
-  const navItems: NavItem[] = allowed
+  const baseNav: NavItem[] = allowed
     ? allowed.reduce<NavItem[]>((acc, route) => {
         if (route === "/settings") return acc;
         const item = mainNav.find((n) => n.to === route);
@@ -108,6 +108,11 @@ export function Sidebar() {
         return acc;
       }, [])
     : mainNav;
+  // Company / business accounts are protected through assets, not faces.
+  const navItems = faceProtectionApplies(accountType)
+    ? baseNav
+    : baseNav.filter((n) => n.to !== "/face-protection");
+
 
 
   const user = session?.user;
