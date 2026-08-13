@@ -50,8 +50,8 @@ export const sendEnforcementTestEmail = createServerFn({ method: "POST" })
       _user_id: userId,
       _role: "admin",
     });
-    const { isDemoUnrestricted } = await import("@/lib/security/subject-authorization");
-    if (!isAdmin && !isDemoUnrestricted(email)) {
+    const { isDemoUnrestrictedEmail } = await import("@/lib/security/subject-authorization");
+    if (!isAdmin && !isDemoUnrestrictedEmail(email)) {
       throw new Error("Forbidden: enforcement test sends are restricted to Eterna operators.");
     }
 
