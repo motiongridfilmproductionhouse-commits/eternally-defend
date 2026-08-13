@@ -48,7 +48,13 @@ export const saveClientProfile = createServerFn({ method: "POST" })
       throw new Error("v2 accounts must use the route-specific profile step.");
     }
     const client_id = await ensureClientId(supabase, userId);
-    const { data: userInfo } = await supabase.auth.getUser();
+    // A stale/deleted session still carries a valid-looking token, but the
+    // profile insert then fails on the auth.users foreign key. Detect it here
+    // and ask for a fresh sign-in instead of surfacing a raw constraint error.
+    const { data: userInfo, error: userError } = await supabase.auth.getUser();
+    if (userError || !userInfo?.user || userInfo.user.id !== userId) {
+      throw new Error("Your session is no longer valid. Please sign in again to continue.");
+    }
     const email = existing?.email ?? userInfo.user?.email ?? null;
     const patch = {
       user_id: userId,
