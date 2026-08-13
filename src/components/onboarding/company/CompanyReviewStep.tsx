@@ -32,16 +32,31 @@ export function CompanyReviewStep({
     queryFn: () => fetchCompany(),
   });
   const fetchAuthorization = useServerFn(getCompanyAuthorization);
-  const { data: authorization, isLoading: isAuthorizationLoading } = useQuery({
+  const {
+    data: authorization,
+    isLoading: isAuthorizationLoading,
+    isFetching: isAuthorizationFetching,
+  } = useQuery({
     queryKey: ["company-authorization"],
     queryFn: () => fetchAuthorization(),
   });
 
   useEffect(() => {
-    if (!isLoading && !isAuthorizationLoading && !authorization?.signature) {
+    if (
+      !isLoading &&
+      !isAuthorizationLoading &&
+      !isAuthorizationFetching &&
+      !authorization?.signature
+    ) {
       onGoToStep(5);
     }
-  }, [authorization?.signature, isAuthorizationLoading, isLoading, onGoToStep]);
+  }, [
+    authorization?.signature,
+    isAuthorizationFetching,
+    isAuthorizationLoading,
+    isLoading,
+    onGoToStep,
+  ]);
 
   const profile = data?.profile;
   const rep = data?.representative;
@@ -64,7 +79,7 @@ export function CompanyReviewStep({
           </div>
         ) : (
           <div className="space-y-4">
-            <Section title="Company details" onEdit={() => onGoToStep(2)}>
+            <Section title="Company details" onEdit={() => onGoToStep(1)}>
               <Row label="Legal company name" value={profile?.legal_company_name} />
               <Row label="Brand / trading name" value={profile?.brand_name} />
               <Row label="Website" value={profile?.website} />
@@ -73,14 +88,14 @@ export function CompanyReviewStep({
               <Row label="Business address" value={profile?.business_address} />
             </Section>
 
-            <Section title="Representative" onEdit={() => onGoToStep(3)}>
+            <Section title="Representative" onEdit={() => onGoToStep(2)}>
               <Row label="Full name" value={rep?.full_legal_name} />
               <Row label="Role / job title" value={rep?.job_title} />
               <Row label="Work email" value={rep?.work_email} note="Not verified" />
               <Row label="Relationship to company" value={relationship} />
             </Section>
 
-            <Section title="Official social profiles" onEdit={() => onGoToStep(4)}>
+            <Section title="Official social profiles" onEdit={() => onGoToStep(3)}>
               {data?.official_profiles.length ? (
                 data.official_profiles.map((link) => (
                   <Row
@@ -95,7 +110,7 @@ export function CompanyReviewStep({
               )}
             </Section>
 
-            <Section title="Registration & authorization" onEdit={() => onGoToStep(5)}>
+            <Section title="Registration & authorization" onEdit={() => onGoToStep(4)}>
               {authorization?.registration_proof ? (
                 <Row
                   label="Registration proof"
@@ -133,6 +148,7 @@ export function CompanyReviewStep({
             disabled={
               isLoading ||
               isAuthorizationLoading ||
+              isAuthorizationFetching ||
               !profile?.legal_company_name ||
               !rep?.full_legal_name ||
               !authorization?.signature

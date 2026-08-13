@@ -25,7 +25,7 @@ export function CompanyAuthorizationSignatureStep({
   onNext,
 }: {
   onBack: () => void;
-  onNext: () => void;
+  onNext: () => void | Promise<void>;
 }) {
   const fetchAuthorization = useServerFn(getCompanyAuthorization);
   const sign = useServerFn(signCompanyAuthorizationLetter);
@@ -64,8 +64,10 @@ export function CompanyAuthorizationSignatureStep({
         },
       });
       await refetch();
+      await qc.invalidateQueries({ queryKey: ["company-authorization"] });
       await qc.invalidateQueries({ queryKey: ["company-onboarding"] });
       toast.success(`Authorization signed at ${new Date(result.signed_at).toLocaleString()}`);
+      await onNext();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to record the signature");
     } finally {
