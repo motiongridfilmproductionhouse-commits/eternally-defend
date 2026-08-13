@@ -480,3 +480,17 @@ export const signCompanyAuthorizationLetter = createServerFn({ method: "POST" })
       letter_sha256: letterHash,
     };
   });
+
+/** Removes a previously uploaded company registration document. */
+export const removeCompanyRegistrationProof = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("onboarding_v2_evidence")
+      .delete()
+      .eq("user_id", userId)
+      .eq("evidence_type", "company");
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

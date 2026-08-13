@@ -106,17 +106,22 @@ export function V2OnboardingWizard({
   });
 
   const advanceStep = async (fromStep: number, status: StepStatus = "COMPLETED") => {
+    // Move the wizard forward immediately so the user is never stuck on a step,
+    // then persist the progress in the background.
+    const optimisticNext = Math.min(fromStep + 1, maxStep);
+    setStep((current) => Math.max(current, optimisticNext));
     try {
       const updated = await setStatus({
         data: { step: fromStep, status, advance: true },
       });
-      setStep(Math.max(updated?.current_step ?? fromStep + 1, fromStep + 1));
+      setStep(Math.max(updated?.current_step ?? fromStep + 1, optimisticNext));
       await qc.invalidateQueries({ queryKey: ["onboarding-progress"] });
       await refreshProgress();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to advance step");
+      toast.error(error instanceof Error ? error.message : "Failed to save progress");
     }
   };
+
 
   const goBack = () => setStep((s) => Math.max(1, s - 1));
   const goToStep = (target: number) => setStep(Math.min(Math.max(1, target), maxStep));

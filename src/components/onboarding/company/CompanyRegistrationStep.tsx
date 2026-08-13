@@ -2,13 +2,14 @@ import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, FileCheck2, FileText, Loader2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileCheck2, FileText, Loader2, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   getCompanyAuthorization,
+  removeCompanyRegistrationProof,
   uploadCompanyRegistrationProof,
 } from "@/lib/onboarding/company-authorization.functions";
 import { CompanyLetterPdfViewer } from "./CompanyLetterPdfViewer";
@@ -34,6 +35,7 @@ export function CompanyRegistrationStep({
 }) {
   const fetchAuthorization = useServerFn(getCompanyAuthorization);
   const upload = useServerFn(uploadCompanyRegistrationProof);
+  const removeProof = useServerFn(removeCompanyRegistrationProof);
 
   const { data, refetch, isLoading } = useQuery({
     queryKey: ["company-authorization"],
@@ -80,6 +82,19 @@ export function CompanyRegistrationStep({
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const handleRemove = async () => {
+    setBusy(true);
+    try {
+      await removeProof({});
+      await refetch();
+      toast.success("Registration document removed.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to remove document");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -161,13 +176,24 @@ export function CompanyRegistrationStep({
               </Button>
 
               {proof && (
-                <div className="flex items-center gap-2 rounded-md border border-emerald-400/25 bg-emerald-500/10 p-3 text-xs text-emerald-100">
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-400/25 bg-emerald-500/10 p-3 text-xs text-emerald-100">
                   <FileCheck2 className="size-4 shrink-0" />
-                  <span className="truncate">
+                  <span className="min-w-0 flex-1 truncate">
                     {proof.filename} — {proof.label} · submitted for review
                   </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={handleRemove}
+                    className="border-rose-400/40 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20 hover:text-white"
+                  >
+                    <Trash2 className="mr-1.5 size-3.5" /> Remove
+                  </Button>
                 </div>
               )}
+
 
               <p className="text-[11px] leading-relaxed text-white/40">
                 A registration document evidences that the company exists. It is not treated as
