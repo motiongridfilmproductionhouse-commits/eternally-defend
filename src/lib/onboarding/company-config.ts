@@ -266,24 +266,27 @@ export function scopesForCompanyServices(
 export type CompanyStepKey =
   | "company_profile"
   | "company_representative"
+  | "company_social"
   | "company_authority"
-  | "company_assets"
-  | "company_campaigns"
-  | "company_services"
-  | "review"
-  | "signature"
-  | "complete";
+  | "company_review"
+  | "company_complete";
 
+/**
+ * Company (Client Type = COMPANY) onboarding.
+ *
+ * Work-email OTP verification is intentionally NOT part of this flow yet: the
+ * work email is stored but never labelled verified. The OTP helpers and the
+ * `company_email_verified_at` signal remain in place, so an
+ * "company_email_otp" step can be inserted between representative details and
+ * social profiles later without reshaping the rest of the flow.
+ */
 export const COMPANY_FLOW: readonly { step: number; key: CompanyStepKey; title: string }[] = [
-  { step: 1, key: "company_profile", title: "Company Profile" },
-  { step: 2, key: "company_representative", title: "Authorized Representative" },
-  { step: 3, key: "company_authority", title: "Company Authority Verification" },
-  { step: 4, key: "company_assets", title: "Digital Assets" },
-  { step: 5, key: "company_campaigns", title: "Campaign Protection" },
-  { step: 6, key: "company_services", title: "Protection Services" },
-  { step: 7, key: "review", title: "Company Authorization" },
-  { step: 8, key: "signature", title: "Electronic Signature" },
-  { step: 9, key: "complete", title: "Activation" },
+  { step: 1, key: "company_profile", title: "Company Details" },
+  { step: 2, key: "company_representative", title: "Representative Details" },
+  { step: 3, key: "company_social", title: "Official Social Profiles" },
+  { step: 4, key: "company_authority", title: "Supporting Document" },
+  { step: 5, key: "company_review", title: "Review" },
+  { step: 6, key: "company_complete", title: "Complete" },
 ];
 
 export const COMPANY_AUTHORIZATION_TITLE =
