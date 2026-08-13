@@ -70,7 +70,12 @@ export function SocialProfilesPanel({ compact = false }: { compact?: boolean }) 
   const [savedCount, setSavedCount] = useState(0);
 
   useEffect(() => {
-    if (!data) return;
+    if (!data) {
+      if (ready && !session) {
+        setRows(BASE_PLATFORMS.map((p) => ({ platform: p, url: "" })));
+      }
+      return;
+    }
     const saved = data.links as SocialProfileLink[];
     setSavedCount(saved.length);
     const map = new Map(saved.map((l) => [l.platform, l.url] as const));
