@@ -2,14 +2,7 @@ import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import {
-  ChevronLeft,
-  ChevronRight,
-  FileCheck2,
-  Loader2,
-  ShieldCheck,
-  Upload,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, FileCheck2, Loader2, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -189,4 +182,3 @@ export function CompanyAuthorityStep({
     </Card>
   );
 }
-

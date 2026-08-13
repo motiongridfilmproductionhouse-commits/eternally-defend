@@ -163,7 +163,9 @@ export function CompanyAuthorizationSignatureStep({
               <CompanyLetterPdfViewer height={460} />
             </div>
 
-            {signed && data?.status_summary && <CompanyStatusSummary status={data.status_summary} />}
+            {signed && data?.status_summary && (
+              <CompanyStatusSummary status={data.status_summary} />
+            )}
           </>
         )}
 

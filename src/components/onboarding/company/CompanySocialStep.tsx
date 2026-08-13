@@ -38,13 +38,7 @@ type Row = { platform: CompanySocialPlatform; url: string };
  * Official company social profiles. Self-declared links only — no OAuth and no
  * ownership check — stored as trusted references for monitoring.
  */
-export function CompanySocialStep({
-  onBack,
-  onNext,
-}: {
-  onBack: () => void;
-  onNext: () => void;
-}) {
+export function CompanySocialStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   const fetchCompany = useServerFn(getCompanyOnboarding);
   const save = useServerFn(saveCompanyOfficialProfiles);
   const { data, refetch, isLoading } = useQuery({
@@ -124,7 +118,10 @@ export function CompanySocialStep({
         ) : (
           <div className="space-y-3">
             {rows.map((row, index) => (
-              <div key={`${row.platform}-${index}`} className="grid gap-2 sm:grid-cols-[180px_1fr_auto]">
+              <div
+                key={`${row.platform}-${index}`}
+                className="grid gap-2 sm:grid-cols-[180px_1fr_auto]"
+              >
                 <div className="space-y-1.5">
                   {index === 0 && <Label className="text-xs text-white/75">Platform</Label>}
                   <select
