@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useSession } from "@/hooks/use-session";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -53,12 +54,15 @@ type Row = { platform: SocialPlatform; url: string };
  * verification — these are stored purely as trusted reference URLs.
  */
 export function SocialProfilesPanel({ compact = false }: { compact?: boolean }) {
+  const { session, ready } = useSession();
   const fetchLinks = useServerFn(getSocialProfileLinks);
   const saveLinks = useServerFn(saveSocialProfileLinks);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["social_profile_links"],
+    queryKey: ["social_profile_links", session?.user.id ?? "anon"],
     queryFn: () => fetchLinks(),
+    enabled: ready && !!session,
+    retry: false,
   });
 
   const [rows, setRows] = useState<Row[]>([]);
@@ -66,7 +70,12 @@ export function SocialProfilesPanel({ compact = false }: { compact?: boolean }) 
   const [savedCount, setSavedCount] = useState(0);
 
   useEffect(() => {
-    if (!data) return;
+    if (!data) {
+      if (ready && !session) {
+        setRows(BASE_PLATFORMS.map((p) => ({ platform: p, url: "" })));
+      }
+      return;
+    }
     const saved = data.links as SocialProfileLink[];
     setSavedCount(saved.length);
     const map = new Map(saved.map((l) => [l.platform, l.url] as const));
@@ -75,7 +84,7 @@ export function SocialProfilesPanel({ compact = false }: { compact?: boolean }) 
       .filter((l) => !BASE_PLATFORMS.includes(l.platform))
       .map((l) => ({ platform: l.platform, url: l.url }));
     setRows([...base, ...extras]);
-  }, [data]);
+  }, [data, ready, session]);
 
   const setRow = (i: number, patch: Partial<Row>) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -132,7 +141,7 @@ export function SocialProfilesPanel({ compact = false }: { compact?: boolean }) 
         )}
       </div>
 
-      {isLoading ? (
+      {!ready || isLoading ? (
         <div className="py-6 flex justify-center">
           <Loader2 className="size-5 animate-spin text-sky-400" />
         </div>
