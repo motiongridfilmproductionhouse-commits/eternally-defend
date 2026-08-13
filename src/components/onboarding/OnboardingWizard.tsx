@@ -406,6 +406,30 @@ function Step1Profile({
   const showCompanyFields = showsCompanyFields(form.client_type);
   const isValid = isCompanyType || isStep1Valid(form as Step1Form);
 
+  /**
+   * Company/corporate/agency accounts belong to the dedicated 7-step company
+   * onboarding flow, so selecting one of those types switches the wizard
+   * immediately instead of waiting for "Save & Continue".
+   */
+  const handleClientTypeChange = async (e: any) => {
+    const next = String(e.target.value);
+    setForm((prev) => ({ ...prev, client_type: next }));
+    if (!COMPANY_CLIENT_TYPES.has(next)) return;
+    setSaving(true);
+    try {
+      await switchToCompany({});
+      await stepQc.invalidateQueries({ queryKey: ["client_profile"] });
+      await stepQc.invalidateQueries({ queryKey: ["onboarding-progress"] });
+      await onRefetch();
+      toast.success("Company onboarding started");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not start company onboarding");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
@@ -454,8 +478,11 @@ function Step1Profile({
             <select
               className="flex h-10 w-full rounded-md border border-white/10 bg-[#0F172A] px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 text-white"
               value={form.client_type}
-              onChange={set("client_type")}
+              onChange={handleClientTypeChange}
+              disabled={saving}
             >
+
+
               <option value="individual">Individual</option>
               <option value="creator">Creator</option>
               <option value="celebrity">Celebrity</option>
