@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
+
 import { isVerifiedSubject } from "@/lib/firecrawl/entity-verifier";
 import { buildQueryPlan } from "./queries";
 import { SourceScope, buildAllegationQueryPlan } from "./news-intelligence";
