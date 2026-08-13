@@ -15,8 +15,6 @@ import {
 import { CompanyLetterPdfViewer } from "./CompanyLetterPdfViewer";
 import { CompanyStatusSummary } from "./CompanyStatusSummary";
 
-const GHOST_BUTTON =
-  "border border-sky-500/30 bg-slate-950/60 text-sky-100 hover:bg-slate-900/80 hover:text-white";
 const FIELD =
   "border-white/10 bg-[#060C1F] text-white placeholder:text-white/30 focus-visible:ring-blue-500/40";
 
