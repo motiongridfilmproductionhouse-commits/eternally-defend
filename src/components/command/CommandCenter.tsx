@@ -30,7 +30,19 @@ import { Link } from "@tanstack/react-router";
 import { getCommandCenterStats } from "@/lib/command-center.functions";
 import { DirectionalRadar, HudSweepRadar } from "@/components/command/DualRadars";
 import { getFaceProtectionStats } from "@/lib/face-scan.functions";
-import { ScanFace, UserX, Award, Archive as ArchiveIcon, Eye as EyeIcon } from "lucide-react";
+import { getCompanyProtectionStats } from "@/lib/company/protection-stats.functions";
+import { useVerificationStatus } from "@/hooks/use-verification-status";
+import { faceProtectionApplies } from "@/lib/onboarding/v2-config";
+import {
+  ScanFace,
+  UserX,
+  Award,
+  Archive as ArchiveIcon,
+  Eye as EyeIcon,
+  ShieldCheck as ShieldIcon,
+  BadgeCheck,
+} from "lucide-react";
+
 
 type CmdData = Awaited<ReturnType<typeof getCommandCenterStats>>;
 
@@ -1159,6 +1171,65 @@ function ActionCenter() {
 
 /* ---------- Face Protection widget row (AWS Rekognition) ---------- */
 function FaceProtectionRow() {
+  const { accountType } = useVerificationStatus();
+  if (!faceProtectionApplies(accountType)) return <CompanyProtectionRow />;
+  return <PersonFaceProtectionRow />;
+}
+
+function CompanyProtectionRow() {
+  const fn = useServerFn(getCompanyProtectionStats);
+  const q = useQuery({
+    queryKey: ["company-protection-stats"],
+    queryFn: () => fn(),
+    refetchInterval: 60_000,
+  });
+  const s = q.data;
+  const items = [
+    {
+      icon: ShieldIcon,
+      label: "Protected Assets",
+      value: s?.protectedAssets ?? 0,
+      hint: "registered assets",
+      color: "oklch(0.68 0.16 200)",
+      to: "/assets",
+    },
+    {
+      icon: BadgeCheck,
+      label: "Verified Digital Assets",
+      value: s?.verifiedDigitalAssets ?? 0,
+      hint: "domains & channels",
+      color: "oklch(0.72 0.16 160)",
+      to: "/assets",
+    },
+    {
+      icon: UserX,
+      label: "Deepfake / Manipulated",
+      value: s?.deepfakeFindings7d ?? 0,
+      hint: "7d findings",
+      color: "oklch(0.63 0.24 25)",
+      to: "/deepfake-intel",
+    },
+    {
+      icon: Award,
+      label: "Copyright",
+      value: s?.copyrightMatches7d ?? 0,
+      hint: "7d matches",
+      color: "oklch(0.7 0.2 35)",
+      to: "/copyright-intel",
+    },
+    {
+      icon: ArchiveIcon,
+      label: "Evidence Vault",
+      value: s?.evidenceItems ?? 0,
+      hint: "artifacts stored",
+      color: "oklch(0.7 0.18 320)",
+      to: "/evidence-vault",
+    },
+  ];
+  return <MetricTiles items={items} />;
+}
+
+function PersonFaceProtectionRow() {
   const fn = useServerFn(getFaceProtectionStats);
   const q = useQuery({
     queryKey: ["face-protection-stats"],
@@ -1166,6 +1237,7 @@ function FaceProtectionRow() {
     refetchInterval: 60_000,
   });
   const s = q.data;
+
   const items: {
     icon: React.ComponentType<{ className?: string }>;
     label: string;
@@ -1215,7 +1287,21 @@ function FaceProtectionRow() {
       to: "/evidence-vault",
     },
   ];
+  return <MetricTiles items={items} />;
+}
+
+type MetricTile = {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  hint: string;
+  color: string;
+  to: string;
+};
+
+function MetricTiles({ items }: { items: MetricTile[] }) {
   return (
+
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
       {items.map((it) => {
         const Icon = it.icon;

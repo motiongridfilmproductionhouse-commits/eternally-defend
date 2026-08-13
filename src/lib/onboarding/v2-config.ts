@@ -222,6 +222,25 @@ export function requiresFaceProtection(accountType: V2AccountType): boolean {
   return accountType === "individual";
 }
 
+/**
+ * Company / business / enterprise routes. Single authoritative check so these
+ * accounts never inherit celebrity (person-based) onboarding requirements.
+ */
+export function isCompanyAccount(accountType: V2AccountType | null): boolean {
+  return accountType === "enterprise" || accountType === "production_house";
+}
+
+/**
+ * Whether face protection (camera, liveness, Rekognition enrollment) is
+ * applicable at all for an account type. Company accounts: never.
+ * Celebrity / individual / representative accounts: unchanged.
+ */
+export function faceProtectionApplies(accountType: V2AccountType | null): boolean {
+  if (!accountType) return true; // unknown type: keep legacy behaviour
+  return !isCompanyAccount(accountType);
+}
+
+
 export function requiresRepresentative(accountType: V2AccountType): boolean {
   return accountType === "enterprise" || accountType === "production_house";
 }

@@ -4,6 +4,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { ShieldCheck, ArrowRight, Info } from "lucide-react";
 import { getFaceEnrollment } from "@/lib/onboarding/face-enrollment.functions";
 import { useSession } from "@/hooks/use-session";
+import { useVerificationStatus } from "@/hooks/use-verification-status";
+import { faceProtectionApplies } from "@/lib/onboarding/v2-config";
 
 // Demo mode: hide setup prompts completely so they don't clutter the demo dashboard.
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
@@ -12,10 +14,13 @@ const DEMO_USER_EMAIL = (import.meta.env.VITE_DEMO_USER_EMAIL ?? "").trim().toLo
 export function PendingSetupCard() {
   const navigate = useNavigate();
   const { session } = useSession();
+  const { accountType } = useVerificationStatus();
+  const faceApplies = faceProtectionApplies(accountType);
   const fetchFace = useServerFn(getFaceEnrollment);
   const { data } = useQuery({
     queryKey: ["face_enrollment_status_pending_widget"],
     queryFn: () => fetchFace(),
+    enabled: faceApplies,
   });
 
   const status: string | undefined = data?.status;
@@ -31,7 +36,11 @@ export function PendingSetupCard() {
     DEMO_MODE && DEMO_USER_EMAIL && session?.user?.email?.toLowerCase() === DEMO_USER_EMAIL;
   if (isDemoUser) return null;
 
+  // Company / business / enterprise accounts are never face-protected.
+  if (!faceApplies) return null;
+
   if (!isDeferred && !isMissing) return null;
+
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-blue-200/60 bg-blue-50/50 dark:border-blue-500/20 dark:bg-blue-950/20 px-4 py-3">
