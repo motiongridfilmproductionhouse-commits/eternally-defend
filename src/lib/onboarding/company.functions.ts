@@ -96,6 +96,8 @@ export const getCompanyOnboarding = createServerFn({ method: "GET" })
         : null,
       authority_status: authority as CompanyAuthorityStatus,
       services,
+      official_profiles: readOfficialProfiles(social["official_company_profiles"]),
+      onboarding_completed: Boolean(profile?.onboarding_completed),
       otp: otp
         ? {
             email: otp.email,
