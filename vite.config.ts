@@ -26,7 +26,39 @@ function stripReactStartRouteTreeRegistration() {
   };
 }
 
+/**
+ * AWS Amplify Face Liveness is a browser-only widget (camera + WebRTC) and runs
+ * module-scope `setTimeout` during framework detection, which Cloudflare Workers
+ * forbid in global scope. Bundling it server-side crashed every SSR request, so
+ * the server graph gets an inert stub; the browser still loads the real module.
+ */
+function stubFaceLivenessOnServer() {
+  const ID = "@aws-amplify/ui-react-liveness";
+  const VIRTUAL = "\0virtual:eterna-liveness-server-stub";
+
+  const isServerEnv = (self: { environment?: { name?: string } }, ssr?: boolean) =>
+    ssr === true || (self.environment?.name ?? "") !== "client";
+
+  return {
+    name: "eterna:stub-face-liveness-on-server",
+    enforce: "pre" as const,
+    resolveId(this: any, source: string, _importer: string | undefined, options: any) {
+      if (source !== ID) return null;
+      return isServerEnv(this, options?.ssr) ? VIRTUAL : null;
+    },
+    load(id: string) {
+      if (id !== VIRTUAL) return null;
+      return [
+        "export const FaceLivenessDetectorCore = () => null;",
+        "export const FaceLivenessDetector = () => null;",
+        "export default { FaceLivenessDetectorCore, FaceLivenessDetector };",
+      ].join("\n");
+    },
+  };
+}
+
 export default defineConfig({
+
   vite: {
     build: {
       sourcemap: false,
@@ -37,5 +69,5 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  plugins: [stripReactStartRouteTreeRegistration()],
+  plugins: [stripReactStartRouteTreeRegistration(), stubFaceLivenessOnServer()],
 });
