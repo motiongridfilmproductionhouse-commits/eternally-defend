@@ -364,7 +364,7 @@ export const saveCompanyProtectionServices = createServerFn({ method: "POST" })
     }
 
     const { data: faceProfile } = await supabase
-      .from("face_profiles")
+      .from("protected_face_profiles")
       .select("status")
       .eq("user_id", userId)
       .maybeSingle();
