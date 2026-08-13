@@ -84,7 +84,7 @@ export function SocialProfilesPanel({ compact = false }: { compact?: boolean }) 
       .filter((l) => !BASE_PLATFORMS.includes(l.platform))
       .map((l) => ({ platform: l.platform, url: l.url }));
     setRows([...base, ...extras]);
-  }, [data]);
+  }, [data, ready, session]);
 
   const setRow = (i: number, patch: Partial<Row>) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
