@@ -71,7 +71,7 @@ export const updateAccountProfile = createServerFn({ method: "POST" })
 
     const { data: row, error } = await supabase
       .from("client_profiles")
-      .update(patch)
+      .update(patch as never)
       .eq("user_id", userId)
       .select(
         "user_id, client_id, legal_name, full_name, display_name, email, phone, country, address, client_type, company_name, company_brand_name, role_title, onboarding_account_type, onboarding_completed, social_profiles",
