@@ -92,6 +92,7 @@ export function Sidebar() {
   const { isAdmin } = useUserRoles();
   const { session } = useSession();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { collapsed, toggleCollapsed } = useSidebarLayout();
   const { accountType } = useVerificationStatus();
 
