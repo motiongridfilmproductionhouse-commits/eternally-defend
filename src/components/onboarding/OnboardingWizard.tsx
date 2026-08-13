@@ -480,6 +480,8 @@ function Step1Profile({
               value={form.client_type}
               onChange={handleClientTypeChange}
               disabled={saving}
+            >
+
 
               <option value="individual">Individual</option>
               <option value="creator">Creator</option>
