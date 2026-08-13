@@ -82,10 +82,10 @@ export function CompanyAuthorityStep({
   return (
     <Card className="border-white/10 bg-[#0A1128] text-white shadow-2xl">
       <CardHeader>
-        <CardTitle className="text-xl">Company Authority Verification</CardTitle>
+        <CardTitle className="text-xl">Supporting Company Document (Optional)</CardTitle>
         <CardDescription className="text-white/60">
-          We confirm that you are authorized to act for this company. Selecting a company account is
-          not authority on its own.
+          You can skip this step. Uploading a document that shows your authority to act for the
+          company speeds up full authorization later.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -111,30 +111,12 @@ export function CompanyAuthorityStep({
               </div>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-3">
-              <Signal
-                label="Business email verified"
-                ok={Boolean(data?.profile.business_email_verified)}
-              />
-              <Signal
-                label="Registration number on file"
-                ok={Boolean(data?.profile.registration_number)}
-              />
-              <Signal
-                label="Work email on company domain"
-                ok={
-                  !!data?.representative.work_email &&
-                  !!data?.profile.website &&
-                  data.authority_status === "AUTHORIZED_REPRESENTATIVE"
-                }
-              />
-            </div>
-
             <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-4">
               <div>
-                <div className="text-sm font-semibold">Company documents (optional)</div>
+                <div className="text-sm font-semibold">Company document</div>
                 <div className="mt-0.5 text-xs text-white/55">
-                  Upload a document that shows your authority. This speeds up full authorization.
+                  Accepted: authorization letter, registration certificate, or similar. PDF, PNG or
+                  JPEG.
                 </div>
               </div>
 
