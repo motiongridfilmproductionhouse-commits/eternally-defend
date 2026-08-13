@@ -406,6 +406,30 @@ function Step1Profile({
   const showCompanyFields = showsCompanyFields(form.client_type);
   const isValid = isCompanyType || isStep1Valid(form as Step1Form);
 
+  /**
+   * Company/corporate/agency accounts belong to the dedicated 7-step company
+   * onboarding flow, so selecting one of those types switches the wizard
+   * immediately instead of waiting for "Save & Continue".
+   */
+  const handleClientTypeChange = async (e: any) => {
+    const next = String(e.target.value);
+    setForm((prev) => ({ ...prev, client_type: next }));
+    if (!COMPANY_CLIENT_TYPES.has(next)) return;
+    setSaving(true);
+    try {
+      await switchToCompany({});
+      await stepQc.invalidateQueries({ queryKey: ["client_profile"] });
+      await stepQc.invalidateQueries({ queryKey: ["onboarding-progress"] });
+      await onRefetch();
+      toast.success("Company onboarding started");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not start company onboarding");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
