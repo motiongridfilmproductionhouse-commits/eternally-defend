@@ -1,5 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { X, Search, UserSearch, Package, FileText, FileEdit, Send } from "lucide-react";
 import robot from "@/assets/ai-assistant.png";
+import { useSession } from "@/hooks/use-session";
+import { getAccountProfile } from "@/lib/profile/account-profile.functions";
+import { buildSettingsProfileView } from "@/lib/profile/settings-profile";
 
 const actions = [
   { icon: Search, label: "Show highest risk threats" },

@@ -119,9 +119,14 @@ export function Sidebar() {
   const initial = (displayName[0] ?? "?").toUpperCase();
 
   const signOut = async () => {
+    // Drop every cached per-user query so the next account never reads the
+    // previous account's profile from cache.
+    await queryClient.cancelQueries();
+    queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth" });
+    navigate({ to: "/auth", replace: true });
   };
+
 
   const widthClass = collapsed ? "w-[72px]" : "w-64";
 
