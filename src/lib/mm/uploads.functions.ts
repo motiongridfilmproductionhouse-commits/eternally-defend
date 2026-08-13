@@ -6,6 +6,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
 import { z } from "zod";
 import { getLimits } from "./quota.server";
 import { detectCaptionFormat, parseCaptions, findingsFromCaptions } from "./captions.server";

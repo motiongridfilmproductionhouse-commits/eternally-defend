@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
 import { DeleteFacesCommand, RekognitionClient } from "@aws-sdk/client-rekognition";
 import { getDeepfakeFaceCollectionId, indexDeepfakeReferenceFace } from "./face-enrollment.server";
 

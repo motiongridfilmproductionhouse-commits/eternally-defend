@@ -8,6 +8,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
 import { z } from "zod";
 
 const StartInput = z.object({
