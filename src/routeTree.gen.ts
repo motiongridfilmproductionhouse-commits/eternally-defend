@@ -18,6 +18,7 @@ import { Route as PartnerRouteImport } from './routes/_partner'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
+import { Route as FaceHandoffTokenRouteImport } from './routes/face-handoff.$token'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
 import { Route as PartnerPartnerRouteImport } from './routes/_partner.partner'
 import { Route as AppYoutubeRemovalRouteImport } from './routes/_app.youtube-removal'
@@ -111,6 +112,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const VerifySlugRoute = VerifySlugRouteImport.update({
   id: '/verify/$slug',
   path: '/verify/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaceHandoffTokenRoute = FaceHandoffTokenRouteImport.update({
+  id: '/face-handoff/$token',
+  path: '/face-handoff/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiScanRoute = ApiScanRouteImport.update({
@@ -419,6 +425,7 @@ export interface FileRoutesByFullPath {
   '/youtube-removal': typeof AppYoutubeRemovalRoute
   '/partner': typeof PartnerPartnerRouteWithChildren
   '/api/scan': typeof ApiScanRoute
+  '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
@@ -478,6 +485,7 @@ export interface FileRoutesByTo {
   '/threat-radar': typeof AppThreatRadarRoute
   '/youtube-removal': typeof AppYoutubeRemovalRoute
   '/api/scan': typeof ApiScanRoute
+  '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
@@ -540,6 +548,7 @@ export interface FileRoutesById {
   '/_app/youtube-removal': typeof AppYoutubeRemovalRoute
   '/_partner/partner': typeof PartnerPartnerRouteWithChildren
   '/api/scan': typeof ApiScanRoute
+  '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -603,6 +612,7 @@ export interface FileRouteTypes {
     | '/youtube-removal'
     | '/partner'
     | '/api/scan'
+    | '/face-handoff/$token'
     | '/verify/$slug'
     | '/admin/diagnostics'
     | '/admin/multimedia-health'
@@ -662,6 +672,7 @@ export interface FileRouteTypes {
     | '/threat-radar'
     | '/youtube-removal'
     | '/api/scan'
+    | '/face-handoff/$token'
     | '/verify/$slug'
     | '/admin/diagnostics'
     | '/admin/multimedia-health'
@@ -723,6 +734,7 @@ export interface FileRouteTypes {
     | '/_app/youtube-removal'
     | '/_partner/partner'
     | '/api/scan'
+    | '/face-handoff/$token'
     | '/verify/$slug'
     | '/_app/'
     | '/_app/admin/diagnostics'
@@ -766,6 +778,7 @@ export interface RootRouteChildren {
   PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
   ApiScanRoute: typeof ApiScanRoute
+  FaceHandoffTokenRoute: typeof FaceHandoffTokenRoute
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
   ApiPublicImageProxyRoute: typeof ApiPublicImageProxyRoute
@@ -846,6 +859,13 @@ declare module '@tanstack/react-router' {
       path: '/verify/$slug'
       fullPath: '/verify/$slug'
       preLoaderRoute: typeof VerifySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/face-handoff/$token': {
+      id: '/face-handoff/$token'
+      path: '/face-handoff/$token'
+      fullPath: '/face-handoff/$token'
+      preLoaderRoute: typeof FaceHandoffTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/scan': {
@@ -1320,6 +1340,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
   ApiScanRoute: ApiScanRoute,
+  FaceHandoffTokenRoute: FaceHandoffTokenRoute,
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
   ApiPublicImageProxyRoute: ApiPublicImageProxyRoute,
