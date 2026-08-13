@@ -1,4 +1,7 @@
+import { COMPANY_FLOW } from "./company-config";
+
 export const ONBOARDING_V2 = "v2";
+
 
 export const V2_ACCOUNT_TYPES = [
   "celebrity",
