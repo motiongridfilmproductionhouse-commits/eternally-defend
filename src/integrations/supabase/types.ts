@@ -3236,6 +3236,66 @@ export type Database = {
           },
         ]
       }
+      enforcement_email_deliveries: {
+        Row: {
+          attachments: Json
+          case_id: string | null
+          created_at: string
+          delivery_status: string
+          destination_email: string
+          enforcement_request_id: string | null
+          error: string | null
+          from_email: string
+          id: string
+          intended_recipient: string
+          metadata: Json
+          provider: string
+          provider_message_id: string | null
+          sent_at: string | null
+          subject: string
+          test_mode: boolean
+          user_id: string
+        }
+        Insert: {
+          attachments?: Json
+          case_id?: string | null
+          created_at?: string
+          delivery_status?: string
+          destination_email: string
+          enforcement_request_id?: string | null
+          error?: string | null
+          from_email: string
+          id?: string
+          intended_recipient: string
+          metadata?: Json
+          provider?: string
+          provider_message_id?: string | null
+          sent_at?: string | null
+          subject: string
+          test_mode?: boolean
+          user_id: string
+        }
+        Update: {
+          attachments?: Json
+          case_id?: string | null
+          created_at?: string
+          delivery_status?: string
+          destination_email?: string
+          enforcement_request_id?: string | null
+          error?: string | null
+          from_email?: string
+          id?: string
+          intended_recipient?: string
+          metadata?: Json
+          provider?: string
+          provider_message_id?: string | null
+          sent_at?: string | null
+          subject?: string
+          test_mode?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       enforcement_events: {
         Row: {
           actor_type: string
