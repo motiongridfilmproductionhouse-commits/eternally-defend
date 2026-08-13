@@ -37,6 +37,8 @@ import {
   visibleNavRoutes,
   workspaceModeFor,
 } from "@/lib/workspace/workspace-nav";
+import { faceProtectionApplies } from "@/lib/onboarding/v2-config";
+
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/integrations/supabase/client";
 import { useSidebarLayout } from "@/lib/layout-context";
