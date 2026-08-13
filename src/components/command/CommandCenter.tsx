@@ -1218,13 +1218,14 @@ function CompanyProtectionRow() {
 }
 
 function PersonFaceProtectionRow() {
-
+  const fn = useServerFn(getFaceProtectionStats);
   const q = useQuery({
     queryKey: ["face-protection-stats"],
     queryFn: () => fn(),
     refetchInterval: 60_000,
   });
   const s = q.data;
+
   const items: {
     icon: React.ComponentType<{ className?: string }>;
     label: string;
