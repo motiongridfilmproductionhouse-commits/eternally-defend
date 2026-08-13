@@ -55,11 +55,35 @@ export function OnboardingWizard({
 }: {
   initialProgress: { current_step?: number | null; onboarding_version?: string | null } | null;
 }) {
-  if (initialProgress?.onboarding_version === "v2") {
+  const fetchProfile = useServerFn(getClientProfile);
+  const { data: routingProfile, isLoading: routingLoading } = useQuery({
+    queryKey: ["client_profile"],
+    queryFn: () => fetchProfile(),
+  });
+
+  const isV2 =
+    initialProgress?.onboarding_version === "v2" ||
+    (routingProfile as { onboarding_version?: string | null } | undefined)?.onboarding_version ===
+      "v2" ||
+    isV2AccountType(
+      (routingProfile as { onboarding_account_type?: unknown } | undefined)
+        ?.onboarding_account_type,
+    );
+
+  if (routingLoading) {
+    return (
+      <div className="fixed inset-0 grid place-items-center bg-[#050A18] text-white/70 text-sm">
+        Loading secure onboarding…
+      </div>
+    );
+  }
+
+  if (isV2) {
     return <V2OnboardingWizard initialProgress={initialProgress} />;
   }
   return <LegacyOnboardingWizard initialProgress={initialProgress} />;
 }
+
 
 function LegacyOnboardingWizard({
   initialProgress,
