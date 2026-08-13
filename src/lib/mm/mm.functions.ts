@@ -62,6 +62,14 @@ export const startMultimediaAnalysis = createServerFn({ method: "POST" })
   .inputValidator((raw) => StartInput.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // SUBJECT ISOLATION — monitoring subject is workspace-owned, not client-supplied.
+    const enforcedSubject = await enforceScanSubject(context, {
+      targetName: data.target_name,
+      aliases: data.target_aliases,
+    });
+    data.target_name = enforcedSubject.targetName;
+    data.target_aliases = enforcedSubject.aliases;
+
     const stageInit = Object.fromEntries(STAGES.map((s) => [s, "pending"])) as Record<
       Stage,
       string
