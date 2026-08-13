@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
 import {
   handleFromUrl,
   hostOf,
@@ -42,6 +43,9 @@ export const createSubject = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    // SUBJECT ISOLATION — discovery subjects must be the workspace's registered subject.
+    const enforced = await enforceScanSubject(context, { targetName: data.query });
+    data.query = enforced.targetName;
     const domain = data.website_domain
       ? hostOf(
           data.website_domain.startsWith("http")
@@ -98,6 +102,7 @@ export const listAccounts = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("discovered_accounts")
       .select("*")
+      .eq("user_id", context.userId)
       .eq("subject_id", data.subjectId)
       .order("confidence", { ascending: false });
     if (!data.includeRejected) q = q.neq("status", "rejected");
@@ -125,6 +130,7 @@ export const discoverAccounts = createServerFn({ method: "POST" })
       .from("discovery_subjects")
       .select("*")
       .eq("id", data.subjectId)
+      .eq("user_id", context.userId)
       .maybeSingle();
     if (sErr) throw new Error(sErr.message);
     if (!subject) throw new Error("Subject not found");
@@ -320,6 +326,7 @@ export const decideAccount = createServerFn({ method: "POST" })
       .from("discovered_accounts")
       .select("id, status")
       .eq("id", data.accountId)
+      .eq("user_id", context.userId)
       .maybeSingle();
     if (bErr) throw new Error(bErr.message);
     if (!before) throw new Error("Account not found");
@@ -332,6 +339,7 @@ export const decideAccount = createServerFn({ method: "POST" })
         status: nextStatus,
       })
       .eq("id", data.accountId)
+      .eq("user_id", context.userId)
       .select("*")
       .single();
     if (error) throw new Error(error.message);
@@ -376,6 +384,14 @@ export const addManualAccount = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    const { data: ownedSubject } = await context.supabase
+      .from("discovery_subjects")
+      .select("id")
+      .eq("id", data.subjectId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (!ownedSubject) throw new Error("Not authorized: subject does not belong to this workspace.");
+
     const platform: Platform = data.platform ?? platformOfUrl(data.profile_url) ?? "website";
     const handle = data.handle ?? handleFromUrl(data.profile_url) ?? null;
     const { data: row, error } = await context.supabase
@@ -411,7 +427,8 @@ export const deleteSubject = createServerFn({ method: "POST" })
     const { error } = await context.supabase
       .from("discovery_subjects")
       .delete()
-      .eq("id", data.subjectId);
+      .eq("id", data.subjectId)
+      .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
