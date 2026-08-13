@@ -99,7 +99,7 @@ export function CompanyRegistrationStep({
           </div>
         ) : (
           <>
-            {/* 1. Registration proof — required */}
+            {/* 1. Registration proof — optional */}
             <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-4">
               <div>
                 <div className="text-sm font-semibold">
@@ -239,7 +239,7 @@ export function CompanyRegistrationStep({
           </Button>
           <Button
             onClick={onNext}
-            disabled={isLoading || !proof || !confirmed}
+            disabled={isLoading || !confirmed}
             className="bg-blue-600 text-white hover:bg-blue-500"
           >
             Continue to Electronic Signature <ChevronRight className="ml-1 size-4" />
