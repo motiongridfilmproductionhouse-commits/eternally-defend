@@ -136,7 +136,7 @@ export function SocialProfilesPanel({ compact = false }: { compact?: boolean }) 
         )}
       </div>
 
-      {isLoading ? (
+      {!ready || isLoading ? (
         <div className="py-6 flex justify-center">
           <Loader2 className="size-5 animate-spin text-sky-400" />
         </div>
