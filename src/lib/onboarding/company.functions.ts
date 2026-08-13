@@ -505,3 +505,49 @@ export const finishCompanyOnboarding = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+/**
+ * Routes a legacy (v1) account into the dedicated company onboarding flow when
+ * the user selects a company client type. Only touches routing fields; no
+ * verification state is granted.
+ */
+export const switchToCompanyOnboarding = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: profile, error: profileError } = await supabase
+      .from("client_profiles")
+      .select("onboarding_completed, onboarding_account_type")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (profileError) throw new Error(profileError.message);
+    if (profile?.onboarding_completed) {
+      return { switched: false as const, account_type: profile.onboarding_account_type ?? null };
+    }
+
+    const { error: updateError } = await supabase
+      .from("client_profiles")
+      .update({
+        onboarding_version: "v2",
+        onboarding_account_type: "enterprise",
+        client_type: "corporate",
+      })
+      .eq("user_id", userId);
+    if (updateError) throw new Error(updateError.message);
+
+    const { error: progressError } = await supabase
+      .from("onboarding_progress")
+      .upsert(
+        {
+          user_id: userId,
+          onboarding_version: "v2",
+          current_step: 2,
+          overall_status: "IN_PROGRESS" as const,
+          step_states: {},
+        },
+        { onConflict: "user_id" },
+      );
+    if (progressError) throw new Error(progressError.message);
+
+    return { switched: true as const, account_type: "enterprise" as const };
+  });
