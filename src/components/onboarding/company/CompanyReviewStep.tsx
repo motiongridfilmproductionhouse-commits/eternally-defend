@@ -6,7 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { getCompanyOnboarding } from "@/lib/onboarding/company.functions";
 import { getCompanyAuthorization } from "@/lib/onboarding/company-authorization.functions";
 import { CompanyStatusSummary } from "./CompanyStatusSummary";
-import { COMPANY_RELATIONSHIP_LABELS, isCompanyRelationship } from "@/lib/onboarding/company-config";
+import {
+  COMPANY_RELATIONSHIP_LABELS,
+  isCompanyRelationship,
+} from "@/lib/onboarding/company-config";
 import { COMPANY_SOCIAL_LABELS } from "@/lib/onboarding/company-official-profiles";
 
 const GHOST_BUTTON =
@@ -161,15 +164,7 @@ function Section({
   );
 }
 
-function Row({
-  label,
-  value,
-  note,
-}: {
-  label: string;
-  value?: string | null;
-  note?: string;
-}) {
+function Row({ label, value, note }: { label: string; value?: string | null; note?: string }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
       <span className="text-white/50">{label}</span>

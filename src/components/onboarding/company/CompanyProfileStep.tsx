@@ -72,7 +72,6 @@ export function CompanyProfileStep({ onNext }: { onNext: () => void }) {
     }
   };
 
-
   return (
     <Card className="border-white/10 bg-[#0A1128] text-white shadow-2xl">
       <CardHeader>
@@ -91,7 +90,11 @@ export function CompanyProfileStep({ onNext }: { onNext: () => void }) {
           <>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Legal company name" required>
-                <Input value={form.legal_company_name} onChange={set("legal_company_name")} className={INPUT} />
+                <Input
+                  value={form.legal_company_name}
+                  onChange={set("legal_company_name")}
+                  className={INPUT}
+                />
               </Field>
               <Field label="Brand / trading name">
                 <Input value={form.brand_name} onChange={set("brand_name")} className={INPUT} />
@@ -108,7 +111,11 @@ export function CompanyProfileStep({ onNext }: { onNext: () => void }) {
                 <Input value={form.country} onChange={set("country")} className={INPUT} />
               </Field>
               <Field label="Company registration number">
-                <Input value={form.registration_number} onChange={set("registration_number")} className={INPUT} />
+                <Input
+                  value={form.registration_number}
+                  onChange={set("registration_number")}
+                  className={INPUT}
+                />
               </Field>
               <Field label="Phone">
                 <Input value={form.phone} onChange={set("phone")} className={INPUT} />
@@ -122,7 +129,11 @@ export function CompanyProfileStep({ onNext }: { onNext: () => void }) {
                 />
               </Field>
               <Field label="Business address">
-                <Input value={form.business_address} onChange={set("business_address")} className={INPUT} />
+                <Input
+                  value={form.business_address}
+                  onChange={set("business_address")}
+                  className={INPUT}
+                />
               </Field>
             </div>
 
@@ -137,7 +148,13 @@ export function CompanyProfileStep({ onNext }: { onNext: () => void }) {
         )}
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 pt-4">
-          <Button type="button" variant="outline" onClick={submit} disabled={!valid || busy} className={GHOST_BUTTON}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={submit}
+            disabled={!valid || busy}
+            className={GHOST_BUTTON}
+          >
             {busy && <Loader2 className="mr-2 size-4 animate-spin" />} Save
           </Button>
           <Button

@@ -108,13 +108,22 @@ export function CompanyRepresentativeStep({
           <>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Full legal name" required>
-                <Input value={form.full_legal_name} onChange={set("full_legal_name")} className={INPUT} />
+                <Input
+                  value={form.full_legal_name}
+                  onChange={set("full_legal_name")}
+                  className={INPUT}
+                />
               </Field>
               <Field label="Job title / role" required>
                 <Input value={form.job_title} onChange={set("job_title")} className={INPUT} />
               </Field>
               <Field label="Work email" required>
-                <Input type="email" value={form.work_email} onChange={set("work_email")} className={INPUT} />
+                <Input
+                  type="email"
+                  value={form.work_email}
+                  onChange={set("work_email")}
+                  className={INPUT}
+                />
               </Field>
               <Field label="Phone">
                 <Input value={form.phone} onChange={set("phone")} className={INPUT} />

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ExternalLink, Loader2, PenLine } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,13 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   getCompanyAuthorization,
-  previewCompanyAuthorizationLetter,
   signCompanyAuthorizationLetter,
 } from "@/lib/onboarding/company-authorization.functions";
+import { CompanyLetterPdfViewer } from "./CompanyLetterPdfViewer";
 import { CompanyStatusSummary } from "./CompanyStatusSummary";
 
-const GHOST_BUTTON =
-  "border border-sky-500/30 bg-slate-950/60 text-sky-100 hover:bg-slate-900/80 hover:text-white";
 const FIELD =
   "border-white/10 bg-[#060C1F] text-white placeholder:text-white/30 focus-visible:ring-blue-500/40";
 
@@ -30,7 +28,6 @@ export function CompanyAuthorizationSignatureStep({
 }) {
   const fetchAuthorization = useServerFn(getCompanyAuthorization);
   const sign = useServerFn(signCompanyAuthorizationLetter);
-  const preview = useServerFn(previewCompanyAuthorizationLetter);
   const qc = useQueryClient();
 
   const { data, refetch, isLoading } = useQuery({
@@ -43,7 +40,6 @@ export function CompanyAuthorizationSignatureStep({
   const [companyName, setCompanyName] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [opening, setOpening] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -73,18 +69,6 @@ export function CompanyAuthorizationSignatureStep({
       toast.error(error instanceof Error ? error.message : "Unable to record the signature");
     } finally {
       setBusy(false);
-    }
-  };
-
-  const openLetter = async () => {
-    setOpening(true);
-    try {
-      const { url } = await preview({});
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to open the letter");
-    } finally {
-      setOpening(false);
     }
   };
 
@@ -172,24 +156,16 @@ export function CompanyAuthorizationSignatureStep({
                     {signed.letter_version} · SHA-256 {signed.letter_sha256?.slice(0, 16)}…
                   </div>
                 )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={openLetter}
-                  disabled={opening}
-                  className={GHOST_BUTTON}
-                >
-                  {opening ? (
-                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                  ) : (
-                    <ExternalLink className="mr-1.5 size-3.5" />
-                  )}
-                  View letter PDF
-                </Button>
               </div>
             </div>
 
-            {signed && data?.status_summary && <CompanyStatusSummary status={data.status_summary} />}
+            <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+              <CompanyLetterPdfViewer height={460} />
+            </div>
+
+            {signed && data?.status_summary && (
+              <CompanyStatusSummary status={data.status_summary} />
+            )}
           </>
         )}
 

@@ -270,7 +270,9 @@ export const previewCompanyAuthorizationLetter = createServerFn({ method: "POST"
       filename: "Eterna_Company_Authorization.pdf",
       contentType: "application/pdf",
     });
-    return { url, expires_in: 300 };
+    // pdf_base64 lets the UI render the letter inline (same-origin blob) instead
+    // of opening a storage URL in a new tab, which browser extensions can block.
+    return { url, expires_in: 300, pdf_base64: Buffer.from(bytes).toString("base64") };
   });
 
 /**

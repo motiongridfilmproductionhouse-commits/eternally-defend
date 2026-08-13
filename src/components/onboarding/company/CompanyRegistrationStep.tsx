@@ -2,24 +2,16 @@ import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  FileCheck2,
-  FileText,
-  Loader2,
-  Upload,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, FileCheck2, FileText, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   getCompanyAuthorization,
-  previewCompanyAuthorizationLetter,
   uploadCompanyRegistrationProof,
 } from "@/lib/onboarding/company-authorization.functions";
+import { CompanyLetterPdfViewer } from "./CompanyLetterPdfViewer";
 import {
   COMPANY_REGISTRATION_DOC_LABELS,
   COMPANY_REGISTRATION_DOC_TYPES,
@@ -42,7 +34,6 @@ export function CompanyRegistrationStep({
 }) {
   const fetchAuthorization = useServerFn(getCompanyAuthorization);
   const upload = useServerFn(uploadCompanyRegistrationProof);
-  const preview = useServerFn(previewCompanyAuthorizationLetter);
 
   const { data, refetch, isLoading } = useQuery({
     queryKey: ["company-authorization"],
@@ -54,7 +45,6 @@ export function CompanyRegistrationStep({
     "certificate_of_incorporation",
   );
   const [busy, setBusy] = useState(false);
-  const [opening, setOpening] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
   const proof = data?.registration_proof ?? null;
@@ -90,18 +80,6 @@ export function CompanyRegistrationStep({
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
-    }
-  };
-
-  const openLetter = async () => {
-    setOpening(true);
-    try {
-      const { url } = await preview({});
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to open the letter");
-    } finally {
-      setOpening(false);
     }
   };
 
@@ -205,21 +183,6 @@ export function CompanyRegistrationStep({
                     Generated automatically from your onboarding details — nothing to upload.
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={openLetter}
-                  disabled={opening}
-                  className={GHOST_BUTTON}
-                >
-                  {opening ? (
-                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                  ) : (
-                    <ExternalLink className="mr-1.5 size-3.5" />
-                  )}
-                  View PDF
-                </Button>
               </div>
 
               <div className="max-h-80 space-y-3 overflow-y-auto rounded-md border border-white/10 bg-[#060C1F] p-4">
@@ -251,6 +214,8 @@ export function CompanyRegistrationStep({
                   Version {data?.letter.version} · SHA-256 {data?.letter.sha256.slice(0, 16)}…
                 </div>
               </div>
+
+              <CompanyLetterPdfViewer height={520} />
 
               <label className="flex cursor-pointer items-start gap-3 rounded-md border border-white/10 bg-white/5 p-3">
                 <Checkbox
