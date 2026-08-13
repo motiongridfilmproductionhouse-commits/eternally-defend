@@ -12,6 +12,7 @@ import {
   getCompanyAuthorization,
   signCompanyAuthorizationLetter,
 } from "@/lib/onboarding/company-authorization.functions";
+import { COMPANY_SIGNATURE_DECLARATION } from "@/lib/onboarding/company-authorization-letter";
 import { CompanyLetterPdfViewer } from "./CompanyLetterPdfViewer";
 import { CompanyStatusSummary } from "./CompanyStatusSummary";
 
@@ -130,8 +131,7 @@ export function CompanyAuthorizationSignatureStep({
                     className="mt-0.5 border-sky-400/40 data-[state=checked]:bg-blue-600"
                   />
                   <span className="text-xs leading-relaxed text-white/75">
-                    I agree to the Eterna Sentinel authorization letter shown in the previous step
-                    and sign it electronically on behalf of the company.
+                    {COMPANY_SIGNATURE_DECLARATION}
                   </span>
                 </label>
               )}

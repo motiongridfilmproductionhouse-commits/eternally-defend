@@ -15,11 +15,18 @@ import {
   buildCompanyAuthorizationLetter,
   companySubmissionStatus,
   COMPANY_LETTER_VERSION,
+  type CompanyAssetEntry,
   type CompanyLetterInput,
 } from "./company-authorization-letter";
+import { COMPANY_PROTECTION_SERVICES } from "./company-config";
+import { COMPANY_SOCIAL_LABELS, type CompanySocialPlatform } from "./company-official-profiles";
+
+type CompanyOfficialProfile = { platform: string; url: string; label: string | null };
 
 type CompanyContext = {
   companyName: string;
+  brandName: string | null;
+  country: string | null;
   registrationNumber: string | null;
   website: string | null;
   companyEmail: string | null;
@@ -27,10 +34,25 @@ type CompanyContext = {
   representativeTitle: string | null;
   representativeEmail: string | null;
   emailVerified: boolean;
+  officialProfiles: CompanyOfficialProfile[];
+  serviceLabels: string[];
+  /** Stable authorization reference — derived, never an internal database ID. */
+  referenceId: string;
 };
 
 const PROFILE_COLUMNS =
-  "onboarding_account_type, company_name, business_reg_number, website, company_email, company_email_verified_at, legal_name, role_title";
+  "onboarding_account_type, company_name, company_brand_name, country, business_reg_number, website, company_email, company_email_verified_at, legal_name, role_title, social_profiles";
+
+/**
+ * Human-readable authorization reference.
+ *
+ * Derived by hashing the workspace user id so the reference is stable and
+ * reproducible without exposing internal database identifiers in the PDF.
+ */
+function authorizationReference(userId: string): string {
+  const digest = createHash("sha256").update(`eterna-company-authorization:${userId}`).digest("hex");
+  return `EAS-CA-${digest.slice(0, 4).toUpperCase()}-${digest.slice(4, 8).toUpperCase()}`;
+}
 
 async function loadCompanyContext(
   supabase: { from: (t: string) => any },
@@ -55,9 +77,29 @@ async function loadCompanyContext(
   const rep = rows.find((row) => row.evidence_type === "representative");
   const repMeta = (rep?.metadata ?? {}) as Record<string, unknown>;
 
+  const social = (profile?.social_profiles ?? {}) as Record<string, unknown>;
+  const officialProfiles = (
+    Array.isArray(social["official_company_profiles"]) ? social["official_company_profiles"] : []
+  )
+    .map((entry) => entry as Record<string, unknown>)
+    .map((entry) => ({
+      platform: String(entry["platform"] ?? "other"),
+      url: String(entry["url"] ?? "").trim(),
+      label: (entry["label"] as string | null) ?? null,
+    }))
+    .filter((entry) => entry.url.length > 0);
+  const selectedServices = Array.isArray(social["company_services"])
+    ? (social["company_services"] as string[])
+    : [];
+  const serviceLabels = COMPANY_PROTECTION_SERVICES.filter((service) =>
+    selectedServices.includes(service.key),
+  ).map((service) => service.label);
+
   return {
     ctx: {
       companyName: (profile?.company_name ?? "").trim(),
+      brandName: (profile?.company_brand_name ?? "").trim() || null,
+      country: (profile?.country ?? "").trim() || null,
       registrationNumber: (profile?.business_reg_number ?? "").trim() || null,
       website: (profile?.website ?? "").trim() || null,
       companyEmail: (profile?.company_email ?? "").trim() || null,
@@ -70,19 +112,72 @@ async function loadCompanyContext(
         ((repMeta["representative_email"] as string | undefined) ?? profile?.company_email ?? "").trim() ||
         null,
       emailVerified: Boolean(profile?.company_email_verified_at),
+      officialProfiles,
+      serviceLabels,
+      referenceId: authorizationReference(userId),
     },
     evidence: rows,
   };
 }
 
+/**
+ * Assets covered by the authorization, classified by provenance.
+ *
+ * Onboarding data the company typed is "Customer Submitted"; official profiles
+ * the company explicitly confirmed are "Customer Confirmed". Nothing here is
+ * ever "Eterna Verified" — that label requires a completed review.
+ */
+function companyAssets(ctx: CompanyContext): CompanyAssetEntry[] {
+  const assets: CompanyAssetEntry[] = [];
+  if (ctx.companyName) {
+    assets.push({ category: "Company name", value: ctx.companyName, trust: "Customer Submitted" });
+  }
+  if (ctx.brandName && ctx.brandName.toLowerCase() !== ctx.companyName.toLowerCase()) {
+    assets.push({ category: "Trading / brand name", value: ctx.brandName, trust: "Customer Submitted" });
+  }
+  if (ctx.website) {
+    assets.push({ category: "Official website / domain", value: ctx.website, trust: "Customer Submitted" });
+  }
+  for (const profile of ctx.officialProfiles) {
+    const label =
+      COMPANY_SOCIAL_LABELS[profile.platform as CompanySocialPlatform] ?? "Official profile";
+    assets.push({
+      category: `Official profile — ${label}`,
+      value: profile.label ? `${profile.url} (${profile.label})` : profile.url,
+      trust: "Customer Confirmed",
+    });
+  }
+  assets.push({
+    category: "Brand assets / logos",
+    value: "As submitted to the company workspace",
+    trust: "Customer Submitted",
+  });
+  assets.push({
+    category: "Campaign assets",
+    value: "Campaigns created in the company workspace, where applicable",
+    trust: "Customer Submitted",
+  });
+  assets.push({
+    category: "Copyright-protected works",
+    value: "Protected works submitted to the platform, where applicable",
+    trust: "Customer Submitted",
+  });
+  return assets;
+}
+
 function letterInput(ctx: CompanyContext, date: string): CompanyLetterInput {
   return {
     company_name: ctx.companyName,
+    brand_name: ctx.brandName,
+    country: ctx.country,
     registration_number: ctx.registrationNumber,
     website: ctx.website,
     representative_name: ctx.representativeName,
     representative_title: ctx.representativeTitle,
     representative_email: ctx.representativeEmail,
+    reference_id: ctx.referenceId,
+    services: ctx.serviceLabels,
+    assets: companyAssets(ctx),
     date,
   };
 }
@@ -107,7 +202,9 @@ export const getCompanyAuthorization = createServerFn({ method: "GET" })
     // A signed letter is reproduced from the frozen snapshot, never regenerated.
     const frozen = authMeta["letter_snapshot"] as CompanyLetterInput | undefined;
     const letter = buildCompanyAuthorizationLetter(
-      frozen ?? letterInput(ctx, new Date().toISOString()),
+      frozen
+        ? { ...frozen, reference_id: frozen.reference_id || ctx.referenceId }
+        : letterInput(ctx, new Date().toISOString()),
     );
     const letterHash = createHash("sha256").update(letter.canonical).digest("hex");
 
@@ -143,6 +240,11 @@ export const getCompanyAuthorization = createServerFn({ method: "GET" })
         version: letter.version,
         title: letter.title,
         provider: letter.provider,
+        reference_id: letter.reference_id,
+        sections: letter.sections.map((section) => ({
+          page: section.page,
+          title: section.title,
+        })),
         fields: letter.fields,
         paragraphs: letter.paragraphs,
         sha256: letterHash,
@@ -242,7 +344,9 @@ export const previewCompanyAuthorizationLetter = createServerFn({ method: "POST"
     const frozen = authMeta["letter_snapshot"] as CompanyLetterInput | undefined;
 
     const letter = buildCompanyAuthorizationLetter(
-      frozen ?? letterInput(ctx, new Date().toISOString()),
+      frozen
+        ? { ...frozen, reference_id: frozen.reference_id || ctx.referenceId }
+        : letterInput(ctx, new Date().toISOString()),
     );
     const letterHash = createHash("sha256").update(letter.canonical).digest("hex");
 
@@ -255,7 +359,9 @@ export const previewCompanyAuthorizationLetter = createServerFn({ method: "POST"
             title: String(authMeta["title"] ?? ""),
             company_name: String(authMeta["company_name"] ?? ""),
             signed_at: String(authMeta["signed_at"]),
+            work_email: (authMeta["work_email"] as string | null) ?? ctx.representativeEmail,
             letter_sha256: String(authMeta["letter_sha256"] ?? letterHash),
+            signature_sha256: (authMeta["signature_sha256"] as string | null) ?? null,
           }
         : null,
     );
@@ -323,8 +429,10 @@ export const signCompanyAuthorizationLetter = createServerFn({ method: "POST" })
       legal_name: data.legal_name.trim(),
       title: data.title.trim(),
       company_name: data.company_name.trim(),
+      work_email: ctx.representativeEmail,
       signed_at: signedAt,
       letter_sha256: letterHash,
+      signature_sha256: signatureHash,
     });
 
     const key = `clients/${userId}/company-authorization/${letter.version}-signed.pdf`;
@@ -347,6 +455,8 @@ export const signCompanyAuthorizationLetter = createServerFn({ method: "POST" })
           legal_name: data.legal_name.trim(),
           title: data.title.trim(),
           company_name: data.company_name.trim(),
+          work_email: ctx.representativeEmail,
+          reference_id: ctx.referenceId,
           agreed: true,
           signed_at: signedAt,
           letter_version: letter.version,
