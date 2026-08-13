@@ -72,11 +72,18 @@ export const getFindingHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ findingId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    // Ownership is enforced on the parent finding row.
+    const { data: owned } = await supabase
+      .from("timestamp_findings")
+      .select("id")
+      .eq("id", data.findingId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!owned) throw new Error("Not authorized for this finding.");
     const { data: rows } = await supabase
       .from("finding_review_history")
       .select("*")
-      .eq("user_id", context.userId)
       .eq("finding_id", data.findingId)
       .order("created_at", { ascending: false });
     return { history: rows ?? [] };
