@@ -34,6 +34,8 @@ import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
 import { V2OnboardingWizard } from "@/components/onboarding/V2OnboardingWizard";
 import { switchToCompanyOnboarding } from "@/lib/onboarding/company.functions";
+import { isV2AccountType } from "@/lib/onboarding/v2-config";
+
 
 /** Client types that belong to the dedicated company onboarding flow. */
 const COMPANY_CLIENT_TYPES = new Set(["business", "corporate", "agency"]);
@@ -55,11 +57,35 @@ export function OnboardingWizard({
 }: {
   initialProgress: { current_step?: number | null; onboarding_version?: string | null } | null;
 }) {
-  if (initialProgress?.onboarding_version === "v2") {
+  const fetchProfile = useServerFn(getClientProfile);
+  const { data: routingProfile, isLoading: routingLoading } = useQuery({
+    queryKey: ["client_profile"],
+    queryFn: () => fetchProfile(),
+  });
+
+  const isV2 =
+    initialProgress?.onboarding_version === "v2" ||
+    (routingProfile as { onboarding_version?: string | null } | undefined)?.onboarding_version ===
+      "v2" ||
+    isV2AccountType(
+      (routingProfile as { onboarding_account_type?: unknown } | undefined)
+        ?.onboarding_account_type,
+    );
+
+  if (routingLoading) {
+    return (
+      <div className="fixed inset-0 grid place-items-center bg-[#050A18] text-white/70 text-sm">
+        Loading secure onboarding…
+      </div>
+    );
+  }
+
+  if (isV2) {
     return <V2OnboardingWizard initialProgress={initialProgress} />;
   }
   return <LegacyOnboardingWizard initialProgress={initialProgress} />;
 }
+
 
 function LegacyOnboardingWizard({
   initialProgress,
@@ -375,19 +401,20 @@ function Step1Profile({
     }
   }, [profile]);
 
+  const isCompanyType = COMPANY_CLIENT_TYPES.has(form.client_type);
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
   const showCompanyFields = showsCompanyFields(form.client_type);
-  const isValid = isStep1Valid(form as Step1Form);
+  const isValid = isCompanyType || isStep1Valid(form as Step1Form);
 
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
     try {
-      await saveAction({ data: buildStep1Payload(form as Step1Form) as any });
-
-      // Company client types use the dedicated company onboarding flow.
-      if (COMPANY_CLIENT_TYPES.has(form.client_type)) {
+      // Company client types use the dedicated company onboarding flow — no
+      // legacy personal profile fields are required to get there.
+      if (isCompanyType) {
         const result = await switchToCompany({});
+        await stepQc.invalidateQueries({ queryKey: ["client_profile"] });
         await onRefetch();
         if (result?.switched) {
           await stepQc.invalidateQueries({ queryKey: ["onboarding-progress"] });
@@ -396,6 +423,7 @@ function Step1Profile({
         }
       }
 
+      await saveAction({ data: buildStep1Payload(form as Step1Form) as any });
       await onRefetch();
       toast.success("Profile saved successfully");
       onNext();
@@ -405,6 +433,7 @@ function Step1Profile({
       setSaving(false);
     }
   };
+
 
   return (
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
