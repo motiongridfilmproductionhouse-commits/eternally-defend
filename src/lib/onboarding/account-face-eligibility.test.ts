@@ -3,7 +3,7 @@ import {
   faceProtectionApplies,
   isCompanyAccount,
   requiresFaceProtection,
-  buildV2Steps,
+  v2FlowForAccount,
 } from "./v2-config";
 
 describe("account-type face protection eligibility", () => {
@@ -12,8 +12,8 @@ describe("account-type face protection eligibility", () => {
       expect(isCompanyAccount(t)).toBe(true);
       expect(faceProtectionApplies(t)).toBe(false);
       expect(requiresFaceProtection(t)).toBe(false);
-      const stepKeys = buildV2Steps(t).map((s) => s.key);
-      expect(stepKeys.some((k) => String(k).includes("face"))).toBe(false);
+      const stepKeys = v2FlowForAccount(t).map((s) => String(s.key));
+      expect(stepKeys.some((k) => k.includes("face"))).toBe(false);
     }
   });
 
