@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
+
 import type { Database } from "@/integrations/supabase/types";
 import { filterDeepfakeCandidates } from "./deepfake/filter.server";
 import { generateDeepfakeQueries } from "./deepfake/query-generator.server";
