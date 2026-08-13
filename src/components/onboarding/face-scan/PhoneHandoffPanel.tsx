@@ -35,10 +35,12 @@ export function PhoneHandoffPanel({
     setLoading(true);
     try {
       const res: any = await create();
-      // Always prefer the browser's public origin so the phone can reach the link.
-      const link = res.token
-        ? `${window.location.origin}/face-handoff/${res.token}`
-        : res.url;
+      // Use the server-issued public URL; only fall back to this browser's origin
+      // when it is a real public domain (never the login-gated preview host).
+      const origin = window.location.origin;
+      const gated = /localhost|127\.0\.0\.1|id-preview|lovableproject\.com/.test(origin);
+      const link = res.url ?? (!gated && res.token ? `${origin}/face-handoff/${res.token}` : res.url);
+
       const QRCode = (await import("qrcode")).default;
       const dataUrl = await QRCode.toDataURL(link, {
         margin: 1,
