@@ -25,7 +25,7 @@ export const createFaceHandoff = createServerFn({ method: "POST" })
       } catch {
         /* fall through */
       }
-      return "https://www.eternasentinel.com";
+      return "https://eternally-defend.lovable.app";
     })();
     return { token, url: `${origin}/face-handoff/${token}`, expiresAt };
 
