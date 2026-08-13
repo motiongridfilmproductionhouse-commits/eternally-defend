@@ -190,16 +190,3 @@ export function CompanyAuthorityStep({
   );
 }
 
-function Signal({ label, ok }: { label: string; ok: boolean }) {
-  return (
-    <div
-      className={`rounded-lg border p-3 text-xs ${
-        ok
-          ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-100"
-          : "border-white/10 bg-white/5 text-white/55"
-      }`}
-    >
-      {label}
-    </div>
-  );
-}
