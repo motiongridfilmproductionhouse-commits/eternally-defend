@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
-import { FACE_PROTECTION_ONBOARDING_ENABLED } from "./face-protection-flag";
 
 async function requireAdmin(ctx: any) {
   const { data } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
@@ -151,18 +150,12 @@ export const decideAuthorization = createServerFn({ method: "POST" })
       const base = computeScore(bundle);
       const score = base + 10; // admin approval
 
-      // Face Protection is temporarily disabled: it is neither required for
-      // enforcement readiness nor counted toward the readiness threshold.
-      const faceRequirementMet = FACE_PROTECTION_ONBOARDING_ENABLED
-        ? face?.status === "FACE_VERIFIED"
-        : true;
-      const readinessThreshold = FACE_PROTECTION_ONBOARDING_ENABLED ? 100 : 80;
       const enforcementReady =
         kyc?.verification_status === "APPROVED" &&
-        faceRequirementMet &&
+        face?.status === "FACE_VERIFIED" &&
         (assets ?? []).some((a: any) => a.verification_status === "VERIFIED") &&
         (sigs ?? []).some((x: any) => x.status === "SIGNED") &&
-        score >= readinessThreshold;
+        score >= 100;
 
       await supabase
         .from("client_authorizations")

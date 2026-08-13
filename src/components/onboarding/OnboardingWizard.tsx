@@ -35,7 +35,6 @@ import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingComple
 import { V2OnboardingWizard } from "@/components/onboarding/V2OnboardingWizard";
 import { switchToCompanyOnboarding } from "@/lib/onboarding/company.functions";
 import { isV2AccountType } from "@/lib/onboarding/v2-config";
-import { FACE_PROTECTION_ONBOARDING_ENABLED } from "@/lib/onboarding/face-protection-flag";
 
 
 /** Client types that belong to the dedicated company onboarding flow. */
@@ -158,21 +157,16 @@ function LegacyOnboardingWizard({
 
   // Celebrity / public figure accounts skip Veriff identity verification entirely.
   const skipsKyc = (profile?.client_type ?? "") === "celebrity";
-  // Face Protection enrollment is temporarily disabled for every account type.
-  const skipsFace = !FACE_PROTECTION_ONBOARDING_ENABLED;
-  const firstStepAfterProfile = skipsKyc ? (skipsFace ? 4 : 3) : 2;
 
   const goBack = () =>
     setStep((s) => {
-      let prev = Math.max(1, s - 1);
-      if (skipsFace && prev === 3) prev = 2;
+      const prev = Math.max(1, s - 1);
       return skipsKyc && prev === 2 ? 1 : prev;
     });
 
   useEffect(() => {
-    if (skipsFace && step === 3) setStep(4);
-    else if (skipsKyc && step === 2) setStep(skipsFace ? 4 : 3);
-  }, [skipsKyc, skipsFace, step]);
+    if (skipsKyc && step === 2) setStep(3);
+  }, [skipsKyc, step]);
 
   const stepIndex = step - 1;
   const isKycApproved = skipsKyc || kyc?.verification_status === "APPROVED";
@@ -182,7 +176,7 @@ function LegacyOnboardingWizard({
   const hasVerifiedAsset = assets?.some((a: any) => a.verification_status === "VERIFIED") ?? false;
   const hasScopes = (authBundle?.scopes?.filter((s: any) => s.granted)?.length ?? 0) > 0;
   const visibleSteps = STEP_TITLES.map((title, i) => ({ title, step: i + 1, index: i })).filter(
-    (s) => !(skipsKyc && s.step === 2) && !(skipsFace && s.step === 3),
+    (s) => !(skipsKyc && s.step === 2),
   );
   const visiblePosition = Math.max(
     1,
@@ -231,7 +225,7 @@ function LegacyOnboardingWizard({
                 const isPast = i < stepIndex;
                 const isLocked =
                   (i >= 2 && !isKycApproved) ||
-                  (i >= 3 && !skipsFace && !isFaceHandled) ||
+                  (i >= 3 && !isFaceHandled) ||
                   (i >= 4 && !hasVerifiedAsset) ||
                   (i >= 5 && !hasScopes) ||
                   (i >= 6 && !isDraftReady) ||
@@ -295,7 +289,7 @@ function LegacyOnboardingWizard({
                 <Step1Profile
                   profile={profile}
                   onRefetch={refetchProfile}
-                  onNext={() => advanceStep(skipsKyc ? firstStepAfterProfile : 2)}
+                  onNext={() => advanceStep(skipsKyc ? 3 : 2)}
                 />
               )}
               {step === 2 && !skipsKyc && (
@@ -304,10 +298,10 @@ function LegacyOnboardingWizard({
                   profile={profile}
                   onRefetch={refetchKyc}
                   onBack={goBack}
-                  onNext={() => advanceStep(skipsFace ? 4 : 3)}
+                  onNext={() => advanceStep(3)}
                 />
               )}
-              {step === 3 && !skipsFace && (
+              {step === 3 && (
                 <FaceEnrollmentStep
                   enrollmentStatus={faceEnrollment}
                   isKycApproved={isKycApproved}
@@ -347,7 +341,6 @@ function LegacyOnboardingWizard({
                 <StepLockedPlaceholder
                   step={step}
                   isKycApproved={isKycApproved}
-                  skipsFace={skipsFace}
                   isFaceVerified={isFaceVerified}
                   hasVerifiedAsset={hasVerifiedAsset}
                   hasScopes={hasScopes}
@@ -756,7 +749,6 @@ function CheckCircle2({ className }: { className?: string }) {
 function StepLockedPlaceholder({
   step,
   isKycApproved,
-  skipsFace,
   isFaceVerified,
   hasVerifiedAsset,
   hasScopes,
@@ -767,7 +759,6 @@ function StepLockedPlaceholder({
 }: {
   step: number;
   isKycApproved: boolean;
-  skipsFace: boolean;
   isFaceVerified: boolean;
   hasVerifiedAsset: boolean;
   hasScopes: boolean;
@@ -791,7 +782,7 @@ function StepLockedPlaceholder({
             <p className="text-sm text-red-400">
               You must complete Identity Verification (Step 2) to unlock this section.
             </p>
-          ) : !skipsFace && !isFaceVerified && step >= 4 ? (
+          ) : !isFaceVerified && step >= 4 ? (
             <p className="text-sm text-red-400">
               Complete or defer Face Protection Enrollment (Step 3) to unlock this section.
             </p>
