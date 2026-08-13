@@ -34,6 +34,8 @@ import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
 import { V2OnboardingWizard } from "@/components/onboarding/V2OnboardingWizard";
 import { switchToCompanyOnboarding } from "@/lib/onboarding/company.functions";
+import { isV2AccountType } from "@/lib/onboarding/v2-config";
+
 
 /** Client types that belong to the dedicated company onboarding flow. */
 const COMPANY_CLIENT_TYPES = new Set(["business", "corporate", "agency"]);
