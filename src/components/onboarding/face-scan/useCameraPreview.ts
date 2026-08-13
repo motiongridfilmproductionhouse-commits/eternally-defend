@@ -32,6 +32,42 @@ function detectFrameBlock(): boolean {
   return true;
 }
 
+export type CameraAvailability = "checking" | "available" | "none" | "blocked";
+
+/**
+ * Detects whether this device can realistically run the liveness capture,
+ * without prompting for permission. Used to surface the phone hand-off.
+ */
+export function useCameraAvailability(): CameraAvailability {
+  const [availability, setAvailability] = useState<CameraAvailability>("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        if (!cancelled) setAvailability("none");
+        return;
+      }
+      if (detectFrameBlock()) {
+        if (!cancelled) setAvailability("blocked");
+        return;
+      }
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasVideo = devices.some((d) => d.kind === "videoinput");
+        if (!cancelled) setAvailability(hasVideo ? "available" : "none");
+      } catch {
+        if (!cancelled) setAvailability("available");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return availability;
+}
+
 /**
  * Local preview only (Phase 1). The stream is released before the AWS liveness
  * detector mounts so it can take exclusive control of the camera.
