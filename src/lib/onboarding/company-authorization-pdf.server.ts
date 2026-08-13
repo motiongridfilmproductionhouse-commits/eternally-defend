@@ -28,6 +28,20 @@ const MARGIN = 56;
 const CONTENT = WIDTH - MARGIN * 2;
 const BOTTOM = 84;
 
+/** "13 August 2026 at 13:15 UTC" — readable, unambiguous, timezone explicit. */
+function formatSignedAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const day = date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  const time = date.toISOString().slice(11, 16);
+  return `${day} at ${time} UTC`;
+}
+
 export async function renderCompanyAuthorizationPdf(
   letter: CompanyLetterDocument,
   signature?: CompanyAuthorizationSignature | null,
@@ -70,8 +84,28 @@ export async function renderCompanyAuthorizationPdf(
       color: (opts.color as never) ?? ink,
     });
 
+  /** Breaks an unbroken token (hash, long URL) into width-safe chunks. */
+  const hardBreak = (token: string, size: number, width: number, bold: boolean) => {
+    const chunks: string[] = [];
+    let current = "";
+    for (const char of token) {
+      if (current && measure(current + char, size, bold) > width) {
+        chunks.push(current);
+        current = char;
+      } else {
+        current += char;
+      }
+    }
+    if (current) chunks.push(current);
+    return chunks;
+  };
+
   const wrap = (text: string, size: number, width: number, bold = false) => {
-    const words = text.split(/\s+/);
+    const words = text
+      .split(/\s+/)
+      .flatMap((word) =>
+        measure(word, size, bold) > width ? hardBreak(word, size, width, bold) : [word],
+      );
     const lines: string[] = [];
     let current = "";
     for (const word of words) {
@@ -308,7 +342,7 @@ export async function renderCompanyAuthorizationPdf(
           ? [{ label: "Work email", value: signature.work_email }]
           : []),
         { label: "Signature", value: `/s/ ${signature.legal_name}` },
-        { label: "Signed date / time (UTC)", value: signature.signed_at },
+        { label: "Signed date / time (UTC)", value: formatSignedAt(signature.signed_at) },
         { label: "Authorization reference", value: letter.reference_id },
         { label: "Document version", value: letter.version },
         { label: "Document hash (SHA-256)", value: signature.letter_sha256 },
