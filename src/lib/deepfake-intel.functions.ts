@@ -835,7 +835,10 @@ export const submitManualEvidenceUrls = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const enforcedSubject = await enforceScanSubject(context, { targetName: data.target_name });
+    data.target_name = enforcedSubject.targetName;
     const insertedLeads = [];
+
     for (const url of data.urls) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: lead, error } = await (supabase as any)
