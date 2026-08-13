@@ -9,10 +9,17 @@ export const previewQueryPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
     z
-      .object({ targetName: z.string().min(2).max(120), aliases: z.array(z.string()).max(10).optional() })
+      .object({ targetName: z.string().min(2).max(120).optional(), aliases: z.array(z.string()).max(10).optional() })
       .parse(raw),
   )
-  .handler(async ({ data }) => buildQueryPlan({ targetName: data.targetName, aliases: data.aliases }));
+  .handler(async ({ data, context }) => {
+    const enforced = await enforceScanSubject(context, {
+      targetName: data.targetName,
+      aliases: data.aliases,
+    });
+    return buildQueryPlan({ targetName: enforced.targetName, aliases: enforced.aliases });
+  });
+
 
 export const listYoutubeRemovalScans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
