@@ -108,12 +108,48 @@ export function CompanyLetterPdfViewer({ height = 520 }: { height?: number }) {
             {error}
           </div>
         ) : (
-          <iframe
-            src={`${blobUrl}#view=FitH`}
+          <object
+            data={`${blobUrl}#view=FitH`}
+            type="application/pdf"
             title="Eterna Sentinel company authorization letter"
             className="h-full w-full"
-          />
+          >
+            <div className="grid h-full place-items-center gap-3 px-6 text-center">
+              <p className="text-xs leading-relaxed text-white/60">
+                Inline PDF preview isn’t supported in this browser view. The full letter is shown
+                above and can be downloaded here.
+              </p>
+              <Button type="button" size="sm" onClick={download} disabled={!blobUrl}>
+                <Download className="mr-1.5 size-3.5" /> Download authorization letter
+              </Button>
+            </div>
+          </object>
         )}
+      </div>
+
+      {/* Always-visible actions under the preview, so they are reachable even
+          when the embedded PDF viewer takes over the frame. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={download}
+          disabled={!blobUrl}
+          className={GHOST_BUTTON}
+        >
+          <Download className="mr-1.5 size-3.5" /> Download PDF
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setReloadKey((value) => value + 1)}
+          disabled={loading}
+          className={GHOST_BUTTON}
+        >
+          <RefreshCw className={`mr-1.5 size-3.5 ${loading ? "animate-spin" : ""}`} /> Regenerate
+        </Button>
       </div>
     </div>
   );
