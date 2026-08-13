@@ -14,13 +14,20 @@ export const createFaceHandoff = createServerFn({ method: "POST" })
     const request = getRequest();
     const origin = (() => {
       try {
+        const h = request!.headers;
+        const fwdHost = h.get("x-forwarded-host") || h.get("host");
+        const fwdProto = h.get("x-forwarded-proto") || "https";
+        if (fwdHost && !/^localhost|^127\.0\.0\.1/.test(fwdHost)) {
+          return `${fwdProto}://${fwdHost}`;
+        }
         return new URL(request!.url).origin;
       } catch {
         return "";
       }
     })();
-    return { url: `${origin}/face-handoff/${token}`, expiresAt };
+    return { token, url: `${origin}/face-handoff/${token}`, expiresAt };
   });
+
 
 /** Phone: validate the link and report what the mobile page must show next. */
 export const getFaceHandoffSession = createServerFn({ method: "POST" })
