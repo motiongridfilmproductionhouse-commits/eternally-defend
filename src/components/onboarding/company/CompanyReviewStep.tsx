@@ -103,9 +103,7 @@ export function CompanyReviewStep({
                   note="Submitted"
                 />
               ) : (
-                <div className="text-xs text-rose-200/80">
-                  Company registration proof is required.
-                </div>
+                <Row label="Registration proof" value="Not provided (optional)" />
               )}
               <Row
                 label="Authorization letter"
@@ -137,7 +135,6 @@ export function CompanyReviewStep({
               isAuthorizationLoading ||
               !profile?.legal_company_name ||
               !rep?.full_legal_name ||
-              !authorization?.registration_proof ||
               !authorization?.signature
             }
             className="bg-blue-600 text-white hover:bg-blue-500"

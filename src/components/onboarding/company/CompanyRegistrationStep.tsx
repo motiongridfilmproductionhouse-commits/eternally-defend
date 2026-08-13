@@ -99,19 +99,20 @@ export function CompanyRegistrationStep({
           </div>
         ) : (
           <>
-            {/* 1. Registration proof — required */}
+            {/* 1. Registration proof — optional */}
             <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-4">
               <div>
                 <div className="text-sm font-semibold">
                   Company Registration Proof{" "}
-                  <span className="ml-1 rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-rose-200">
-                    Required
+                  <span className="ml-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/70">
+                    Optional
                   </span>
                 </div>
                 <div className="mt-0.5 text-xs text-white/55">
-                  Upload an official document showing that the company is legally registered. PDF,
-                  PNG or JPG/JPEG.
+                  You can upload an official document showing that the company is legally registered
+                  (PDF, PNG or JPG/JPEG), or add it later — it isn't required to continue.
                 </div>
+
               </div>
 
               <div className="space-y-2">
@@ -238,7 +239,7 @@ export function CompanyRegistrationStep({
           </Button>
           <Button
             onClick={onNext}
-            disabled={isLoading || !proof || !confirmed}
+            disabled={isLoading || !confirmed}
             className="bg-blue-600 text-white hover:bg-blue-500"
           >
             Continue to Electronic Signature <ChevronRight className="ml-1 size-4" />
