@@ -5,6 +5,7 @@ import {
   CompanyOtpVerifySchema,
   CompanyProfileSchema,
   CompanyRepresentativeSchema,
+  CompanyOfficialProfilesSchema,
   CompanyServicesSchema,
 } from "./company-schemas";
 import {
@@ -15,6 +16,10 @@ import {
   scopesForCompanyServices,
   type CompanyAuthorityStatus,
 } from "./company-config";
+import {
+  normalizeOfficialProfiles,
+  readOfficialProfiles,
+} from "./company-official-profiles";
 import {
   deliverCompanyOtpEmail,
   generateOtpCode,
@@ -28,7 +33,7 @@ export const getCompanyOnboarding = createServerFn({ method: "GET" })
     const { data: profile, error } = await supabase
       .from("client_profiles")
       .select(
-        "onboarding_version, onboarding_account_type, company_name, company_brand_name, website, country, address, business_reg_number, company_email, company_email_verified_at, company_authority_status, phone, legal_name, role_title, social_profiles",
+        "onboarding_version, onboarding_account_type, onboarding_completed, company_name, company_brand_name, website, country, address, business_reg_number, company_email, company_email_verified_at, company_authority_status, phone, legal_name, role_title, social_profiles",
       )
       .eq("user_id", userId)
       .maybeSingle();
