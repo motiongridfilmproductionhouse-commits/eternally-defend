@@ -35,14 +35,19 @@ export function PhoneHandoffPanel({
     setLoading(true);
     try {
       const res: any = await create();
+      // Always prefer the browser's public origin so the phone can reach the link.
+      const link = res.token
+        ? `${window.location.origin}/face-handoff/${res.token}`
+        : res.url;
       const QRCode = (await import("qrcode")).default;
-      const dataUrl = await QRCode.toDataURL(res.url, {
+      const dataUrl = await QRCode.toDataURL(link, {
         margin: 1,
         width: 320,
         color: { dark: "#0b1220", light: "#ffffff" },
       });
-      setUrl(res.url);
+      setUrl(link);
       setQr(dataUrl);
+
       setExpiresAt(res.expiresAt);
       stopPolling();
       // Desktop polls the real backend enrollment status — never a fake signal.
