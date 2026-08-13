@@ -77,6 +77,23 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
+    // SUBJECT ISOLATION — the protected subject always comes from the workspace,
+    // never from the browser payload.
+    const enforced = await enforceScanSubject(context, {
+      targetName: data.target_name,
+      aliases: data.aliases,
+    });
+    data.target_name = enforced.targetName;
+    data.aliases = enforced.aliases;
+    data.handles = enforced.unrestricted
+      ? data.handles
+      : (data.handles ?? []).filter((h) =>
+          enforced.identity.authorizedHandles.some(
+            (a) => a.toLowerCase() === h.replace(/^@/, "").toLowerCase(),
+          ),
+        );
+
+
     const hostOf = (url: string): string | null => {
       try {
         return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
