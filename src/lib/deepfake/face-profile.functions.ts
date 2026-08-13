@@ -89,6 +89,10 @@ export const createDeepfakeTargetProfile = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => CreateProfileInput.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // SUBJECT ISOLATION — face profiles can only be created for the registered subject.
+    const enforcedSubject = await enforceScanSubject(context, { targetName: data.target_name });
+    data.target_name = enforcedSubject.targetName;
+
 
     const { data: profile, error } = await supabase
       .from("deepfake_target_profiles")
