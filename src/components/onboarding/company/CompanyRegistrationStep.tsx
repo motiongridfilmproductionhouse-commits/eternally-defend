@@ -31,7 +31,7 @@ export function CompanyRegistrationStep({
   onNext,
 }: {
   onBack: () => void;
-  onNext: () => void;
+  onNext: () => void | Promise<void>;
 }) {
   const fetchAuthorization = useServerFn(getCompanyAuthorization);
   const upload = useServerFn(uploadCompanyRegistrationProof);
@@ -47,6 +47,7 @@ export function CompanyRegistrationStep({
     "certificate_of_incorporation",
   );
   const [busy, setBusy] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
   const proof = data?.registration_proof ?? null;
@@ -95,6 +96,17 @@ export function CompanyRegistrationStep({
       toast.error(error instanceof Error ? error.message : "Unable to remove document");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    if (!confirmed || advancing) return;
+    setAdvancing(true);
+    try {
+      await onNext();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to continue");
+      setAdvancing(false);
     }
   };
 
@@ -277,11 +289,16 @@ export function CompanyRegistrationStep({
             <ChevronLeft className="mr-1 size-4" /> Back
           </Button>
           <Button
-            onClick={onNext}
-            disabled={isLoading || !confirmed}
+            type="button"
+            onClick={handleContinue}
+            disabled={isLoading || !confirmed || advancing}
             className="bg-blue-600 text-white hover:bg-blue-500"
           >
-            Continue to Electronic Signature <ChevronRight className="ml-1 size-4" />
+            {advancing ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : null}
+            {advancing ? "Opening Electronic Signature…" : "Continue to Electronic Signature"}
+            {!advancing ? <ChevronRight className="ml-1 size-4" /> : null}
           </Button>
         </div>
       </CardContent>
