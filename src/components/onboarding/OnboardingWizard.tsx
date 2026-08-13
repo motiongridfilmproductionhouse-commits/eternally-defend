@@ -478,8 +478,9 @@ function Step1Profile({
             <select
               className="flex h-10 w-full rounded-md border border-white/10 bg-[#0F172A] px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 text-white"
               value={form.client_type}
-              onChange={set("client_type")}
-            >
+              onChange={handleClientTypeChange}
+              disabled={saving}
+
               <option value="individual">Individual</option>
               <option value="creator">Creator</option>
               <option value="celebrity">Celebrity</option>
