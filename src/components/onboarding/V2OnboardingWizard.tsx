@@ -300,23 +300,28 @@ export function V2OnboardingWizard({
                 />
               )}
 
+              {current.key === "company_social" && (
+                <CompanySocialStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+              )}
+
               {current.key === "company_authority" && (
                 <CompanyAuthorityStep onBack={goBack} onNext={() => advanceStep(current.step)} />
               )}
 
-              {current.key === "company_assets" && (
-                <CompanyAssetsStep onBack={goBack} onNext={() => advanceStep(current.step)} />
-              )}
-
-              {current.key === "company_campaigns" && (
-                <CompanyCampaignStep onBack={goBack} onNext={() => advanceStep(current.step)} />
-              )}
-
-              {current.key === "company_services" && (
-                <CompanyServicesStep
-                  faceEnrolled={isFaceVerified}
+              {current.key === "company_review" && (
+                <CompanyReviewStep
                   onBack={goBack}
                   onNext={() => advanceStep(current.step)}
+                  onGoToStep={goToStep}
+                />
+              )}
+
+              {current.key === "company_complete" && (
+                <CompanyCompleteStep
+                  onCompleted={async () => {
+                    await refetchProfile();
+                    await qc.invalidateQueries({ queryKey: ["onboarding-progress"] });
+                  }}
                 />
               )}
 
