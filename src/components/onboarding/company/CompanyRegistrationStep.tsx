@@ -104,14 +104,15 @@ export function CompanyRegistrationStep({
               <div>
                 <div className="text-sm font-semibold">
                   Company Registration Proof{" "}
-                  <span className="ml-1 rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-rose-200">
-                    Required
+                  <span className="ml-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/70">
+                    Optional
                   </span>
                 </div>
                 <div className="mt-0.5 text-xs text-white/55">
-                  Upload an official document showing that the company is legally registered. PDF,
-                  PNG or JPG/JPEG.
+                  You can upload an official document showing that the company is legally registered
+                  (PDF, PNG or JPG/JPEG), or add it later — it isn't required to continue.
                 </div>
+
               </div>
 
               <div className="space-y-2">
