@@ -11,22 +11,10 @@ export const createFaceHandoff = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { issueHandoff } = await import("./face-handoff.server");
     const { token, expiresAt } = await issueHandoff(context.userId);
-    const request = getRequest();
-    // Phones must reach a public, non-gated domain — never the Lovable preview host.
-    const origin = (() => {
-      const configured = process.env["PUBLIC_APP_URL"]?.replace(/\/$/, "");
-      if (configured) return configured;
-      try {
-        const h = request!.headers;
-        const host = h.get("x-forwarded-host") || h.get("host") || "";
-        const proto = h.get("x-forwarded-proto") || "https";
-        const gated = /localhost|127\.0\.0\.1|id-preview|lovableproject\.com/.test(host);
-        if (host && !gated) return `${proto}://${host}`;
-      } catch {
-        /* fall through */
-      }
-      return "https://eternally-defend.lovable.app";
-    })();
+    // Mobile links MUST come from the configured public origin (PUBLIC_APP_URL),
+    // never from the request host (which can be an internal/gated preview host).
+    const configured = process.env["PUBLIC_APP_URL"]?.replace(/\/+$/, "");
+    const origin = configured || "https://eternally-defend.lovable.app";
     return { token, url: `${origin}/face-handoff/${token}`, expiresAt };
 
   });

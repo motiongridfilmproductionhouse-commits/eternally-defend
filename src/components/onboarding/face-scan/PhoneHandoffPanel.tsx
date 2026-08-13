@@ -35,11 +35,9 @@ export function PhoneHandoffPanel({
     setLoading(true);
     try {
       const res: any = await create();
-      // Use the server-issued public URL; only fall back to this browser's origin
-      // when it is a real public domain (never the login-gated preview host).
-      const origin = window.location.origin;
-      const gated = /localhost|127\.0\.0\.1|id-preview|lovableproject\.com/.test(origin);
-      const link = res.url ?? (!gated && res.token ? `${origin}/face-handoff/${res.token}` : res.url);
+      // Always use the server-issued public URL (PUBLIC_APP_URL); never window.location.origin.
+      const link: string = res.url;
+      if (!link) throw new Error("Secure phone link unavailable — please retry");
 
       const QRCode = (await import("qrcode")).default;
       const dataUrl = await QRCode.toDataURL(link, {
