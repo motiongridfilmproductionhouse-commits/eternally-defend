@@ -37,7 +37,8 @@ import {
 import { FaceScanRing } from "./face-scan/FaceScanRing";
 import { FaceMeshOverlay } from "./face-scan/FaceMeshOverlay";
 import { DigitalFaceShield } from "./face-scan/DigitalFaceShield";
-import { useCameraPreview } from "./face-scan/useCameraPreview";
+import { useCameraPreview, useCameraAvailability } from "./face-scan/useCameraPreview";
+import { PhoneHandoffPanel } from "./face-scan/PhoneHandoffPanel";
 
 
 const loadFaceLivenessDetector = async () => {
@@ -154,6 +155,12 @@ export function FaceEnrollmentStep({
   const [processingText, setProcessingText] = useState("");
 
   const camera = useCameraPreview();
+  const cameraAvailability = useCameraAvailability();
+  const cameraUnavailable =
+    cameraAvailability === "none" ||
+    cameraAvailability === "blocked" ||
+    camera.state === "denied" ||
+    camera.state === "unavailable";
 
   const recordConsent = useServerFn(recordBiometricConsent);
   const createSession = useServerFn(createLivenessSession);
@@ -186,10 +193,6 @@ export function FaceEnrollmentStep({
   };
 
   const handleDefer = async () => {
-    if (!isKycApproved) {
-      toast.error("Complete Identity Verification first.");
-      return;
-    }
     setBusy(true);
     try {
       await defer();
@@ -425,9 +428,12 @@ export function FaceEnrollmentStep({
           </div>
         }
       >
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-white/70">
-          Deepfake and impersonation detection tied to your face will remain{" "}
-          <span className="text-amber-300 font-medium">inactive</span> until you complete enrollment.
+        <div className="space-y-4">
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-white/70">
+            <span className="text-amber-200 font-medium">FACE PROTECTION PENDING</span> — automatic
+            face/deepfake monitoring will activate after Face Protection enrollment.
+          </div>
+          <PhoneHandoffPanel onRefetch={onRefetch} highlight={cameraUnavailable} />
         </div>
       </ScanShell>
     );
@@ -445,7 +451,7 @@ export function FaceEnrollmentStep({
               <ChevronLeft className="size-4 mr-1" /> Back
             </Button>
             <div className="flex gap-2">
-              {isKycApproved && (
+              {(
                 <Button
                   variant="outline"
                   onClick={handleDefer}
@@ -691,7 +697,7 @@ export function FaceEnrollmentStep({
             <ChevronLeft className="size-4 mr-1" /> Back
           </Button>
           <div className="flex gap-2">
-            {isKycApproved && (
+            {(
               <Button
                 variant="outline"
                 onClick={handleDefer}
@@ -782,6 +788,10 @@ export function FaceEnrollmentStep({
         <p className="text-xs text-white/45 max-w-sm mx-auto">
           Keep your face centered and slowly turn your head as instructed.
         </p>
+      </div>
+
+      <div className="max-w-md mx-auto">
+        <PhoneHandoffPanel onRefetch={onRefetch} highlight={cameraUnavailable} />
       </div>
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
