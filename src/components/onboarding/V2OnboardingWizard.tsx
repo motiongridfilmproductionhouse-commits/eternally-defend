@@ -30,6 +30,12 @@ import { AuthorizationReviewStep } from "@/components/onboarding/AuthorizationRe
 import { SignatureStep } from "@/components/onboarding/SignatureStep";
 import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
+import { CompanyProfileStep } from "@/components/onboarding/company/CompanyProfileStep";
+import { CompanyRepresentativeStep } from "@/components/onboarding/company/CompanyRepresentativeStep";
+import { CompanyAuthorityStep } from "@/components/onboarding/company/CompanyAuthorityStep";
+import { CompanyAssetsStep } from "@/components/onboarding/company/CompanyAssetsStep";
+import { CompanyCampaignStep } from "@/components/onboarding/company/CompanyCampaignStep";
+import { CompanyServicesStep } from "@/components/onboarding/company/CompanyServicesStep";
 
 export function V2OnboardingWizard({
   initialProgress,
@@ -281,6 +287,40 @@ export function V2OnboardingWizard({
               {current.key === "assets" && (
                 <AssetVerificationStep onBack={goBack} onNext={() => advanceStep(current.step)} />
               )}
+
+              {/* Company (Client Type = COMPANY) route */}
+              {current.key === "company_profile" && (
+                <CompanyProfileStep onNext={() => advanceStep(current.step)} />
+              )}
+
+              {current.key === "company_representative" && (
+                <CompanyRepresentativeStep
+                  onBack={goBack}
+                  onNext={() => advanceStep(current.step)}
+                />
+              )}
+
+              {current.key === "company_authority" && (
+                <CompanyAuthorityStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+              )}
+
+              {current.key === "company_assets" && (
+                <CompanyAssetsStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+              )}
+
+              {current.key === "company_campaigns" && (
+                <CompanyCampaignStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+              )}
+
+              {current.key === "company_services" && (
+                <CompanyServicesStep
+                  faceEnrolled={isFaceVerified}
+                  onBack={goBack}
+                  onNext={() => advanceStep(current.step)}
+                />
+              )}
+
+
 
               {current.key === "scope" && (
                 <AuthorizationScopeStep onBack={goBack} onNext={() => advanceStep(current.step)} />
