@@ -34,6 +34,7 @@ export const enqueueAutomationJob = createServerFn({ method: "POST" })
         "id,user_id,platform,method,status,target_url,evidence_pdf_path,authorization_pdf_path,platform_complaint_pdf_path",
       )
       .eq("id", data.enforcementRequestId)
+      .eq("user_id", userId)
       .maybeSingle();
     if (reqErr) throw reqErr;
     if (!req) throw new Error("Enforcement request not found");
@@ -50,6 +51,7 @@ export const enqueueAutomationJob = createServerFn({ method: "POST" })
     const { data: existing } = await supabase
       .from("automation_jobs")
       .select("id,status")
+      .eq("user_id", userId)
       .eq("enforcement_request_id", data.enforcementRequestId)
       .in("status", ["queued", "running", "review_ready"])
       .maybeSingle();
@@ -139,12 +141,18 @@ export const getAutomationJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ jobId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const [{ data: job, error: jobErr }, { data: events, error: eventsErr }] = await Promise.all([
-      supabase.from("automation_jobs").select("*").eq("id", data.jobId).maybeSingle(),
+      supabase
+        .from("automation_jobs")
+        .select("*")
+        .eq("id", data.jobId)
+        .eq("user_id", userId)
+        .maybeSingle(),
       supabase
         .from("automation_events")
         .select("id,event,result,duration_ms,payload_json,screenshot_path,created_at")
+        .eq("user_id", userId)
         .eq("job_id", data.jobId)
         .order("created_at", { ascending: true })
         .limit(500),
@@ -164,6 +172,7 @@ export const cancelAutomationJob = createServerFn({ method: "POST" })
       .from("automation_jobs")
       .update({ status: "cancelled", completed_at: new Date().toISOString() })
       .eq("id", data.jobId)
+      .eq("user_id", userId)
       .in("status", ["queued", "running", "review_ready"]);
     if (error) throw error;
     await supabase.from("automation_events").insert({
@@ -188,6 +197,7 @@ export const markHumanSubmitted = createServerFn({ method: "POST" })
       .from("automation_jobs")
       .update({ status: "submitted", completed_at: nowIso })
       .eq("id", data.jobId)
+      .eq("user_id", userId)
       .select("id,enforcement_request_id")
       .single();
     if (jobErr || !job) throw jobErr ?? new Error("Job not found");
@@ -201,7 +211,8 @@ export const markHumanSubmitted = createServerFn({ method: "POST" })
         status: "Sent",
         submitted_at: nowIso,
       })
-      .eq("id", job.enforcement_request_id);
+      .eq("id", job.enforcement_request_id)
+      .eq("user_id", userId);
 
     await supabase.from("automation_events").insert({
       user_id: userId,

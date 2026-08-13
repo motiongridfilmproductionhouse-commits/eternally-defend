@@ -76,6 +76,7 @@ export const getFindingHistory = createServerFn({ method: "GET" })
     const { data: rows } = await supabase
       .from("finding_review_history")
       .select("*")
+      .eq("user_id", context.userId)
       .eq("finding_id", data.findingId)
       .order("created_at", { ascending: false });
     return { history: rows ?? [] };
