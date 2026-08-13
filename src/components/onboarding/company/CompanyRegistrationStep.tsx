@@ -161,13 +161,24 @@ export function CompanyRegistrationStep({
               </Button>
 
               {proof && (
-                <div className="flex items-center gap-2 rounded-md border border-emerald-400/25 bg-emerald-500/10 p-3 text-xs text-emerald-100">
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-400/25 bg-emerald-500/10 p-3 text-xs text-emerald-100">
                   <FileCheck2 className="size-4 shrink-0" />
-                  <span className="truncate">
+                  <span className="min-w-0 flex-1 truncate">
                     {proof.filename} — {proof.label} · submitted for review
                   </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={handleRemove}
+                    className="border-rose-400/40 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20 hover:text-white"
+                  >
+                    <Trash2 className="mr-1.5 size-3.5" /> Remove
+                  </Button>
                 </div>
               )}
+
 
               <p className="text-[11px] leading-relaxed text-white/40">
                 A registration document evidences that the company exists. It is not treated as
