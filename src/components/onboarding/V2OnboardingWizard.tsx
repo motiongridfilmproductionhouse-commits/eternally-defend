@@ -30,6 +30,12 @@ import { AuthorizationReviewStep } from "@/components/onboarding/AuthorizationRe
 import { SignatureStep } from "@/components/onboarding/SignatureStep";
 import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
+import { CompanyProfileStep } from "@/components/onboarding/company/CompanyProfileStep";
+import { CompanyRepresentativeStep } from "@/components/onboarding/company/CompanyRepresentativeStep";
+import { CompanyAuthorityStep } from "@/components/onboarding/company/CompanyAuthorityStep";
+import { CompanyAssetsStep } from "@/components/onboarding/company/CompanyAssetsStep";
+import { CompanyCampaignStep } from "@/components/onboarding/company/CompanyCampaignStep";
+import { CompanyServicesStep } from "@/components/onboarding/company/CompanyServicesStep";
 
 export function V2OnboardingWizard({
   initialProgress,
