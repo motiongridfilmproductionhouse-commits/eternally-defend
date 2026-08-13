@@ -173,20 +173,18 @@ export function v2FlowForAccount(accountType: V2AccountType | null): V2FlowStep[
     ];
   }
 
+  // Client Type = COMPANY: dedicated 9-step company flow after account selection.
   if (accountType === "enterprise") {
     return [
       { step: 1, key: "account_type", title: "Account Type" },
-      { step: 2, key: "profile", title: "Company Profile" },
-      { step: 3, key: "representative", title: "Representative Details" },
-      { step: 4, key: "evidence", title: "Company Evidence" },
-      { step: 5, key: "assets", title: "Digital Assets" },
-      { step: 6, key: "scope", title: "Authorization Scope" },
-      { step: 7, key: "review", title: "Authorization Review" },
-      { step: 8, key: "signature", title: "Electronic Signature" },
-      { step: 9, key: "certificate", title: "Certificate" },
-      { step: 10, key: "complete", title: "Complete" },
+      ...COMPANY_FLOW.map((item) => ({
+        step: item.step + 1,
+        key: item.key as V2StepKey,
+        title: item.title,
+      })),
     ];
   }
+
 
   return [
     { step: 1, key: "account_type", title: "Account Type" },
