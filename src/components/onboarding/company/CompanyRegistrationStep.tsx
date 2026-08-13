@@ -218,17 +218,30 @@ export function CompanyRegistrationStep({
 
               <CompanyLetterPdfViewer height={520} />
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-md border border-white/10 bg-white/5 p-3">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setConfirmed((prev) => !prev)}
+                onKeyDown={(event) => {
+                  if (event.key === " " || event.key === "Enter") {
+                    event.preventDefault();
+                    setConfirmed((prev) => !prev);
+                  }
+                }}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-white/10 bg-white/5 p-3"
+              >
                 <Checkbox
                   checked={confirmed}
+                  tabIndex={-1}
                   onCheckedChange={(value) => setConfirmed(value === true)}
-                  className="mt-0.5 border-sky-400/40 data-[state=checked]:bg-blue-600"
+                  className="pointer-events-none mt-0.5 border-sky-400/40 data-[state=checked]:bg-blue-600"
                 />
                 <span className="text-xs leading-relaxed text-white/75">
                   I confirm that I am authorized to act on behalf of {companyName} and that the
                   information provided is accurate.
                 </span>
-              </label>
+              </div>
+
             </div>
           </>
         )}
