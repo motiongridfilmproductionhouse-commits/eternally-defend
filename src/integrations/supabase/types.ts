@@ -1688,7 +1688,10 @@ export type Database = {
           business_reg_number: string | null
           client_id: string | null
           client_type: Database["public"]["Enums"]["client_type_enum"] | null
+          company_authority_status: string
+          company_brand_name: string | null
           company_email: string | null
+          company_email_verified_at: string | null
           company_name: string | null
           contact_person: string | null
           country: string | null
@@ -1725,7 +1728,10 @@ export type Database = {
           business_reg_number?: string | null
           client_id?: string | null
           client_type?: Database["public"]["Enums"]["client_type_enum"] | null
+          company_authority_status?: string
+          company_brand_name?: string | null
           company_email?: string | null
+          company_email_verified_at?: string | null
           company_name?: string | null
           contact_person?: string | null
           country?: string | null
@@ -1762,7 +1768,10 @@ export type Database = {
           business_reg_number?: string | null
           client_id?: string | null
           client_type?: Database["public"]["Enums"]["client_type_enum"] | null
+          company_authority_status?: string
+          company_brand_name?: string | null
           company_email?: string | null
+          company_email_verified_at?: string | null
           company_name?: string | null
           contact_person?: string | null
           country?: string | null
@@ -1788,6 +1797,42 @@ export type Database = {
           user_id?: string
           verification_badge?: string | null
           website?: string | null
+        }
+        Relationships: []
+      }
+      company_email_otps: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          delivery_status: string
+          email: string
+          expires_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          delivery_status?: string
+          email: string
+          expires_at: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          delivery_status?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
