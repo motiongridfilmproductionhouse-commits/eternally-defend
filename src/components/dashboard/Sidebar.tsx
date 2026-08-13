@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -91,6 +92,7 @@ export function Sidebar() {
   const { isAdmin } = useUserRoles();
   const { session } = useSession();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { collapsed, toggleCollapsed } = useSidebarLayout();
   const { accountType } = useVerificationStatus();
 
@@ -119,9 +121,14 @@ export function Sidebar() {
   const initial = (displayName[0] ?? "?").toUpperCase();
 
   const signOut = async () => {
+    // Drop every cached per-user query so the next account never reads the
+    // previous account's profile from cache.
+    await queryClient.cancelQueries();
+    queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth" });
+    navigate({ to: "/auth", replace: true });
   };
+
 
   const widthClass = collapsed ? "w-[72px]" : "w-64";
 
