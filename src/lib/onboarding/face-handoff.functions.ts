@@ -12,20 +12,23 @@ export const createFaceHandoff = createServerFn({ method: "POST" })
     const { issueHandoff } = await import("./face-handoff.server");
     const { token, expiresAt } = await issueHandoff(context.userId);
     const request = getRequest();
+    // Phones must reach a public, non-gated domain — never the Lovable preview host.
     const origin = (() => {
+      const configured = process.env["PUBLIC_APP_URL"]?.replace(/\/$/, "");
+      if (configured) return configured;
       try {
         const h = request!.headers;
-        const fwdHost = h.get("x-forwarded-host") || h.get("host");
-        const fwdProto = h.get("x-forwarded-proto") || "https";
-        if (fwdHost && !/^localhost|^127\.0\.0\.1/.test(fwdHost)) {
-          return `${fwdProto}://${fwdHost}`;
-        }
-        return new URL(request!.url).origin;
+        const host = h.get("x-forwarded-host") || h.get("host") || "";
+        const proto = h.get("x-forwarded-proto") || "https";
+        const gated = /localhost|127\.0\.0\.1|id-preview|lovableproject\.com/.test(host);
+        if (host && !gated) return `${proto}://${host}`;
       } catch {
-        return "";
+        /* fall through */
       }
+      return "https://www.eternasentinel.com";
     })();
     return { token, url: `${origin}/face-handoff/${token}`, expiresAt };
+
   });
 
 
