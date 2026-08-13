@@ -225,8 +225,10 @@ export function requiresVeriff(accountType: V2AccountType): boolean {
 }
 
 export function requiresFaceProtection(accountType: V2AccountType): boolean {
-  return accountType === "individual";
+  // Temporarily disabled for all account types via the kill switch.
+  return FACE_PROTECTION_ONBOARDING_ENABLED && accountType === "individual";
 }
+
 
 export function requiresRepresentative(accountType: V2AccountType): boolean {
   return accountType === "enterprise" || accountType === "production_house";
