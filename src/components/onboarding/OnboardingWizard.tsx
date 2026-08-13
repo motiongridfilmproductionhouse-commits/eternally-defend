@@ -401,19 +401,20 @@ function Step1Profile({
     }
   }, [profile]);
 
+  const isCompanyType = COMPANY_CLIENT_TYPES.has(form.client_type);
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
   const showCompanyFields = showsCompanyFields(form.client_type);
-  const isValid = isStep1Valid(form as Step1Form);
+  const isValid = isCompanyType || isStep1Valid(form as Step1Form);
 
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
     try {
-      await saveAction({ data: buildStep1Payload(form as Step1Form) as any });
-
-      // Company client types use the dedicated company onboarding flow.
-      if (COMPANY_CLIENT_TYPES.has(form.client_type)) {
+      // Company client types use the dedicated company onboarding flow — no
+      // legacy personal profile fields are required to get there.
+      if (isCompanyType) {
         const result = await switchToCompany({});
+        await stepQc.invalidateQueries({ queryKey: ["client_profile"] });
         await onRefetch();
         if (result?.switched) {
           await stepQc.invalidateQueries({ queryKey: ["onboarding-progress"] });
@@ -422,6 +423,7 @@ function Step1Profile({
         }
       }
 
+      await saveAction({ data: buildStep1Payload(form as Step1Form) as any });
       await onRefetch();
       toast.success("Profile saved successfully");
       onNext();
@@ -431,6 +433,7 @@ function Step1Profile({
       setSaving(false);
     }
   };
+
 
   return (
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
