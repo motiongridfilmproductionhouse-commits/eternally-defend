@@ -324,9 +324,9 @@ export class EnforcementWorkerRunner {
           {
             success: result.success,
             status: result.status as never,
-            providerMessageId: result.providerMessageId,
-            error: result.error,
-            notes: result.notes,
+            providerMessageId: result.providerMessageId ?? undefined,
+            error: result.error ?? undefined,
+            notes: result.notes ?? undefined,
             submittedAt: new Date().toISOString(),
           },
         );
