@@ -465,11 +465,6 @@ export const signCompanyAuthorizationLetter = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
 
-    await supabase
-      .from("client_profiles")
-      .update({ onboarding_step: 5 })
-      .eq("user_id", userId);
-
     return {
       signed_at: signedAt,
       letter_version: letter.version,
