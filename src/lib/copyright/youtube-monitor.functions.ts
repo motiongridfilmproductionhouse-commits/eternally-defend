@@ -193,7 +193,8 @@ export const updateYoutubeMonitorReview = createServerFn({ method: "POST" })
     const { error } = await context.supabase
       .from("copyright_youtube_videos")
       .update({ review_status: data.reviewStatus })
-      .eq("id", data.videoRowId);
+      .eq("id", data.videoRowId)
+      .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

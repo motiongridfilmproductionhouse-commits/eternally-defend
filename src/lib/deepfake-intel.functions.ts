@@ -705,11 +705,17 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ scan_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const [scanRes, findingsRes, discoveriesRes] = await Promise.all([
-      context.supabase.from("deepfake_scans").select("*").eq("id", data.scan_id).maybeSingle(),
+      context.supabase
+        .from("deepfake_scans")
+        .select("*")
+        .eq("id", data.scan_id)
+        .eq("user_id", context.userId)
+        .maybeSingle(),
       context.supabase
         .from("deepfake_findings")
         .select("*")
         .eq("scan_id", data.scan_id)
+        .eq("user_id", context.userId)
         .order("risk_level", { ascending: true })
         .order("confidence", { ascending: false }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
