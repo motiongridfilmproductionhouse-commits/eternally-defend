@@ -304,6 +304,37 @@ export class EnforcementWorkerRunner {
 
     const result = await connector.submit(payload);
 
+    // DURABLE OUTBOUND EMAIL AUDIT (provider message id, destination, status)
+    if (connector.submissionMethod === "EMAIL") {
+      try {
+        const { recordEmailDelivery } = await import("./email-delivery-log.server");
+        const { getSesSenderConfig } = await import("./transports/ses-transport");
+        await recordEmailDelivery(
+          {
+            userId: job.user_id,
+            caseId: c.id,
+            enforcementRequestId: (c.enforcement_request_id as string) || null,
+            provider: result.provider || "SES",
+            fromEmail: getSesSenderConfig().fromEmail,
+            intendedRecipient: payload.destinationEmail || `dmca@${resolvedRoute.domain}`,
+            subject: `DMCA Takedown Notice — Infringement of Protected Asset on ${resolvedRoute.domain}`,
+            testMode: process.env.ENFORCEMENT_TEST_MODE === "true",
+            metadata: { noticeHash, workerId, connectorId: connector.id, targetUrl: c.target_url },
+          },
+          {
+            success: result.success,
+            status: result.status as never,
+            providerMessageId: result.providerMessageId,
+            error: result.error,
+            notes: result.notes,
+            submittedAt: new Date().toISOString(),
+          },
+        );
+      } catch (logErr) {
+        console.error("[enforcement/worker] delivery log failed", logErr);
+      }
+    }
+
     const statusStr = result.status as string;
     if (
       statusStr === "CONFIGURATION_ERROR" ||
