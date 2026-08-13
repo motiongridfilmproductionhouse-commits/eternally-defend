@@ -53,12 +53,15 @@ type Row = { platform: SocialPlatform; url: string };
  * verification — these are stored purely as trusted reference URLs.
  */
 export function SocialProfilesPanel({ compact = false }: { compact?: boolean }) {
+  const { session, ready } = useSession();
   const fetchLinks = useServerFn(getSocialProfileLinks);
   const saveLinks = useServerFn(saveSocialProfileLinks);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["social_profile_links"],
+    queryKey: ["social_profile_links", session?.user.id ?? "anon"],
     queryFn: () => fetchLinks(),
+    enabled: ready && !!session,
+    retry: false,
   });
 
   const [rows, setRows] = useState<Row[]>([]);
