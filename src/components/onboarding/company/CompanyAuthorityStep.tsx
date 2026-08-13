@@ -44,7 +44,7 @@ export function CompanyAuthorityStep({
   });
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [docType, setDocType] = useState<CompanyAuthorityDocType>("authorization_letter");
+  const [docType, setDocType] = useState<CompanyAuthorityDocType>("company_authorization_letter");
   const [busy, setBusy] = useState(false);
 
   const status = data?.authority_status ?? "AUTHORITY_PENDING";
