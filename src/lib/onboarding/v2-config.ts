@@ -162,19 +162,24 @@ export function v2FlowForAccount(accountType: V2AccountType | null): V2FlowStep[
   }
 
   if (accountType === "individual") {
-    return [
-      { step: 1, key: "account_type", title: "Account Type" },
-      { step: 2, key: "profile", title: "Personal Profile" },
-      { step: 3, key: "veriff", title: "Veriff" },
-      { step: 4, key: "face", title: "Face Protection" },
-      { step: 5, key: "assets", title: "Digital Assets" },
-      { step: 6, key: "scope", title: "Authorization Scope" },
-      { step: 7, key: "review", title: "Authorization Review" },
-      { step: 8, key: "signature", title: "Electronic Signature" },
-      { step: 9, key: "certificate", title: "Certificate" },
-      { step: 10, key: "complete", title: "Complete" },
+    const steps: Array<Omit<V2FlowStep, "step">> = [
+      { key: "account_type", title: "Account Type" },
+      { key: "profile", title: "Personal Profile" },
+      { key: "veriff", title: "Veriff" },
+      // Face Protection is temporarily disabled for every account type.
+      ...(FACE_PROTECTION_ONBOARDING_ENABLED
+        ? [{ key: "face" as V2StepKey, title: "Face Protection" }]
+        : []),
+      { key: "assets", title: "Digital Assets" },
+      { key: "scope", title: "Authorization Scope" },
+      { key: "review", title: "Authorization Review" },
+      { key: "signature", title: "Electronic Signature" },
+      { key: "certificate", title: "Certificate" },
+      { key: "complete", title: "Complete" },
     ];
+    return steps.map((item, i) => ({ ...item, step: i + 1 }));
   }
+
 
   // Client Type = COMPANY: dedicated 9-step company flow after account selection.
   if (accountType === "enterprise") {
