@@ -15,6 +15,21 @@ const actions = [
 ];
 
 export function AIAssistant() {
+  const { session, ready } = useSession();
+  const userId = session?.user.id ?? null;
+  const fetchProfile = useServerFn(getAccountProfile);
+  const profileQuery = useQuery({
+    queryKey: ["account-profile", userId ?? "anon"],
+    queryFn: () => fetchProfile(),
+    enabled: ready && !!userId,
+  });
+  const view = buildSettingsProfileView(
+    profileQuery.data?.profile ?? null,
+    profileQuery.data?.email ?? session?.user.email ?? null,
+  );
+  // Greeting uses the signed-in user's own persisted name only — no fallback name.
+  const greetingName = view.displayName || view.legalName;
+
   return (
     <aside
       className="w-[300px] shrink-0 card-surface p-5 flex flex-col"
@@ -46,7 +61,9 @@ export function AIAssistant() {
       </div>
 
       <div className="text-center">
-        <div className="text-lg font-display font-bold">Hello, Sreehari</div>
+        <div className="text-lg font-display font-bold">
+          {greetingName ? `Hello, ${greetingName}` : "Hello"}
+        </div>
         <div className="text-sm text-muted-foreground mt-1">
           How can I help protect your <span className="font-semibold text-primary">reputation</span>{" "}
           today?
