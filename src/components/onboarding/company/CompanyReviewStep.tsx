@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCompanyOnboarding } from "@/lib/onboarding/company.functions";
+import { getCompanyAuthorization } from "@/lib/onboarding/company-authorization.functions";
+import { CompanyStatusSummary } from "./CompanyStatusSummary";
 import { COMPANY_RELATIONSHIP_LABELS, isCompanyRelationship } from "@/lib/onboarding/company-config";
 import { COMPANY_SOCIAL_LABELS } from "@/lib/onboarding/company-official-profiles";
 
@@ -24,6 +26,11 @@ export function CompanyReviewStep({
   const { data, isLoading } = useQuery({
     queryKey: ["company-onboarding"],
     queryFn: () => fetchCompany(),
+  });
+  const fetchAuthorization = useServerFn(getCompanyAuthorization);
+  const { data: authorization } = useQuery({
+    queryKey: ["company-authorization"],
+    queryFn: () => fetchAuthorization(),
   });
 
   const profile = data?.profile;
@@ -78,19 +85,34 @@ export function CompanyReviewStep({
               )}
             </Section>
 
-            <Section title="Supporting document" onEdit={() => onGoToStep(5)}>
-              {data?.authority_document ? (
+            <Section title="Registration & authorization" onEdit={() => onGoToStep(5)}>
+              {authorization?.registration_proof ? (
                 <Row
-                  label="Uploaded document"
-                  value={data.authority_document.filename ?? "Document"}
-                  note="Submitted for review"
+                  label="Registration proof"
+                  value={authorization.registration_proof.filename ?? "Document"}
+                  note="Submitted"
                 />
               ) : (
-                <div className="text-xs text-white/45">
-                  No document uploaded — this step is optional.
+                <div className="text-xs text-rose-200/80">
+                  Company registration proof is required.
                 </div>
               )}
+              <Row
+                label="Authorization letter"
+                value={authorization?.signature ? "Signed electronically" : "Not signed"}
+                note={authorization?.signature ? "Signed" : undefined}
+              />
+              {authorization?.signature?.signed_at && (
+                <Row
+                  label="Accepted at"
+                  value={new Date(authorization.signature.signed_at).toLocaleString()}
+                />
+              )}
             </Section>
+
+            {authorization?.status_summary && (
+              <CompanyStatusSummary status={authorization.status_summary} />
+            )}
           </div>
         )}
 
@@ -100,7 +122,13 @@ export function CompanyReviewStep({
           </Button>
           <Button
             onClick={onNext}
-            disabled={isLoading || !profile?.legal_company_name || !rep?.full_legal_name}
+            disabled={
+              isLoading ||
+              !profile?.legal_company_name ||
+              !rep?.full_legal_name ||
+              !authorization?.registration_proof ||
+              !authorization?.signature
+            }
             className="bg-blue-600 text-white hover:bg-blue-500"
           >
             Confirm &amp; Continue <ChevronRight className="ml-1 size-4" />
