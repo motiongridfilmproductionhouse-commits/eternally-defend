@@ -33,6 +33,10 @@ import { SignatureStep } from "@/components/onboarding/SignatureStep";
 import { CertificateStep } from "@/components/onboarding/CertificateStep";
 import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingCompleteStep";
 import { V2OnboardingWizard } from "@/components/onboarding/V2OnboardingWizard";
+import { switchToCompanyOnboarding } from "@/lib/onboarding/company.functions";
+
+/** Client types that belong to the dedicated company onboarding flow. */
+const COMPANY_CLIENT_TYPES = new Set(["business", "corporate", "agency"]);
 
 const STEP_TITLES = [
   "Account & Client Profile",
@@ -339,6 +343,8 @@ function Step1Profile({
   onNext: () => void;
 }) {
   const saveAction = useServerFn(saveClientProfile);
+  const switchToCompany = useServerFn(switchToCompanyOnboarding);
+  const stepQc = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     legal_name: profile?.full_name ?? "",
@@ -378,6 +384,18 @@ function Step1Profile({
     setSaving(true);
     try {
       await saveAction({ data: buildStep1Payload(form as Step1Form) as any });
+
+      // Company client types use the dedicated company onboarding flow.
+      if (COMPANY_CLIENT_TYPES.has(form.client_type)) {
+        const result = await switchToCompany({});
+        await onRefetch();
+        if (result?.switched) {
+          await stepQc.invalidateQueries({ queryKey: ["onboarding-progress"] });
+          toast.success("Company onboarding started");
+          return;
+        }
+      }
+
       await onRefetch();
       toast.success("Profile saved successfully");
       onNext();
