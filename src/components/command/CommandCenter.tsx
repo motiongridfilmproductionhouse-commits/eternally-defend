@@ -1287,7 +1287,21 @@ function PersonFaceProtectionRow() {
       to: "/evidence-vault",
     },
   ];
+  return <MetricTiles items={items} />;
+}
+
+type MetricTile = {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  hint: string;
+  color: string;
+  to: string;
+};
+
+function MetricTiles({ items }: { items: MetricTile[] }) {
   return (
+
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
       {items.map((it) => {
         const Icon = it.icon;
