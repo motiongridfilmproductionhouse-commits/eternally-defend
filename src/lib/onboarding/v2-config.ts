@@ -1,4 +1,6 @@
 import { COMPANY_FLOW } from "./company-config";
+import { FACE_PROTECTION_ONBOARDING_ENABLED } from "./face-protection-flag";
+
 
 export const ONBOARDING_V2 = "v2";
 
