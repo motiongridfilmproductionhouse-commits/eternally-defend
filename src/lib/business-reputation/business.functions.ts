@@ -174,11 +174,12 @@ export const getBusinessProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ businessProfileId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data: profile } = await supabase
       .from("business_profiles")
       .select("*")
       .eq("id", data.businessProfileId)
+      .eq("user_id", userId)
       .maybeSingle();
     if (!profile) return { profile: null, aliases: [], queries: [] };
 
@@ -186,10 +187,12 @@ export const getBusinessProfile = createServerFn({ method: "POST" })
       supabase
         .from("business_aliases")
         .select("alias, alias_type")
+        .eq("user_id", userId)
         .eq("business_profile_id", data.businessProfileId),
       supabase
         .from("business_scan_queries")
         .select("query, query_type, priority, country")
+        .eq("user_id", userId)
         .eq("business_profile_id", data.businessProfileId)
         .order("priority", { ascending: false }),
     ]);
@@ -204,6 +207,7 @@ export const listBusinessProfiles = createServerFn({ method: "POST" })
     const { data } = await context.supabase
       .from("business_profiles")
       .select("id, official_business_name, address, city, country, scan_scope, confirmed_at")
+      .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(20);
     return { profiles: data ?? [] };

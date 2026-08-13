@@ -8,6 +8,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
 import { z } from "zod";
 
 const StartInput = z.object({
@@ -62,6 +63,14 @@ export const startMultimediaAnalysis = createServerFn({ method: "POST" })
   .inputValidator((raw) => StartInput.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // SUBJECT ISOLATION — monitoring subject is workspace-owned, not client-supplied.
+    const enforcedSubject = await enforceScanSubject(context, {
+      targetName: data.target_name,
+      aliases: data.target_aliases,
+    });
+    data.target_name = enforcedSubject.targetName;
+    data.target_aliases = enforcedSubject.aliases;
+
     const stageInit = Object.fromEntries(STAGES.map((s) => [s, "pending"])) as Record<
       Stage,
       string
@@ -576,9 +585,14 @@ export const getMultimediaJob = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ jobId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const [job, findings, claims, checks, translations, errors] = await Promise.all([
-      supabase.from("multimedia_analysis_jobs").select("*").eq("id", data.jobId).maybeSingle(),
+      supabase
+        .from("multimedia_analysis_jobs")
+        .select("*")
+        .eq("id", data.jobId)
+        .eq("user_id", userId)
+        .maybeSingle(),
       supabase
         .from("timestamp_findings")
         .select("*")
@@ -624,11 +638,12 @@ export const updateFindingReview = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { error } = await supabase
       .from("timestamp_findings")
       .update({ review_status: data.review_status })
-      .eq("id", data.findingId);
+      .eq("id", data.findingId)
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -636,10 +651,11 @@ export const updateFindingReview = createServerFn({ method: "POST" })
 export const listProtectedAssets = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data } = await supabase
       .from("protected_assets")
       .select("*")
+      .eq("user_id", userId)
       .eq("active", true)
       .order("created_at", { ascending: false });
     return { assets: data ?? [] };
@@ -663,7 +679,8 @@ export const upsertProtectedAsset = createServerFn({ method: "POST" })
       const { error } = await supabase
         .from("protected_assets")
         .update({ name: data.name, kind: data.kind, source_url: data.source_url ?? null })
-        .eq("id", data.id);
+        .eq("id", data.id)
+        .eq("user_id", userId);
       if (error) throw new Error(error.message);
       return { id: data.id };
     }

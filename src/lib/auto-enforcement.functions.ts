@@ -195,6 +195,15 @@ export const reviewCaseDecision = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const nowIso = new Date().toISOString();
 
+    // SUBJECT ISOLATION — the case and queue row must belong to this account.
+    const { data: ownedCase } = await (supabase as any)
+      .from("enforcement_cases")
+      .select("id")
+      .eq("id", data.caseId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!ownedCase) throw new Error("Not authorized for this enforcement case.");
+
     if (data.action === "APPROVE") {
       await (supabase as any)
         .from("enforcement_cases")
@@ -203,7 +212,8 @@ export const reviewCaseDecision = createServerFn({ method: "POST" })
           status: "QUEUED",
           updated_at: nowIso,
         })
-        .eq("id", data.caseId);
+        .eq("id", data.caseId)
+        .eq("user_id", userId);
 
       await (supabase as any).from("enforcement_jobs").insert({
         case_id: data.caseId,
@@ -229,7 +239,8 @@ export const reviewCaseDecision = createServerFn({ method: "POST" })
           status: "NOT_ELIGIBLE",
           updated_at: nowIso,
         })
-        .eq("id", data.caseId);
+        .eq("id", data.caseId)
+        .eq("user_id", userId);
 
       await (supabase as any).from("enforcement_events").insert({
         case_id: data.caseId,
@@ -250,7 +261,8 @@ export const reviewCaseDecision = createServerFn({ method: "POST" })
         decided_at: nowIso,
         updated_at: nowIso,
       })
-      .eq("id", data.queueId);
+      .eq("id", data.queueId)
+      .eq("user_id", userId);
 
     return { ok: true };
   });

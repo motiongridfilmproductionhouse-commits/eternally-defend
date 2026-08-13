@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
+
 import type { Database } from "@/integrations/supabase/types";
 import { filterDeepfakeCandidates } from "./deepfake/filter.server";
 import { generateDeepfakeQueries } from "./deepfake/query-generator.server";
@@ -76,6 +78,23 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    // SUBJECT ISOLATION — the protected subject always comes from the workspace,
+    // never from the browser payload.
+    const enforced = await enforceScanSubject(context, {
+      targetName: data.target_name,
+      aliases: data.aliases,
+    });
+    data.target_name = enforced.targetName;
+    data.aliases = enforced.aliases;
+    data.handles = enforced.unrestricted
+      ? data.handles
+      : (data.handles ?? []).filter((h) =>
+          enforced.identity.authorizedHandles.some(
+            (a) => a.toLowerCase() === h.replace(/^@/, "").toLowerCase(),
+          ),
+        );
+
 
     const hostOf = (url: string): string | null => {
       try {
@@ -686,11 +705,17 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ scan_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const [scanRes, findingsRes, discoveriesRes] = await Promise.all([
-      context.supabase.from("deepfake_scans").select("*").eq("id", data.scan_id).maybeSingle(),
+      context.supabase
+        .from("deepfake_scans")
+        .select("*")
+        .eq("id", data.scan_id)
+        .eq("user_id", context.userId)
+        .maybeSingle(),
       context.supabase
         .from("deepfake_findings")
         .select("*")
         .eq("scan_id", data.scan_id)
+        .eq("user_id", context.userId)
         .order("risk_level", { ascending: true })
         .order("confidence", { ascending: false }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -816,7 +841,10 @@ export const submitManualEvidenceUrls = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const enforcedSubject = await enforceScanSubject(context, { targetName: data.target_name });
+    data.target_name = enforcedSubject.targetName;
     const insertedLeads = [];
+
     for (const url of data.urls) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: lead, error } = await (supabase as any)

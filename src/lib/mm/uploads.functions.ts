@@ -6,6 +6,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
 import { z } from "zod";
 import { getLimits } from "./quota.server";
 import { detectCaptionFormat, parseCaptions, findingsFromCaptions } from "./captions.server";
@@ -119,6 +120,16 @@ export const importCaptions = createServerFn({ method: "POST" })
   .inputValidator((raw) => CaptionInput.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    if (data.target_name || (data.target_aliases ?? []).length > 0) {
+      // SUBJECT ISOLATION — caption mention matching only for the registered subject.
+      const enforcedSubject = await enforceScanSubject(context, {
+        targetName: data.target_name,
+        aliases: data.target_aliases,
+      });
+      data.target_name = enforcedSubject.targetName;
+      data.target_aliases = enforcedSubject.aliases;
+    }
+
     const format = detectCaptionFormat(data.raw_text, data.filename);
     const segments = parseCaptions(data.raw_text, format);
     const { data: ins, error } = await supabase

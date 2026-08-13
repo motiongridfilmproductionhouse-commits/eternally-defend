@@ -174,6 +174,7 @@ export const getCopyrightScan = createServerFn({ method: "GET" })
       .from("copyright_scans")
       .select("*")
       .eq("id", data.scanId)
+      .eq("user_id", userId)
       .single();
     if (error) throw new Error(error.message);
 
@@ -423,7 +424,8 @@ export const updateCopyrightMatch = createServerFn({ method: "POST" })
     const { error } = await context.supabase
       .from("copyright_matches")
       .update({ review_status: data.reviewStatus })
-      .eq("id", data.matchId);
+      .eq("id", data.matchId)
+      .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

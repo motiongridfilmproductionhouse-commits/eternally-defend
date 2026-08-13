@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceScanSubject } from "@/lib/security/protected-subject.server";
+
 import { isVerifiedSubject } from "@/lib/firecrawl/entity-verifier";
 import { buildQueryPlan } from "./queries";
 import { SourceScope, buildAllegationQueryPlan } from "./news-intelligence";
@@ -9,10 +11,17 @@ export const previewQueryPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
     z
-      .object({ targetName: z.string().min(2).max(120), aliases: z.array(z.string()).max(10).optional() })
+      .object({ targetName: z.string().min(2).max(120).optional(), aliases: z.array(z.string()).max(10).optional() })
       .parse(raw),
   )
-  .handler(async ({ data }) => buildQueryPlan({ targetName: data.targetName, aliases: data.aliases }));
+  .handler(async ({ data, context }) => {
+    const enforced = await enforceScanSubject(context, {
+      targetName: data.targetName,
+      aliases: data.aliases,
+    });
+    return buildQueryPlan({ targetName: enforced.targetName, aliases: enforced.aliases });
+  });
+
 
 export const listYoutubeRemovalScans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -91,7 +100,7 @@ export const startYoutubeRemovalScan = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     z
       .object({
-        targetName: z.string().min(2).max(120),
+        targetName: z.string().min(2).max(120).optional(),
         aliases: z.array(z.string().min(1).max(80)).max(10).optional(),
         languageHint: z.string().max(20).optional(),
         sourceScope: z.enum(["NON_OFFICIAL_ONLY", "NEWS_ALLEGATIONS", "ALL_SOURCES"]).optional(),
@@ -101,11 +110,20 @@ export const startYoutubeRemovalScan = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const scope: SourceScope = data.sourceScope || "NON_OFFICIAL_ONLY";
 
+    // SUBJECT ISOLATION — server-resolved protected subject only.
+    const enforced = await enforceScanSubject(context, {
+      targetName: data.targetName,
+      aliases: data.aliases,
+    });
+    data.targetName = enforced.targetName;
+    data.aliases = enforced.aliases;
+
     let queries = buildQueryPlan({ targetName: data.targetName, aliases: data.aliases });
     if (scope === "NEWS_ALLEGATIONS" || scope === "ALL_SOURCES") {
       const allegationQueries = buildAllegationQueryPlan(data.targetName, data.aliases ?? []);
       queries = Array.from(new Set([...queries, ...allegationQueries]));
     }
+
 
     console.info("[YT-SCAN-START]", {
       targetName: data.targetName,
