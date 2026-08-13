@@ -2,13 +2,14 @@ import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, FileCheck2, FileText, Loader2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileCheck2, FileText, Loader2, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   getCompanyAuthorization,
+  removeCompanyRegistrationProof,
   uploadCompanyRegistrationProof,
 } from "@/lib/onboarding/company-authorization.functions";
 import { CompanyLetterPdfViewer } from "./CompanyLetterPdfViewer";
@@ -34,6 +35,7 @@ export function CompanyRegistrationStep({
 }) {
   const fetchAuthorization = useServerFn(getCompanyAuthorization);
   const upload = useServerFn(uploadCompanyRegistrationProof);
+  const removeProof = useServerFn(removeCompanyRegistrationProof);
 
   const { data, refetch, isLoading } = useQuery({
     queryKey: ["company-authorization"],
@@ -80,6 +82,19 @@ export function CompanyRegistrationStep({
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const handleRemove = async () => {
+    setBusy(true);
+    try {
+      await removeProof({});
+      await refetch();
+      toast.success("Registration document removed.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to remove document");
+    } finally {
+      setBusy(false);
     }
   };
 
