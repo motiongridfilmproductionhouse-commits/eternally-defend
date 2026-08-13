@@ -9,6 +9,7 @@ import { getKycStatus } from "@/lib/onboarding/kyc.functions";
 import { getFaceEnrollment } from "@/lib/onboarding/face-enrollment.functions";
 import { listAssets } from "@/lib/onboarding/assets.functions";
 import { getAuthorizationBundle } from "@/lib/onboarding/authorization.functions";
+import { getCompanyAuthorization } from "@/lib/onboarding/company-authorization.functions";
 import {
   isLightVerificationAccount,
   isV2AccountType,
@@ -51,6 +52,7 @@ export function V2OnboardingWizard({
   const fetchFaceEnrollment = useServerFn(getFaceEnrollment);
   const fetchAssets = useServerFn(listAssets);
   const fetchAuthorizationBundle = useServerFn(getAuthorizationBundle);
+  const fetchCompanyAuthorization = useServerFn(getCompanyAuthorization);
 
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ["client_profile"],
@@ -95,6 +97,12 @@ export function V2OnboardingWizard({
   const { data: authBundle } = useQuery({
     queryKey: ["auth_bundle"],
     queryFn: () => fetchAuthorizationBundle(),
+  });
+
+  const { data: companyAuthorization } = useQuery({
+    queryKey: ["company-authorization"],
+    queryFn: () => fetchCompanyAuthorization(),
+    enabled: accountType === "enterprise",
   });
 
   const advanceStep = async (fromStep: number, status: StepStatus = "COMPLETED") => {
@@ -160,18 +168,25 @@ export function V2OnboardingWizard({
             {flow.map((item, i) => {
               const isActive = i === stepIndex;
               const isPast = i < stepIndex;
+              const isComplete =
+                isPast &&
+                !(
+                  accountType === "enterprise" &&
+                  item.key === "company_signature" &&
+                  !companyAuthorization?.signature
+                );
               return (
                 <li key={item.title} className="relative flex items-center gap-4 py-3">
                   <span
                     className={`relative z-10 size-8 rounded-full grid place-items-center text-[11px] font-bold shrink-0 border transition-all duration-300 ${
                       isActive
                         ? "bg-white text-[#0b1f4d] border-white shadow-[0_0_0_4px_rgba(255,255,255,0.1)]"
-                        : isPast
+                        : isComplete
                           ? "bg-emerald-400 text-[#0b1f4d] border-emerald-300"
                           : "bg-white/5 text-white/50 border-white/20 backdrop-blur"
                     }`}
                   >
-                    {isPast ? (
+                    {isComplete ? (
                       <Check className="size-4" />
                     ) : isActive ? (
                       item.step
@@ -183,7 +198,7 @@ export function V2OnboardingWizard({
                     className={`text-sm font-medium truncate transition-colors ${
                       isActive
                         ? "text-white font-semibold"
-                        : isPast
+                        : isComplete
                           ? "text-white/80"
                           : "text-white/40"
                     }`}
