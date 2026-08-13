@@ -288,6 +288,40 @@ export function V2OnboardingWizard({
                 <AssetVerificationStep onBack={goBack} onNext={() => advanceStep(current.step)} />
               )}
 
+              {/* Company (Client Type = COMPANY) route */}
+              {current.key === "company_profile" && (
+                <CompanyProfileStep onNext={() => advanceStep(current.step)} />
+              )}
+
+              {current.key === "company_representative" && (
+                <CompanyRepresentativeStep
+                  onBack={goBack}
+                  onNext={() => advanceStep(current.step)}
+                />
+              )}
+
+              {current.key === "company_authority" && (
+                <CompanyAuthorityStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+              )}
+
+              {current.key === "company_assets" && (
+                <CompanyAssetsStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+              )}
+
+              {current.key === "company_campaigns" && (
+                <CompanyCampaignStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+              )}
+
+              {current.key === "company_services" && (
+                <CompanyServicesStep
+                  faceEnrolled={isFaceVerified}
+                  onBack={goBack}
+                  onNext={() => advanceStep(current.step)}
+                />
+              )}
+
+
+
               {current.key === "scope" && (
                 <AuthorizationScopeStep onBack={goBack} onNext={() => advanceStep(current.step)} />
               )}
