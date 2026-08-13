@@ -142,11 +142,26 @@ export function CompanyProfileStep({ onNext }: { onNext: () => void }) {
           </Button>
           <Button
             type="button"
-            onClick={onNext}
-            disabled={!valid || !data?.profile.legal_company_name}
+            onClick={async () => {
+              if (!valid || busy) return;
+              setBusy(true);
+              try {
+                await save({ data: form });
+                await refetch();
+                onNext();
+              } catch (error) {
+                toast.error(
+                  error instanceof Error ? error.message : "Unable to save company profile",
+                );
+              } finally {
+                setBusy(false);
+              }
+            }}
+            disabled={!valid || busy}
             className="bg-blue-600 text-white hover:bg-blue-500"
           >
-            Continue <ChevronRight className="ml-1 size-4" />
+            {busy && <Loader2 className="mr-2 size-4 animate-spin" />} Continue{" "}
+            <ChevronRight className="ml-1 size-4" />
           </Button>
         </div>
       </CardContent>
