@@ -33,9 +33,9 @@ import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingComple
 import { CompanyProfileStep } from "@/components/onboarding/company/CompanyProfileStep";
 import { CompanyRepresentativeStep } from "@/components/onboarding/company/CompanyRepresentativeStep";
 import { CompanyAuthorityStep } from "@/components/onboarding/company/CompanyAuthorityStep";
-import { CompanyAssetsStep } from "@/components/onboarding/company/CompanyAssetsStep";
-import { CompanyCampaignStep } from "@/components/onboarding/company/CompanyCampaignStep";
-import { CompanyServicesStep } from "@/components/onboarding/company/CompanyServicesStep";
+import { CompanySocialStep } from "@/components/onboarding/company/CompanySocialStep";
+import { CompanyReviewStep } from "@/components/onboarding/company/CompanyReviewStep";
+import { CompanyCompleteStep } from "@/components/onboarding/company/CompanyCompleteStep";
 
 export function V2OnboardingWizard({
   initialProgress,
@@ -300,23 +300,28 @@ export function V2OnboardingWizard({
                 />
               )}
 
+              {current.key === "company_social" && (
+                <CompanySocialStep onBack={goBack} onNext={() => advanceStep(current.step)} />
+              )}
+
               {current.key === "company_authority" && (
                 <CompanyAuthorityStep onBack={goBack} onNext={() => advanceStep(current.step)} />
               )}
 
-              {current.key === "company_assets" && (
-                <CompanyAssetsStep onBack={goBack} onNext={() => advanceStep(current.step)} />
-              )}
-
-              {current.key === "company_campaigns" && (
-                <CompanyCampaignStep onBack={goBack} onNext={() => advanceStep(current.step)} />
-              )}
-
-              {current.key === "company_services" && (
-                <CompanyServicesStep
-                  faceEnrolled={isFaceVerified}
+              {current.key === "company_review" && (
+                <CompanyReviewStep
                   onBack={goBack}
                   onNext={() => advanceStep(current.step)}
+                  onGoToStep={goToStep}
+                />
+              )}
+
+              {current.key === "company_complete" && (
+                <CompanyCompleteStep
+                  onCompleted={async () => {
+                    await refetchProfile();
+                    await qc.invalidateQueries({ queryKey: ["onboarding-progress"] });
+                  }}
                 />
               )}
 

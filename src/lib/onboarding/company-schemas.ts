@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { COMPANY_AUTHORITY_DOC_TYPES, COMPANY_RELATIONSHIPS } from "./company-config";
+import { COMPANY_SOCIAL_PLATFORMS } from "./company-official-profiles";
 
 export const CompanyProfileSchema = z.object({
   legal_company_name: z.string().trim().min(2).max(200),
@@ -39,3 +40,16 @@ export const CompanyServicesSchema = z.object({
 export const CompanyOtpVerifySchema = z.object({
   code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code"),
 });
+
+export const CompanyOfficialProfilesSchema = z.object({
+  profiles: z
+    .array(
+      z.object({
+        platform: z.enum(COMPANY_SOCIAL_PLATFORMS),
+        url: z.string().trim().max(500),
+        label: z.string().trim().max(120).optional().nullable(),
+      }),
+    )
+    .max(30),
+});
+export type CompanyOfficialProfilesInput = z.infer<typeof CompanyOfficialProfilesSchema>;

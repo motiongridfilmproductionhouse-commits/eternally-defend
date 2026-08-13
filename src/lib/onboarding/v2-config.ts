@@ -131,10 +131,10 @@ export type V2StepKey =
   // Company (enterprise) route steps
   | "company_profile"
   | "company_representative"
+  | "company_social"
   | "company_authority"
-  | "company_assets"
-  | "company_campaigns"
-  | "company_services";
+  | "company_review"
+  | "company_complete";
 
 
 export type V2FlowStep = {

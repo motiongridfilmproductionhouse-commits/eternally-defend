@@ -5,6 +5,7 @@ import {
   CompanyOtpVerifySchema,
   CompanyProfileSchema,
   CompanyRepresentativeSchema,
+  CompanyOfficialProfilesSchema,
   CompanyServicesSchema,
 } from "./company-schemas";
 import {
@@ -15,6 +16,10 @@ import {
   scopesForCompanyServices,
   type CompanyAuthorityStatus,
 } from "./company-config";
+import {
+  normalizeOfficialProfiles,
+  readOfficialProfiles,
+} from "./company-official-profiles";
 import {
   deliverCompanyOtpEmail,
   generateOtpCode,
@@ -28,7 +33,7 @@ export const getCompanyOnboarding = createServerFn({ method: "GET" })
     const { data: profile, error } = await supabase
       .from("client_profiles")
       .select(
-        "onboarding_version, onboarding_account_type, company_name, company_brand_name, website, country, address, business_reg_number, company_email, company_email_verified_at, company_authority_status, phone, legal_name, role_title, social_profiles",
+        "onboarding_version, onboarding_account_type, onboarding_completed, company_name, company_brand_name, website, country, address, business_reg_number, company_email, company_email_verified_at, company_authority_status, phone, legal_name, role_title, social_profiles",
       )
       .eq("user_id", userId)
       .maybeSingle();
@@ -96,6 +101,8 @@ export const getCompanyOnboarding = createServerFn({ method: "GET" })
         : null,
       authority_status: authority as CompanyAuthorityStatus,
       services,
+      official_profiles: readOfficialProfiles(social["official_company_profiles"]),
+      onboarding_completed: Boolean(profile?.onboarding_completed),
       otp: otp
         ? {
             email: otp.email,
@@ -391,4 +398,110 @@ export const saveCompanyProtectionServices = createServerFn({ method: "POST" })
     await saveScopes({ data: { scopes } });
 
     return { services: selected, scopes: Object.keys(scopes) };
+  });
+
+/**
+ * Official / trusted company social profiles.
+ *
+ * Stored as self-declared OFFICIAL references (never "verified") so monitoring
+ * and impersonation detection can separate authentic company accounts from
+ * suspicious look-alikes.
+ */
+export const saveCompanyOfficialProfiles = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => CompanyOfficialProfilesSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("client_profiles")
+      .select("onboarding_account_type, social_profiles")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (profile?.onboarding_account_type !== "enterprise") {
+      throw new Error("Company onboarding is only available for company accounts.");
+    }
+
+    const links = normalizeOfficialProfiles(data.profiles);
+    const social = (profile?.social_profiles ?? {}) as Record<string, unknown>;
+    const { error } = await supabase
+      .from("client_profiles")
+      .update({
+        social_profiles: {
+          ...social,
+          // Trusted reference set consumed by monitoring / impersonation detection.
+          official_company_profiles: links.map((link) => ({
+            platform: link.platform,
+            url: link.url,
+            label: link.label,
+            source: "company_onboarding",
+            trust: "OFFICIAL_SELF_DECLARED",
+          })),
+          // Mirrored into the shared link list used across the workspace.
+          links: links.map((link) => ({ platform: link.platform, url: link.url })),
+        },
+        onboarding_step: 3,
+      })
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { profiles: links };
+  });
+
+/**
+ * Finishes company onboarding and opens the Company Command Center.
+ *
+ * Monitoring only: no verification badge is written and enforcement stays
+ * gated behind `company_authority_status`.
+ */
+export const finishCompanyOnboarding = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: profile, error: readError } = await supabase
+      .from("client_profiles")
+      .select("onboarding_account_type, company_name, country, legal_name")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (profile?.onboarding_account_type !== "enterprise") {
+      throw new Error("Company onboarding is only available for company accounts.");
+    }
+    if (!profile?.company_name?.trim()) {
+      throw new Error("Add the legal company name before finishing setup.");
+    }
+    if (!profile?.country?.trim()) {
+      throw new Error("Add the company country before finishing setup.");
+    }
+    if (!profile?.legal_name?.trim()) {
+      throw new Error("Add the representative details before finishing setup.");
+    }
+
+    const { COMPANY_FLOW } = await import("./company-config");
+    const lastStep = (COMPANY_FLOW.at(-1)?.step ?? 6) + 1;
+
+    const { error: profileError } = await supabase
+      .from("client_profiles")
+      .update({
+        onboarding_completed: true,
+        onboarding_step: lastStep,
+        authorization_level: "monitoring",
+      })
+      .eq("user_id", userId);
+    if (profileError) throw new Error(profileError.message);
+
+    const states: Record<string, string> = {};
+    for (let step = 1; step <= lastStep; step += 1) states[String(step)] = "COMPLETED";
+
+    const { error: progressError } = await supabase.from("onboarding_progress").upsert(
+      {
+        user_id: userId,
+        current_step: lastStep,
+        overall_status: "COMPLETED",
+        step_states: states,
+        onboarding_version: "v2",
+      },
+      { onConflict: "user_id" },
+    );
+    if (progressError) throw new Error(progressError.message);
+
+    return { ok: true };
   });

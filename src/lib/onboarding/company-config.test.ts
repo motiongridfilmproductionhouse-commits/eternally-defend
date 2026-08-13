@@ -11,13 +11,19 @@ import {
 } from "./company-config";
 
 describe("company flow", () => {
-  it("has nine sequential steps ending in activation", () => {
-    expect(COMPANY_FLOW.map((s) => s.step)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-    expect(COMPANY_FLOW.at(-1)?.key).toBe("complete");
+  it("has six sequential steps ending in completion", () => {
+    expect(COMPANY_FLOW.map((s) => s.step)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(COMPANY_FLOW.at(-1)?.key).toBe("company_complete");
   });
 
-  it("never includes a Veriff identity step", () => {
+  it("collects official social profiles before review", () => {
+    const keys = COMPANY_FLOW.map((s) => s.key);
+    expect(keys.indexOf("company_social")).toBeLessThan(keys.indexOf("company_review"));
+  });
+
+  it("never includes a Veriff identity or email OTP step", () => {
     expect(COMPANY_FLOW.some((s) => (s.key as string).includes("veriff"))).toBe(false);
+    expect(COMPANY_FLOW.some((s) => (s.key as string).includes("otp"))).toBe(false);
   });
 });
 
