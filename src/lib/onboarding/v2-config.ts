@@ -124,7 +124,15 @@ export type V2StepKey =
   | "review"
   | "signature"
   | "certificate"
-  | "complete";
+  | "complete"
+  // Company (enterprise) route steps
+  | "company_profile"
+  | "company_representative"
+  | "company_authority"
+  | "company_assets"
+  | "company_campaigns"
+  | "company_services";
+
 
 export type V2FlowStep = {
   step: number;
