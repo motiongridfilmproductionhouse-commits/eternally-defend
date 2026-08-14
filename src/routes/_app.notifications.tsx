@@ -30,11 +30,14 @@ function timeAgo(iso: string) {
 
 function NotificationsPage() {
   const fetchNotes = useServerFn(getNotifications);
+  const { session, ready } = useSession();
   const q = useQuery({
-    queryKey: ["notifications"],
+    queryKey: ["notifications", session?.user.id ?? "anon"],
     queryFn: () => fetchNotes(),
+    enabled: ready && !!session,
     refetchInterval: 30_000,
   });
+
 
   return (
     <div className="space-y-5 max-w-3xl">
