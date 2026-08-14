@@ -8,6 +8,7 @@ import {
   getDeepfakeScan,
   updateDeepfakeFinding,
   parseTelemetry,
+  submitAndProcessManualEvidence,
 } from "@/lib/deepfake-intel.functions";
 import {
   createDeepfakeTargetProfile,
@@ -83,6 +84,15 @@ interface DiscoveryLeadItem {
   analysis_status?: string | null;
 }
 
+interface ManualLeadResult {
+  submitted_url: string;
+  status: string;
+  reason: string | null;
+  classification: string | null;
+  source_domain: string | null;
+  face_similarity: number | null;
+}
+
 type RiskLevel = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
 const RISK_STYLE: Record<RiskLevel, { badge: string; dot: string }> = {
@@ -97,6 +107,7 @@ function DeepfakeIntelPage() {
   const listFn = useServerFn(listDeepfakeScans);
   const getFn = useServerFn(getDeepfakeScan);
   const updFn = useServerFn(updateDeepfakeFinding);
+  const manualEvidenceFn = useServerFn(submitAndProcessManualEvidence);
   const createProfileFn = useServerFn(createDeepfakeTargetProfile);
   const listProfilesFn = useServerFn(listDeepfakeTargetProfiles);
   const uploadReferenceFn = useServerFn(uploadDeepfakeReferenceFace);
@@ -111,6 +122,7 @@ function DeepfakeIntelPage() {
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [manualUrlsText, setManualUrlsText] = useState("");
+  const [manualLeadResults, setManualLeadResults] = useState<ManualLeadResult[]>([]);
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
   const [showGeneralMentions, setShowGeneralMentions] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
