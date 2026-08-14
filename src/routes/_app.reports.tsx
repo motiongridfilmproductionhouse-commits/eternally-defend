@@ -97,7 +97,9 @@ function ReportsPage() {
 
   const stats = {
     total: reports.length,
-    ready: reports.filter((r) => r.status === "Ready").length,
+    // "Ready" without a stored file is not downloadable — counting it as ready
+    // was showing an operator a download that does not exist.
+    ready: reports.filter((r) => r.status === "Ready" && !!r.pdf_url).length,
     evidence: reports.reduce((a, r) => a + (r.findings_count ?? 0), 0),
     drafts: reports.filter((r) => r.status === "Draft").length,
   };
@@ -200,6 +202,14 @@ function ReportsPage() {
                   </div>
                 </div>
                 <Pill color={statusColor[r.status] ?? "oklch(0.55 0.03 275)"}>{r.status}</Pill>
+                {r.status === "Ready" && !r.pdf_url && (
+                  <span
+                    className="text-[10px] font-semibold text-danger max-w-[220px] leading-snug"
+                    title="The report record exists but no PDF file was stored, so there is nothing to download."
+                  >
+                    FILE NOT GENERATED — regenerate this report
+                  </span>
+                )}
                 {r.pdf_url && (
                   <a
                     href={r.pdf_url}

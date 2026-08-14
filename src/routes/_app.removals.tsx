@@ -19,6 +19,11 @@ interface RemovalRow {
   submitted_at: string | null;
   responded_at: string | null;
   created_at: string;
+  submission_status: string | null;
+  automation_status: string | null;
+  automation_job_id: string | null;
+  authorization_pdf_path: string | null;
+  package_generated_at: string | null;
 }
 
 const statusColor: Record<string, string> = {
@@ -42,6 +47,29 @@ function isStalled(r: RemovalRow): boolean {
   return r.status === "Queued" && queuedAgeDays(r) >= 1;
 }
 
+/**
+ * Exact blocking reason for a queued request. "Queued" on its own told the
+ * operator nothing about why nothing was moving, so we surface the concrete
+ * precondition that is missing.
+ */
+function blockingReason(r: RemovalRow): string {
+  if (r.status !== "Queued") return "";
+  if (!r.target_url) return "Blocked: no target URL recorded on the request.";
+  if (!r.authorization_pdf_path)
+    return "Blocked: no signed client authorization document is attached, so submission is not permitted.";
+  if (!r.package_generated_at)
+    return "Blocked: the evidence package has not been generated for this request yet.";
+  if (!r.automation_job_id)
+    return "Blocked: no submission job was ever created for this request — it is a draft record only.";
+  if (!r.automation_status || r.automation_status === "queued")
+    return "Blocked: submission job created but never claimed by a worker (live submission is disabled).";
+  if (r.automation_status === "failed")
+    return "Blocked: the submission job failed. Review the automation log before re-queuing.";
+  if (r.submission_status && r.submission_status !== "submitted")
+    return `Blocked: submission status is "${r.submission_status}" — nothing has been sent to the platform.`;
+  return "Blocked: awaiting submission. Nothing has been sent to the platform.";
+}
+
 function RemovalsPage() {
   const { session, ready } = useSession();
   const userId = session?.user.id;
@@ -52,7 +80,9 @@ function RemovalsPage() {
     queryFn: async (): Promise<RemovalRow[]> => {
       const { data, error } = await supabase
         .from("enforcement_requests")
-        .select("id,target_url,platform,method,status,submitted_at,responded_at,created_at")
+        .select(
+          "id,target_url,platform,method,status,submitted_at,responded_at,created_at,submission_status,automation_status,automation_job_id,authorization_pdf_path,package_generated_at",
+        )
         .neq("method", "Legal Notice")
         .order("created_at", { ascending: false })
         .limit(500);
@@ -168,12 +198,16 @@ function RemovalsPage() {
                           {r.status}
                         </Pill>
                         {r.status === "Queued" && (
-                          <span
-                            className={`text-[10px] font-semibold ${isStalled(r) ? "text-danger" : "text-muted-foreground"}`}
-                            title="Queued requests are recorded only. Nothing has been submitted to the platform."
-                          >
-                            {isStalled(r) ? `STALLED · ${queuedAgeDays(r)}d` : "NOT SUBMITTED"}
-                          </span>
+                          <>
+                            <span
+                              className={`text-[10px] font-semibold ${isStalled(r) ? "text-danger" : "text-muted-foreground"}`}
+                            >
+                              {isStalled(r) ? `STALLED · ${queuedAgeDays(r)}d` : "NOT SUBMITTED"}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground max-w-[260px] leading-snug">
+                              {blockingReason(r)}
+                            </span>
+                          </>
                         )}
                       </div>
                     </td>
