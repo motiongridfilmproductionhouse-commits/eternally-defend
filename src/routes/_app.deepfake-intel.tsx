@@ -1159,6 +1159,14 @@ function DeepfakeIntelPage() {
           )}
         </div>
       </section>
+
+      <PreservedEvidenceDialog
+        open={Boolean(evidenceTarget)}
+        onOpenChange={(open) => {
+          if (!open) setEvidenceTarget(null);
+        }}
+        target={evidenceTarget}
+      />
     </div>
   );
 }
