@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { AlertTriangle, ShieldCheck, Send, Sparkles, Loader2, Inbox } from "lucide-react";
 import { getNotifications } from "@/lib/command-center.functions";
+import { useSession } from "@/hooks/use-session";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({ meta: [{ title: "Notifications — Eterna Sentinel" }] }),
