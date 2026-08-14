@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Globe, MapPin, ShieldAlert, Info, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import type { ClientFinding } from "@/lib/deepfake/results-dashboard";
 import { buildSourceIntelligenceList, type SourceIntelligence } from "@/lib/deepfake/analytics-helpers";
+import { resolveHostGeoBatch } from "@/lib/deepfake/domain-geo.functions";
+import { countryFlag, countryToMapPoint } from "@/lib/copyright/domain-intel";
 import { Badge } from "@/components/ui/badge";
 
 interface Props {
@@ -11,7 +15,49 @@ interface Props {
 }
 
 export function DeepfakeExposureMap({ findings, selectedDomain, onSelectDomain }: Props) {
-  const sources = useMemo(() => buildSourceIntelligenceList(findings), [findings]);
+  const baseSources = useMemo(() => buildSourceIntelligenceList(findings), [findings]);
+
+  // Domains with no static geo signal: resolve their real hosting country via DNS + IP geo.
+  const unlocatedDomains = useMemo(
+    () =>
+      baseSources
+        .filter((s) => !s.geo.country || !s.geo.mapPoint)
+        .map((s) => s.domain)
+        .filter(Boolean)
+        .slice(0, 40),
+    [baseSources],
+  );
+
+  const resolveGeo = useServerFn(resolveHostGeoBatch);
+  const { data: hostGeo } = useQuery({
+    queryKey: ["deepfake-host-geo", unlocatedDomains.join(",")],
+    enabled: unlocatedDomains.length > 0,
+    staleTime: 30 * 60 * 1000,
+    queryFn: () => resolveGeo({ data: { domains: unlocatedDomains } }),
+  });
+
+  const sources = useMemo(() => {
+    const lookup = new Map((hostGeo?.hosts ?? []).map((h) => [h.domain, h]));
+    return baseSources.map((s) => {
+      if (s.geo.country && s.geo.mapPoint) return s;
+      const hit = lookup.get(s.domain);
+      const mapPoint = hit?.country ? countryToMapPoint(hit.country) : null;
+      if (!hit?.country || !mapPoint) return s;
+      return {
+        ...s,
+        geo: {
+          ...s.geo,
+          country: hit.country,
+          countryName: hit.countryName || hit.country,
+          countryFlag: countryFlag(hit.country),
+          mapPoint,
+          hostingProvider: hit.organization || s.geo.hostingProvider,
+          confidence: "High" as const,
+          locationSignal: "VERIFIED_HOST_INFRASTRUCTURE" as const,
+        },
+      };
+    });
+  }, [baseSources, hostGeo]);
 
   // Group by country/location for map nodes
   const mapNodes = useMemo(() => {
