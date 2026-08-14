@@ -2,19 +2,21 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
- * Enforcement email (Amazon SES) status + controlled test send.
- * All AWS access happens inside handlers; no credentials reach the client.
+ * Enforcement email (Resend) status + controlled test send.
+ * The Resend API key is read inside handlers only; no credentials reach the client.
  */
 
 export const getEnforcementEmailStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    const { getSesSenderConfig, isSesConfigured } = await import("./transports/ses-transport");
-    const cfg = getSesSenderConfig();
+    const { getResendSenderConfig, isResendConfigured } = await import(
+      "./transports/resend-transport"
+    );
+    const cfg = getResendSenderConfig();
     return {
-      configured: isSesConfigured(),
-      provider: "SES" as const,
-      region: process.env.AWS_SES_REGION || process.env.AWS_REGION || null,
+      configured: isResendConfigured(),
+      provider: "RESEND" as const,
+      senderDomain: cfg.senderDomain,
       fromEmail: cfg.fromEmail,
       replyTo: cfg.replyTo,
       testMailbox: cfg.testDestination,
@@ -23,15 +25,7 @@ export const getEnforcementEmailStatus = createServerFn({ method: "GET" })
       productionAllowlistEnabled: process.env.ENFORCEMENT_PRODUCTION_ALLOWLIST_ENABLED === "true",
       emergencyPaused: process.env.ENFORCEMENT_EMERGENCY_PAUSE === "true",
       demoMode: process.env.DEMO_MODE === "true",
-      missing: [
-        !(process.env.AWS_SES_REGION || process.env.AWS_REGION) ? "AWS_SES_REGION" : null,
-        !(process.env.AWS_SES_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID)
-          ? "AWS_SES_ACCESS_KEY_ID"
-          : null,
-        !(process.env.AWS_SES_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY)
-          ? "AWS_SES_SECRET_ACCESS_KEY"
-          : null,
-      ].filter(Boolean) as string[],
+      missing: [!isResendConfigured() ? "RESEND_API_KEY" : null].filter(Boolean) as string[],
     };
   });
 
@@ -55,9 +49,11 @@ export const sendEnforcementTestEmail = createServerFn({ method: "POST" })
       throw new Error("Forbidden: enforcement test sends are restricted to Eterna operators.");
     }
 
-    const { SesEnforcementTransport, getSesSenderConfig } = await import("./transports/ses-transport");
+    const { ResendEnforcementTransport, getResendSenderConfig } = await import(
+      "./transports/resend-transport"
+    );
     const { recordEmailDelivery } = await import("./email-delivery-log.server");
-    const cfg = getSesSenderConfig();
+    const cfg = getResendSenderConfig();
 
     const subject = "Eterna Sentinel — Enforcement mail delivery self-test";
     const textBody = [
@@ -66,12 +62,12 @@ export const sendEnforcementTestEmail = createServerFn({ method: "POST" })
       `Triggered by: ${email}`,
       `Timestamp: ${new Date().toISOString()}`,
       `Sender: ${cfg.fromEmail}`,
-      `Region: ${process.env.AWS_SES_REGION || process.env.AWS_REGION}`,
+      "Provider: Resend",
       "",
       "No action is requested against any third party.",
     ].join("\n");
 
-    const result = await new SesEnforcementTransport().send({
+    const result = await new ResendEnforcementTransport().send({
       caseId: "internal-self-test",
       // Hard-coded internal mailbox: never a third party.
       intendedRecipient: cfg.testDestination,

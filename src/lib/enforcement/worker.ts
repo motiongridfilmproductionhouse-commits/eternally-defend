@@ -308,14 +308,14 @@ export class EnforcementWorkerRunner {
     if (connector.submissionMethod === "EMAIL") {
       try {
         const { recordEmailDelivery } = await import("./email-delivery-log.server");
-        const { getSesSenderConfig } = await import("./transports/ses-transport");
+        const { getResendSenderConfig } = await import("./transports/resend-transport");
         await recordEmailDelivery(
           {
             userId: job.user_id,
             caseId: c.id,
             enforcementRequestId: (c.enforcement_request_id as string) || null,
-            provider: result.provider || "SES",
-            fromEmail: getSesSenderConfig().fromEmail,
+            provider: result.provider || "RESEND",
+            fromEmail: getResendSenderConfig().fromEmail,
             intendedRecipient: payload.destinationEmail || `dmca@${resolvedRoute.domain}`,
             subject: `DMCA Takedown Notice — Infringement of Protected Asset on ${resolvedRoute.domain}`,
             testMode: process.env.ENFORCEMENT_TEST_MODE === "true",

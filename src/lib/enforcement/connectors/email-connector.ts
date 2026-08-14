@@ -12,7 +12,7 @@ import {
   ConnectorStatusResult,
 } from "./registry";
 import { PostmarkTransport, EnforcementEmailTransport } from "../transports/email-transport";
-import { SesEnforcementTransport, isSesConfigured } from "../transports/ses-transport";
+import { ResendEnforcementTransport, isResendConfigured } from "../transports/resend-transport";
 
 export class EmailEnforcementConnector implements EnforcementConnector {
   id = "email_dmca_connector";
@@ -29,9 +29,10 @@ export class EmailEnforcementConnector implements EnforcementConnector {
   private transport: EnforcementEmailTransport;
 
   constructor(transport?: EnforcementEmailTransport) {
-    // Amazon SES is the primary delivery path; Postmark remains a fallback
-    // when SES credentials are not configured in the environment.
-    this.transport = transport || (isSesConfigured() ? new SesEnforcementTransport() : new PostmarkTransport());
+    // Resend is the primary delivery path; Postmark remains a fallback
+    // when RESEND_API_KEY is not configured in the environment.
+    this.transport =
+      transport || (isResendConfigured() ? new ResendEnforcementTransport() : new PostmarkTransport());
   }
 
   async validate(payload: EnforcementCasePayload): Promise<ConnectorValidationResult> {
@@ -128,7 +129,7 @@ export class EmailEnforcementConnector implements EnforcementConnector {
       provider: result.provider,
       providerMessageId: result.providerMessageId,
       trackingRef: result.providerMessageId
-        ? `${result.provider || (isSesConfigured() ? "SES" : "POSTMARK")}-${result.providerMessageId}`
+        ? `${result.provider || (isResendConfigured() ? "RESEND" : "POSTMARK")}-${result.providerMessageId}`
         : undefined,
       notes: result.notes,
       error: result.error,

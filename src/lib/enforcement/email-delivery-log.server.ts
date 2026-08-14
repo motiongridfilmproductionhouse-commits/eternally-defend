@@ -38,7 +38,7 @@ export async function recordEmailDelivery(
         user_id: input.userId,
         enforcement_request_id: input.enforcementRequestId ?? null,
         case_id: input.caseId ?? null,
-        provider: input.provider ?? "SES",
+        provider: input.provider ?? result.provider ?? "RESEND",
         from_email: input.fromEmail,
         intended_recipient: input.intendedRecipient,
         destination_email: result.actualRecipient ?? input.intendedRecipient,
