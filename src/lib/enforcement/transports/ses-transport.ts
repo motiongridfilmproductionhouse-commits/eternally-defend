@@ -54,6 +54,7 @@ function getSesClient(): SESv2Client {
 export function getSesSenderConfig() {
   const fromEmail =
     process.env.ENFORCEMENT_SES_FROM_EMAIL ||
+    process.env.AWS_SES_FROM_EMAIL ||
     process.env.ENFORCEMENT_FROM_EMAIL ||
     "enforcement@eternasentinel.com";
   const fromName = process.env.ENFORCEMENT_SES_FROM_NAME || "Eterna Sentinel Enforcement";
