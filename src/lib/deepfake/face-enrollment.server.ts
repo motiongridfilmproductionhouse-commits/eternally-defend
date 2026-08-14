@@ -1,6 +1,9 @@
 import {CreateCollectionCommand,DescribeCollectionCommand,IndexFacesCommand} from "@aws-sdk/client-rekognition";
 import { getRekognitionClient } from "@/lib/aws/rekognition-client.server";
 
+const collectionId =
+  process.env.REKOGNITION_DEEPFAKE_COLLECTION?.trim() || "eterna-protected-identities";
+
 const rekognition = { send: (cmd: any) => getRekognitionClient().send(cmd) };
 
 function cleanExternalImageId(value: string): string {
