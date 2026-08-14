@@ -41,6 +41,24 @@ export interface EnforcementEmailTransport {
   send(payload: EnforcementEmailSendPayload): Promise<EnforcementEmailSendResult>;
 }
 
+/** Canonical controlled-test subject marker. */
+export const ENFORCEMENT_TEST_SUBJECT_PREFIX = "[ETERNA ENFORCEMENT TEST — DO NOT ACTION] ";
+
+/**
+ * Applies the controlled-test subject marker exactly once.
+ * Idempotent: any pre-existing marker(s) are collapsed to a single leading prefix,
+ * so upstream notice builders and transports can both call this safely.
+ */
+export function applyTestSubjectPrefix(subject: string, isTestMode: boolean): string {
+  const marker = ENFORCEMENT_TEST_SUBJECT_PREFIX.trim();
+  let base = (subject ?? "").trim();
+  while (base.startsWith(marker)) {
+    base = base.slice(marker.length).trim();
+  }
+  return isTestMode ? `${ENFORCEMENT_TEST_SUBJECT_PREFIX}${base}` : base;
+}
+
+
 export class PostmarkTransport implements EnforcementEmailTransport {
   async send(payload: EnforcementEmailSendPayload): Promise<EnforcementEmailSendResult> {
     // 1. DEMO MODE HARD BLOCK
