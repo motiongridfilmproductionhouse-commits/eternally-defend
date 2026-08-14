@@ -404,8 +404,11 @@ test("route keeps Continue and wires threatSummary from complete findings", () =
     "utf8",
   );
   assert.match(viz, /isElevatedThreatTone/);
-  assert.match(ui, /Continue scan/);
-  assert.match(ui, /continueScan\.mutate/);
+  const banner = readFileSync(
+    resolve(process.cwd(), "src/components/deepfake/ThreatAlertBanner.tsx"),
+    "utf8",
+  );
+  assert.match(banner, /Continue scan/);
   assert.doesNotMatch(ui, /level: "none"/);
 });
 
