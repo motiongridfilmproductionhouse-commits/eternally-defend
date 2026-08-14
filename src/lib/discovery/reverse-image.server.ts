@@ -56,7 +56,7 @@ async function serpApiGoogleLens(
   hint: string | undefined,
   limit: number,
 ): Promise<{ candidates: ReverseImageCandidate[]; bestGuessLabels: string[] }> {
-  const apiKey = process.env.SERPAPI_API_KEY;
+  const apiKey = process.env.SERPAPI_API_KEY || process.env.SERP_API || process.env["serp_api"];
   if (!apiKey) throw new Error("SERPAPI_API_KEY is not configured");
 
   const params = new URLSearchParams({
