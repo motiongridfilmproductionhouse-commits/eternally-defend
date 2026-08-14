@@ -7,6 +7,9 @@ import { reverseImageProvidersConfigured } from "@/lib/discovery/reverse-image.s
 
 const ASSET_ID = "ea34e7b6-2762-4db1-90a8-0d2061d79169";
 const sb = supabaseAdmin as any;
+const REAL_SOURCE = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200";
+const REAL_NAME = "Validation work — Unsplash landscape (photo-1506744038136)";
+await sb.from("protected_assets").update({ name: REAL_NAME, source_url: REAL_SOURCE, storage_path: null }).eq("id", ASSET_ID);
 
 const { data: asset } = await sb.from("protected_assets").select("*").eq("id", ASSET_ID).single();
 console.log("asset:", asset.name, asset.kind, asset.source_url, "fingerprinted:", !!asset.dhash);
@@ -40,3 +43,18 @@ console.log("RESULT:", JSON.stringify(result, null, 2));
 
 const { data: jobRow } = await sb.from("asset_discovery_jobs").select("*").eq("id", job.id).single();
 console.log("JOB ROW:", JSON.stringify(jobRow, null, 2));
+
+const { data: cands } = await sb
+  .from("discovery_candidates")
+  .select("page_url,media_url,host,platform,provider,match_type,verification_status,crawl_status,crawl_failure_reason,similarity,hamming_distance,hash_algorithm,match_reason,copyright_match_id,first_seen_at,last_seen_at")
+  .eq("protected_asset_id", ASSET_ID)
+  .order("similarity", { ascending: false, nullsFirst: false })
+  .limit(200);
+console.log("CANDIDATE COUNT:", cands?.length);
+const byStatus: Record<string, number> = {};
+for (const c of cands ?? []) byStatus[c.verification_status] = (byStatus[c.verification_status] ?? 0) + 1;
+console.log("BY STATUS:", byStatus);
+console.log("TOP 12:", JSON.stringify((cands ?? []).slice(0, 12), null, 2));
+const failures: Record<string, number> = {};
+for (const c of cands ?? []) if (c.crawl_failure_reason) failures[c.crawl_failure_reason.slice(0, 60)] = (failures[c.crawl_failure_reason.slice(0,60)] ?? 0) + 1;
+console.log("FAILURE REASONS:", failures);
