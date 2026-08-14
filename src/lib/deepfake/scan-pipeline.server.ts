@@ -2,6 +2,8 @@ import { isFirecrawlConfigured } from "../firecrawl-client.server";
 import { filterDeepfakeCandidates } from "./filter.server";
 import { generateDeepfakeQueries } from "./query-generator.server";
 import { isBlockedHost } from "./queries";
+import { isCandidateDisabledForFeature } from "../policy/source-policy";
+
 import {
   buildExecutedQueryPlan,
   discoveredCandidateKey,
