@@ -92,8 +92,8 @@ export const revokeBiometrics = createServerFn({ method: "POST" })
   });
 
 /**
- * Defer face enrollment. Legacy/v2-individual require KYC APPROVED. v2 celebrity
- * may defer without Veriff. Marks the face profile DEFERRED.
+ * Defer face enrollment. Veriff is not part of signup onboarding, so no KYC
+ * gate applies here. Marks the face profile DEFERRED.
  */
 export const deferFaceEnrollment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -101,7 +101,7 @@ export const deferFaceEnrollment = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { upsertProgressPreservingVersion, normalizeOnboardingVersion } =
       await import("./version.server");
-    const { isV2AccountType, requiresVeriff } = await import("./v2-config");
+    const { isV2AccountType } = await import("./v2-config");
 
     const { data: progress } = await supabase
       .from("onboarding_progress")
@@ -118,23 +118,9 @@ export const deferFaceEnrollment = createServerFn({ method: "POST" })
     const accountType = isV2AccountType(profile?.onboarding_account_type)
       ? profile.onboarding_account_type
       : null;
-    // Veriff is no longer part of signup onboarding, so face enrollment is never
-    // gated on KYC. Identity verification is still required later for sensitive
-    // actions (DMCA authorization, enforcement eligibility).
-    const mustHaveKyc = false;
-
-    if (mustHaveKyc) {
-      const { data: kyc } = await supabase
-        .from("kyc_verifications")
-        .select("verification_status")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (kyc?.verification_status !== "APPROVED") {
-        throw new Error("Identity Verification must be APPROVED before deferring Face Protection.");
-      }
-    }
+    // Veriff is no longer collected during onboarding, so deferring face
+    // protection is not gated on KYC. Identity verification is still enforced
+    // later for sensitive actions (DMCA authorization, enforcement eligibility).
 
     await supabase.from("protected_face_profiles").upsert(
       {
