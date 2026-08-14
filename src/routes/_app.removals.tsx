@@ -29,6 +29,19 @@ const statusColor: Record<string, string> = {
   Withdrawn: "oklch(0.55 0.03 275)",
 };
 
+/**
+ * "Queued" means recorded, not sent. Requests were sitting here for weeks while
+ * the UI counted them as "in flight", so queued rows now state plainly that
+ * nothing has been submitted, and anything older than a day is marked stalled.
+ */
+function queuedAgeDays(r: RemovalRow): number {
+  return Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86_400_000);
+}
+
+function isStalled(r: RemovalRow): boolean {
+  return r.status === "Queued" && queuedAgeDays(r) >= 1;
+}
+
 function RemovalsPage() {
   const { session, ready } = useSession();
   const userId = session?.user.id;
