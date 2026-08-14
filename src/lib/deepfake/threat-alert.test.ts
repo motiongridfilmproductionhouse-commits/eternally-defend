@@ -188,7 +188,7 @@ test("production PARTIAL fixture with 12 probable findings renders RED", () => {
     }),
   );
   assert.match(vizHtml, /data-threat-tone="red"/);
-  assert.match(vizHtml, /PAUSED — HIGH THREAT VOLUME/);
+  assert.match(vizHtml, /PAUSED — HIGH ALERT/);
   assert.match(vizHtml, /HIGH-VOLUME DEEPFAKE THREAT ACTIVITY/);
   assert.match(vizHtml, /Verified progress saved/);
   assert.match(vizHtml, /threat-domain-label/);
