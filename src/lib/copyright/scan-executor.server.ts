@@ -38,6 +38,13 @@ import {
   type FingerprintMatch,
 } from "@/lib/copyright/fingerprint.server";
 import { fetchImageBytes, sha256Hex } from "@/lib/aws/s3.server";
+import { computePerceptualHashes } from "@/lib/media/perceptual-hash.server";
+import {
+  verifyCandidateBytes,
+  type CandidateVerification,
+  type ProtectedFingerprint,
+} from "@/lib/media/candidate-verification.server";
+import { classifyPlatform, actionabilityBlocker } from "@/lib/media/platform-classifier";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
 import {
   CopyrightScanTracker,
@@ -225,6 +232,25 @@ export async function executeCopyrightScanPipeline(input: {
       ),
     ]);
 
+    // Real perceptual fingerprint (pHash/dHash/aHash) of the reference material
+    // and of every extra reference frame — used to verify downloaded candidates.
+    const referenceHashSets = allFrames
+      .map((bytes, index) => ({ index, hashes: bytes.length ? computePerceptualHashes(bytes) : null }))
+      .filter((entry): entry is { index: number; hashes: NonNullable<ReturnType<typeof computePerceptualHashes>> } => entry.hashes !== null);
+    const perceptualFingerprint: ProtectedFingerprint = {
+      protectedAssetId: scanId,
+      phash: referenceHashSets[0]?.hashes.phash ?? null,
+      dhash: referenceHashSets[0]?.hashes.dhash ?? null,
+      ahash: referenceHashSets[0]?.hashes.ahash ?? null,
+      frames: referenceHashSets.slice(1).map((entry) => ({
+        frameIndex: entry.index,
+        timestampSeconds: null,
+        phash: entry.hashes.phash,
+        dhash: entry.hashes.dhash,
+        ahash: entry.hashes.ahash,
+      })),
+    };
+
     await recordCopyrightScanDiagnostic(supabase, scanId, {
       reference_diagnostics: {
         reference_record_found: true,
@@ -316,6 +342,7 @@ export async function executeCopyrightScanPipeline(input: {
       watermark: string | null,
       reason: string,
       rek: FingerprintMatch = EMPTY_MATCH,
+      hashMatch: CandidateVerification | null = null,
     ): MatchInsert => {
       const contact = resolveAbuseContact(candidate.url);
       const thumb = candidate.thumbnail ?? candidate.imageUrl;
@@ -366,6 +393,41 @@ export async function executeCopyrightScanPipeline(input: {
             signal_count: rek.signals.length,
             corroboration_score: rek.score,
           },
+          perceptual_match: hashMatch
+            ? {
+                algorithm: hashMatch.algorithm,
+                similarity: hashMatch.similarity,
+                distance: hashMatch.distance,
+                per_algorithm: hashMatch.perAlgorithm,
+                verdict: hashMatch.verdict,
+                byte_identical: hashMatch.byteIdentical,
+                matched_reference_frame: hashMatch.matchedFrameIndex ?? null,
+                candidate_sha256: hashMatch.candidateSha256 ?? null,
+                unverifiable_reason: hashMatch.unverifiableReason ?? null,
+                compared_at: hashMatch.comparedAt,
+              }
+            : null,
+          reference_perceptual_hashes: {
+            phash: perceptualFingerprint.phash,
+            dhash: perceptualFingerprint.dhash,
+            ahash: perceptualFingerprint.ahash,
+            frame_count: perceptualFingerprint.frames?.length ?? 0,
+          },
+          platform_classification: (() => {
+            const platform = classifyPlatform(candidate.url);
+            return platform
+              ? {
+                  kind: platform.kind,
+                  label: platform.label,
+                  removal_capable: platform.removalCapable,
+                  is_infrastructure: platform.isInfrastructure,
+                  is_search_surface: platform.isSearchSurface,
+                  has_exact_page: platform.hasExactPage,
+                  actionability_blocker: actionabilityBlocker(candidate.url),
+                  removal_route_status: "DISCOVERED_UNVERIFIED",
+                }
+              : null;
+          })(),
           reference_fingerprint: {
             scene_labels: fingerprint.labels,
             scene_categories: fingerprint.sceneCategories,
@@ -388,10 +450,20 @@ export async function executeCopyrightScanPipeline(input: {
         batch.map(async (candidate) => {
           const img = candidate.imageUrl ?? candidate.thumbnail!;
           let rek: FingerprintMatch = EMPTY_MATCH;
-          if (fingerprint.available && img && !img.includes("favicons?domain=")) {
+          let hashMatch: CandidateVerification | null = null;
+          if (img && !img.includes("favicons?domain=")) {
             const fetched = await fetchImageBytes(img).catch(() => null);
             if (fetched?.bytes?.length) {
-              rek = await matchCandidateAgainstFingerprint(fingerprint, fetched.bytes, title);
+              // Real perceptual comparison against the reference material.
+              hashMatch = await verifyCandidateBytes(
+                perceptualFingerprint,
+                img,
+                fetched.bytes,
+                sha256,
+              ).catch(() => null);
+              if (fingerprint.available) {
+                rek = await matchCandidateAgainstFingerprint(fingerprint, fetched.bytes, title);
+              }
             }
           }
 
@@ -406,22 +478,35 @@ export async function executeCopyrightScanPipeline(input: {
             referenceOcrText: analysis.ocrText,
             referenceWatermark: analysis.watermark,
           });
-          return { candidate, result, rek };
+          return { candidate, result, rek, hashMatch };
         }),
       );
 
-      for (const { candidate, result, rek } of graded) {
-        const blended = blendConfidence(result ? result.confidence : null, rek);
+      for (const { candidate, result, rek, hashMatch } of graded) {
+        const baseBlended = blendConfidence(result ? result.confidence : null, rek);
+        // A verified perceptual match is the strongest available copy evidence.
+        const hashExact = hashMatch?.verdict === "EXACT";
+        const hashProbable = hashMatch?.verdict === "PROBABLE";
+        const blended = hashExact
+          ? Math.max(baseBlended, Math.min(99, hashMatch!.similarity))
+          : hashProbable
+            ? Math.max(baseBlended, 70)
+            : baseBlended;
         const rekStrong = rek.signals.length >= 2;
-        const isMatch = result
-          ? (!result.falsePositive || rek.signals.length >= 3) &&
-            (result.detectionType !== "unrelated" || rekStrong) &&
-            blended >= 50
-          : rekStrong && blended >= 50;
+        const isMatch =
+          hashExact ||
+          hashProbable ||
+          (result
+            ? (!result.falsePositive || rek.signals.length >= 3) &&
+              (result.detectionType !== "unrelated" || rekStrong) &&
+              blended >= 50
+            : rekStrong && blended >= 50);
 
-        const rekReason = rek.signals.length
-          ? ` AWS recognition: ${rek.signals.join("; ")}.`
-          : "";
+        const rekReason =
+          (rek.signals.length ? ` AWS recognition: ${rek.signals.join("; ")}.` : "") +
+          (hashMatch && hashMatch.verdict !== "UNVERIFIABLE"
+            ? ` Perceptual ${hashMatch.algorithm} similarity ${hashMatch.similarity}% (${hashMatch.verdict}).`
+            : "");
 
         if (isMatch) {
           rows.push(
@@ -439,8 +524,9 @@ export async function executeCopyrightScanPipeline(input: {
               ],
               result?.ocrText ?? (rek.matchedOcrText.join(" | ") || null),
               result?.watermark ?? rek.watermarkMatch,
-              `${result?.reason ?? "Multi-signal Rekognition match."}${rekReason}`,
+              `${result?.reason ?? (hashExact || hashProbable ? "Verified perceptual-hash copy of the protected reference." : "Multi-signal Rekognition match.")}${rekReason}`,
               rek,
+              hashMatch,
             ),
           );
           continue;
@@ -461,6 +547,7 @@ export async function executeCopyrightScanPipeline(input: {
               `Piracy-signal lead (${candidate.category ?? "web_lead"}) surfaced by "${candidate.keywordMatch ?? candidate.query ?? title}" — requires human review.`) +
               rekReason,
             rek,
+            hashMatch,
           ),
         );
       }
