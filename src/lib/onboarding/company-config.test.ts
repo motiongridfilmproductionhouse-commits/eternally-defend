@@ -11,8 +11,8 @@ import {
 } from "./company-config";
 
 describe("company flow", () => {
-  it("has six sequential steps ending in completion", () => {
-    expect(COMPANY_FLOW.map((s) => s.step)).toEqual([1, 2, 3, 4, 5, 6]);
+  it("has seven sequential steps ending in completion", () => {
+    expect(COMPANY_FLOW.map((s) => s.step)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(COMPANY_FLOW.at(-1)?.key).toBe("company_complete");
   });
 
