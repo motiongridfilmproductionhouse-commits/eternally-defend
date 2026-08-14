@@ -315,7 +315,7 @@ test("filtering/pagination must not reduce alert totals — full findings array"
   assert.equal(full.total, 12);
   assert.equal(page.total, 3);
   const ui = readFileSync(resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx"), "utf8");
-  assert.match(ui, /buildThreatAlertSummary\(\s*findings\s*\)/);
+  assert.match(ui, /buildThreatAlertSummary\(\s*(findings|exposureFindings)\s*\)/);
   assert.doesNotMatch(ui, /buildThreatAlertSummary\(\s*paged/);
   assert.doesNotMatch(ui, /buildThreatAlertSummary\(\s*filtered/);
   assert.doesNotMatch(ui, /buildThreatAlertSummary\(\s*scoped/);
