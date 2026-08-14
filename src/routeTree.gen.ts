@@ -58,6 +58,7 @@ import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.adm
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
+import { Route as ApiPublicHooksResendWebhookRouteImport } from './routes/api/public/hooks/resend-webhook'
 import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
 import { Route as ApiPublicHooksPostmarkWebhookRouteImport } from './routes/api/public/hooks/postmark-webhook'
 import { Route as ApiPublicHooksEnforcementWorkerRouteImport } from './routes/api/public/hooks/enforcement-worker'
@@ -324,6 +325,12 @@ const AppSensitiveProtectionResultsIndexRoute =
     path: '/sensitive-protection/results/',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiPublicHooksResendWebhookRoute =
+  ApiPublicHooksResendWebhookRouteImport.update({
+    id: '/api/public/hooks/resend-webhook',
+    path: '/api/public/hooks/resend-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksReleaseProtectionMonitorRoute =
   ApiPublicHooksReleaseProtectionMonitorRouteImport.update({
     id: '/api/public/hooks/release-protection-monitor',
@@ -456,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
+  '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -516,6 +524,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
+  '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
@@ -580,6 +589,7 @@ export interface FileRoutesById {
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
+  '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -643,6 +653,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/release-protection-monitor'
+    | '/api/public/hooks/resend-webhook'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -703,6 +714,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/release-protection-monitor'
+    | '/api/public/hooks/resend-webhook'
     | '/sensitive-protection/results'
   id:
     | '__root__'
@@ -766,6 +778,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/release-protection-monitor'
+    | '/api/public/hooks/resend-webhook'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
@@ -794,6 +807,7 @@ export interface RootRouteChildren {
   ApiPublicHooksEnforcementWorkerRoute: typeof ApiPublicHooksEnforcementWorkerRoute
   ApiPublicHooksPostmarkWebhookRoute: typeof ApiPublicHooksPostmarkWebhookRoute
   ApiPublicHooksReleaseProtectionMonitorRoute: typeof ApiPublicHooksReleaseProtectionMonitorRoute
+  ApiPublicHooksResendWebhookRoute: typeof ApiPublicHooksResendWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1141,6 +1155,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/hooks/resend-webhook': {
+      id: '/api/public/hooks/resend-webhook'
+      path: '/api/public/hooks/resend-webhook'
+      fullPath: '/api/public/hooks/resend-webhook'
+      preLoaderRoute: typeof ApiPublicHooksResendWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/release-protection-monitor': {
       id: '/api/public/hooks/release-protection-monitor'
       path: '/api/public/hooks/release-protection-monitor'
@@ -1362,6 +1383,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksPostmarkWebhookRoute: ApiPublicHooksPostmarkWebhookRoute,
   ApiPublicHooksReleaseProtectionMonitorRoute:
     ApiPublicHooksReleaseProtectionMonitorRoute,
+  ApiPublicHooksResendWebhookRoute: ApiPublicHooksResendWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

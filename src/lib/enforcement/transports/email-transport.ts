@@ -27,7 +27,7 @@ export interface EnforcementEmailSendResult {
     | "PRODUCTION_APPROVAL_REQUIRED"
     | "NOTICE_INCOMPLETE"
     | "QUEUED_FOR_CONTROLLED_RELEASE";
-  provider?: "POSTMARK" | "RESEND";
+  provider?: "POSTMARK" | "RESEND" | "SES";
   providerMessageId?: string;
   submittedAt?: string;
   error?: string;
@@ -125,6 +125,21 @@ export class PostmarkTransport implements EnforcementEmailTransport {
     const intendedRecipient = payload.intendedRecipient;
     // Hard force test destination when ENFORCEMENT_TEST_MODE is true; NO upstream value can bypass this
     const actualRecipient = isTestMode ? testDestination : intendedRecipient;
+
+    // 5b. SEND-TIME RECIPIENT GATE (explicit allowlist + suppression, fail closed).
+    {
+      const { assertRecipientPermitted } = await import("../recipient-allowlist.server");
+      const gate = await assertRecipientPermitted(actualRecipient, { isTestMode, isLiveEnabled });
+      if (!gate.allowed) {
+        return {
+          success: false,
+          status: "PRODUCTION_APPROVAL_REQUIRED",
+          provider: "POSTMARK",
+          intendedRecipient,
+          error: `RECIPIENT NOT PERMITTED: ${gate.reason ?? "recipient failed the production allowlist gate."}`,
+        };
+      }
+    }
 
     const fullSubject = applyTestSubjectPrefix(payload.subject, isTestMode);
 

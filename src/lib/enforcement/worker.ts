@@ -269,11 +269,34 @@ export class EnforcementWorkerRunner {
       demoMode: process.env.DEMO_MODE === "true",
     };
 
-    const noticeHash = createHash("sha256").update(c.target_url + c.enforcement_basis + job.user_id).digest("hex");
+    // 6b. RENDER THE EXACT NOTICE ONCE, HASH IT, AND SNAPSHOT IT BEFORE SENDING.
+    const prepared = await connector.prepare(payload);
+    const renderedSubject = String(
+      prepared["noticeSubject"] ??
+        `DMCA Takedown Notice — Infringement of Protected Asset on ${resolvedRoute.domain}`,
+    );
+    const renderedBody = String(prepared["noticeBody"] ?? "");
+    const finalRecipient = payload.destinationEmail || "";
+    payload.preparedNotice = { subject: renderedSubject, textBody: renderedBody };
 
-    // 7. PRE-SEND PRODUCTION SNAPSHOT RECORDING (Requirement 7)
-    try {
-      await (supabase as any).from("production_submission_snapshots").insert({
+    const { hashRenderedNotice } = await import("./notice-hash");
+    const noticeHash = hashRenderedNotice({
+      caseId: c.id,
+      recipient: finalRecipient,
+      subject: renderedSubject,
+      textBody: renderedBody,
+      manifest: [
+        { label: "target_url", reference: c.target_url },
+        { label: "authorization", reference: auth?.id ?? null },
+        { label: "protected_asset", reference: c.protected_asset_id ?? null },
+      ],
+    });
+
+    // 7. PRE-SEND PRODUCTION SNAPSHOT — MANDATORY. If it cannot be persisted the
+    //    send is aborted (no unauditable external enforcement is permitted).
+    const { error: snapshotError } = await (supabase as any)
+      .from("production_submission_snapshots")
+      .insert({
         case_id: c.id,
         user_id: job.user_id,
         protected_asset_id: c.protected_asset_id,
@@ -283,13 +306,32 @@ export class EnforcementWorkerRunner {
         target_domain: resolvedRoute.domain,
         enforcement_basis: c.enforcement_basis,
         verified_route: resolvedRoute as never,
-        recipient: payload.destinationEmail || `dmca@${resolvedRoute.domain}`,
-        notice_subject: `DMCA Takedown Notice — Infringement of Protected Asset on ${resolvedRoute.domain}`,
+        recipient: finalRecipient,
+        notice_subject: renderedSubject,
         notice_hash: noticeHash,
         worker_id: workerId,
       });
-    } catch {
-      /* ignore if snapshot table pending */
+
+    if (snapshotError) {
+      await (supabase as any).from("enforcement_events").insert({
+        case_id: c.id,
+        user_id: job.user_id,
+        event_type: "SUBMISSION_BLOCKED",
+        actor_type: "WORKER",
+        connector_id: connector.id,
+        previous_state: c.status,
+        metadata: {
+          reason: "PRE_SEND_SNAPSHOT_FAILED",
+          error: snapshotError.message ?? String(snapshotError),
+          workerId,
+        },
+      });
+      // Throw so the standard retry/backoff path records the failure. No send.
+      throw new Error(
+        `Pre-send audit snapshot could not be persisted; send aborted: ${
+          snapshotError.message ?? String(snapshotError)
+        }`,
+      );
     }
 
     await (supabase as any).from("enforcement_events").insert({
@@ -316,8 +358,8 @@ export class EnforcementWorkerRunner {
             enforcementRequestId: (c.enforcement_request_id as string) || null,
             provider: result.provider || "RESEND",
             fromEmail: getResendSenderConfig().fromEmail,
-            intendedRecipient: payload.destinationEmail || `dmca@${resolvedRoute.domain}`,
-            subject: `DMCA Takedown Notice — Infringement of Protected Asset on ${resolvedRoute.domain}`,
+            intendedRecipient: finalRecipient,
+            subject: renderedSubject,
             testMode: process.env.ENFORCEMENT_TEST_MODE === "true",
             metadata: { noticeHash, workerId, connectorId: connector.id, targetUrl: c.target_url },
           },

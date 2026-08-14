@@ -1,31 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { EnforcementWorkerRunner } from "@/lib/enforcement/worker";
+import { verifyEnforcementWorkerRequest } from "@/lib/enforcement/worker-auth.server";
 
 export const Route = createFileRoute("/api/public/hooks/enforcement-worker")({
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
-        const authHeader = request.headers.get("authorization") || request.headers.get("x-eterna-cron-secret");
-        const cronSecret = process.env.CRON_SECRET || process.env.ENFORCEMENT_WORKER_SECRET || process.env.COPYRIGHT_SCAN_WORKER_SECRET;
-
-        // Verify Vercel Cron Bearer token or custom worker secret
-        const expectedBearer = cronSecret ? `Bearer ${cronSecret}` : null;
-        const isAuthValid = !cronSecret || authHeader === expectedBearer || authHeader === cronSecret;
-
-        if (!isAuthValid) {
-          return new Response(JSON.stringify({ error: "Unauthorized cron/worker invocation" }), {
-            status: 401,
+        // FAIL CLOSED: a missing/short worker secret is never "authenticated".
+        const auth = verifyEnforcementWorkerRequest(request);
+        if (!auth.ok) {
+          return new Response(JSON.stringify({ error: auth.code, message: auth.message }), {
+            status: auth.status,
             headers: { "content-type": "application/json" },
           });
         }
 
         try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { EnforcementWorkerRunner } = await import("@/lib/enforcement/worker");
+
           let totalProcessed = 0;
           let hasMore = true;
 
           while (hasMore && totalProcessed < 10) {
-            const processed = await EnforcementWorkerRunner.processNextJob(supabaseAdmin, "vercel-cron-scheduled-worker");
+            const processed = await EnforcementWorkerRunner.processNextJob(
+              supabaseAdmin as never,
+              "scheduled-enforcement-worker",
+            );
             if (processed) {
               totalProcessed++;
             } else {
@@ -39,10 +39,7 @@ export const Route = createFileRoute("/api/public/hooks/enforcement-worker")({
               processedCount: totalProcessed,
               timestamp: new Date().toISOString(),
             }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            }
+            { status: 200, headers: { "content-type": "application/json" } },
           );
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);

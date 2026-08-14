@@ -40,6 +40,12 @@ export interface EnforcementCasePayload {
   authorizationPdfPath?: string | null;
   complaintPdfPath?: string | null;
   demoMode?: boolean;
+  /**
+   * Pre-rendered notice (subject/body) produced before the pre-send snapshot.
+   * When present the connector MUST send exactly this content so the persisted
+   * notice hash matches what the provider received.
+   */
+  preparedNotice?: { subject: string; textBody: string } | null;
 }
 
 export interface ConnectorValidationResult {

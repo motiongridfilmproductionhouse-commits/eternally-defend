@@ -106,21 +106,33 @@ export class EmailEnforcementConnector implements EnforcementConnector {
       };
     }
 
-    // 2. Route Verification Check
-    const isRouteVerified = payload.destinationRouteStatus === "VERIFIED" || payload.destinationEmail;
-    if (!isRouteVerified) {
+    // 2. Route Verification Check — STRICT. A supplied destinationEmail can
+    //    never substitute for a VERIFIED abuse route.
+    if (payload.destinationRouteStatus !== "VERIFIED") {
       return {
         success: false,
         status: "ROUTE_DISCOVERY_REQUIRED",
-        error: `Destination email route for ${payload.domain} is not verified. Automated email delivery halted.`,
+        error: `Destination email route for ${payload.domain} is not VERIFIED (status: ${
+          payload.destinationRouteStatus ?? "UNKNOWN"
+        }). Automated email delivery halted.`,
+      };
+    }
+    if (!payload.destinationEmail || !payload.destinationEmail.includes("@")) {
+      return {
+        success: false,
+        status: "ROUTE_DISCOVERY_REQUIRED",
+        error: `No resolved abuse recipient for ${payload.domain}. Automated email delivery halted.`,
       };
     }
 
-    // 3. Prepare notice body
-    const prepared = await this.prepare(payload);
-    const intendedRecipient = payload.destinationEmail || `dmca@${payload.domain}`;
+    // 3. Use the pre-rendered (snapshotted) notice when provided, so the
+    //    hashed/snapshotted content is byte-identical to what is sent.
+    const prepared = payload.preparedNotice
+      ? { noticeSubject: payload.preparedNotice.subject, noticeBody: payload.preparedNotice.textBody }
+      : await this.prepare(payload);
+    const intendedRecipient = payload.destinationEmail;
 
-    // 4. Dispatch via PostmarkTransport
+    // 4. Dispatch via the configured transport
     const result = await this.transport.send({
       caseId: payload.caseId,
       intendedRecipient,
@@ -128,6 +140,7 @@ export class EmailEnforcementConnector implements EnforcementConnector {
       textBody: String(prepared.noticeBody),
       demoMode: payload.demoMode,
     });
+
 
     return {
       success: result.success,
