@@ -188,6 +188,29 @@ function DeepfakeIntelPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
   });
 
+  const manualEvidence = useMutation({
+    mutationFn: (urls: string[]) =>
+      manualEvidenceFn({
+        data: {
+          target_name: targetName.trim() || (selectedProfile?.target_name ?? ""),
+          urls,
+          ...(selectedProfileId ? { profile_id: selectedProfileId } : {}),
+        },
+      }),
+    onSuccess: (res) => {
+      setManualLeadResults(res.results);
+      if (res.scan_id) setSelectedScanId(res.scan_id);
+      qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
+      setManualUrlsText("");
+      toast.success(
+        `${res.processed} supplied link${res.processed === 1 ? "" : "s"} triaged — ${res.review_required} pending review, ${res.rejected} rejected, ${res.failed} unreachable`,
+      );
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Supplied links could not be processed"),
+  });
+
+
   const createProfile = useMutation({
     mutationFn: (target_name: string) =>
       createProfileFn({
