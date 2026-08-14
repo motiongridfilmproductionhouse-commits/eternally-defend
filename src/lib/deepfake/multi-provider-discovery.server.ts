@@ -98,6 +98,8 @@ export async function executeMultiProviderDiscovery({
   supabase,
   perQueryLimit = 10,
   onProgress,
+  deadlineAt,
+  concurrency = 4,
 }: {
   queries: string[];
   scanId: string;
@@ -106,12 +108,20 @@ export async function executeMultiProviderDiscovery({
   supabase: SupabaseClient<any, "public", any>;
   perQueryLimit?: number;
   onProgress?: (progress: DiscoveryProgress) => void | Promise<void>;
+  /**
+   * Absolute epoch-ms discovery deadline. Once passed, no new provider calls
+   * start and discovery returns the leads collected so far so crawling,
+   * classification and persistence still run inside the request budget.
+   */
+  deadlineAt?: number;
+  /** Parallel provider calls per wave. */
+  concurrency?: number;
 }): Promise<DiscoveredLead[]> {
   const allLeads: DiscoveredLead[] = [];
   const seenUrls = new Set<string>();
+  let executed = 0;
 
-  for (let idx = 0; idx < queries.length; idx++) {
-    const query = queries[idx];
+  const runQuery = async (query: string, idx: number): Promise<void> => {
     let queryHits: DiscoveredLead[] = [];
     let providerUsed = "firecrawl";
     let providerStatus: DiscoveryProgress["providerStatus"] = "success";
@@ -120,7 +130,11 @@ export async function executeMultiProviderDiscovery({
     // 1. Try Firecrawl
     if (process.env.FIRECRAWL_API_KEY?.trim()) {
       try {
-        const fcHits = await firecrawlSearch(query, perQueryLimit);
+        const fcHits = await firecrawlSearch(
+          query,
+          perQueryLimit,
+          deadlineAt ? { softDeadlineMs: deadlineAt } : undefined,
+        );
         queryHits = fcHits.map((h) => ({
           url: h.url,
           title: h.title ?? "",
@@ -139,7 +153,10 @@ export async function executeMultiProviderDiscovery({
         else if (lastError.code === "AUTH_FAILED") providerStatus = "auth_failed";
         else providerStatus = "failed";
 
-        console.warn(`[DEEPFAKE:DISCOVERY] Firecrawl query "${query}" failed (${lastError.code}):`, lastError.message);
+        console.warn(
+          `[DEEPFAKE:DISCOVERY] Firecrawl query "${query}" failed (${lastError.code}):`,
+          lastError.message,
+        );
       }
     } else {
       providerStatus = "skipped";
@@ -167,22 +184,13 @@ export async function executeMultiProviderDiscovery({
     for (const lead of queryHits) {
       if (!lead.url) continue;
       const host = hostOf(lead.url);
-      if (!host || isBlockedHost(host)) {
-        console.log(`[DEEPFAKE:REJECTED] Rejected host ${host} for "${lead.url}" - Blocked host`);
-        continue;
-      }
+      if (!host || isBlockedHost(host)) continue;
       const canonical = canonicalUrl(lead.url);
       if (seenUrls.has(canonical)) continue;
       seenUrls.add(canonical);
 
       const targetName = query.split(/\s+/)[0] || "";
-      const { score, isHarmless, reasons } = calculateDeepfakeRelevanceScore(lead, targetName);
-
-      if (isHarmless && score < 100) {
-        console.log(
-          `[DEEPFAKE:REJECTED] Rejected: ${lead.url} | Reason: ${reasons[0] ?? "Low relevance"} | Score: ${score}`,
-        );
-      }
+      const { score } = calculateDeepfakeRelevanceScore(lead, targetName);
 
       allLeads.push({
         ...lead,
@@ -219,6 +227,7 @@ export async function executeMultiProviderDiscovery({
       }
     }
 
+    executed += 1;
     if (onProgress) {
       await onProgress({
         provider: providerUsed,
@@ -232,7 +241,21 @@ export async function executeMultiProviderDiscovery({
         httpStatus: lastError?.status ?? null,
       });
     }
+  };
+
+  const wave = Math.max(1, concurrency);
+  for (let start = 0; start < queries.length; start += wave) {
+    if (deadlineAt && Date.now() >= deadlineAt) {
+      console.warn("[DEEPFAKE:DISCOVERY] Discovery deadline reached; stopping query execution", {
+        queries_executed: executed,
+        queries_planned: queries.length,
+      });
+      break;
+    }
+    const batch = queries.slice(start, start + wave);
+    await Promise.all(batch.map((query, offset) => runQuery(query, start + offset)));
   }
 
   return allLeads;
 }
+

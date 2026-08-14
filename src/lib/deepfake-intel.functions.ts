@@ -276,6 +276,19 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       const providersSet = new Set<string>();
       let executedQueriesCount = 0;
 
+      /**
+       * Hard request budget. Serverless requests are terminated around the
+       * 5-minute mark; discovery used to consume the entire window and the
+       * scan died before crawling/classification ever ran (scan stuck
+       * "running", zero findings). Discovery now stops at 90s so the
+       * remaining stages always execute and findings get persisted.
+       */
+      const requestStartedAtMs = Date.now();
+      const DISCOVERY_BUDGET_MS = 90_000;
+      const discoveryDeadlineAt = requestStartedAtMs + DISCOVERY_BUDGET_MS;
+      const remainingBudgetMs = () =>
+        Math.max(0, requestStartedAtMs + 210_000 - Date.now());
+
       let allHits = [];
       try {
         allHits = await executeMultiProviderDiscovery({
@@ -284,6 +297,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           userId,
           supabase,
           perQueryLimit: data.per_query_limit ?? 10,
+          deadlineAt: discoveryDeadlineAt,
+          concurrency: 4,
           onProgress: async (p) => {
             executedQueriesCount++;
             if (/\bsite:(?:desifakes|imgfy)\b/i.test(p.query)) {
@@ -320,11 +335,15 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 
       await updateTelemetry({
         stage: "discovery_complete",
-        queries_executed: uniqueQueries.length,
+        queries_executed: executedQueriesCount,
         providers_used: Array.from(providersSet),
         candidates_found: allHits.length,
-        coverage_pct: 100,
+        coverage_pct: Math.min(
+          100,
+          Math.round((executedQueriesCount / Math.max(uniqueQueries.length, 1)) * 100),
+        ),
         estimated_remaining_time: "Completing verification...",
+
         stage_logs: [
           ...telemetry.stage_logs,
           "✓ Google Images searched",
@@ -362,7 +381,14 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       let mediaCandidates = [];
       try {
         const { enrichHitsWithMedia } = await import("./deepfake/media-discovery.server");
-        mediaCandidates = await enrichHitsWithMedia(candidateFilter.accepted, 60);
+        // Keep crawling inside the remaining request budget so classification
+        // and finding persistence always run.
+        const crawlLimit = remainingBudgetMs() > 120_000 ? 60 : 24;
+        mediaCandidates = await enrichHitsWithMedia(
+          candidateFilter.accepted.slice(0, crawlLimit),
+          crawlLimit,
+        );
+
 
         await updateTelemetry({
           stage: "media_crawled",
@@ -407,8 +433,10 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
             supabase,
             userId,
             profileId: data.profile_id,
-            candidates: mediaCandidates,
+            candidates: mediaCandidates.slice(0, remainingBudgetMs() > 90_000 ? 40 : 15),
             similarityThreshold: 70,
+            softDeadlineMs: Date.now() + Math.min(remainingBudgetMs() * 0.5, 60_000),
+
           });
 
           verifiedCount = faceResults.matched.filter(
