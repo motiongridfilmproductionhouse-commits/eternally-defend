@@ -861,7 +861,7 @@ export async function processManualEvidenceLead(input: {
           image_url: imageUrl,
           thumbnail_url: imageUrl,
           media_type: imageUrl ? "image" : null,
-          analysis_status: "url_verified",
+          analysis_status: "needs_review",
           updated_at: new Date().toISOString(),
         },
         { onConflict: "scan_id,page_url" },

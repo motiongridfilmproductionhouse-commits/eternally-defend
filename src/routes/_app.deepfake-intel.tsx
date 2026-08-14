@@ -8,6 +8,7 @@ import {
   getDeepfakeScan,
   updateDeepfakeFinding,
   parseTelemetry,
+  submitAndProcessManualEvidence,
 } from "@/lib/deepfake-intel.functions";
 import {
   createDeepfakeTargetProfile,
@@ -83,6 +84,15 @@ interface DiscoveryLeadItem {
   analysis_status?: string | null;
 }
 
+interface ManualLeadResult {
+  submitted_url: string;
+  status: string;
+  reason: string | null;
+  classification: string | null;
+  source_domain: string | null;
+  face_similarity: number | null;
+}
+
 type RiskLevel = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
 const RISK_STYLE: Record<RiskLevel, { badge: string; dot: string }> = {
@@ -97,6 +107,7 @@ function DeepfakeIntelPage() {
   const listFn = useServerFn(listDeepfakeScans);
   const getFn = useServerFn(getDeepfakeScan);
   const updFn = useServerFn(updateDeepfakeFinding);
+  const manualEvidenceFn = useServerFn(submitAndProcessManualEvidence);
   const createProfileFn = useServerFn(createDeepfakeTargetProfile);
   const listProfilesFn = useServerFn(listDeepfakeTargetProfiles);
   const uploadReferenceFn = useServerFn(uploadDeepfakeReferenceFace);
@@ -111,6 +122,7 @@ function DeepfakeIntelPage() {
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [manualUrlsText, setManualUrlsText] = useState("");
+  const [manualLeadResults, setManualLeadResults] = useState<ManualLeadResult[]>([]);
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
   const [showGeneralMentions, setShowGeneralMentions] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
@@ -187,6 +199,29 @@ function DeepfakeIntelPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
   });
+
+  const manualEvidence = useMutation({
+    mutationFn: (urls: string[]) =>
+      manualEvidenceFn({
+        data: {
+          target_name: targetName.trim() || (selectedProfile?.target_name ?? ""),
+          urls,
+          ...(selectedProfileId ? { profile_id: selectedProfileId } : {}),
+        },
+      }),
+    onSuccess: (res) => {
+      setManualLeadResults(res.results);
+      if (res.scan_id) setSelectedScanId(res.scan_id);
+      qc.invalidateQueries({ queryKey: ["deepfake-scans"] });
+      setManualUrlsText("");
+      toast.success(
+        `${res.processed} supplied link${res.processed === 1 ? "" : "s"} triaged — ${res.review_required} pending review, ${res.rejected} rejected, ${res.failed} unreachable`,
+      );
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Supplied links could not be processed"),
+  });
+
 
   const createProfile = useMutation({
     mutationFn: (target_name: string) =>
@@ -413,16 +448,85 @@ function DeepfakeIntelPage() {
                 variant="outline"
                 size="sm"
                 className="w-full text-xs"
-                disabled={!manualUrlsText.trim()}
+                disabled={
+                  !manualUrlsText.trim() ||
+                  manualEvidence.isPending ||
+                  !(targetName.trim() || selectedProfile?.target_name)
+                }
                 onClick={() => {
-                  toast.success("Manual evidence URLs submitted for evidence triage.");
-                  setManualUrlsText("");
+                  const urls = manualUrlsText
+                    .split(/[\s,]+/)
+                    .map((value) => value.trim())
+                    .filter((value) => /^https?:\/\//i.test(value));
+                  if (!urls.length) {
+                    toast.error("Paste at least one http(s) evidence link.");
+                    return;
+                  }
+                  manualEvidence.mutate(urls);
                 }}
               >
-                <Link className="size-3.5 mr-1.5" />
-                Process supplied links now
+                {manualEvidence.isPending ? (
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Link className="size-3.5 mr-1.5" />
+                )}
+                {manualEvidence.isPending ? "Triaging supplied links…" : "Process supplied links now"}
               </Button>
+
+              {manualLeadResults.length > 0 && (
+                <div className="space-y-1.5 rounded-md border border-border/70 bg-secondary/20 p-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Supplied link triage
+                  </div>
+                  {manualLeadResults.map((lead) => (
+                    <div
+                      key={lead.submitted_url}
+                      className="rounded border border-border/60 bg-background/60 p-2 text-[11px] space-y-1"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <a
+                          href={lead.submitted_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="min-w-0 break-all text-primary hover:underline"
+                        >
+                          {lead.submitted_url}
+                        </a>
+                        <Badge
+                          variant="outline"
+                          className={
+                            lead.status === "review_required" || lead.status === "evidence_ready"
+                              ? "border-amber-400/40 bg-amber-400/15 text-amber-500"
+                              : lead.status === "rejected"
+                                ? "border-border bg-secondary/40 text-muted-foreground"
+                                : "border-red-600/40 bg-red-600/15 text-red-500"
+                          }
+                        >
+                          {lead.status.replace(/_/g, " ")}
+                        </Badge>
+                      </div>
+                      <div className="text-muted-foreground break-words">
+                        {[
+                          lead.classification,
+                          lead.source_domain,
+                          typeof lead.face_similarity === "number" && lead.face_similarity > 0
+                            ? `face ${lead.face_similarity.toFixed(0)}%`
+                            : null,
+                          lead.reason,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-muted-foreground">
+                    Supplied links are stored as evidence leads for human review. No takedown is
+                    sent automatically.
+                  </p>
+                </div>
+              )}
             </div>
+
 
             <div className="rounded-lg border border-border/70 bg-secondary/20 p-3 space-y-3">
               <div className="flex items-center gap-2">

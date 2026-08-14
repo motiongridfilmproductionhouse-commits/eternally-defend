@@ -371,73 +371,69 @@ export async function scrapeMediaFromPage(
 
     assertNotAborted(options?.signal);
 
+    /*
+     * The provider can refuse a page (quota exhausted, provider error, host
+     * blocked). Fall back to a direct HTML fetch of the exact final URL so
+     * client-supplied evidence is still inspected from the real page.
+     */
+    const providerFailedRecord = (): MediaDiscoveryHit[] => [
+      {
+        ...hit,
+        evidence_page_url: hit.evidence_page_url ?? hit.url,
+        media_url:
+          existingDirectMedia && validHttpUrl(existingDirectMedia)
+            ? existingDirectMedia
+            : hit.media_url,
+        image_url:
+          existingDirectMedia && validHttpUrl(existingDirectMedia)
+            ? existingDirectMedia
+            : hit.image_url,
+        page_inspected: false,
+        provider_scrape_failed: true,
+        page_text: "",
+        is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
+      },
+    ];
+
+    const directFallback = async (): Promise<
+      NonNullable<FirecrawlScrapeResponse["data"]> | null
+    > => {
+      const { fetchPageDirect } = await import("./direct-page-fetch.server");
+      return fetchPageDirect(hit.url, {
+        ...(options?.signal ? { signal: options.signal } : {}),
+        timeoutMs: boundTimeoutMs(20_000, options?.signal, options?.softDeadlineMs),
+      });
+    };
+
+    let data: NonNullable<FirecrawlScrapeResponse["data"]> | null = null;
+
     if (!response?.ok) {
-      console.warn("[DEEPFAKE:MEDIA] Page scrape failed:", {
+      console.warn("[DEEPFAKE:MEDIA] Page scrape failed, trying direct fetch:", {
         url: hit.url,
         status: response?.status ?? "unknown",
         error: rawBody.slice(0, 300),
       });
+      data = await directFallback();
+    } else {
+      let payload: FirecrawlScrapeResponse | null = null;
+      try {
+        payload = JSON.parse(rawBody) as FirecrawlScrapeResponse;
+      } catch {
+        payload = null;
+      }
 
-      return [
-        {
-          ...hit,
-          evidence_page_url: hit.evidence_page_url ?? hit.url,
-          media_url:
-            existingDirectMedia && validHttpUrl(existingDirectMedia)
-              ? existingDirectMedia
-              : hit.media_url,
-          image_url:
-            existingDirectMedia && validHttpUrl(existingDirectMedia)
-              ? existingDirectMedia
-              : hit.image_url,
-          page_inspected: false,
-          provider_scrape_failed: true,
-          page_text: "",
-          is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
-        },
-      ];
+      data = payload?.success && payload.data ? payload.data : await directFallback();
     }
 
-    let payload: FirecrawlScrapeResponse;
-    try {
-      payload = JSON.parse(rawBody) as FirecrawlScrapeResponse;
-    } catch {
-      return [
-        {
-          ...hit,
-          evidence_page_url: hit.evidence_page_url ?? hit.url,
-          media_url:
-            existingDirectMedia && validHttpUrl(existingDirectMedia)
-              ? existingDirectMedia
-              : hit.media_url,
-          page_inspected: false,
-          provider_scrape_failed: true,
-          page_text: "",
-          is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
-        },
-      ];
+    assertNotAborted(options?.signal);
+
+    if (!data) {
+      return providerFailedRecord();
     }
 
-    if (!payload.success || !payload.data) {
-      return [
-        {
-          ...hit,
-          evidence_page_url: hit.evidence_page_url ?? hit.url,
-          media_url:
-            existingDirectMedia && validHttpUrl(existingDirectMedia)
-              ? existingDirectMedia
-              : hit.media_url,
-          page_inspected: false,
-          provider_scrape_failed: true,
-          page_text: "",
-          is_sensitive: hit.is_sensitive ?? hasExplicitPageRisk(hit),
-        },
-      ];
-    }
-
-    const data = payload.data;
     const html = data.rawHtml ?? data.html ?? "";
     const pageText = extractPageText(data);
+
     const pageInspected = pageText.trim().length >= 80;
     const relatedLinks = sameHostRelatedLinks({
       pageUrl: hit.url,
