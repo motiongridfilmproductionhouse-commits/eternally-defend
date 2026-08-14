@@ -97,7 +97,7 @@ export function StatsRow() {
     {
       icon: Send,
       label: "TAKEDOWNS SENT",
-      value: counts.data?.takedowns ?? 0,
+      value: counts.data?.takedownsSent ?? 0,
       sub: "Submitted requests",
       color: "#3B82F6",
     },
