@@ -46,7 +46,7 @@ function finding(partial: Partial<ClientFinding> & { id: string }): ClientFindin
     face_similarity: 96,
     explicit_media_confirmed: true,
     synthetic_media_confirmed: true,
-    media_hosting_confirmed: true,
+    hosting_or_distribution_confirmed: true,
     ...partial,
   } as ClientFinding;
 }
