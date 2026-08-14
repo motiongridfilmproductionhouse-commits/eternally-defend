@@ -276,6 +276,19 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       const providersSet = new Set<string>();
       let executedQueriesCount = 0;
 
+      /**
+       * Hard request budget. Serverless requests are terminated around the
+       * 5-minute mark; discovery used to consume the entire window and the
+       * scan died before crawling/classification ever ran (scan stuck
+       * "running", zero findings). Discovery now stops at 90s so the
+       * remaining stages always execute and findings get persisted.
+       */
+      const requestStartedAtMs = Date.now();
+      const DISCOVERY_BUDGET_MS = 90_000;
+      const discoveryDeadlineAt = requestStartedAtMs + DISCOVERY_BUDGET_MS;
+      const remainingBudgetMs = () =>
+        Math.max(0, requestStartedAtMs + 210_000 - Date.now());
+
       let allHits = [];
       try {
         allHits = await executeMultiProviderDiscovery({
@@ -284,6 +297,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           userId,
           supabase,
           perQueryLimit: data.per_query_limit ?? 10,
+          deadlineAt: discoveryDeadlineAt,
+          concurrency: 4,
           onProgress: async (p) => {
             executedQueriesCount++;
             if (/\bsite:(?:desifakes|imgfy)\b/i.test(p.query)) {
