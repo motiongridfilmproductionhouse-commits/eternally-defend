@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
       libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 \
       libasound2 libatspi2.0-0 libx11-6 libxcb1 libxext6 libglib2.0-0 \
+      ffmpeg libgl1 libsm6 libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

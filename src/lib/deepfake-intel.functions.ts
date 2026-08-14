@@ -7,6 +7,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { filterDeepfakeCandidates } from "./deepfake/filter.server";
 import { generateDeepfakeQueries } from "./deepfake/query-generator.server";
 import { executeMultiProviderDiscovery } from "./deepfake/multi-provider-discovery.server";
+import { seedDeepfakeLeadsFromReferenceFaces } from "./deepfake/reverse-image-seed.server";
 import {
   recordQualifiedDomainFinding,
   determineLeadOrigin,
@@ -331,6 +332,22 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           stage_logs: [...telemetry.stage_logs, `✖ FAILED DURING GOOGLE IMAGES: ${errMsg}`],
         });
         throw new Error(`FAILED DURING GOOGLE IMAGES: ${errMsg}`);
+      }
+
+      // 3b. Reverse-image seeding from the client's own enrolled reference face.
+      const reverseSeed = await seedDeepfakeLeadsFromReferenceFaces({
+        supabase,
+        userId,
+        subject: data.target_name,
+      });
+      if (reverseSeed.leads.length) {
+        const known = new Set(allHits.map((hit: { url: string }) => hit.url));
+        for (const lead of reverseSeed.leads) {
+          if (known.has(lead.url)) continue;
+          known.add(lead.url);
+          allHits.push(lead);
+        }
+        providersSet.add("reverse_image");
       }
 
       await updateTelemetry({

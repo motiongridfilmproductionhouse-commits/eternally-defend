@@ -5733,6 +5733,65 @@ export type Database = {
           },
         ]
       }
+      protected_asset_frames: {
+        Row: {
+          ahash: string | null
+          created_at: string
+          dhash: string | null
+          frame_index: number
+          height: number | null
+          id: string
+          metadata: Json
+          phash: string | null
+          protected_asset_id: string
+          sha256: string | null
+          storage_path: string | null
+          timestamp_seconds: number | null
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          ahash?: string | null
+          created_at?: string
+          dhash?: string | null
+          frame_index: number
+          height?: number | null
+          id?: string
+          metadata?: Json
+          phash?: string | null
+          protected_asset_id: string
+          sha256?: string | null
+          storage_path?: string | null
+          timestamp_seconds?: number | null
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          ahash?: string | null
+          created_at?: string
+          dhash?: string | null
+          frame_index?: number
+          height?: number | null
+          id?: string
+          metadata?: Json
+          phash?: string | null
+          protected_asset_id?: string
+          sha256?: string | null
+          storage_path?: string | null
+          timestamp_seconds?: number | null
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protected_asset_frames_protected_asset_id_fkey"
+            columns: ["protected_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       protected_asset_matches: {
         Row: {
           copyright_risk: number | null
@@ -5806,8 +5865,12 @@ export type Database = {
       protected_assets: {
         Row: {
           active: boolean
+          ahash: string | null
           created_at: string
+          dhash: string | null
           discovered_account_id: string | null
+          hash_algorithm: string | null
+          hashed_at: string | null
           id: string
           kind: string
           metadata: Json
@@ -5820,8 +5883,12 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          ahash?: string | null
           created_at?: string
+          dhash?: string | null
           discovered_account_id?: string | null
+          hash_algorithm?: string | null
+          hashed_at?: string | null
           id?: string
           kind: string
           metadata?: Json
@@ -5834,8 +5901,12 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          ahash?: string | null
           created_at?: string
+          dhash?: string | null
           discovered_account_id?: string | null
+          hash_algorithm?: string | null
+          hashed_at?: string | null
           id?: string
           kind?: string
           metadata?: Json
