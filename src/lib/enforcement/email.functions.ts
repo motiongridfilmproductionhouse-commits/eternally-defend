@@ -145,11 +145,16 @@ export const sendEnforcementRequestEmail = createServerFn({ method: "POST" })
       throw new Error("Enforcement request has an invalid target URL.");
     }
 
-    const { resolveVerifiedRoute } = await import("./route-resolution.server");
-    const route = await resolveVerifiedRoute(supabase, domain);
-    if (!route) {
+    const { EnforcementRouteResolver } = await import("./route-resolver");
+    const route = await EnforcementRouteResolver.resolveRoute(supabase, String(reqRow.target_url));
+    if (
+      route.verificationStatus !== "VERIFIED" ||
+      route.submissionMethod !== "EMAIL" ||
+      !route.canAutoSend ||
+      !route.contactEmail?.includes("@")
+    ) {
       throw new Error(
-        `No VERIFIED abuse route exists for ${domain}. Route verification is required before a notice can be sent.`,
+        `No VERIFIED email enforcement route exists for ${domain} (status: ${route.verificationStatus}). Route verification is required before a notice can be sent.`,
       );
     }
 
@@ -157,7 +162,7 @@ export const sendEnforcementRequestEmail = createServerFn({ method: "POST" })
     return sendEnforcementRequestNotice(supabase, {
       userId,
       enforcementRequestId: data.enforcementRequestId,
-      destinationEmail: route.email,
+      destinationEmail: route.contactEmail,
     });
   });
 
