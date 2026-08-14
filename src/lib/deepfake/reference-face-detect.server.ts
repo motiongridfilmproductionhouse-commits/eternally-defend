@@ -3,23 +3,10 @@
  * Falls back gracefully when AWS credentials are unavailable.
  */
 
-import { DetectFacesCommand, RekognitionClient } from "@aws-sdk/client-rekognition";
+import {DetectFacesCommand} from "@aws-sdk/client-rekognition";
+import { getRekognitionClient } from "@/lib/aws/rekognition-client.server";
 import { downloadFaceImage } from "./face-match.server";
 import { assertNotAborted } from "./scan-runtime.server";
-
-const region = process.env.AWS_REKOGNITION_REGION ?? process.env.AWS_REGION ?? "eu-north-1";
-
-const rekognition = new RekognitionClient({
-  region,
-  credentials:
-    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-      ? {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          sessionToken: process.env.AWS_SESSION_TOKEN,
-        }
-      : undefined,
-});
 
 export type ReferenceFaceDetection = {
   faceDetected: boolean;
@@ -59,7 +46,7 @@ export async function detectReferenceFace(input: {
         softDeadlineMs: input.softDeadlineMs,
       }));
 
-    const response = await rekognition.send(
+    const response = await getRekognitionClient().send(
       new DetectFacesCommand({
         Image: { Bytes: bytes },
         Attributes: ["DEFAULT"],

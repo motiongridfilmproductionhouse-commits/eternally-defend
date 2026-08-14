@@ -7,10 +7,10 @@ let _hasValidated = false;
 
 function validateAndLog() {
   if (_hasValidated) return;
-  const region = process.env.AWS_REGION;
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-  const bucket = process.env.AWS_REKOGNITION_BUCKET;
+  const region = process.env.AWS_REGION?.trim();
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY?.trim();
+  const bucket = process.env.AWS_REKOGNITION_BUCKET?.trim();
 
   const missing = [];
   if (!region) missing.push("AWS_REGION");
@@ -28,9 +28,9 @@ function validateAndLog() {
 
 function creds() {
   validateAndLog();
-  const region = process.env.AWS_REGION!;
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID!;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY!;
+  const region = process.env.AWS_REGION!.trim();
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID!.trim();
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY!.trim();
   return { region, credentials: { accessKeyId, secretAccessKey } };
 }
 
@@ -46,5 +46,5 @@ export function getS3(): S3Client {
 
 export function getBucket(): string {
   validateAndLog();
-  return process.env.AWS_REKOGNITION_BUCKET!;
+  return process.env.AWS_REKOGNITION_BUCKET!.trim();
 }

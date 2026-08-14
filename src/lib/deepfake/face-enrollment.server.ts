@@ -1,25 +1,8 @@
-import {
-  CreateCollectionCommand,
-  DescribeCollectionCommand,
-  IndexFacesCommand,
-  RekognitionClient,
-} from "@aws-sdk/client-rekognition";
+import {CreateCollectionCommand,DescribeCollectionCommand,IndexFacesCommand} from "@aws-sdk/client-rekognition";
+import { getRekognitionClient } from "@/lib/aws/rekognition-client.server";
 
-const region = process.env.AWS_REKOGNITION_REGION ?? process.env.AWS_REGION ?? "eu-north-1";
-
-const collectionId = process.env.REKOGNITION_DEEPFAKE_COLLECTION ?? "eterna-protected-identities";
-
-const rekognition = new RekognitionClient({
-  region,
-  credentials:
-    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-      ? {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          sessionToken: process.env.AWS_SESSION_TOKEN,
-        }
-      : undefined,
-});
+const collectionId =
+  process.env.REKOGNITION_DEEPFAKE_COLLECTION?.trim() || "eterna-protected-identities";
 
 function cleanExternalImageId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 255);
@@ -27,7 +10,7 @@ function cleanExternalImageId(value: string): string {
 
 export async function ensureDeepfakeFaceCollection(): Promise<string> {
   try {
-    await rekognition.send(
+    await getRekognitionClient().send(
       new DescribeCollectionCommand({
         CollectionId: collectionId,
       }),
@@ -41,7 +24,7 @@ export async function ensureDeepfakeFaceCollection(): Promise<string> {
   }
 
   try {
-    await rekognition.send(
+    await getRekognitionClient().send(
       new CreateCollectionCommand({
         CollectionId: collectionId,
       }),
@@ -93,7 +76,7 @@ export async function indexDeepfakeReferenceFace(input: {
     `target_${input.targetProfileId}_${input.referenceFaceId}`,
   );
 
-  const response = await rekognition.send(
+  const response = await getRekognitionClient().send(
     new IndexFacesCommand({
       CollectionId: collectionId,
       Image: {

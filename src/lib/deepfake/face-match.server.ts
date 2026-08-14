@@ -1,24 +1,11 @@
-import { CompareFacesCommand, RekognitionClient } from "@aws-sdk/client-rekognition";
+import {CompareFacesCommand} from "@aws-sdk/client-rekognition";
+import { getRekognitionClient } from "@/lib/aws/rekognition-client.server";
 import {
   assertNotAborted,
   boundTimeoutMs,
   isAbortError,
   mergeAbortSignals,
 } from "./scan-runtime.server";
-
-const region = process.env.AWS_REKOGNITION_REGION ?? process.env.AWS_REGION ?? "eu-north-1";
-
-const rekognition = new RekognitionClient({
-  region,
-  credentials:
-    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-      ? {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          sessionToken: process.env.AWS_SESSION_TOKEN,
-        }
-      : undefined,
-});
 
 const DEFAULT_SIMILARITY_THRESHOLD = 88;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -109,7 +96,7 @@ export async function compareReferenceFace(input: {
 
   const threshold = input.similarityThreshold ?? DEFAULT_SIMILARITY_THRESHOLD;
 
-  const response = await rekognition.send(
+  const response = await getRekognitionClient().send(
     new CompareFacesCommand({
       SourceImage: {
         Bytes: input.referenceImageBytes,
