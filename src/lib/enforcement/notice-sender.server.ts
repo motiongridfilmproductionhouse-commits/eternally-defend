@@ -7,7 +7,11 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { SesEnforcementTransport, getSesSenderConfig, type SesAttachmentLink } from "./transports/ses-transport";
+import {
+  ResendEnforcementTransport,
+  getResendSenderConfig,
+  type EnforcementAttachmentLink,
+} from "./transports/resend-transport";
 import { recordEmailDelivery } from "./email-delivery-log.server";
 import { getSignedGetUrl } from "@/lib/aws/s3.server";
 import type { EnforcementEmailSendResult } from "./transports/email-transport";
@@ -27,7 +31,7 @@ export interface NoticeSendOutcome {
   retryable: boolean;
 }
 
-async function presign(key: string, label: string): Promise<SesAttachmentLink | null> {
+async function presign(key: string, label: string): Promise<EnforcementAttachmentLink | null> {
   try {
     const url = await getSignedGetUrl(key, LINK_TTL_SECONDS, {
       disposition: "attachment",
@@ -110,7 +114,7 @@ export async function sendEnforcementRequestNotice(
   },
 ): Promise<NoticeSendOutcome> {
   const isTestMode = process.env.ENFORCEMENT_TEST_MODE === "true";
-  const { fromEmail } = getSesSenderConfig();
+  const { fromEmail } = getResendSenderConfig();
 
   const { data: req } = await (supabase as any)
     .from("enforcement_requests")
@@ -144,7 +148,7 @@ export async function sendEnforcementRequestNotice(
 
   const complainantName =
     profile?.legal_name || profile?.company_name || profile?.full_name || "";
-  const complainantEmail = profile?.email || getSesSenderConfig().replyTo;
+  const complainantEmail = profile?.email || getResendSenderConfig().replyTo;
 
   if (!complainantName || complainantName.length < 2) {
     return {
@@ -191,13 +195,13 @@ export async function sendEnforcementRequestNotice(
     if (e.storage_path) docKeys.push({ key: e.storage_path, label: `Evidence — ${e.evidence_type}` });
   }
 
-  const documentLinks: SesAttachmentLink[] = [];
+  const documentLinks: EnforcementAttachmentLink[] = [];
   for (const d of docKeys.slice(0, 8)) {
     const link = await presign(d.key, d.label);
     if (link) documentLinks.push(link);
   }
 
-  const result: EnforcementEmailSendResult = await new SesEnforcementTransport().send({
+  const result: EnforcementEmailSendResult = await new ResendEnforcementTransport().send({
     caseId: opts.caseId ?? req.id,
     enforcementRequestId: req.id,
     intendedRecipient: opts.destinationEmail,
@@ -226,7 +230,7 @@ export async function sendEnforcementRequestNotice(
   const nowIso = new Date().toISOString();
 
   if (result.success) {
-    // Only mark SUBMITTED after SES returns success.
+    // Only mark SUBMITTED after the email provider returns success.
     await (supabase as any)
       .from("enforcement_requests")
       .update({
@@ -236,9 +240,9 @@ export async function sendEnforcementRequestNotice(
         metadata: {
           ...((req.metadata as Record<string, unknown>) ?? {}),
           last_email_delivery_id: deliveryLogId,
-          ses_message_id: result.providerMessageId,
-          ses_destination: result.actualRecipient,
-          ses_test_mode: isTestMode,
+          provider_message_id: result.providerMessageId,
+          provider_destination: result.actualRecipient,
+          provider_test_mode: isTestMode,
         } as never,
         updated_at: nowIso,
       })
