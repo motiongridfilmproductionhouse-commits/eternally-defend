@@ -929,7 +929,7 @@ function DeepfakeIntelPage() {
                     ? `${allThreatFeed.length} qualifying threat${allThreatFeed.length === 1 ? "" : "s"} across protected-identity history.`
                     : persistedManualLeads.length > 0
                       ? "Supplied links are retained for review; none currently pass every threat gate."
-                      : "No supplied links recorded for this protected identity."}
+                      : "Source page could not be resolved automatically. No supplied links are recorded for this protected identity."}
                 </span>
               </div>
 
