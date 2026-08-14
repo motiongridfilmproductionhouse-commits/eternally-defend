@@ -11,6 +11,8 @@
  *     enforcement eligibility. Enforcement stays out of this module entirely.
  */
 
+import { detectionTypeForBand, similarityBandLabel } from "@/lib/media/similarity-bands";
+
 export type CrawlStatus = "PENDING" | "FETCHED" | "FETCH_FAILED" | "SKIPPED";
 export type VerificationStatus = "UNVERIFIED" | "VERIFIED_MATCH" | "REJECTED" | "FETCH_FAILED";
 export type ConfidenceBand = "exact" | "probable" | "possible" | "none";
@@ -110,12 +112,7 @@ export function decideCandidateOutcome(input: {
 
   const band: ConfidenceBand =
     v.verdict === "EXACT" ? "exact" : v.verdict === "PROBABLE" ? "probable" : "possible";
-  const detectionType =
-    band === "exact"
-      ? "verified_reupload"
-      : band === "probable"
-        ? "probable_reupload"
-        : "possible_derivative";
+  const detectionType = detectionTypeForBand(band);
 
   return {
     reviewStatus: "pending",
@@ -125,6 +122,6 @@ export function decideCandidateOutcome(input: {
     confidence: Math.round(v.similarity),
     confidenceBand: band,
     detectionType,
-    matchReason: `${evidence} Classified ${band.toUpperCase()} — pending human review. Visual similarity alone is not a finding of infringement.`,
+    matchReason: `${evidence} Classified ${similarityBandLabel(band)} — pending human review. Visual similarity alone is not a finding of infringement.`,
   };
 }
