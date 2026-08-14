@@ -1605,6 +1605,7 @@ function FindingCard({
   f,
   onUpdate,
   pending,
+  onViewEvidence,
 }: {
   f: {
     id: string;
@@ -1626,6 +1627,7 @@ function FindingCard({
   };
   onUpdate: (s: "reviewed" | "dismissed" | "queued_takedown") => void;
   pending: boolean;
+  onViewEvidence?: () => void;
 }) {
   const risk = (["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).includes(f.risk_level as RiskLevel)
     ? (f.risk_level as RiskLevel)
