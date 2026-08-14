@@ -828,6 +828,34 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       }
     }
 
+    // Exposure analytics are target-wide rather than tied to one scan run. A
+    // newer empty sweep must not hide previously verified infrastructure for
+    // the same protected identity. Both lookups remain owner-scoped.
+    let exposureFindingRows = findingRows;
+    if (scan?.target_name) {
+      const { data: targetScans, error: targetScansError } = await context.supabase
+        .from("deepfake_scans")
+        .select("id")
+        .eq("user_id", context.userId)
+        .ilike("target_name", scan.target_name.trim());
+
+      if (!targetScansError) {
+        const targetScanIds = (targetScans ?? []).map((targetScan) => targetScan.id);
+        if (targetScanIds.length > 0) {
+          const { data: exposureRows, error: exposureRowsError } = await context.supabase
+            .from("deepfake_findings")
+            .select("*")
+            .eq("user_id", context.userId)
+            .in("scan_id", targetScanIds)
+            .order("created_at", { ascending: false });
+
+          if (!exposureRowsError) {
+            exposureFindingRows = (exposureRows ?? []) as FindingRow[];
+          }
+        }
+      }
+    }
+
     return {
       scan,
       findings: findingRows.sort(
@@ -835,6 +863,7 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
           (riskRank[b.risk_level] ?? 0) - (riskRank[a.risk_level] ?? 0) ||
           b.confidence - a.confidence,
       ),
+      exposure_findings: exposureFindingRows,
       discoveries: discoveriesRes.data ?? [],
     };
   });
