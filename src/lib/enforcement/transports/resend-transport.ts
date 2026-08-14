@@ -16,6 +16,7 @@ import type {
   EnforcementEmailSendResult,
   EnforcementEmailTransport,
 } from "./email-transport";
+import { applyTestSubjectPrefix } from "./email-transport";
 
 export interface EnforcementAttachmentLink {
   label: string;
@@ -182,7 +183,7 @@ export class ResendEnforcementTransport implements EnforcementEmailTransport {
       };
     }
 
-    const subject = `${isTestMode ? "[ETERNA ENFORCEMENT TEST — DO NOT ACTION] " : ""}${payload.subject}`;
+    const subject = applyTestSubjectPrefix(payload.subject, isTestMode);
     const { textBody, htmlBody } = buildBodies(payload, { isTestMode, actualRecipient });
 
     try {
