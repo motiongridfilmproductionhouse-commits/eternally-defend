@@ -38,6 +38,15 @@ import {
 
 export const Route = createFileRoute("/_app/intelligence")({
   head: () => ({ meta: [{ title: "Evidence Analysis Center — Eterna Sentinel" }] }),
+  // Links from Threat Radar / dashboard widgets used to drop operators on an empty
+  // form. They can now carry the URL and subject they want analysed.
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { url?: string; target?: string; job?: string } => ({
+    url: typeof search.url === "string" ? search.url : undefined,
+    target: typeof search.target === "string" ? search.target : undefined,
+    job: typeof search.job === "string" ? search.job : undefined,
+  }),
   component: IntelligenceEnginePage,
 });
 
