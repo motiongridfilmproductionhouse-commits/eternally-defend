@@ -98,7 +98,7 @@ export async function ingestResendEvent(input: {
 
   const occurredAt = input.occurredAt ?? new Date().toISOString();
 
-  const { data: inserted } = await (db as any)
+  const { data: inserted, error: insertError } = await (db as any)
     .from("enforcement_provider_events")
     .insert({
       provider: "RESEND",
@@ -116,12 +116,17 @@ export async function ingestResendEvent(input: {
     .select("id")
     .maybeSingle();
 
+  if (insertError) {
+    // Never silently drop a provider event: fail so the provider retries.
+    throw new Error(`provider_event_insert_failed: ${insertError.message}`);
+  }
+
   const providerEventId = (inserted?.id as string) ?? null;
 
   // Suppression state for hard bounces and complaints.
   let suppressed = false;
   if (recipient && isSuppressingEvent(normalized)) {
-    await (db as any)
+    const { error: suppressionError } = await (db as any)
       .from("enforcement_suppressions")
       .upsert(
         {
@@ -133,8 +138,12 @@ export async function ingestResendEvent(input: {
         },
         { onConflict: "email" },
       );
+    if (suppressionError) {
+      throw new Error(`suppression_upsert_failed: ${suppressionError.message}`);
+    }
     suppressed = true;
   }
+
 
   // Feed the enforcement circuit breaker via the enforcement event ledger.
   const cbType = circuitBreakerEventType(normalized);
@@ -154,7 +163,28 @@ export async function ingestResendEvent(input: {
     });
   }
 
+  // Mirror the provider outcome onto the outbound delivery audit row so the
+  // enforcement UI reflects the terminal delivery status.
+  if (delivery?.id) {
+    const statusMap: Partial<Record<NormalizedProviderEvent, string>> = {
+      DELIVERED: "DELIVERED",
+      HARD_BOUNCE: "BOUNCED",
+      SOFT_BOUNCE: "DEFERRED",
+      COMPLAINT: "COMPLAINED",
+      DELIVERY_FAILED: "FAILED",
+      DEFERRED: "DEFERRED",
+    };
+    const nextStatus = statusMap[normalized];
+    if (nextStatus) {
+      await (db as any)
+        .from("enforcement_email_deliveries")
+        .update({ delivery_status: nextStatus, ...(reason ? { error: reason.slice(0, 500) } : {}) })
+        .eq("id", delivery.id);
+    }
+  }
+
   return {
+
     providerEventId,
     normalized,
     suppressed,

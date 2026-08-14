@@ -1,0 +1,1 @@
+ALTER TABLE public.enforcement_suppressions ADD CONSTRAINT enforcement_suppressions_email_unique UNIQUE (email);
