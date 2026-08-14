@@ -18,6 +18,7 @@ import { useSidebarLayout } from "@/lib/layout-context";
 import { getNotifications } from "@/lib/command-center.functions";
 import { useProtectionSummary } from "@/hooks/use-protection-summary";
 import { pageMetaFor } from "@/lib/navigation/page-meta";
+import type { ProtectionSummary } from "@/lib/protection-summary.functions";
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 const DEMO_USER_EMAIL = (import.meta.env.VITE_DEMO_USER_EMAIL ?? "").trim().toLowerCase();
