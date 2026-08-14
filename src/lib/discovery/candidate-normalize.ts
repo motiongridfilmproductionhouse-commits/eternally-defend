@@ -153,7 +153,7 @@ export function normalizeProviderCandidate(
       pageTitle: raw.title?.trim() || null,
       provider: raw.provider,
       matchType: raw.matchType || "visual",
-      hasExactPageUrl: Boolean(platform?.hasExactUrl ?? true),
+      hasExactPageUrl: Boolean(platform?.hasExactPage ?? true),
     },
   };
 }
