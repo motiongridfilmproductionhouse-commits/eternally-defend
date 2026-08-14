@@ -110,12 +110,7 @@ export function decideCandidateOutcome(input: {
 
   const band: ConfidenceBand =
     v.verdict === "EXACT" ? "exact" : v.verdict === "PROBABLE" ? "probable" : "possible";
-  const detectionType =
-    band === "exact"
-      ? "verified_reupload"
-      : band === "probable"
-        ? "probable_reupload"
-        : "possible_derivative";
+  const detectionType = detectionTypeForBand(band);
 
   return {
     reviewStatus: "pending",
