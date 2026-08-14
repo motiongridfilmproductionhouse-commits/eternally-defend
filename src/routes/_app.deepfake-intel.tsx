@@ -1769,6 +1769,16 @@ function FindingCard({
         </div>
         <div className="flex flex-col gap-1 shrink-0">
           <StatusBadge status={f.review_status} />
+          {onViewEvidence && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 px-2 text-[11px]"
+              onClick={onViewEvidence}
+            >
+              <ShieldAlert className="size-3 mr-1" /> View Evidence
+            </Button>
+          )}
           <div className="flex gap-1">
             <Button
               size="sm"
