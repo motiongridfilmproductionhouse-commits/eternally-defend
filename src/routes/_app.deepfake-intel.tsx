@@ -1068,9 +1068,27 @@ function DeepfakeIntelPage() {
                                 .join(" · ") || "Evidence lead retained for review"}
                             </div>
                           </div>
-                          <Badge variant="outline" className="shrink-0 uppercase">
-                            {status.replace(/_/g, " ")}
-                          </Badge>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <Badge variant="outline" className="uppercase">
+                              {status.replace(/_/g, " ")}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 px-2 text-[11px]"
+                              onClick={() =>
+                                setEvidenceTarget({
+                                  leadId: lead.id,
+                                  sourcePageUrl: lead.source_page_url || lead.submitted_url,
+                                  title: lead.page_title || lead.submitted_url,
+                                  platform: lead.source_domain ?? null,
+                                  caseRef: lead.id,
+                                })
+                              }
+                            >
+                              View Evidence
+                            </Button>
+                          </div>
                         </li>
                       );
                     })}
