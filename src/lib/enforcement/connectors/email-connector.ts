@@ -125,8 +125,11 @@ export class EmailEnforcementConnector implements EnforcementConnector {
       };
     }
 
-    // 3. Prepare notice body
-    const prepared = await this.prepare(payload);
+    // 3. Use the pre-rendered (snapshotted) notice when provided, so the
+    //    hashed/snapshotted content is byte-identical to what is sent.
+    const prepared = payload.preparedNotice
+      ? { noticeSubject: payload.preparedNotice.subject, noticeBody: payload.preparedNotice.textBody }
+      : await this.prepare(payload);
     const intendedRecipient = payload.destinationEmail;
 
     // 4. Dispatch via the configured transport
