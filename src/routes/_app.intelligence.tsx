@@ -125,6 +125,25 @@ function SignedInEngine() {
   const [aliases, setAliases] = useState("");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
+  // Prefill from link context so "Investigate" arrives with the finding loaded.
+  const searchParams = Route.useSearch();
+  const prefillRef = useRef(false);
+  useEffect(() => {
+    if (prefillRef.current) return;
+    prefillRef.current = true;
+    if (searchParams.job) setActiveJobId(searchParams.job);
+    if (searchParams.target) setTargetName(searchParams.target);
+    const url = searchParams.url;
+    if (!url) return;
+    if (/youtube\.com|youtu\.be/i.test(url)) {
+      setSource("youtube");
+      setYtUrl(url);
+    } else {
+      setSource("url");
+      setPageUrl(url);
+    }
+  }, [searchParams]);
+
   const ytMetaFn = useServerFn(fetchYoutubeMetadataFn);
 
   const start = useMutation({
