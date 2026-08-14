@@ -41,8 +41,14 @@ function finding(partial: Partial<ClientFinding> & { id: string }): ClientFindin
     final_url: `https://cdn.example.com/${partial.id}`,
     source_host: "cdn.example.com",
     review_status: "new",
+    // Satisfy the strict 4-gate explicit/synthetic feed contract so these
+    // tests exercise tone escalation, not the qualification gate itself.
+    face_similarity: 96,
+    explicit_media_confirmed: true,
+    synthetic_media_confirmed: true,
+    media_hosting_confirmed: true,
     ...partial,
-  };
+  } as ClientFinding;
 }
 
 /** Real production-shaped PARTIAL payload: 12 probable, 4 domains, 0 verified. */
