@@ -57,30 +57,8 @@ export function StatsRow() {
     refetchInterval: 30_000,
   });
 
-  const counts = useQuery({
-    queryKey: ["stats-row-counts", session?.user.id],
-    enabled,
-    queryFn: async (): Promise<Counts> => {
-      const [assetsRes, casesRes, takedownsRes] = await Promise.all([
-        supabase.from("protected_assets").select("id", { count: "exact", head: true }),
-        supabase
-          .from("cases")
-          .select("id", { count: "exact", head: true })
-          .in("status", ["Open", "In Progress", "Escalated"])
-          .in("priority", ["Critical", "High"]),
-        supabase
-          .from("enforcement_requests")
-          .select("id", { count: "exact", head: true })
-          .neq("status", "Queued"),
-      ]);
-      return {
-        assets: assetsRes.count ?? 0,
-        criticalCases: casesRes.count ?? 0,
-        takedowns: takedownsRes.count ?? 0,
-      };
-    },
-    refetchInterval: 30_000,
-  });
+  // Shared source of truth — the header pill and Command Center read the same numbers.
+  const counts = useProtectionSummary();
 
   const activeThreats = dash.data?.totals.findings ?? 0;
   const reputation =
