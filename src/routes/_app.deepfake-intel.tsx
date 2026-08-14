@@ -130,6 +130,8 @@ function DeepfakeIntelPage() {
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
   const [showGeneralMentions, setShowGeneralMentions] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const [evidenceTarget, setEvidenceTarget] = useState<PreservedEvidenceTarget | null>(null);
+
 
   const profiles = useQuery({
     queryKey: ["deepfake-target-profiles"],
