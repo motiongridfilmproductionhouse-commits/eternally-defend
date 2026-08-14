@@ -42,7 +42,7 @@ export function DiscoveryCandidateList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       {candidates.map((c) => {
         const state = candidateState(c);
         const match = c.copyright_match_id ? matchById.get(c.copyright_match_id) : undefined;
@@ -54,7 +54,7 @@ export function DiscoveryCandidateList({
           <article
             key={c.id}
             data-testid="discovery-candidate-card"
-            className="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur space-y-3"
+            className="min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur space-y-3"
           >
             <div className="flex gap-4 min-w-0">
               {c.media_url || c.screenshot_url ? (
@@ -110,7 +110,7 @@ export function DiscoveryCandidateList({
                 )}
 
                 {c.media_url && (
-                  <p className="truncate text-[11px] text-muted-foreground">
+                  <p className="break-all text-[11px] text-muted-foreground">
                     Technical evidence (media/CDN URL): {c.media_url}
                   </p>
                 )}
@@ -123,7 +123,7 @@ export function DiscoveryCandidateList({
 
                 <p className="text-[11px] text-muted-foreground">{state.hint}</p>
                 {c.match_reason && (
-                  <p className="text-[11px] text-muted-foreground">Reason: {c.match_reason}</p>
+                  <p className="break-words text-[11px] text-muted-foreground">Reason: {c.match_reason}</p>
                 )}
                 {c.crawl_failure_reason && (
                   <p className="text-[11px] text-destructive">
