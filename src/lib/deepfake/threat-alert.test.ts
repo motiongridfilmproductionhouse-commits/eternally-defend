@@ -148,7 +148,7 @@ test("production PARTIAL fixture with 12 probable findings renders RED", () => {
   assert.equal(resolveThreatAwareRingTone({ mode: "partial", tone: summary.tone }), "red");
   assert.equal(
     threatAlertBadgeLabel({ mode: "partial", tone: "red" }),
-    "PAUSED — HIGH THREAT VOLUME",
+    "PAUSED — HIGH ALERT",
   );
   assert.equal(
     shouldAnimateThreatAwareScan({
@@ -398,7 +398,7 @@ test("evidence links remain clickable for counted findings", () => {
 test("route keeps Continue and wires threatSummary from complete findings", () => {
   const ui = readFileSync(resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx"), "utf8");
   assert.match(ui, /threatSummary=\{threatSummary\}/);
-  assert.match(ui, /threatFindings=\{findings\}/);
+  assert.match(ui, /threatFindings=\{exposureFindings\}/);
   assert.match(ui, /isElevatedThreatTone/);
   assert.match(ui, /Continue scan/);
   assert.match(ui, /continueScan\.mutate/);
