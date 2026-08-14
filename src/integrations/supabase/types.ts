@@ -164,6 +164,81 @@ export type Database = {
           },
         ]
       }
+      asset_discovery_jobs: {
+        Row: {
+          candidates_discovered: number
+          candidates_fetched: number
+          candidates_rejected: number
+          candidates_verified: number
+          completed_at: string | null
+          created_at: string
+          diagnostics: Json
+          error: string | null
+          id: string
+          matches_created: number
+          protected_asset_id: string
+          scan_id: string | null
+          stage: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          candidates_discovered?: number
+          candidates_fetched?: number
+          candidates_rejected?: number
+          candidates_verified?: number
+          completed_at?: string | null
+          created_at?: string
+          diagnostics?: Json
+          error?: string | null
+          id?: string
+          matches_created?: number
+          protected_asset_id: string
+          scan_id?: string | null
+          stage?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          candidates_discovered?: number
+          candidates_fetched?: number
+          candidates_rejected?: number
+          candidates_verified?: number
+          completed_at?: string | null
+          created_at?: string
+          diagnostics?: Json
+          error?: string | null
+          id?: string
+          matches_created?: number
+          protected_asset_id?: string
+          scan_id?: string | null
+          stage?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_discovery_jobs_protected_asset_id_fkey"
+            columns: ["protected_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_discovery_jobs_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_enforcement_settings: {
         Row: {
           asset_id: string
@@ -2723,6 +2798,121 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "discovery_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discovery_candidates: {
+        Row: {
+          algorithm: string | null
+          canonical_page_url: string
+          copyright_match_id: string | null
+          crawl_failure_reason: string | null
+          crawl_status: string
+          created_at: string
+          distance: number | null
+          evidence: Json
+          first_seen_at: string
+          hashes: Json
+          host: string | null
+          id: string
+          job_id: string | null
+          last_seen_at: string
+          match_reason: string | null
+          match_type: string | null
+          media_url: string | null
+          page_title: string | null
+          page_url: string
+          platform: string | null
+          protected_asset_id: string
+          provider: string
+          screenshot_url: string | null
+          signals: Json
+          similarity: number | null
+          updated_at: string
+          user_id: string
+          verification_status: string
+        }
+        Insert: {
+          algorithm?: string | null
+          canonical_page_url: string
+          copyright_match_id?: string | null
+          crawl_failure_reason?: string | null
+          crawl_status?: string
+          created_at?: string
+          distance?: number | null
+          evidence?: Json
+          first_seen_at?: string
+          hashes?: Json
+          host?: string | null
+          id?: string
+          job_id?: string | null
+          last_seen_at?: string
+          match_reason?: string | null
+          match_type?: string | null
+          media_url?: string | null
+          page_title?: string | null
+          page_url: string
+          platform?: string | null
+          protected_asset_id: string
+          provider?: string
+          screenshot_url?: string | null
+          signals?: Json
+          similarity?: number | null
+          updated_at?: string
+          user_id: string
+          verification_status?: string
+        }
+        Update: {
+          algorithm?: string | null
+          canonical_page_url?: string
+          copyright_match_id?: string | null
+          crawl_failure_reason?: string | null
+          crawl_status?: string
+          created_at?: string
+          distance?: number | null
+          evidence?: Json
+          first_seen_at?: string
+          hashes?: Json
+          host?: string | null
+          id?: string
+          job_id?: string | null
+          last_seen_at?: string
+          match_reason?: string | null
+          match_type?: string | null
+          media_url?: string | null
+          page_title?: string | null
+          page_url?: string
+          platform?: string | null
+          protected_asset_id?: string
+          provider?: string
+          screenshot_url?: string | null
+          signals?: Json
+          similarity?: number | null
+          updated_at?: string
+          user_id?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovery_candidates_copyright_match_id_fkey"
+            columns: ["copyright_match_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovery_candidates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "asset_discovery_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovery_candidates_protected_asset_id_fkey"
+            columns: ["protected_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
             referencedColumns: ["id"]
           },
         ]
