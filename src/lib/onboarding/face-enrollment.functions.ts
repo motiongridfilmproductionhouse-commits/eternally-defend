@@ -118,7 +118,10 @@ export const deferFaceEnrollment = createServerFn({ method: "POST" })
     const accountType = isV2AccountType(profile?.onboarding_account_type)
       ? profile.onboarding_account_type
       : null;
-    const mustHaveKyc = version === "v1" || (accountType ? requiresVeriff(accountType) : true);
+    // Veriff is no longer part of signup onboarding, so face enrollment is never
+    // gated on KYC. Identity verification is still required later for sensitive
+    // actions (DMCA authorization, enforcement eligibility).
+    const mustHaveKyc = false;
 
     if (mustHaveKyc) {
       const { data: kyc } = await supabase
