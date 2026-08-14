@@ -32,6 +32,29 @@ async function resolveIp(domain: string): Promise<string | null> {
 }
 
 async function lookupIpGeo(ip: string): Promise<{ country: string | null; countryName: string | null; organization: string | null }> {
+  // Primary: ipwho.is (https, no key). Fallback: geojs.
+  try {
+    const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`);
+    if (res.ok) {
+      const json = (await res.json()) as {
+        success?: boolean;
+        country?: string;
+        country_code?: string;
+        connection?: { org?: string; isp?: string };
+      };
+      const code = (json.country_code ?? "").toUpperCase();
+      if (json.success !== false && /^[A-Z]{2}$/.test(code)) {
+        return {
+          country: code,
+          countryName: json.country ?? code,
+          organization: json.connection?.org ?? json.connection?.isp ?? null,
+        };
+      }
+    }
+  } catch {
+    // fall through to secondary provider
+  }
+
   try {
     const res = await fetch(`https://get.geojs.io/v1/ip/geo/${encodeURIComponent(ip)}.json`);
     if (!res.ok) return { country: null, countryName: null, organization: null };
