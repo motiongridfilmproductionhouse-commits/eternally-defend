@@ -25,7 +25,8 @@ import {
 const MATCH_COLUMNS =
   "id,scan_id,source_url,page_title,platform,detection_type,confidence,confidence_band,review_status,reason,transformations,ocr_text,evidence,contact,created_at";
 
-export type PromotableCopyrightMatch = CopyrightMatchLike & {
+export type PromotableCopyrightMatch = Omit<CopyrightMatchLike, "transformations"> & {
+  transformations: string[];
   work_title: string | null;
   eligibility_state: string;
 };
@@ -96,6 +97,7 @@ export const listPromotableCopyrightMatches = createServerFn({ method: "GET" })
     );
     return matches.map((m) => ({
       ...m,
+      transformations: Array.isArray(m.transformations) ? (m.transformations as string[]) : [],
       work_title: titles.get(m.scan_id) ?? null,
       eligibility_state: eligibilityState(m),
     }));
@@ -148,7 +150,7 @@ export const promoteCopyrightMatchesToCases = createServerFn({ method: "POST" })
           priority: copyrightCasePriority(m),
           status: "Open",
           notes: m.source_url,
-          metadata: snapshot,
+          metadata: snapshot as never,
         })
         .select("id")
         .single();
@@ -160,7 +162,7 @@ export const promoteCopyrightMatchesToCases = createServerFn({ method: "POST" })
         finding_kind: "copyright_match",
         copyright_match_id: m.id,
         scan_hit_id: null,
-        evidence: snapshot,
+        evidence: snapshot as never,
         note: caseNoteFor(m),
       });
 
