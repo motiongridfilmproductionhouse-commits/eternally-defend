@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Globe, MapPin, ShieldAlert, Info, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import type { ClientFinding } from "@/lib/deepfake/results-dashboard";
 import { buildSourceIntelligenceList, type SourceIntelligence } from "@/lib/deepfake/analytics-helpers";
+import { resolveHostGeoBatch } from "@/lib/deepfake/domain-geo.functions";
+import { countryFlag, countryToMapPoint } from "@/lib/copyright/domain-intel";
 import { Badge } from "@/components/ui/badge";
 
 interface Props {
@@ -10,8 +14,62 @@ interface Props {
   onSelectDomain?: (domain: string | null) => void;
 }
 
+const CDN_ORGS = ["cloudflare", "fastly", "akamai", "amazon", "google", "microsoft", "ddos-guard", "stackpath", "sucuri"];
+
+function isCdn(org: string | null | undefined): boolean {
+  const value = (org ?? "").toLowerCase();
+  return CDN_ORGS.some((o) => value.includes(o));
+}
+
 export function DeepfakeExposureMap({ findings, selectedDomain, onSelectDomain }: Props) {
-  const sources = useMemo(() => buildSourceIntelligenceList(findings), [findings]);
+  const baseSources = useMemo(() => buildSourceIntelligenceList(findings), [findings]);
+
+  // Domains with no static geo signal: resolve their real hosting country via DNS + IP geo.
+  const unlocatedDomains = useMemo(
+    () =>
+      baseSources
+        .filter((s) => !s.geo.country || !s.geo.mapPoint)
+        .map((s) => s.domain)
+        .filter(Boolean)
+        .slice(0, 40),
+    [baseSources],
+  );
+
+  const resolveGeo = useServerFn(resolveHostGeoBatch);
+  const { data: hostGeo } = useQuery({
+    queryKey: ["deepfake-host-geo", unlocatedDomains.join(",")],
+    enabled: unlocatedDomains.length > 0,
+    staleTime: 30 * 60 * 1000,
+    queryFn: () => resolveGeo({ data: { domains: unlocatedDomains } }),
+  });
+
+  const sources = useMemo(() => {
+    const lookup = new Map((hostGeo?.hosts ?? []).map((h) => [h.domain, h]));
+    return baseSources.map((s) => {
+      if (s.geo.country && s.geo.mapPoint) return s;
+      const hit = lookup.get(s.domain);
+      const mapPoint = hit?.country ? countryToMapPoint(hit.country) : null;
+      if (!hit?.country || !mapPoint) return s;
+      return {
+        ...s,
+        geo: {
+          ...s.geo,
+          country: hit.country,
+          countryName: hit.countryName || hit.country,
+          countryFlag: countryFlag(hit.country),
+          mapPoint,
+          hostingProvider: hit.organization
+            ? `${hit.organization}${isCdn(hit.organization) ? " (CDN edge)" : ""}`
+            : s.geo.hostingProvider,
+          infrastructureRole: isCdn(hit.organization) ? ("CDN Edge" as const) : s.geo.infrastructureRole,
+          confidence: isCdn(hit.organization) ? ("Medium" as const) : ("High" as const),
+          locationSignal: isCdn(hit.organization)
+            ? ("DOMAIN_TLD_SIGNAL" as const)
+            : ("VERIFIED_HOST_INFRASTRUCTURE" as const),
+        },
+      };
+    });
+  }, [baseSources, hostGeo]);
 
   // Group by country/location for map nodes
   const mapNodes = useMemo(() => {
@@ -208,7 +266,7 @@ export function DeepfakeExposureMap({ findings, selectedDomain, onSelectDomain }
                       </div>
                       <div className="text-[10px] text-sky-300/80 pt-1 border-t border-border/40 space-y-0.5">
                         <div className="truncate font-semibold">
-                          Signal: {node.domains[0]?.geo.locationSignal === "VERIFIED_HOST_INFRASTRUCTURE" ? "Verified Host Datacenter" : "TLD Country Namespace Signal"}
+                          Signal: {node.domains[0]?.geo.locationSignal === "VERIFIED_HOST_INFRASTRUCTURE" ? "Verified Host Datacenter" : "CDN edge / TLD namespace signal"}
                         </div>
                         <div className="truncate opacity-80">
                           Hosts: {node.domains.map((d) => d.domain).join(", ")}
