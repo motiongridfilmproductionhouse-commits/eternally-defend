@@ -36,13 +36,43 @@ async function main() {
     .maybeSingle();
   console.log("profile:", profile);
 
-  // 3. Active authorization (send-time recheck).
+  // 3a. Per-client opt-in fixture (client-level setting only; global kill switch untouched).
+  const { data: priorSettings } = await db
+    .from("client_enforcement_settings")
+    .select("automatic_enforcement_enabled")
+    .eq("user_id", userId)
+    .maybeSingle();
+  await db
+    .from("client_enforcement_settings")
+    .upsert({ user_id: userId, automatic_enforcement_enabled: true }, { onConflict: "user_id" });
+
+  // 3b. Active authorization fixture (send-time recheck).
   let { data: auth } = await db
     .from("client_authorizations")
     .select("id, status")
     .eq("user_id", userId)
     .eq("status", "ACTIVE")
     .maybeSingle();
+  let createdAuthId: string | null = null;
+  if (!auth) {
+    const { data: newAuth, error: authErr } = await db
+      .from("client_authorizations")
+      .insert({
+        user_id: userId,
+        auth_number: `E2E-TEST-${Date.now()}`,
+        version: 999,
+        status: "ACTIVE",
+        enforcement_enabled: true,
+        effective_date: new Date().toISOString().slice(0, 10),
+        territory: "WORLDWIDE",
+        snapshot: { controlledTest: true },
+      })
+      .select("id, status")
+      .maybeSingle();
+    if (authErr) throw new Error(`auth fixture failed: ${authErr.message}`);
+    auth = newAuth;
+    createdAuthId = newAuth.id;
+  }
   console.log("authorization:", auth);
 
   // 4. Verified email route for the sacrificial test domain.
@@ -126,6 +156,18 @@ async function main() {
   const { data: jobsForCase } = await db.from("enforcement_jobs").select("id, job_type, status, scheduled_at").eq("case_id", kase.id);
   console.log("\n=== JOBS FOR CASE ===\n", JSON.stringify(jobsForCase, null, 2));
   console.log("\nCASE_ID=", kase.id, "JOB_ID=", job.id);
+
+  // 9. Restore fixtures to their original state.
+  if (priorSettings) {
+    await db
+      .from("client_enforcement_settings")
+      .update({ automatic_enforcement_enabled: priorSettings.automatic_enforcement_enabled })
+      .eq("user_id", userId);
+  }
+  if (createdAuthId) {
+    await db.from("client_authorizations").update({ status: "REVOKED" }).eq("id", createdAuthId);
+  }
+  console.log("fixtures restored");
 }
 
 main().catch((e) => {
