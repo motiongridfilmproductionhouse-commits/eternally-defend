@@ -13,72 +13,22 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { AuthorizationBadge } from "@/components/AuthorizationBadge";
-import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { useSidebarLayout } from "@/lib/layout-context";
 import { getNotifications } from "@/lib/command-center.functions";
+import { useProtectionSummary } from "@/hooks/use-protection-summary";
+import { pageMetaFor } from "@/lib/navigation/page-meta";
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 const DEMO_USER_EMAIL = (import.meta.env.VITE_DEMO_USER_EMAIL ?? "").trim().toLowerCase();
 
-const titles: Record<string, { title: string; sub: string }> = {
-  "/": { title: "Eterna Command Center", sub: "Mission control for digital reputation protection" },
-  "/assets": { title: "Protected Assets", sub: "Register, monitor and manage your digital assets" },
-  "/scan": { title: "Web Scan", sub: "Deep, surface and social web reconnaissance" },
-  "/threat-radar": {
-    title: "Threat Radar",
-    sub: "Live threat stream across every monitored surface",
-  },
-  "/threat-monitoring": {
-    title: "Threat Monitoring",
-    sub: "Continuous AI monitoring across platforms",
-  },
-  "/intelligence": { title: "Evidence Analysis", sub: "AI insights and predictive risk analytics" },
-  "/narrative-intelligence": {
-    title: "Narrative Intelligence",
-    sub: "Coordinated claims and narrative spread",
-  },
-  "/enforcement": {
-    title: "Enforcement Center",
-    sub: "Automated takedowns, reports and legal escalations",
-  },
-  "/cases": { title: "Case Management", sub: "Track and coordinate active protection cases" },
-  "/removals": { title: "Removal Center", sub: "Submitted takedowns and removal status" },
-  "/reports": { title: "Reports", sub: "Exportable protection and enforcement reports" },
-  "/settings": { title: "Settings", sub: "Account, plan, security and preferences" },
-  "/notifications": { title: "Notifications", sub: "Alerts, mentions and system messages" },
-};
-
 export function TopBar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const meta = titles[pathname] ?? titles["/"];
-  const { session, ready } = useSession();
-  const userId = session?.user.id;
+  const meta = pageMetaFor(pathname);
+  const { session } = useSession();
 
-  const statusQuery = useQuery({
-    queryKey: ["protection-status", userId],
-    enabled: ready && !!userId,
-    queryFn: async () => {
-      const [assets, threats, cases] = await Promise.all([
-        supabase.from("protected_assets").select("id", { count: "exact", head: true }),
-        supabase
-          .from("scan_hits")
-          .select("id", { count: "exact", head: true })
-          .in("severity", ["Critical", "High"] as never),
-        supabase
-          .from("cases")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "open" as never),
-      ]);
-      return {
-        assets: assets.count ?? 0,
-        criticalThreats: threats.count ?? 0,
-        openCases: cases.count ?? 0,
-      };
-    },
-  });
-
-  const status = protectionStatus(statusQuery.data);
+  const summaryQuery = useProtectionSummary();
+  const summary = summaryQuery.data;
 
   const { hidden, toggleHidden } = useSidebarLayout();
 
