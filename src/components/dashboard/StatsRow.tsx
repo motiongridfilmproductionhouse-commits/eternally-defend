@@ -1,15 +1,10 @@
 import { Shield, AlertTriangle, Clock, Send } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
+import { useProtectionSummary } from "@/hooks/use-protection-summary";
 import { getDashboardStats } from "@/lib/mm/dashboard.functions";
 
-interface Counts {
-  assets: number;
-  criticalCases: number;
-  takedowns: number;
-}
 
 function ReputationRing({ value }: { value: number | null }) {
   const v = value ?? 0;
@@ -62,30 +57,8 @@ export function StatsRow() {
     refetchInterval: 30_000,
   });
 
-  const counts = useQuery({
-    queryKey: ["stats-row-counts", session?.user.id],
-    enabled,
-    queryFn: async (): Promise<Counts> => {
-      const [assetsRes, casesRes, takedownsRes] = await Promise.all([
-        supabase.from("protected_assets").select("id", { count: "exact", head: true }),
-        supabase
-          .from("cases")
-          .select("id", { count: "exact", head: true })
-          .in("status", ["Open", "In Progress", "Escalated"])
-          .in("priority", ["Critical", "High"]),
-        supabase
-          .from("enforcement_requests")
-          .select("id", { count: "exact", head: true })
-          .neq("status", "Queued"),
-      ]);
-      return {
-        assets: assetsRes.count ?? 0,
-        criticalCases: casesRes.count ?? 0,
-        takedowns: takedownsRes.count ?? 0,
-      };
-    },
-    refetchInterval: 30_000,
-  });
+  // Shared source of truth — the header pill and Command Center read the same numbers.
+  const counts = useProtectionSummary();
 
   const activeThreats = dash.data?.totals.findings ?? 0;
   const reputation =
@@ -124,7 +97,7 @@ export function StatsRow() {
     {
       icon: Send,
       label: "TAKEDOWNS SENT",
-      value: counts.data?.takedowns ?? 0,
+      value: counts.data?.takedownsSent ?? 0,
       sub: "Submitted requests",
       color: "#3B82F6",
     },

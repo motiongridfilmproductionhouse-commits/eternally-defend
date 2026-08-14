@@ -38,6 +38,15 @@ import {
 
 export const Route = createFileRoute("/_app/intelligence")({
   head: () => ({ meta: [{ title: "Evidence Analysis Center — Eterna Sentinel" }] }),
+  // Links from Threat Radar / dashboard widgets used to drop operators on an empty
+  // form. They can now carry the URL and subject they want analysed.
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { url?: string; target?: string; job?: string } => ({
+    url: typeof search.url === "string" ? search.url : undefined,
+    target: typeof search.target === "string" ? search.target : undefined,
+    job: typeof search.job === "string" ? search.job : undefined,
+  }),
   component: IntelligenceEnginePage,
 });
 
@@ -115,6 +124,25 @@ function SignedInEngine() {
   const [targetName, setTargetName] = useState("");
   const [aliases, setAliases] = useState("");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+
+  // Prefill from link context so "Investigate" arrives with the finding loaded.
+  const searchParams = Route.useSearch();
+  const prefillRef = useRef(false);
+  useEffect(() => {
+    if (prefillRef.current) return;
+    prefillRef.current = true;
+    if (searchParams.job) setActiveJobId(searchParams.job);
+    if (searchParams.target) setTargetName(searchParams.target);
+    const url = searchParams.url;
+    if (!url) return;
+    if (/youtube\.com|youtu\.be/i.test(url)) {
+      setSource("youtube");
+      setYtUrl(url);
+    } else {
+      setSource("url");
+      setPageUrl(url);
+    }
+  }, [searchParams]);
 
   const ytMetaFn = useServerFn(fetchYoutubeMetadataFn);
 

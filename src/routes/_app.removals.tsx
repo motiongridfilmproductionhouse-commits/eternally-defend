@@ -29,6 +29,19 @@ const statusColor: Record<string, string> = {
   Withdrawn: "oklch(0.55 0.03 275)",
 };
 
+/**
+ * "Queued" means recorded, not sent. Requests were sitting here for weeks while
+ * the UI counted them as "in flight", so queued rows now state plainly that
+ * nothing has been submitted, and anything older than a day is marked stalled.
+ */
+function queuedAgeDays(r: RemovalRow): number {
+  return Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86_400_000);
+}
+
+function isStalled(r: RemovalRow): boolean {
+  return r.status === "Queued" && queuedAgeDays(r) >= 1;
+}
+
 function RemovalsPage() {
   const { session, ready } = useSession();
   const userId = session?.user.id;
@@ -53,8 +66,8 @@ function RemovalsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="TOTAL SUBMITTED" value={rows.length} sub="All removal requests" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <StatCard label="TOTAL RECORDED" value={rows.length} sub="All removal requests" />
         <StatCard
           label="APPROVED"
           value={rows.filter((r) => r.status === "Approved").length}
@@ -63,9 +76,15 @@ function RemovalsPage() {
         />
         <StatCard
           label="IN FLIGHT"
-          value={rows.filter((r) => r.status === "Sent" || r.status === "Queued").length}
-          sub="Awaiting platform"
+          value={rows.filter((r) => r.status === "Sent").length}
+          sub="Submitted, awaiting platform"
           accent="oklch(0.65 0.18 240)"
+        />
+        <StatCard
+          label="QUEUED / NOT SENT"
+          value={rows.filter((r) => r.status === "Queued").length}
+          sub="Recorded only, never submitted"
+          accent="oklch(0.75 0.16 70)"
         />
         <StatCard
           label="REJECTED"
@@ -74,6 +93,23 @@ function RemovalsPage() {
           accent="oklch(0.63 0.24 25)"
         />
       </div>
+
+      {rows.some(isStalled) && (
+        <div className="rounded-xl border border-danger/40 bg-danger/5 px-4 py-3 text-sm">
+          <div className="font-semibold text-danger">
+            {rows.filter(isStalled).length} removal request(s) stalled in the queue
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            These were recorded more than 24 hours ago and have never been submitted to a platform
+            or transport. Nothing has been sent on your behalf. Review them in{" "}
+            <Link to="/enforcement" className="text-primary font-semibold">
+              Enforcement
+            </Link>{" "}
+            before re-queuing.
+          </p>
+        </div>
+      )}
+
 
       <PageCard title="REMOVAL REQUESTS" sub="Live queue and history">
         {loading ? (
@@ -127,9 +163,19 @@ function RemovalsPage() {
                       {new Date(r.created_at).toLocaleString()}
                     </td>
                     <td className="py-3 pr-4">
-                      <Pill color={statusColor[r.status] ?? "oklch(0.55 0.03 275)"}>
-                        {r.status}
-                      </Pill>
+                      <div className="flex flex-col items-start gap-1">
+                        <Pill color={statusColor[r.status] ?? "oklch(0.55 0.03 275)"}>
+                          {r.status}
+                        </Pill>
+                        {r.status === "Queued" && (
+                          <span
+                            className={`text-[10px] font-semibold ${isStalled(r) ? "text-danger" : "text-muted-foreground"}`}
+                            title="Queued requests are recorded only. Nothing has been submitted to the platform."
+                          >
+                            {isStalled(r) ? `STALLED · ${queuedAgeDays(r)}d` : "NOT SUBMITTED"}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -316,7 +316,9 @@ function NavLink({
   label: string;
   badge?: string;
 }) {
-  const active = pathname === to;
+  // Prefix match so nested routes (e.g. /sensitive-protection/results/123) keep
+  // their parent highlighted. "/" must stay an exact match or it wins everywhere.
+  const active = to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(`${to}/`);
   const link = (
     <Link to={to} className={navClass(active, collapsed)}>
       <Icon className={`size-[17px] ${active ? "text-brand-glow" : ""}`} />

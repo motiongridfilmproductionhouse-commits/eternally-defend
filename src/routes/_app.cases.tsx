@@ -1,12 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
 import { severityColor, type Severity } from "@/lib/data-store";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, ArrowRightLeft, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import {
+  listPromotableFindings,
+  promoteFindingsToCases,
+} from "@/lib/cases/case-promotion.functions";
 
 export const Route = createFileRoute("/_app/cases")({
   head: () => ({ meta: [{ title: "Case Management — Eterna Sentinel" }] }),
@@ -123,6 +128,8 @@ function CasesPage() {
           accent="oklch(0.68 0.16 155)"
         />
       </div>
+
+      <PromoteDetectionsPanel userId={userId} />
 
       <PageCard
         title="CASE BOARD"
@@ -251,5 +258,134 @@ function CasesPage() {
         )}
       </PageCard>
     </div>
+  );
+}
+
+/**
+ * Detection → Case handoff.
+ *
+ * Detections were piling up in the thousands while the case board stayed empty,
+ * because the only path to a case was typing one by hand. This panel surfaces
+ * high-severity detections that have no case yet and promotes them with the
+ * evidence link (`case_findings`) attached, so every case is traceable back to
+ * what opened it. Promotion records case state only — it never sends anything.
+ */
+function PromoteDetectionsPanel({ userId }: { userId: string | undefined }) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listPromotableFindings);
+  const promoteFn = useServerFn(promoteFindingsToCases);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const q = useQuery({
+    queryKey: ["promotable-findings", userId],
+    enabled: !!userId,
+    queryFn: () => listFn(),
+  });
+
+  const promote = useMutation({
+    mutationFn: async (hitIds: string[]) => promoteFn({ data: { hitIds } }),
+    onSuccess: (res) => {
+      toast.success(
+        res.created > 0
+          ? `Opened ${res.created} case(s) from detections`
+          : "No new cases — those detections already have cases",
+      );
+      setSelected(new Set());
+      qc.invalidateQueries({ queryKey: ["cases", userId] });
+      qc.invalidateQueries({ queryKey: ["promotable-findings", userId] });
+      qc.invalidateQueries({ queryKey: ["protection-summary"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const findings = q.data ?? [];
+  if (q.isLoading || findings.length === 0) return null;
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const visible = findings.slice(0, 12);
+
+  return (
+    <PageCard
+      title="DETECTIONS AWAITING A CASE"
+      sub={`${findings.length} high-severity detection(s) with no case attached`}
+      actions={
+        <button
+          onClick={() =>
+            promote.mutate(
+              selected.size > 0 ? Array.from(selected) : visible.map((f) => f.id),
+            )
+          }
+          disabled={promote.isPending}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-white disabled:opacity-60"
+          style={{ background: "var(--gradient-brand)" }}
+        >
+          {promote.isPending ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <ArrowRightLeft className="size-3.5" />
+          )}
+          {selected.size > 0 ? `Open ${selected.size} case(s)` : "Open cases for these"}
+        </button>
+      }
+    >
+      <div className="space-y-1.5">
+        {visible.map((f) => {
+          const url = f.permalink ?? f.canonical_url;
+          return (
+            <label
+              key={f.id}
+              className="flex items-start gap-3 rounded-lg border border-border/70 px-3 py-2 hover:bg-accent/30 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(f.id)}
+                onChange={() => toggle(f.id)}
+                className="mt-1"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold truncate">
+                  {f.title ?? "Untitled detection"}
+                </div>
+                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>{f.source ?? "Web"}</span>
+                  <span>·</span>
+                  <span>Score {f.threat_score ?? "—"}</span>
+                  {url && (
+                    <>
+                      <span>·</span>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-primary"
+                      >
+                        Source <ExternalLink className="size-3" />
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
+              <Pill color={severityColor((f.severity ?? "Medium") as Severity)}>
+                {f.severity ?? "Medium"}
+              </Pill>
+            </label>
+          );
+        })}
+        {findings.length > visible.length && (
+          <div className="text-[11px] text-muted-foreground pt-1">
+            Showing {visible.length} of {findings.length}. Promote in batches to keep cases
+            reviewable.
+          </div>
+        )}
+      </div>
+    </PageCard>
   );
 }

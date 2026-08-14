@@ -33,6 +33,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { promoteFindingsToCases } from "@/lib/cases/case-promotion.functions";
 
 export const Route = createFileRoute("/_app/threat-radar")({
   head: () => ({ meta: [{ title: "Threat Radar — Eterna Sentinel" }] }),
@@ -97,6 +99,7 @@ interface Threat {
   latestActivity: string;
   growthPct: number;
   narrativeClaim: string;
+  url: string | null;
   caseId?: string;
 }
 
@@ -255,6 +258,7 @@ function toThreat(row: HitRow): Threat {
     latestActivity: shortDate(row.last_seen_at),
     growthPct: Math.round(growth),
     narrativeClaim: row.narrative_claim || row.description || "No narrative claim extracted yet.",
+    url: row.permalink || row.canonical_url || null,
     caseId: (row.metrics as Record<string, unknown> | null)?.["case_id"] as string | undefined,
   };
 }
@@ -326,6 +330,25 @@ function ThreatRadarPage() {
       if (error) throw error;
       return (data ?? []) as HitRow[];
     },
+  });
+
+  // Detection → Case: opens a case with the finding attached as evidence.
+  const promoteFn = useServerFn(promoteFindingsToCases);
+  const [promotingId, setPromotingId] = useState<string | null>(null);
+  const promote = useMutation({
+    mutationFn: async (hitId: string) => {
+      setPromotingId(hitId);
+      return promoteFn({ data: { hitIds: [hitId] } });
+    },
+    onSuccess: (res) => {
+      toast.success(
+        res.created > 0 ? "Case opened from this detection" : "This detection already has a case",
+      );
+      qc.invalidateQueries({ queryKey: ["cases"] });
+      qc.invalidateQueries({ queryKey: ["promotable-findings"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setPromotingId(null),
   });
 
   const statusMut = useMutation({
@@ -532,6 +555,8 @@ function ThreatRadarPage() {
                 t={t}
                 onOpen={() => setSelected(t)}
                 onStatus={(s) => handleStatus(t, s)}
+                onSendToCase={() => promote.mutate(t.id)}
+                promoting={promote.isPending && promotingId === t.id}
               />
             ))}
             {list.length === 0 && (
@@ -578,10 +603,14 @@ function ThreatCard({
   t,
   onOpen,
   onStatus,
+  onSendToCase,
+  promoting,
 }: {
   t: Threat;
   onOpen: () => void;
   onStatus: (s: Status) => void;
+  onSendToCase: () => void;
+  promoting: boolean;
 }) {
   const PIcon = platformIcon(t.platform);
   const v = viralityStyle(t.velocity);
@@ -676,11 +705,16 @@ function ThreatCard({
         <ActionBtn icon={Eye} onClick={onOpen}>
           View Evidence
         </ActionBtn>
-        <ActionBtn icon={FileSearch} to="/intelligence">
+        <Link
+          to="/intelligence"
+          search={{ url: t.url ?? undefined, target: t.title }}
+          className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md border border-border hover:bg-accent"
+        >
+          <FileSearch className="size-3" />
           Investigate
-        </ActionBtn>
-        <ActionBtn icon={FolderPlus} to="/cases">
-          Send to Case
+        </Link>
+        <ActionBtn icon={FolderPlus} onClick={onSendToCase} disabled={promoting}>
+          {promoting ? "Opening case…" : t.caseId ? "View Case" : "Send to Case"}
         </ActionBtn>
         <ActionBtn icon={FileText} to="/reports">
           Report
@@ -708,12 +742,14 @@ function ActionBtn({
   onClick,
   to,
   primary,
+  disabled,
 }: {
   icon: typeof Eye;
   children: React.ReactNode;
   onClick?: () => void;
   to?: string;
   primary?: boolean;
+  disabled?: boolean;
 }) {
   const cls = `inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md ${primary ? "text-white" : "border border-border hover:bg-accent"}`;
   const style = primary ? { background: "var(--gradient-brand)" } : undefined;
@@ -725,7 +761,7 @@ function ActionBtn({
       </Link>
     );
   return (
-    <button onClick={onClick} className={cls} style={style}>
+    <button onClick={onClick} disabled={disabled} className={`${cls} disabled:opacity-60`} style={style}>
       <Icon className="size-3" />
       {children}
     </button>
@@ -821,11 +857,16 @@ function DetailPanel({ t, onClose }: { t: Threat; onClose: () => void }) {
         </div>
 
         <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-          <ActionBtn icon={FileSearch} to="/intelligence">
+          <Link
+            to="/intelligence"
+            search={{ url: t.url ?? undefined, target: t.title }}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md border border-border hover:bg-accent"
+          >
+            <FileSearch className="size-3" />
             Investigate
-          </ActionBtn>
+          </Link>
           <ActionBtn icon={FolderPlus} to="/cases">
-            Send to Case
+            Open Case Board
           </ActionBtn>
           <ActionBtn icon={FileText} to="/reports">
             Generate Report

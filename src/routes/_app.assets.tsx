@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -48,6 +48,7 @@ function AssetsPage() {
   const { session, ready } = useSession();
   const userId = session?.user.id;
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const prepare = useServerFn(prepareAssetUpload);
   const register = useServerFn(registerAssetAndSearch);
   const [q, setQ] = useState("");
@@ -110,8 +111,9 @@ function AssetsPage() {
       setSourceUrl("");
       qc.invalidateQueries({ queryKey: ["protected_assets", userId] });
       toast.success(`Asset protected. ${data.matchCount} web matches found.`);
-      const params = new URLSearchParams({ assetId: data.id, query: scanName, auto: "1" });
-      window.location.assign(`/scan?${params.toString()}`);
+      // Client-side navigation — a full page load here dropped the SPA state
+      // and re-ran the whole app shell just to open /scan.
+      navigate({ to: "/scan", search: { assetId: data.id, query: scanName, auto: "1" } });
     },
     onError: (e: Error) => toast.error(e.message),
   });

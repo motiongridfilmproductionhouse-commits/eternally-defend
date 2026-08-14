@@ -1,4 +1,5 @@
 import { ShieldAlert, Facebook, Youtube, Music2, Instagram, Twitter, Globe } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/mm/dashboard.functions";
@@ -85,12 +86,12 @@ export function UnauthorizedUsage() {
         </div>
       </div>
 
-      <a
-        href="/intelligence"
+      <Link
+        to="/intelligence"
         className="mt-4 w-full text-sm font-semibold py-2 rounded-lg border border-border hover:bg-accent transition text-center"
       >
-        View Cases
-      </a>
+        Open Evidence Analysis
+      </Link>
     </div>
   );
 }
