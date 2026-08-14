@@ -176,11 +176,15 @@ export async function ingestResendEvent(input: {
     };
     const nextStatus = statusMap[normalized];
     if (nextStatus) {
-      await (db as any)
+      const { error: statusError } = await (db as any)
         .from("enforcement_email_deliveries")
         .update({ delivery_status: nextStatus, ...(reason ? { error: reason.slice(0, 500) } : {}) })
         .eq("id", delivery.id);
+      if (statusError) {
+        throw new Error(`delivery_status_update_failed: ${statusError.message}`);
+      }
     }
+
   }
 
   return {
