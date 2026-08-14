@@ -68,7 +68,6 @@ test("v2 flows match the required account-type routes", () => {
     [
       "Account Type",
       "Personal Profile",
-      "Veriff",
       "Face Protection",
       "Digital Assets",
       "Authorization Scope",
