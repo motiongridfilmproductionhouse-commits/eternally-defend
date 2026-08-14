@@ -49,6 +49,10 @@ import { DeepfakeExposureMap } from "@/components/deepfake/analytics/DeepfakeExp
 import { DomainConcentrationChart } from "@/components/deepfake/analytics/DomainConcentrationChart";
 import { SourceIntelligencePanel } from "@/components/deepfake/analytics/SourceIntelligencePanel";
 import { getFindingNormalizedDomain, resolveFindingOrigin } from "@/lib/deepfake/analytics-helpers";
+import {
+  PreservedEvidenceDialog,
+  type PreservedEvidenceTarget,
+} from "@/components/deepfake/evidence/PreservedEvidenceDialog";
 
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
