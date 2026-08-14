@@ -122,6 +122,6 @@ export function decideCandidateOutcome(input: {
     confidence: Math.round(v.similarity),
     confidenceBand: band,
     detectionType,
-    matchReason: `${evidence} Classified ${band.toUpperCase()} — pending human review. Visual similarity alone is not a finding of infringement.`,
+    matchReason: `${evidence} Classified ${similarityBandLabel(band)} — pending human review. Visual similarity alone is not a finding of infringement.`,
   };
 }
