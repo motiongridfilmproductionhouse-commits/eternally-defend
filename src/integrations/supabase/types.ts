@@ -2525,6 +2525,160 @@ export type Database = {
           },
         ]
       }
+      deepfake_manual_leads: {
+        Row: {
+          capture_timestamp: string | null
+          classification: string | null
+          client_visible: boolean
+          created_at: string
+          discovery_path: string[]
+          duplicate_of_lead_id: string | null
+          error_reason: string | null
+          extracted_images: string[]
+          face_similarity_score: number | null
+          google_result_screenshot_path: string | null
+          id: string
+          identity_confidence_score: number | null
+          initial_dedupe_key: string | null
+          media_sha256: string | null
+          metadata: Json
+          original_image_url: string | null
+          page_title: string | null
+          perceptual_hash: string | null
+          processing_status: string
+          profile_id: string | null
+          related_links: string[]
+          requires_human_review: boolean
+          resolved_dedupe_key: string | null
+          reviewer_image_url: string | null
+          reviewer_notes: string | null
+          reviewer_source_page_url: string | null
+          scan_id: string | null
+          selected_result_fragment: string | null
+          source_domain: string | null
+          source_page_screenshot_path: string | null
+          source_page_url: string | null
+          source_type: string | null
+          state: string | null
+          submitted_by: string | null
+          submitted_url: string
+          submitted_url_kind: string
+          surrounding_text: string | null
+          target_name: string
+          updated_at: string
+          user_id: string
+          verification_status: string | null
+        }
+        Insert: {
+          capture_timestamp?: string | null
+          classification?: string | null
+          client_visible?: boolean
+          created_at?: string
+          discovery_path?: string[]
+          duplicate_of_lead_id?: string | null
+          error_reason?: string | null
+          extracted_images?: string[]
+          face_similarity_score?: number | null
+          google_result_screenshot_path?: string | null
+          id?: string
+          identity_confidence_score?: number | null
+          initial_dedupe_key?: string | null
+          media_sha256?: string | null
+          metadata?: Json
+          original_image_url?: string | null
+          page_title?: string | null
+          perceptual_hash?: string | null
+          processing_status?: string
+          profile_id?: string | null
+          related_links?: string[]
+          requires_human_review?: boolean
+          resolved_dedupe_key?: string | null
+          reviewer_image_url?: string | null
+          reviewer_notes?: string | null
+          reviewer_source_page_url?: string | null
+          scan_id?: string | null
+          selected_result_fragment?: string | null
+          source_domain?: string | null
+          source_page_screenshot_path?: string | null
+          source_page_url?: string | null
+          source_type?: string | null
+          state?: string | null
+          submitted_by?: string | null
+          submitted_url: string
+          submitted_url_kind?: string
+          surrounding_text?: string | null
+          target_name: string
+          updated_at?: string
+          user_id: string
+          verification_status?: string | null
+        }
+        Update: {
+          capture_timestamp?: string | null
+          classification?: string | null
+          client_visible?: boolean
+          created_at?: string
+          discovery_path?: string[]
+          duplicate_of_lead_id?: string | null
+          error_reason?: string | null
+          extracted_images?: string[]
+          face_similarity_score?: number | null
+          google_result_screenshot_path?: string | null
+          id?: string
+          identity_confidence_score?: number | null
+          initial_dedupe_key?: string | null
+          media_sha256?: string | null
+          metadata?: Json
+          original_image_url?: string | null
+          page_title?: string | null
+          perceptual_hash?: string | null
+          processing_status?: string
+          profile_id?: string | null
+          related_links?: string[]
+          requires_human_review?: boolean
+          resolved_dedupe_key?: string | null
+          reviewer_image_url?: string | null
+          reviewer_notes?: string | null
+          reviewer_source_page_url?: string | null
+          scan_id?: string | null
+          selected_result_fragment?: string | null
+          source_domain?: string | null
+          source_page_screenshot_path?: string | null
+          source_page_url?: string | null
+          source_type?: string | null
+          state?: string | null
+          submitted_by?: string | null
+          submitted_url?: string
+          submitted_url_kind?: string
+          surrounding_text?: string | null
+          target_name?: string
+          updated_at?: string
+          user_id?: string
+          verification_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deepfake_manual_leads_duplicate_of_lead_id_fkey"
+            columns: ["duplicate_of_lead_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_manual_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deepfake_manual_leads_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_target_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deepfake_manual_leads_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deepfake_reference_faces: {
         Row: {
           created_at: string
