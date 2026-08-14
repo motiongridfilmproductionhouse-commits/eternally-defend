@@ -132,11 +132,10 @@ const CDN_PROXY = [
 
 const SEARCH_SURFACES = [
   "google.com",
-  "google.co",
+  "google.",
   "bing.com",
   "duckduckgo.com",
   "yandex.",
-  "search.marcia",
   "baidu.com",
   "lens.google.com",
   "images.google.",
@@ -161,8 +160,27 @@ function registrable(host: string): string {
   return parts.slice(twoLabelSuffix ? -3 : -2).join(".");
 }
 
+/**
+ * Host matching is label-exact, never substring. Substring matching used to
+ * misclassify generic domains — e.g. `learn.microsoft.com` contains "t.co" and
+ * was reported as X/Twitter. Two pattern shapes are supported:
+ *  - `example.com`  -> matches `example.com` and any subdomain of it
+ *  - `amazon.`      -> domain-prefix pattern: matches `amazon.<tld>` and any
+ *                      subdomain whose registrable name starts with `amazon.`
+ */
+export function hostMatchesPattern(host: string, pattern: string): boolean {
+  const h = host.replace(/^www\./i, "").toLowerCase();
+  const n = pattern.toLowerCase().replace(/^\./, "");
+  if (!n) return false;
+  if (n.endsWith(".")) {
+    const bare = n.slice(0, -1);
+    return h === bare || h.startsWith(n) || h.includes(`.${n}`);
+  }
+  return h === n || h.endsWith(`.${n}`);
+}
+
 function matches(host: string, needles: string[]): boolean {
-  return needles.some((n) => host === n || host.endsWith(`.${n}`) || host.includes(n));
+  return needles.some((n) => hostMatchesPattern(host, n));
 }
 
 /** True when the URL addresses a specific page/post rather than a bare domain. */
