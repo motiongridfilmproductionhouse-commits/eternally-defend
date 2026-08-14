@@ -433,8 +433,10 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
             supabase,
             userId,
             profileId: data.profile_id,
-            candidates: mediaCandidates,
+            candidates: mediaCandidates.slice(0, remainingBudgetMs() > 90_000 ? 40 : 15),
             similarityThreshold: 70,
+            softDeadlineMs: Date.now() + Math.min(remainingBudgetMs() * 0.5, 60_000),
+
           });
 
           verifiedCount = faceResults.matched.filter(
