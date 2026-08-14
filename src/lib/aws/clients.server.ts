@@ -1,7 +1,6 @@
-import { RekognitionClient } from "@aws-sdk/client-rekognition";
 import { S3Client } from "@aws-sdk/client-s3";
+import { getRekognitionClient } from "./rekognition-client.server";
 
-let _rek: RekognitionClient | null = null;
 let _s3: S3Client | null = null;
 let _hasValidated = false;
 
@@ -34,9 +33,9 @@ function creds() {
   return { region, credentials: { accessKeyId, secretAccessKey } };
 }
 
-export function getRekognition(): RekognitionClient {
-  if (!_rek) _rek = new RekognitionClient(creds());
-  return _rek;
+export function getRekognition() {
+  validateAndLog();
+  return getRekognitionClient(process.env.AWS_REGION!.trim());
 }
 
 export function getS3(): S3Client {
