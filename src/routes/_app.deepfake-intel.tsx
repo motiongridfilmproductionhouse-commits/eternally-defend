@@ -1079,8 +1079,8 @@ function DeepfakeIntelPage() {
                               onClick={() =>
                                 setEvidenceTarget({
                                   leadId: lead.id,
-                                  sourcePageUrl: lead.source_page_url || lead.submitted_url,
-                                  title: lead.page_title || lead.submitted_url,
+                                  sourcePageUrl: lead.submitted_url,
+                                  title: lead.submitted_url,
                                   platform: lead.source_domain ?? null,
                                   caseRef: lead.id,
                                 })
