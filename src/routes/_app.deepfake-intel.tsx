@@ -158,10 +158,11 @@ function DeepfakeIntelPage() {
   const scan = selected.data?.scan ?? null;
   const findings = (selected.data?.findings ?? []) as unknown as ClientFinding[];
   const exposureFindings = (selected.data?.exposure_findings ?? findings) as unknown as ClientFinding[];
+  const persistedManualLeads = selected.data?.manual_evidence_leads ?? [];
   const discoveries = selected.data?.discoveries ?? [];
   const threatSummary = buildThreatAlertSummary(findings);
   const allThreatFeed = selectThreatFeed(
-    findings,
+    exposureFindings,
     scan?.target_name
       ? {
           name: scan.target_name as string,
@@ -821,22 +822,30 @@ function DeepfakeIntelPage() {
           ) : (
             <>
               {/* RESTORED DEEPFAKE INTELLIGENCE ANALYTICS SUITE */}
-              <DeepfakeIntelligenceSummary findings={findings} />
+              <DeepfakeIntelligenceSummary findings={exposureFindings} />
 
               <DeepfakeExposureMap
                 findings={exposureFindings}
+                target={
+                  scan?.target_name
+                    ? {
+                        name: scan.target_name as string,
+                        aliases: ((scan as { aliases?: string[] }).aliases ?? []) as string[],
+                      }
+                    : null
+                }
                 selectedDomain={selectedDomain}
                 onSelectDomain={setSelectedDomain}
               />
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <DomainConcentrationChart
-                  findings={findings}
+                  findings={exposureFindings}
                   selectedDomain={selectedDomain}
                   onSelectDomain={setSelectedDomain}
                 />
                 <SourceIntelligencePanel
-                  findings={findings}
+                  findings={exposureFindings}
                   selectedDomain={selectedDomain}
                   onUpdateFinding={(findingId, status) =>
                     upd.mutate({ finding_id: findingId, review_status: status })
@@ -906,17 +915,21 @@ function DeepfakeIntelPage() {
                       variant="default"
                       className="bg-primary/20 text-primary border-primary/40"
                     >
-                      AUTOMATED FINDINGS: {findings.length}
+                      CURRENT SCAN FINDINGS: {findings.length}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Badge variant="outline" className="uppercase">
-                      MANUAL EVIDENCE LEADS: 0
+                      MANUAL EVIDENCE LEADS: {persistedManualLeads.length}
                     </Badge>
                   </div>
                 </div>
                 <span className="text-[10px] text-muted-foreground">
-                  Source page could not be resolved automatically.
+                  {allThreatFeed.length > 0
+                    ? `${allThreatFeed.length} qualifying threat${allThreatFeed.length === 1 ? "" : "s"} across protected-identity history.`
+                    : persistedManualLeads.length > 0
+                      ? "Supplied links are retained for review; none currently pass every threat gate."
+                      : "Source page could not be resolved automatically. No supplied links are recorded for this protected identity."}
                 </span>
               </div>
 

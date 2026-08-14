@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface Props {
   findings: ClientFinding[];
+  target?: { name: string; aliases?: string[] } | null;
   selectedDomain?: string | null;
   onSelectDomain?: (domain: string | null) => void;
 }
@@ -21,8 +22,8 @@ function isCdn(org: string | null | undefined): boolean {
   return CDN_ORGS.some((o) => value.includes(o));
 }
 
-export function DeepfakeExposureMap({ findings, selectedDomain, onSelectDomain }: Props) {
-  const baseSources = useMemo(() => buildSourceIntelligenceList(findings), [findings]);
+export function DeepfakeExposureMap({ findings, target, selectedDomain, onSelectDomain }: Props) {
+  const baseSources = useMemo(() => buildSourceIntelligenceList(findings, target), [findings, target]);
 
   // Domains with no static geo signal: resolve their real hosting country via DNS + IP geo.
   const unlocatedDomains = useMemo(
