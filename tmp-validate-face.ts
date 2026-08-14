@@ -17,12 +17,12 @@ console.log("profile:", profile);
 const candidates = [
   {
     url: "https://commons.wikimedia.org/wiki/File:Obama_Portrait_2006.jpg",
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/c/c3/Obama_Portrait_2006.jpg",
+    image_url: "http://localhost:8099/obama_match_small.jpg",
     media_type: "image",
   },
   {
     url: "https://commons.wikimedia.org/wiki/File:Angela_Merkel_2019_cropped.jpg",
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/0/0f/Angela_Merkel_2019_cropped.jpg",
+    image_url: "http://localhost:8099/merkel_small.jpg",
     media_type: "image",
   },
 ] as never[];
