@@ -106,42 +106,66 @@ function NotificationsBell() {
   );
 }
 
-type Status = {
-  level: "protected" | "monitoring" | "at-risk" | "critical" | "unknown";
-  label: string;
-};
+const STATUS_STYLES = {
+  protected: { color: "text-success", bg: "bg-success/15 border-success/30", icon: ShieldCheck },
+  monitoring: { color: "text-info", bg: "bg-info/15 border-info/30", icon: ShieldQuestion },
+  "at-risk": { color: "text-warning", bg: "bg-warning/15 border-warning/30", icon: ShieldAlert },
+  critical: { color: "text-danger", bg: "bg-danger/15 border-danger/40", icon: ShieldAlert },
+  unknown: {
+    color: "text-muted-foreground",
+    bg: "bg-muted/40 border-border",
+    icon: ShieldQuestion,
+  },
+} as const;
 
-function protectionStatus(
-  data: { assets: number; criticalThreats: number; openCases: number } | undefined,
-): Status {
-  if (!data) return { level: "unknown", label: "Loading" };
-  if (data.criticalThreats > 5 || data.openCases > 3)
-    return { level: "critical", label: "Action Required" };
-  if (data.criticalThreats > 0 || data.openCases > 0) return { level: "at-risk", label: "At Risk" };
-  if (data.assets > 0) return { level: "protected", label: "Protected" };
-  return { level: "monitoring", label: "Monitoring" };
-}
-
-function StatusPill({ status, loading }: { status: Status; loading: boolean }) {
-  const map = {
-    protected: { color: "text-success", bg: "bg-success/15 border-success/30", icon: ShieldCheck },
-    monitoring: { color: "text-info", bg: "bg-info/15 border-info/30", icon: ShieldQuestion },
-    "at-risk": { color: "text-warning", bg: "bg-warning/15 border-warning/30", icon: ShieldAlert },
-    critical: { color: "text-danger", bg: "bg-danger/15 border-danger/40", icon: ShieldAlert },
-    unknown: {
-      color: "text-muted-foreground",
-      bg: "bg-muted/40 border-border",
-      icon: ShieldQuestion,
-    },
-  } as const;
-  const c = map[status.level];
+/**
+ * "ACTION REQUIRED" used to be a dead label derived from an unrelated query.
+ * It now reads the shared protection summary, explains what is wrong on hover,
+ * and links to the first surface that can clear it.
+ */
+function StatusPill({
+  summary,
+  loading,
+}: {
+  summary: ProtectionSummary | undefined;
+  loading: boolean;
+}) {
+  const level = summary?.level ?? "unknown";
+  const c = STATUS_STYLES[level];
   const Icon = c.icon;
-  return (
-    <div
-      className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-semibold ${c.bg} ${c.color}`}
-    >
+  const items = summary?.actionRequired ?? [];
+  const target = items[0]?.to ?? "/";
+  const tooltip =
+    items.length > 0
+      ? items.map((i) => `• ${i.label} — ${i.detail}`).join("\n")
+      : summary
+        ? "No outstanding actions on this account."
+        : "Loading protection posture…";
+
+  const body = (
+    <>
       {loading ? <Loader2 className="size-3.5 animate-spin" /> : <Icon className="size-3.5" />}
-      <span className="uppercase tracking-wider">{status.label}</span>
-    </div>
+      <span className="uppercase tracking-wider">{summary?.label ?? "Loading"}</span>
+      {items.length > 0 && (
+        <span className="ml-0.5 rounded-full bg-current/20 px-1.5 text-[10px] font-bold">
+          {items.length}
+        </span>
+      )}
+    </>
+  );
+
+  const cls = `inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-semibold ${c.bg} ${c.color}`;
+
+  if (items.length === 0) {
+    return (
+      <div className={cls} title={tooltip}>
+        {body}
+      </div>
+    );
+  }
+  return (
+    <Link to={target} title={tooltip} className={`${cls} hover:brightness-110 transition`}>
+      {body}
+    </Link>
   );
 }
