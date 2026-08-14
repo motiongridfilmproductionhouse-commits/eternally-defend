@@ -497,7 +497,7 @@ export function shouldAnimateThreatAwareScan(input: {
   const tone = input.tone ?? input.threatLevel ?? "cyan";
   if (tone === "red" || tone === "orange") {
     // Elevated threats keep the danger animation alive after the sweep ends.
-    return input.mode !== "empty";
+    return true;
   }
   if (tone === "amber") return input.mode === "running";
   return input.mode === "running" || input.mode === "idle";
