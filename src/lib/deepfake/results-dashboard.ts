@@ -205,6 +205,17 @@ export function normalizeClientFinding(row: unknown): ClientFinding | null {
     page_type: asString(readField(source, "page_type", "pageType")),
     identity_confidence: asNumber(readField(source, "identity_confidence", "identityConfidence")),
     face_similarity: asNumber(readField(source, "face_similarity", "faceSimilarity")),
+    // Strict-gate evidence signals must survive normalization, otherwise no
+    // finding can ever qualify for the verified/probable threat feed.
+    explicit_media_confirmed: asBoolean(
+      readField(source, "explicit_media_confirmed", "explicitMediaConfirmed"),
+    ),
+    synthetic_media_confirmed: asBoolean(
+      readField(source, "synthetic_media_confirmed", "syntheticMediaConfirmed"),
+    ),
+    hosting_or_distribution_confirmed: asBoolean(
+      readField(source, "hosting_or_distribution_confirmed", "hostingOrDistributionConfirmed"),
+    ),
     synthetic_media_confidence: asNumber(
       readField(source, "synthetic_media_confidence", "syntheticMediaConfidence"),
     ),

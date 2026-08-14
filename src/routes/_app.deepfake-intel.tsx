@@ -160,7 +160,7 @@ function DeepfakeIntelPage() {
   const exposureFindings = (selected.data?.exposure_findings ?? findings) as unknown as ClientFinding[];
   const persistedManualLeads = selected.data?.manual_evidence_leads ?? [];
   const discoveries = selected.data?.discoveries ?? [];
-  const threatSummary = buildThreatAlertSummary(findings);
+  const threatSummary = buildThreatAlertSummary(exposureFindings);
   const allThreatFeed = selectThreatFeed(
     exposureFindings,
     scan?.target_name
@@ -802,11 +802,11 @@ function DeepfakeIntelPage() {
               scan ? scan.total_queries || parseTelemetry(scan)?.queries_generated || 56 : 0
             }
             pagesVerified={scan ? parseTelemetry(scan)?.pages_crawled : 0}
-            threatsSaved={findings.length}
+            threatsSaved={Math.max(findings.length, threatSummary.total)}
             candidatesCount={discoveries.length}
             errorMessage={scan?.error_message}
             threatSummary={threatSummary}
-            threatFindings={findings}
+            threatFindings={exposureFindings}
             scanId={scan?.id}
             threatFindingsReady={!selected.isLoading}
           />

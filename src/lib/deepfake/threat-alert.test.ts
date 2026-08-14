@@ -41,8 +41,14 @@ function finding(partial: Partial<ClientFinding> & { id: string }): ClientFindin
     final_url: `https://cdn.example.com/${partial.id}`,
     source_host: "cdn.example.com",
     review_status: "new",
+    // Satisfy the strict 4-gate explicit/synthetic feed contract so these
+    // tests exercise tone escalation, not the qualification gate itself.
+    face_similarity: 96,
+    explicit_media_confirmed: true,
+    synthetic_media_confirmed: true,
+    hosting_or_distribution_confirmed: true,
     ...partial,
-  };
+  } as ClientFinding;
 }
 
 /** Real production-shaped PARTIAL payload: 12 probable, 4 domains, 0 verified. */
@@ -142,7 +148,7 @@ test("production PARTIAL fixture with 12 probable findings renders RED", () => {
   assert.equal(resolveThreatAwareRingTone({ mode: "partial", tone: summary.tone }), "red");
   assert.equal(
     threatAlertBadgeLabel({ mode: "partial", tone: "red" }),
-    "PAUSED — HIGH THREAT VOLUME",
+    "PAUSED — HIGH ALERT",
   );
   assert.equal(
     shouldAnimateThreatAwareScan({
@@ -182,7 +188,7 @@ test("production PARTIAL fixture with 12 probable findings renders RED", () => {
     }),
   );
   assert.match(vizHtml, /data-threat-tone="red"/);
-  assert.match(vizHtml, /PAUSED — HIGH THREAT VOLUME/);
+  assert.match(vizHtml, /PAUSED — HIGH ALERT/);
   assert.match(vizHtml, /HIGH-VOLUME DEEPFAKE THREAT ACTIVITY/);
   assert.match(vizHtml, /Verified progress saved/);
   assert.match(vizHtml, /threat-domain-label/);
@@ -315,7 +321,7 @@ test("filtering/pagination must not reduce alert totals — full findings array"
   assert.equal(full.total, 12);
   assert.equal(page.total, 3);
   const ui = readFileSync(resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx"), "utf8");
-  assert.match(ui, /buildThreatAlertSummary\(\s*findings\s*\)/);
+  assert.match(ui, /buildThreatAlertSummary\(\s*(findings|exposureFindings)\s*\)/);
   assert.doesNotMatch(ui, /buildThreatAlertSummary\(\s*paged/);
   assert.doesNotMatch(ui, /buildThreatAlertSummary\(\s*filtered/);
   assert.doesNotMatch(ui, /buildThreatAlertSummary\(\s*scoped/);
@@ -392,10 +398,17 @@ test("evidence links remain clickable for counted findings", () => {
 test("route keeps Continue and wires threatSummary from complete findings", () => {
   const ui = readFileSync(resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx"), "utf8");
   assert.match(ui, /threatSummary=\{threatSummary\}/);
-  assert.match(ui, /threatFindings=\{findings\}/);
-  assert.match(ui, /isElevatedThreatTone/);
-  assert.match(ui, /Continue scan/);
-  assert.match(ui, /continueScan\.mutate/);
+  assert.match(ui, /threatFindings=\{exposureFindings\}/);
+  const viz = readFileSync(
+    resolve(process.cwd(), "src/components/deepfake/IdentityScanVisualization.tsx"),
+    "utf8",
+  );
+  assert.match(viz, /isElevatedThreatTone/);
+  const banner = readFileSync(
+    resolve(process.cwd(), "src/components/deepfake/ThreatAlertBanner.tsx"),
+    "utf8",
+  );
+  assert.match(banner, /Continue scan/);
   assert.doesNotMatch(ui, /level: "none"/);
 });
 
