@@ -14,6 +14,13 @@ interface Props {
   onSelectDomain?: (domain: string | null) => void;
 }
 
+const CDN_ORGS = ["cloudflare", "fastly", "akamai", "amazon", "google", "microsoft", "ddos-guard", "stackpath", "sucuri"];
+
+function isCdn(org: string | null | undefined): boolean {
+  const value = (org ?? "").toLowerCase();
+  return CDN_ORGS.some((o) => value.includes(o));
+}
+
 export function DeepfakeExposureMap({ findings, selectedDomain, onSelectDomain }: Props) {
   const baseSources = useMemo(() => buildSourceIntelligenceList(findings), [findings]);
 
@@ -51,9 +58,14 @@ export function DeepfakeExposureMap({ findings, selectedDomain, onSelectDomain }
           countryName: hit.countryName || hit.country,
           countryFlag: countryFlag(hit.country),
           mapPoint,
-          hostingProvider: hit.organization || s.geo.hostingProvider,
-          confidence: "High" as const,
-          locationSignal: "VERIFIED_HOST_INFRASTRUCTURE" as const,
+          hostingProvider: hit.organization
+            ? `${hit.organization}${isCdn(hit.organization) ? " (CDN edge)" : ""}`
+            : s.geo.hostingProvider,
+          infrastructureRole: isCdn(hit.organization) ? ("CDN Edge" as const) : s.geo.infrastructureRole,
+          confidence: isCdn(hit.organization) ? ("Medium" as const) : ("High" as const),
+          locationSignal: isCdn(hit.organization)
+            ? ("DOMAIN_TLD_SIGNAL" as const)
+            : ("VERIFIED_HOST_INFRASTRUCTURE" as const),
         },
       };
     });
@@ -254,7 +266,7 @@ export function DeepfakeExposureMap({ findings, selectedDomain, onSelectDomain }
                       </div>
                       <div className="text-[10px] text-sky-300/80 pt-1 border-t border-border/40 space-y-0.5">
                         <div className="truncate font-semibold">
-                          Signal: {node.domains[0]?.geo.locationSignal === "VERIFIED_HOST_INFRASTRUCTURE" ? "Verified Host Datacenter" : "TLD Country Namespace Signal"}
+                          Signal: {node.domains[0]?.geo.locationSignal === "VERIFIED_HOST_INFRASTRUCTURE" ? "Verified Host Datacenter" : "CDN edge / TLD namespace signal"}
                         </div>
                         <div className="truncate opacity-80">
                           Hosts: {node.domains.map((d) => d.domain).join(", ")}
