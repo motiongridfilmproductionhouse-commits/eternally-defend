@@ -1012,6 +1012,16 @@ function DeepfakeIntelPage() {
                             upd.mutate({ finding_id: f.id, review_status: status })
                           }
                           pending={upd.isPending}
+                          onViewEvidence={() =>
+                            setEvidenceTarget({
+                              findingId: f.id,
+                              sourcePageUrl:
+                                (f as any).final_url || (f as any).canonical_url || f.url,
+                              title: f.page_title || f.url,
+                              platform: f.source_host ?? null,
+                              caseRef: f.id,
+                            })
+                          }
                         />
                       </li>
                     ))}
