@@ -98,7 +98,7 @@ export async function ingestResendEvent(input: {
 
   const occurredAt = input.occurredAt ?? new Date().toISOString();
 
-  const { data: inserted } = await (db as any)
+  const { data: inserted, error: insertError } = await (db as any)
     .from("enforcement_provider_events")
     .insert({
       provider: "RESEND",
@@ -116,12 +116,17 @@ export async function ingestResendEvent(input: {
     .select("id")
     .maybeSingle();
 
+  if (insertError) {
+    // Never silently drop a provider event: fail so the provider retries.
+    throw new Error(`provider_event_insert_failed: ${insertError.message}`);
+  }
+
   const providerEventId = (inserted?.id as string) ?? null;
 
   // Suppression state for hard bounces and complaints.
   let suppressed = false;
   if (recipient && isSuppressingEvent(normalized)) {
-    await (db as any)
+    const { error: suppressionError } = await (db as any)
       .from("enforcement_suppressions")
       .upsert(
         {
@@ -133,8 +138,12 @@ export async function ingestResendEvent(input: {
         },
         { onConflict: "email" },
       );
+    if (suppressionError) {
+      throw new Error(`suppression_upsert_failed: ${suppressionError.message}`);
+    }
     suppressed = true;
   }
+
 
   // Feed the enforcement circuit breaker via the enforcement event ledger.
   const cbType = circuitBreakerEventType(normalized);

@@ -1,0 +1,1 @@
+DELETE FROM public.enforcement_suppressions WHERE email LIKE '%@eternasentinel.invalid';
