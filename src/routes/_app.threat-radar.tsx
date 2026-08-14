@@ -97,6 +97,7 @@ interface Threat {
   latestActivity: string;
   growthPct: number;
   narrativeClaim: string;
+  url: string | null;
   caseId?: string;
 }
 
@@ -255,6 +256,7 @@ function toThreat(row: HitRow): Threat {
     latestActivity: shortDate(row.last_seen_at),
     growthPct: Math.round(growth),
     narrativeClaim: row.narrative_claim || row.description || "No narrative claim extracted yet.",
+    url: row.permalink || row.canonical_url || null,
     caseId: (row.metrics as Record<string, unknown> | null)?.["case_id"] as string | undefined,
   };
 }
@@ -578,10 +580,14 @@ function ThreatCard({
   t,
   onOpen,
   onStatus,
+  onSendToCase,
+  promoting,
 }: {
   t: Threat;
   onOpen: () => void;
   onStatus: (s: Status) => void;
+  onSendToCase: () => void;
+  promoting: boolean;
 }) {
   const PIcon = platformIcon(t.platform);
   const v = viralityStyle(t.velocity);
@@ -676,11 +682,16 @@ function ThreatCard({
         <ActionBtn icon={Eye} onClick={onOpen}>
           View Evidence
         </ActionBtn>
-        <ActionBtn icon={FileSearch} to="/intelligence">
+        <Link
+          to="/intelligence"
+          search={{ url: t.url ?? undefined, target: t.title }}
+          className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md border border-border hover:bg-accent"
+        >
+          <FileSearch className="size-3" />
           Investigate
-        </ActionBtn>
-        <ActionBtn icon={FolderPlus} to="/cases">
-          Send to Case
+        </Link>
+        <ActionBtn icon={FolderPlus} onClick={onSendToCase} disabled={promoting}>
+          {promoting ? "Opening case…" : t.caseId ? "View Case" : "Send to Case"}
         </ActionBtn>
         <ActionBtn icon={FileText} to="/reports">
           Report
@@ -708,12 +719,14 @@ function ActionBtn({
   onClick,
   to,
   primary,
+  disabled,
 }: {
   icon: typeof Eye;
   children: React.ReactNode;
   onClick?: () => void;
   to?: string;
   primary?: boolean;
+  disabled?: boolean;
 }) {
   const cls = `inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md ${primary ? "text-white" : "border border-border hover:bg-accent"}`;
   const style = primary ? { background: "var(--gradient-brand)" } : undefined;
