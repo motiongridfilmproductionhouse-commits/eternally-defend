@@ -252,30 +252,11 @@ async function assertV2CompletionRequirements(
     throw new Error("Company / production house name is required.");
   }
 
-  if (requiresVeriff(accountType)) {
-    const { data: kyc } = await supabase
-      .from("kyc_verifications")
-      .select("verification_status")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (kyc?.verification_status !== "APPROVED") {
-      throw new Error("Individual accounts require approved Veriff verification.");
-    }
-  } else {
-    // Non-individual accounts must never receive Government Identity Verified claims.
-    const { data: kyc } = await supabase
-      .from("kyc_verifications")
-      .select("verification_status")
-      .eq("user_id", userId)
-      .eq("verification_status", "APPROVED")
-      .maybeSingle();
-    if (kyc) {
-      // Soft-block badge misuse: presence of approved KYC on a non-individual route is ignored
-      // for badge issuance, but we still refuse a Government Identity badge below.
-    }
-  }
+  // Veriff identity verification is NOT an onboarding completion requirement:
+  // the Veriff step was removed from signup onboarding. Government-identity
+  // claims, DMCA authorization, rights-holder verification and production
+  // enforcement eligibility still evaluate KYC separately via requiresVeriff().
+
 
   if (requiresRepresentative(accountType)) {
     const { data: representative } = await supabase

@@ -23,7 +23,6 @@ import { LightProfileStep } from "@/components/onboarding/LightProfileStep";
 import { LightCompleteStep } from "@/components/onboarding/LightCompleteStep";
 import { V2EvidenceStep } from "@/components/onboarding/V2EvidenceStep";
 import { V2RepresentativeStep } from "@/components/onboarding/V2RepresentativeStep";
-import { VeriffIdentityStep } from "@/components/onboarding/VeriffIdentityStep";
 import { FaceEnrollmentStep } from "@/components/onboarding/FaceEnrollmentStep";
 import { AssetVerificationStep } from "@/components/onboarding/AssetVerificationStep";
 import { AuthorizationScopeStep } from "@/components/onboarding/AuthorizationScopeStep";
@@ -79,10 +78,12 @@ export function V2OnboardingWizard({
     contentRef.current?.scrollTo({ top: 0, behavior: "instant" });
   }, [step]);
 
-  const { data: kyc, refetch: refetchKyc } = useQuery({
+  const { data: kyc } = useQuery({
     queryKey: ["kyc_status"],
     queryFn: () => fetchKycStatus(),
-    enabled: !accountType || requiresVeriff(accountType),
+    // Onboarding no longer collects Veriff KYC; status is only read to display
+    // existing government-identity claims on the certificate.
+    enabled: Boolean(accountType) && requiresVeriff(accountType as V2AccountType),
     refetchInterval: (q) => {
       const s = (q.state.data as { verification_status?: string } | undefined)?.verification_status;
       return s === "APPROVED" || s === "DECLINED" || s === "EXPIRED" ? false : 5000;
@@ -148,8 +149,8 @@ export function V2OnboardingWizard({
   const isReviewVisible = Boolean(auth && auth.status !== "DRAFT");
   const isApproved = auth?.status === "ACTIVE";
 
-  // For celebrity face enrollment, Veriff is not required — unlock the face step UI.
-  const faceKycGate = accountType && requiresVeriff(accountType) ? isKycApproved : true;
+  // Veriff is no longer part of onboarding, so the face step is never KYC-gated.
+  const faceKycGate = true;
 
   return (
     <div className="fixed inset-0 flex flex-col lg:flex-row bg-[#050A18] overflow-hidden text-white">
@@ -269,17 +270,6 @@ export function V2OnboardingWizard({
                     await refetchProfile();
                     await advanceStep(2);
                   }}
-                />
-              )}
-
-              {current.key === "veriff" && (
-                <VeriffIdentityStep
-                  kyc={kyc ?? null}
-                  onRefetch={async () => {
-                    await refetchKyc();
-                  }}
-                  onBack={goBack}
-                  onNext={() => advanceStep(3)}
                 />
               )}
 
