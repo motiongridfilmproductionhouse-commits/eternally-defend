@@ -802,11 +802,11 @@ function DeepfakeIntelPage() {
               scan ? scan.total_queries || parseTelemetry(scan)?.queries_generated || 56 : 0
             }
             pagesVerified={scan ? parseTelemetry(scan)?.pages_crawled : 0}
-            threatsSaved={findings.length}
+            threatsSaved={Math.max(findings.length, threatSummary.total)}
             candidatesCount={discoveries.length}
             errorMessage={scan?.error_message}
             threatSummary={threatSummary}
-            threatFindings={findings}
+            threatFindings={exposureFindings}
             scanId={scan?.id}
             threatFindingsReady={!selected.isLoading}
           />
