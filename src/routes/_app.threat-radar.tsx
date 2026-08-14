@@ -332,6 +332,25 @@ function ThreatRadarPage() {
     },
   });
 
+  // Detection → Case: opens a case with the finding attached as evidence.
+  const promoteFn = useServerFn(promoteFindingsToCases);
+  const [promotingId, setPromotingId] = useState<string | null>(null);
+  const promote = useMutation({
+    mutationFn: async (hitId: string) => {
+      setPromotingId(hitId);
+      return promoteFn({ data: { hitIds: [hitId] } });
+    },
+    onSuccess: (res) => {
+      toast.success(
+        res.created > 0 ? "Case opened from this detection" : "This detection already has a case",
+      );
+      qc.invalidateQueries({ queryKey: ["cases"] });
+      qc.invalidateQueries({ queryKey: ["promotable-findings"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setPromotingId(null),
+  });
+
   const statusMut = useMutation({
     mutationFn: async ({
       id,
