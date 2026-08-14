@@ -170,9 +170,14 @@ async function bingVisualSearch(
   return { candidates: candidates.slice(0, limit), bestGuessLabels };
 }
 
+/** SerpApi key, accepting the alternate secret name used in this project. */
+function serpApiKey(): string | undefined {
+  return process.env.SERPAPI_API_KEY || process.env.SERP_API || process.env["serp_api"];
+}
+
 export function reverseImageProvidersConfigured(): ReverseImageProviderId[] {
   const out: ReverseImageProviderId[] = [];
-  if (process.env.SERPAPI_API_KEY) out.push("serpapi_google_lens");
+  if (serpApiKey()) out.push("serpapi_google_lens");
   if (process.env.BING_VISUAL_SEARCH_KEY) out.push("bing_visual_search");
   return out;
 }
