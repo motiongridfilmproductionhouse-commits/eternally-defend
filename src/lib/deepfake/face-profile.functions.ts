@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { enforceScanSubject } from "@/lib/security/protected-subject.server";
-import { DeleteFacesCommand, RekognitionClient } from "@aws-sdk/client-rekognition";
+import { DeleteFacesCommand } from "@aws-sdk/client-rekognition";
+import { getRekognitionClient } from "@/lib/aws/rekognition-client.server";
 import { getDeepfakeFaceCollectionId, indexDeepfakeReferenceFace } from "./face-enrollment.server";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -26,20 +27,6 @@ const DeleteReferenceInput = z.object({
 
 const ProfileInput = z.object({
   profile_id: z.string().uuid(),
-});
-
-const region = process.env.AWS_REKOGNITION_REGION ?? process.env.AWS_REGION ?? "eu-north-1";
-
-const rekognition = new RekognitionClient({
-  region,
-  credentials:
-    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-      ? {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          sessionToken: process.env.AWS_SESSION_TOKEN,
-        }
-      : undefined,
 });
 
 function decodeBase64Image(value: string): Uint8Array {
@@ -222,7 +209,7 @@ export const uploadDeepfakeReferenceFace = createServerFn({ method: "POST" })
         .single();
 
       if (insertError || !record) {
-        await rekognition.send(
+        await getRekognitionClient().send(
           new DeleteFacesCommand({
             CollectionId: indexed.collectionId,
             FaceIds: [indexed.faceId],
@@ -264,7 +251,7 @@ export const deleteDeepfakeReferenceFace = createServerFn({ method: "POST" })
 
     if (reference.rekognition_face_id) {
       try {
-        await rekognition.send(
+        await getRekognitionClient().send(
           new DeleteFacesCommand({
             CollectionId: getDeepfakeFaceCollectionId(),
             FaceIds: [reference.rekognition_face_id],
