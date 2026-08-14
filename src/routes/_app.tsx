@@ -37,7 +37,38 @@ export const Route = createFileRoute("/_app")({
     return { user: data.user, demoMode: false };
   },
   component: AppLayout,
+  // A single failing panel used to bubble to the root boundary and blank the whole
+  // app shell. Errors inside the workspace now render in place with a retry.
+  errorComponent: WorkspaceError,
 });
+
+function WorkspaceError({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <div className="min-h-screen grid place-items-center bg-background px-6">
+      <div className="max-w-md w-full rounded-xl border border-border bg-card p-6 text-center">
+        <h1 className="text-lg font-semibold text-foreground">This workspace page didn't load</h1>
+        <p className="mt-2 text-sm text-muted-foreground break-words">
+          {error?.message || "Unexpected error"}
+        </p>
+        <div className="mt-5 flex justify-center gap-2">
+          <button
+            onClick={reset}
+            className="rounded-md px-4 py-2 text-sm font-semibold text-white"
+            style={{ background: "var(--gradient-brand)" }}
+          >
+            Try again
+          </button>
+          <a
+            href="/"
+            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
+          >
+            Back to dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AppLayout() {
   return (
