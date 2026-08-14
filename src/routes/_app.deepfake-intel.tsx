@@ -157,6 +157,7 @@ function DeepfakeIntelPage() {
 
   const scan = selected.data?.scan ?? null;
   const findings = (selected.data?.findings ?? []) as unknown as ClientFinding[];
+  const exposureFindings = (selected.data?.exposure_findings ?? findings) as unknown as ClientFinding[];
   const discoveries = selected.data?.discoveries ?? [];
   const threatSummary = buildThreatAlertSummary(findings);
   const allThreatFeed = selectThreatFeed(
@@ -823,7 +824,7 @@ function DeepfakeIntelPage() {
               <DeepfakeIntelligenceSummary findings={findings} />
 
               <DeepfakeExposureMap
-                findings={findings}
+                findings={exposureFindings}
                 selectedDomain={selectedDomain}
                 onSelectDomain={setSelectedDomain}
               />
