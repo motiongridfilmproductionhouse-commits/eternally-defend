@@ -1,7 +1,7 @@
 /**
  * Builds and dispatches real enforcement notices (DMCA / report emails) from
- * existing case + evidence data via Amazon SES, records the delivery audit row,
- * and only marks the enforcement request SUBMITTED after SES accepts.
+ * existing case + evidence data via Resend, records the delivery audit row,
+ * and only marks the enforcement request SUBMITTED after Resend accepts.
  *
  * Server-only module.
  */
