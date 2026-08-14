@@ -43,6 +43,7 @@ import { RuntimeValidationPanel } from "@/components/copyright/RuntimeValidation
 import { proxiedReferenceImageUrl } from "@/lib/copyright/reference-images";
 import { CopyrightFindingRiskPanel } from "@/components/copyright/CopyrightFindingRiskPanel";
 import { mapFindingToRiskProps } from "@/lib/copyright/risk-mapping";
+import { promoteCopyrightMatchesToCases } from "@/lib/cases/copyright-case-promotion.functions";
 
 import InvestigationModal from "@/components/investigation/InvestigationModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -466,6 +467,21 @@ function CopyrightIntelPage() {
     },
   });
 
+  const promoteToCaseFn = useServerFn(promoteCopyrightMatchesToCases);
+  const promoteToCase = useMutation({
+    mutationFn: async (matchId: string) => promoteToCaseFn({ data: { matchIds: [matchId] } }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["cases"] });
+      qc.invalidateQueries({ queryKey: ["protection-summary"] });
+      if (res.created > 0) {
+        toast.success("Copyright case opened — pending review before enforcement eligibility.");
+      } else {
+        toast.info("This finding is already attached to a case.");
+      }
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to open case."),
+  });
+
   const renderMatchArticle = (m: MatchRow) => {
     const band = BAND[m.confidence_band] ?? BAND.review;
     const ev = (m.evidence ?? {}) as Record<string, unknown>;
@@ -633,6 +649,20 @@ function CopyrightIntelPage() {
                 }}
               >
                 Website Details
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={promoteToCase.isPending || m.review_status === "dismissed"}
+                onClick={() => promoteToCase.mutate(m.id)}
+              >
+                {promoteToCase.isPending && promoteToCase.variables === m.id ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <FileSearch className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Send to case
               </Button>
 
               <Button
