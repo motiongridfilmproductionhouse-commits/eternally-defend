@@ -73,6 +73,10 @@ export interface ConnectorSubmissionResult {
   trackingRef?: string | null;
   notes?: string | null;
   error?: string | null;
+  /** Recipient the notice was addressed to by routing. */
+  intendedRecipient?: string | null;
+  /** Recipient the provider actually accepted (test mode redirects this). */
+  actualRecipient?: string | null;
 }
 
 export interface ConnectorStatusResult {
