@@ -45,6 +45,7 @@ import {
   type ProtectedFingerprint,
 } from "@/lib/media/candidate-verification.server";
 import { classifyPlatform, actionabilityBlocker } from "@/lib/media/platform-classifier";
+import { seedCandidatesFromReferenceImage } from "@/lib/copyright/reverse-image-seed.server";
 import { resolveAbuseContact } from "@/lib/copyright/contacts.server";
 import {
   CopyrightScanTracker,
@@ -313,6 +314,20 @@ export async function executeCopyrightScanPipeline(input: {
         validCandidates.push(c);
       }
     }
+    // 3b. Reverse-image discovery seeded by the protected reference image itself.
+    // Text queries only find pages that *mention* the work; copies are often
+    // posted with no title at all.
+    const reverseSeed = await seedCandidatesFromReferenceImage(keys[0]!, title);
+    for (const candidate of reverseSeed.candidates) {
+      if (byUrl.has(candidate.url)) continue;
+      byUrl.set(candidate.url, candidate);
+      if (isExcludedHost(candidate.url)) officialSources.push(candidate);
+      else validCandidates.push(candidate);
+    }
+    await recordCopyrightScanDiagnostic(supabase, scanId, {
+      reverse_image_discovery: reverseSeed.diagnostics,
+    });
+
     tracker.candidatePagesDiscovered = byUrl.size;
 
     // Ensure every valid candidate has a thumbnail URL so no valid result is lost.
