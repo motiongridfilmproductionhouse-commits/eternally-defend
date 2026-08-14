@@ -40,6 +40,7 @@ import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel"
 import { AssetDiscoveryPanel } from "@/components/copyright/discovery/AssetDiscoveryPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
 import { EvidenceThumbnail } from "@/components/copyright/EvidenceThumbnail";
+import { normalizeBandName } from "@/lib/media/similarity-bands";
 import { RuntimeValidationPanel } from "@/components/copyright/RuntimeValidationPanel";
 import { proxiedReferenceImageUrl } from "@/lib/copyright/reference-images";
 import { CopyrightFindingRiskPanel } from "@/components/copyright/CopyrightFindingRiskPanel";
@@ -127,11 +128,16 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const BAND: Record<string, { label: string; cls: string }> = {
-  confirmed: { label: "High Confidence Match (≥90%)", cls: "border-primary/50 text-primary" },
-  probable: { label: "Probable Match (70-89%)", cls: "border-emerald-500/50 text-emerald-400" },
-  review: { label: "Review Required (50-69%)", cls: "border-amber-500/50 text-amber-400" },
-  dismissed: { label: "Dismissed (<50% or benign)", cls: "border-muted text-muted-foreground" },
+  exact: { label: "Exact / high confidence match", cls: "border-primary/50 text-primary" },
+  probable: { label: "Probable match", cls: "border-emerald-500/50 text-emerald-400" },
+  possible: { label: "Possible match — review required", cls: "border-amber-500/50 text-amber-400" },
+  unrelated: { label: "Dismissed / benign", cls: "border-muted text-muted-foreground" },
 };
+
+/** Presentation lookup that accepts every band vocabulary written to matches. */
+function bandView(value: string | null | undefined) {
+  return BAND[normalizeBandName(value)] ?? BAND.possible;
+}
 
 /** Sample frames from a video file entirely in the browser. */
 async function extractFrames(file: File, count = 4): Promise<Blob[]> {
@@ -305,10 +311,10 @@ function CopyrightIntelPage() {
     if (statusFilter === "pending")
       return currentMatches.filter((m) => m.review_status === "pending");
     if (statusFilter === "verified")
-      return currentMatches.filter((m) => m.confidence >= 90 || m.confidence_band === "confirmed");
+      return currentMatches.filter((m) => m.confidence >= 90 || normalizeBandName(m.confidence_band) === "exact");
     if (statusFilter === "review_required")
       return currentMatches.filter(
-        (m) => m.confidence_band === "probable" || m.review_status === "evidence_ready",
+        (m) => normalizeBandName(m.confidence_band) === "probable" || m.review_status === "evidence_ready",
       );
     if (statusFilter === "rejected")
       return currentMatches.filter((m) => m.review_status === "dismissed");
@@ -484,7 +490,7 @@ function CopyrightIntelPage() {
   });
 
   const renderMatchArticle = (m: MatchRow) => {
-    const band = BAND[m.confidence_band] ?? BAND.review;
+    const band = bandView(m.confidence_band);
     const ev = (m.evidence ?? {}) as Record<string, unknown>;
     const contact = (m.contact ?? {}) as Record<string, string | null>;
     const dist = (ev.distribution ?? null) as null | {
@@ -1153,13 +1159,13 @@ function CopyrightIntelPage() {
 
                     {(() => {
                       const verifiedCnt = currentMatches.filter(
-                        (m) => m.confidence >= 90 || m.confidence_band === "confirmed",
+                        (m) => m.confidence >= 90 || normalizeBandName(m.confidence_band) === "exact",
                       ).length;
                       const pendingCnt = currentMatches.filter(
                         (m) => m.review_status === "pending",
                       ).length;
                       const reviewReqCnt = currentMatches.filter(
-                        (m) => m.confidence_band === "probable" || m.review_status === "evidence_ready",
+                        (m) => normalizeBandName(m.confidence_band) === "probable" || m.review_status === "evidence_ready",
                       ).length;
                       const rejectedCnt = currentMatches.filter(
                         (m) => m.review_status === "dismissed",

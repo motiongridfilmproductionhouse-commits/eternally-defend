@@ -7,12 +7,13 @@ import { mapFindingToRiskProps } from "@/lib/copyright/risk-mapping";
 import { EvidenceThumbnail } from "@/components/copyright/EvidenceThumbnail";
 
 const BAND: Record<string, { label: string; cls: string }> = {
-  confirmed: { label: "90-100% EXACT", cls: "bg-red-600/15 text-red-400 border-red-600/40" },
+  exact: { label: "EXACT MATCH", cls: "bg-red-600/15 text-red-400 border-red-600/40" },
   probable: {
-    label: "70-89% PROBABLE",
+    label: "PROBABLE MATCH",
     cls: "bg-orange-500/15 text-orange-400 border-orange-500/40",
   },
-  review: { label: "50-69% REVIEW", cls: "bg-amber-400/15 text-amber-300 border-amber-400/40" },
+  possible: { label: "POSSIBLE — REVIEW", cls: "bg-amber-400/15 text-amber-300 border-amber-400/40" },
+  unrelated: { label: "UNRELATED", cls: "bg-muted/15 text-muted-foreground border-border" },
 };
 
 const TYPE_LABEL: Record<string, string> = {
