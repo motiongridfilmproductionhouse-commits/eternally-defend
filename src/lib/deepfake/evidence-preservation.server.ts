@@ -157,7 +157,7 @@ export async function preserveEvidenceForTarget(
         ...(leads ?? []).flatMap((l: Record<string, unknown>) => [
           l.original_image_url as string | null,
           l.reviewer_image_url as string | null,
-          ...(((l.extracted_images ?? []) as string[]) ?? []),
+          ...((l.extracted_images ?? []) as string[]),
         ]),
       ]);
     }
