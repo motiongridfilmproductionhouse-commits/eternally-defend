@@ -11,7 +11,11 @@ import {
   ConnectorSubmissionResult,
   ConnectorStatusResult,
 } from "./registry";
-import { PostmarkTransport, EnforcementEmailTransport } from "../transports/email-transport";
+import {
+  PostmarkTransport,
+  EnforcementEmailTransport,
+  applyTestSubjectPrefix,
+} from "../transports/email-transport";
 import { ResendEnforcementTransport, isResendConfigured } from "../transports/resend-transport";
 
 export class EmailEnforcementConnector implements EnforcementConnector {
@@ -56,8 +60,10 @@ export class EmailEnforcementConnector implements EnforcementConnector {
 
   async prepare(payload: EnforcementCasePayload): Promise<Record<string, unknown>> {
     const isTestMode = process.env.ENFORCEMENT_TEST_MODE === "true";
-    const subjectPrefix = isTestMode ? "[ETERNA ENFORCEMENT TEST — DO NOT ACTION] " : "";
-    const noticeSubject = `${subjectPrefix}DMCA Takedown Notice — Infringement of Protected Asset on ${payload.domain}`;
+    const noticeSubject = applyTestSubjectPrefix(
+      `DMCA Takedown Notice — Infringement of Protected Asset on ${payload.domain}`,
+      isTestMode,
+    );
 
     const noticeBody = [
       `OFFICIAL DMCA TAKEDOWN NOTICE & DEMAND FOR IMMEDIATE REMOVAL`,

@@ -126,8 +126,7 @@ export class PostmarkTransport implements EnforcementEmailTransport {
     // Hard force test destination when ENFORCEMENT_TEST_MODE is true; NO upstream value can bypass this
     const actualRecipient = isTestMode ? testDestination : intendedRecipient;
 
-    const subjectPrefix = isTestMode ? "[ETERNA ENFORCEMENT TEST — DO NOT ACTION] " : "";
-    const fullSubject = `${subjectPrefix}${payload.subject}`;
+    const fullSubject = applyTestSubjectPrefix(payload.subject, isTestMode);
 
     const testWarningHeader = isTestMode
       ? [
