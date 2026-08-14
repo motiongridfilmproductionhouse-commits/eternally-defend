@@ -13,6 +13,7 @@
  */
 import jpeg from "jpeg-js";
 import UPNG from "upng-js";
+import { classifySimilarityBand, type SimilarityBand } from "./similarity-bands";
 
 export type PerceptualHashAlgorithm = "phash" | "dhash" | "ahash";
 
