@@ -396,11 +396,12 @@ export const completeV2Onboarding = createServerFn({ method: "POST" })
     const flow = v2FlowForAccount(accountType);
     const states: Record<string, string> = {};
     for (const step of flow) states[String(step.step)] = "COMPLETED";
+    const finalStep = flow.length > 0 ? flow[flow.length - 1]!.step : 1;
 
     const { error: progressError } = await supabase.from("onboarding_progress").upsert(
       {
         user_id: userId,
-        current_step: 10,
+        current_step: finalStep,
         overall_status: "COMPLETED",
         step_states: states,
         onboarding_version: ONBOARDING_V2,
