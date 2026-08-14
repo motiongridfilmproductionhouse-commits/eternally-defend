@@ -203,13 +203,13 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       .maybeSingle();
     const states = {
       ...((progress?.step_states as Record<string, string>) ?? {}),
-      "9": "COMPLETED",
+      "8": "COMPLETED",
     };
 
     const { error: progressError } = await supabase
       .from("onboarding_progress")
       .update({
-        current_step: 10,
+        current_step: 9,
         step_states: states,
         overall_status: "COMPLETED",
         onboarding_version: normalizeOnboardingVersion(progress?.onboarding_version ?? "v1"),

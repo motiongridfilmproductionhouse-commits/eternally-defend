@@ -510,10 +510,10 @@ export async function finalizeLivenessFor(
   if (version === "v1") {
     const states = {
       ...((progress?.step_states as Record<string, string>) ?? {}),
-      "3": "COMPLETED",
+      "2": "COMPLETED",
     };
     await upsertProgressPreservingVersion(supabase, userId, {
-      current_step: Math.max(progress?.current_step ?? 1, 4),
+      current_step: Math.max(progress?.current_step ?? 1, 3),
       step_states: states,
       overall_status: "IN_PROGRESS",
     });
