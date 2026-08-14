@@ -129,6 +129,8 @@ function CasesPage() {
         />
       </div>
 
+      <PromoteDetectionsPanel userId={userId} />
+
       <PageCard
         title="CASE BOARD"
         sub="Kanban across statuses"
