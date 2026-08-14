@@ -48,6 +48,7 @@ function AssetsPage() {
   const { session, ready } = useSession();
   const userId = session?.user.id;
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const prepare = useServerFn(prepareAssetUpload);
   const register = useServerFn(registerAssetAndSearch);
   const [q, setQ] = useState("");
