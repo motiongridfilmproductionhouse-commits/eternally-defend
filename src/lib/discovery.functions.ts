@@ -11,6 +11,8 @@ import {
   type Platform,
 } from "./discovery/scoring";
 import type { Database } from "@/integrations/supabase/types";
+import { isHostDisabledForFeature } from "./policy/source-policy";
+
 
 type DiscoveredRow = Database["public"]["Tables"]["discovered_accounts"]["Row"];
 type SubjectRow = Database["public"]["Tables"]["discovery_subjects"]["Row"];
