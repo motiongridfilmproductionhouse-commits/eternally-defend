@@ -132,11 +132,14 @@ function DemoBadge() {
 
 function NotificationsBell() {
   const fetchNotes = useServerFn(getNotifications);
+  const { session, ready } = useSession();
   const q = useQuery({
-    queryKey: ["notifications-badge"],
+    queryKey: ["notifications-badge", session?.user.id ?? "anon"],
     queryFn: () => fetchNotes(),
+    enabled: ready && !!session,
     refetchInterval: 60_000,
   });
+
   const unread = q.data?.unread ?? 0;
   return (
     <Link

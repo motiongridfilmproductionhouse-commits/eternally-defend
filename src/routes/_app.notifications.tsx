@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { AlertTriangle, ShieldCheck, Send, Sparkles, Loader2, Inbox } from "lucide-react";
 import { getNotifications } from "@/lib/command-center.functions";
+import { useSession } from "@/hooks/use-session";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({ meta: [{ title: "Notifications — Eterna Sentinel" }] }),
@@ -30,11 +31,14 @@ function timeAgo(iso: string) {
 
 function NotificationsPage() {
   const fetchNotes = useServerFn(getNotifications);
+  const { session, ready } = useSession();
   const q = useQuery({
-    queryKey: ["notifications"],
+    queryKey: ["notifications", session?.user.id ?? "anon"],
     queryFn: () => fetchNotes(),
+    enabled: ready && !!session,
     refetchInterval: 30_000,
   });
+
 
   return (
     <div className="space-y-5 max-w-3xl">
