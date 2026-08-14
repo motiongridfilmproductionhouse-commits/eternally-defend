@@ -219,7 +219,11 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       throw new Error(`Failed to update onboarding progress: ${progressError.message}`);
     }
 
-    return { ok: true };
+    const autopilot = await (
+      await import("@/lib/protection/autopilot.server")
+    ).activateProtectionAfterOnboarding(supabase, userId);
+
+    return { ok: true, protection: autopilot };
   });
 
 async function assertV2CompletionRequirements(
@@ -409,5 +413,15 @@ export const completeV2Onboarding = createServerFn({ method: "POST" })
     );
     if (progressError) throw new Error(progressError.message);
 
-    return { ok: true, account_type: accountType, verification_badge: badge };
+    const autopilot = await (
+      await import("@/lib/protection/autopilot.server")
+    ).activateProtectionAfterOnboarding(supabase, userId);
+
+    return {
+      ok: true,
+      account_type: accountType,
+      verification_badge: badge,
+      protection: autopilot,
+    };
   });
+

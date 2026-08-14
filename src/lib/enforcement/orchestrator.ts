@@ -259,11 +259,22 @@ export class AutoEnforcementOrchestrator {
         ? "UNDER_REVIEW"
         : "NOT_ELIGIBLE";
 
+    // Findings arrive from several engines (scan hits, deepfake intel, discovery).
+    // scan_hit_id is a FK into scan_hits, so only set it for real scan hits.
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      finding.id ?? "",
+    );
+    const scanHitId = isUuid
+      ? (
+          await supabase.from("scan_hits").select("id").eq("id", finding.id).maybeSingle()
+        ).data?.id ?? null
+      : null;
+
     const { data: createdCase, error: caseErr } = await supabase
       .from("enforcement_cases")
       .insert({
         user_id: userId,
-        scan_hit_id: finding.id,
+        scan_hit_id: scanHitId,
         protected_asset_id: finding.protected_asset_id || null,
         target_url: targetUrl,
         domain: route.domain,
