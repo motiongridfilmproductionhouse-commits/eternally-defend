@@ -381,7 +381,14 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       let mediaCandidates = [];
       try {
         const { enrichHitsWithMedia } = await import("./deepfake/media-discovery.server");
-        mediaCandidates = await enrichHitsWithMedia(candidateFilter.accepted, 60);
+        // Keep crawling inside the remaining request budget so classification
+        // and finding persistence always run.
+        const crawlLimit = remainingBudgetMs() > 120_000 ? 60 : 24;
+        mediaCandidates = await enrichHitsWithMedia(
+          candidateFilter.accepted.slice(0, crawlLimit),
+          crawlLimit,
+        );
+
 
         await updateTelemetry({
           stage: "media_crawled",
