@@ -127,9 +127,19 @@ function RemovalsPage() {
                       {new Date(r.created_at).toLocaleString()}
                     </td>
                     <td className="py-3 pr-4">
-                      <Pill color={statusColor[r.status] ?? "oklch(0.55 0.03 275)"}>
-                        {r.status}
-                      </Pill>
+                      <div className="flex flex-col items-start gap-1">
+                        <Pill color={statusColor[r.status] ?? "oklch(0.55 0.03 275)"}>
+                          {r.status}
+                        </Pill>
+                        {r.status === "Queued" && (
+                          <span
+                            className={`text-[10px] font-semibold ${isStalled(r) ? "text-danger" : "text-muted-foreground"}`}
+                            title="Queued requests are recorded only. Nothing has been submitted to the platform."
+                          >
+                            {isStalled(r) ? `STALLED · ${queuedAgeDays(r)}d` : "NOT SUBMITTED"}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
