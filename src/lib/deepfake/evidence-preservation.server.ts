@@ -207,6 +207,7 @@ export async function preserveEvidenceForTarget(
         },
       });
       if (!res.ok) {
+        console.warn(`[EVIDENCE:PRESERVE] media fetch ${res.status} for ${mediaUrl}`);
         summary.failed += 1;
         continue;
       }
@@ -264,12 +265,16 @@ export async function preserveEvidenceForTarget(
         { onConflict: "user_id,dedupe_key" },
       );
       if (error) {
+        console.warn(`[EVIDENCE:PRESERVE] db upsert failed: ${error.message}`);
         summary.failed += 1;
         continue;
       }
       existingKeys.add(dedupeKey);
       summary.preserved += 1;
-    } catch {
+    } catch (e) {
+      console.warn(
+        `[EVIDENCE:PRESERVE] ${mediaUrl} -> ${e instanceof Error ? e.message : String(e)}`,
+      );
       summary.failed += 1;
     } finally {
       clearTimeout(timer);
