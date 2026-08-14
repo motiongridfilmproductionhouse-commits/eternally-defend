@@ -273,12 +273,10 @@ export function compareHashes(
   };
 }
 
-/** Similarity bands used for copyright classification (evidence, not proof). */
-export function classifyHashSimilarity(
-  similarity: number,
-): "exact" | "probable" | "possible" | "unrelated" {
-  if (similarity >= 92) return "exact";
-  if (similarity >= 84) return "probable";
-  if (similarity >= 75) return "possible";
-  return "unrelated";
+/**
+ * Similarity bands used for copyright classification (evidence, not proof).
+ * Thresholds live in `similarity-bands.ts` — the single source of truth.
+ */
+export function classifyHashSimilarity(similarity: number): SimilarityBand {
+  return classifySimilarityBand(similarity);
 }
