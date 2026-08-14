@@ -6031,6 +6031,99 @@ export type Database = {
           },
         ]
       }
+      preserved_evidence_media: {
+        Row: {
+          bytes: number
+          capture_timestamp: string
+          content_type: string
+          created_at: string
+          dedupe_key: string
+          evidence_status: string
+          face_similarity: number | null
+          finding_id: string | null
+          frame_index: number | null
+          frame_timestamp_seconds: number | null
+          id: string
+          identity_confidence: number | null
+          lead_id: string | null
+          media_kind: string
+          metadata: Json
+          perceptual_hash: string | null
+          platform_domain: string | null
+          s3_bucket: string
+          s3_key: string
+          scan_id: string | null
+          sha256: string | null
+          source_http_status: number | null
+          source_media_url: string | null
+          source_page_url: string
+          source_reachable: boolean | null
+          synthetic_confidence: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bytes?: number
+          capture_timestamp?: string
+          content_type?: string
+          created_at?: string
+          dedupe_key: string
+          evidence_status?: string
+          face_similarity?: number | null
+          finding_id?: string | null
+          frame_index?: number | null
+          frame_timestamp_seconds?: number | null
+          id?: string
+          identity_confidence?: number | null
+          lead_id?: string | null
+          media_kind?: string
+          metadata?: Json
+          perceptual_hash?: string | null
+          platform_domain?: string | null
+          s3_bucket: string
+          s3_key: string
+          scan_id?: string | null
+          sha256?: string | null
+          source_http_status?: number | null
+          source_media_url?: string | null
+          source_page_url: string
+          source_reachable?: boolean | null
+          synthetic_confidence?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bytes?: number
+          capture_timestamp?: string
+          content_type?: string
+          created_at?: string
+          dedupe_key?: string
+          evidence_status?: string
+          face_similarity?: number | null
+          finding_id?: string | null
+          frame_index?: number | null
+          frame_timestamp_seconds?: number | null
+          id?: string
+          identity_confidence?: number | null
+          lead_id?: string | null
+          media_kind?: string
+          metadata?: Json
+          perceptual_hash?: string | null
+          platform_domain?: string | null
+          s3_bucket?: string
+          s3_key?: string
+          scan_id?: string | null
+          sha256?: string | null
+          source_http_status?: number | null
+          source_media_url?: string | null
+          source_page_url?: string
+          source_reachable?: boolean | null
+          synthetic_confidence?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       production_submission_snapshots: {
         Row: {
           authorization_id: string | null

@@ -49,6 +49,10 @@ import { DeepfakeExposureMap } from "@/components/deepfake/analytics/DeepfakeExp
 import { DomainConcentrationChart } from "@/components/deepfake/analytics/DomainConcentrationChart";
 import { SourceIntelligencePanel } from "@/components/deepfake/analytics/SourceIntelligencePanel";
 import { getFindingNormalizedDomain, resolveFindingOrigin } from "@/lib/deepfake/analytics-helpers";
+import {
+  PreservedEvidenceDialog,
+  type PreservedEvidenceTarget,
+} from "@/components/deepfake/evidence/PreservedEvidenceDialog";
 
 
 export const Route = createFileRoute("/_app/deepfake-intel")({
@@ -126,6 +130,8 @@ function DeepfakeIntelPage() {
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
   const [showGeneralMentions, setShowGeneralMentions] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const [evidenceTarget, setEvidenceTarget] = useState<PreservedEvidenceTarget | null>(null);
+
 
   const profiles = useQuery({
     queryKey: ["deepfake-target-profiles"],
@@ -1006,6 +1012,16 @@ function DeepfakeIntelPage() {
                             upd.mutate({ finding_id: f.id, review_status: status })
                           }
                           pending={upd.isPending}
+                          onViewEvidence={() =>
+                            setEvidenceTarget({
+                              findingId: f.id,
+                              sourcePageUrl:
+                                (f as any).final_url || (f as any).canonical_url || f.url,
+                              title: f.page_title || f.url,
+                              platform: f.source_host ?? null,
+                              caseRef: f.id,
+                            })
+                          }
                         />
                       </li>
                     ))}
@@ -1052,9 +1068,27 @@ function DeepfakeIntelPage() {
                                 .join(" · ") || "Evidence lead retained for review"}
                             </div>
                           </div>
-                          <Badge variant="outline" className="shrink-0 uppercase">
-                            {status.replace(/_/g, " ")}
-                          </Badge>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <Badge variant="outline" className="uppercase">
+                              {status.replace(/_/g, " ")}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 px-2 text-[11px]"
+                              onClick={() =>
+                                setEvidenceTarget({
+                                  leadId: lead.id,
+                                  sourcePageUrl: lead.submitted_url,
+                                  title: lead.submitted_url,
+                                  platform: lead.source_domain ?? null,
+                                  caseRef: lead.id,
+                                })
+                              }
+                            >
+                              View Evidence
+                            </Button>
+                          </div>
                         </li>
                       );
                     })}
@@ -1125,6 +1159,14 @@ function DeepfakeIntelPage() {
           )}
         </div>
       </section>
+
+      <PreservedEvidenceDialog
+        open={Boolean(evidenceTarget)}
+        onOpenChange={(open) => {
+          if (!open) setEvidenceTarget(null);
+        }}
+        target={evidenceTarget}
+      />
     </div>
   );
 }
@@ -1589,6 +1631,7 @@ function FindingCard({
   f,
   onUpdate,
   pending,
+  onViewEvidence,
 }: {
   f: {
     id: string;
@@ -1610,6 +1653,7 @@ function FindingCard({
   };
   onUpdate: (s: "reviewed" | "dismissed" | "queued_takedown") => void;
   pending: boolean;
+  onViewEvidence?: () => void;
 }) {
   const risk = (["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).includes(f.risk_level as RiskLevel)
     ? (f.risk_level as RiskLevel)
@@ -1751,6 +1795,16 @@ function FindingCard({
         </div>
         <div className="flex flex-col gap-1 shrink-0">
           <StatusBadge status={f.review_status} />
+          {onViewEvidence && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 px-2 text-[11px]"
+              onClick={onViewEvidence}
+            >
+              <ShieldAlert className="size-3 mr-1" /> View Evidence
+            </Button>
+          )}
           <div className="flex gap-1">
             <Button
               size="sm"
