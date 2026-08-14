@@ -399,7 +399,11 @@ test("route keeps Continue and wires threatSummary from complete findings", () =
   const ui = readFileSync(resolve(process.cwd(), "src/routes/_app.deepfake-intel.tsx"), "utf8");
   assert.match(ui, /threatSummary=\{threatSummary\}/);
   assert.match(ui, /threatFindings=\{exposureFindings\}/);
-  assert.match(ui, /isElevatedThreatTone/);
+  const viz = readFileSync(
+    resolve(process.cwd(), "src/components/deepfake/IdentityScanVisualization.tsx"),
+    "utf8",
+  );
+  assert.match(viz, /isElevatedThreatTone/);
   assert.match(ui, /Continue scan/);
   assert.match(ui, /continueScan\.mutate/);
   assert.doesNotMatch(ui, /level: "none"/);
