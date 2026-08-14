@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import { ScanProgress, SCAN_STAGES } from "@/components/copyright/ScanProgress";
 import { YoutubeMonitorPanel } from "@/components/copyright/YoutubeMonitorPanel";
+import { AssetDiscoveryPanel } from "@/components/copyright/discovery/AssetDiscoveryPanel";
 import { DistributionMonitorPanel } from "@/components/copyright/DistributionMonitorPanel";
 import { EvidenceThumbnail } from "@/components/copyright/EvidenceThumbnail";
 import { RuntimeValidationPanel } from "@/components/copyright/RuntimeValidationPanel";
@@ -1313,9 +1314,13 @@ function CopyrightIntelPage() {
                       <TabsList>
                         <TabsTrigger value="sources">Suspicious sources</TabsTrigger>
                         <TabsTrigger value="youtube">YouTube monitoring</TabsTrigger>
+                        <TabsTrigger value="discovery">Reverse discovery</TabsTrigger>
                       </TabsList>
                       <TabsContent value="youtube" className="mt-3">
                         <YoutubeMonitorPanel scanId={selectedScanId} />
+                      </TabsContent>
+                      <TabsContent value="discovery" className="mt-3">
+                        <AssetDiscoveryPanel scanId={selectedScanId} />
                       </TabsContent>
                       <TabsContent value="sources" className="mt-3 space-y-3">
                         {detail.isLoading && (
