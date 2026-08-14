@@ -920,7 +920,7 @@ function DeepfakeIntelPage() {
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Badge variant="outline" className="uppercase">
-                      SUPPLIED LINKS: {persistedManualLeads.length}
+                      MANUAL EVIDENCE LEADS: {persistedManualLeads.length}
                     </Badge>
                   </div>
                 </div>
