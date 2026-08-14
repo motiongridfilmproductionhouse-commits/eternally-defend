@@ -1013,6 +1013,55 @@ function DeepfakeIntelPage() {
                 )}
               </div>
 
+              {persistedManualLeads.length > 0 && (
+                <div className="card-surface p-4 space-y-3 border border-border/60 rounded-xl">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-sm font-bold tracking-wider text-foreground uppercase flex items-center gap-2">
+                        <Link className="size-4 text-primary" />
+                        Supplied Evidence Links
+                      </h2>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        All links supplied for this protected identity, including items awaiting or
+                        failing verification.
+                      </p>
+                    </div>
+                    <Badge variant="outline">{persistedManualLeads.length} Links</Badge>
+                  </div>
+
+                  <ul className="divide-y divide-border/60 rounded-lg border border-border/60 overflow-hidden">
+                    {persistedManualLeads.map((lead) => {
+                      const status = lead.verification_status || lead.processing_status || "pending";
+                      return (
+                        <li
+                          key={lead.id}
+                          className="flex items-start justify-between gap-3 bg-secondary/10 p-3"
+                        >
+                          <div className="min-w-0 space-y-1">
+                            <a
+                              href={lead.submitted_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block break-all text-xs font-medium text-primary hover:underline"
+                            >
+                              {lead.submitted_url}
+                            </a>
+                            <div className="text-[10px] text-muted-foreground">
+                              {[lead.source_domain, lead.classification]
+                                .filter(Boolean)
+                                .join(" · ") || "Evidence lead retained for review"}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="shrink-0 uppercase">
+                            {status.replace(/_/g, " ")}
+                          </Badge>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
 
               {/* Collapsed Secondary Accordions: Raw Candidates */}
               {discoveries.length > 0 && (
