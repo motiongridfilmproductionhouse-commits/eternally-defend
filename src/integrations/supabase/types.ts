@@ -3527,6 +3527,7 @@ export type Database = {
           eligibility_status: string | null
           enforcement_basis: string | null
           id: string
+          idempotency_key: string | null
           last_verification_at: string | null
           next_verification_at: string | null
           platform: string | null
@@ -3550,6 +3551,7 @@ export type Database = {
           eligibility_status?: string | null
           enforcement_basis?: string | null
           id?: string
+          idempotency_key?: string | null
           last_verification_at?: string | null
           next_verification_at?: string | null
           platform?: string | null
@@ -3573,6 +3575,7 @@ export type Database = {
           eligibility_status?: string | null
           enforcement_basis?: string | null
           id?: string
+          idempotency_key?: string | null
           last_verification_at?: string | null
           next_verification_at?: string | null
           platform?: string | null
@@ -6546,6 +6549,190 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      protection_findings_seen: {
+        Row: {
+          blocking_reason: string | null
+          canonical_url: string
+          case_id: string | null
+          dedupe_key: string
+          enforcement_status: string | null
+          evidence_json: Json
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          target_id: string | null
+          times_seen: number
+          user_id: string
+        }
+        Insert: {
+          blocking_reason?: string | null
+          canonical_url: string
+          case_id?: string | null
+          dedupe_key: string
+          enforcement_status?: string | null
+          evidence_json?: Json
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          target_id?: string | null
+          times_seen?: number
+          user_id: string
+        }
+        Update: {
+          blocking_reason?: string | null
+          canonical_url?: string
+          case_id?: string | null
+          dedupe_key?: string
+          enforcement_status?: string | null
+          evidence_json?: Json
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          target_id?: string | null
+          times_seen?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_findings_seen_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "protection_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protection_profiles: {
+        Row: {
+          activated_at: string | null
+          auto_scan_enabled: boolean
+          created_at: string
+          default_cadence_minutes: number
+          last_sweep_at: string | null
+          paused: boolean
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          auto_scan_enabled?: boolean
+          created_at?: string
+          default_cadence_minutes?: number
+          last_sweep_at?: string | null
+          paused?: boolean
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          auto_scan_enabled?: boolean
+          created_at?: string
+          default_cadence_minutes?: number
+          last_sweep_at?: string | null
+          paused?: boolean
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      protection_runs: {
+        Row: {
+          completed_at: string | null
+          error: string | null
+          id: string
+          started_at: string
+          stats: Json
+          status: string
+          target_id: string | null
+          trigger: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          error?: string | null
+          id?: string
+          started_at?: string
+          stats?: Json
+          status?: string
+          target_id?: string | null
+          trigger?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          error?: string | null
+          id?: string
+          started_at?: string
+          stats?: Json
+          status?: string
+          target_id?: string | null
+          trigger?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_runs_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "protection_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protection_targets: {
+        Row: {
+          active: boolean
+          cadence_minutes: number
+          consecutive_failures: number
+          created_at: string
+          id: string
+          label: string
+          last_run_at: string | null
+          last_run_error: string | null
+          last_run_status: string | null
+          next_run_at: string
+          target_kind: string
+          target_ref: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          cadence_minutes?: number
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          label: string
+          last_run_at?: string | null
+          last_run_error?: string | null
+          last_run_status?: string | null
+          next_run_at?: string
+          target_kind: string
+          target_ref?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          cadence_minutes?: number
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          label?: string
+          last_run_at?: string | null
+          last_run_error?: string | null
+          last_run_status?: string | null
+          next_run_at?: string
+          target_kind?: string
+          target_ref?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       provider_health_checks: {
         Row: {

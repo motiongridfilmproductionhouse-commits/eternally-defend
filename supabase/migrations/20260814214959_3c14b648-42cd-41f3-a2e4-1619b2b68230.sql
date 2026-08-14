@@ -1,0 +1,2 @@
+ALTER TABLE public.enforcement_cases ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS enforcement_cases_idempotency_key_idx ON public.enforcement_cases (idempotency_key) WHERE idempotency_key IS NOT NULL;
