@@ -13,7 +13,6 @@ import {
   primaryEvidenceTypeForAccount,
   requiresFaceProtection,
   requiresRepresentative,
-  requiresVeriff,
   v2FlowForAccount,
   type V2AccountType,
 } from "./v2-config";
