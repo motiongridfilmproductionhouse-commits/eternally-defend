@@ -77,6 +77,13 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/scan")({
+  // Declared so in-app links (e.g. "protect asset" → auto scan) can pass context
+  // through the router instead of forcing a full page load.
+  validateSearch: (search: Record<string, unknown>) => ({
+    assetId: typeof search.assetId === "string" ? search.assetId : undefined,
+    query: typeof search.query === "string" ? search.query : undefined,
+    auto: typeof search.auto === "string" ? search.auto : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Reputation Intelligence Report — Eterna Sentinel" },
