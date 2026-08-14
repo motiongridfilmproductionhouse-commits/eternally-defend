@@ -8044,7 +8044,31 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      enforcement_delivery_status: {
+        Row: {
+          case_id: string | null
+          created_at: string | null
+          destination_email: string | null
+          effective_status: string | null
+          enforcement_request_id: string | null
+          error: string | null
+          from_email: string | null
+          id: string | null
+          intended_recipient: string | null
+          latest_event_at: string | null
+          latest_event_reason: string | null
+          latest_event_type: string | null
+          latest_provider_event: string | null
+          provider: string | null
+          provider_message_id: string | null
+          recorded_status: string | null
+          sent_at: string | null
+          subject: string | null
+          test_mode: boolean | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       acquire_deepfake_scan_continuation: {
