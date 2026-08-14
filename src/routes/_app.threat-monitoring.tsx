@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
   Line,
@@ -14,6 +14,8 @@ import {
 } from "recharts";
 import { PageCard, Pill } from "@/components/dashboard/PageCard";
 import { listScanHits, getThreatTrends } from "@/lib/scans.functions";
+import { promoteFindingsToCases } from "@/lib/cases/case-promotion.functions";
+import { toast } from "sonner";
 import { cleanTitle, readableFromSlug } from "@/lib/media-utils";
 
 export const Route = createFileRoute("/_app/threat-monitoring")({
@@ -55,6 +57,26 @@ function ThreatMonitoringPage() {
   const hits = useQuery({
     queryKey: ["scan-hits", "monitoring"],
     queryFn: () => listFn({ data: { limit: 100 } }),
+  });
+
+  const qc = useQueryClient();
+  const promoteFn = useServerFn(promoteFindingsToCases);
+  const [promotingId, setPromotingId] = useState<string | null>(null);
+  const [promoted, setPromoted] = useState<Record<string, boolean>>({});
+  const promote = useMutation({
+    mutationFn: async (hitId: string) => {
+      setPromotingId(hitId);
+      return promoteFn({ data: { hitIds: [hitId] } });
+    },
+    onSuccess: (res, hitId) => {
+      setPromoted((p) => ({ ...p, [hitId]: true }));
+      toast.success(
+        res.created > 0 ? "Case opened from this detection" : "This detection is already in a case",
+      );
+      qc.invalidateQueries({ queryKey: ["protection-summary"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setPromotingId(null),
   });
 
   const [q, setQ] = useState("");
@@ -140,19 +162,20 @@ function ThreatMonitoringPage() {
                 <th className="py-2.5 pr-4 font-medium">Detected</th>
                 <th className="py-2.5 pr-4 font-medium">Seen</th>
                 <th className="py-2.5 pr-4 font-medium">Link</th>
+                <th className="py-2.5 pr-4 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {hits.isLoading && (
                 <tr>
-                  <td colSpan={8} className="py-6 text-center text-muted-foreground text-sm">
+                  <td colSpan={9} className="py-6 text-center text-muted-foreground text-sm">
                     Loading detections…
                   </td>
                 </tr>
               )}
               {!hits.isLoading && list.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
                     No detections yet.{" "}
                     <Link to="/scan" className="text-primary underline">
                       Run a scan
@@ -189,6 +212,42 @@ function ThreatMonitoringPage() {
                     ) : (
                       <span className="text-muted-foreground text-xs">—</span>
                     )}
+                  </td>
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to="/intelligence"
+                        search={{
+                          url: t.permalink ?? t.canonical_url ?? undefined,
+                          target: cleanTitle(
+                            t.title,
+                            readableFromSlug(t.permalink ?? t.canonical_url),
+                          ),
+                        }}
+                        className="text-[11px] font-semibold px-2 py-1 rounded-md border border-border hover:bg-accent"
+                      >
+                        Investigate
+                      </Link>
+                      {promoted[t.id] ? (
+                        <Link
+                          to="/cases"
+                          className="text-[11px] font-semibold px-2 py-1 rounded-md border border-border hover:bg-accent"
+                        >
+                          View Case
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => promote.mutate(t.id)}
+                          disabled={promote.isPending && promotingId === t.id}
+                          className="text-[11px] font-semibold px-2 py-1 rounded-md border border-border hover:bg-accent disabled:opacity-50"
+                        >
+                          {promote.isPending && promotingId === t.id
+                            ? "Opening…"
+                            : "Send to Case"}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
