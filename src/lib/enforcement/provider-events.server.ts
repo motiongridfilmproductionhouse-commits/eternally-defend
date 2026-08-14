@@ -163,32 +163,7 @@ export async function ingestResendEvent(input: {
     });
   }
 
-  // Mirror the provider outcome onto the outbound delivery audit row so the
-  // enforcement UI reflects the terminal delivery status.
-  if (delivery?.id) {
-    const statusMap: Partial<Record<NormalizedProviderEvent, string>> = {
-      DELIVERED: "DELIVERED",
-      HARD_BOUNCE: "BOUNCED",
-      SOFT_BOUNCE: "DEFERRED",
-      COMPLAINT: "COMPLAINED",
-      DELIVERY_FAILED: "FAILED",
-      DEFERRED: "DEFERRED",
-    };
-    const nextStatus = statusMap[normalized];
-    if (nextStatus) {
-      const { error: statusError } = await (db as any)
-        .from("enforcement_email_deliveries")
-        .update({ delivery_status: nextStatus, ...(reason ? { error: reason.slice(0, 500) } : {}) })
-        .eq("id", delivery.id);
-      if (statusError) {
-        throw new Error(`delivery_status_update_failed: ${statusError.message}`);
-      }
-    }
-
-  }
-
   return {
-
     providerEventId,
     normalized,
     suppressed,
