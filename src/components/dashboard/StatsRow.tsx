@@ -1,15 +1,10 @@
 import { Shield, AlertTriangle, Clock, Send } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
+import { useProtectionSummary } from "@/hooks/use-protection-summary";
 import { getDashboardStats } from "@/lib/mm/dashboard.functions";
 
-interface Counts {
-  assets: number;
-  criticalCases: number;
-  takedowns: number;
-}
 
 function ReputationRing({ value }: { value: number | null }) {
   const v = value ?? 0;
