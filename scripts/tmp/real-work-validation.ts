@@ -1,7 +1,5 @@
 /** Controlled real-work discovery validation. Read/write to test account only; enforcement OFF. */
-import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
-import { getBucket, getS3 } from "@/lib/aws/clients.server";
 import { computePerceptualHashes } from "@/lib/media/perceptual-hash.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runAssetDiscoveryJob } from "@/lib/discovery/asset-discovery.server";
@@ -14,16 +12,16 @@ const { data: asset } = await sb.from("protected_assets").select("*").eq("id", A
 console.log("asset:", asset.name, asset.kind, asset.source_url, "fingerprinted:", !!asset.dhash);
 
 if (!asset.dhash) {
-  const res = await fetch(asset.source_url, { headers: { "user-agent": "EternaSentinel/1.0 (validation)" } });
+  const res = await fetch(asset.source_url, {
+    headers: { "user-agent": "EternaSentinelValidation/1.0 (contact: hellosreehari@gmail.com)", accept: "image/*" },
+  });
   const bytes = new Uint8Array(await res.arrayBuffer());
-  console.log("downloaded original bytes:", bytes.length, res.status);
-  const key = `clients/${asset.user_id}/assets/${crypto.randomUUID()}-taj-mahal.jpg`;
-  await getS3().send(new PutObjectCommand({ Bucket: getBucket(), Key: key, Body: bytes, ContentType: "image/jpeg" }));
+  console.log("downloaded original bytes:", bytes.length, "http", res.status, res.headers.get("content-type"));
   const hashes = computePerceptualHashes(bytes);
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   console.log("hashes:", hashes, "sha256:", sha256.slice(0, 16));
   const { error } = await sb.from("protected_assets").update({
-    storage_path: key, phash: hashes?.phash ?? null, dhash: hashes?.dhash ?? null, ahash: hashes?.ahash ?? null,
+    phash: hashes?.phash ?? null, dhash: hashes?.dhash ?? null, ahash: hashes?.ahash ?? null,
     hash_algorithm: hashes ? "phash64_dct32+dhash64+ahash64" : null, hashed_at: new Date().toISOString(),
     metadata: { ...(asset.metadata ?? {}), status: "Monitoring", content_type: "image/jpeg", sha256, perceptual_hashes: hashes },
   }).eq("id", ASSET_ID);
