@@ -832,6 +832,15 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
     // newer empty sweep must not hide previously verified infrastructure for
     // the same protected identity. Both lookups remain owner-scoped.
     let exposureFindingRows = findingRows;
+    let manualEvidenceLeads: Array<{
+      id: string;
+      submitted_url: string;
+      processing_status: string;
+      verification_status: string;
+      classification: string | null;
+      source_domain: string | null;
+      face_similarity_score: number | null;
+    }> = [];
     if (scan?.target_name) {
       const { data: targetScans, error: targetScansError } = await context.supabase
         .from("deepfake_scans")
@@ -854,6 +863,18 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
           }
         }
       }
+
+      const { data: manualLeadRows, error: manualLeadError } = await context.supabase
+        .from("deepfake_manual_leads")
+        .select(
+          "id,submitted_url,processing_status,verification_status,classification,source_domain,face_similarity_score",
+        )
+        .eq("user_id", context.userId)
+        .ilike("target_name", scan.target_name.trim())
+        .order("created_at", { ascending: false });
+      if (!manualLeadError) {
+        manualEvidenceLeads = manualLeadRows ?? [];
+      }
     }
 
     return {
@@ -864,6 +885,7 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
           b.confidence - a.confidence,
       ),
       exposure_findings: exposureFindingRows,
+      manual_evidence_leads: manualEvidenceLeads,
       discoveries: discoveriesRes.data ?? [],
     };
   });

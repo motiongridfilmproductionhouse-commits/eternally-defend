@@ -7,7 +7,11 @@
 
 import type { ClientFinding } from "./results-dashboard";
 import { countryFlag, countryToMapPoint } from "@/lib/copyright/domain-intel";
-import { selectThreatFeed, type GradedThreat } from "./verified-threat-feed";
+import {
+  selectThreatFeed,
+  type GradedThreat,
+  type ThreatFeedTarget,
+} from "./verified-threat-feed";
 
 /** Normalize a domain name, stripping protocol, trailing paths, and leading `www.` */
 export function normalizeDomain(input: string | null | undefined): string {
@@ -208,9 +212,12 @@ export function resolveFindingOrigin(f: ClientFinding): "NEW_DISCOVERY" | "HISTO
 }
 
 /** Aggregates QUALIFIED TARGET FINDINGS into Source Intelligence records */
-export function buildSourceIntelligenceList(findings: ClientFinding[]): SourceIntelligence[] {
+export function buildSourceIntelligenceList(
+  findings: ClientFinding[],
+  target?: ThreatFeedTarget | null,
+): SourceIntelligence[] {
   // First, extract qualified threats only
-  const threatFeed = selectThreatFeed(findings);
+  const threatFeed = selectThreatFeed(findings, target);
   const qualifiedFindings = threatFeed.map((t) => t.finding);
 
   const map = new Map<string, ClientFinding[]>();
