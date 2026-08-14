@@ -335,11 +335,15 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 
       await updateTelemetry({
         stage: "discovery_complete",
-        queries_executed: uniqueQueries.length,
+        queries_executed: executedQueriesCount,
         providers_used: Array.from(providersSet),
         candidates_found: allHits.length,
-        coverage_pct: 100,
+        coverage_pct: Math.min(
+          100,
+          Math.round((executedQueriesCount / Math.max(uniqueQueries.length, 1)) * 100),
+        ),
         estimated_remaining_time: "Completing verification...",
+
         stage_logs: [
           ...telemetry.stage_logs,
           "✓ Google Images searched",
