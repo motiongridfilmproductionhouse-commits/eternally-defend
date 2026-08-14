@@ -3,6 +3,12 @@ import { filterDeepfakeCandidates } from "./filter.server";
 import { generateDeepfakeQueries } from "./query-generator.server";
 import { isBlockedHost } from "./queries";
 import {
+  isCandidateDisabledForFeature,
+  isProviderDisabledForFeature,
+} from "../policy/source-policy";
+
+
+import {
   buildExecutedQueryPlan,
   discoveredCandidateKey,
   mergeDiscoveredCandidates,
@@ -1211,11 +1217,16 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
     const eligibleHits: ProviderHit[] = [];
     for (const hit of hits) {
+      // Feature-scoped source policy (e.g. Reddit is disabled for the deepfake
+      // agent). Checked before the "explicit provider" bypass below, otherwise
+      // provider-tagged hits skip host filtering entirely.
+      if (isCandidateDisabledForFeature("deepfake_intel", hit)) continue;
+
       const host = hit.url ? hostOf(hit.url) : null;
       const imageHost = typeof hit.image_url === "string" ? hostOf(hit.image_url) : null;
       const thumbnailHost =
         typeof hit.thumbnail_url === "string" ? hostOf(hit.thumbnail_url) : null;
-      const explicitProviderResult = hit.source === "youtube_api" || hit.source === "reddit_api";
+      const explicitProviderResult = hit.source === "youtube_api";
       const hasAnyUsableUrl = host !== null || imageHost !== null || thumbnailHost !== null;
       if (
         !hasAnyUsableUrl ||
@@ -1226,6 +1237,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       ) {
         continue;
       }
+
 
       const key = discoveredCandidateKey(hit);
       if (key && seenCandidateKeys.has(key)) continue;
@@ -1597,39 +1609,15 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
     await processPendingCandidates();
 
-    if (
-      !checkpoint.reddit_done &&
-      canStartProviderCall(
-        budget,
-        Math.max(checkpoint.average_provider_latency_ms, MIN_PROVIDER_TIME_MS),
-      )
-    ) {
-      const startedAt = Date.now();
-      try {
-        assertNotAborted(input.runtime.signal);
-        const { searchRecentRedditMentions } = await import("./reddit-discovery.server");
-        const hits = await searchRecentRedditMentions({
-          name: input.target.name,
-          aliases: input.target.aliases,
-          handles: input.target.handles,
-          maxResults: 60,
-          pages: 2,
-          signal: input.runtime.signal,
-          softDeadlineMs: input.runtime.softDeadlineMs,
-        });
-        recordSpend(budget, "discovery", Date.now() - startedAt);
-        await enqueueProviderHits(hits as ProviderHit[]);
-      } catch (error) {
-        if (isAbortError(error)) throw error;
-        metrics.provider_failures++;
-        console.warn("[DEEPFAKE] Reddit discovery failed:", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      } finally {
-        checkpoint.reddit_done = true;
-        await heartbeat("discovering");
-      }
+    /*
+     * Reddit discovery is disabled for the deepfake agent by product rule
+     * (see src/lib/policy/source-policy.ts). The provider call is skipped
+     * entirely rather than filtered downstream, so no Reddit request is made.
+     */
+    if (!checkpoint.reddit_done && isProviderDisabledForFeature("deepfake_intel", "reddit_api")) {
+      checkpoint.reddit_done = true;
     }
+
 
     await processPendingCandidates();
 

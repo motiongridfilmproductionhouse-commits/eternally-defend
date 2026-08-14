@@ -92,6 +92,26 @@ function ReportsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Safe regenerate for legacy rows marked Ready with no stored file: it never
+  // fabricates a PDF, it only returns the record to Draft so it can be built
+  // again through the normal generation path.
+  const regenerateMut = useMutation({
+    mutationFn: async (reportId: string) => {
+      if (!userId) throw new Error("Not signed in");
+      const { error } = await supabase
+        .from("generated_reports")
+        .update({ status: "Draft", pdf_url: null })
+        .eq("id", reportId)
+        .eq("user_id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Report reset to Draft — queued for regeneration");
+      qc.invalidateQueries({ queryKey: ["generated_reports", userId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const reports = reportsQuery.data ?? [];
   const loading = !ready || reportsQuery.isLoading;
 
@@ -207,8 +227,20 @@ function ReportsPage() {
                     className="text-[10px] font-semibold text-danger max-w-[220px] leading-snug"
                     title="The report record exists but no PDF file was stored, so there is nothing to download."
                   >
-                    FILE NOT GENERATED — regenerate this report
+                    FILE NOT GENERATED
                   </span>
+                )}
+                {!r.pdf_url && r.status !== "Generating" && (
+                  <button
+                    type="button"
+                    disabled={regenerateMut.isPending}
+                    onClick={() => regenerateMut.mutate(r.id)}
+                    className="text-xs font-semibold text-primary underline disabled:opacity-50"
+                  >
+                    {regenerateMut.isPending && regenerateMut.variables === r.id
+                      ? "Resetting…"
+                      : "Regenerate"}
+                  </button>
                 )}
                 {r.pdf_url && (
                   <a

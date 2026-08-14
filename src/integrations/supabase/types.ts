@@ -1098,7 +1098,10 @@ export type Database = {
       case_findings: {
         Row: {
           case_id: string
+          copyright_match_id: string | null
           created_at: string
+          evidence: Json
+          finding_kind: string
           id: string
           note: string | null
           scan_hit_id: string | null
@@ -1106,7 +1109,10 @@ export type Database = {
         }
         Insert: {
           case_id: string
+          copyright_match_id?: string | null
           created_at?: string
+          evidence?: Json
+          finding_kind?: string
           id?: string
           note?: string | null
           scan_hit_id?: string | null
@@ -1114,7 +1120,10 @@ export type Database = {
         }
         Update: {
           case_id?: string
+          copyright_match_id?: string | null
           created_at?: string
+          evidence?: Json
+          finding_kind?: string
           id?: string
           note?: string | null
           scan_hit_id?: string | null
@@ -1126,6 +1135,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_findings_copyright_match_id_fkey"
+            columns: ["copyright_match_id"]
+            isOneToOne: false
+            referencedRelation: "copyright_matches"
             referencedColumns: ["id"]
           },
           {
