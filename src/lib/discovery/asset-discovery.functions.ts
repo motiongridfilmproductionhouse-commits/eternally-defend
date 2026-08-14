@@ -53,7 +53,11 @@ export const startAssetDiscovery = createServerFn({ method: "POST" })
 
     const { runAssetDiscoveryJob } = await import("./asset-discovery.server");
     const result = await runAssetDiscoveryJob(context.supabase, job.id);
-    return result;
+    // diagnostics is free-form JSON; normalize it so the RPC payload is serializable.
+    return {
+      ...result,
+      diagnostics: JSON.parse(JSON.stringify(result.diagnostics ?? {})) as Record<string, string>,
+    };
   });
 
 /* ------------------------------------------------------------------ */
