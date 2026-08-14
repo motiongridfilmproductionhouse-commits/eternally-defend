@@ -217,15 +217,15 @@ export const verifyChallenge = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
     const version = normalizeOnboardingVersion(progress?.onboarding_version);
-    // Legacy v1 uses fixed step 4 for assets. v2 step numbers are route-specific and
+    // Legacy v1 uses fixed step 3 for assets. v2 step numbers are route-specific and
     // advanced by the wizard via setStepStatus — only preserve version here for v2.
     if (version === "v1") {
       const states = {
         ...((progress?.step_states as Record<string, string>) ?? {}),
-        "4": "COMPLETED",
+        "3": "COMPLETED",
       };
       await upsertProgressPreservingVersion(supabase, userId, {
-        current_step: Math.max(progress?.current_step ?? 1, 5),
+        current_step: Math.max(progress?.current_step ?? 1, 4),
         step_states: states,
         overall_status: "IN_PROGRESS",
       });

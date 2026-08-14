@@ -306,11 +306,11 @@ export const finalizeSignature = createServerFn({ method: "POST" })
           if (version === "v1") {
             const states = {
               ...((prog?.step_states as Record<string, string>) ?? {}),
+              "6": "COMPLETED",
               "7": "COMPLETED",
-              "8": "COMPLETED",
             };
             await upsertProgressPreservingVersion(supabase, userId, {
-              current_step: Math.max(prog?.current_step ?? 8, 8),
+              current_step: Math.max(prog?.current_step ?? 7, 7),
               step_states: states,
               overall_status: "IN_PROGRESS",
             });
@@ -645,11 +645,11 @@ export const finalizeSignature = createServerFn({ method: "POST" })
       if (onboardingVersion === "v1") {
         const states = {
           ...((progress?.step_states as Record<string, string>) ?? {}),
+          "6": "COMPLETED",
           "7": "COMPLETED",
-          "8": "COMPLETED",
         };
         await upsertProgressPreservingVersion(supabase, userId, {
-          current_step: 8,
+          current_step: 7,
           step_states: states,
           overall_status: "IN_PROGRESS",
         });

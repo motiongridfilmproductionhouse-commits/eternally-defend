@@ -68,7 +68,6 @@ test("v2 flows match the required account-type routes", () => {
     [
       "Account Type",
       "Personal Profile",
-      "Veriff",
       "Face Protection",
       "Digital Assets",
       "Authorization Scope",
@@ -110,7 +109,7 @@ test("v2 flows match the required account-type routes", () => {
   );
 });
 
-test("only individuals require Veriff; face and evidence gates match routes", () => {
+test("Veriff applies only to individuals post-onboarding; face and evidence gates match routes", () => {
   assert.equal(requiresVeriff("individual"), true);
   assert.equal(requiresVeriff("celebrity"), false);
   assert.equal(requiresVeriff("enterprise"), false);

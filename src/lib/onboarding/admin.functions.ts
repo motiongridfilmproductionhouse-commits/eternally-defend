@@ -254,12 +254,12 @@ export const decideAuthorization = createServerFn({ method: "POST" })
         .maybeSingle();
       const states = {
         ...((progress?.step_states as Record<string, string>) ?? {}),
-        "8": "COMPLETED",
+        "7": "COMPLETED",
       };
       await supabase.from("onboarding_progress").upsert(
         {
           user_id: auth.user_id,
-          current_step: Math.max(progress?.current_step ?? 1, 9),
+          current_step: Math.max(progress?.current_step ?? 1, 8),
           step_states: states,
           overall_status: "IN_PROGRESS",
         },

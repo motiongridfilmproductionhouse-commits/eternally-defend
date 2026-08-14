@@ -13,7 +13,6 @@ import {
   primaryEvidenceTypeForAccount,
   requiresFaceProtection,
   requiresRepresentative,
-  requiresVeriff,
   v2FlowForAccount,
   type V2AccountType,
 } from "./v2-config";
@@ -203,13 +202,13 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       .maybeSingle();
     const states = {
       ...((progress?.step_states as Record<string, string>) ?? {}),
-      "9": "COMPLETED",
+      "8": "COMPLETED",
     };
 
     const { error: progressError } = await supabase
       .from("onboarding_progress")
       .update({
-        current_step: 10,
+        current_step: 9,
         step_states: states,
         overall_status: "COMPLETED",
         onboarding_version: normalizeOnboardingVersion(progress?.onboarding_version ?? "v1"),
@@ -252,30 +251,11 @@ async function assertV2CompletionRequirements(
     throw new Error("Company / production house name is required.");
   }
 
-  if (requiresVeriff(accountType)) {
-    const { data: kyc } = await supabase
-      .from("kyc_verifications")
-      .select("verification_status")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (kyc?.verification_status !== "APPROVED") {
-      throw new Error("Individual accounts require approved Veriff verification.");
-    }
-  } else {
-    // Non-individual accounts must never receive Government Identity Verified claims.
-    const { data: kyc } = await supabase
-      .from("kyc_verifications")
-      .select("verification_status")
-      .eq("user_id", userId)
-      .eq("verification_status", "APPROVED")
-      .maybeSingle();
-    if (kyc) {
-      // Soft-block badge misuse: presence of approved KYC on a non-individual route is ignored
-      // for badge issuance, but we still refuse a Government Identity badge below.
-    }
-  }
+  // Veriff identity verification is NOT an onboarding completion requirement:
+  // the Veriff step was removed from signup onboarding. Government-identity
+  // claims, DMCA authorization, rights-holder verification and production
+  // enforcement eligibility still evaluate KYC separately via requiresVeriff().
+
 
   if (requiresRepresentative(accountType)) {
     const { data: representative } = await supabase
@@ -415,11 +395,12 @@ export const completeV2Onboarding = createServerFn({ method: "POST" })
     const flow = v2FlowForAccount(accountType);
     const states: Record<string, string> = {};
     for (const step of flow) states[String(step.step)] = "COMPLETED";
+    const finalStep = flow.length > 0 ? flow[flow.length - 1]!.step : 1;
 
     const { error: progressError } = await supabase.from("onboarding_progress").upsert(
       {
         user_id: userId,
-        current_step: 10,
+        current_step: finalStep,
         overall_status: "COMPLETED",
         step_states: states,
         onboarding_version: ONBOARDING_V2,
