@@ -133,6 +133,8 @@ export class EmailEnforcementConnector implements EnforcementConnector {
         : undefined,
       notes: result.notes,
       error: result.error,
+      intendedRecipient: result.intendedRecipient ?? intendedRecipient,
+      actualRecipient: result.actualRecipient ?? null,
     };
   }
 
