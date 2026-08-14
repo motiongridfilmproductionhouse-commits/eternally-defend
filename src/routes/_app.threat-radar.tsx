@@ -33,6 +33,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { promoteFindingsToCases } from "@/lib/cases/case-promotion.functions";
 
 export const Route = createFileRoute("/_app/threat-radar")({
   head: () => ({ meta: [{ title: "Threat Radar — Eterna Sentinel" }] }),
@@ -534,6 +536,8 @@ function ThreatRadarPage() {
                 t={t}
                 onOpen={() => setSelected(t)}
                 onStatus={(s) => handleStatus(t, s)}
+                onSendToCase={() => promote.mutate(t.id)}
+                promoting={promote.isPending && promotingId === t.id}
               />
             ))}
             {list.length === 0 && (
@@ -738,7 +742,7 @@ function ActionBtn({
       </Link>
     );
   return (
-    <button onClick={onClick} className={cls} style={style}>
+    <button onClick={onClick} disabled={disabled} className={`${cls} disabled:opacity-60`} style={style}>
       <Icon className="size-3" />
       {children}
     </button>
@@ -834,11 +838,16 @@ function DetailPanel({ t, onClose }: { t: Threat; onClose: () => void }) {
         </div>
 
         <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-          <ActionBtn icon={FileSearch} to="/intelligence">
+          <Link
+            to="/intelligence"
+            search={{ url: t.url ?? undefined, target: t.title }}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md border border-border hover:bg-accent"
+          >
+            <FileSearch className="size-3" />
             Investigate
-          </ActionBtn>
+          </Link>
           <ActionBtn icon={FolderPlus} to="/cases">
-            Send to Case
+            Open Case Board
           </ActionBtn>
           <ActionBtn icon={FileText} to="/reports">
             Generate Report
