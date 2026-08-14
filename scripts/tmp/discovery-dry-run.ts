@@ -4,10 +4,10 @@ import { runAssetDiscoveryJob } from "@/lib/discovery/asset-discovery.server";
 import { reverseImageProvidersConfigured } from "@/lib/discovery/reverse-image.server";
 
 const USER = "606afa01-0767-4356-8459-7e7d8521c233";
-const IMG = "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Taj_Mahal_in_March_2004.jpg/800px-Taj_Mahal_in_March_2004.jpg";
+const IMG = "https://images-assets.nasa.gov/image/PIA22228/PIA22228~medium.jpg";
 
 console.log("providers:", reverseImageProvidersConfigured());
-const res = await fetch(IMG, { headers: { "User-Agent": "EternaSentinelDryRun/1.0 (contact: security@eternasentinel.com)" } });
+const res = await fetch(IMG, { headers: { "User-Agent": "Mozilla/5.0" } });
 const bytes = new Uint8Array(await res.arrayBuffer());
 console.log("seed status", res.status, "bytes:", bytes.length);
 const hashes = computePerceptualHashes(bytes);
