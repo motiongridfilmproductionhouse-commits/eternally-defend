@@ -940,3 +940,27 @@ export const processManualEvidenceUrlsNow = createServerFn({ method: "POST" })
       return { processed: 0 };
     }
   });
+
+export const submitAndProcessManualEvidence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        target_name: z.string().trim().min(1).max(200),
+        urls: z.array(z.string().trim().url()).min(1).max(25),
+        profile_id: z.string().uuid().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const enforced = await enforceScanSubject(context, { targetName: data.target_name });
+    const { runManualEvidenceIntake } = await import("./deepfake/manual-evidence-intake.server");
+    return runManualEvidenceIntake({
+      supabase: context.supabase,
+      userId: context.userId,
+      targetName: enforced.targetName,
+      urls: data.urls,
+      profileId: data.profile_id ?? null,
+    });
+  });
+
