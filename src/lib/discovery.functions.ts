@@ -152,8 +152,12 @@ export const discoverAccounts = createServerFn({ method: "POST" })
       outboundLinks = site.outboundLinks;
     }
 
-    // 2) Search each platform.
-    const platforms = data.platforms ?? ALL_PLATFORMS;
+    // 2) Search each platform, minus any source disabled for impersonation
+    //    discovery by product rule (see src/lib/policy/source-policy.ts).
+    const platforms = (data.platforms ?? ALL_PLATFORMS).filter(
+      (p) => !isHostDisabledForFeature("impersonation_discovery", PLATFORM_HOST[p]),
+    );
+
     const seedsByPlatform = await Promise.all(
       platforms.map(async (p) => {
         try {
