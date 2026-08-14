@@ -207,6 +207,7 @@ export async function preserveEvidenceForTarget(
         },
       });
       if (!res.ok) {
+        console.warn(`[EVIDENCE:PRESERVE] media fetch ${res.status} for ${mediaUrl}`);
         summary.failed += 1;
         continue;
       }
