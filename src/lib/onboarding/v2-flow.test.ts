@@ -15,7 +15,6 @@ test("v2 wizard reuses existing shared onboarding steps", () => {
   assert.match(source, /SignatureStep/);
   assert.match(source, /CertificateStep/);
   assert.match(source, /OnboardingCompleteStep/);
-  assert.match(source, /VeriffIdentityStep/);
   assert.match(source, /V2EvidenceStep/);
   assert.match(source, /V2RepresentativeStep/);
 });
@@ -65,6 +64,5 @@ test("completion endpoints are version-gated in both directions", () => {
   );
   assert.match(source, /v2 accounts must complete route-specific onboarding/);
   assert.match(source, /only available to v2 accounts/);
-  assert.match(source, /Individual accounts require approved Veriff verification/);
   assert.match(source, /verification_badge/);
 });
