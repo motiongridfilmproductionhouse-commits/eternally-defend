@@ -326,14 +326,12 @@ export class EnforcementWorkerRunner {
           workerId,
         },
       });
-      await this.failJob(
-        supabase,
-        job,
+      // Throw so the standard retry/backoff path records the failure. No send.
+      throw new Error(
         `Pre-send audit snapshot could not be persisted; send aborted: ${
           snapshotError.message ?? String(snapshotError)
         }`,
       );
-      return;
     }
 
     await (supabase as any).from("enforcement_events").insert({
