@@ -338,7 +338,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       const reverseSeed = await seedDeepfakeLeadsFromReferenceFaces({
         supabase,
         userId,
-        subject: subjectName,
+        subject: data.target_name,
       });
       if (reverseSeed.leads.length) {
         const known = new Set(allHits.map((hit: { url: string }) => hit.url));
