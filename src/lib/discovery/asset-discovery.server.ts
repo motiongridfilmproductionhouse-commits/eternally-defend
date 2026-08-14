@@ -19,7 +19,7 @@
  *  - No enforcement, no notices, no takedowns happen here.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { getSignedGetUrl } from "@/lib/aws/s3.server";
 import { reverseImageProvidersConfigured, reverseImageSearch } from "@/lib/discovery/reverse-image.server";
 import { isHostDisabledForFeature } from "@/lib/policy/source-policy";
@@ -312,7 +312,7 @@ export async function runAssetDiscoveryJob(
         status: "failed",
         stage: "failed",
         error: message.slice(0, 500),
-        diagnostics: { ...(job.diagnostics as object), ...diagnostics },
+        diagnostics: { ...(job.diagnostics as object), ...diagnostics } as Json,
         completed_at: new Date().toISOString(),
       })
       .eq("id", jobId);
@@ -368,7 +368,7 @@ export async function runAssetDiscoveryJob(
 
   await supabase
     .from("asset_discovery_jobs")
-    .update({ stage: "verifying", candidates_discovered: discovered, diagnostics })
+    .update({ stage: "verifying", candidates_discovered: discovered, diagnostics: diagnostics as Json })
     .eq("id", jobId);
 
   // Verify every candidate for this asset that has not been decided yet.
@@ -474,7 +474,7 @@ export async function runAssetDiscoveryJob(
         distance: attempt.verification?.distance ?? null,
         algorithm: attempt.verification?.algorithm ?? null,
         match_reason: outcome.matchReason,
-        hashes: (attempt.verification?.candidateHashes ?? {}) as Record<string, unknown>,
+        hashes: (attempt.verification?.candidateHashes ?? {}) as unknown as Json,
         signals: {
           confidence: outcome.confidence,
           confidence_band: outcome.confidenceBand,
@@ -509,7 +509,7 @@ export async function runAssetDiscoveryJob(
       candidates_verified: verified,
       candidates_rejected: rejected,
       matches_created: matchesCreated,
-      diagnostics,
+      diagnostics: diagnostics as Json,
       completed_at: new Date().toISOString(),
     })
     .eq("id", jobId);
