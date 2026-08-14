@@ -1,12 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
 import { severityColor, type Severity } from "@/lib/data-store";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, ArrowRightLeft, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import {
+  listPromotableFindings,
+  promoteFindingsToCases,
+} from "@/lib/cases/case-promotion.functions";
 
 export const Route = createFileRoute("/_app/cases")({
   head: () => ({ meta: [{ title: "Case Management — Eterna Sentinel" }] }),
