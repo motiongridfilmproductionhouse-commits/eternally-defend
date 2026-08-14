@@ -11,6 +11,8 @@
  *     enforcement eligibility. Enforcement stays out of this module entirely.
  */
 
+import { detectionTypeForBand, similarityBandLabel } from "@/lib/media/similarity-bands";
+
 export type CrawlStatus = "PENDING" | "FETCHED" | "FETCH_FAILED" | "SKIPPED";
 export type VerificationStatus = "UNVERIFIED" | "VERIFIED_MATCH" | "REJECTED" | "FETCH_FAILED";
 export type ConfidenceBand = "exact" | "probable" | "possible" | "none";
