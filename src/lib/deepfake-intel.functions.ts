@@ -836,7 +836,7 @@ export const getDeepfakeScan = createServerFn({ method: "POST" })
       id: string;
       submitted_url: string;
       processing_status: string;
-      verification_status: string;
+      verification_status: string | null;
       classification: string | null;
       source_domain: string | null;
       face_similarity_score: number | null;

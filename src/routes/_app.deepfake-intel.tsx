@@ -826,6 +826,14 @@ function DeepfakeIntelPage() {
 
               <DeepfakeExposureMap
                 findings={exposureFindings}
+                target={
+                  scan?.target_name
+                    ? {
+                        name: scan.target_name as string,
+                        aliases: ((scan as { aliases?: string[] }).aliases ?? []) as string[],
+                      }
+                    : null
+                }
                 selectedDomain={selectedDomain}
                 onSelectDomain={setSelectedDomain}
               />
