@@ -59,7 +59,7 @@ export function TopBar() {
         </div>
       </div>
 
-      <StatusPill status={status} loading={statusQuery.isLoading} />
+      <StatusPill summary={summary} loading={summaryQuery.isLoading} />
       <AuthorizationBadge />
 
       <NotificationsBell />
