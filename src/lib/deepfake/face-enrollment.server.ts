@@ -4,15 +4,13 @@ import { getRekognitionClient } from "@/lib/aws/rekognition-client.server";
 const collectionId =
   process.env.REKOGNITION_DEEPFAKE_COLLECTION?.trim() || "eterna-protected-identities";
 
-const rekognition = { send: (cmd: any) => getRekognitionClient().send(cmd) };
-
 function cleanExternalImageId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 255);
 }
 
 export async function ensureDeepfakeFaceCollection(): Promise<string> {
   try {
-    await rekognition.send(
+    await getRekognitionClient().send(
       new DescribeCollectionCommand({
         CollectionId: collectionId,
       }),
@@ -26,7 +24,7 @@ export async function ensureDeepfakeFaceCollection(): Promise<string> {
   }
 
   try {
-    await rekognition.send(
+    await getRekognitionClient().send(
       new CreateCollectionCommand({
         CollectionId: collectionId,
       }),
@@ -78,7 +76,7 @@ export async function indexDeepfakeReferenceFace(input: {
     `target_${input.targetProfileId}_${input.referenceFaceId}`,
   );
 
-  const response = await rekognition.send(
+  const response = await getRekognitionClient().send(
     new IndexFacesCommand({
       CollectionId: collectionId,
       Image: {

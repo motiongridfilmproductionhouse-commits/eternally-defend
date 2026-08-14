@@ -7,8 +7,6 @@ import {
   mergeAbortSignals,
 } from "./scan-runtime.server";
 
-const rekognition = { send: (cmd: any) => getRekognitionClient().send(cmd) };
-
 const DEFAULT_SIMILARITY_THRESHOLD = 88;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -98,7 +96,7 @@ export async function compareReferenceFace(input: {
 
   const threshold = input.similarityThreshold ?? DEFAULT_SIMILARITY_THRESHOLD;
 
-  const response = await rekognition.send(
+  const response = await getRekognitionClient().send(
     new CompareFacesCommand({
       SourceImage: {
         Bytes: input.referenceImageBytes,

@@ -8,8 +8,6 @@ import { getRekognitionClient } from "@/lib/aws/rekognition-client.server";
 import { downloadFaceImage } from "./face-match.server";
 import { assertNotAborted } from "./scan-runtime.server";
 
-const rekognition = { send: (cmd: any) => getRekognitionClient().send(cmd) };
-
 export type ReferenceFaceDetection = {
   faceDetected: boolean;
   faceConfidence: number;
@@ -48,7 +46,7 @@ export async function detectReferenceFace(input: {
         softDeadlineMs: input.softDeadlineMs,
       }));
 
-    const response = await rekognition.send(
+    const response = await getRekognitionClient().send(
       new DetectFacesCommand({
         Image: { Bytes: bytes },
         Attributes: ["DEFAULT"],
