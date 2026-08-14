@@ -25,7 +25,17 @@ import {
 const MATCH_COLUMNS =
   "id,scan_id,source_url,page_title,platform,detection_type,confidence,confidence_band,review_status,reason,transformations,ocr_text,evidence,contact,created_at";
 
-export type PromotableCopyrightMatch = Omit<CopyrightMatchLike, "transformations"> & {
+export type PromotableCopyrightMatch = {
+  id: string;
+  scan_id: string;
+  source_url: string;
+  page_title: string | null;
+  platform: string | null;
+  detection_type: string | null;
+  confidence: number | null;
+  confidence_band: string | null;
+  review_status: string | null;
+  reason: string | null;
   transformations: string[];
   work_title: string | null;
   eligibility_state: string;
@@ -96,7 +106,16 @@ export const listPromotableCopyrightMatches = createServerFn({ method: "GET" })
       matches.map((m) => m.scan_id),
     );
     return matches.map((m) => ({
-      ...m,
+      id: m.id,
+      scan_id: m.scan_id,
+      source_url: m.source_url,
+      page_title: m.page_title,
+      platform: m.platform ?? null,
+      detection_type: m.detection_type ?? null,
+      confidence: m.confidence ?? null,
+      confidence_band: m.confidence_band ?? null,
+      review_status: m.review_status ?? null,
+      reason: m.reason ?? null,
       transformations: Array.isArray(m.transformations) ? (m.transformations as string[]) : [],
       work_title: titles.get(m.scan_id) ?? null,
       eligibility_state: eligibilityState(m),
