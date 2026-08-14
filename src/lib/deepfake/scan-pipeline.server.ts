@@ -1211,11 +1211,16 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
     const eligibleHits: ProviderHit[] = [];
     for (const hit of hits) {
+      // Feature-scoped source policy (e.g. Reddit is disabled for the deepfake
+      // agent). Checked before the "explicit provider" bypass below, otherwise
+      // provider-tagged hits skip host filtering entirely.
+      if (isCandidateDisabledForFeature("deepfake_intel", hit)) continue;
+
       const host = hit.url ? hostOf(hit.url) : null;
       const imageHost = typeof hit.image_url === "string" ? hostOf(hit.image_url) : null;
       const thumbnailHost =
         typeof hit.thumbnail_url === "string" ? hostOf(hit.thumbnail_url) : null;
-      const explicitProviderResult = hit.source === "youtube_api" || hit.source === "reddit_api";
+      const explicitProviderResult = hit.source === "youtube_api";
       const hasAnyUsableUrl = host !== null || imageHost !== null || thumbnailHost !== null;
       if (
         !hasAnyUsableUrl ||
@@ -1226,6 +1231,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
       ) {
         continue;
       }
+
 
       const key = discoveredCandidateKey(hit);
       if (key && seenCandidateKeys.has(key)) continue;
