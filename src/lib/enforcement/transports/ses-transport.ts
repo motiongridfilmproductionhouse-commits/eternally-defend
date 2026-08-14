@@ -205,6 +205,21 @@ export class SesEnforcementTransport implements EnforcementEmailTransport {
       };
     }
 
+    // 5b. SEND-TIME RECIPIENT GATE (explicit allowlist + suppression, fail closed).
+    {
+      const { assertRecipientPermitted } = await import("../recipient-allowlist.server");
+      const gate = await assertRecipientPermitted(actualRecipient, { isTestMode, isLiveEnabled });
+      if (!gate.allowed) {
+        return {
+          success: false,
+          status: "PRODUCTION_APPROVAL_REQUIRED",
+          provider: "SES",
+          intendedRecipient,
+          error: `RECIPIENT NOT PERMITTED: ${gate.reason ?? "recipient failed the production allowlist gate."}`,
+        };
+      }
+    }
+
     const subject = applyTestSubjectPrefix(payload.subject, isTestMode);
     const { textBody, htmlBody } = buildBodies(payload, { isTestMode, actualRecipient });
 

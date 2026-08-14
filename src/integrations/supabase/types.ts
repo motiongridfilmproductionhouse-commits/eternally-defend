@@ -3502,6 +3502,90 @@ export type Database = {
           },
         ]
       }
+      enforcement_provider_events: {
+        Row: {
+          case_id: string | null
+          created_at: string
+          delivery_id: string | null
+          event_type: string
+          id: string
+          normalized_type: string
+          occurred_at: string
+          payload: Json
+          provider: string
+          provider_message_id: string | null
+          reason: string | null
+          recipient: string | null
+          user_id: string | null
+        }
+        Insert: {
+          case_id?: string | null
+          created_at?: string
+          delivery_id?: string | null
+          event_type: string
+          id?: string
+          normalized_type: string
+          occurred_at?: string
+          payload?: Json
+          provider?: string
+          provider_message_id?: string | null
+          reason?: string | null
+          recipient?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          case_id?: string | null
+          created_at?: string
+          delivery_id?: string | null
+          event_type?: string
+          id?: string
+          normalized_type?: string
+          occurred_at?: string
+          payload?: Json
+          provider?: string
+          provider_message_id?: string | null
+          reason?: string | null
+          recipient?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      enforcement_recipient_allowlist: {
+        Row: {
+          active: boolean
+          approved_at: string
+          approved_by: string | null
+          created_at: string
+          entry_type: string
+          id: string
+          notes: string | null
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          active?: boolean
+          approved_at?: string
+          approved_by?: string | null
+          created_at?: string
+          entry_type: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          active?: boolean
+          approved_at?: string
+          approved_by?: string | null
+          created_at?: string
+          entry_type?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       enforcement_requests: {
         Row: {
           authorization_pdf_path: string | null
@@ -3688,6 +3772,47 @@ export type Database = {
             columns: ["enforcement_request_id"]
             isOneToOne: false
             referencedRelation: "enforcement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enforcement_suppressions: {
+        Row: {
+          active: boolean
+          created_at: string
+          email: string
+          id: string
+          provider_event_id: string | null
+          reason: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          provider_event_id?: string | null
+          reason: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          provider_event_id?: string | null
+          reason?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_suppressions_provider_event_id_fkey"
+            columns: ["provider_event_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_provider_events"
             referencedColumns: ["id"]
           },
         ]
@@ -7931,6 +8056,31 @@ export type Database = {
           scan_run_token: string
         }[]
       }
+      claim_next_enforcement_job: {
+        Args: { p_worker_id: string }
+        Returns: {
+          attempts: number
+          case_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          job_type: string
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          payload: Json
+          scheduled_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "enforcement_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_public_verification: {
         Args: { _slug: string }
         Returns: {
@@ -7954,6 +8104,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      record_route_outcome: {
+        Args: { p_domain: string; p_outcome: string }
+        Returns: undefined
       }
     }
     Enums: {

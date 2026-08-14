@@ -99,20 +99,65 @@ export const sendEnforcementTestEmail = createServerFn({ method: "POST" })
     };
   });
 
-/** Sends the real notice for one of the caller's own enforcement requests. */
+/**
+ * Sends the real notice for one of the caller's own enforcement requests.
+ *
+ * Hardened: the caller can NOT choose a recipient. The abuse route is resolved
+ * server-side and must be VERIFIED, and the caller must hold the admin role —
+ * ordinary authenticated users cannot address an arbitrary external party.
+ */
 export const sendEnforcementRequestEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { enforcementRequestId: string; destinationEmail: string }) => {
+  .inputValidator((input: { enforcementRequestId: string }) => {
     if (!input?.enforcementRequestId) throw new Error("enforcementRequestId is required");
-    if (!input?.destinationEmail?.includes("@")) throw new Error("A valid destination email is required");
-    return input;
+    return { enforcementRequestId: input.enforcementRequestId };
   })
   .handler(async ({ data, context }) => {
     const { userId, supabase } = context as { userId: string; supabase: any };
+
+    // 1. Operator authorization — manual external sends are operator-only.
+    const { data: isAdmin } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    if (!isAdmin) {
+      throw new Error(
+        "Manual enforcement sending is restricted to Eterna enforcement operators.",
+      );
+    }
+
+    // 2. Load the caller-owned request and resolve its recipient server-side.
+    const { data: reqRow, error: reqErr } = await supabase
+      .from("enforcement_requests")
+      .select("id, user_id, target_url")
+      .eq("id", data.enforcementRequestId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (reqErr || !reqRow) {
+      throw new Error("Enforcement request not found for this account.");
+    }
+
+    let domain = "";
+    try {
+      domain = new URL(String(reqRow.target_url)).hostname.replace(/^www\./, "").toLowerCase();
+    } catch {
+      throw new Error("Enforcement request has an invalid target URL.");
+    }
+
+    const { resolveVerifiedRoute } = await import("./route-resolution.server");
+    const route = await resolveVerifiedRoute(supabase, domain);
+    if (!route) {
+      throw new Error(
+        `No VERIFIED abuse route exists for ${domain}. Route verification is required before a notice can be sent.`,
+      );
+    }
+
     const { sendEnforcementRequestNotice } = await import("./notice-sender.server");
     return sendEnforcementRequestNotice(supabase, {
       userId,
       enforcementRequestId: data.enforcementRequestId,
-      destinationEmail: data.destinationEmail,
+      destinationEmail: route.email,
     });
   });
+
