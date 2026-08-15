@@ -31,18 +31,6 @@ const SEV: Record<string, { tone: string; soft: string; label: string }> = {
 };
 const SEV_ORDER: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1, Info: 0 };
 
-function polar(cx: number, cy: number, r: number, deg: number) {
-  const rad = (deg * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
-
-function arcPath(cx: number, cy: number, r: number, from: number, to: number) {
-  const a = polar(cx, cy, r, from);
-  const b = polar(cx, cy, r, to);
-  const large = Math.abs(to - from) > 180 ? 1 : 0;
-  return `M ${a.x} ${a.y} A ${r} ${r} 0 ${large} 1 ${b.x} ${b.y}`;
-}
-
 function timeAgo(iso: string) {
   const d = (Date.now() - new Date(iso).getTime()) / 1000;
   if (d < 60) return `${Math.floor(d)}s`;
@@ -93,28 +81,9 @@ export function ReputationMonitor({
   spark,
   feed,
 }: MonitorProps) {
-  const cx = 460;
-  const cy = 330;
-  const START = 180;
-  const SWEEP = 180;
-
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
   const tone =
     clamped >= 80 ? "#2fa36b" : clamped >= 60 ? "#2f7fe0" : clamped >= 40 ? "#e5a52b" : "#e0492f";
-
-  // length of the drawn reputation arc — drives the draw-in animation
-  const arcLen = Math.round(Math.PI * 162 * (Math.max(clamped, 0.5) / 100));
-
-
-
-  const ticks = useMemo(
-    () =>
-      Array.from({ length: 61 }, (_, i) => {
-        const deg = START + (i / 60) * SWEEP;
-        return { deg, active: i / 60 <= clamped / 100, major: i % 10 === 0 };
-      }),
-    [clamped],
-  );
 
   const nodes = useMemo(() => {
     const map = new Map<string, { platform: string; severity: string; count: number }>();
@@ -131,11 +100,7 @@ export function ReputationMonitor({
         (a, b) => (SEV_ORDER[b.severity] ?? 0) - (SEV_ORDER[a.severity] ?? 0) || b.count - a.count,
       )
       .slice(0, 7);
-    return list.map((n, i) => {
-      const deg = START + ((i + 1) / (list.length + 1)) * SWEEP;
-      const r = i % 2 === 0 ? 252 : 202;
-      return { ...n, ...polar(cx, cy, r, deg) };
-    });
+    return list;
   }, [sources]);
 
   const sevCounts = (["Critical", "High", "Medium", "Low"] as const).map((s) => ({
