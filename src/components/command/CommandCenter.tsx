@@ -125,6 +125,26 @@ export function CommandCenter() {
       {/* deep-navy backdrop layer for command aesthetic */}
       <div className="pointer-events-none fixed inset-0 -z-10 opacity-[0.55] [background:radial-gradient(1200px_600px_at_20%_-10%,oklch(0.42_0.18_260_/_0.35),transparent_60%),radial-gradient(1000px_500px_at_100%_10%,oklch(0.55_0.22_295_/_0.25),transparent_60%),linear-gradient(180deg,oklch(0.16_0.06_260)_0%,transparent_50%)]" />
 
+      <ReputationMonitor
+        score={Number(d.top.reputation ?? 0)}
+        threatLevel={String(d.top.threatLevel ?? "")}
+        totalFindings={d.overview.totalFindings}
+        criticalFindings={d.overview.criticalFindings}
+        newToday={d.overview.newToday}
+        resolvedPct={
+          d.overview.totalFindings > 0
+            ? Math.round((d.overview.resolved / d.overview.totalFindings) * 100)
+            : 0
+        }
+        sources={d.radar.map((r) => ({
+          platform: r.platform,
+          severity: r.severity,
+          title: r.title,
+        }))}
+        spark={d.overview.findingsSpark.map((s: any) => Number(s?.v ?? s ?? 0))}
+        feed={d.timeline}
+      />
+
       <TopIntelBar d={d} />
 
       <FaceProtectionRow />
