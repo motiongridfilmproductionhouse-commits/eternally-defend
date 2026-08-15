@@ -13,6 +13,7 @@ import {
   connectorRegistry,
 } from "./registry";
 import { EmailEnforcementConnector } from "./email-connector";
+import { decidePlatformRoute } from "../removal-route-policy";
 
 export class YouTubeConnector implements EnforcementConnector {
   id = "youtube_copyright_connector";
@@ -172,9 +173,75 @@ export class HostAbuseConnector implements EnforcementConnector {
   }
 }
 
+/**
+ * Generic human-action connector for platforms whose official removal process is
+ * a web form or authenticated portal (Instagram, Facebook, TikTok, X, Pinterest,
+ * marketplaces, unsupported UGC hosts). It prepares an evidence package for an
+ * operator and never attempts an automated submission or a guessed email.
+ */
+export class GenericPlatformHumanConnector implements EnforcementConnector {
+  id = "generic_human_action_connector";
+  name = "Platform Human Action Connector";
+  platform = "GenericPlatform";
+  submissionMethod = "HUMAN_REQUIRED" as const;
+  supportedBasis = [
+    "COPYRIGHT" as const,
+    "WEBSITE_COPYRIGHT" as const,
+    "IMPERSONATION" as const,
+    "DEEPFAKE" as const,
+    "PRIVACY" as const,
+    "NCII" as const,
+    "PLATFORM_POLICY" as const,
+  ];
+  requiresHuman = true;
+
+  async validate(payload: EnforcementCasePayload): Promise<ConnectorValidationResult> {
+    const issues: string[] = [];
+    if (!payload.targetUrl || !payload.targetUrl.startsWith("http")) {
+      issues.push("Invalid or missing infringing target URL");
+    }
+    return { ok: issues.length === 0, issues };
+  }
+
+  async prepare(payload: EnforcementCasePayload): Promise<Record<string, unknown>> {
+    const decision = decidePlatformRoute(payload.targetUrl);
+    return {
+      targetUrl: payload.targetUrl,
+      platform: decision.platformLabel,
+      routeType: decision.routeType,
+      basis: payload.enforcementBasis,
+      complainant: payload.complainantName,
+      preparedPackage: "Eterna Evidence Package (notice draft + evidence PDF + signed authorization)",
+      operatorInstruction: decision.reason,
+    };
+  }
+
+  async submit(payload: EnforcementCasePayload): Promise<ConnectorSubmissionResult> {
+    const decision = decidePlatformRoute(payload.targetUrl);
+    return {
+      success: true,
+      status: "HUMAN_ACTION_REQUIRED",
+      trackingRef: `PKG-${payload.caseId.slice(0, 8)}`,
+      notes: `HUMAN SUBMISSION REQUIRED — ${decision.platformLabel}: ${decision.reason} No automated email is attempted for this platform.`,
+    };
+  }
+
+  async checkStatus(payload: EnforcementCasePayload, currentStatus: string): Promise<ConnectorStatusResult> {
+    return {
+      status: (currentStatus as ConnectorStatusResult["status"]) || "UNDER_REVIEW",
+      verifiedAt: new Date().toISOString(),
+    };
+  }
+
+  async retry(payload: EnforcementCasePayload): Promise<ConnectorSubmissionResult> {
+    return this.submit(payload);
+  }
+}
+
 // Register connectors
 connectorRegistry.register(new EmailEnforcementConnector());
 connectorRegistry.register(new YouTubeConnector());
 connectorRegistry.register(new GoogleSearchConnector());
 connectorRegistry.register(new WebsiteCopyrightConnector());
 connectorRegistry.register(new HostAbuseConnector());
+connectorRegistry.register(new GenericPlatformHumanConnector());
