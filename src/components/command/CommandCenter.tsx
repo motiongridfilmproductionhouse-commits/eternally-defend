@@ -151,9 +151,14 @@ export function CommandCenter() {
       <ThreatTerrainPanel
         totalFindings={d.overview.totalFindings}
         criticalFindings={d.overview.criticalFindings}
+        highFindings={(d.heatmap ?? []).reduce((s: number, r: any) => s + Number(r.High ?? 0), 0)}
         threatLevel={String(d.top.threatLevel ?? "")}
-        sources={d.radar.map((r) => ({ platform: r.platform, severity: r.severity }))}
+        nodes={d.radar}
+        onSelect={(n) => {
+          if (n.permalink) window.open(n.permalink, "_blank", "noopener,noreferrer");
+        }}
       />
+
 
       <TopIntelBar d={d} />
 
