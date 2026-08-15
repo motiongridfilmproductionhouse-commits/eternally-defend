@@ -250,8 +250,9 @@ export function ReputationMonitor({
                 <stop offset="100%" stopColor={tone} />
               </linearGradient>
               <linearGradient id="domeFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f7a05a" />
-                <stop offset="100%" stopColor="#6b2f12" />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+                <stop offset="55%" stopColor="#f6f9ff" stopOpacity="0.9" />
+                <stop offset="100%" stopColor={tone} stopOpacity="0.14" />
               </linearGradient>
             </defs>
 
@@ -317,18 +318,27 @@ export function ReputationMonitor({
             <path
               d={`${arcPath(cx, cy, 118, START, START + SWEEP)} L ${cx} ${cy} Z`}
               fill="url(#domeFill)"
+              stroke="rgba(15,27,51,0.08)"
+            />
+            <path
+              d={arcPath(cx, cy, 100, START, START + SWEEP)}
+              fill="none"
+              stroke="rgba(15,27,51,0.06)"
+              strokeWidth="9"
+              strokeLinecap="round"
             />
             <path
               d={arcPath(cx, cy, 100, START, START + (SWEEP * Math.max(2, resolvedPct)) / 100)}
               fill="none"
-              stroke="#ffffff"
+              stroke={tone}
+              strokeOpacity="0.75"
               strokeWidth="9"
               strokeLinecap="round"
             />
-            <text x={cx} y={cy - 52} textAnchor="middle" fontSize="26" fontWeight="700" fill="#ffffff">
+            <text x={cx} y={cy - 52} textAnchor="middle" fontSize="26" fontWeight="700" fill={INK}>
               {resolvedPct}%
             </text>
-            <text x={cx} y={cy - 32} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.8)">
+            <text x={cx} y={cy - 32} textAnchor="middle" fontSize="11" fill={MUTED}>
               Resolved
             </text>
 
