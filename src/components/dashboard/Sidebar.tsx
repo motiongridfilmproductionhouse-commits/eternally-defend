@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   Waypoints,
+  KeyRound,
   LayoutDashboard,
   Package,
   Radar,
