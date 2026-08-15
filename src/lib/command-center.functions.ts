@@ -223,10 +223,14 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       title: (h.title as string) || (h.canonical_url as string) || "Untitled",
       severity: (h.severity as string) || "Low",
       threatScore: Number(h.threat_score ?? 0),
+      riskScore: Number(h.risk_score ?? h.threat_score ?? 0),
+      riskType: (h.risk_type as string) || null,
+      detectedAt: (h.first_seen_at as string) || (h.published_at as string) || null,
       reach: Number(h.reach ?? 0),
       permalink: (h.permalink as string) || (h.canonical_url as string) || null,
       thumbnail: (h.thumbnail_url as string) || null,
     }));
+
 
     // Face-linked radar nodes: REAL protected-face matches from the enrolled
     // onboarding references. Severity comes from the stored category that the
