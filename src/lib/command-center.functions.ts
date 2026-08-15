@@ -134,6 +134,62 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
           .limit(60),
       ]);
 
+    /**
+     * Accurate aggregates.
+     * `hitsRes` is capped (detail payload for radar/feed), so counting from it
+     * under-reports severity and platform breakdowns. These lightweight reads
+     * cover the FULL open finding set for the same 14d window.
+     */
+    const [aggRes, totalCountRes, todayCountRes] = await Promise.all([
+      supabase
+        .from("scan_hits")
+        .select("source, severity, first_seen_at")
+        .eq("user_id", userId)
+        .is("hidden_at", null)
+        .gte("first_seen_at", since14)
+        .limit(20_000),
+      supabase
+        .from("scan_hits")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .is("hidden_at", null)
+        .gte("first_seen_at", since14),
+      supabase
+        .from("scan_hits")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .is("hidden_at", null)
+        .gte("first_seen_at", since24h),
+    ]);
+    const aggRows = aggRes.data ?? [];
+    const normSev = (s: string | null | undefined) => {
+      const v = String(s ?? "Low");
+      return v[0]?.toUpperCase() + v.slice(1).toLowerCase();
+    };
+    const severityCounts: Record<string, number> = {
+      Critical: 0,
+      High: 0,
+      Medium: 0,
+      Low: 0,
+      Info: 0,
+    };
+    const platformMap = new Map<string, { platform: string; count: number; severity: string }>();
+    const SEV_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1, Info: 0 };
+    for (const r of aggRows) {
+      const sev = normSev(r.severity as string);
+      if (severityCounts[sev] !== undefined) severityCounts[sev]++;
+      const platform = bucketPlatform(r.source as string);
+      const cur = platformMap.get(platform);
+      if (!cur) platformMap.set(platform, { platform, count: 1, severity: sev });
+      else {
+        cur.count++;
+        if ((SEV_RANK[sev] ?? 0) > (SEV_RANK[cur.severity] ?? 0)) cur.severity = sev;
+      }
+    }
+    const platformBreakdown = [...platformMap.values()].sort(
+      (a, b) => (SEV_RANK[b.severity] ?? 0) - (SEV_RANK[a.severity] ?? 0) || b.count - a.count,
+    );
+
     const hits = hitsRes.data ?? [];
     const scans = scansRes.data ?? [];
     const enforcements = enfRes.data ?? [];
@@ -161,15 +217,18 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       const key = sev[0]?.toUpperCase() + sev.slice(1).toLowerCase();
       if (bySev[key] !== undefined) bySev[key]++;
     }
-    const critical = bySev.Critical;
-    const high = bySev.High;
+    // Prefer the full-set aggregates over the capped detail payload.
+    const critical = severityCounts.Critical;
+    const high = severityCounts.High;
+    const totalFindings = totalCountRes.count ?? aggRows.length ?? hits.length;
+    const newToday = todayCountRes.count ?? hits.filter((h) => (h.first_seen_at as string) >= since24h).length;
 
     // Threat level
     let threatLevel: "Safe" | "Low" | "Moderate" | "High" | "Critical" = "Safe";
     if (critical > 5) threatLevel = "Critical";
     else if (critical > 0 || high > 5) threatLevel = "High";
-    else if (high > 0 || bySev.Medium > 5) threatLevel = "Moderate";
-    else if (hits.length > 0) threatLevel = "Low";
+    else if (high > 0 || severityCounts.Medium > 5) threatLevel = "Moderate";
+    else if (totalFindings > 0) threatLevel = "Low";
 
     // Velocity: last 24h vs prior 24h
     const last24 = hits.filter((h) => (h.first_seen_at as string) >= since24h).length;
@@ -434,9 +493,11 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
         openEnforcement: enforceOpen,
       },
       overview: {
-        totalFindings: hits.length,
+        totalFindings,
         criticalFindings: critical,
-        newToday: last24,
+        newToday,
+        severityCounts,
+        platformBreakdown,
         escalated: enforcements.length,
         resolved: enforcements.filter((e) => e.status === "resolved").length,
         falsePositives: (hits as any[]).filter((h) => (h.tags ?? []).includes("false_positive"))
