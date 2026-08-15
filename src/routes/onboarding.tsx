@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { getProgress } from "@/lib/onboarding/progress.functions";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { ExitOnboardingButton } from "@/components/onboarding/ExitOnboardingButton";
 import { Loader2 } from "lucide-react";
 
 // Demo bypass — same constants as _app.tsx (module-level, tree-shaken in prod when false)
