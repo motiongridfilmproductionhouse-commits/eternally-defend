@@ -297,6 +297,10 @@ export function evaluateVerification(input: VerificationEvidenceInput): Verifica
     issues.push(
       `Verification method ${method} is not authoritative. A guessed or system-derived address can never be promoted to VERIFIED.`,
     );
+  } else if (MANUAL_ESCALATION_ONLY_METHODS.has(method)) {
+    issues.push(
+      `Verification method ${method} identifies a hosting-provider/registrar abuse channel. Those belong to the manual escalation workflow and can never become an automated email recipient.`,
+    );
   } else if (!AUTHORITATIVE_METHODS.has(method)) {
     issues.push(`Verification method ${method} is not a recognised authoritative source type.`);
   }
@@ -305,6 +309,33 @@ export function evaluateVerification(input: VerificationEvidenceInput): Verifica
   if (!/^https?:\/\/.+\..+/i.test(src)) {
     issues.push("An authoritative source URL (published DMCA/legal/abuse page) is required.");
   }
+
+  // Pilot rule: the recipient must be published by the infringing host itself.
+  if (
+    email.includes("@") &&
+    method !== "CONTROLLED_TEST_FIXTURE" &&
+    !isSameOrganisationRecipient(email, input.domain)
+  ) {
+    issues.push(
+      `Recipient ${email} is not published on ${input.domain}. Third-party mailboxes (CDN, registrar, hosting provider, agent) are not eligible for automated email; use the manual escalation package instead.`,
+    );
+  }
+
+  // The authoritative source page must itself live on the infringing host.
+  if (src && method !== "CONTROLLED_TEST_FIXTURE") {
+    let srcHost = "";
+    try {
+      srcHost = new URL(src).hostname.toLowerCase();
+    } catch {
+      srcHost = "";
+    }
+    if (srcHost && !isSameOrganisationRecipient(`x@${srcHost}`, input.domain)) {
+      issues.push(
+        `Authoritative source URL must be the host's own official legal/DMCA/contact page on ${input.domain} (got ${srcHost}).`,
+      );
+    }
+  }
+
 
   const snapshot = input.evidenceSnapshot ?? {};
   const hasSnapshot =
