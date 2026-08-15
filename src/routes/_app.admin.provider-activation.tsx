@@ -26,11 +26,11 @@ export const Route = createFileRoute("/_app/admin/provider-activation")({
 
 function ProviderActivationPage() {
   const qc = useQueryClient();
-  const statusFn = useServerFn(getProviderStatus);
+  const catalogFn = useServerFn(getProviderCatalog);
   const testAllFn = useServerFn(testAllMultimediaProviders);
   const cleanupFn = useServerFn(runRetentionCleanup);
   const retentionFn = useServerFn(getRetentionPreview);
-  const status = useQuery({ queryKey: ["mm-providers"], queryFn: () => statusFn() });
+  const catalog = useQuery({ queryKey: ["mm-providers"], queryFn: () => catalogFn() });
   const retention = useQuery({ queryKey: ["retention-preview"], queryFn: () => retentionFn() });
   const testAll = useMutation({
     mutationFn: () => testAllFn(),
