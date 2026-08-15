@@ -249,6 +249,11 @@ function RemovalRoutesPage() {
                             {r.effectiveStatus}
                           </Badge>
                           <Badge variant="outline">{r.routeType}</Badge>
+                          {r.autoDiscovered && (
+                            <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/30">
+                              auto-discovered
+                            </Badge>
+                          )}
                           {r.isGuessedCandidate && (
                             <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
                               <AlertTriangle className="size-3 mr-1" /> guessed
@@ -257,8 +262,10 @@ function RemovalRoutesPage() {
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {r.recipientEmail ?? "no recipient"} · {r.verificationMethod ?? "no method"}
+                          {r.discoveredAt ? ` · found ${r.discoveredAt.slice(0, 16).replace("T", " ")}` : ""}
                           {r.reverifyDueAt ? ` · re-verify ${r.reverifyDueAt.slice(0, 10)}` : ""}
                         </p>
+
                       </div>
                       <Button size="sm" variant="outline" onClick={() => openRoute(r)}>
                         Inspect
