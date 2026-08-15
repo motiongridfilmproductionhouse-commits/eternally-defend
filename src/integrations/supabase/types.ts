@@ -3412,54 +3412,87 @@ export type Database = {
       domain_enforcement_routes: {
         Row: {
           abuse_email: string | null
+          authoritative_source_url: string | null
           confidence: number | null
           contact: string | null
           contact_type: string | null
           copyright_email: string | null
           created_at: string
           domain: string
+          evidence_snapshot: Json
+          hosting_provider: string | null
           id: string
+          last_checked_at: string | null
           notes: string | null
+          platform_kind: string | null
           preferred_method: string | null
+          recipient_email: string | null
+          registrar: string | null
+          rejected_reason: string | null
+          reverify_due_at: string | null
+          route_type: string
           source_url: string | null
           updated_at: string
           verification_method: string | null
           verification_status: string
           verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           abuse_email?: string | null
+          authoritative_source_url?: string | null
           confidence?: number | null
           contact?: string | null
           contact_type?: string | null
           copyright_email?: string | null
           created_at?: string
           domain: string
+          evidence_snapshot?: Json
+          hosting_provider?: string | null
           id?: string
+          last_checked_at?: string | null
           notes?: string | null
+          platform_kind?: string | null
           preferred_method?: string | null
+          recipient_email?: string | null
+          registrar?: string | null
+          rejected_reason?: string | null
+          reverify_due_at?: string | null
+          route_type?: string
           source_url?: string | null
           updated_at?: string
           verification_method?: string | null
           verification_status?: string
           verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           abuse_email?: string | null
+          authoritative_source_url?: string | null
           confidence?: number | null
           contact?: string | null
           contact_type?: string | null
           copyright_email?: string | null
           created_at?: string
           domain?: string
+          evidence_snapshot?: Json
+          hosting_provider?: string | null
           id?: string
+          last_checked_at?: string | null
           notes?: string | null
+          platform_kind?: string | null
           preferred_method?: string | null
+          recipient_email?: string | null
+          registrar?: string | null
+          rejected_reason?: string | null
+          reverify_due_at?: string | null
+          route_type?: string
           source_url?: string | null
           updated_at?: string
           verification_method?: string | null
           verification_status?: string
           verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: []
       }
