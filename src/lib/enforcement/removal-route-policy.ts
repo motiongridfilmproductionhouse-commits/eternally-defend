@@ -102,14 +102,15 @@ export function decidePlatformRoute(targetUrl: string): PlatformRouteDecision {
     return {
       ...base,
       routeType: "HOST_ORIGIN_DISCOVERY_REQUIRED",
-      connectorId: null,
+      connectorId: "manual_escalation_connector",
       requiresHuman: true,
       emailEligible: false,
-      preparePackage: false,
+      preparePackage: true,
       reason:
-        "CDN/proxy host only mirrors the media. The origin host must be established before any notice is addressed.",
+        "CDN/proxy/registrar host only fronts the media. Eterna prepares a manual escalation package for an operator; a CDN or registrar abuse address is never used as an automated email recipient.",
     };
   }
+
 
   if (c.kind === "youtube") {
     return {
