@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getProviderStatus } from "@/lib/mm/mm.functions";
+import { getProviderCatalog } from "@/lib/mm/provider-catalog.functions";
 import { testAllMultimediaProviders } from "@/lib/mm/health.functions";
 import { runRetentionCleanup, getRetentionPreview } from "@/lib/mm/retention.functions";
 import { PageCard } from "@/components/dashboard/PageCard";
@@ -19,75 +19,18 @@ export const Route = createFileRoute("/_app/admin/provider-activation")({
   ),
 });
 
-interface ProviderSpec {
-  key: string;
-  label: string;
-  flag: string;
-  currentModeKey: keyof any;
-  requiredCredentials: { name: string; kind: "api_key" | "service_account" | "bucket" }[];
-  activateBy: string;
-  liveWhen: (cfg: any) => boolean;
-}
+// The provider catalog (feature-flag names, required credential variable names,
+// activation instructions) is resolved server-side by getProviderCatalog so those
+// internal env-var names are never shipped in a public client chunk.
 
-const PROVIDERS: ProviderSpec[] = [
-  {
-    key: "fact_check",
-    label: "Fact Check Tools",
-    flag: "MM_PROVIDER_FACT_CHECK",
-    currentModeKey: "factCheck",
-    requiredCredentials: [{ name: "FACT_CHECK_API_KEY", kind: "api_key" }],
-    activateBy: "Set MM_PROVIDER_FACT_CHECK=google_api_key",
-    liveWhen: (c) => c.hasFactCheckKey && c.factCheck !== "stub",
-  },
-  {
-    key: "translation",
-    label: "Google Translation",
-    flag: "MM_PROVIDER_TRANSLATION",
-    currentModeKey: "translation",
-    requiredCredentials: [{ name: "GOOGLE_API_KEY", kind: "api_key" }],
-    activateBy: "Set MM_PROVIDER_TRANSLATION=google_api_key",
-    liveWhen: (c) => c.hasTranslationKey && c.translation !== "stub",
-  },
-  {
-    key: "video_intelligence",
-    label: "Video Intelligence",
-    flag: "MM_PROVIDER_VIDEO_INTELLIGENCE",
-    currentModeKey: "videoIntelligence",
-    requiredCredentials: [
-      { name: "GOOGLE_APPLICATION_CREDENTIALS_JSON", kind: "service_account" },
-      { name: "GOOGLE_CLOUD_PROJECT_ID", kind: "api_key" },
-      { name: "GOOGLE_CLOUD_STORAGE_BUCKET", kind: "bucket" },
-    ],
-    activateBy: "Set MM_PROVIDER_VIDEO_INTELLIGENCE=google_service_account",
-    liveWhen: (c) => c.hasServiceAccount && c.videoIntelligence === "google_service_account",
-  },
-  {
-    key: "speech_to_text",
-    label: "Speech-to-Text",
-    flag: "MM_PROVIDER_SPEECH_TO_TEXT",
-    currentModeKey: "speechToText",
-    requiredCredentials: [{ name: "GOOGLE_APPLICATION_CREDENTIALS_JSON", kind: "service_account" }],
-    activateBy: "Set MM_PROVIDER_SPEECH_TO_TEXT=google_service_account",
-    liveWhen: (c) => c.hasServiceAccount && c.speechToText === "google_service_account",
-  },
-  {
-    key: "vision",
-    label: "Cloud Vision",
-    flag: "MM_PROVIDER_VISION",
-    currentModeKey: "vision",
-    requiredCredentials: [{ name: "GOOGLE_APPLICATION_CREDENTIALS_JSON", kind: "service_account" }],
-    activateBy: "Set MM_PROVIDER_VISION=google_service_account",
-    liveWhen: (c) => c.hasServiceAccount && c.vision === "google_service_account",
-  },
-];
 
 function ProviderActivationPage() {
   const qc = useQueryClient();
-  const statusFn = useServerFn(getProviderStatus);
+  const catalogFn = useServerFn(getProviderCatalog);
   const testAllFn = useServerFn(testAllMultimediaProviders);
   const cleanupFn = useServerFn(runRetentionCleanup);
   const retentionFn = useServerFn(getRetentionPreview);
-  const status = useQuery({ queryKey: ["mm-providers"], queryFn: () => statusFn() });
+  const catalog = useQuery({ queryKey: ["mm-providers"], queryFn: () => catalogFn() });
   const retention = useQuery({ queryKey: ["retention-preview"], queryFn: () => retentionFn() });
   const testAll = useMutation({
     mutationFn: () => testAllFn(),
@@ -99,7 +42,7 @@ function ProviderActivationPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["retention-preview"] }),
   });
 
-  const cfg = status.data;
+  const providers = catalog.data?.providers;
 
   return (
     <div className="space-y-5">
@@ -113,13 +56,13 @@ function ProviderActivationPage() {
           </Button>
         }
       >
-        {!cfg ? (
+        {!providers ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
         ) : (
           <div className="space-y-3">
-            {PROVIDERS.map((p) => {
-              const isLive = p.liveWhen(cfg);
-              const mode = (cfg as any)[p.currentModeKey];
+            {providers.map((p) => {
+              const isLive = p.live;
+              const mode = p.mode;
               return (
                 <div key={p.key} className="border border-border rounded-xl p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -158,7 +101,7 @@ function ProviderActivationPage() {
                       </div>
                       <ul className="space-y-1 text-xs">
                         {p.requiredCredentials.map((c) => {
-                          const present = credentialPresent(c.name, cfg);
+                          const present = c.present;
                           return (
                             <li key={c.name} className="flex items-center gap-2">
                               {present ? (
@@ -253,21 +196,4 @@ function ProviderActivationPage() {
       </PageCard>
     </div>
   );
-}
-
-function credentialPresent(name: string, cfg: any): boolean {
-  switch (name) {
-    case "FACT_CHECK_API_KEY":
-      return !!cfg.hasFactCheckKey;
-    case "GOOGLE_API_KEY":
-      return !!cfg.hasTranslationKey;
-    case "GOOGLE_APPLICATION_CREDENTIALS_JSON":
-      return !!cfg.hasServiceAccount;
-    case "GOOGLE_CLOUD_PROJECT_ID":
-      return !!cfg.projectId;
-    case "GOOGLE_CLOUD_STORAGE_BUCKET":
-      return !!cfg.bucket;
-    default:
-      return false;
-  }
 }
