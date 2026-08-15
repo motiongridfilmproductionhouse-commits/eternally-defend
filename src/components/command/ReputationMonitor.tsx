@@ -241,164 +241,103 @@ export function ReputationMonitor({
           </div>
         </div>
 
-        {/* center arc monitor */}
-        <div className="xl:col-span-6">
-          <svg viewBox="0 80 920 290" className="w-full">
-            <defs>
-              <linearGradient id="repArc" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor={tone} stopOpacity="0.45" />
-                <stop offset="100%" stopColor={tone} />
-              </linearGradient>
-              <linearGradient id="domeFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-                <stop offset="55%" stopColor="#f6f9ff" stopOpacity="0.9" />
-                <stop offset="100%" stopColor={tone} stopOpacity="0.14" />
-              </linearGradient>
-            </defs>
+        {/* center — score + source breakdown (meter removed) */}
+        <div className="xl:col-span-6 space-y-4">
+          <div
+            className="rounded-2xl p-5 flex items-center gap-6"
+            style={{ background: "#ffffff", border: "1px solid rgba(15,27,51,0.06)" }}
+          >
+            <div>
+              <div className="text-[10px] tracking-[0.18em] font-semibold" style={{ color: "#9aa4bd" }}>
+                REPUTATION SCORE
+              </div>
+              <div className="mt-1 flex items-end gap-2">
+                <div className="text-[56px] leading-none font-bold font-display" style={{ color: tone }}>
+                  {clamped}
+                </div>
+                <div className="text-xs pb-2" style={{ color: MUTED }}>
+                  / 100
+                </div>
+              </div>
+              <div className="mt-1 text-[12px] font-semibold" style={{ color: SEV.Critical.tone }}>
+                {criticalFindings} critical threats
+              </div>
+            </div>
 
-            {/* tick ring */}
-            {ticks.map((t, i) => {
-              const inner = polar(cx, cy, t.major ? 288 : 298, t.deg);
-              const outer = polar(cx, cy, 320, t.deg);
-              return (
-                <line
-                  key={i}
-                  className="rep-tick"
-                  style={{ animationDelay: `${i * 18}ms` }}
-                  x1={inner.x}
-                  y1={inner.y}
-                  x2={outer.x}
-                  y2={outer.y}
-                  stroke={t.active ? tone : "rgba(15,27,51,0.13)"}
-                  strokeWidth={t.major ? 2.6 : 1.4}
-                  strokeLinecap="round"
-                />
-              );
-            })}
-
-            {/* node guide arcs */}
-            <path d={arcPath(cx, cy, 252, START, START + SWEEP)} fill="none" stroke="rgba(15,27,51,0.08)" />
-            <path d={arcPath(cx, cy, 202, START, START + SWEEP)} fill="none" stroke="rgba(15,27,51,0.08)" />
-
-            {/* slow radar sweep across the dial */}
-            <g className="rep-sweep" opacity="0.5">
-              <line
-                x1={cx}
-                y1={cy}
-                x2={cx - 300}
-                y2={cy}
-                stroke={tone}
-                strokeWidth="2"
-                strokeLinecap="round"
-                opacity="0.35"
-              />
-            </g>
-
-            {/* reputation progress arc */}
-            <path
-              d={arcPath(cx, cy, 162, START, START + SWEEP)}
-              fill="none"
-              stroke="rgba(15,27,51,0.07)"
-              strokeWidth="12"
-              strokeLinecap="round"
-            />
-            <path
-              className="rep-arc"
-              style={{ ["--rep-arc-len" as string]: `${arcLen}` }}
-              strokeDasharray={arcLen}
-              d={arcPath(cx, cy, 162, START, START + (SWEEP * Math.max(clamped, 0.5)) / 100)}
-              fill="none"
-              stroke="url(#repArc)"
-              strokeWidth="12"
-              strokeLinecap="round"
-            />
-
-
-            {/* inner dome — resolved share */}
-            <path
-              d={`${arcPath(cx, cy, 118, START, START + SWEEP)} L ${cx} ${cy} Z`}
-              fill="url(#domeFill)"
-              stroke="rgba(15,27,51,0.08)"
-            />
-            <path
-              d={arcPath(cx, cy, 100, START, START + SWEEP)}
-              fill="none"
-              stroke="rgba(15,27,51,0.06)"
-              strokeWidth="9"
-              strokeLinecap="round"
-            />
-            <path
-              d={arcPath(cx, cy, 100, START, START + (SWEEP * Math.max(2, resolvedPct)) / 100)}
-              fill="none"
-              stroke={tone}
-              strokeOpacity="0.75"
-              strokeWidth="9"
-              strokeLinecap="round"
-            />
-            <text x={cx} y={cy - 52} textAnchor="middle" fontSize="26" fontWeight="700" fill={INK}>
-              {resolvedPct}%
-            </text>
-            <text x={cx} y={cy - 32} textAnchor="middle" fontSize="11" fill={MUTED}>
-              Resolved
-            </text>
-
-            {/* center readout */}
-            <text x={cx} y={cy - 196} textAnchor="middle" fontSize="52" fontWeight="700" fill={INK}>
-              {clamped}
-            </text>
-            <text x={cx} y={cy - 174} textAnchor="middle" fontSize="12" fill={MUTED}>
-              Reputation Score
-            </text>
-            <text x={cx} y={cy - 140} textAnchor="middle" fontSize="13" fontWeight="700" fill={SEV.Critical.tone}>
-              {criticalFindings} critical threats
-            </text>
-
-            {/* platform nodes */}
-            {nodes.map((n, i) => {
-              const s = SEV[n.severity] ?? SEV.Info;
-              const hot = n.severity === "Critical" || n.severity === "High";
-              return (
-                <g key={n.platform} className="rep-node" style={{ animationDelay: `${i * 420}ms` }}>
-                  <line
-                    className="rep-link"
-                    x1={cx}
-                    y1={cy}
-                    x2={n.x}
-                    y2={n.y}
-                    stroke="rgba(15,27,51,0.12)"
+            <div className="flex-1 min-w-0 space-y-3">
+              <div>
+                <div className="flex items-center justify-between text-[11px] font-medium" style={{ color: MUTED }}>
+                  <span>Reputation</span>
+                  <span style={{ color: tone }}>{clamped}%</span>
+                </div>
+                <div className="mt-1.5 h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(15,27,51,0.07)" }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.max(2, clamped)}%`,
+                      background: `linear-gradient(90deg, color-mix(in oklab, ${tone} 55%, white), ${tone})`,
+                    }}
                   />
-                  {hot && (
-                    <circle
-                      className="rep-node-halo"
-                      style={{ animationDelay: `${i * 300}ms` }}
-                      cx={n.x}
-                      cy={n.y}
-                      r="22"
-                      fill="none"
-                      stroke={s.tone}
-                      strokeWidth="2"
-                    />
-                  )}
-                  <circle cx={n.x} cy={n.y} r="19" fill="#ffffff" stroke={s.tone} strokeWidth="2" />
-                  <circle cx={n.x} cy={n.y} r="24" fill="none" stroke={s.soft} strokeWidth="4" />
-                  <text
-                    x={n.x}
-                    y={n.y + 4}
-                    textAnchor="middle"
-                    fontSize="12"
-                    fontWeight="700"
-                    fill={s.tone}
-                  >
-                    {n.count}
-                  </text>
-                  <text x={n.x} y={n.y - 32} textAnchor="middle" fontSize="11" fontWeight="600" fill={INK}>
-                    {n.platform}
-                  </text>
-                </g>
-              );
-            })}
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between text-[11px] font-medium" style={{ color: MUTED }}>
+                  <span>Resolved</span>
+                  <span style={{ color: SEV.Low.tone }}>{resolvedPct}%</span>
+                </div>
+                <div className="mt-1.5 h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(15,27,51,0.07)" }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.max(2, resolvedPct)}%`,
+                      background: `linear-gradient(90deg, color-mix(in oklab, ${SEV.Low.tone} 55%, white), ${SEV.Low.tone})`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
-          </svg>
+          <div
+            className="rounded-2xl p-4"
+            style={{ background: "#ffffff", border: "1px solid rgba(15,27,51,0.06)" }}
+          >
+            <div className="text-[10px] tracking-[0.18em] font-semibold" style={{ color: "#9aa4bd" }}>
+              EXPOSED SURFACES
+            </div>
+            {nodes.length === 0 ? (
+              <div className="text-xs py-6 text-center" style={{ color: MUTED }}>
+                No monitored surfaces with findings yet.
+              </div>
+            ) : (
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {nodes.map((n) => {
+                  const s = SEV[n.severity] ?? SEV.Info;
+                  return (
+                    <div
+                      key={n.platform}
+                      className="rounded-xl px-3 py-2.5 flex items-center gap-2.5"
+                      style={{ background: s.soft, border: `1px solid ${s.tone}22` }}
+                    >
+                      <span
+                        className="grid place-items-center size-8 rounded-lg text-[12px] font-bold shrink-0"
+                        style={{ background: "#ffffff", color: s.tone, border: `1px solid ${s.tone}44` }}
+                      >
+                        {n.count}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-semibold truncate">{n.platform}</div>
+                        <div className="text-[10px] font-medium" style={{ color: s.tone }}>
+                          {s.label}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
         </div>
 
         {/* right rail — live feed */}
