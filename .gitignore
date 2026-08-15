@@ -44,3 +44,7 @@ dist-ssr
 .env
 .env.local
 .env.production.local
+
+# Lovable Cloud writes only public Supabase values (URL, project id, publishable key)
+# into .env; it must be tracked so production builds inline VITE_SUPABASE_*.
+!.env
