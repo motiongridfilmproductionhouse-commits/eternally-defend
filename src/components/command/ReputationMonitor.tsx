@@ -257,6 +257,8 @@ export function ReputationMonitor({
               return (
                 <line
                   key={i}
+                  className="rep-tick"
+                  style={{ animationDelay: `${i * 18}ms` }}
                   x1={inner.x}
                   y1={inner.y}
                   x2={outer.x}
@@ -272,6 +274,20 @@ export function ReputationMonitor({
             <path d={arcPath(cx, cy, 252, START, START + SWEEP)} fill="none" stroke="rgba(15,27,51,0.08)" />
             <path d={arcPath(cx, cy, 202, START, START + SWEEP)} fill="none" stroke="rgba(15,27,51,0.08)" />
 
+            {/* slow radar sweep across the dial */}
+            <g className="rep-sweep" opacity="0.5">
+              <line
+                x1={cx}
+                y1={cy}
+                x2={cx - 300}
+                y2={cy}
+                stroke={tone}
+                strokeWidth="2"
+                strokeLinecap="round"
+                opacity="0.35"
+              />
+            </g>
+
             {/* reputation progress arc */}
             <path
               d={arcPath(cx, cy, 162, START, START + SWEEP)}
@@ -281,12 +297,16 @@ export function ReputationMonitor({
               strokeLinecap="round"
             />
             <path
+              className="rep-arc"
+              style={{ ["--rep-arc-len" as string]: `${arcLen}` }}
+              strokeDasharray={arcLen}
               d={arcPath(cx, cy, 162, START, START + (SWEEP * Math.max(clamped, 0.5)) / 100)}
               fill="none"
               stroke="url(#repArc)"
               strokeWidth="12"
               strokeLinecap="round"
             />
+
 
             {/* inner dome — resolved share */}
             <path
