@@ -146,7 +146,15 @@ export function CommandCenter() {
         feed={d.timeline}
       />
 
+      <ThreatTerrainPanel
+        totalFindings={d.overview.totalFindings}
+        criticalFindings={d.overview.criticalFindings}
+        threatLevel={String(d.top.threatLevel ?? "")}
+        sources={d.radar.map((r) => ({ platform: r.platform, severity: r.severity }))}
+      />
+
       <TopIntelBar d={d} />
+
 
       <FaceProtectionRow />
 
