@@ -308,6 +308,12 @@ export function AssetVerificationStep({
         <SocialProfilesPanel />
         <SocialAssetProtectionPanel />
 
+        <p className="text-xs text-white/50">
+          Channels, post links and media uploads are all optional. You can continue now and still
+          receive identity and public-web monitoring — protected media can be added any time from
+          Assets or Settings without repeating onboarding.
+        </p>
+
         <div className="flex justify-between pt-4">
           <Button
             variant="ghost"
@@ -328,12 +334,14 @@ export function AssetVerificationStep({
             </Button>
             <Button
               onClick={onNext}
-              disabled={!hasVerifiedAsset || busy}
+              disabled={busy}
               className="bg-blue-600 hover:bg-blue-500 text-white border-0"
             >
-              Continue <ChevronRight className="size-4 ml-1" />
+              {hasVerifiedAsset ? "Continue" : "Continue without assets"}{" "}
+              <ChevronRight className="size-4 ml-1" />
             </Button>
           </div>
+
         </div>
       </CardContent>
     </Card>
