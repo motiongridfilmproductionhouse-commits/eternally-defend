@@ -103,14 +103,7 @@ function AuthPage() {
   };
 
 
-  const handleGoogle = async () => {
-    setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth` },
-    });
-    if (error) setError(error.message);
-  };
+
 
   return (
     <div className="min-h-screen grid md:grid-cols-2 bg-background">
