@@ -493,9 +493,11 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
         openEnforcement: enforceOpen,
       },
       overview: {
-        totalFindings: hits.length,
+        totalFindings,
         criticalFindings: critical,
-        newToday: last24,
+        newToday,
+        severityCounts,
+        platformBreakdown,
         escalated: enforcements.length,
         resolved: enforcements.filter((e) => e.status === "resolved").length,
         falsePositives: (hits as any[]).filter((h) => (h.tags ?? []).includes("false_positive"))
