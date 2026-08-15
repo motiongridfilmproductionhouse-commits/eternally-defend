@@ -201,6 +201,67 @@ export async function sendEnforcementRequestNotice(
     if (link) documentLinks.push(link);
   }
 
+
+  // ---------------------------------------------------------------------------
+  // FINAL PRE-SEND GATE — server-side, immediately before transport execution.
+  // Runs for every notice. There is no UI or caller-supplied bypass: a NO_GO
+  // returns before the transport is constructed, and the decision plus every
+  // audit field is persisted. In TEST mode the gate always returns NO_GO for
+  // production dispatch, so the controlled test path is handled explicitly.
+  // ---------------------------------------------------------------------------
+  const { runFinalPreSendGate, recordPreSendAuditResult } = await import("./pre-send-gate.server");
+  const { hashRenderedNotice } = await import("./notice-hash");
+
+  const noticeHash = hashRenderedNotice({
+    caseId: opts.caseId ?? req.id,
+    recipient: opts.destinationEmail,
+    subject,
+    textBody,
+    manifest: docKeys.map((d) => ({ label: d.label, key: d.key })),
+  });
+
+  const gate = await runFinalPreSendGate(supabase, {
+    userId: opts.userId,
+    caseId: opts.caseId ?? null,
+    enforcementRequestId: req.id,
+    targetUrl: req.target_url,
+    recipient: opts.destinationEmail,
+    protectedAssetId: null,
+    notice: {
+      recipient: opts.destinationEmail,
+      subject,
+      textBody,
+      evidenceReferenceCount: docKeys.length,
+      clientIdentity: complainantName,
+      replyTo: complainantEmail,
+      noticeHash,
+      cc: [],
+      bcc: [],
+    },
+  });
+
+  if (gate.result !== "GO") {
+    // Controlled internal test sends stay permitted: the transport still
+    // rewrites the recipient to the internal mailbox and applies its own
+    // kill-switch/allowlist gates. Everything else is hard-blocked here.
+    const testModeOnlyBlock =
+      isTestMode &&
+      gate.failedConditions.every((c) =>
+        c === "SYSTEM.TEST_MODE_ACTIVE" || c === "SYSTEM.LIVE_ENFORCEMENT_DISABLED",
+      );
+
+    if (!testModeOnlyBlock) {
+      return {
+        success: false,
+        status: "PRE_SEND_GATE_BLOCKED",
+        error: gate.summary,
+        testMode: isTestMode,
+        retryable: false,
+        deliveryLogId: null,
+      };
+    }
+  }
+
   const result: EnforcementEmailSendResult = await new ResendEnforcementTransport().send({
     caseId: opts.caseId ?? req.id,
     enforcementRequestId: req.id,
@@ -211,6 +272,14 @@ export async function sendEnforcementRequestNotice(
     demoMode: opts.demoMode,
     replyTo: complainantEmail,
   });
+
+  await recordPreSendAuditResult(gate.auditId, {
+    providerMessageId: result.providerMessageId ?? null,
+    submittedAt: result.submittedAt ?? null,
+    submissionStatus: result.status,
+    transport: result.provider ?? "RESEND",
+  });
+
 
   const deliveryLogId = await recordEmailDelivery(
     {
