@@ -18,6 +18,7 @@ import {
 } from "@/lib/media/video-frames.server";
 import { enrollAssetInAutopilot } from "@/lib/protection/enroll-asset.server";
 import type { AssetProvenance } from "./provenance";
+import { modeBLog } from "./observability";
 
 type Client = any;
 
@@ -178,12 +179,32 @@ export async function ingestMediaBytes(opts: {
   }
 
   const effectivePhash = hashes?.phash ?? framePhash;
+  modeBLog({
+    event: "fingerprint",
+    outcome: effectivePhash ? "success" : "failure",
+    platform: provenance.source_platform,
+    importMethod: provenance.import_method,
+    userId,
+    assetId,
+    fingerprinted: Boolean(effectivePhash),
+    frames,
+  });
   const enrollment = await enrollAssetInAutopilot(supabase, userId, {
     id: assetId,
     name,
     phash: effectivePhash,
     dhash: hashes?.dhash ?? null,
     ahash: hashes?.ahash ?? null,
+  });
+
+  modeBLog({
+    event: enrollment.enrolled ? "autopilot_enrollment" : "authorization_gate",
+    outcome: enrollment.enrolled ? "success" : "info",
+    platform: provenance.source_platform,
+    importMethod: provenance.import_method,
+    userId,
+    assetId,
+    reason: enrollment.reason,
   });
 
   return {
