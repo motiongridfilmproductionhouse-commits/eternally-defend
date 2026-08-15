@@ -102,6 +102,11 @@ export function ReputationMonitor({
   const tone =
     clamped >= 80 ? "#2fa36b" : clamped >= 60 ? "#2f7fe0" : clamped >= 40 ? "#e5a52b" : "#e0492f";
 
+  // length of the drawn reputation arc — drives the draw-in animation
+  const arcLen = Math.round(Math.PI * 162 * (Math.max(clamped, 0.5) / 100));
+
+
+
   const ticks = useMemo(
     () =>
       Array.from({ length: 61 }, (_, i) => {
@@ -257,6 +262,8 @@ export function ReputationMonitor({
               return (
                 <line
                   key={i}
+                  className="rep-tick"
+                  style={{ animationDelay: `${i * 18}ms` }}
                   x1={inner.x}
                   y1={inner.y}
                   x2={outer.x}
@@ -272,6 +279,20 @@ export function ReputationMonitor({
             <path d={arcPath(cx, cy, 252, START, START + SWEEP)} fill="none" stroke="rgba(15,27,51,0.08)" />
             <path d={arcPath(cx, cy, 202, START, START + SWEEP)} fill="none" stroke="rgba(15,27,51,0.08)" />
 
+            {/* slow radar sweep across the dial */}
+            <g className="rep-sweep" opacity="0.5">
+              <line
+                x1={cx}
+                y1={cy}
+                x2={cx - 300}
+                y2={cy}
+                stroke={tone}
+                strokeWidth="2"
+                strokeLinecap="round"
+                opacity="0.35"
+              />
+            </g>
+
             {/* reputation progress arc */}
             <path
               d={arcPath(cx, cy, 162, START, START + SWEEP)}
@@ -281,12 +302,16 @@ export function ReputationMonitor({
               strokeLinecap="round"
             />
             <path
+              className="rep-arc"
+              style={{ ["--rep-arc-len" as string]: `${arcLen}` }}
+              strokeDasharray={arcLen}
               d={arcPath(cx, cy, 162, START, START + (SWEEP * Math.max(clamped, 0.5)) / 100)}
               fill="none"
               stroke="url(#repArc)"
               strokeWidth="12"
               strokeLinecap="round"
             />
+
 
             {/* inner dome — resolved share */}
             <path
@@ -319,18 +344,31 @@ export function ReputationMonitor({
             </text>
 
             {/* platform nodes */}
-            {nodes.map((n) => {
+            {nodes.map((n, i) => {
               const s = SEV[n.severity] ?? SEV.Info;
+              const hot = n.severity === "Critical" || n.severity === "High";
               return (
-                <g key={n.platform}>
+                <g key={n.platform} className="rep-node" style={{ animationDelay: `${i * 420}ms` }}>
                   <line
+                    className="rep-link"
                     x1={cx}
                     y1={cy}
                     x2={n.x}
                     y2={n.y}
                     stroke="rgba(15,27,51,0.12)"
-                    strokeDasharray="3 6"
                   />
+                  {hot && (
+                    <circle
+                      className="rep-node-halo"
+                      style={{ animationDelay: `${i * 300}ms` }}
+                      cx={n.x}
+                      cy={n.y}
+                      r="22"
+                      fill="none"
+                      stroke={s.tone}
+                      strokeWidth="2"
+                    />
+                  )}
                   <circle cx={n.x} cy={n.y} r="19" fill="#ffffff" stroke={s.tone} strokeWidth="2" />
                   <circle cx={n.x} cy={n.y} r="24" fill="none" stroke={s.soft} strokeWidth="4" />
                   <text
@@ -349,6 +387,7 @@ export function ReputationMonitor({
                 </g>
               );
             })}
+
           </svg>
         </div>
 
