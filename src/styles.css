@@ -588,3 +588,58 @@
     animation: none !important;
   }
 }
+
+/* --- Reputation & Threat Monitor motion --------------------------------- */
+@keyframes repArcDraw {
+  from { stroke-dashoffset: var(--rep-arc-len, 600); }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes repTickIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes repNodeFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes repNodeHalo {
+  0% { opacity: 0.55; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(1.45); }
+}
+@keyframes repDashFlow {
+  to { stroke-dashoffset: -36; }
+}
+@keyframes repSweep {
+  from { transform: rotate(-180deg); }
+  to { transform: rotate(0deg); }
+}
+
+.rep-arc {
+  animation: repArcDraw 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.rep-tick {
+  animation: repTickIn 0.5s ease-out both;
+}
+.rep-node {
+  animation: repNodeFloat 5s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.rep-node-halo {
+  animation: repNodeHalo 2.8s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.rep-link {
+  stroke-dasharray: 3 6;
+  animation: repDashFlow 2.4s linear infinite;
+}
+.rep-sweep {
+  animation: repSweep 6s linear infinite;
+  transform-origin: 460px 330px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rep-arc, .rep-tick, .rep-node, .rep-node-halo, .rep-link, .rep-sweep {
+    animation: none !important;
+  }
+}
