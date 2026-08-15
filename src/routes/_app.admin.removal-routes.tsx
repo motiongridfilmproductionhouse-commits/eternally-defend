@@ -249,6 +249,11 @@ function RemovalRoutesPage() {
                             {r.effectiveStatus}
                           </Badge>
                           <Badge variant="outline">{r.routeType}</Badge>
+                          {r.autoDiscovered && (
+                            <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/30">
+                              auto-discovered
+                            </Badge>
+                          )}
                           {r.isGuessedCandidate && (
                             <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
                               <AlertTriangle className="size-3 mr-1" /> guessed
@@ -257,8 +262,10 @@ function RemovalRoutesPage() {
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {r.recipientEmail ?? "no recipient"} · {r.verificationMethod ?? "no method"}
+                          {r.discoveredAt ? ` · found ${r.discoveredAt.slice(0, 16).replace("T", " ")}` : ""}
                           {r.reverifyDueAt ? ` · re-verify ${r.reverifyDueAt.slice(0, 10)}` : ""}
                         </p>
+
                       </div>
                       <Button size="sm" variant="outline" onClick={() => openRoute(r)}>
                         Inspect
@@ -290,6 +297,19 @@ function RemovalRoutesPage() {
                   {selected.routeType}
                 </p>
                 <p>Discovered via: {selected.verificationMethod ?? "—"}</p>
+                {selected.discoveredAt && (
+                  <p>Discovery timestamp: {selected.discoveredAt.slice(0, 19).replace("T", " ")}</p>
+                )}
+                {(selected.discoveryFindingId || selected.discoveryCaseId) && (
+                  <p>
+                    Association: finding {selected.discoveryFindingId ?? "—"} · case{" "}
+                    {selected.discoveryCaseId ?? "—"}
+                    {selected.discoverySourceType ? ` · ${selected.discoverySourceType}` : ""}
+                  </p>
+                )}
+                {selected.discoveryFindingUrl && (
+                  <p className="truncate">Finding URL: {selected.discoveryFindingUrl}</p>
+                )}
                 <p>Last checked: {selected.lastCheckedAt?.slice(0, 19).replace("T", " ") ?? "—"}</p>
                 {selected.authoritativeSourceUrl && (
                   <a
@@ -301,6 +321,20 @@ function RemovalRoutesPage() {
                     <ExternalLink className="size-3" /> current source
                   </a>
                 )}
+                {selected.evidenceSnapshot?.html_hash && (
+                  <p>Captured page hash: {selected.evidenceSnapshot.html_hash}</p>
+                )}
+                {(selected.evidenceSnapshot?.pages_inspected?.length ?? 0) > 0 && (
+                  <p className="truncate">
+                    Pages inspected: {selected.evidenceSnapshot.pages_inspected!.join(", ")}
+                  </p>
+                )}
+                {selected.evidenceSnapshot?.excerpt && (
+                  <p className="text-muted-foreground">
+                    Captured evidence: “{String(selected.evidenceSnapshot.excerpt).slice(0, 300)}”
+                  </p>
+                )}
+
                 {selected.rejectedReason && <p className="text-rose-400">Rejected: {selected.rejectedReason}</p>}
               </div>
 

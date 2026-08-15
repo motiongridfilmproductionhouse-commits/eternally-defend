@@ -3418,6 +3418,11 @@ export type Database = {
           contact_type: string | null
           copyright_email: string | null
           created_at: string
+          discovered_at: string | null
+          discovery_case_id: string | null
+          discovery_finding_id: string | null
+          discovery_finding_url: string | null
+          discovery_source_type: string | null
           domain: string
           evidence_snapshot: Json
           hosting_provider: string | null
@@ -3446,6 +3451,11 @@ export type Database = {
           contact_type?: string | null
           copyright_email?: string | null
           created_at?: string
+          discovered_at?: string | null
+          discovery_case_id?: string | null
+          discovery_finding_id?: string | null
+          discovery_finding_url?: string | null
+          discovery_source_type?: string | null
           domain: string
           evidence_snapshot?: Json
           hosting_provider?: string | null
@@ -3474,6 +3484,11 @@ export type Database = {
           contact_type?: string | null
           copyright_email?: string | null
           created_at?: string
+          discovered_at?: string | null
+          discovery_case_id?: string | null
+          discovery_finding_id?: string | null
+          discovery_finding_url?: string | null
+          discovery_source_type?: string | null
           domain?: string
           evidence_snapshot?: Json
           hosting_provider?: string | null

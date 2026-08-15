@@ -575,6 +575,25 @@ export async function ingestCandidate(
     stats.blocking_reasons.push(blockingReason);
   }
 
+  // Removal-route contact discovery: inspect the independent host's OWN
+  // published legal/contact/copyright pages and propose a candidate recipient
+  // for operator review. Always DISCOVERED_UNVERIFIED, never sendable.
+  try {
+    const { discoverAndRecordRouteCandidate } = await import(
+      "@/lib/enforcement/contact-discovery.server"
+    );
+    await discoverAndRecordRouteCandidate({
+      supabase,
+      targetUrl: candidate.url,
+      findingId: candidate.finding_id ?? null,
+      caseId,
+      sourceType: candidate.source_type ?? null,
+    });
+  } catch (err) {
+    console.warn("[protection-autopilot] route contact discovery failed", err);
+  }
+
+
   await supabase.from("protection_findings_seen").insert({
     user_id: target.user_id,
     dedupe_key: dedupeKey,
