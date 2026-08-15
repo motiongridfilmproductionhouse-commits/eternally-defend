@@ -422,7 +422,7 @@ export function ReputationMonitor({
                 return (
                   <div
                     key={i}
-                    className="flex items-start gap-2.5 rounded-xl px-3 py-2.5"
+                    className={`flex items-start gap-2.5 rounded-xl px-3 py-2.5 ${ev.type === "threat" ? "alert-edge-soft" : ""}`}
                     style={{
                       background: "#ffffff",
                       border: "1px solid rgba(15,27,51,0.06)",

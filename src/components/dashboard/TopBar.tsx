@@ -99,7 +99,7 @@ function NotificationsBell() {
     >
       <Bell className="size-4 text-foreground/70" />
       {unread > 0 && (
-        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[10px] font-bold grid place-items-center">
+        <span className="alert-edge absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[10px] font-bold grid place-items-center">
           {unread > 99 ? "99+" : unread}
         </span>
       )}
@@ -155,7 +155,8 @@ function StatusPill({
     </>
   );
 
-  const cls = `inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-semibold ${c.bg} ${c.color}`;
+  const alertEdge = level === "critical" || level === "at-risk" || items.length > 0 ? "alert-edge" : "";
+  const cls = `inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-semibold ${c.bg} ${c.color} ${alertEdge}`;
 
   if (items.length === 0) {
     return (
