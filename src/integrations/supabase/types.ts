@@ -7443,6 +7443,57 @@ export type Database = {
         }
         Relationships: []
       }
+      social_accounts: {
+        Row: {
+          connected_at: string | null
+          created_at: string
+          handle: string | null
+          id: string
+          last_sync_at: string | null
+          mode: string
+          notes: Json
+          platform: string
+          platform_user_id: string | null
+          profile_url: string
+          sync_cursor: string | null
+          token_ref: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          connected_at?: string | null
+          created_at?: string
+          handle?: string | null
+          id?: string
+          last_sync_at?: string | null
+          mode?: string
+          notes?: Json
+          platform?: string
+          platform_user_id?: string | null
+          profile_url: string
+          sync_cursor?: string | null
+          token_ref?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          connected_at?: string | null
+          created_at?: string
+          handle?: string | null
+          id?: string
+          last_sync_at?: string | null
+          mode?: string
+          notes?: Json
+          platform?: string
+          platform_user_id?: string | null
+          profile_url?: string
+          sync_cursor?: string | null
+          token_ref?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       speaker_segments: {
         Row: {
           confidence: number | null
