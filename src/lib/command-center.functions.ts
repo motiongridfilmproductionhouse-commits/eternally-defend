@@ -217,8 +217,11 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       const key = sev[0]?.toUpperCase() + sev.slice(1).toLowerCase();
       if (bySev[key] !== undefined) bySev[key]++;
     }
-    const critical = bySev.Critical;
-    const high = bySev.High;
+    // Prefer the full-set aggregates over the capped detail payload.
+    const critical = severityCounts.Critical;
+    const high = severityCounts.High;
+    const totalFindings = totalCountRes.count ?? aggRows.length ?? hits.length;
+    const newToday = todayCountRes.count ?? hits.filter((h) => (h.first_seen_at as string) >= since24h).length;
 
     // Threat level
     let threatLevel: "Safe" | "Low" | "Moderate" | "High" | "Critical" = "Safe";
