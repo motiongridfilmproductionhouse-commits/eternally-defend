@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getProviderStatus } from "@/lib/mm/mm.functions";
+import { getProviderCatalog } from "@/lib/mm/provider-catalog.functions";
 import { testAllMultimediaProviders } from "@/lib/mm/health.functions";
 import { runRetentionCleanup, getRetentionPreview } from "@/lib/mm/retention.functions";
 import { PageCard } from "@/components/dashboard/PageCard";
