@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
+  Waypoints,
   LayoutDashboard,
   Package,
   Radar,
@@ -87,6 +88,8 @@ const adminSystemNav: NavItem[] = [
   },
   { icon: HeartPulse, label: "MM Health", to: "/admin/multimedia-health", badge: "ADMIN" },
   { icon: PlugZap, label: "Provider Activation", to: "/admin/provider-activation", badge: "ADMIN" },
+  { icon: Waypoints, label: "Removal Routes", to: "/admin/removal-routes", badge: "ADMIN" },
+
 ];
 
 export function Sidebar() {

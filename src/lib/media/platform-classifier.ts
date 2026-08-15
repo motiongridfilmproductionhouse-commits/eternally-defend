@@ -128,7 +128,17 @@ const CDN_PROXY = [
   "b-cdn.net",
   "bunnycdn.com",
   "cf-ipfs.com",
+  "cloudflare.net",
+  "cloudflare.com",
+  "cdn77.org",
+  "stackpathdns.com",
+  "azureedge.net",
+  "edgesuite.net",
+  "edgekey.net",
+  "llnwd.net",
+  "kxcdn.com",
 ];
+
 
 const SEARCH_SURFACES = [
   "google.com",
