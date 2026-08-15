@@ -429,13 +429,8 @@ export function ThreatTerrainPanel({
             )}
           </div>
         </div>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] font-mono text-white/55">
-          <span>SURFACES · {clusters.length}</span>
-          <span>FINDINGS · {totalFindings}</span>
-          <span className="text-amber-300/80">HIGH · {highFindings}</span>
-          <span className="text-red-300/80">CRITICAL · {criticalFindings}</span>
-        </div>
       </div>
+
 
       {/* hover tooltip */}
       {hover && (
