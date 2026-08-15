@@ -3898,6 +3898,174 @@ export type Database = {
           },
         ]
       }
+      enforcement_presend_audit: {
+        Row: {
+          asset_approval_id: string | null
+          asset_approval_reference: string | null
+          authoritative_source_url: string | null
+          case_id: string | null
+          client_authorization_id: string | null
+          client_authorization_reference: string | null
+          created_at: string
+          delivery_events: Json
+          enforcement_ground: string | null
+          enforcement_request_id: string | null
+          evidence_reference: string | null
+          evidence_snapshot_ref: Json
+          failed_conditions: Json
+          finding_id: string | null
+          gate_result: string
+          gate_snapshot: Json
+          id: string
+          idempotency_key: string
+          infringing_host: string | null
+          infringing_url: string
+          live_enabled: boolean
+          notice_hash: string | null
+          notice_subject: string | null
+          operator_approved_by: string | null
+          protected_asset_id: string | null
+          provider_message_id: string | null
+          recipient: string | null
+          recipient_verification_method: string | null
+          recipient_verified_at: string | null
+          reply_to: string | null
+          reply_to_verified: boolean
+          submission_status: string | null
+          submitted_at: string | null
+          test_mode: boolean
+          transport: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_approval_id?: string | null
+          asset_approval_reference?: string | null
+          authoritative_source_url?: string | null
+          case_id?: string | null
+          client_authorization_id?: string | null
+          client_authorization_reference?: string | null
+          created_at?: string
+          delivery_events?: Json
+          enforcement_ground?: string | null
+          enforcement_request_id?: string | null
+          evidence_reference?: string | null
+          evidence_snapshot_ref?: Json
+          failed_conditions?: Json
+          finding_id?: string | null
+          gate_result: string
+          gate_snapshot?: Json
+          id?: string
+          idempotency_key: string
+          infringing_host?: string | null
+          infringing_url: string
+          live_enabled?: boolean
+          notice_hash?: string | null
+          notice_subject?: string | null
+          operator_approved_by?: string | null
+          protected_asset_id?: string | null
+          provider_message_id?: string | null
+          recipient?: string | null
+          recipient_verification_method?: string | null
+          recipient_verified_at?: string | null
+          reply_to?: string | null
+          reply_to_verified?: boolean
+          submission_status?: string | null
+          submitted_at?: string | null
+          test_mode?: boolean
+          transport?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_approval_id?: string | null
+          asset_approval_reference?: string | null
+          authoritative_source_url?: string | null
+          case_id?: string | null
+          client_authorization_id?: string | null
+          client_authorization_reference?: string | null
+          created_at?: string
+          delivery_events?: Json
+          enforcement_ground?: string | null
+          enforcement_request_id?: string | null
+          evidence_reference?: string | null
+          evidence_snapshot_ref?: Json
+          failed_conditions?: Json
+          finding_id?: string | null
+          gate_result?: string
+          gate_snapshot?: Json
+          id?: string
+          idempotency_key?: string
+          infringing_host?: string | null
+          infringing_url?: string
+          live_enabled?: boolean
+          notice_hash?: string | null
+          notice_subject?: string | null
+          operator_approved_by?: string | null
+          protected_asset_id?: string | null
+          provider_message_id?: string | null
+          recipient?: string | null
+          recipient_verification_method?: string | null
+          recipient_verified_at?: string | null
+          reply_to?: string | null
+          reply_to_verified?: boolean
+          submission_status?: string | null
+          submitted_at?: string | null
+          test_mode?: boolean
+          transport?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      enforcement_production_approvals: {
+        Row: {
+          active: boolean
+          approval_reference: string
+          approved_at: string
+          approved_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          protected_asset_id: string | null
+          revoked_at: string | null
+          rights_evidence_ref: string | null
+          scope: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          approval_reference: string
+          approved_at?: string
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          protected_asset_id?: string | null
+          revoked_at?: string | null
+          rights_evidence_ref?: string | null
+          scope: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          approval_reference?: string
+          approved_at?: string
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          protected_asset_id?: string | null
+          revoked_at?: string | null
+          rights_evidence_ref?: string | null
+          scope?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       enforcement_provider_events: {
         Row: {
           case_id: string | null
