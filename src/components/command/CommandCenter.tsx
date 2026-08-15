@@ -29,6 +29,8 @@ import {
 import { Link } from "@tanstack/react-router";
 import { getCommandCenterStats } from "@/lib/command-center.functions";
 import { ReputationMonitor } from "@/components/command/ReputationMonitor";
+import { ThreatTerrainPanel } from "@/components/command/ThreatTerrainPanel";
+
 import { DirectionalRadar, HudSweepRadar } from "@/components/command/DualRadars";
 import { getFaceProtectionStats } from "@/lib/face-scan.functions";
 import { getCompanyProtectionStats } from "@/lib/company/protection-stats.functions";
@@ -146,7 +148,15 @@ export function CommandCenter() {
         feed={d.timeline}
       />
 
+      <ThreatTerrainPanel
+        totalFindings={d.overview.totalFindings}
+        criticalFindings={d.overview.criticalFindings}
+        threatLevel={String(d.top.threatLevel ?? "")}
+        sources={d.radar.map((r) => ({ platform: r.platform, severity: r.severity }))}
+      />
+
       <TopIntelBar d={d} />
+
 
       <FaceProtectionRow />
 
