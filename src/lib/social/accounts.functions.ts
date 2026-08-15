@@ -9,6 +9,7 @@ import {
   type SocialAccountMode,
   type SocialAssetPlatform,
 } from "./provenance";
+import { modeBLog } from "./observability";
 
 export interface SocialAccountRow {
   id: string;
@@ -66,7 +67,17 @@ export const addPublicReferenceAccount = createServerFn({ method: "POST" })
       )
       .select("id,platform,profile_url,handle,mode,connected_at,last_sync_at,created_at")
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) {
+      modeBLog({ event: "profile_registration", outcome: "failure", platform, userId: context.userId, reason: "insert_failed" });
+      throw new Error(error.message);
+    }
+    modeBLog({
+      event: "public_reference_created",
+      outcome: "success",
+      platform,
+      userId: context.userId,
+      socialAccountId: (row as SocialAccountRow | null)?.id ?? null,
+    });
 
     // Mirror into the onboarding social_profiles blob so the existing
     // authorized-subject allowlist keeps scoping scans to this account.

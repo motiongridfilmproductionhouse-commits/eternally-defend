@@ -38,6 +38,8 @@ export const prepareSocialMediaUpload = createServerFn({ method: "POST" })
     const { getSignedPutUrl } = await import("@/lib/aws/s3.server");
     const safeName = data.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
     const key = `clients/${context.userId}/assets/social/upload-${crypto.randomUUID()}-${safeName}`;
+    const { modeBLog } = await import("./observability");
+    modeBLog({ event: "manual_upload_prepared", outcome: "success", userId: context.userId, importMethod: "MANUAL_UPLOAD" });
     return { key, uploadUrl: await getSignedPutUrl(key, data.contentType, 600) };
   });
 
@@ -88,6 +90,18 @@ export const protectFromUpload = createServerFn({ method: "POST" })
       bytes,
       contentType: data.contentType,
       provenance,
+    });
+    const { modeBLog, classifyReason } = await import("./observability");
+    modeBLog({
+      event: result.status === "duplicate" ? "dedupe_hit" : "upload_ingestion",
+      outcome: result.status === "skipped" ? classifyReason(result.reason) : "success",
+      platform: provenance.source_platform,
+      importMethod: "MANUAL_UPLOAD",
+      reason: result.reason,
+      userId: context.userId,
+      assetId: result.asset_id,
+      fingerprinted: result.fingerprinted,
+      frames: result.frames,
     });
     return { status: result.status, result };
   });
