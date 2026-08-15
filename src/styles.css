@@ -715,13 +715,41 @@
   animation: ttPing 3s ease-out infinite;
 }
 
+@keyframes ttFlow {
+  to {
+    stroke-dashoffset: -140;
+  }
+}
+@keyframes ttRegion {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.03);
+  }
+}
+.tt-flow {
+  animation: ttFlow 5s linear infinite;
+}
+.tt-region {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ttRegion 6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tt-drift,
   .tt-sweep,
   .tt-orbit,
   .tt-blip,
   .tt-ping,
+  .tt-flow,
+  .tt-region,
   .tt-line {
     animation: none !important;
   }
 }
+
