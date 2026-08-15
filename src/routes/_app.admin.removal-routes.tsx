@@ -59,13 +59,17 @@ export const Route = createFileRoute("/_app/admin/removal-routes")({
   ),
 });
 
+/**
+ * Email-eligible verification methods only. Hosting-provider and registrar
+ * abuse channels are deliberately absent: they route to manual escalation and
+ * can never be promoted to an automated email recipient.
+ */
 const METHODS = [
   "PUBLISHED_DMCA_PAGE",
   "PUBLISHED_LEGAL_CONTACT",
-  "HOSTING_PROVIDER_ABUSE_PAGE",
-  "REGISTRAR_ABUSE_RECORD",
   "OFFICIAL_CORRESPONDENCE",
 ];
+
 
 const BUCKETS = [
   { key: "DISCOVERED_UNVERIFIED", label: "Discovered / Unverified" },
