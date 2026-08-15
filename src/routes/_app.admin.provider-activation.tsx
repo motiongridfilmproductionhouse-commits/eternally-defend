@@ -197,20 +197,3 @@ function ProviderActivationPage() {
     </div>
   );
 }
-
-function credentialPresent(name: string, cfg: any): boolean {
-  switch (name) {
-    case "FACT_CHECK_API_KEY":
-      return !!cfg.hasFactCheckKey;
-    case "GOOGLE_API_KEY":
-      return !!cfg.hasTranslationKey;
-    case "GOOGLE_APPLICATION_CREDENTIALS_JSON":
-      return !!cfg.hasServiceAccount;
-    case "GOOGLE_CLOUD_PROJECT_ID":
-      return !!cfg.projectId;
-    case "GOOGLE_CLOUD_STORAGE_BUCKET":
-      return !!cfg.bucket;
-    default:
-      return false;
-  }
-}
