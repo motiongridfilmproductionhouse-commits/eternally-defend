@@ -382,13 +382,27 @@ async function discoverForIdentity(
   target: any,
   stats: RunStats,
 ): Promise<AutopilotCandidate[]> {
+  // Registered official profiles are trusted reference signals: they sharpen
+  // impersonation comparison without ever being scanned as infringements.
+  const { data: socialAccounts } = await supabase
+    .from("social_accounts")
+    .select("handle")
+    .eq("user_id", target.user_id);
+  const handles = [
+    ...new Set(
+      ((socialAccounts ?? []) as any[])
+        .map((row) => (row.handle ?? "").trim())
+        .filter((handle: string) => handle.length > 1),
+    ),
+  ].slice(0, 20);
+
   const { data: scan, error } = await supabase
     .from("deepfake_scans")
     .insert({
       user_id: target.user_id,
       target_name: target.label,
       aliases: [],
-      handles: [],
+      handles,
       status: "running",
       scan_run_token: crypto.randomUUID(),
       heartbeat_at: new Date().toISOString(),
