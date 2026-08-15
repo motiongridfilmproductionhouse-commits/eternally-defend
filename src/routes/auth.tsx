@@ -190,21 +190,8 @@ function AuthPage() {
             </p>
           </div>
 
-          {mode === "signin" ? (
-            <>
-              <Button type="button" variant="outline" className="w-full h-11" onClick={handleGoogle}>
-                <GoogleIcon className="size-4 mr-2" />
-                Continue with Google
-              </Button>
+          {null}
 
-              <div className="relative text-xs text-muted-foreground text-center">
-                <span className="px-3 bg-background relative z-10 tracking-[0.18em] font-medium">
-                  OR
-                </span>
-                <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
-              </div>
-            </>
-          ) : null}
 
           {mode === "signup" && !inviteAccepted ? (
             <form onSubmit={handleInviteSubmit} className="space-y-3">
