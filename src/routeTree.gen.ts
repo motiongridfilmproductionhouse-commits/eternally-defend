@@ -53,6 +53,7 @@ import { Route as PartnerPartnerClientsRouteImport } from './routes/_partner.par
 import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes/_app.sensitive-protection.removal-cases'
 import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
 import { Route as AppAdminSensitiveProtectionRouteImport } from './routes/_app.admin.sensitive-protection'
+import { Route as AppAdminRemovalRoutesRouteImport } from './routes/_app.admin.removal-routes'
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
 import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.admin.onboarding-reviews'
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
@@ -297,6 +298,11 @@ const AppAdminSensitiveProtectionRoute =
     path: '/admin/sensitive-protection',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAdminRemovalRoutesRoute = AppAdminRemovalRoutesRouteImport.update({
+  id: '/admin/removal-routes',
+  path: '/admin/removal-routes',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminProviderActivationRoute =
   AppAdminProviderActivationRouteImport.update({
     id: '/admin/provider-activation',
@@ -445,6 +451,7 @@ export interface FileRoutesByFullPath {
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
+  '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
@@ -507,6 +514,7 @@ export interface FileRoutesByTo {
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
+  '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
@@ -573,6 +581,7 @@ export interface FileRoutesById {
   '/_app/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/_app/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
   '/_app/admin/provider-activation': typeof AppAdminProviderActivationRoute
+  '/_app/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/_app/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
   '/_app/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/_app/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
@@ -638,6 +647,7 @@ export interface FileRouteTypes {
     | '/admin/multimedia-health'
     | '/admin/onboarding-reviews'
     | '/admin/provider-activation'
+    | '/admin/removal-routes'
     | '/admin/sensitive-protection'
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
@@ -700,6 +710,7 @@ export interface FileRouteTypes {
     | '/admin/multimedia-health'
     | '/admin/onboarding-reviews'
     | '/admin/provider-activation'
+    | '/admin/removal-routes'
     | '/admin/sensitive-protection'
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
@@ -765,6 +776,7 @@ export interface FileRouteTypes {
     | '/_app/admin/multimedia-health'
     | '/_app/admin/onboarding-reviews'
     | '/_app/admin/provider-activation'
+    | '/_app/admin/removal-routes'
     | '/_app/admin/sensitive-protection'
     | '/_app/sensitive-protection/emergency'
     | '/_app/sensitive-protection/removal-cases'
@@ -1134,6 +1146,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminSensitiveProtectionRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/removal-routes': {
+      id: '/_app/admin/removal-routes'
+      path: '/admin/removal-routes'
+      fullPath: '/admin/removal-routes'
+      preLoaderRoute: typeof AppAdminRemovalRoutesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/provider-activation': {
       id: '/_app/admin/provider-activation'
       path: '/admin/provider-activation'
@@ -1295,6 +1314,7 @@ interface AppRouteChildren {
   AppAdminMultimediaHealthRoute: typeof AppAdminMultimediaHealthRoute
   AppAdminOnboardingReviewsRoute: typeof AppAdminOnboardingReviewsRoute
   AppAdminProviderActivationRoute: typeof AppAdminProviderActivationRoute
+  AppAdminRemovalRoutesRoute: typeof AppAdminRemovalRoutesRoute
   AppAdminSensitiveProtectionRoute: typeof AppAdminSensitiveProtectionRoute
   AppSensitiveProtectionEmergencyRoute: typeof AppSensitiveProtectionEmergencyRoute
   AppSensitiveProtectionRemovalCasesRoute: typeof AppSensitiveProtectionRemovalCasesRoute
@@ -1328,6 +1348,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminMultimediaHealthRoute: AppAdminMultimediaHealthRoute,
   AppAdminOnboardingReviewsRoute: AppAdminOnboardingReviewsRoute,
   AppAdminProviderActivationRoute: AppAdminProviderActivationRoute,
+  AppAdminRemovalRoutesRoute: AppAdminRemovalRoutesRoute,
   AppAdminSensitiveProtectionRoute: AppAdminSensitiveProtectionRoute,
   AppSensitiveProtectionEmergencyRoute: AppSensitiveProtectionEmergencyRoute,
   AppSensitiveProtectionRemovalCasesRoute:

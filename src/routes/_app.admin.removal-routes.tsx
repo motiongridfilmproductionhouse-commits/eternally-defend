@@ -199,7 +199,7 @@ function RemovalRoutesPage() {
         </Button>
       </div>
 
-      <PageCard title="Route classifier" description="Check how a target URL would be routed — read-only.">
+      <PageCard title="Route classifier" sub="Check how a target URL would be routed — read-only.">
         <div className="flex flex-wrap gap-2">
           <Input
             placeholder="https://example.com/page"
