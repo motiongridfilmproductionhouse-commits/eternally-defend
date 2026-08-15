@@ -259,7 +259,11 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
             `Protected face match · ${category.replace(/_/g, " ").toLowerCase()}`,
           severity,
           threatScore: Number(hit?.threat_score ?? SEV_WEIGHT[severity] * 10),
+          riskScore: Number(hit?.risk_score ?? SEV_WEIGHT[severity] * 10),
+          riskType: (hit?.risk_type as string) || category.replace(/_/g, " ").toLowerCase(),
+          detectedAt: (m.created_at as string) || null,
           reach: Number(hit?.reach ?? 0),
+
           permalink: (hit?.permalink as string) || m.source_url || null,
           thumbnail: (hit?.thumbnail_url as string) || null,
         };
