@@ -76,11 +76,13 @@ export const addPublicReferenceAccount = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
     const blob = (profile?.social_profiles ?? {}) as Record<string, unknown>;
-    const links = Array.isArray(blob.links) ? (blob.links as Array<Record<string, unknown>>) : [];
+    const links = Array.isArray(blob.links)
+      ? (blob.links as Array<{ platform?: string; url?: string }>)
+      : [];
     if (!links.some((link) => link.url === profileUrl)) {
       await context.supabase
         .from("client_profiles")
-        .update({ social_profiles: { ...blob, links: [...links, { platform, url: profileUrl }] } })
+        .update({ social_profiles: { ...blob, links: [...links, { platform, url: profileUrl }] } as never })
         .eq("user_id", context.userId);
     }
 
