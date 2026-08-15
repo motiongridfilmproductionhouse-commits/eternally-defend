@@ -41,7 +41,7 @@ export interface ModeBLogFields {
   userId?: string | null;
   assetId?: string | null;
   socialAccountId?: string | null;
-  importMethod?: "PUBLIC_LINK" | "MANUAL_UPLOAD" | null;
+  importMethod?: "PUBLIC_LINK" | "MANUAL_UPLOAD" | "AUTHORIZED_API" | null;
   fingerprinted?: boolean | null;
   frames?: number | null;
 }
