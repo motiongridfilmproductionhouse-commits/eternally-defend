@@ -102,14 +102,15 @@ export function decidePlatformRoute(targetUrl: string): PlatformRouteDecision {
     return {
       ...base,
       routeType: "HOST_ORIGIN_DISCOVERY_REQUIRED",
-      connectorId: null,
+      connectorId: "manual_escalation_connector",
       requiresHuman: true,
       emailEligible: false,
-      preparePackage: false,
+      preparePackage: true,
       reason:
-        "CDN/proxy host only mirrors the media. The origin host must be established before any notice is addressed.",
+        "CDN/proxy/registrar host only fronts the media. Eterna prepares a manual escalation package for an operator; a CDN or registrar abuse address is never used as an automated email recipient.",
     };
   }
+
 
   if (c.kind === "youtube") {
     return {
@@ -190,16 +191,45 @@ export const NON_AUTHORITATIVE_METHODS = new Set([
   "ASSUMED",
 ]);
 
-/** Verification methods accepted as authoritative operator evidence. */
+/**
+ * Verification methods accepted as authoritative operator evidence for an
+ * AUTOMATED EMAIL route. Pilot policy: the recipient must be published by the
+ * infringing host itself, on its own official DMCA/copyright/legal/contact page.
+ */
 export const AUTHORITATIVE_METHODS = new Set([
   "PUBLISHED_DMCA_PAGE",
   "PUBLISHED_LEGAL_CONTACT",
-  "HOSTING_PROVIDER_ABUSE_PAGE",
-  "REGISTRAR_ABUSE_RECORD",
   "PLATFORM_POLICY_DOCUMENTED",
   "OFFICIAL_CORRESPONDENCE",
   "CONTROLLED_TEST_FIXTURE",
 ]);
+
+/**
+ * Authoritative for the case RECORD, but never usable as an automated email
+ * recipient. Hosting-provider and registrar abuse channels belong to the manual
+ * escalation workflow (HUMAN_ACTION_REQUIRED), not to the email pilot.
+ */
+export const MANUAL_ESCALATION_ONLY_METHODS = new Set([
+  "HOSTING_PROVIDER_ABUSE_PAGE",
+  "REGISTRAR_ABUSE_RECORD",
+]);
+
+/**
+ * True when the recipient mailbox is published on the infringing host's own
+ * domain (exact domain, a subdomain of it, or its registrable parent).
+ * Third-party mailboxes (CDN, registrar, hosting provider, agents) are refused
+ * for automated email.
+ */
+export function isSameOrganisationRecipient(email: string, domain: string): boolean {
+  const host = (email ?? "").trim().toLowerCase().split("@")[1] ?? "";
+  const d = (domain ?? "").trim().toLowerCase().replace(/^www\./, "");
+  if (!host || !d) return false;
+  if (host === d || host.endsWith(`.${d}`)) return true;
+  // Allow the registrable parent of the infringing subdomain (news.site.com -> site.com).
+  const parent = d.split(".").slice(-2).join(".");
+  return parent.includes(".") && (host === parent || host.endsWith(`.${parent}`));
+}
+
 
 export function isGuessedAddress(email: string, domain?: string): boolean {
   const e = (email ?? "").trim().toLowerCase();
@@ -267,6 +297,10 @@ export function evaluateVerification(input: VerificationEvidenceInput): Verifica
     issues.push(
       `Verification method ${method} is not authoritative. A guessed or system-derived address can never be promoted to VERIFIED.`,
     );
+  } else if (MANUAL_ESCALATION_ONLY_METHODS.has(method)) {
+    issues.push(
+      `Verification method ${method} identifies a hosting-provider/registrar abuse channel. Those belong to the manual escalation workflow and can never become an automated email recipient.`,
+    );
   } else if (!AUTHORITATIVE_METHODS.has(method)) {
     issues.push(`Verification method ${method} is not a recognised authoritative source type.`);
   }
@@ -275,6 +309,33 @@ export function evaluateVerification(input: VerificationEvidenceInput): Verifica
   if (!/^https?:\/\/.+\..+/i.test(src)) {
     issues.push("An authoritative source URL (published DMCA/legal/abuse page) is required.");
   }
+
+  // Pilot rule: the recipient must be published by the infringing host itself.
+  if (
+    email.includes("@") &&
+    method !== "CONTROLLED_TEST_FIXTURE" &&
+    !isSameOrganisationRecipient(email, input.domain)
+  ) {
+    issues.push(
+      `Recipient ${email} is not published on ${input.domain}. Third-party mailboxes (CDN, registrar, hosting provider, agent) are not eligible for automated email; use the manual escalation package instead.`,
+    );
+  }
+
+  // The authoritative source page must itself live on the infringing host.
+  if (src && method !== "CONTROLLED_TEST_FIXTURE") {
+    let srcHost = "";
+    try {
+      srcHost = new URL(src).hostname.toLowerCase();
+    } catch {
+      srcHost = "";
+    }
+    if (srcHost && !isSameOrganisationRecipient(`x@${srcHost}`, input.domain)) {
+      issues.push(
+        `Authoritative source URL must be the host's own official legal/DMCA/contact page on ${input.domain} (got ${srcHost}).`,
+      );
+    }
+  }
+
 
   const snapshot = input.evidenceSnapshot ?? {};
   const hasSnapshot =

@@ -156,3 +156,71 @@ describe("effective route state", () => {
     ).toBe(false);
   });
 });
+
+describe("live-pilot recipient policy", () => {
+  const base = {
+    domain: "example-blog.com",
+    routeType: "EMAIL_DMCA" as const,
+    authoritativeSourceUrl: "https://example-blog.com/dmca",
+    evidenceSnapshot: { excerpt: "Send DMCA notices to dmca@example-blog.com" },
+    actorIsOperator: true,
+  };
+
+  it("verifies a recipient published on the host's own legal page", () => {
+    const d = evaluateVerification({
+      ...base,
+      recipientEmail: "dmca@example-blog.com",
+      verificationMethod: "PUBLISHED_DMCA_PAGE",
+    });
+    expect(d.canVerify, d.issues.join("; ")).toBe(true);
+  });
+
+  it("refuses a hosting-provider abuse channel as an email recipient", () => {
+    const d = evaluateVerification({
+      ...base,
+      recipientEmail: "abuse@cloudflare.com",
+      authoritativeSourceUrl: "https://www.cloudflare.com/trust-hub/abuse-approach/",
+      verificationMethod: "HOSTING_PROVIDER_ABUSE_PAGE",
+    });
+    expect(d.canVerify).toBe(false);
+    expect(d.issues.join(" ")).toMatch(/manual escalation/i);
+  });
+
+  it("refuses a registrar abuse record as an email recipient", () => {
+    const d = evaluateVerification({
+      ...base,
+      recipientEmail: "abuse@registrar.example",
+      verificationMethod: "REGISTRAR_ABUSE_RECORD",
+    });
+    expect(d.canVerify).toBe(false);
+  });
+
+  it("refuses a third-party mailbox even with a published-page method", () => {
+    const d = evaluateVerification({
+      ...base,
+      recipientEmail: "dmca@some-agent.io",
+      verificationMethod: "PUBLISHED_DMCA_PAGE",
+    });
+    expect(d.canVerify).toBe(false);
+    expect(d.issues.join(" ")).toMatch(/not published on example-blog\.com/i);
+  });
+
+  it("refuses a source URL hosted off the infringing domain", () => {
+    const d = evaluateVerification({
+      ...base,
+      recipientEmail: "dmca@example-blog.com",
+      authoritativeSourceUrl: "https://third-party-directory.com/example-blog",
+      verificationMethod: "PUBLISHED_DMCA_PAGE",
+    });
+    expect(d.canVerify).toBe(false);
+    expect(d.issues.join(" ")).toMatch(/own official legal/i);
+  });
+
+  it("prepares a manual escalation package for CDN/registrar infrastructure hosts", () => {
+    const d = decidePlatformRoute("https://cloudflare.com/abuse-target");
+    expect(d.emailEligible).toBe(false);
+    expect(d.requiresHuman).toBe(true);
+    expect(d.preparePackage).toBe(true);
+    expect(d.routeType).toBe("HOST_ORIGIN_DISCOVERY_REQUIRED");
+  });
+});
