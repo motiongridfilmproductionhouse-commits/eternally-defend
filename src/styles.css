@@ -755,125 +755,33 @@
 
 
 /* ── Red alert animated edges ───────────────────────────────────────── */
-@keyframes alertEdgeSpin {
-  to {
-    transform: rotate(1turn);
-  }
-}
 @keyframes alertEdgePulse {
   0%,
   100% {
     box-shadow:
-      0 0 0 0 rgba(225, 45, 66, 0.35),
-      0 8px 24px -16px rgba(225, 45, 66, 0.6);
+      0 0 0 0 rgba(225, 45, 66, 0.32),
+      0 8px 24px -18px rgba(225, 45, 66, 0.5);
+    border-color: rgba(225, 45, 66, 0.35);
   }
   50% {
     box-shadow:
-      0 0 0 5px rgba(225, 45, 66, 0),
-      0 8px 24px -12px rgba(225, 45, 66, 0.85);
-  }
-}
-@keyframes alertEdgeSweep {
-  0% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(220%);
+      0 0 0 4px rgba(225, 45, 66, 0),
+      0 8px 24px -12px rgba(225, 45, 66, 0.75);
+    border-color: rgba(225, 45, 66, 0.85);
   }
 }
 
-/* Animated running border + halo for anything flagged red */
+/* Pulsing red edge for anything flagged red */
 .alert-edge {
-  position: relative;
-  isolation: isolate;
   animation: alertEdgePulse 2.4s ease-in-out infinite;
 }
-.alert-edge::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from 0deg,
-    rgba(225, 45, 66, 0) 0deg,
-    rgba(225, 45, 66, 0) 210deg,
-    rgba(225, 45, 66, 0.95) 300deg,
-    rgba(255, 138, 128, 1) 340deg,
-    rgba(225, 45, 66, 0) 360deg
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  animation: alertEdgeSpin 3.2s linear infinite;
-  pointer-events: none;
-  z-index: 1;
-}
-/* Light scan sweep across the surface */
-.alert-edge::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  overflow: hidden;
-  background: linear-gradient(
-    100deg,
-    transparent 35%,
-    rgba(225, 45, 66, 0.14) 50%,
-    transparent 65%
-  );
-  animation: alertEdgeSweep 3.6s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-.alert-edge > * {
-  position: relative;
-  z-index: 2;
-}
-
-/* Subtle variant: border only, no sweep (for dense lists) */
 .alert-edge-soft {
-  position: relative;
-  isolation: isolate;
-}
-.alert-edge-soft::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from 0deg,
-    rgba(225, 45, 66, 0) 0deg,
-    rgba(225, 45, 66, 0) 230deg,
-    rgba(225, 45, 66, 0.85) 320deg,
-    rgba(225, 45, 66, 0) 360deg
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  animation: alertEdgeSpin 4.5s linear infinite;
-  pointer-events: none;
+  animation: alertEdgePulse 3.2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .alert-edge,
-  .alert-edge::before,
-  .alert-edge::after,
-  .alert-edge-soft::before {
+  .alert-edge-soft {
     animation: none !important;
-  }
-  .alert-edge::after {
-    display: none;
   }
 }
