@@ -216,9 +216,17 @@ export class EnforcementWorkerRunner {
     // 5. SEND-TIME ROUTE RECHECK (Requirement 9)
     const resolvedRoute = await EnforcementRouteResolver.resolveRoute(supabase, c.target_url, c.enforcement_basis);
     if (!resolvedRoute.canAutoSend) {
-      const targetStatus = resolvedRoute.verificationStatus === "STALE" || resolvedRoute.verificationStatus === "DISCOVERED_UNVERIFIED"
-        ? "ROUTE_DISCOVERY_REQUIRED"
-        : "HUMAN_ACTION_REQUIRED";
+      const targetStatus =
+        resolvedRoute.routeType === "HOST_ORIGIN_DISCOVERY_REQUIRED" ||
+        resolvedRoute.verificationStatus === "HOST_ORIGIN_UNKNOWN"
+          ? "HOST_ORIGIN_DISCOVERY_REQUIRED"
+          : resolvedRoute.verificationStatus === "STALE" ||
+              resolvedRoute.verificationStatus === "DISCOVERED_UNVERIFIED" ||
+              resolvedRoute.verificationStatus === "REJECTED" ||
+              resolvedRoute.verificationStatus === "MANUAL_REVIEW"
+            ? "ROUTE_DISCOVERY_REQUIRED"
+            : "HUMAN_ACTION_REQUIRED";
+
 
       await (supabase as any).from("enforcement_cases").update({ status: targetStatus, updated_at: new Date().toISOString() }).eq("id", c.id);
       await (supabase as any).from("enforcement_events").insert({
