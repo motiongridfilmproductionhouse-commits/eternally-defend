@@ -23,8 +23,10 @@ import { enrollAssetInAutopilot } from "../src/lib/protection/enroll-asset.serve
 import { enforcementSwitches } from "../src/lib/protection/autopilot";
 
 const postUrl = process.argv[2];
-const email = process.argv[3] ?? "hellosreehari@gmail.com";
-if (!postUrl) throw new Error("usage: bun scripts/mode-b-instagram-e2e.ts <post-url> [email]");
+const profileArg = process.argv[3] ?? "";
+const email = process.argv[4] ?? "hellosreehari@gmail.com";
+if (!postUrl)
+  throw new Error("usage: bun scripts/mode-b-instagram-e2e.ts <post-url> [profileUrl] [email]");
 
 const db = supabaseAdmin as never as any;
 const log = (stage: string, payload: unknown) =>
@@ -50,8 +52,7 @@ log("1. INSTAGRAM CONNECTION", {
 });
 
 // 2 — register the official profile as PUBLIC_REFERENCE
-const profileUrl = normalizeProfileUrl(new URL(postUrl).origin + "/" + (handleFromProfileUrl(postUrl) ?? ""));
-const derivedProfile = profileUrl && handleFromProfileUrl(postUrl) ? profileUrl : null;
+const derivedProfile = profileArg ? normalizeProfileUrl(profileArg) : null;
 let account: any = null;
 if (derivedProfile) {
   const { data, error } = await db
