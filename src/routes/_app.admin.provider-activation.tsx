@@ -42,7 +42,7 @@ function ProviderActivationPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["retention-preview"] }),
   });
 
-  const cfg = status.data;
+  const providers = catalog.data?.providers;
 
   return (
     <div className="space-y-5">
