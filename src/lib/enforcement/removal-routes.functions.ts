@@ -26,7 +26,7 @@ export interface RemovalRouteView {
   effectiveStatus: string;
   verificationMethod: string | null;
   authoritativeSourceUrl: string | null;
-  evidenceSnapshot: Record<string, unknown>;
+  evidenceSnapshot: { excerpt?: string; operator_note?: string; recorded_at?: string };
   verifiedAt: string | null;
   verifiedBy: string | null;
   lastCheckedAt: string | null;
@@ -60,7 +60,7 @@ function toView(r: any): RemovalRouteView {
     effectiveStatus: state.status,
     verificationMethod: r.verification_method ?? null,
     authoritativeSourceUrl: r.authoritative_source_url ?? r.source_url ?? null,
-    evidenceSnapshot: (r.evidence_snapshot ?? {}) as Record<string, unknown>,
+    evidenceSnapshot: (r.evidence_snapshot ?? {}) as RemovalRouteView["evidenceSnapshot"],
     verifiedAt: r.verified_at ?? null,
     verifiedBy: r.verified_by ?? null,
     lastCheckedAt: r.last_checked_at ?? null,
