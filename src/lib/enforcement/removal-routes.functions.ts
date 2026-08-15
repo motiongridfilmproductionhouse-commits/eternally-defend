@@ -100,13 +100,24 @@ export const previewRemovalRoute = createServerFn({ method: "POST" })
     return { ...decision };
   });
 
-/** Record a candidate route for operator review. Never VERIFIED. */
+/**
+ * Record a candidate route for operator review. Never VERIFIED.
+ * Admin/operator only: this table is shared enforcement infrastructure, not
+ * per-user data, so ordinary accounts may not seed routing records.
+ */
 export const recordCandidateRoute = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { domain: string; recipientEmail?: string; sourceUrl?: string }) => d)
   .handler(async ({ data, context }) => {
+    if (!(await isOperator(context as any))) {
+      return {
+        ok: false as const,
+        issues: ["Only an admin/operator may record a removal-route candidate."],
+      };
+    }
     const domain = data.domain.trim().toLowerCase().replace(/^www\./, "");
     const candidate = (data.recipientEmail ?? `dmca@${domain}`).trim().toLowerCase();
+
     const { error } = await (context as any).supabase.from("domain_enforcement_routes").upsert(
       {
         domain,
