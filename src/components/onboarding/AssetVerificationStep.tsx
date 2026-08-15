@@ -26,6 +26,7 @@ import {
   verifyChallenge,
 } from "@/lib/onboarding/assets.functions";
 import { SocialProfilesPanel } from "@/components/onboarding/SocialProfilesPanel";
+import { SocialAssetProtectionPanel } from "@/components/social/SocialAssetProtectionPanel";
 
 export function AssetVerificationStep({
   onBack,
@@ -305,6 +306,7 @@ export function AssetVerificationStep({
         )}
 
         <SocialProfilesPanel />
+        <SocialAssetProtectionPanel />
 
         <div className="flex justify-between pt-4">
           <Button

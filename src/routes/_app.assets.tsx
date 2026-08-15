@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
 import { prepareAssetUpload, registerAssetAndSearch } from "@/lib/asset-registration.functions";
+import { SocialAssetProtectionPanel } from "@/components/social/SocialAssetProtectionPanel";
 
 export const Route = createFileRoute("/_app/assets")({
   head: () => ({ meta: [{ title: "Assets — Eterna Sentinel" }] }),
@@ -194,6 +195,8 @@ function AssetsPage() {
           </div>
         </PageCard>
       )}
+
+      <SocialAssetProtectionPanel />
 
       <PageCard
         title="ASSET REGISTRY"
