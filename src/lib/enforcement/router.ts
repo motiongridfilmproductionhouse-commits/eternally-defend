@@ -5,6 +5,7 @@
 
 import { connectorRegistry, EnforcementBasis, EnforcementConnector } from "./connectors/registry";
 import "./connectors/platform-connectors";
+import { decidePlatformRoute } from "./removal-route-policy";
 
 export interface RouteResolution {
   domain: string;
@@ -58,29 +59,24 @@ export class EnforcementRouter {
     const domain = this.extractDomain(targetUrl);
     const verificationStatus = (domainIntel?.verificationStatus || "VERIFIED") as RouteResolution["destinationRouteStatus"];
 
-    // 1. YouTube specialized route
-    if (domain.includes("youtube.com") || domain.includes("youtu.be")) {
-      const connector = connectorRegistry.get("youtube_copyright_connector")!;
-      return {
-        domain,
-        enforcementBasis: "COPYRIGHT",
-        connector,
-        submissionMethod: connector.submissionMethod,
-        destinationRouteStatus: "VERIFIED",
-        reportingUrl: "https://www.youtube.com/copyright_complaint_form",
-        requiresHuman: true,
-      };
-    }
+    const platform = decidePlatformRoute(targetUrl);
 
-    // 2. Search engine delisting route
-    if (enforcementBasis === "SEARCH_ENGINE_COPYRIGHT") {
-      const connector = connectorRegistry.get("google_search_delist_connector")!;
+    // 1. Explicit platform routing — known platforms, search surfaces and CDN
+    //    hosts never fall through to a guessed generic email address.
+    if (platform.routeType !== "EMAIL_DMCA") {
+      const connector =
+        (platform.connectorId ? connectorRegistry.get(platform.connectorId) : undefined) ??
+        connectorRegistry.get("generic_human_action_connector") ??
+        connectorRegistry.get("youtube_copyright_connector")!;
       return {
         domain,
-        enforcementBasis,
+        enforcementBasis:
+          platform.routeType === "SEARCH_DELISTING" ? "SEARCH_ENGINE_COPYRIGHT" : enforcementBasis,
         connector,
-        submissionMethod: connector.submissionMethod,
-        destinationRouteStatus: "VERIFIED",
+        submissionMethod: "HUMAN_REQUIRED",
+        destinationEmail: null,
+        destinationRouteStatus: platform.routeType === "HOST_ORIGIN_DISCOVERY_REQUIRED" ? "MANUAL_REVIEW" : "VERIFIED",
+        reportingUrl: platform.platformKind === "youtube" ? "https://www.youtube.com/copyright_complaint_form" : null,
         requiresHuman: true,
       };
     }
@@ -95,7 +91,7 @@ export class EnforcementRouter {
         enforcementBasis,
         connector: hostConnector,
         submissionMethod: hostConnector.submissionMethod,
-        destinationEmail: domainIntel?.abuseEmail || `abuse@${domain}`,
+        destinationEmail: domainIntel?.abuseEmail ?? null,
         destinationRouteStatus: domainIntel?.abuseEmail ? verificationStatus : "DISCOVERED_UNVERIFIED",
         reportingUrl: domainIntel?.reportingUrl,
         requiresHuman: domainIntel?.requiresHuman ?? false,
@@ -107,7 +103,7 @@ export class EnforcementRouter {
       enforcementBasis,
       connector: webConnector,
       submissionMethod: webConnector.submissionMethod,
-      destinationEmail: domainIntel?.copyrightEmail || domainIntel?.abuseEmail || `dmca@${domain}`,
+      destinationEmail: domainIntel?.copyrightEmail ?? domainIntel?.abuseEmail ?? null,
       destinationRouteStatus: domainIntel?.copyrightEmail ? verificationStatus : "DISCOVERED_UNVERIFIED",
       reportingUrl: domainIntel?.reportingUrl,
       requiresHuman: domainIntel?.requiresHuman ?? false,
