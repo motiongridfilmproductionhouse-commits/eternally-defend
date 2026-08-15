@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { saveV2ClientProfile } from "@/lib/onboarding/v2-profile.functions";
 import { V2_ACCOUNT_LABELS, type V2AccountType } from "@/lib/onboarding/v2-config";
+import { useOnboardingDirty } from "@/lib/onboarding/unsaved-changes";
 
 export function V2ProfileStep({
   profile,
@@ -43,6 +44,21 @@ export function V2ProfileStep({
   }, [profile]);
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setForm((current) => ({ ...current, [key]: event.target.value }));
+  const savedForm = {
+    legal_name: profile?.legal_name ?? profile?.full_name ?? "",
+    display_name: profile?.display_name ?? "",
+    company_name: profile?.company_name ?? "",
+    role_title: profile?.role_title ?? "",
+    phone: profile?.phone ?? "",
+    country: profile?.country ?? "",
+    address: profile?.address ?? "",
+  };
+  useOnboardingDirty(
+    "v2-profile",
+    (Object.keys(savedForm) as Array<keyof typeof savedForm>).some(
+      (key) => (form[key] ?? "") !== (savedForm[key] ?? ""),
+    ),
+  );
   const needsCompany = accountType === "enterprise" || accountType === "production_house";
   const valid =
     form.legal_name.trim() && form.country.trim() && (!needsCompany || form.company_name.trim());

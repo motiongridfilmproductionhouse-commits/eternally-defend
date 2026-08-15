@@ -31,6 +31,7 @@ import { OnboardingCompleteStep } from "@/components/onboarding/OnboardingComple
 import { V2OnboardingWizard } from "@/components/onboarding/V2OnboardingWizard";
 import { switchToCompanyOnboarding } from "@/lib/onboarding/company.functions";
 import { isV2AccountType } from "@/lib/onboarding/v2-config";
+import { useOnboardingDirty } from "@/lib/onboarding/unsaved-changes";
 
 
 /** Client types that belong to the dedicated company onboarding flow. */
@@ -373,6 +374,24 @@ function Step1Profile({
       }));
     }
   }, [profile]);
+
+  const savedStep1 = {
+    legal_name: profile?.full_name ?? "",
+    display_name: profile?.display_name ?? "",
+    company_name: profile?.company_name ?? "",
+    role_title: profile?.role_title ?? "",
+    email: profile?.email ?? "",
+    phone: profile?.phone ?? "",
+    country: profile?.country ?? "",
+    address: profile?.address ?? "",
+    client_type: profile?.client_type ?? "individual",
+  };
+  useOnboardingDirty(
+    "legacy-step1",
+    (Object.keys(savedStep1) as Array<keyof typeof savedStep1>).some(
+      (key) => ((form as any)[key] ?? "") !== (savedStep1[key] ?? ""),
+    ),
+  );
 
   const isCompanyType = COMPANY_CLIENT_TYPES.has(form.client_type);
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
