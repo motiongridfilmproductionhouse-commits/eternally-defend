@@ -101,7 +101,7 @@ function ProviderActivationPage() {
                       </div>
                       <ul className="space-y-1 text-xs">
                         {p.requiredCredentials.map((c) => {
-                          const present = credentialPresent(c.name, cfg);
+                          const present = c.present;
                           return (
                             <li key={c.name} className="flex items-center gap-2">
                               {present ? (
