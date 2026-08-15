@@ -7443,6 +7443,107 @@ export type Database = {
         }
         Relationships: []
       }
+      signup_invite_attempts: {
+        Row: {
+          actor_key: string
+          created_at: string
+          email: string | null
+          id: string
+          succeeded: boolean
+        }
+        Insert: {
+          actor_key: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          succeeded?: boolean
+        }
+        Update: {
+          actor_key?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          succeeded?: boolean
+        }
+        Relationships: []
+      }
+      signup_invite_redemptions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          invite_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          invite_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          invite_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signup_invite_redemptions_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "signup_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signup_invites: {
+        Row: {
+          account_type: string | null
+          assigned_email: string | null
+          code_hash: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          label: string | null
+          last_used_at: string | null
+          max_uses: number
+          status: string
+          use_count: number
+        }
+        Insert: {
+          account_type?: string | null
+          assigned_email?: string | null
+          code_hash: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          label?: string | null
+          last_used_at?: string | null
+          max_uses?: number
+          status?: string
+          use_count?: number
+        }
+        Update: {
+          account_type?: string | null
+          assigned_email?: string | null
+          code_hash?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          label?: string | null
+          last_used_at?: string | null
+          max_uses?: number
+          status?: string
+          use_count?: number
+        }
+        Relationships: []
+      }
       social_accounts: {
         Row: {
           connected_at: string | null
@@ -9083,6 +9184,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_signup_invite: {
+        Args: { _code_hash: string; _email: string }
+        Returns: {
+          account_type: string
+          invite_id: string
+        }[]
+      }
       get_public_verification: {
         Args: { _slug: string }
         Returns: {
@@ -9109,6 +9217,10 @@ export type Database = {
       }
       record_route_outcome: {
         Args: { p_domain: string; p_outcome: string }
+        Returns: undefined
+      }
+      release_signup_invite: {
+        Args: { _invite_id: string }
         Returns: undefined
       }
     }
