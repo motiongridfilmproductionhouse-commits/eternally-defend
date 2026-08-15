@@ -56,13 +56,13 @@ function ProviderActivationPage() {
           </Button>
         }
       >
-        {!cfg ? (
+        {!providers ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
         ) : (
           <div className="space-y-3">
-            {PROVIDERS.map((p) => {
-              const isLive = p.liveWhen(cfg);
-              const mode = (cfg as any)[p.currentModeKey];
+            {providers.map((p) => {
+              const isLive = p.live;
+              const mode = p.mode;
               return (
                 <div key={p.key} className="border border-border rounded-xl p-4">
                   <div className="flex items-start justify-between gap-3">
