@@ -189,6 +189,8 @@ export const NON_AUTHORITATIVE_METHODS = new Set([
   "GUESSED_PATTERN",
   "SYSTEM_DATABASE",
   "ASSUMED",
+  // Automated on-domain contact discovery: a candidate proposal only.
+  "AUTOMATED_ON_DOMAIN_DISCOVERY",
 ]);
 
 /**
