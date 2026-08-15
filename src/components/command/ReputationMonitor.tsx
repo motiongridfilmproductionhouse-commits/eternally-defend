@@ -102,6 +102,11 @@ export function ReputationMonitor({
   const tone =
     clamped >= 80 ? "#2fa36b" : clamped >= 60 ? "#2f7fe0" : clamped >= 40 ? "#e5a52b" : "#e0492f";
 
+  // length of the drawn reputation arc — drives the draw-in animation
+  const arcLen = Math.round(Math.PI * 162 * (Math.max(clamped, 0.5) / 100));
+
+
+
   const ticks = useMemo(
     () =>
       Array.from({ length: 61 }, (_, i) => {
