@@ -393,8 +393,9 @@ export function ThreatTerrainPanel({
         </g>
       </svg>
 
-      {/* header + top sources + metrics */}
-      <div className="pointer-events-none absolute inset-0 p-5 flex flex-col justify-between">
+      {/* header + top sources (overlays the map area only) */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[320px] sm:h-[420px] p-5 flex flex-col justify-between">
+
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-mono tracking-[0.28em] text-sky-300/70">THREAT TERRAIN</p>
