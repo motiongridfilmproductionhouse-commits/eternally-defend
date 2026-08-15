@@ -67,6 +67,23 @@ export const addPublicReferenceAccount = createServerFn({ method: "POST" })
       .select("id,platform,profile_url,handle,mode,connected_at,last_sync_at,created_at")
       .maybeSingle();
     if (error) throw new Error(error.message);
+
+    // Mirror into the onboarding social_profiles blob so the existing
+    // authorized-subject allowlist keeps scoping scans to this account.
+    const { data: profile } = await context.supabase
+      .from("client_profiles")
+      .select("social_profiles")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    const blob = (profile?.social_profiles ?? {}) as Record<string, unknown>;
+    const links = Array.isArray(blob.links) ? (blob.links as Array<Record<string, unknown>>) : [];
+    if (!links.some((link) => link.url === profileUrl)) {
+      await context.supabase
+        .from("client_profiles")
+        .update({ social_profiles: { ...blob, links: [...links, { platform, url: profileUrl }] } })
+        .eq("user_id", context.userId);
+    }
+
     return { account: row as SocialAccountRow };
   });
 
