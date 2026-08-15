@@ -227,8 +227,8 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
     let threatLevel: "Safe" | "Low" | "Moderate" | "High" | "Critical" = "Safe";
     if (critical > 5) threatLevel = "Critical";
     else if (critical > 0 || high > 5) threatLevel = "High";
-    else if (high > 0 || bySev.Medium > 5) threatLevel = "Moderate";
-    else if (hits.length > 0) threatLevel = "Low";
+    else if (high > 0 || severityCounts.Medium > 5) threatLevel = "Moderate";
+    else if (totalFindings > 0) threatLevel = "Low";
 
     // Velocity: last 24h vs prior 24h
     const last24 = hits.filter((h) => (h.first_seen_at as string) >= since24h).length;
