@@ -15,6 +15,9 @@ type MonitorProps = {
   newToday: number;
   resolvedPct: number;
   sources: { platform: string; severity: string; title: string }[];
+  /** Exact counts across ALL open findings (not the capped radar sample). */
+  severityCounts?: Record<string, number>;
+  platformBreakdown?: { platform: string; count: number; severity: string }[];
   spark: number[];
   feed: { time: string; type: string; label: string; sub?: string }[];
 };
@@ -78,6 +81,8 @@ export function ReputationMonitor({
   newToday,
   resolvedPct,
   sources,
+  severityCounts,
+  platformBreakdown,
   spark,
   feed,
 }: MonitorProps) {
@@ -86,6 +91,9 @@ export function ReputationMonitor({
     clamped >= 80 ? "#2fa36b" : clamped >= 60 ? "#2f7fe0" : clamped >= 40 ? "#e5a52b" : "#e0492f";
 
   const nodes = useMemo(() => {
+    if (platformBreakdown?.length) {
+      return platformBreakdown.slice(0, 7);
+    }
     const map = new Map<string, { platform: string; severity: string; count: number }>();
     for (const s of sources) {
       const cur = map.get(s.platform);
@@ -95,17 +103,16 @@ export function ReputationMonitor({
         if ((SEV_ORDER[s.severity] ?? 0) > (SEV_ORDER[cur.severity] ?? 0)) cur.severity = s.severity;
       }
     }
-    const list = [...map.values()]
+    return [...map.values()]
       .sort(
         (a, b) => (SEV_ORDER[b.severity] ?? 0) - (SEV_ORDER[a.severity] ?? 0) || b.count - a.count,
       )
       .slice(0, 7);
-    return list;
-  }, [sources]);
+  }, [sources, platformBreakdown]);
 
   const sevCounts = (["Critical", "High", "Medium", "Low"] as const).map((s) => ({
     key: s,
-    n: sources.filter((x) => x.severity === s).length,
+    n: severityCounts ? Number(severityCounts[s] ?? 0) : sources.filter((x) => x.severity === s).length,
   }));
   const sevMax = Math.max(1, ...sevCounts.map((s) => s.n));
 
