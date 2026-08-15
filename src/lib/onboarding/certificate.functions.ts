@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 
 export const getMyCertificate = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
