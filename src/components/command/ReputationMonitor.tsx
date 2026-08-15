@@ -339,18 +339,31 @@ export function ReputationMonitor({
             </text>
 
             {/* platform nodes */}
-            {nodes.map((n) => {
+            {nodes.map((n, i) => {
               const s = SEV[n.severity] ?? SEV.Info;
+              const hot = n.severity === "Critical" || n.severity === "High";
               return (
-                <g key={n.platform}>
+                <g key={n.platform} className="rep-node" style={{ animationDelay: `${i * 420}ms` }}>
                   <line
+                    className="rep-link"
                     x1={cx}
                     y1={cy}
                     x2={n.x}
                     y2={n.y}
                     stroke="rgba(15,27,51,0.12)"
-                    strokeDasharray="3 6"
                   />
+                  {hot && (
+                    <circle
+                      className="rep-node-halo"
+                      style={{ animationDelay: `${i * 300}ms` }}
+                      cx={n.x}
+                      cy={n.y}
+                      r="22"
+                      fill="none"
+                      stroke={s.tone}
+                      strokeWidth="2"
+                    />
+                  )}
                   <circle cx={n.x} cy={n.y} r="19" fill="#ffffff" stroke={s.tone} strokeWidth="2" />
                   <circle cx={n.x} cy={n.y} r="24" fill="none" stroke={s.soft} strokeWidth="4" />
                   <text
@@ -369,6 +382,7 @@ export function ReputationMonitor({
                 </g>
               );
             })}
+
           </svg>
         </div>
 
