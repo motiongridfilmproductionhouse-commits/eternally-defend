@@ -24,10 +24,14 @@ export const protectFromLink = createServerFn({ method: "POST" })
     const { resolvePublicPostMedia } = await import("./public-post.server");
     const { ingestRemoteMedia } = await import("./media-ingest.server");
     const { buildProvenance, handleFromProfileUrl } = await import("./provenance");
+    const { modeBLog, classifyReason } = await import("./observability");
 
     const resolved = await resolvePublicPostMedia(data.url);
     if (!resolved) throw new Error("That does not look like a valid post link.");
     if (resolved.blocked || !resolved.mediaUrls.length) {
+      const reason = resolved.blockedReason ?? "no_public_media_metadata";
+      modeBLog({ event: "public_retrieval_blocked", outcome: "platform_limit", platform: resolved.platform, reason, userId: context.userId });
+      modeBLog({ event: "upload_required", outcome: "info", platform: resolved.platform, reason, userId: context.userId });
       return {
         status: "manual_upload_required" as const,
         platform: resolved.platform,
@@ -65,8 +69,23 @@ export const protectFromLink = createServerFn({ method: "POST" })
       );
     }
 
+    for (const r of results) {
+      modeBLog({
+        event: r.status === "duplicate" ? "dedupe_hit" : "link_import",
+        outcome: r.status === "skipped" ? classifyReason(r.reason) : "success",
+        platform: resolved.platform,
+        importMethod: "PUBLIC_LINK",
+        reason: r.reason,
+        userId: context.userId,
+        assetId: r.asset_id,
+        fingerprinted: r.fingerprinted,
+        frames: r.frames,
+      });
+    }
+
     const created = results.filter((r) => r.status === "created").length;
     if (!created && results.every((r) => r.status === "skipped")) {
+      modeBLog({ event: "upload_required", outcome: "platform_limit", platform: resolved.platform, reason: results[0]?.reason ?? "public_retrieval_blocked", userId: context.userId });
       return {
         status: "manual_upload_required" as const,
         platform: resolved.platform,
