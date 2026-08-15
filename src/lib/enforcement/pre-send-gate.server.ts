@@ -175,7 +175,7 @@ export async function runFinalPreSendGate(
   const evidenceRow = findingId
     ? await (db as any)
         .from("preserved_evidence_media")
-        .select("id, storage_key, finding_id")
+        .select("id, s3_key, finding_id")
         .eq("user_id", req.userId)
         .eq("finding_id", findingId)
         .limit(1)
@@ -216,7 +216,7 @@ export async function runFinalPreSendGate(
       findingId,
       reviewed: (caseRow?.eligibility_status ?? "") === "ELIGIBLE",
       enforcementGround: caseRow?.enforcement_basis ?? null,
-      evidenceSnapshotRef: evidenceRow?.storage_key ?? null,
+      evidenceSnapshotRef: evidenceRow?.s3_key ?? null,
     },
     route: {
       infringingHost: host || null,
@@ -290,7 +290,7 @@ export async function runFinalPreSendGate(
       recipient_verification_method: verificationMethod,
       authoritative_source_url: authoritativeSourceUrl,
       recipient_verified_at: route?.verified_at ?? null,
-      evidence_reference: evidenceRow?.storage_key ?? null,
+      evidence_reference: evidenceRow?.s3_key ?? null,
       evidence_snapshot_ref: (evidenceSnapshot as object) ?? {},
       operator_approved_by: req.operatorUserId ?? null,
       client_authorization_id: authorization?.id ?? null,
