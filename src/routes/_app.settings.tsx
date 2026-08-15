@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { PageCard } from "@/components/dashboard/PageCard";
 import { Switch } from "@/components/ui/switch";
 import { SocialProfilesPanel } from "@/components/onboarding/SocialProfilesPanel";
+import { SocialAssetProtectionPanel } from "@/components/social/SocialAssetProtectionPanel";
 import { useSession } from "@/hooks/use-session";
 import {
   getAccountProfile,
@@ -219,6 +220,7 @@ function SettingsPage() {
       >
         <div className="rounded-xl bg-[#0A1128] p-4">
           <SocialProfilesPanel compact />
+          <SocialAssetProtectionPanel compact />
         </div>
       </PageCard>
 
