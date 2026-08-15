@@ -393,8 +393,9 @@ export function ThreatTerrainPanel({
         </g>
       </svg>
 
-      {/* header + top sources + metrics */}
-      <div className="pointer-events-none absolute inset-0 p-5 flex flex-col justify-between">
+      {/* header + top sources (overlays the map area only) */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[320px] sm:h-[420px] p-5 flex flex-col justify-between">
+
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-mono tracking-[0.28em] text-sky-300/70">THREAT TERRAIN</p>
@@ -428,13 +429,8 @@ export function ThreatTerrainPanel({
             )}
           </div>
         </div>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] font-mono text-white/55">
-          <span>SURFACES · {clusters.length}</span>
-          <span>FINDINGS · {totalFindings}</span>
-          <span className="text-amber-300/80">HIGH · {highFindings}</span>
-          <span className="text-red-300/80">CRITICAL · {criticalFindings}</span>
-        </div>
       </div>
+
 
       {/* hover tooltip */}
       {hover && (
@@ -459,8 +455,16 @@ export function ThreatTerrainPanel({
         </div>
       )}
 
+      {/* live metrics */}
+      <div className="relative flex flex-wrap gap-x-6 gap-y-1 border-t border-white/10 px-5 pt-3 text-[11px] font-mono text-white/55">
+        <span>SURFACES · {clusters.length}</span>
+        <span>FINDINGS · {totalFindings}</span>
+        <span className="text-amber-300/80">HIGH · {highFindings}</span>
+        <span className="text-red-300/80">CRITICAL · {criticalFindings}</span>
+      </div>
+
       {/* source filters */}
-      <div className="relative flex flex-wrap items-center gap-1.5 border-t border-white/10 px-5 py-3">
+      <div className="relative flex flex-wrap items-center gap-1.5 px-5 pb-4 pt-3">
         {["All", ...platforms].map((p) => {
           const active = filter === p;
           return (
@@ -484,6 +488,7 @@ export function ThreatTerrainPanel({
           );
         })}
       </div>
+
     </section>
   );
 }
