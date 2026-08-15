@@ -135,10 +135,12 @@ export function CommandCenter() {
         criticalFindings={d.overview.criticalFindings}
         newToday={d.overview.newToday}
         resolvedPct={
-          d.overview.totalFindings > 0
-            ? Math.round((d.overview.resolved / d.overview.totalFindings) * 100)
+          d.overview.escalated > 0
+            ? Math.round((d.overview.resolved / d.overview.escalated) * 100)
             : 0
         }
+        severityCounts={(d.overview as any).severityCounts}
+        platformBreakdown={(d.overview as any).platformBreakdown}
         sources={d.radar.map((r) => ({
           platform: r.platform,
           severity: r.severity,
