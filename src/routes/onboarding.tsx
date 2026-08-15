@@ -42,6 +42,7 @@ function OnboardingPage() {
   if (q.isLoading) {
     return (
       <div className="fixed inset-0 grid place-items-center bg-[#050A18] text-white/70 text-sm gap-2">
+        <ExitOnboardingButton />
         <div className="flex items-center gap-2">
           <Loader2 className="size-4 animate-spin" /> Loading secure onboarding…
         </div>
@@ -49,5 +50,10 @@ function OnboardingPage() {
     );
   }
 
-  return <OnboardingWizard initialProgress={q.data ?? null} />;
+  return (
+    <>
+      <ExitOnboardingButton />
+      <OnboardingWizard initialProgress={q.data ?? null} />
+    </>
+  );
 }
