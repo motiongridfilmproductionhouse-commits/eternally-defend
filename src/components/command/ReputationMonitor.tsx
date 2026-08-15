@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { AlertTriangle, Activity, ShieldCheck, Radio } from "lucide-react";
+import { AlertTriangle, Activity, ShieldCheck, Radio, TrendingUp } from "lucide-react";
 
 /**
- * Big "wall monitor" panel: reputation score + live threat exposure.
+ * Big light "wall monitor" panel: reputation score + live threat exposure.
  * Presentation only — every number is passed in from the command-center read.
+ * Intentionally light-on-white (independent of the surrounding dark shell).
  */
 
 type MonitorProps = {
@@ -18,13 +19,17 @@ type MonitorProps = {
   feed: { time: string; type: string; label: string; sub?: string }[];
 };
 
-const SEV_TONE: Record<string, string> = {
-  Critical: "oklch(0.63 0.24 25)",
-  High: "oklch(0.72 0.18 55)",
-  Medium: "oklch(0.78 0.15 85)",
-  Low: "oklch(0.7 0.14 155)",
-  Info: "oklch(0.68 0.09 240)",
+const INK = "#0f1b33";
+const MUTED = "#6b7896";
+
+const SEV: Record<string, { tone: string; soft: string; label: string }> = {
+  Critical: { tone: "#e0492f", soft: "#fde8e2", label: "Critical" },
+  High: { tone: "#f0862a", soft: "#fdeedd", label: "High" },
+  Medium: { tone: "#e5b02b", soft: "#fdf6dd", label: "Medium" },
+  Low: { tone: "#2fa36b", soft: "#e3f6ec", label: "Low" },
+  Info: { tone: "#3b82f6", soft: "#e6efff", label: "Info" },
 };
+const SEV_ORDER: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1, Info: 0 };
 
 function polar(cx: number, cy: number, r: number, deg: number) {
   const rad = (deg * Math.PI) / 180;
@@ -47,16 +52,32 @@ function timeAgo(iso: string) {
 }
 
 function Sparkline({ values, tone }: { values: number[]; tone: string }) {
-  const pts = values.length ? values : [0, 0];
+  const pts = values.length > 1 ? values : [0, 0];
   const max = Math.max(1, ...pts);
-  const d = pts
-    .map((v, i) => `${(i / Math.max(1, pts.length - 1)) * 100},${28 - (v / max) * 24}`)
-    .join(" ");
-  const last = polar(0, 0, 0, 0);
-  void last;
+  const coords = pts.map(
+    (v, i) => [(i / (pts.length - 1)) * 100, 30 - (v / max) * 24] as [number, number],
+  );
+  const line = coords.map((c) => c.join(",")).join(" ");
+  const area = `0,32 ${line} 100,32`;
+  const tip = coords[coords.length - 1];
   return (
-    <svg viewBox="0 0 100 30" className="w-full h-8" preserveAspectRatio="none">
-      <polyline points={d} fill="none" stroke={tone} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    <svg viewBox="0 0 100 34" className="w-full h-10" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={tone} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={tone} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={area} fill="url(#sparkFill)" />
+      <polyline
+        points={line}
+        fill="none"
+        stroke={tone}
+        strokeWidth="2"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+      <circle cx={tip[0]} cy={tip[1]} r="1.6" fill={tone} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -79,25 +100,17 @@ export function ReputationMonitor({
 
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
   const tone =
-    clamped >= 80
-      ? "oklch(0.7 0.16 155)"
-      : clamped >= 60
-        ? "oklch(0.72 0.17 200)"
-        : clamped >= 40
-          ? "oklch(0.78 0.15 85)"
-          : "oklch(0.63 0.24 25)";
+    clamped >= 80 ? "#2fa36b" : clamped >= 60 ? "#2f7fe0" : clamped >= 40 ? "#e5a52b" : "#e0492f";
 
   const ticks = useMemo(
     () =>
       Array.from({ length: 61 }, (_, i) => {
         const deg = START + (i / 60) * SWEEP;
-        const active = i / 60 <= clamped / 100;
-        return { deg, active, major: i % 10 === 0 };
+        return { deg, active: i / 60 <= clamped / 100, major: i % 10 === 0 };
       }),
     [clamped],
   );
 
-  // Distinct platforms placed along the mid arc, worst severity first.
   const nodes = useMemo(() => {
     const map = new Map<string, { platform: string; severity: string; count: number }>();
     for (const s of sources) {
@@ -109,78 +122,137 @@ export function ReputationMonitor({
       }
     }
     const list = [...map.values()]
-      .sort((a, b) => (SEV_ORDER[b.severity] ?? 0) - (SEV_ORDER[a.severity] ?? 0) || b.count - a.count)
+      .sort(
+        (a, b) => (SEV_ORDER[b.severity] ?? 0) - (SEV_ORDER[a.severity] ?? 0) || b.count - a.count,
+      )
       .slice(0, 7);
     return list.map((n, i) => {
       const deg = START + ((i + 1) / (list.length + 1)) * SWEEP;
-      const r = i % 2 === 0 ? 250 : 205;
+      const r = i % 2 === 0 ? 252 : 202;
       return { ...n, ...polar(cx, cy, r, deg) };
     });
   }, [sources]);
 
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,oklch(0.19_0.05_260_/_0.9),oklch(0.14_0.04_260_/_0.9))] p-5 relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 opacity-60 [background:radial-gradient(700px_320px_at_50%_100%,oklch(0.55_0.2_260_/_0.25),transparent_70%)]" />
+  const sevCounts = (["Critical", "High", "Medium", "Low"] as const).map((s) => ({
+    key: s,
+    n: sources.filter((x) => x.severity === s).length,
+  }));
+  const sevMax = Math.max(1, ...sevCounts.map((s) => s.n));
 
-      <div className="relative flex items-center justify-between">
+  return (
+    <div
+      className="rounded-[28px] border p-6 relative overflow-hidden"
+      style={{
+        borderColor: "rgba(15,27,51,0.07)",
+        background:
+          "radial-gradient(900px 420px at 8% 0%, #fdeee6 0%, transparent 62%), radial-gradient(760px 420px at 96% 4%, #eaf4ec 0%, transparent 60%), linear-gradient(180deg,#ffffff 0%,#f8f9fc 100%)",
+        boxShadow: "0 24px 60px -32px rgba(15,27,51,0.25)",
+        color: INK,
+      }}
+    >
+      <div className="relative flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] tracking-[0.22em] font-semibold text-muted-foreground">
+          <div
+            className="text-[10px] tracking-[0.24em] font-semibold"
+            style={{ color: "#9aa4bd" }}
+          >
             REPUTATION &amp; THREAT MONITOR
           </div>
-          <div className="text-sm text-muted-foreground mt-1">
+          <div className="text-[22px] font-semibold font-display mt-1 leading-tight">
             Live exposure across every monitored surface
           </div>
         </div>
-        <div className="flex items-center gap-2 text-[11px] font-semibold">
-          <Radio className="size-3.5 animate-pulse" style={{ color: tone }} />
-          <span style={{ color: tone }}>{threatLevel?.toUpperCase() || "MONITORING"}</span>
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold"
+            style={{ background: "#ffffff", boxShadow: "0 2px 10px -4px rgba(15,27,51,0.25)" }}
+          >
+            <Radio className="size-3.5 animate-pulse" style={{ color: tone }} />
+            <span style={{ color: tone }}>{threatLevel?.toUpperCase() || "MONITORING"}</span>
+          </div>
+          <div
+            className="rounded-full px-3 py-1.5 text-[11px] font-semibold"
+            style={{ background: "#ffffff", color: MUTED, boxShadow: "0 2px 10px -4px rgba(15,27,51,0.2)" }}
+          >
+            24h
+          </div>
         </div>
       </div>
 
-      <div className="relative mt-3 grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+      <div className="relative mt-4 grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
         {/* left rail */}
         <div className="xl:col-span-3 space-y-4">
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="text-[10px] tracking-[0.18em] text-muted-foreground">TOTAL FINDINGS</div>
-            <div className="mt-1 flex items-end gap-2">
-              <div className="text-5xl font-bold font-display leading-none">{totalFindings}</div>
-              <div className="text-xs text-muted-foreground pb-1">Total</div>
+          <div
+            className="rounded-2xl p-4"
+            style={{
+              background: "linear-gradient(160deg,#fff6f1 0%,#ffffff 70%)",
+              border: "1px solid rgba(15,27,51,0.06)",
+            }}
+          >
+            <div className="text-[10px] tracking-[0.18em] font-semibold" style={{ color: "#9aa4bd" }}>
+              TOTAL FINDINGS
             </div>
-            <Sparkline values={spark} tone={tone} />
+            <div className="mt-1 flex items-end gap-2">
+              <div className="text-[52px] font-bold font-display leading-none">{totalFindings}</div>
+              <div className="text-xs pb-2" style={{ color: MUTED }}>
+                Total
+              </div>
+            </div>
+            <Sparkline values={spark} tone="#f0862a" />
+            <div className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: "#2fa36b" }}>
+              <TrendingUp className="size-3.5" /> +{newToday} today
+            </div>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="text-[10px] tracking-[0.18em] text-muted-foreground">OPEN SEVERITY</div>
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              {(["Critical", "High", "Medium", "Low"] as const).map((s) => {
-                const n = sources.filter((x) => x.severity === s).length;
-                return (
-                  <div key={s} className="text-center">
-                    <div
-                      className="h-14 rounded-md flex items-end justify-center"
-                      style={{ background: `color-mix(in oklab, ${SEV_TONE[s]} 14%, transparent)` }}
-                    >
-                      <div
-                        className="w-full rounded-md"
-                        style={{
-                          height: `${Math.min(100, n * 22 + (n ? 18 : 0))}%`,
-                          background: SEV_TONE[s],
-                        }}
-                      />
-                    </div>
-                    <div className="mt-1 text-[10px] text-muted-foreground">{s[0]}</div>
+
+          <div
+            className="rounded-2xl p-4"
+            style={{ background: "#ffffff", border: "1px solid rgba(15,27,51,0.06)" }}
+          >
+            <div className="text-[10px] tracking-[0.18em] font-semibold" style={{ color: "#9aa4bd" }}>
+              OPEN SEVERITY
+            </div>
+            <div className="mt-3 space-y-2.5">
+              {sevCounts.map(({ key, n }) => (
+                <div key={key} className="flex items-center gap-3">
+                  <div className="w-14 text-[11px] font-medium" style={{ color: MUTED }}>
+                    {SEV[key].label}
                   </div>
-                );
-              })}
+                  <div
+                    className="flex-1 h-2 rounded-full overflow-hidden"
+                    style={{ background: SEV[key].soft }}
+                  >
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.max(n ? 8 : 0, (n / sevMax) * 100)}%`,
+                        background: `linear-gradient(90deg, ${SEV[key].tone}, color-mix(in oklab, ${SEV[key].tone} 70%, white))`,
+                      }}
+                    />
+                  </div>
+                  <div className="w-6 text-right text-[12px] font-bold">{n}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
         {/* center arc monitor */}
         <div className="xl:col-span-6">
-          <svg viewBox="0 60 920 300" className="w-full">
+          <svg viewBox="0 80 920 290" className="w-full">
+            <defs>
+              <linearGradient id="repArc" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={tone} stopOpacity="0.45" />
+                <stop offset="100%" stopColor={tone} />
+              </linearGradient>
+              <linearGradient id="domeFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f7a05a" />
+                <stop offset="100%" stopColor="#6b2f12" />
+              </linearGradient>
+            </defs>
+
             {/* tick ring */}
             {ticks.map((t, i) => {
-              const inner = polar(cx, cy, t.major ? 292 : 300, t.deg);
+              const inner = polar(cx, cy, t.major ? 288 : 298, t.deg);
               const outer = polar(cx, cy, 320, t.deg);
               return (
                 <line
@@ -189,114 +261,144 @@ export function ReputationMonitor({
                   y1={inner.y}
                   x2={outer.x}
                   y2={outer.y}
-                  stroke={t.active ? tone : "oklch(0.75 0.02 260 / 0.18)"}
-                  strokeWidth={t.major ? 2.5 : 1.5}
+                  stroke={t.active ? tone : "rgba(15,27,51,0.13)"}
+                  strokeWidth={t.major ? 2.6 : 1.4}
+                  strokeLinecap="round"
                 />
               );
             })}
 
-            {/* faint guide arcs the nodes sit on */}
-            <path d={arcPath(cx, cy, 250, START, START + SWEEP)} fill="none" stroke="oklch(0.8 0.02 260 / 0.12)" />
-            <path d={arcPath(cx, cy, 205, START, START + SWEEP)} fill="none" stroke="oklch(0.8 0.02 260 / 0.12)" />
+            {/* node guide arcs */}
+            <path d={arcPath(cx, cy, 252, START, START + SWEEP)} fill="none" stroke="rgba(15,27,51,0.08)" />
+            <path d={arcPath(cx, cy, 202, START, START + SWEEP)} fill="none" stroke="rgba(15,27,51,0.08)" />
 
-            {/* progress arc */}
+            {/* reputation progress arc */}
             <path
-              d={arcPath(cx, cy, 160, START, START + (SWEEP * clamped) / 100 || START + 0.01)}
+              d={arcPath(cx, cy, 162, START, START + SWEEP)}
               fill="none"
-              stroke={tone}
-              strokeWidth="10"
+              stroke="rgba(15,27,51,0.07)"
+              strokeWidth="12"
               strokeLinecap="round"
-              opacity="0.85"
+            />
+            <path
+              d={arcPath(cx, cy, 162, START, START + (SWEEP * Math.max(clamped, 0.5)) / 100)}
+              fill="none"
+              stroke="url(#repArc)"
+              strokeWidth="12"
+              strokeLinecap="round"
             />
 
             {/* inner dome — resolved share */}
             <path
-              d={`${arcPath(cx, cy, 120, START, START + SWEEP)} L ${cx} ${cy} Z`}
-              fill="oklch(0.28 0.06 265 / 0.65)"
+              d={`${arcPath(cx, cy, 118, START, START + SWEEP)} L ${cx} ${cy} Z`}
+              fill="url(#domeFill)"
             />
             <path
-              d={arcPath(cx, cy, 104, START, START + (SWEEP * Math.max(2, resolvedPct)) / 100)}
+              d={arcPath(cx, cy, 100, START, START + (SWEEP * Math.max(2, resolvedPct)) / 100)}
               fill="none"
-              stroke="oklch(0.95 0.02 260 / 0.9)"
-              strokeWidth="8"
+              stroke="#ffffff"
+              strokeWidth="9"
               strokeLinecap="round"
             />
+            <text x={cx} y={cy - 52} textAnchor="middle" fontSize="26" fontWeight="700" fill="#ffffff">
+              {resolvedPct}%
+            </text>
+            <text x={cx} y={cy - 32} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.8)">
+              Resolved
+            </text>
 
             {/* center readout */}
-            <text x={cx} y={cy - 190} textAnchor="middle" className="fill-foreground" fontSize="46" fontWeight="700">
+            <text x={cx} y={cy - 196} textAnchor="middle" fontSize="52" fontWeight="700" fill={INK}>
               {clamped}
             </text>
-            <text x={cx} y={cy - 168} textAnchor="middle" fontSize="12" fill="oklch(0.8 0.02 260 / 0.7)">
+            <text x={cx} y={cy - 174} textAnchor="middle" fontSize="12" fill={MUTED}>
               Reputation Score
             </text>
-            <text x={cx} y={cy - 60} textAnchor="middle" fontSize="26" fontWeight="700" fill={SEV_TONE.Critical}>
-              {criticalFindings}
-            </text>
-            <text x={cx} y={cy - 40} textAnchor="middle" fontSize="11" fill="oklch(0.8 0.02 260 / 0.7)">
-              Critical Threats
-            </text>
-
-            {/* side labels */}
-            <text x={cx - 300} y={cy + 26} textAnchor="middle" fontSize="11" fill="oklch(0.8 0.02 260 / 0.6)">
-              +{newToday} today
-            </text>
-            <text x={cx + 300} y={cy + 26} textAnchor="middle" fontSize="11" fill="oklch(0.8 0.02 260 / 0.6)">
-              {resolvedPct}% resolved
+            <text x={cx} y={cy - 140} textAnchor="middle" fontSize="13" fontWeight="700" fill={SEV.Critical.tone}>
+              {criticalFindings} critical threats
             </text>
 
             {/* platform nodes */}
-            {nodes.map((n) => (
-              <g key={n.platform}>
-                <line
-                  x1={cx}
-                  y1={cy}
-                  x2={n.x}
-                  y2={n.y}
-                  stroke={`color-mix(in oklab, ${SEV_TONE[n.severity] ?? SEV_TONE.Info} 35%, transparent)`}
-                  strokeDasharray="3 5"
-                />
-                <circle
-                  cx={n.x}
-                  cy={n.y}
-                  r="16"
-                  fill="oklch(0.2 0.05 262 / 0.95)"
-                  stroke={SEV_TONE[n.severity] ?? SEV_TONE.Info}
-                />
-                <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill={SEV_TONE[n.severity] ?? SEV_TONE.Info}>
-                  {n.count}
-                </text>
-                <text x={n.x} y={n.y - 24} textAnchor="middle" fontSize="10" fill="oklch(0.85 0.02 260 / 0.75)">
-                  {n.platform}
-                </text>
-              </g>
-            ))}
+            {nodes.map((n) => {
+              const s = SEV[n.severity] ?? SEV.Info;
+              return (
+                <g key={n.platform}>
+                  <line
+                    x1={cx}
+                    y1={cy}
+                    x2={n.x}
+                    y2={n.y}
+                    stroke="rgba(15,27,51,0.12)"
+                    strokeDasharray="3 6"
+                  />
+                  <circle cx={n.x} cy={n.y} r="19" fill="#ffffff" stroke={s.tone} strokeWidth="2" />
+                  <circle cx={n.x} cy={n.y} r="24" fill="none" stroke={s.soft} strokeWidth="4" />
+                  <text
+                    x={n.x}
+                    y={n.y + 4}
+                    textAnchor="middle"
+                    fontSize="12"
+                    fontWeight="700"
+                    fill={s.tone}
+                  >
+                    {n.count}
+                  </text>
+                  <text x={n.x} y={n.y - 32} textAnchor="middle" fontSize="11" fontWeight="600" fill={INK}>
+                    {n.platform}
+                  </text>
+                </g>
+              );
+            })}
           </svg>
         </div>
 
         {/* right rail — live feed */}
-        <div className="xl:col-span-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <div
+          className="xl:col-span-3 rounded-2xl p-4"
+          style={{
+            background: "linear-gradient(180deg,#f3faf5 0%,#ffffff 60%)",
+            border: "1px solid rgba(15,27,51,0.06)",
+          }}
+        >
           <div className="flex items-center justify-between">
-            <div className="text-[10px] tracking-[0.18em] text-muted-foreground flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-[oklch(0.7_0.16_155)] animate-pulse" /> LIVE FEED
+            <div
+              className="text-[10px] tracking-[0.18em] font-semibold flex items-center gap-1.5"
+              style={{ color: "#9aa4bd" }}
+            >
+              <span className="size-1.5 rounded-full animate-pulse" style={{ background: "#2fa36b" }} />
+              LIVE FEED
             </div>
-            <div className="text-[10px] text-muted-foreground">24h</div>
           </div>
           <div className="mt-3 space-y-2 max-h-[300px] overflow-auto pr-1">
             {feed.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-6 text-center">No events yet.</div>
+              <div className="text-xs py-6 text-center" style={{ color: MUTED }}>
+                No events yet.
+              </div>
             ) : (
               feed.slice(0, 8).map((ev, i) => {
                 const Icon =
                   ev.type === "threat" ? AlertTriangle : ev.type === "evidence" ? ShieldCheck : Activity;
+                const t =
+                  ev.type === "threat" ? SEV.High : ev.type === "evidence" ? SEV.Low : SEV.Info;
                 return (
                   <div
                     key={i}
-                    className="flex items-start gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-2"
+                    className="flex items-start gap-2.5 rounded-xl px-3 py-2.5"
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid rgba(15,27,51,0.06)",
+                      boxShadow: "0 6px 18px -14px rgba(15,27,51,0.4)",
+                    }}
                   >
-                    <Icon className="size-3.5 mt-0.5 text-muted-foreground" />
+                    <span
+                      className="mt-0.5 grid place-items-center size-6 rounded-lg shrink-0"
+                      style={{ background: t.soft, color: t.tone }}
+                    >
+                      <Icon className="size-3.5" />
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[11px] truncate">{ev.label}</div>
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-[12px] truncate font-medium">{ev.label}</div>
+                      <div className="text-[10px]" style={{ color: MUTED }}>
                         {ev.sub ? `${ev.sub} · ` : ""}
                         {timeAgo(ev.time)} ago
                       </div>
@@ -311,11 +413,3 @@ export function ReputationMonitor({
     </div>
   );
 }
-
-const SEV_ORDER: Record<string, number> = {
-  Critical: 4,
-  High: 3,
-  Medium: 2,
-  Low: 1,
-  Info: 0,
-};
