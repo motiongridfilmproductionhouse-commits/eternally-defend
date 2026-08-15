@@ -57,6 +57,7 @@ import { Route as AppAdminRemovalRoutesRouteImport } from './routes/_app.admin.r
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
 import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.admin.onboarding-reviews'
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
+import { Route as AppAdminInvitesRouteImport } from './routes/_app.admin.invites'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
 import { Route as ApiPublicHooksResendWebhookRouteImport } from './routes/api/public/hooks/resend-webhook'
@@ -321,6 +322,11 @@ const AppAdminMultimediaHealthRoute =
     path: '/admin/multimedia-health',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAdminInvitesRoute = AppAdminInvitesRouteImport.update({
+  id: '/admin/invites',
+  path: '/admin/invites',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminDiagnosticsRoute = AppAdminDiagnosticsRouteImport.update({
   id: '/admin/diagnostics',
   path: '/admin/diagnostics',
@@ -448,6 +454,7 @@ export interface FileRoutesByFullPath {
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
+  '/admin/invites': typeof AppAdminInvitesRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
@@ -511,6 +518,7 @@ export interface FileRoutesByTo {
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
+  '/admin/invites': typeof AppAdminInvitesRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
@@ -578,6 +586,7 @@ export interface FileRoutesById {
   '/verify/$slug': typeof VerifySlugRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
+  '/_app/admin/invites': typeof AppAdminInvitesRoute
   '/_app/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
   '/_app/admin/onboarding-reviews': typeof AppAdminOnboardingReviewsRoute
   '/_app/admin/provider-activation': typeof AppAdminProviderActivationRoute
@@ -644,6 +653,7 @@ export interface FileRouteTypes {
     | '/face-handoff/$token'
     | '/verify/$slug'
     | '/admin/diagnostics'
+    | '/admin/invites'
     | '/admin/multimedia-health'
     | '/admin/onboarding-reviews'
     | '/admin/provider-activation'
@@ -707,6 +717,7 @@ export interface FileRouteTypes {
     | '/face-handoff/$token'
     | '/verify/$slug'
     | '/admin/diagnostics'
+    | '/admin/invites'
     | '/admin/multimedia-health'
     | '/admin/onboarding-reviews'
     | '/admin/provider-activation'
@@ -773,6 +784,7 @@ export interface FileRouteTypes {
     | '/verify/$slug'
     | '/_app/'
     | '/_app/admin/diagnostics'
+    | '/_app/admin/invites'
     | '/_app/admin/multimedia-health'
     | '/_app/admin/onboarding-reviews'
     | '/_app/admin/provider-activation'
@@ -1174,6 +1186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminMultimediaHealthRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/invites': {
+      id: '/_app/admin/invites'
+      path: '/admin/invites'
+      fullPath: '/admin/invites'
+      preLoaderRoute: typeof AppAdminInvitesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/diagnostics': {
       id: '/_app/admin/diagnostics'
       path: '/admin/diagnostics'
@@ -1311,6 +1330,7 @@ interface AppRouteChildren {
   AppYoutubeRemovalRoute: typeof AppYoutubeRemovalRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminDiagnosticsRoute: typeof AppAdminDiagnosticsRoute
+  AppAdminInvitesRoute: typeof AppAdminInvitesRoute
   AppAdminMultimediaHealthRoute: typeof AppAdminMultimediaHealthRoute
   AppAdminOnboardingReviewsRoute: typeof AppAdminOnboardingReviewsRoute
   AppAdminProviderActivationRoute: typeof AppAdminProviderActivationRoute
@@ -1345,6 +1365,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppYoutubeRemovalRoute: AppYoutubeRemovalRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminDiagnosticsRoute: AppAdminDiagnosticsRoute,
+  AppAdminInvitesRoute: AppAdminInvitesRoute,
   AppAdminMultimediaHealthRoute: AppAdminMultimediaHealthRoute,
   AppAdminOnboardingReviewsRoute: AppAdminOnboardingReviewsRoute,
   AppAdminProviderActivationRoute: AppAdminProviderActivationRoute,
