@@ -134,6 +134,62 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
           .limit(60),
       ]);
 
+    /**
+     * Accurate aggregates.
+     * `hitsRes` is capped (detail payload for radar/feed), so counting from it
+     * under-reports severity and platform breakdowns. These lightweight reads
+     * cover the FULL open finding set for the same 14d window.
+     */
+    const [aggRes, totalCountRes, todayCountRes] = await Promise.all([
+      supabase
+        .from("scan_hits")
+        .select("source, severity, first_seen_at")
+        .eq("user_id", userId)
+        .is("hidden_at", null)
+        .gte("first_seen_at", since14)
+        .limit(20_000),
+      supabase
+        .from("scan_hits")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .is("hidden_at", null)
+        .gte("first_seen_at", since14),
+      supabase
+        .from("scan_hits")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .is("hidden_at", null)
+        .gte("first_seen_at", since24h),
+    ]);
+    const aggRows = aggRes.data ?? [];
+    const normSev = (s: string | null | undefined) => {
+      const v = String(s ?? "Low");
+      return v[0]?.toUpperCase() + v.slice(1).toLowerCase();
+    };
+    const severityCounts: Record<string, number> = {
+      Critical: 0,
+      High: 0,
+      Medium: 0,
+      Low: 0,
+      Info: 0,
+    };
+    const platformMap = new Map<string, { platform: string; count: number; severity: string }>();
+    const SEV_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1, Info: 0 };
+    for (const r of aggRows) {
+      const sev = normSev(r.severity as string);
+      if (severityCounts[sev] !== undefined) severityCounts[sev]++;
+      const platform = bucketPlatform(r.source as string);
+      const cur = platformMap.get(platform);
+      if (!cur) platformMap.set(platform, { platform, count: 1, severity: sev });
+      else {
+        cur.count++;
+        if ((SEV_RANK[sev] ?? 0) > (SEV_RANK[cur.severity] ?? 0)) cur.severity = sev;
+      }
+    }
+    const platformBreakdown = [...platformMap.values()].sort(
+      (a, b) => (SEV_RANK[b.severity] ?? 0) - (SEV_RANK[a.severity] ?? 0) || b.count - a.count,
+    );
+
     const hits = hitsRes.data ?? [];
     const scans = scansRes.data ?? [];
     const enforcements = enfRes.data ?? [];
