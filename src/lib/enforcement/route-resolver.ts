@@ -1,16 +1,32 @@
 /**
  * Automated Enforcement Route Resolver & Host Identification Engine.
- * Resolves target URLs to verified enforcement contacts, performs DNS/WHOIS/CDN infrastructure checks,
- * enforces route staleness thresholds, and prevents auto-sending to unverified routes.
+ *
+ * Responsibilities:
+ *  - Explicit platform routing (known social/UGC/marketplace/search hosts never
+ *    fall through to a guessed generic email).
+ *  - CDN/proxy detection -> HOST_ORIGIN_DISCOVERY_REQUIRED (the CDN is never the
+ *    recipient).
+ *  - Independent websites -> EMAIL_DMCA, but only when the stored route has been
+ *    authoritatively verified by an operator.
+ *  - Recording discovered candidates as DISCOVERED_UNVERIFIED for operator review.
+ *
+ * This module never promotes a route to VERIFIED and never sends anything.
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { EnforcementRouter } from "./router";
+import {
+  decidePlatformRoute,
+  effectiveRouteState,
+  isGuessedAddress,
+  type RemovalRouteType,
+} from "./removal-route-policy";
 
 export type RouteVerificationStatus =
   | "VERIFIED"
   | "DISCOVERED_UNVERIFIED"
   | "MANUAL_REVIEW"
+  | "REJECTED"
   | "INVALID"
   | "STALE"
   | "HOST_ORIGIN_UNKNOWN";
@@ -20,6 +36,11 @@ export interface ResolvedEnforcementRoute {
   contactEmail?: string | null;
   contactType: "COPYRIGHT" | "ABUSE" | "LEGAL";
   submissionMethod: "EMAIL" | "HUMAN_REQUIRED" | "FORM";
+  routeType: RemovalRouteType;
+  platformLabel?: string;
+  platformKind?: string;
+  connectorId?: string | null;
+  preparePackage?: boolean;
   verificationStatus: RouteVerificationStatus;
   verificationMethod: string;
   sourceUrl?: string | null;
@@ -31,35 +52,42 @@ export interface ResolvedEnforcementRoute {
   notes?: string;
 }
 
-const KNOWN_CDN_PROXIES = ["cloudflare", "fastly", "cloudfront", "akamai", "imperva", "sucuri", "ddos-guard"];
-
 export class EnforcementRouteResolver {
   static STALE_THRESHOLD_DAYS = 90;
 
   static async resolveRoute(
     supabase: SupabaseClient,
     targetUrl: string,
-    enforcementBasis: string = "COPYRIGHT"
+    enforcementBasis: string = "COPYRIGHT",
   ): Promise<ResolvedEnforcementRoute> {
     const domain = EnforcementRouter.extractDomain(targetUrl);
+    const platform = decidePlatformRoute(targetUrl);
 
-    // 1. YouTube specialized route
-    if (domain.includes("youtube.com") || domain.includes("youtu.be")) {
+    // 1. Explicit non-email platform routing. Known platforms, search surfaces
+    //    and CDN/proxy hosts are resolved here and never reach email discovery.
+    if (platform.routeType !== "EMAIL_DMCA") {
+      const isCdn = platform.routeType === "HOST_ORIGIN_DISCOVERY_REQUIRED";
       return {
         domain,
-        contactEmail: "copyright@youtube.com",
-        contactType: "COPYRIGHT",
+        contactEmail: null,
+        contactType: isCdn ? "ABUSE" : "COPYRIGHT",
         submissionMethod: "HUMAN_REQUIRED",
-        verificationStatus: "VERIFIED",
-        verificationMethod: "PLATFORM_POLICY_DOCUMENTED",
-        confidence: 1.0,
+        routeType: platform.routeType,
+        platformLabel: platform.platformLabel,
+        platformKind: platform.platformKind,
+        connectorId: platform.connectorId,
+        preparePackage: platform.preparePackage,
+        verificationStatus: isCdn ? "HOST_ORIGIN_UNKNOWN" : "VERIFIED",
+        verificationMethod: isCdn ? "CDN_PROXY_DETECTED" : "PLATFORM_POLICY_DOCUMENTED",
+        hostingProvider: isCdn ? platform.platformLabel : null,
+        confidence: isCdn ? 0.5 : 1,
         isStale: false,
-        canAutoSend: false, // Truthfully HUMAN_REQUIRED
-        notes: "YouTube requires webform or CMS submission.",
+        canAutoSend: false,
+        notes: platform.reason,
       };
     }
 
-    // 2. Query domain_enforcement_routes table
+    // 2. Independent website: consult the operator-managed route registry.
     const { data: dbRoute } = await (supabase as any)
       .from("domain_enforcement_routes")
       .select("*")
@@ -67,104 +95,79 @@ export class EnforcementRouteResolver {
       .maybeSingle();
 
     if (dbRoute) {
-      const lastVerified = dbRoute.verified_at || dbRoute.updated_at || dbRoute.created_at;
-      const ageMs = Date.now() - new Date(lastVerified).getTime();
-      const ageDays = ageMs / (1000 * 3600 * 24);
-      const isStale = ageDays > this.STALE_THRESHOLD_DAYS;
-
-      let status = (dbRoute.verification_status || "VERIFIED") as RouteVerificationStatus;
-      if (isStale && status === "VERIFIED") {
-        status = "STALE";
-      }
-
-      const contactEmail = dbRoute.contact || dbRoute.copyright_email || dbRoute.abuse_email;
-      const canAutoSend = status === "VERIFIED" && Boolean(contactEmail);
-
+      const state = effectiveRouteState(dbRoute);
       return {
         domain,
-        contactEmail,
+        contactEmail: state.recipientEmail,
         contactType: (dbRoute.contact_type as any) || "COPYRIGHT",
-        submissionMethod: dbRoute.preferred_method === "EMAIL" ? "EMAIL" : "HUMAN_REQUIRED",
-        verificationStatus: status,
+        submissionMethod: state.canAutoSend ? "EMAIL" : "HUMAN_REQUIRED",
+        routeType: (dbRoute.route_type as RemovalRouteType) || "EMAIL_DMCA",
+        platformLabel: platform.platformLabel,
+        platformKind: platform.platformKind,
+        connectorId: platform.connectorId,
+        preparePackage: false,
+        verificationStatus: state.status as RouteVerificationStatus,
         verificationMethod: dbRoute.verification_method || "SYSTEM_DATABASE",
-        sourceUrl: dbRoute.source_url,
-        hostingProvider: dbRoute.hosting_provider,
-        registrar: dbRoute.registrar,
-        confidence: dbRoute.confidence || 1.0,
-        isStale,
-        canAutoSend,
-        notes: isStale ? `Route verified ${Math.round(ageDays)} days ago (exceeds ${this.STALE_THRESHOLD_DAYS}d threshold). Re-verification required.` : undefined,
+        sourceUrl: dbRoute.authoritative_source_url || dbRoute.source_url,
+        hostingProvider: dbRoute.hosting_provider ?? null,
+        registrar: dbRoute.registrar ?? null,
+        confidence: dbRoute.confidence ?? 1,
+        isStale: state.isStale,
+        canAutoSend: state.canAutoSend,
+        notes: state.reason,
       };
     }
 
-    // 3. Automated Route Discovery for Unknown Domains
-    return this.discoverRoute(supabase, domain, targetUrl, enforcementBasis);
+    // 3. No stored route: record a review candidate, stay unverified.
+    return this.recordDiscoveryCandidate(supabase, domain, targetUrl, platform);
   }
 
-  private static async discoverRoute(
+  private static async recordDiscoveryCandidate(
     supabase: SupabaseClient,
     domain: string,
     targetUrl: string,
-    enforcementBasis: string
+    platform: ReturnType<typeof decidePlatformRoute>,
   ): Promise<ResolvedEnforcementRoute> {
-    let candidateEmail: string | null = null;
-    let hostingProvider: string | null = null;
-    let isCdnProxy = false;
+    const candidateEmail = `dmca@${domain}`;
+    const guessed = isGuessedAddress(candidateEmail, domain);
 
-    // Infrastructure / CDN Proxy check
-    for (const cdn of KNOWN_CDN_PROXIES) {
-      if (domain.includes(cdn)) {
-        isCdnProxy = true;
-        hostingProvider = cdn.toUpperCase();
-        break;
-      }
-    }
-
-    if (isCdnProxy) {
-      return {
+    await (supabase as any).from("domain_enforcement_routes").upsert(
+      {
         domain,
-        contactEmail: null,
-        contactType: "ABUSE",
-        submissionMethod: "HUMAN_REQUIRED",
-        verificationStatus: "HOST_ORIGIN_UNKNOWN",
-        verificationMethod: "CDN_PROXY_DETECTED",
-        hostingProvider,
-        confidence: 0.5,
-        isStale: false,
-        canAutoSend: false,
-        notes: `Target domain is behind CDN/proxy (${hostingProvider}). Host origin unknown. Manual route discovery required.`,
-      };
-    }
-
-    // Heuristic discovery candidate
-    candidateEmail = `dmca@${domain}`;
-
-    // Discovered route is unverified until confirmed
-    const status: RouteVerificationStatus = "DISCOVERED_UNVERIFIED";
-
-    // Store in intelligence database for audit trail
-    await (supabase as any).from("domain_enforcement_routes").insert({
-      domain,
-      copyright_email: candidateEmail,
-      contact: candidateEmail,
-      verification_status: status,
-      verification_method: "HEURISTIC_DISCOVERY",
-      source_url: targetUrl,
-      confidence: 0.6,
-      created_at: new Date().toISOString(),
-    });
+        route_type: "EMAIL_DMCA",
+        platform_kind: platform.platformKind,
+        recipient_email: candidateEmail,
+        copyright_email: candidateEmail,
+        contact: candidateEmail,
+        verification_status: "DISCOVERED_UNVERIFIED",
+        verification_method: "HEURISTIC_DISCOVERY",
+        source_url: targetUrl,
+        confidence: 0.3,
+        last_checked_at: new Date().toISOString(),
+        notes: guessed
+          ? "Pattern-guessed candidate mailbox. Requires authoritative operator verification before any send."
+          : "Discovered candidate. Requires authoritative operator verification before any send.",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "domain", ignoreDuplicates: true },
+    );
 
     return {
       domain,
       contactEmail: candidateEmail,
       contactType: "COPYRIGHT",
-      submissionMethod: "EMAIL",
-      verificationStatus: status,
+      submissionMethod: "HUMAN_REQUIRED",
+      routeType: "EMAIL_DMCA",
+      platformLabel: platform.platformLabel,
+      platformKind: platform.platformKind,
+      connectorId: platform.connectorId,
+      preparePackage: false,
+      verificationStatus: "DISCOVERED_UNVERIFIED",
       verificationMethod: "HEURISTIC_DISCOVERY",
-      confidence: 0.6,
+      confidence: 0.3,
       isStale: false,
-      canAutoSend: false, // Hard rule: DISCOVERED_UNVERIFIED MUST NOT auto-send
-      notes: `Discovered unverified contact candidate (${candidateEmail}). Verification required before automated sending.`,
+      canAutoSend: false,
+      notes: `Guessed candidate (${candidateEmail}) queued for operator route verification. Automated sending stays blocked until an authoritative source is recorded.`,
     };
   }
 }
