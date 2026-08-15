@@ -36,25 +36,14 @@ export const getCertificateSignedUrl = createServerFn({ method: "POST" })
 export const getPublicVerification = createServerFn({ method: "GET" })
   .inputValidator((d: { slug: string }) => d)
   .handler(async ({ data }) => {
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
-    const url = process.env.SUPABASE_URL!;
-    const client = createClient<Database>(url, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: {
-        fetch: (input, init) => {
-          const h = new Headers(init?.headers);
-          if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`)
-            h.delete("Authorization");
-          h.set("apikey", key);
-          return fetch(input, { ...init, headers: h });
-        },
-      },
+    // Public certificate lookup runs server-side with the trusted client so the
+    // underlying SECURITY DEFINER function does not need to be anon-executable.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows } = await (supabaseAdmin as any).rpc("get_public_verification", {
+      _slug: data.slug,
     });
-    const { data: rows } = await client.rpc(
-      "get_public_verification" as never,
-      { _slug: data.slug } as never,
-    );
     const row = Array.isArray(rows) ? rows[0] : rows;
     if (!row) return { status: "NOT_FOUND" as const };
     return row;
   });
+
