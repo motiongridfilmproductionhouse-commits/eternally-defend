@@ -26,7 +26,14 @@ export interface RemovalRouteView {
   effectiveStatus: string;
   verificationMethod: string | null;
   authoritativeSourceUrl: string | null;
-  evidenceSnapshot: { excerpt?: string; operator_note?: string; recorded_at?: string };
+  evidenceSnapshot: {
+    excerpt?: string;
+    operator_note?: string;
+    recorded_at?: string;
+    html_hash?: string;
+    pages_inspected?: string[];
+    rejected_addresses?: Array<{ email: string; reasons: string[] }>;
+  };
   verifiedAt: string | null;
   verifiedBy: string | null;
   lastCheckedAt: string | null;
@@ -37,6 +44,13 @@ export interface RemovalRouteView {
   isGuessedCandidate: boolean;
   canAutoSend: boolean;
   createdAt: string | null;
+  /** Automated on-domain discovery context (operator review inputs). */
+  discoveredAt: string | null;
+  discoveryFindingId: string | null;
+  discoveryCaseId: string | null;
+  discoveryFindingUrl: string | null;
+  discoverySourceType: string | null;
+  autoDiscovered: boolean;
 }
 
 async function isOperator(ctx: { supabase: any; userId: string }): Promise<boolean> {
@@ -71,6 +85,12 @@ function toView(r: any): RemovalRouteView {
     isGuessedCandidate: recipient ? isGuessedAddress(recipient, r.domain) : false,
     canAutoSend: state.canAutoSend,
     createdAt: r.created_at ?? null,
+    discoveredAt: r.discovered_at ?? null,
+    discoveryFindingId: r.discovery_finding_id ?? null,
+    discoveryCaseId: r.discovery_case_id ?? null,
+    discoveryFindingUrl: r.discovery_finding_url ?? null,
+    discoverySourceType: r.discovery_source_type ?? null,
+    autoDiscovered: r.verification_method === "AUTOMATED_ON_DOMAIN_DISCOVERY",
   };
 }
 
