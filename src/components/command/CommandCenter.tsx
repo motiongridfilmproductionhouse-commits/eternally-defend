@@ -29,6 +29,8 @@ import {
 import { Link } from "@tanstack/react-router";
 import { getCommandCenterStats } from "@/lib/command-center.functions";
 import { ReputationMonitor } from "@/components/command/ReputationMonitor";
+import { ThreatTerrainPanel } from "@/components/command/ThreatTerrainPanel";
+
 import { DirectionalRadar, HudSweepRadar } from "@/components/command/DualRadars";
 import { getFaceProtectionStats } from "@/lib/face-scan.functions";
 import { getCompanyProtectionStats } from "@/lib/company/protection-stats.functions";
