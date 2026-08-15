@@ -7,6 +7,8 @@ import { getBucket, getS3 } from "@/lib/aws/clients.server";
 import { getSignedGetUrl, getSignedPutUrl } from "@/lib/aws/s3.server";
 import { computePerceptualHashes } from "@/lib/media/perceptual-hash.server";
 import { reverseSearchAndVerify } from "@/lib/assets/reverse-verify.server";
+import { enrollAssetInAutopilot } from "@/lib/protection/enroll-asset.server";
+import { buildProvenance, platformFromUrl } from "@/lib/social/provenance";
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"] as const;
 
@@ -94,11 +96,27 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
           reverse_search_match_count: matchCount,
           reverse_search_at: new Date().toISOString(),
           reverse_search_provider: "reverse_image_router",
+          provenance: buildProvenance({
+            platform: data.sourceUrl ? platformFromUrl(data.sourceUrl) : "other",
+            importMethod: "MANUAL_UPLOAD",
+            postUrl: data.sourceUrl || null,
+          }),
         },
       })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    return { id: inserted.id, sha256, phash: hashes?.phash ?? null, matchCount, reverse };
+
+    // Newly fingerprinted assets join continuous protection immediately when the
+    // account already has an active protection profile.
+    const enrollment = await enrollAssetInAutopilot(context.supabase, context.userId, {
+      id: inserted.id,
+      name: data.name.trim(),
+      phash: hashes?.phash ?? null,
+      dhash: hashes?.dhash ?? null,
+      ahash: hashes?.ahash ?? null,
+    });
+
+    return { id: inserted.id, enrollment, sha256, phash: hashes?.phash ?? null, matchCount, reverse };
   });
 
