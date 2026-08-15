@@ -128,6 +128,8 @@ export function parsePostUrl(raw: string): ParsedPostRef | null {
 }
 
 export interface AssetProvenance {
+  /** Index signature keeps this shape assignable to the jsonb metadata column. */
+  [key: string]: string | null;
   source_platform: SocialAssetPlatform;
   source_post_url: string | null;
   source_profile_url: string | null;
