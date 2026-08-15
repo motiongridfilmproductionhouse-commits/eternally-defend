@@ -303,7 +303,6 @@ export function ReputationMonitor({
             )}
           </div>
         </div>
-        </div>
 
         {/* right rail — live feed */}
         <div
