@@ -279,16 +279,25 @@ export async function notifyOnboardingCompletion(
 ): Promise<{ sent: boolean; skipped?: boolean; error?: string }> {
   const { recipient } = senderConfig();
   try {
-    const { data: claim, error: claimError } = await supabase
+    const { data: inserted } = await supabase
       .from("onboarding_completion_notifications")
       .insert({ user_id: userId, recipient, status: "PENDING" })
       .select("id")
       .maybeSingle();
 
-    if (claimError || !claim) {
-      // Unique violation => already reported for this client.
-      return { sent: false, skipped: true };
+    let claim = inserted;
+    if (!claim) {
+      // Row already exists: only retry when the previous attempt did not send.
+      const { data: existing } = await supabase
+        .from("onboarding_completion_notifications")
+        .select("id,status")
+        .eq("user_id", userId)
+        .eq("recipient", recipient)
+        .maybeSingle();
+      if (!existing || existing.status === "SENT") return { sent: false, skipped: true };
+      claim = { id: existing.id };
     }
+
 
     const summary = await loadSummary(supabase, userId);
     const bodies = buildBodies(summary);
