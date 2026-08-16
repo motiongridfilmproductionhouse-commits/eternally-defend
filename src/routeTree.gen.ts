@@ -43,6 +43,7 @@ import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 import { Route as PartnerPartnerIndexRouteImport } from './routes/_partner.partner.index'
 import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
 import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
+import { Route as ApiPublicOnboardingCompletionBackfillRouteImport } from './routes/api/public/onboarding-completion-backfill'
 import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public/image-proxy'
 import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
 import { Route as PartnerPartnerProposalsRouteImport } from './routes/_partner.partner.proposals'
@@ -245,6 +246,12 @@ const ApiPublicVeriffWebhookRoute = ApiPublicVeriffWebhookRouteImport.update({
   path: '/api/public/veriff-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicOnboardingCompletionBackfillRoute =
+  ApiPublicOnboardingCompletionBackfillRouteImport.update({
+    id: '/api/public/onboarding-completion-backfill',
+    path: '/api/public/onboarding-completion-backfill',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicImageProxyRoute = ApiPublicImageProxyRouteImport.update({
   id: '/api/public/image-proxy',
   path: '/api/public/image-proxy',
@@ -469,6 +476,7 @@ export interface FileRoutesByFullPath {
   '/partner/proposals': typeof PartnerPartnerProposalsRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
+  '/api/public/onboarding-completion-backfill': typeof ApiPublicOnboardingCompletionBackfillRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/partner/': typeof PartnerPartnerIndexRoute
@@ -533,6 +541,7 @@ export interface FileRoutesByTo {
   '/partner/proposals': typeof PartnerPartnerProposalsRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
+  '/api/public/onboarding-completion-backfill': typeof ApiPublicOnboardingCompletionBackfillRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/partner': typeof PartnerPartnerIndexRoute
@@ -601,6 +610,7 @@ export interface FileRoutesById {
   '/_partner/partner/proposals': typeof PartnerPartnerProposalsRoute
   '/api/media/preview': typeof ApiMediaPreviewRoute
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
+  '/api/public/onboarding-completion-backfill': typeof ApiPublicOnboardingCompletionBackfillRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_partner/partner/': typeof PartnerPartnerIndexRoute
@@ -668,6 +678,7 @@ export interface FileRouteTypes {
     | '/partner/proposals'
     | '/api/media/preview'
     | '/api/public/image-proxy'
+    | '/api/public/onboarding-completion-backfill'
     | '/api/public/veriff-webhook'
     | '/sensitive-protection/'
     | '/partner/'
@@ -732,6 +743,7 @@ export interface FileRouteTypes {
     | '/partner/proposals'
     | '/api/media/preview'
     | '/api/public/image-proxy'
+    | '/api/public/onboarding-completion-backfill'
     | '/api/public/veriff-webhook'
     | '/sensitive-protection'
     | '/partner'
@@ -799,6 +811,7 @@ export interface FileRouteTypes {
     | '/_partner/partner/proposals'
     | '/api/media/preview'
     | '/api/public/image-proxy'
+    | '/api/public/onboarding-completion-backfill'
     | '/api/public/veriff-webhook'
     | '/_app/sensitive-protection/'
     | '/_partner/partner/'
@@ -832,6 +845,7 @@ export interface RootRouteChildren {
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
   ApiPublicImageProxyRoute: typeof ApiPublicImageProxyRoute
+  ApiPublicOnboardingCompletionBackfillRoute: typeof ApiPublicOnboardingCompletionBackfillRoute
   ApiPublicVeriffWebhookRoute: typeof ApiPublicVeriffWebhookRoute
   ApiPublicHooksAutomationFetchRoute: typeof ApiPublicHooksAutomationFetchRoute
   ApiPublicHooksAutomationStatusRoute: typeof ApiPublicHooksAutomationStatusRoute
@@ -1086,6 +1100,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/veriff-webhook'
       fullPath: '/api/public/veriff-webhook'
       preLoaderRoute: typeof ApiPublicVeriffWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/onboarding-completion-backfill': {
+      id: '/api/public/onboarding-completion-backfill'
+      path: '/api/public/onboarding-completion-backfill'
+      fullPath: '/api/public/onboarding-completion-backfill'
+      preLoaderRoute: typeof ApiPublicOnboardingCompletionBackfillRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/image-proxy': {
@@ -1428,6 +1449,8 @@ const rootRouteChildren: RootRouteChildren = {
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
   ApiPublicImageProxyRoute: ApiPublicImageProxyRoute,
+  ApiPublicOnboardingCompletionBackfillRoute:
+    ApiPublicOnboardingCompletionBackfillRoute,
   ApiPublicVeriffWebhookRoute: ApiPublicVeriffWebhookRoute,
   ApiPublicHooksAutomationFetchRoute: ApiPublicHooksAutomationFetchRoute,
   ApiPublicHooksAutomationStatusRoute: ApiPublicHooksAutomationStatusRoute,
