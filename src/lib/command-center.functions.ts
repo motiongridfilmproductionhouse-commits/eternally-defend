@@ -481,6 +481,29 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       },
       danger: { score: danger, zone: dangerZone, velocityDelta, totalReach },
       radar: radarAll,
+      radarDeepScope: {
+        ...deepScope,
+        dataSource:
+          "public.scan_hits — user_id = signed-in tenant, hidden_at IS NULL, first_seen_at within 14 days",
+        queriedAt,
+      },
+      radarExposure: {
+        ...exposure,
+        dataSource:
+          "public.scan_hits.reach (platform-reported audience metric persisted at scan time), same qualifying dataset as Deep Scope",
+        queriedAt,
+      },
+      sweep: {
+        scanning: Boolean(runningScan),
+        status: runningScan
+          ? runningScan.status === "running"
+            ? "SWEEPING"
+            : "QUEUED"
+          : "MONITORING",
+        activeScanName: (runningScan?.name as string) ?? null,
+        lastScanCompletedAt: (lastCompletedScan?.completed_at as string) ?? null,
+        queriedAt,
+      },
       faceLinkedNodes: faceNodes.length,
       trending,
       heatmap,
