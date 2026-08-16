@@ -7,6 +7,7 @@ import {
   bucketPlatform,
   spoilerCategory,
 } from "@/lib/command-center-helpers";
+import { buildDeepScope, buildExposure, type RadarRow } from "@/lib/command-center-radar";
 
 
 export const getCommandCenterStats = createServerFn({ method: "GET" })
@@ -97,7 +98,9 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
     const [aggRes, totalCountRes, todayCountRes] = await Promise.all([
       supabase
         .from("scan_hits")
-        .select("source, severity, first_seen_at")
+        .select(
+          "id, source, severity, first_seen_at, risk_score, threat_score, risk_type, reach, title, canonical_url, permalink, thumbnail_url, times_detected",
+        )
         .eq("user_id", userId)
         .is("hidden_at", null)
         .gte("first_seen_at", since14)
@@ -429,6 +432,21 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       return "flat" as const;
     };
 
+    /**
+     * Radar datasets — both radars read the SAME qualifying dataset (`aggRows`:
+     * this tenant's open scan_hits in the 14-day window), so their counts and
+     * totals reconcile with `overview.totalFindings`.
+     */
+    const escalatedUrls = new Set(
+      enforcements.map((e) => (e.target_url as string) || "").filter(Boolean),
+    );
+    const deepScope = buildDeepScope(aggRows as unknown as RadarRow[], escalatedUrls);
+    const exposure = buildExposure(aggRows as unknown as RadarRow[]);
+    const runningScan = scans.find((s) => s.status === "running" || s.status === "queued") ?? null;
+    const lastCompletedScan = scans.find((s) => s.status === "completed") ?? null;
+    const queriedAt = new Date().toISOString();
+
+
     return {
       target: targetName || null,
       protection: {
@@ -463,6 +481,29 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       },
       danger: { score: danger, zone: dangerZone, velocityDelta, totalReach },
       radar: radarAll,
+      radarDeepScope: {
+        ...deepScope,
+        dataSource:
+          "public.scan_hits — user_id = signed-in tenant, hidden_at IS NULL, first_seen_at within 14 days",
+        queriedAt,
+      },
+      radarExposure: {
+        ...exposure,
+        dataSource:
+          "public.scan_hits.reach (platform-reported audience metric persisted at scan time), same qualifying dataset as Deep Scope",
+        queriedAt,
+      },
+      sweep: {
+        scanning: Boolean(runningScan),
+        status: runningScan
+          ? runningScan.status === "running"
+            ? "SWEEPING"
+            : "QUEUED"
+          : "MONITORING",
+        activeScanName: (runningScan?.name as string) ?? null,
+        lastScanCompletedAt: (lastCompletedScan?.completed_at as string) ?? null,
+        queriedAt,
+      },
       faceLinkedNodes: faceNodes.length,
       trending,
       heatmap,

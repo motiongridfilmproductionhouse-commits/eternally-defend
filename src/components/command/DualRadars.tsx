@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Compass, Radar as RadarIcon } from "lucide-react";
+import { Compass, ExternalLink, Radar as RadarIcon } from "lucide-react";
 import type { getCommandCenterStats } from "@/lib/command-center.functions";
 
 type CmdData = Awaited<ReturnType<typeof getCommandCenterStats>>;
-type Node = CmdData["radar"][number];
+type DeepMarker = CmdData["radarDeepScope"]["markers"][number];
+type ExposureMarker = CmdData["radarExposure"]["markers"][number];
 
 const SEV_HUE: Record<string, string> = {
   Critical: "oklch(0.63 0.24 25)",
@@ -17,20 +18,16 @@ function sevColor(sev: string) {
   return SEV_HUE[sev] ?? SEV_HUE["Info"]!;
 }
 
-/** Deterministic hash → 0..1, so a node never jumps between renders. */
-function hash01(id: string) {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 10000) / 10000;
-}
-
 function fmtReach(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
+}
+
+function fmtTime(iso: string | null | undefined) {
+  if (!iso) return "unknown";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "unknown" : d.toLocaleString();
 }
 
 function Shell({
@@ -38,12 +35,16 @@ function Shell({
   label,
   sub,
   status,
+  statusTone = "primary",
+  footer,
   children,
 }: {
   icon: React.ReactNode;
   label: string;
   sub: string;
   status: string;
+  statusTone?: "primary" | "muted";
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -60,27 +61,84 @@ function Shell({
             <div className="text-[11px] text-muted-foreground/80">{sub}</div>
           </div>
         </div>
-        <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-primary">
+        <span
+          className={
+            statusTone === "primary"
+              ? "rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-primary"
+              : "rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground"
+          }
+        >
           {status}
         </span>
       </div>
       <div className="mt-4">{children}</div>
+      {footer}
     </div>
   );
 }
 
-/* ============ Radar 1 — Deep HUD sweep scope ============ */
+/** Compact detail card for a selected marker — the drill-down surface. */
+function MarkerDetail({
+  title,
+  rows,
+  url,
+  onClose,
+}: {
+  title: string;
+  rows: Array<[string, string]>;
+  url: string | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="mt-3 rounded-xl border border-white/10 bg-background/70 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-semibold leading-snug text-foreground">{title}</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 rounded px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+          aria-label="Close finding details"
+        >
+          ✕
+        </button>
+      </div>
+      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-muted-foreground">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex gap-1.5">
+            <dt className="uppercase tracking-wider opacity-70">{k}</dt>
+            <dd className="truncate text-foreground/90">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
+        >
+          Open evidence source <ExternalLink className="size-3" />
+        </a>
+      )}
+    </div>
+  );
+}
+
+/* ============ Radar 1 — Deep Scope (real detections) ============ */
 export function HudSweepRadar({ d }: { d: CmdData }) {
   const size = 360;
   const c = size / 2;
   const rMax = c - 26;
+  const data = d.radarDeepScope;
+  const sweeping = d.sweep.scanning;
   const [angle, setAngle] = useState(0);
+  const [selected, setSelected] = useState<DeepMarker | null>(null);
 
   useEffect(() => {
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) return;
+    if (reduce || !sweeping) return;
     let raf = 0;
     let last = performance.now();
     const tick = (t: number) => {
@@ -91,33 +149,47 @@ export function HudSweepRadar({ d }: { d: CmdData }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [sweeping]);
 
+  // Positions come straight from the server-computed, documented geometry.
   const nodes = useMemo(
     () =>
-      d.radar.slice(0, 40).map((n) => {
-        const score = Math.min(100, Math.max(0, n.threatScore || 0));
-        // higher threat sits closer to the centre (like the reference scope)
-        const radius = rMax * (0.16 + (1 - score / 100) * 0.78);
-        const a = hash01(n.id) * 360;
-        return {
-          n,
-          a,
-          x: c + Math.cos((a * Math.PI) / 180) * radius,
-          y: c + Math.sin((a * Math.PI) / 180) * radius,
-        };
+      data.markers.map((m) => {
+        const r = rMax * m.radiusFactor;
+        const rad = (m.angleDeg * Math.PI) / 180;
+        return { m, x: c + Math.cos(rad) * r, y: c + Math.sin(rad) * r };
       }),
-    [d.radar, rMax, c],
+    [data.markers, rMax, c],
   );
 
-  const platforms = useMemo(() => new Set(d.radar.map((r) => r.platform)).size, [d.radar]);
+  const sev = data.severityCounts;
 
   return (
     <Shell
       icon={<RadarIcon className="size-4" />}
       label="Deep Scope Radar"
-      sub={`${d.radar.length} tracked signals · ${platforms} platforms`}
-      status="Sweeping"
+      sub={`${data.signalCount} tracked signals · ${data.platformCount} platforms · ${data.markerCount} markers plotted`}
+      status={d.sweep.status}
+      statusTone={sweeping ? "primary" : "muted"}
+      footer={
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap gap-3">
+            {(["Critical", "High", "Medium", "Low", "Info"] as const).map((s) => (
+              <span
+                key={s}
+                className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground"
+              >
+                <span className="size-2 rounded-full" style={{ background: sevColor(s) }} />
+                {s} · {sev[s]}
+              </span>
+            ))}
+          </div>
+          <p className="text-[10px] leading-relaxed text-muted-foreground/80">
+            Angle = platform sector. Distance from centre = detection priority (severity + recency) —
+            highest priority sits nearest the core. Last updated {fmtTime(data.queriedAt)}.
+          </p>
+        </div>
+      }
     >
       <div className="relative grid place-items-center">
         <svg viewBox={`0 0 ${size} ${size}`} width="100%" style={{ maxWidth: size }}>
@@ -132,7 +204,6 @@ export function HudSweepRadar({ d }: { d: CmdData }) {
             </linearGradient>
           </defs>
 
-          {/* outer bezel */}
           <circle
             cx={c}
             cy={c}
@@ -143,7 +214,6 @@ export function HudSweepRadar({ d }: { d: CmdData }) {
           />
           <circle cx={c} cy={c} r={rMax + 10} fill="oklch(0.2 0.07 255 / 0.55)" />
 
-          {/* concentric grid */}
           {Array.from({ length: 8 }).map((_, i) => (
             <circle
               key={i}
@@ -155,137 +225,182 @@ export function HudSweepRadar({ d }: { d: CmdData }) {
               strokeWidth={1}
             />
           ))}
-          {/* radial spokes */}
-          {Array.from({ length: 24 }).map((_, i) => {
-            const a = (i * 15 * Math.PI) / 180;
+
+          {/* one spoke + label per real platform sector */}
+          {data.sectors.map((s) => {
+            const rad = (s.angleDeg * Math.PI) / 180;
             return (
-              <line
-                key={i}
-                x1={c}
-                y1={c}
-                x2={c + Math.cos(a) * rMax}
-                y2={c + Math.sin(a) * rMax}
-                stroke="oklch(0.7 0.15 235 / 0.12)"
-                strokeWidth={1}
-              />
-            );
-          })}
-
-          {/* sweep beam */}
-          <g transform={`rotate(${angle} ${c} ${c})`}>
-            <path
-              d={`M ${c} ${c} L ${c + rMax} ${c - 26} A ${rMax} ${rMax} 0 0 1 ${c + rMax} ${c + 26} Z`}
-              fill="url(#hud-beam)"
-            />
-            <line
-              x1={c}
-              y1={c}
-              x2={c + rMax}
-              y2={c}
-              stroke="oklch(0.9 0.14 225)"
-              strokeWidth={1.6}
-              opacity={0.9}
-            />
-          </g>
-
-          {/* range scale */}
-          {Array.from({ length: 9 }).map((_, i) => (
-            <line
-              key={i}
-              x1={c + rMax + 4}
-              y1={c - rMax + (i * rMax * 2) / 8}
-              x2={c + rMax + 14 - (i % 2 ? 5 : 0)}
-              y2={c - rMax + (i * rMax * 2) / 8}
-              stroke="oklch(0.75 0.14 230 / 0.5)"
-              strokeWidth={1}
-            />
-          ))}
-
-          {/* nodes */}
-          {nodes.map(({ n, x, y }) => {
-            const col = sevColor(n.severity);
-            const lit = Math.abs(((angle - hash01(n.id) * 360 + 540) % 360) - 180) > 150;
-            return n.permalink ? (
-              <a key={n.id} href={n.permalink} target="_blank" rel="noreferrer">
-                <title>{`${n.severity} · ${n.platform} · ${n.title}`}</title>
-                <circle cx={x} cy={y} r={lit ? 8 : 5} fill={col} opacity={lit ? 0.28 : 0.14} />
-                <circle cx={x} cy={y} r={3} fill={col} />
-              </a>
-            ) : (
-              <g key={n.id}>
-                <title>{`${n.severity} · ${n.platform} · ${n.title}`}</title>
-                <circle cx={x} cy={y} r={lit ? 8 : 5} fill={col} opacity={lit ? 0.28 : 0.14} />
-                <circle cx={x} cy={y} r={3} fill={col} />
+              <g key={s.platform}>
+                <line
+                  x1={c}
+                  y1={c}
+                  x2={c + Math.cos(rad) * rMax}
+                  y2={c + Math.sin(rad) * rMax}
+                  stroke="oklch(0.7 0.15 235 / 0.18)"
+                  strokeWidth={1}
+                />
+                <text
+                  x={c + Math.cos(rad) * (rMax + 12)}
+                  y={c + Math.sin(rad) * (rMax + 12)}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="8"
+                  fill="oklch(0.8 0.06 235 / 0.75)"
+                >
+                  {s.platform}
+                </text>
               </g>
             );
           })}
 
-          {/* core */}
+          {sweeping && (
+            <g transform={`rotate(${angle} ${c} ${c})`}>
+              <path
+                d={`M ${c} ${c} L ${c + rMax} ${c - 26} A ${rMax} ${rMax} 0 0 1 ${c + rMax} ${c + 26} Z`}
+                fill="url(#hud-beam)"
+              />
+              <line
+                x1={c}
+                y1={c}
+                x2={c + rMax}
+                y2={c}
+                stroke="oklch(0.9 0.14 225)"
+                strokeWidth={1.6}
+                opacity={0.9}
+              />
+            </g>
+          )}
+
+          {nodes.map(({ m, x, y }) => {
+            const col = sevColor(m.severity);
+            const active = selected?.id === m.id;
+            return (
+              <g
+                key={m.id}
+                onClick={() => setSelected(m)}
+                style={{ cursor: "pointer" }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") setSelected(m);
+                }}
+              >
+                <title>{`${m.severity} · ${m.platform} · ${m.findingType} · ${m.title}`}</title>
+                <circle cx={x} cy={y} r={active ? 10 : 6} fill={col} opacity={active ? 0.4 : 0.16} />
+                <circle cx={x} cy={y} r={active ? 4 : 3} fill={col} />
+              </g>
+            );
+          })}
+
           <circle cx={c} cy={c} r={22} fill="url(#hud-core)" />
           <circle cx={c} cy={c} r={4} fill="oklch(0.9 0.14 225)" />
         </svg>
 
-        {d.radar.length === 0 && (
+        {data.signalCount === 0 && (
           <div className="absolute inset-0 grid place-items-center">
             <span className="rounded-full border border-white/10 bg-background/70 px-3 py-1 text-[11px] text-muted-foreground">
-              No signals detected
+              No active threat signals detected
             </span>
           </div>
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-3">
-        {Object.keys(SEV_HUE).map((s) => (
-          <span key={s} className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <span className="size-2 rounded-full" style={{ background: sevColor(s) }} />
-            {s}
-          </span>
-        ))}
-      </div>
+      {selected && (
+        <MarkerDetail
+          title={selected.title}
+          url={selected.url}
+          onClose={() => setSelected(null)}
+          rows={[
+            ["Finding", selected.findingId.slice(0, 8)],
+            ["Platform", selected.platform],
+            ["Domain", selected.domain ?? "unknown"],
+            ["Type", selected.findingType],
+            ["Severity", selected.severity],
+            [
+              "Confidence",
+              selected.confidence === null ? "not stored" : `${selected.confidence}/100`,
+            ],
+            ["Detected", fmtTime(selected.detectedAt)],
+            ["Status", selected.status],
+          ]}
+        />
+      )}
     </Shell>
   );
 }
 
-/* ============ Radar 2 — Directional exposure scope ============ */
+/* ============ Radar 2 — Exposure Bearing (real reach) ============ */
 export function DirectionalRadar({ d }: { d: CmdData }) {
   const size = 360;
   const c = size / 2;
   const rMax = c - 30;
+  const data = d.radarExposure;
+  const sweeping = d.sweep.scanning;
   const [angle, setAngle] = useState(0);
+  const [selected, setSelected] = useState<ExposureMarker | null>(null);
 
   useEffect(() => {
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) return;
+    if (reduce || !sweeping) return;
     const id = window.setInterval(() => setAngle((a) => (a + 6) % 360), 90);
     return () => window.clearInterval(id);
-  }, []);
+  }, [sweeping]);
 
-  const maxReach = useMemo(
-    () => Math.max(1, ...d.radar.map((r) => r.reach || 0)),
-    [d.radar],
+  const markers = useMemo(
+    () =>
+      data.markers.map((m) => {
+        const r = rMax * m.radiusFactor;
+        const rad = (m.angleDeg * Math.PI) / 180;
+        return { m, x: c + Math.cos(rad) * r, y: c + Math.sin(rad) * r };
+      }),
+    [data.markers, rMax, c],
   );
-  const markers = useMemo(() => {
-    const top = [...d.radar].sort((a, b) => (b.reach || 0) - (a.reach || 0)).slice(0, 6);
-    return top.map((n: Node) => {
-      const a = hash01(`${n.id}:dir`) * 360;
-      const radius = rMax * (0.3 + 0.62 * ((n.reach || 0) / maxReach));
-      return {
-        n,
-        a,
-        x: c + Math.cos((a * Math.PI) / 180) * radius,
-        y: c + Math.sin((a * Math.PI) / 180) * radius,
-      };
-    });
-  }, [d.radar, maxReach, rMax, c]);
+
+  const hasFindings = d.radarDeepScope.signalCount > 0;
 
   return (
     <Shell
       icon={<Compass className="size-4" />}
       label="Exposure Bearing Radar"
-      sub={`Top ${markers.length} highest-reach threats · ${fmtReach(d.danger.totalReach ?? 0)} total reach`}
-      status={`Zone ${d.danger.zone}`}
+      sub={
+        data.qualifyingCount === 0
+          ? hasFindings
+            ? "Exposure data unavailable for these findings"
+            : "No active threat signals detected"
+          : `Top ${markers.length} of ${data.qualifyingCount} findings with reach · ${fmtReach(data.totalReach)} measured reach`
+      }
+      status={sweeping ? d.sweep.status : "MONITORING"}
+      statusTone={sweeping ? "primary" : "muted"}
+      footer={
+        <div className="mt-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {(
+              [
+                ["Provider-reported", data.provenanceBreakdown.PROVIDER_REPORTED],
+                ["Verified", data.provenanceBreakdown.VERIFIED],
+                ["Estimated", data.provenanceBreakdown.ESTIMATED],
+                ["Unknown", data.provenanceBreakdown.UNKNOWN],
+              ] as Array<[string, number]>
+            ).map(([label, n]) => (
+              <div key={label} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5">
+                <div className="text-sm font-semibold text-foreground">{n}</div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {label}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] leading-relaxed text-muted-foreground/80">
+            Bearing = platform sector; distance from centre = normalised platform-reported reach (log
+            scale), so the highest-reach finding sits furthest out. Total reach sums{" "}
+            {data.qualifyingCount} URL-deduplicated findings ({data.duplicatesCollapsed} duplicates
+            merged); {data.unknownReachCount} findings have unknown reach and are excluded, not
+            counted as zero. Last updated {fmtTime(data.queriedAt)}.
+          </p>
+        </div>
+      }
     >
       <div className="relative grid place-items-center">
         <svg viewBox={`0 0 ${size} ${size}`} width="100%" style={{ maxWidth: size }}>
@@ -319,55 +434,56 @@ export function DirectionalRadar({ d }: { d: CmdData }) {
             />
           ))}
 
-          {/* north marker */}
-          <g>
-            <circle
-              cx={c + rMax * 0.86}
-              cy={c - rMax * 0.5}
-              r={13}
-              fill="oklch(0.2 0.05 200)"
-              stroke="oklch(0.82 0.17 175)"
-              strokeWidth={2}
-            />
-            <text
-              x={c + rMax * 0.86}
-              y={c - rMax * 0.5 + 4}
-              textAnchor="middle"
-              fontSize="10"
-              fontWeight="700"
-              fill="oklch(0.9 0.1 180)"
-            >
-              N
-            </text>
-          </g>
+          {/* reach scale labels tied to the real max */}
+          {data.maxReach > 0 &&
+            [1, 0.5].map((f) => (
+              <text
+                key={f}
+                x={c + 4}
+                y={c - rMax * (0.28 + 0.68 * f) - 4}
+                fontSize="8"
+                fill="oklch(0.85 0.06 190 / 0.7)"
+              >
+                {fmtReach(Math.round(data.maxReach * f))}
+              </text>
+            ))}
 
-          {/* cone sweep with stepped arcs */}
-          <g transform={`rotate(${angle - 90} ${c} ${c})`}>
-            {Array.from({ length: 7 }).map((_, i) => {
-              const r = rMax * (0.22 + i * 0.1);
-              const spread = 15 + i * 1.2;
-              const a1 = ((-spread) * Math.PI) / 180;
-              const a2 = ((spread) * Math.PI) / 180;
-              return (
-                <path
-                  key={i}
-                  d={`M ${c + Math.cos(a1) * r} ${c + Math.sin(a1) * r} A ${r} ${r} 0 0 1 ${c + Math.cos(a2) * r} ${c + Math.sin(a2) * r}`}
-                  fill="none"
-                  stroke="oklch(0.82 0.15 175)"
-                  strokeWidth={3}
-                  opacity={0.42 - i * 0.045}
-                />
-              );
-            })}
-          </g>
+          {sweeping && (
+            <g transform={`rotate(${angle - 90} ${c} ${c})`}>
+              {Array.from({ length: 7 }).map((_, i) => {
+                const r = rMax * (0.22 + i * 0.1);
+                const spread = 15 + i * 1.2;
+                const a1 = (-spread * Math.PI) / 180;
+                const a2 = (spread * Math.PI) / 180;
+                return (
+                  <path
+                    key={i}
+                    d={`M ${c + Math.cos(a1) * r} ${c + Math.sin(a1) * r} A ${r} ${r} 0 0 1 ${c + Math.cos(a2) * r} ${c + Math.sin(a2) * r}`}
+                    fill="none"
+                    stroke="oklch(0.82 0.15 175)"
+                    strokeWidth={3}
+                    opacity={0.42 - i * 0.045}
+                  />
+                );
+              })}
+            </g>
+          )}
 
-          {/* reach markers */}
-          {markers.map(({ n, x, y }) => {
-            const col = sevColor(n.severity);
+          {markers.map(({ m, x, y }) => {
+            const col = sevColor(m.severity);
             const right = x >= c;
             return (
-              <g key={n.id}>
-                <title>{`${n.platform} · ${n.severity} · reach ${fmtReach(n.reach || 0)}`}</title>
+              <g
+                key={m.id}
+                onClick={() => setSelected(m)}
+                style={{ cursor: "pointer" }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") setSelected(m);
+                }}
+              >
+                <title>{`${m.platform} · ${m.severity} · reach ${fmtReach(m.reach)} (${m.reachProvenance})`}</title>
                 <polygon
                   points={`${x - 7},${y - 6} ${x + 7},${y} ${x - 7},${y + 6}`}
                   fill={col}
@@ -381,7 +497,7 @@ export function DirectionalRadar({ d }: { d: CmdData }) {
                   fontWeight="600"
                   fill={col}
                 >
-                  {fmtReach(n.reach || 0)}
+                  {fmtReach(m.reach)}
                 </text>
               </g>
             );
@@ -393,17 +509,32 @@ export function DirectionalRadar({ d }: { d: CmdData }) {
 
         {markers.length === 0 && (
           <div className="absolute inset-0 grid place-items-center">
-            <span className="rounded-full border border-white/10 bg-background/70 px-3 py-1 text-[11px] text-muted-foreground">
-              No reach data yet
+            <span className="rounded-full border border-white/10 bg-background/70 px-3 py-1 text-center text-[11px] text-muted-foreground">
+              {hasFindings
+                ? "Exposure data unavailable for these findings"
+                : "No active threat signals detected"}
             </span>
           </div>
         )}
       </div>
 
-      <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-        Bearing shows platform spread; distance from centre is audience reach. Marker colour is the
-        finding&apos;s recorded severity.
-      </p>
+      {selected && (
+        <MarkerDetail
+          title={selected.title}
+          url={selected.url}
+          onClose={() => setSelected(null)}
+          rows={[
+            ["Finding", selected.findingId.slice(0, 8)],
+            ["Platform", selected.platform],
+            ["Domain", selected.domain ?? "unknown"],
+            ["Severity", selected.severity],
+            ["Reach", selected.reach.toLocaleString()],
+            ["Provenance", selected.reachProvenance],
+            ["Merged", `${selected.duplicatesMerged} URL match(es)`],
+            ["Detected", fmtTime(selected.detectedAt)],
+          ]}
+        />
+      )}
     </Shell>
   );
 }
