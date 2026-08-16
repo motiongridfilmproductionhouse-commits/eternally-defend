@@ -9,6 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { AutoEnforcementOrchestrator } from "./enforcement/orchestrator";
 import { EnforcementWorkerRunner } from "./enforcement/worker";
+import { excludeTestFixtures, isTestFixtureTarget } from "./enforcement/test-fixtures";
 
 export const getClientEnforcementSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -156,7 +157,9 @@ export const listEnforcementCases = createServerFn({ method: "GET" })
 
     const { data: cases, error } = await q;
     if (error) throw error;
-    return { cases: cases ?? [] };
+    // Ownership is enforced above (and by RLS). Controlled-test fixtures are
+    // additionally hidden from customer dashboards while staying in the DB.
+    return { cases: excludeTestFixtures((cases ?? []) as any[]) };
   });
 
 export const listReviewQueue = createServerFn({ method: "GET" })
