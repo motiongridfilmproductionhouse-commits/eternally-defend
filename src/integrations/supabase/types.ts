@@ -2525,6 +2525,63 @@ export type Database = {
           },
         ]
       }
+      deepfake_google_images_jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          diagnostics: Json
+          id: string
+          identity_id: string | null
+          lease_expiry: string | null
+          lease_owner: string | null
+          metrics: Json
+          priority: number
+          query: string
+          scan_id: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          diagnostics?: Json
+          id?: string
+          identity_id?: string | null
+          lease_expiry?: string | null
+          lease_owner?: string | null
+          metrics?: Json
+          priority?: number
+          query: string
+          scan_id: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          diagnostics?: Json
+          id?: string
+          identity_id?: string | null
+          lease_expiry?: string | null
+          lease_owner?: string | null
+          metrics?: Json
+          priority?: number
+          query?: string
+          scan_id?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deepfake_manual_leads: {
         Row: {
           capture_timestamp: string | null
@@ -2816,6 +2873,42 @@ export type Database = {
           rekognition_collection_id?: string | null
           target_name?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      deepfake_worker_events: {
+        Row: {
+          created_at: string
+          error_category: string | null
+          error_message: string | null
+          event_name: string
+          id: string
+          metadata: Json
+          request_id: string | null
+          scan_id: string
+          worker_execution_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_category?: string | null
+          error_message?: string | null
+          event_name: string
+          id?: string
+          metadata?: Json
+          request_id?: string | null
+          scan_id: string
+          worker_execution_id: string
+        }
+        Update: {
+          created_at?: string
+          error_category?: string | null
+          error_message?: string | null
+          event_name?: string
+          id?: string
+          metadata?: Json
+          request_id?: string | null
+          scan_id?: string
+          worker_execution_id?: string
         }
         Relationships: []
       }
@@ -5247,6 +5340,27 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      internal_cron_secrets: {
+        Row: {
+          created_at: string
+          name: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          token?: string
+          updated_at?: string
         }
         Relationships: []
       }

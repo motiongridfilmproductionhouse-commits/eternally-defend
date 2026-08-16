@@ -503,6 +503,10 @@ export const finishCompanyOnboarding = createServerFn({ method: "POST" })
     );
     if (progressError) throw new Error(progressError.message);
 
+    await (
+      await import("@/lib/protection/autopilot.server")
+    ).activateProtectionAfterOnboarding(supabase, userId);
+
     try {
       await (
         await import("./completion-notification.server")

@@ -63,7 +63,9 @@ import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.dia
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
 import { Route as ApiPublicHooksResendWebhookRouteImport } from './routes/api/public/hooks/resend-webhook'
 import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
+import { Route as ApiPublicHooksProtectionSchedulerTokenRouteImport } from './routes/api/public/hooks/protection-scheduler-token'
 import { Route as ApiPublicHooksProtectionAutopilotRouteImport } from './routes/api/public/hooks/protection-autopilot'
+import { Route as ApiPublicHooksProtectionActivationRepairRouteImport } from './routes/api/public/hooks/protection-activation-repair'
 import { Route as ApiPublicHooksPostmarkWebhookRouteImport } from './routes/api/public/hooks/postmark-webhook'
 import { Route as ApiPublicHooksEnforcementWorkerRouteImport } from './routes/api/public/hooks/enforcement-worker'
 import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
@@ -357,10 +359,22 @@ const ApiPublicHooksReleaseProtectionMonitorRoute =
     path: '/api/public/hooks/release-protection-monitor',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksProtectionSchedulerTokenRoute =
+  ApiPublicHooksProtectionSchedulerTokenRouteImport.update({
+    id: '/api/public/hooks/protection-scheduler-token',
+    path: '/api/public/hooks/protection-scheduler-token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksProtectionAutopilotRoute =
   ApiPublicHooksProtectionAutopilotRouteImport.update({
     id: '/api/public/hooks/protection-autopilot',
     path: '/api/public/hooks/protection-autopilot',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksProtectionActivationRepairRoute =
+  ApiPublicHooksProtectionActivationRepairRouteImport.update({
+    id: '/api/public/hooks/protection-activation-repair',
+    path: '/api/public/hooks/protection-activation-repair',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksPostmarkWebhookRoute =
@@ -491,7 +505,9 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
+  '/api/public/hooks/protection-activation-repair': typeof ApiPublicHooksProtectionActivationRepairRoute
   '/api/public/hooks/protection-autopilot': typeof ApiPublicHooksProtectionAutopilotRoute
+  '/api/public/hooks/protection-scheduler-token': typeof ApiPublicHooksProtectionSchedulerTokenRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
@@ -556,7 +572,9 @@ export interface FileRoutesByTo {
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
+  '/api/public/hooks/protection-activation-repair': typeof ApiPublicHooksProtectionActivationRepairRoute
   '/api/public/hooks/protection-autopilot': typeof ApiPublicHooksProtectionAutopilotRoute
+  '/api/public/hooks/protection-scheduler-token': typeof ApiPublicHooksProtectionSchedulerTokenRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
@@ -625,7 +643,9 @@ export interface FileRoutesById {
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
+  '/api/public/hooks/protection-activation-repair': typeof ApiPublicHooksProtectionActivationRepairRoute
   '/api/public/hooks/protection-autopilot': typeof ApiPublicHooksProtectionAutopilotRoute
+  '/api/public/hooks/protection-scheduler-token': typeof ApiPublicHooksProtectionSchedulerTokenRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
@@ -693,7 +713,9 @@ export interface FileRouteTypes {
     | '/api/public/hooks/distribution-monitor'
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
+    | '/api/public/hooks/protection-activation-repair'
     | '/api/public/hooks/protection-autopilot'
+    | '/api/public/hooks/protection-scheduler-token'
     | '/api/public/hooks/release-protection-monitor'
     | '/api/public/hooks/resend-webhook'
     | '/sensitive-protection/results/'
@@ -758,7 +780,9 @@ export interface FileRouteTypes {
     | '/api/public/hooks/distribution-monitor'
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
+    | '/api/public/hooks/protection-activation-repair'
     | '/api/public/hooks/protection-autopilot'
+    | '/api/public/hooks/protection-scheduler-token'
     | '/api/public/hooks/release-protection-monitor'
     | '/api/public/hooks/resend-webhook'
     | '/sensitive-protection/results'
@@ -826,7 +850,9 @@ export interface FileRouteTypes {
     | '/api/public/hooks/distribution-monitor'
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
+    | '/api/public/hooks/protection-activation-repair'
     | '/api/public/hooks/protection-autopilot'
+    | '/api/public/hooks/protection-scheduler-token'
     | '/api/public/hooks/release-protection-monitor'
     | '/api/public/hooks/resend-webhook'
     | '/_app/sensitive-protection/results/'
@@ -857,7 +883,9 @@ export interface RootRouteChildren {
   ApiPublicHooksDistributionMonitorRoute: typeof ApiPublicHooksDistributionMonitorRoute
   ApiPublicHooksEnforcementWorkerRoute: typeof ApiPublicHooksEnforcementWorkerRoute
   ApiPublicHooksPostmarkWebhookRoute: typeof ApiPublicHooksPostmarkWebhookRoute
+  ApiPublicHooksProtectionActivationRepairRoute: typeof ApiPublicHooksProtectionActivationRepairRoute
   ApiPublicHooksProtectionAutopilotRoute: typeof ApiPublicHooksProtectionAutopilotRoute
+  ApiPublicHooksProtectionSchedulerTokenRoute: typeof ApiPublicHooksProtectionSchedulerTokenRoute
   ApiPublicHooksReleaseProtectionMonitorRoute: typeof ApiPublicHooksReleaseProtectionMonitorRoute
   ApiPublicHooksResendWebhookRoute: typeof ApiPublicHooksResendWebhookRoute
 }
@@ -1242,11 +1270,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksReleaseProtectionMonitorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/protection-scheduler-token': {
+      id: '/api/public/hooks/protection-scheduler-token'
+      path: '/api/public/hooks/protection-scheduler-token'
+      fullPath: '/api/public/hooks/protection-scheduler-token'
+      preLoaderRoute: typeof ApiPublicHooksProtectionSchedulerTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/protection-autopilot': {
       id: '/api/public/hooks/protection-autopilot'
       path: '/api/public/hooks/protection-autopilot'
       fullPath: '/api/public/hooks/protection-autopilot'
       preLoaderRoute: typeof ApiPublicHooksProtectionAutopilotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/protection-activation-repair': {
+      id: '/api/public/hooks/protection-activation-repair'
+      path: '/api/public/hooks/protection-activation-repair'
+      fullPath: '/api/public/hooks/protection-activation-repair'
+      preLoaderRoute: typeof ApiPublicHooksProtectionActivationRepairRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/postmark-webhook': {
@@ -1467,8 +1509,12 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicHooksDistributionMonitorRoute,
   ApiPublicHooksEnforcementWorkerRoute: ApiPublicHooksEnforcementWorkerRoute,
   ApiPublicHooksPostmarkWebhookRoute: ApiPublicHooksPostmarkWebhookRoute,
+  ApiPublicHooksProtectionActivationRepairRoute:
+    ApiPublicHooksProtectionActivationRepairRoute,
   ApiPublicHooksProtectionAutopilotRoute:
     ApiPublicHooksProtectionAutopilotRoute,
+  ApiPublicHooksProtectionSchedulerTokenRoute:
+    ApiPublicHooksProtectionSchedulerTokenRoute,
   ApiPublicHooksReleaseProtectionMonitorRoute:
     ApiPublicHooksReleaseProtectionMonitorRoute,
   ApiPublicHooksResendWebhookRoute: ApiPublicHooksResendWebhookRoute,

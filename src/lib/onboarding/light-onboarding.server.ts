@@ -76,6 +76,11 @@ export async function finishLightOnboardingForUser(supabase: SupabaseLike, userI
   );
   if (progressError) throw new Error(progressError.message);
 
+  // Continuous protection must start on its own for light/v2 accounts too.
+  await (
+    await import("@/lib/protection/autopilot.server")
+  ).activateProtectionAfterOnboarding(supabase, userId);
+
   try {
     await (
       await import("./completion-notification.server")
