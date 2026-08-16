@@ -3,6 +3,7 @@ import { CommandCenter } from "@/components/command/CommandCenter";
 import { CelebrityHome } from "@/components/celebrity/CelebrityHome";
 import { PendingSetupCard } from "@/components/dashboard/PendingSetupCard";
 import { VerifyProfileCard } from "@/components/verification/VerifyProfileCard";
+import { ProtectionAutopilotCard } from "@/components/protection/ProtectionAutopilotCard";
 import { useVerificationStatus } from "@/hooks/use-verification-status";
 import { workspaceModeFor } from "@/lib/workspace/workspace-nav";
 
@@ -18,6 +19,7 @@ function DashboardPage() {
     return (
       <div className="space-y-4">
         <VerifyProfileCard />
+        <ProtectionAutopilotCard />
         <CelebrityHome />
       </div>
     );
@@ -27,6 +29,7 @@ function DashboardPage() {
     <div className="space-y-4">
       <PendingSetupCard />
       <VerifyProfileCard />
+      <ProtectionAutopilotCard />
       <CommandCenter />
     </div>
   );

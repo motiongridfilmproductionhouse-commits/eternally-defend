@@ -161,9 +161,12 @@ function EnforcementPage() {
     queryKey: ["scan_hits_eligible", userId],
     enabled: ready && !!userId,
     queryFn: async () => {
+      // Explicit ownership filter on top of RLS: this customer-facing list must
+      // never be able to surface another tenant's or a test fixture's hits.
       const { data } = await supabase
         .from("scan_hits")
         .select("id, title, canonical_url, permalink, source, threat_score")
+        .eq("user_id", userId as string)
         .order("created_at", { ascending: false })
         .limit(20);
       return data ?? [];

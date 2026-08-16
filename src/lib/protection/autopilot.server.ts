@@ -65,7 +65,16 @@ export async function activateProtectionAutopilot(
       .eq("active", true),
   ]);
 
-  const authorizationActive = auth?.status === "ACTIVE" && auth?.enforcement_enabled !== false;
+  /*
+   * Monitoring authorization is NOT the same thing as enforcement authorization.
+   * `enforcement_enabled` only governs external takedown transport (which stays
+   * behind the pre-send gate + kill switches). Continuous scanning is allowed as
+   * soon as the account has an ACTIVE rights-holder authorization OR a completed
+   * onboarding with a granted authorization_level (light/v2 monitoring accounts).
+   */
+  const authorizationActive =
+    auth?.status === "ACTIVE" ||
+    Boolean(profile?.onboarding_completed && profile?.authorization_level);
   const identity = buildAuthorizedIdentity(profile ?? null, (assets ?? []) as any[], {
     email: options.email ?? null,
   });
@@ -640,4 +649,50 @@ export async function activateProtectionAfterOnboarding(
     console.error("[protection-autopilot] activation after onboarding failed", err);
     return null;
   }
+}
+
+/**
+ * Repair path for accounts that completed onboarding before autopilot activation
+ * was wired into every flow (v1, light v2, company). Idempotent: activation is an
+ * upsert, so re-running never duplicates targets.
+ */
+export async function repairProtectionActivation(
+  supabaseAdmin: Client,
+  options: { limit?: number; userId?: string } = {},
+): Promise<{
+  scanned: number;
+  repaired: Array<{ user_id: string; status: string; targets: number; reason: string | null }>;
+}> {
+  let query = supabaseAdmin
+    .from("client_profiles")
+    .select("user_id, email, onboarding_completed")
+    .eq("onboarding_completed", true)
+    .limit(options.limit ?? 100);
+  if (options.userId) query = query.eq("user_id", options.userId);
+
+  const { data: profiles, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const repaired: Array<{ user_id: string; status: string; targets: number; reason: string | null }> = [];
+  for (const row of (profiles ?? []) as any[]) {
+    const { data: existing } = await supabaseAdmin
+      .from("protection_profiles")
+      .select("status, paused, auto_scan_enabled")
+      .eq("user_id", row.user_id)
+      .maybeSingle();
+    const healthy =
+      existing?.status === "ACTIVE" && !existing?.paused && existing?.auto_scan_enabled !== false;
+    if (healthy) continue;
+
+    const summary = await activateProtectionAutopilot(supabaseAdmin, row.user_id, {
+      email: row.email ?? null,
+    });
+    repaired.push({
+      user_id: row.user_id,
+      status: summary.status,
+      targets: summary.targets.length,
+      reason: summary.reason,
+    });
+  }
+  return { scanned: (profiles ?? []).length, repaired };
 }
