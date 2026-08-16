@@ -503,6 +503,14 @@ export const finishCompanyOnboarding = createServerFn({ method: "POST" })
     );
     if (progressError) throw new Error(progressError.message);
 
+    try {
+      await (
+        await import("./completion-notification.server")
+      ).notifyOnboardingCompletion(supabase, userId);
+    } catch (err) {
+      console.error("[onboarding] completion report failed", err);
+    }
+
     return { ok: true };
   });
 

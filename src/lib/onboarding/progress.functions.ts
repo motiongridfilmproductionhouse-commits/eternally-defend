@@ -223,6 +223,15 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       await import("@/lib/protection/autopilot.server")
     ).activateProtectionAfterOnboarding(supabase, userId);
 
+
+    try {
+      await (
+        await import("./completion-notification.server")
+      ).notifyOnboardingCompletion(supabase, userId);
+    } catch (err) {
+      console.error("[onboarding] completion report failed", err);
+    }
+
     return { ok: true, protection: autopilot };
   });
 
