@@ -7,6 +7,7 @@ import {
   bucketPlatform,
   spoilerCategory,
 } from "@/lib/command-center-helpers";
+import { buildDeepScope, buildExposure, type RadarRow } from "@/lib/command-center-radar";
 
 
 export const getCommandCenterStats = createServerFn({ method: "GET" })
