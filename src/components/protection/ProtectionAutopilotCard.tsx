@@ -70,27 +70,47 @@ export function ProtectionAutopilotCard() {
     cadence_minutes: number;
     next_run_at: string | null;
     last_run_at?: string | null;
+    last_run_status?: string | null;
+    consecutive_failures?: number | null;
     active: boolean;
   }>;
   const runs = (q.data?.runs ?? []) as Array<{ started_at: string | null; status: string }>;
 
   const active =
     profile?.status === "ACTIVE" && !profile?.paused && profile?.auto_scan_enabled !== false;
-  const nextRun = targets
-    .filter((t) => t.active && t.next_run_at)
+  const activeTargets = targets.filter((t) => t.active);
+  const nextRun = activeTargets
+    .filter((t) => t.next_run_at)
     .map((t) => t.next_run_at as string)
     .sort()[0];
   const lastRun = runs[0]?.started_at ?? null;
+  const scanning = runs.some((r) => r.status === "running");
+  const backoff = activeTargets.some(
+    (t) => (t.consecutive_failures ?? 0) > 0 || t.last_run_status === "failed",
+  );
 
+  /*
+   * Status must describe the automation, not the presence of a scan right now:
+   * "waiting for the next scheduled sweep" is a healthy monitoring state and is
+   * never reported as PAUSED.
+   */
   const state = q.isLoading
     ? { label: "CHECKING…", tone: "muted" as const }
     : !profile
       ? { label: "NOT ACTIVATED", tone: "warn" as const }
       : profile.status !== "ACTIVE"
-        ? { label: "AWAITING AUTHORIZATION", tone: "warn" as const }
-        : profile.paused
+        ? { label: "AUTHORIZATION REQUIRED", tone: "warn" as const }
+        : profile.paused || profile.auto_scan_enabled === false
           ? { label: "PAUSED", tone: "warn" as const }
-          : { label: "ACTIVE — SCANNING AUTOMATICALLY", tone: "ok" as const };
+          : scanning
+            ? { label: "SCAN IN PROGRESS", tone: "ok" as const }
+            : backoff
+              ? { label: "ERROR / RETRY BACKOFF", tone: "warn" as const }
+              : activeTargets.length === 0
+                ? { label: "ACTIVE — NO TARGETS ENROLLED", tone: "warn" as const }
+                : nextRun && new Date(nextRun).getTime() > Date.now()
+                  ? { label: "ACTIVE — WAITING FOR NEXT SCAN", tone: "ok" as const }
+                  : { label: "ACTIVE — MONITORING", tone: "ok" as const };
 
   return (
     <Card className="border-border/60 bg-card/70 p-5 backdrop-blur">

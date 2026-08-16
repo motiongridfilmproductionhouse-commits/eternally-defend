@@ -9,6 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { AutoEnforcementOrchestrator } from "./enforcement/orchestrator";
 import { EnforcementWorkerRunner } from "./enforcement/worker";
+import { excludeTestFixtures, isTestFixtureTarget } from "./enforcement/test-fixtures";
 
 export const getClientEnforcementSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -156,7 +157,9 @@ export const listEnforcementCases = createServerFn({ method: "GET" })
 
     const { data: cases, error } = await q;
     if (error) throw error;
-    return { cases: cases ?? [] };
+    // Ownership is enforced above (and by RLS). Controlled-test fixtures are
+    // additionally hidden from customer dashboards while staying in the DB.
+    return { cases: excludeTestFixtures((cases ?? []) as any[]) };
   });
 
 export const listReviewQueue = createServerFn({ method: "GET" })
@@ -174,7 +177,9 @@ export const listReviewQueue = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return { queue: queue ?? [] };
+    return {
+      queue: ((queue ?? []) as any[]).filter((row) => !isTestFixtureTarget(row?.enforcement_cases)),
+    };
   });
 
 export const reviewCaseDecision = createServerFn({ method: "POST" })
@@ -288,14 +293,23 @@ export const listLiveActivityFeed = createServerFn({ method: "GET" })
       .limit(data.limit);
 
     if (error) throw error;
-    return { events: events ?? [] };
+    return {
+      events: ((events ?? []) as any[]).filter(
+        (row) => !isTestFixtureTarget(row?.enforcement_cases),
+      ),
+    };
   });
 
 export const runWorkerBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
-    const processed = await EnforcementWorkerRunner.processNextJob(supabase);
+    const { supabase, userId } = context;
+    // Owner-scoped: a customer worker pass may only touch their own jobs.
+    const processed = await EnforcementWorkerRunner.processNextJob(
+      supabase,
+      `client-${userId}`,
+      userId,
+    );
     return { processed };
   });
 
