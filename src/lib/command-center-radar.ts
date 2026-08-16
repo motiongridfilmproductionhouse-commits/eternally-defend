@@ -264,7 +264,12 @@ export function buildExposure(rows: RadarRow[]): ExposureDataset {
       unknownReachCount++;
       continue;
     }
-    const key = (r.canonical_url || r.permalink || `id:${r.id}`).replace(/[?#].*$/, "");
+    // Key = URL without the hash fragment and trailing slash. The query string is
+    // PART of the identity (e.g. youtube.com/watch?v=…) and must be preserved.
+    const key = (r.canonical_url || r.permalink || `id:${r.id}`)
+      .replace(/#.*$/, "")
+      .replace(/\/+$/, "")
+      .toLowerCase();
     const reach = Number(r.reach ?? 0);
     const cur = byUrl.get(key);
     if (!cur) byUrl.set(key, { row: r, reach, dupes: 1 });
