@@ -24,7 +24,17 @@ export interface JobRow {
 }
 
 export class EnforcementWorkerRunner {
-  static async processNextJob(supabase: SupabaseClient, workerId = "backend-worker-1"): Promise<boolean> {
+  /**
+   * @param ownerUserId when set, only jobs owned by that account may be claimed.
+   *   Customer-triggered worker passes MUST pass it so one tenant can never
+   *   process (or observe) another tenant's enforcement job. Backend/cron
+   *   callers omit it to drain the global queue.
+   */
+  static async processNextJob(
+    supabase: SupabaseClient,
+    workerId = "backend-worker-1",
+    ownerUserId?: string,
+  ): Promise<boolean> {
     // 1. EMERGENCY STOP CHECK (Requirement 11)
     if (process.env.ENFORCEMENT_EMERGENCY_PAUSE === "true") {
       return false;
@@ -33,25 +43,31 @@ export class EnforcementWorkerRunner {
     // 2. ATOMIC JOB CLAIMING
     let job: JobRow | null = null;
 
-    try {
-      const { data: claimed } = await (supabase as any).rpc("claim_next_enforcement_job", {
-        p_worker_id: workerId,
-      });
+    // The global claim RPC is service-side only: it is not tenant-scoped, so it
+    // is skipped entirely for owner-scoped (customer-triggered) passes.
+    if (!ownerUserId) {
+      try {
+        const { data: claimed } = await (supabase as any).rpc("claim_next_enforcement_job", {
+          p_worker_id: workerId,
+        });
 
-      if (claimed && Array.isArray(claimed) && claimed.length > 0) {
-        job = claimed[0] as JobRow;
+        if (claimed && Array.isArray(claimed) && claimed.length > 0) {
+          job = claimed[0] as JobRow;
+        }
+      } catch {
+        // Fallback
       }
-    } catch {
-      // Fallback
     }
 
     if (!job) {
       const nowIso = new Date().toISOString();
-      const { data: fallbackJob } = await (supabase as any)
+      let pending = (supabase as any)
         .from("enforcement_jobs")
         .select("*")
         .eq("status", "queued")
-        .lte("scheduled_at", nowIso)
+        .lte("scheduled_at", nowIso);
+      if (ownerUserId) pending = pending.eq("user_id", ownerUserId);
+      const { data: fallbackJob } = await pending
         .order("scheduled_at", { ascending: true })
         .limit(1)
         .maybeSingle();
