@@ -76,5 +76,13 @@ export async function finishLightOnboardingForUser(supabase: SupabaseLike, userI
   );
   if (progressError) throw new Error(progressError.message);
 
+  try {
+    await (
+      await import("./completion-notification.server")
+    ).notifyOnboardingCompletion(supabase, userId);
+  } catch (err) {
+    console.error("[onboarding] completion report failed", err);
+  }
+
   return { ok: true, account_type: accountType, verification_status: "UNVERIFIED" as const };
 }

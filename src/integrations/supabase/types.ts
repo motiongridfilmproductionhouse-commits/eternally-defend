@@ -5719,6 +5719,39 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_completion_notifications: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          provider_message_id: string | null
+          recipient: string
+          sent_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          provider_message_id?: string | null
+          recipient: string
+          sent_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          provider_message_id?: string | null
+          recipient?: string
+          sent_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       onboarding_progress: {
         Row: {
           created_at: string
