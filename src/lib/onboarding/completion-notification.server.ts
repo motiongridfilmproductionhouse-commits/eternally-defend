@@ -17,7 +17,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-type Db = SupabaseClient<Database>;
+type Db = Pick<SupabaseClient<Database>, "from">;
 
 export const ONBOARDING_REPORT_RECIPIENT = "partners@eternasentinel.com";
 
