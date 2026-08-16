@@ -97,7 +97,9 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
     const [aggRes, totalCountRes, todayCountRes] = await Promise.all([
       supabase
         .from("scan_hits")
-        .select("source, severity, first_seen_at")
+        .select(
+          "id, source, severity, first_seen_at, risk_score, threat_score, risk_type, reach, title, canonical_url, permalink, thumbnail_url, times_detected",
+        )
         .eq("user_id", userId)
         .is("hidden_at", null)
         .gte("first_seen_at", since14)
