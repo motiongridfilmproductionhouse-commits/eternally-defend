@@ -177,7 +177,9 @@ export const listReviewQueue = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return { queue: queue ?? [] };
+    return {
+      queue: ((queue ?? []) as any[]).filter((row) => !isTestFixtureTarget(row?.enforcement_cases)),
+    };
   });
 
 export const reviewCaseDecision = createServerFn({ method: "POST" })
@@ -291,7 +293,11 @@ export const listLiveActivityFeed = createServerFn({ method: "GET" })
       .limit(data.limit);
 
     if (error) throw error;
-    return { events: events ?? [] };
+    return {
+      events: ((events ?? []) as any[]).filter(
+        (row) => !isTestFixtureTarget(row?.enforcement_cases),
+      ),
+    };
   });
 
 export const runWorkerBatch = createServerFn({ method: "POST" })
