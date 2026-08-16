@@ -294,8 +294,13 @@ export const listLiveActivityFeed = createServerFn({ method: "GET" })
 export const runWorkerBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
-    const processed = await EnforcementWorkerRunner.processNextJob(supabase);
+    const { supabase, userId } = context;
+    // Owner-scoped: a customer worker pass may only touch their own jobs.
+    const processed = await EnforcementWorkerRunner.processNextJob(
+      supabase,
+      `client-${userId}`,
+      userId,
+    );
     return { processed };
   });
 

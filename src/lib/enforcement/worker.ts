@@ -86,6 +86,11 @@ export class EnforcementWorkerRunner {
       job = updated as JobRow;
     }
 
+    // Defence in depth: never execute a job that belongs to another tenant.
+    if (ownerUserId && job.user_id !== ownerUserId) return false;
+
+
+
     try {
       if (job.job_type === "AUTO_ENFORCEMENT_SUBMIT" || job.job_type === "AUTO_ENFORCEMENT_RETRY") {
         await this.handleSubmissionJob(supabase, job, workerId);
