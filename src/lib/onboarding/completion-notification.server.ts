@@ -132,9 +132,9 @@ async function loadSummary(supabase: Db, userId: string): Promise<OnboardingComp
     certificateNumber: (cert?.certificate_number as string | null) ?? null,
     authorizationNumber: (auth?.auth_number as string | null) ?? null,
     assets: assetRows.map((row) => ({
-      platform: pick(row, ["platform", "asset_type", "type"]),
+      platform: pick(row, ["platform", "kind", "asset_type", "type"]),
       label: pick(row, ["title", "name", "label", "handle"]),
-      url: pick(row, ["url", "asset_url", "channel_url", "profile_url"]),
+      url: pick(row, ["url", "channel_url", "asset_url", "profile_url"]),
       status: pick(row, ["verification_status", "status"]),
     })),
     socialAccounts: socialRows.map((row) => ({
