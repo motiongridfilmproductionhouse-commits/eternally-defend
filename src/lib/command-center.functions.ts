@@ -431,6 +431,21 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       return "flat" as const;
     };
 
+    /**
+     * Radar datasets — both radars read the SAME qualifying dataset (`aggRows`:
+     * this tenant's open scan_hits in the 14-day window), so their counts and
+     * totals reconcile with `overview.totalFindings`.
+     */
+    const escalatedUrls = new Set(
+      enforcements.map((e) => (e.target_url as string) || "").filter(Boolean),
+    );
+    const deepScope = buildDeepScope(aggRows as unknown as RadarRow[], escalatedUrls);
+    const exposure = buildExposure(aggRows as unknown as RadarRow[]);
+    const runningScan = scans.find((s) => s.status === "running" || s.status === "queued") ?? null;
+    const lastCompletedScan = scans.find((s) => s.status === "completed") ?? null;
+    const queriedAt = new Date().toISOString();
+
+
     return {
       target: targetName || null,
       protection: {
