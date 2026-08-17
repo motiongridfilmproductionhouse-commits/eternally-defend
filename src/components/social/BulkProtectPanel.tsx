@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { protectFromLink } from "@/lib/social/import-from-link.functions";
+import { registerUploadedAsset, uploadViaPresignedUrl } from "@/lib/uploads/browser-upload";
 import { prepareSocialMediaUpload, protectFromUpload } from "@/lib/social/upload-media.functions";
 import {
   BATCH_FILTERS,
