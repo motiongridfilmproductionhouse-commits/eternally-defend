@@ -106,8 +106,10 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
           perceptual_hashes: hashes ? { ...hashes } : null,
           reverse_search: reverse,
           reverse_search_match_count: matchCount,
-          reverse_search_at: new Date().toISOString(),
-          reverse_search_provider: "reverse_image_router",
+          reverse_search_at: reverse ? new Date().toISOString() : null,
+          reverse_search_provider: reverse ? "reverse_image_router" : null,
+          reverse_search_error: reverseError,
+
           provenance: buildProvenance({
             platform: data.sourceUrl ? platformFromUrl(data.sourceUrl) : "other",
             importMethod: "MANUAL_UPLOAD",
