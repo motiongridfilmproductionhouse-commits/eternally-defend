@@ -53,7 +53,12 @@ export function useVerificationStatus() {
     ? profile.onboarding_account_type
     : null;
 
+  const onboardingCompleted = Boolean(
+    (profile as { onboarding_completed?: boolean } | null)?.onboarding_completed,
+  );
+
   return {
+    onboardingCompleted,
     loading: stateQuery.isLoading || kycQuery.isLoading || faceQuery.isLoading,
     status,
     accountType,

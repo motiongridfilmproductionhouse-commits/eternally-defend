@@ -11,10 +11,13 @@ import { VERIFY_PROFILE_CARD } from "@/lib/verification/verification-status";
  * never blocks monitoring.
  */
 export function VerifyProfileCard({ className }: { className?: string }) {
-  const { loading, status } = useVerificationStatus();
+  const { loading, status, accountType, onboardingCompleted } = useVerificationStatus();
   const [dismissed, setDismissed] = useState(false);
 
   if (loading || dismissed || status === "VERIFIED") return null;
+  // Company accounts complete a company-authority flow instead of personal
+  // identity verification — never nag them once company setup is finished.
+  if (accountType === "enterprise" && onboardingCompleted) return null;
 
   const pending = status === "VERIFICATION_PENDING";
 
