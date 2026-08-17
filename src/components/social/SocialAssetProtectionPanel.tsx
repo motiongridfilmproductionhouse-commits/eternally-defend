@@ -339,12 +339,14 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
           <input
             ref={fileInput}
             type="file"
+            multiple
             accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"
             className="hidden"
             onChange={(e) => {
-              onPickFile(e.target.files?.[0]);
+              void onPickFiles(Array.from(e.target.files ?? []));
               e.target.value = "";
             }}
+
           />
           <Button variant="outline" onClick={() => fileInput.current?.click()} disabled={upload.isPending}>
             {upload.isPending ? (
