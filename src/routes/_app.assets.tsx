@@ -158,15 +158,27 @@ function AssetsPage() {
       {result && (
         <PageCard
           title="REVERSE SEARCH RESULTS"
-          sub={`${result.matchCount} matching pages/images found`}
+          sub={
+            result.reverse
+              ? `${result.matchCount} matching pages/images found`
+              : "Discovery unavailable — asset is protected and queued for retry"
+          }
         >
           <div className="space-y-3">
-            {result.reverse.bestGuessLabels.length > 0 && (
+            {!result.reverse && (
+              <div className="text-sm text-muted-foreground py-4">
+                Asset protected and fingerprinted. Web discovery could not run right now
+                {result.reverseError ? ` (${result.reverseError})` : ""} — continuous scanning will
+                retry it automatically.
+              </div>
+            )}
+            {result.reverse && result.reverse.bestGuessLabels.length > 0 && (
               <div className="text-sm">
                 Google identified: <b>{result.reverse.bestGuessLabels.join(", ")}</b>
               </div>
             )}
-            {result.reverse.pages.length === 0 ? (
+            {result.reverse && result.reverse.pages.length === 0 ? (
+
               <div className="text-sm text-muted-foreground py-4">
                 No matching public web pages found.
               </div>
