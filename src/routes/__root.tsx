@@ -152,6 +152,8 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      {/* Single global toast layer — without it every toast.success/error is silent. */}
+      <Toaster position="top-right" richColors closeButton />
     </QueryClientProvider>
   );
 }
