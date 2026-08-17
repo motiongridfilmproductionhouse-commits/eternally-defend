@@ -136,6 +136,8 @@ export interface AssetProvenance {
   source_handle: string | null;
   source_media_url: string | null;
   source_post_id: string | null;
+  /** Position inside a multi-media (carousel) post, 1-based. Null for single media. */
+  carousel_index: string | null;
   import_method: ImportMethod;
   ownership_basis: "SELF_DECLARED" | "PLATFORM_AUTHORIZED";
   social_account_id: string | null;
@@ -150,6 +152,8 @@ export function buildProvenance(input: {
   handle?: string | null;
   mediaUrl?: string | null;
   postId?: string | null;
+  /** 1-based carousel position when a single post yields several media items. */
+  carouselIndex?: number | null;
   socialAccountId?: string | null;
   now?: Date;
 }): AssetProvenance {
@@ -160,6 +164,10 @@ export function buildProvenance(input: {
     source_handle: input.handle ?? null,
     source_media_url: input.mediaUrl ?? null,
     source_post_id: input.postId ?? null,
+    carousel_index:
+      input.carouselIndex === null || input.carouselIndex === undefined
+        ? null
+        : String(input.carouselIndex),
     import_method: input.importMethod,
     // An authorized platform connection is the only stronger-than-self-declared
     // signal we accept. It is still not legal ownership proof.
@@ -168,6 +176,7 @@ export function buildProvenance(input: {
     imported_at: (input.now ?? new Date()).toISOString(),
   };
 }
+
 
 /** Stable per-post dedupe key so re-importing the same media is a no-op. */
 export function postDedupeKey(platform: string, postUrl: string, mediaUrl?: string | null): string {
