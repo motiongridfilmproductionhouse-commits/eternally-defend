@@ -107,7 +107,12 @@ function AssetsPage() {
       setPlatform("");
       setSourceUrl("");
       qc.invalidateQueries({ queryKey: ["protected_assets", userId] });
-      toast.success(`Asset protected. ${data.matchCount} web matches found.`);
+      toast.success(
+        data.reverse
+          ? `Asset protected. ${data.matchCount} web matches found.`
+          : "Asset protected and fingerprinted. Web discovery will retry automatically.",
+      );
+
       // Client-side navigation — a full page load here dropped the SPA state
       // and re-ran the whole app shell just to open /scan.
       navigate({ to: "/scan", search: { assetId: data.id, query: scanName, auto: "1" } });
