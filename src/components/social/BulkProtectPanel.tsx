@@ -208,7 +208,7 @@ export function BulkProtectPanel() {
   };
 
   return (
-    <div className={PANEL}>
+    <div className={PANEL} data-testid="bulk-protect-panel">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
           <Layers className="size-4 text-primary" /> Protect multiple items
