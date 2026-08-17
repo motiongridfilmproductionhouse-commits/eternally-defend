@@ -39,9 +39,19 @@ export function getRekognition() {
 }
 
 export function getS3(): S3Client {
-  if (!_s3) _s3 = new S3Client(creds());
+  // Newer AWS SDK versions attach checksum headers/trailers to every PutObject by
+  // default. Browsers uploading to a presigned URL never send those headers, and the
+  // edge runtime cannot stream the aws-chunked trailer — both produce
+  // "SignatureDoesNotMatch". Only compute checksums when the API actually requires it.
+  if (!_s3)
+    _s3 = new S3Client({
+      ...creds(),
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
+    });
   return _s3;
 }
+
 
 export function getBucket(): string {
   validateAndLog();
