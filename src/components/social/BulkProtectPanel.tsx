@@ -144,21 +144,14 @@ export function BulkProtectPanel() {
 
   async function runFileItem(item: BatchItem) {
     const file = item.file!;
-    const prepared = await prepareUpload({
-      data: { fileName: file.name, contentType: file.type as never, size: file.size },
-    });
-    const put = await fetch(prepared.uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
-    });
-    if (!put.ok) {
-      const detail = await put.text().catch(() => "");
-      throw new Error(`Upload failed (${put.status}). ${detail.slice(0, 140)}`.trim());
-    }
-    const result = await finishUpload({
-      data: { key: prepared.key, name: file.name, contentType: file.type as never },
-    });
+    const { key } = await uploadViaPresignedUrl(file, (input) =>
+      prepareUpload({ data: input as never }),
+    );
+    const result = await registerUploadedAsset(() =>
+      finishUpload({
+        data: { key, name: file.name, contentType: file.type as never },
+      }),
+    );
     if (result.result.status === "duplicate") {
       patch(item.id, { status: "duplicate", detail: "Already protected." });
       return;
