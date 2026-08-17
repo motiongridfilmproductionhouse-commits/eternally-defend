@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
 import { prepareAssetUpload, registerAssetAndSearch } from "@/lib/asset-registration.functions";
+import { registerUploadedAsset, uploadViaPresignedUrl } from "@/lib/uploads/browser-upload";
 import { SocialAssetProtectionPanel } from "@/components/social/SocialAssetProtectionPanel";
 
 export const Route = createFileRoute("/_app/assets")({
@@ -79,34 +80,21 @@ function AssetsPage() {
       if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
         throw new Error("Use a JPG, PNG or WebP image.");
       if (file.size > 10 * 1024 * 1024) throw new Error("Maximum image size is 10 MB.");
-      const prepared = await prepare({
-        data: {
-          fileName: file.name,
-          contentType: file.type as "image/jpeg" | "image/png" | "image/webp",
-          size: file.size,
-        },
-      });
-      const upload = await fetch(prepared.uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!upload.ok) {
-        const detail = await upload.text().catch(() => "");
-        throw new Error(
-          `Image upload failed (${upload.status}). ${detail.slice(0, 160)}`.trim(),
-        );
-      }
+      const { key } = await uploadViaPresignedUrl(file, (input) =>
+        prepare({ data: input as never }),
+      );
 
-      return register({
-        data: {
-          key: prepared.key,
-          name: name.trim(),
-          platform: platform.trim() || undefined,
-          sourceUrl: sourceUrl.trim(),
-          contentType: file.type as "image/jpeg" | "image/png" | "image/webp",
-        },
-      });
+      return registerUploadedAsset(() =>
+        register({
+          data: {
+            key,
+            name: name.trim(),
+            platform: platform.trim() || undefined,
+            sourceUrl: sourceUrl.trim(),
+            contentType: file.type as "image/jpeg" | "image/png" | "image/webp",
+          },
+        }),
+      );
     },
     onSuccess: (data) => {
       const scanName = name.trim();

@@ -14,6 +14,7 @@ import {
   Upload,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { registerUploadedAsset, uploadViaPresignedUrl } from "@/lib/uploads/browser-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -165,27 +166,19 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
 
   const upload = useMutation({
     mutationFn: async (file: File) => {
-      const prepared = await prepareUpload({
+      const { key } = await uploadViaPresignedUrl(file, (input) =>
+        prepareUpload({ data: input as never }),
+      );
+      return registerUploadedAsset(() =>
+        finishUpload({
         data: {
-          fileName: file.name,
-          contentType: file.type as never,
-          size: file.size,
-        },
-      });
-      const put = await fetch(prepared.uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!put.ok) throw new Error("Upload failed. Please try again.");
-      return finishUpload({
-        data: {
-          key: prepared.key,
+          key,
           name: postName || file.name,
           contentType: file.type as never,
           ...(postUrl.trim() ? { sourcePostUrl: postUrl.trim() } : {}),
         },
-      });
+        }),
+      );
     },
     onSuccess: (result) => {
       refreshAssets();
