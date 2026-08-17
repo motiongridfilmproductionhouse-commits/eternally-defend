@@ -2,8 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { enforceScanSubject } from "@/lib/security/protected-subject.server";
-import { DeleteFacesCommand } from "@aws-sdk/client-rekognition";
-import { getRekognitionClient } from "@/lib/aws/rekognition-client.server";
+// Rekognition is loaded lazily: a module-scope AWS SDK import in a
+// *.functions.ts file leaks the SDK into the browser bundle.
+async function deleteRekognitionFaces(collectionId: string, faceIds: string[]) {
+  const [{ DeleteFacesCommand }, { getRekognitionClient }] = await Promise.all([
+    import("@aws-sdk/client-rekognition"),
+    import("@/lib/aws/rekognition-client.server"),
+  ]);
+  await getRekognitionClient().send(
+    new DeleteFacesCommand({ CollectionId: collectionId, FaceIds: faceIds }),
+  );
+}
+
 import { getDeepfakeFaceCollectionId, indexDeepfakeReferenceFace } from "./face-enrollment.server";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -209,12 +219,8 @@ export const uploadDeepfakeReferenceFace = createServerFn({ method: "POST" })
         .single();
 
       if (insertError || !record) {
-        await getRekognitionClient().send(
-          new DeleteFacesCommand({
-            CollectionId: indexed.collectionId,
-            FaceIds: [indexed.faceId],
-          }),
-        );
+        await deleteRekognitionFaces(indexed.collectionId, [indexed.faceId]);
+
 
         throw new Error(insertError?.message ?? "Failed to save reference face.");
       }
@@ -251,12 +257,10 @@ export const deleteDeepfakeReferenceFace = createServerFn({ method: "POST" })
 
     if (reference.rekognition_face_id) {
       try {
-        await getRekognitionClient().send(
-          new DeleteFacesCommand({
-            CollectionId: getDeepfakeFaceCollectionId(),
-            FaceIds: [reference.rekognition_face_id],
-          }),
-        );
+        await deleteRekognitionFaces(getDeepfakeFaceCollectionId(), [
+          reference.rekognition_face_id,
+        ]);
+
       } catch (awsError) {
         console.warn("[DEEPFAKE:FACE] Failed to delete Rekognition face:", awsError);
       }
