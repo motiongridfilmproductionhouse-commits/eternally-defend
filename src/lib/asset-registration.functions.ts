@@ -131,6 +131,15 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
       ahash: hashes?.ahash ?? null,
     });
 
-    return { id: inserted.id, enrollment, sha256, phash: hashes?.phash ?? null, matchCount, reverse };
+    return {
+      id: inserted.id,
+      enrollment,
+      sha256,
+      phash: hashes?.phash ?? null,
+      matchCount,
+      reverse,
+      reverseError,
+    };
+
   });
 
