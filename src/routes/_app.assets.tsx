@@ -91,7 +91,13 @@ function AssetsPage() {
         headers: { "Content-Type": file.type },
         body: file,
       });
-      if (!upload.ok) throw new Error(`Image upload failed (${upload.status}).`);
+      if (!upload.ok) {
+        const detail = await upload.text().catch(() => "");
+        throw new Error(
+          `Image upload failed (${upload.status}). ${detail.slice(0, 160)}`.trim(),
+        );
+      }
+
       return register({
         data: {
           key: prepared.key,
