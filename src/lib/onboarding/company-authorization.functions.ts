@@ -285,9 +285,16 @@ export const uploadCompanyRegistrationProof = createServerFn({ method: "POST" })
     }
 
     const safeName = data.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const storagePath = `clients/${userId}/company-registration/${crypto.randomUUID()}-${safeName}`;
-    const { putObject } = await import("@/lib/aws/s3.server");
-    await putObject({ key: storagePath, body: bytes, contentType: data.mime_type });
+    const key = `clients/${userId}/company-registration/${crypto.randomUUID()}-${safeName}`;
+    const { storeOnboardingDocument } = await import("./document-storage.server");
+    const storagePath = await storeOnboardingDocument({
+      supabase,
+      userId,
+      key,
+      bytes,
+      contentType: data.mime_type,
+    });
+
 
     const { error } = await supabase.from("onboarding_v2_evidence").upsert(
       {
@@ -324,12 +331,14 @@ export const getCompanyDocumentUrl = createServerFn({ method: "POST" })
     const key = row?.storage_path as string | undefined;
     if (!key) throw new Error("That document is not available yet.");
 
-    const { getSignedGetUrl } = await import("@/lib/aws/s3.server");
-    const url = await getSignedGetUrl(key, 300, {
-      disposition: "inline",
+    const { signOnboardingDocumentUrl } = await import("./document-storage.server");
+    const url = await signOnboardingDocumentUrl({
+      supabase,
+      storagePath: key,
       filename: (row?.filename as string | undefined) ?? "document",
       contentType: (row?.mime_type as string | undefined) ?? undefined,
     });
+
     return { url, expires_in: 300 };
   });
 
@@ -444,8 +453,14 @@ export const signCompanyAuthorizationLetter = createServerFn({ method: "POST" })
     });
 
     const key = `clients/${userId}/company-authorization/${letter.version}-signed.pdf`;
-    const { putObject } = await import("@/lib/aws/s3.server");
-    await putObject({ key, body: Buffer.from(bytes), contentType: "application/pdf" });
+    const { storeOnboardingDocument } = await import("./document-storage.server");
+    const storagePath = await storeOnboardingDocument({
+      supabase,
+      userId,
+      key,
+      bytes,
+      contentType: "application/pdf",
+    });
 
     const { error } = await supabase.from("onboarding_v2_evidence").upsert(
       {
@@ -455,7 +470,8 @@ export const signCompanyAuthorizationLetter = createServerFn({ method: "POST" })
         status: "SUBMITTED",
         verification_method: "generated_authorization_letter_electronic_signature",
         reference_value: data.legal_name.trim(),
-        storage_path: key,
+        storage_path: storagePath,
+
         filename: "Eterna_Company_Authorization.pdf",
         mime_type: "application/pdf",
         metadata: {
