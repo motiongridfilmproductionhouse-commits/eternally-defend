@@ -1,14 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createHash } from "node:crypto";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getBucket, getS3 } from "@/lib/aws/clients.server";
-import { getSignedGetUrl, getSignedPutUrl } from "@/lib/aws/s3.server";
-import { computePerceptualHashes } from "@/lib/media/perceptual-hash.server";
-import { reverseSearchAndVerify } from "@/lib/assets/reverse-verify.server";
-import { enrollAssetInAutopilot } from "@/lib/protection/enroll-asset.server";
 import { buildProvenance, platformFromUrl } from "@/lib/social/provenance";
+// NOTE: the AWS SDK, node builtins and every *.server helper are imported
+// INSIDE the handlers below. Module scope of a *.functions.ts file is part of
+// the client graph, and a top-level `@aws-sdk/client-s3` import pulled the SDK
+// into the browser bundle (which emitted a client chunk literally named
+// "assets", shadowing the /assets route on the published site).
+
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"] as const;
 
@@ -28,9 +27,13 @@ export const prepareAssetUpload = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { getSignedPutUrl } = await import("@/lib/aws/s3.server");
     const safeName = data.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
     const key = `clients/${context.userId}/assets/${crypto.randomUUID()}-${safeName}`;
+    // A fresh, short-lived authorization is minted on every call — the browser
+    // helper calls this immediately before each PUT and never reuses a URL.
     return { key, uploadUrl: await getSignedPutUrl(key, data.contentType, 300) };
+
   });
 
 
@@ -48,9 +51,27 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const [
+      { GetObjectCommand },
+      { getBucket, getS3 },
+      { getSignedGetUrl },
+      { createHash },
+      { computePerceptualHashes },
+      { reverseSearchAndVerify },
+      { enrollAssetInAutopilot },
+    ] = await Promise.all([
+      import("@aws-sdk/client-s3"),
+      import("@/lib/aws/clients.server"),
+      import("@/lib/aws/s3.server"),
+      import("node:crypto"),
+      import("@/lib/media/perceptual-hash.server"),
+      import("@/lib/assets/reverse-verify.server"),
+      import("@/lib/protection/enroll-asset.server"),
+    ]);
     const prefix = `clients/${context.userId}/assets/`;
     if (!data.key.startsWith(prefix)) throw new Error("Invalid asset storage path.");
     const object = await getS3().send(new GetObjectCommand({ Bucket: getBucket(), Key: data.key }));
+
     const bytes = new Uint8Array(await object.Body!.transformToByteArray());
     if (!bytes.length || bytes.length > 10 * 1024 * 1024)
       throw new Error("Uploaded image is empty or too large.");

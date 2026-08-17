@@ -51,9 +51,14 @@ export type PreparedUpload = { key: string; uploadUrl: string; headers?: Record<
 export async function uploadViaPresignedUrl(
   file: File,
   prepare: (input: { fileName: string; contentType: string; size: number }) => Promise<PreparedUpload>,
+  /** One extra attempt with a brand new authorization on 403/expiry. */
+  attemptsLeft = 1,
 ): Promise<{ key: string }> {
   const base = { name: file.name, size: file.size, type: file.type };
 
+  // A fresh authorization is minted here, immediately before the PUT below, on
+  // every call — including retries, modal reopen and file reselection. Nothing
+  // is cached in component state, so an expired URL can never be replayed.
   let prepared: PreparedUpload;
   try {
     prepared = await prepare({ fileName: file.name, contentType: file.type, size: file.size });
@@ -78,8 +83,15 @@ export async function uploadViaPresignedUrl(
 
   if (!put.ok) {
     const body = await put.text().catch(() => "");
-    const signature = put.status === 403 || /SignatureDoesNotMatch/i.test(body);
-    const stage: UploadStage = signature ? "SIGNATURE_MISMATCH" : "S3_UPLOAD_FAILED";
+    const expired =
+      put.status === 403 ||
+      /SignatureDoesNotMatch|ExpiredToken|Request has expired|AccessDenied/i.test(body);
+    if (expired && attemptsLeft > 0) {
+      // Discard this authorization entirely and start over with a new presign.
+      logStage("SIGNATURE_MISMATCH", { ...base, status: put.status, reason: "retrying with fresh authorization" });
+      return uploadViaPresignedUrl(file, prepare, attemptsLeft - 1);
+    }
+    const stage: UploadStage = expired ? "SIGNATURE_MISMATCH" : "S3_UPLOAD_FAILED";
     logStage(stage, { ...base, status: put.status, reason: body.slice(0, 200) });
     throw new UploadError(stage, `s3 ${put.status}`);
   }
@@ -87,6 +99,7 @@ export async function uploadViaPresignedUrl(
   logStage("OK", { ...base, key: prepared.key });
   return { key: prepared.key };
 }
+
 
 /** Wraps the register/fingerprint call so its failures are classified too. */
 export async function registerUploadedAsset<T>(run: () => Promise<T>): Promise<T> {
