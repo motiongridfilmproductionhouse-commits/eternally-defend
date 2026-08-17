@@ -27,6 +27,19 @@ import { protectFromLink } from "@/lib/social/import-from-link.functions";
 import { prepareSocialMediaUpload, protectFromUpload } from "@/lib/social/upload-media.functions";
 import { listSocialProtectedAssets, type SocialAssetStatusRow } from "@/lib/social/asset-status.functions";
 import { blockedRetrievalMessage, SOCIAL_STATUS_LABEL, type SocialStatus } from "@/lib/social/status";
+import { BulkProtectPanel } from "./BulkProtectPanel";
+
+/** Registry views for protected social media. */
+const REGISTRY_FILTERS = ["all", "processing", "protected", "failed"] as const;
+type RegistryFilter = (typeof REGISTRY_FILTERS)[number];
+
+function matchesRegistryFilter(status: SocialStatus, filter: RegistryFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "processing") return status === "processing" || status === "fingerprint_ready";
+  if (filter === "protected") return status === "protection_active";
+  return status === "failed" || status === "upload_required" || status === "waiting_for_authorization";
+}
+
 
 const PANEL = "rounded-xl border border-border bg-card p-4 space-y-3";
 
@@ -75,10 +88,13 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
     null,
   );
   const fileInput = useRef<HTMLInputElement>(null);
+  const [registryFilter, setRegistryFilter] = useState<RegistryFilter>("all");
 
   const accounts = (accountsQuery.data?.accounts ?? []) as SocialAccountRow[];
   const assets = (assetsQuery.data?.assets ?? []) as SocialAssetStatusRow[];
+  const visibleAssets = assets.filter((asset) => matchesRegistryFilter(asset.status, registryFilter));
   const igConfigured = connectQuery.data?.configured ?? false;
+
 
   const refreshAssets = () => {
     qc.invalidateQueries({ queryKey: ["social_protected_assets"] });
@@ -188,14 +204,32 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const onPickFile = (file: File | undefined) => {
-    if (!file) return;
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("Please upload a file under 15 MB.");
-      return;
+  /**
+   * Multi-select is allowed here too: each file still goes through the single-item
+   * pipeline on its own, so one oversized or rejected file never blocks the rest.
+   */
+  const onPickFiles = async (files: File[]) => {
+    if (!files.length) return;
+    let ok = 0;
+    let bad = 0;
+    for (const file of files) {
+      if (file.size > 15 * 1024 * 1024) {
+        bad += 1;
+        toast.error(`${file.name} is over 15 MB.`);
+        continue;
+      }
+      try {
+        await upload.mutateAsync(file);
+        ok += 1;
+      } catch {
+        bad += 1;
+      }
     }
-    upload.mutate(file);
+    if (files.length > 1) {
+      toast.info(`${ok} processed, ${bad} failed. Successful uploads are kept.`);
+    }
   };
+
 
   return (
     <div className="space-y-4">
@@ -305,12 +339,14 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
           <input
             ref={fileInput}
             type="file"
+            multiple
             accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"
             className="hidden"
             onChange={(e) => {
-              onPickFile(e.target.files?.[0]);
+              void onPickFiles(Array.from(e.target.files ?? []));
               e.target.value = "";
             }}
+
           />
           <Button variant="outline" onClick={() => fileInput.current?.click()} disabled={upload.isPending}>
             {upload.isPending ? (
@@ -336,22 +372,44 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
         )}
       </div>
 
+      <BulkProtectPanel />
+
       {!compact && (
         <div className={PANEL}>
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
-            <ShieldCheck className="size-4 text-primary" /> Protected social media
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
+              <ShieldCheck className="size-4 text-primary" /> Protected social media
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {REGISTRY_FILTERS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setRegistryFilter(value)}
+                  className={`rounded-full border px-2.5 py-0.5 text-[10px] uppercase tracking-wide transition ${
+                    registryFilter === value
+                      ? "border-primary text-primary"
+                      : "border-border text-muted-foreground"
+                  }`}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
           </div>
           {assetsQuery.isLoading ? (
             <div className="grid place-items-center py-4">
               <Loader2 className="size-4 animate-spin text-primary" />
             </div>
-          ) : assets.length === 0 ? (
+          ) : visibleAssets.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              Nothing protected from social yet. Add a post link or upload the original media.
+              {assets.length === 0
+                ? "Nothing protected from social yet. Add a post link or upload the original media."
+                : "No protected media in this view."}
             </p>
           ) : (
             <div className="space-y-2">
-              {assets.map((asset) => (
+              {visibleAssets.map((asset) => (
                 <div key={asset.id} className="rounded-lg border border-border px-3 py-2">
                   <div className="flex items-center gap-3">
                     <div className="min-w-0 flex-1">
@@ -375,6 +433,7 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
           )}
         </div>
       )}
+
 
       <div className={PANEL}>
         <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">

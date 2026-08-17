@@ -48,13 +48,19 @@ export const protectFromLink = createServerFn({ method: "POST" })
       `${resolved.platform} ${resolved.postId ?? "post"}`;
 
     const results = [];
-    for (const [index, mediaUrl] of resolved.mediaUrls.slice(0, 5).entries()) {
+    // A carousel post publishes several media items behind one permalink. Each
+    // item becomes its own protected asset while provenance keeps the shared
+    // post URL and the carousel position.
+    const mediaItems = resolved.mediaUrls.slice(0, 10);
+    const isCarousel = mediaItems.length > 1;
+    for (const [index, mediaUrl] of mediaItems.entries()) {
       const provenance = buildProvenance({
         platform: resolved.platform,
         importMethod: "PUBLIC_LINK",
         postUrl: resolved.canonicalUrl,
         postId: resolved.postId,
         mediaUrl,
+        carouselIndex: isCarousel ? index + 1 : null,
         handle: handleFromProfileUrl(resolved.canonicalUrl),
         socialAccountId: data.socialAccountId ?? null,
       });
@@ -62,12 +68,13 @@ export const protectFromLink = createServerFn({ method: "POST" })
         await ingestRemoteMedia({
           supabase: context.supabase,
           userId: context.userId,
-          name: index === 0 ? baseName : `${baseName} (${index + 1})`,
+          name: isCarousel ? `${baseName} (${index + 1})` : baseName,
           mediaUrl,
           provenance,
         }),
       );
     }
+
 
     for (const r of results) {
       modeBLog({
