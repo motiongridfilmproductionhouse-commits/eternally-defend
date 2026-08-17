@@ -453,8 +453,14 @@ export const signCompanyAuthorizationLetter = createServerFn({ method: "POST" })
     });
 
     const key = `clients/${userId}/company-authorization/${letter.version}-signed.pdf`;
-    const { putObject } = await import("@/lib/aws/s3.server");
-    await putObject({ key, body: Buffer.from(bytes), contentType: "application/pdf" });
+    const { storeOnboardingDocument } = await import("./document-storage.server");
+    const storagePath = await storeOnboardingDocument({
+      supabase,
+      userId,
+      key,
+      bytes,
+      contentType: "application/pdf",
+    });
 
     const { error } = await supabase.from("onboarding_v2_evidence").upsert(
       {
@@ -464,7 +470,8 @@ export const signCompanyAuthorizationLetter = createServerFn({ method: "POST" })
         status: "SUBMITTED",
         verification_method: "generated_authorization_letter_electronic_signature",
         reference_value: data.legal_name.trim(),
-        storage_path: key,
+        storage_path: storagePath,
+
         filename: "Eterna_Company_Authorization.pdf",
         mime_type: "application/pdf",
         metadata: {
