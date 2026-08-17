@@ -204,14 +204,32 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const onPickFile = (file: File | undefined) => {
-    if (!file) return;
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("Please upload a file under 15 MB.");
-      return;
+  /**
+   * Multi-select is allowed here too: each file still goes through the single-item
+   * pipeline on its own, so one oversized or rejected file never blocks the rest.
+   */
+  const onPickFiles = async (files: File[]) => {
+    if (!files.length) return;
+    let ok = 0;
+    let bad = 0;
+    for (const file of files) {
+      if (file.size > 15 * 1024 * 1024) {
+        bad += 1;
+        toast.error(`${file.name} is over 15 MB.`);
+        continue;
+      }
+      try {
+        await upload.mutateAsync(file);
+        ok += 1;
+      } catch {
+        bad += 1;
+      }
     }
-    upload.mutate(file);
+    if (files.length > 1) {
+      toast.info(`${ok} processed, ${bad} failed. Successful uploads are kept.`);
+    }
   };
+
 
   return (
     <div className="space-y-4">
