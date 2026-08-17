@@ -61,17 +61,29 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
     const hashes = computePerceptualHashes(bytes);
 
     const signedImageUrl = await getSignedGetUrl(data.key, 600);
-    const reverse = await reverseSearchAndVerify(
-      signedImageUrl,
-      data.name.trim(),
-      bytes,
-      { phash: hashes?.phash ?? null, dhash: hashes?.dhash ?? null, ahash: hashes?.ahash ?? null },
-      sha256,
-    );
-    const matchCount =
-      reverse.pages.length +
-      reverse.fullMatchingImages.length +
-      reverse.partialMatchingImages.length;
+    // Reverse discovery is best-effort: provider quota/outage must never block
+    // protecting the asset. The asset is still fingerprinted and enrolled, and
+    // recurring scans retry discovery later.
+    let reverse: Awaited<ReturnType<typeof reverseSearchAndVerify>> | null = null;
+    let reverseError: string | null = null;
+    try {
+      reverse = await reverseSearchAndVerify(
+        signedImageUrl,
+        data.name.trim(),
+        bytes,
+        { phash: hashes?.phash ?? null, dhash: hashes?.dhash ?? null, ahash: hashes?.ahash ?? null },
+        sha256,
+      );
+    } catch (error) {
+      reverseError = error instanceof Error ? error.message : "reverse discovery unavailable";
+      console.error("[asset_registration] reverse discovery skipped:", reverseError);
+    }
+    const matchCount = reverse
+      ? reverse.pages.length +
+        reverse.fullMatchingImages.length +
+        reverse.partialMatchingImages.length
+      : 0;
+
     const { data: inserted, error } = await context.supabase
       .from("protected_assets")
       .insert({
@@ -94,8 +106,10 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
           perceptual_hashes: hashes ? { ...hashes } : null,
           reverse_search: reverse,
           reverse_search_match_count: matchCount,
-          reverse_search_at: new Date().toISOString(),
-          reverse_search_provider: "reverse_image_router",
+          reverse_search_at: reverse ? new Date().toISOString() : null,
+          reverse_search_provider: reverse ? "reverse_image_router" : null,
+          reverse_search_error: reverseError,
+
           provenance: buildProvenance({
             platform: data.sourceUrl ? platformFromUrl(data.sourceUrl) : "other",
             importMethod: "MANUAL_UPLOAD",
@@ -117,6 +131,15 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
       ahash: hashes?.ahash ?? null,
     });
 
-    return { id: inserted.id, enrollment, sha256, phash: hashes?.phash ?? null, matchCount, reverse };
+    return {
+      id: inserted.id,
+      enrollment,
+      sha256,
+      phash: hashes?.phash ?? null,
+      matchCount,
+      reverse,
+      reverseError,
+    };
+
   });
 

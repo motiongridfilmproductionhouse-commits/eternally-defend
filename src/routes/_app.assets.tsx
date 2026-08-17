@@ -37,14 +37,16 @@ type AssetRow = {
 type SearchResult = {
   matchCount: number;
   sha256: string;
+  reverseError?: string | null;
   reverse: {
     pages: Array<{ url: string; title: string; fullMatches: number; partialMatches: number }>;
     fullMatchingImages: Array<{ url: string }>;
     partialMatchingImages: Array<{ url: string }>;
     visuallySimilarImages: Array<{ url: string }>;
     bestGuessLabels: string[];
-  };
+  } | null;
 };
+
 
 function AssetsPage() {
   const { session, ready } = useSession();
@@ -105,7 +107,12 @@ function AssetsPage() {
       setPlatform("");
       setSourceUrl("");
       qc.invalidateQueries({ queryKey: ["protected_assets", userId] });
-      toast.success(`Asset protected. ${data.matchCount} web matches found.`);
+      toast.success(
+        data.reverse
+          ? `Asset protected. ${data.matchCount} web matches found.`
+          : "Asset protected and fingerprinted. Web discovery will retry automatically.",
+      );
+
       // Client-side navigation — a full page load here dropped the SPA state
       // and re-ran the whole app shell just to open /scan.
       navigate({ to: "/scan", search: { assetId: data.id, query: scanName, auto: "1" } });
@@ -156,20 +163,32 @@ function AssetsPage() {
       {result && (
         <PageCard
           title="REVERSE SEARCH RESULTS"
-          sub={`${result.matchCount} matching pages/images found`}
+          sub={
+            result.reverse
+              ? `${result.matchCount} matching pages/images found`
+              : "Discovery unavailable — asset is protected and queued for retry"
+          }
         >
           <div className="space-y-3">
-            {result.reverse.bestGuessLabels.length > 0 && (
+            {!result.reverse && (
+              <div className="text-sm text-muted-foreground py-4">
+                Asset protected and fingerprinted. Web discovery could not run right now
+                {result.reverseError ? ` (${result.reverseError})` : ""} — continuous scanning will
+                retry it automatically.
+              </div>
+            )}
+            {result.reverse && result.reverse.bestGuessLabels.length > 0 && (
               <div className="text-sm">
                 Google identified: <b>{result.reverse.bestGuessLabels.join(", ")}</b>
               </div>
             )}
-            {result.reverse.pages.length === 0 ? (
+            {result.reverse && result.reverse.pages.length === 0 ? (
+
               <div className="text-sm text-muted-foreground py-4">
                 No matching public web pages found.
               </div>
             ) : (
-              result.reverse.pages.map((p, i) => (
+              (result.reverse?.pages ?? []).map((p, i) => (
                 <a
                   key={`${p.url}-${i}`}
                   href={p.url}
