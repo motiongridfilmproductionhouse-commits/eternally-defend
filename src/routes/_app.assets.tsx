@@ -183,7 +183,7 @@ function AssetsPage() {
                 No matching public web pages found.
               </div>
             ) : (
-              result.reverse.pages.map((p, i) => (
+              (result.reverse?.pages ?? []).map((p, i) => (
                 <a
                   key={`${p.url}-${i}`}
                   href={p.url}
