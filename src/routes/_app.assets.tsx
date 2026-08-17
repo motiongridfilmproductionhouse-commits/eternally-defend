@@ -37,14 +37,16 @@ type AssetRow = {
 type SearchResult = {
   matchCount: number;
   sha256: string;
+  reverseError?: string | null;
   reverse: {
     pages: Array<{ url: string; title: string; fullMatches: number; partialMatches: number }>;
     fullMatchingImages: Array<{ url: string }>;
     partialMatchingImages: Array<{ url: string }>;
     visuallySimilarImages: Array<{ url: string }>;
     bestGuessLabels: string[];
-  };
+  } | null;
 };
+
 
 function AssetsPage() {
   const { session, ready } = useSession();
