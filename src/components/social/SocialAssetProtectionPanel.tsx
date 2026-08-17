@@ -116,7 +116,15 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
   });
 
   const protectLink = useMutation({
-    mutationFn: () => importLink({ data: { url: postUrl, name: postName || undefined } }),
+    mutationFn: () => {
+      // A profile URL has no media behind it — guide the user instead of failing silently.
+      if (!/\/(p|reel|reels|tv|status|video|shorts|watch)\/|youtu\.be\/|[?&]v=/i.test(postUrl)) {
+        throw new Error(
+          "Paste a link to a single public post or reel (e.g. instagram.com/p/…), not a profile page. To protect a whole profile, add it under Social Profile Protection.",
+        );
+      }
+      return importLink({ data: { url: postUrl, name: postName || undefined } });
+    },
     onSuccess: (result) => {
       refreshAssets();
       if (result.status === "manual_upload_required") {
