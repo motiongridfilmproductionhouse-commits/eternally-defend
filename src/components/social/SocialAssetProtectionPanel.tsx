@@ -336,22 +336,44 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
         )}
       </div>
 
+      <BulkProtectPanel />
+
       {!compact && (
         <div className={PANEL}>
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
-            <ShieldCheck className="size-4 text-primary" /> Protected social media
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
+              <ShieldCheck className="size-4 text-primary" /> Protected social media
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {REGISTRY_FILTERS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setRegistryFilter(value)}
+                  className={`rounded-full border px-2.5 py-0.5 text-[10px] uppercase tracking-wide transition ${
+                    registryFilter === value
+                      ? "border-primary text-primary"
+                      : "border-border text-muted-foreground"
+                  }`}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
           </div>
           {assetsQuery.isLoading ? (
             <div className="grid place-items-center py-4">
               <Loader2 className="size-4 animate-spin text-primary" />
             </div>
-          ) : assets.length === 0 ? (
+          ) : visibleAssets.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              Nothing protected from social yet. Add a post link or upload the original media.
+              {assets.length === 0
+                ? "Nothing protected from social yet. Add a post link or upload the original media."
+                : "No protected media in this view."}
             </p>
           ) : (
             <div className="space-y-2">
-              {assets.map((asset) => (
+              {visibleAssets.map((asset) => (
                 <div key={asset.id} className="rounded-lg border border-border px-3 py-2">
                   <div className="flex items-center gap-3">
                     <div className="min-w-0 flex-1">
@@ -375,6 +397,7 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
           )}
         </div>
       )}
+
 
       <div className={PANEL}>
         <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
