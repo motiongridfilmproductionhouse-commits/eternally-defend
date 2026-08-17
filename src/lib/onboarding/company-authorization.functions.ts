@@ -285,9 +285,16 @@ export const uploadCompanyRegistrationProof = createServerFn({ method: "POST" })
     }
 
     const safeName = data.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const storagePath = `clients/${userId}/company-registration/${crypto.randomUUID()}-${safeName}`;
-    const { putObject } = await import("@/lib/aws/s3.server");
-    await putObject({ key: storagePath, body: bytes, contentType: data.mime_type });
+    const key = `clients/${userId}/company-registration/${crypto.randomUUID()}-${safeName}`;
+    const { storeOnboardingDocument } = await import("./document-storage.server");
+    const storagePath = await storeOnboardingDocument({
+      supabase,
+      userId,
+      key,
+      bytes,
+      contentType: data.mime_type,
+    });
+
 
     const { error } = await supabase.from("onboarding_v2_evidence").upsert(
       {
