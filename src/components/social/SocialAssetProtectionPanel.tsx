@@ -88,10 +88,13 @@ export function SocialAssetProtectionPanel({ compact = false }: { compact?: bool
     null,
   );
   const fileInput = useRef<HTMLInputElement>(null);
+  const [registryFilter, setRegistryFilter] = useState<RegistryFilter>("all");
 
   const accounts = (accountsQuery.data?.accounts ?? []) as SocialAccountRow[];
   const assets = (assetsQuery.data?.assets ?? []) as SocialAssetStatusRow[];
+  const visibleAssets = assets.filter((asset) => matchesRegistryFilter(asset.status, registryFilter));
   const igConfigured = connectQuery.data?.configured ?? false;
+
 
   const refreshAssets = () => {
     qc.invalidateQueries({ queryKey: ["social_protected_assets"] });
