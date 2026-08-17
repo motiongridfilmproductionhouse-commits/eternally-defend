@@ -27,6 +27,19 @@ import { protectFromLink } from "@/lib/social/import-from-link.functions";
 import { prepareSocialMediaUpload, protectFromUpload } from "@/lib/social/upload-media.functions";
 import { listSocialProtectedAssets, type SocialAssetStatusRow } from "@/lib/social/asset-status.functions";
 import { blockedRetrievalMessage, SOCIAL_STATUS_LABEL, type SocialStatus } from "@/lib/social/status";
+import { BulkProtectPanel } from "./BulkProtectPanel";
+
+/** Registry views for protected social media. */
+const REGISTRY_FILTERS = ["all", "processing", "protected", "failed"] as const;
+type RegistryFilter = (typeof REGISTRY_FILTERS)[number];
+
+function matchesRegistryFilter(status: SocialStatus, filter: RegistryFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "processing") return status === "processing" || status === "fingerprint_ready";
+  if (filter === "protected") return status === "protection_active";
+  return status === "failed" || status === "upload_required" || status === "waiting_for_authorization";
+}
+
 
 const PANEL = "rounded-xl border border-border bg-card p-4 space-y-3";
 
