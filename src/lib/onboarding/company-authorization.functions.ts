@@ -331,12 +331,14 @@ export const getCompanyDocumentUrl = createServerFn({ method: "POST" })
     const key = row?.storage_path as string | undefined;
     if (!key) throw new Error("That document is not available yet.");
 
-    const { getSignedGetUrl } = await import("@/lib/aws/s3.server");
-    const url = await getSignedGetUrl(key, 300, {
-      disposition: "inline",
+    const { signOnboardingDocumentUrl } = await import("./document-storage.server");
+    const url = await signOnboardingDocumentUrl({
+      supabase,
+      storagePath: key,
       filename: (row?.filename as string | undefined) ?? "document",
       contentType: (row?.mime_type as string | undefined) ?? undefined,
     });
+
     return { url, expires_in: 300 };
   });
 
