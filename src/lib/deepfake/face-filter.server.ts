@@ -1,4 +1,5 @@
 import { compareAgainstReferences } from "./face-match.server";
+import { compareVideoCandidateAgainstReferences } from "./video-face-match.server";
 
 export type FaceFilterCandidate = {
   url: string;
@@ -21,6 +22,9 @@ export type FaceVerifiedCandidate = FaceFilterCandidate & {
     "matched" | "different_person" | "no_image" | "comparison_failed" | "needs_review";
   confidence_band?: string;
   confidence_label?: string;
+  /** Set only when verification ran against extracted video keyframes rather
+   * than a static image/thumbnail. */
+  video_frames_compared?: number;
 };
 
 type ReferenceFaceRecord = {
@@ -162,6 +166,49 @@ export async function filterCandidatesByTargetFace(input: {
       batch.map(async (candidate) => {
         const discoveredImageUrl = imageUrlForCandidate(candidate);
         if (!discoveredImageUrl) {
+          // No static image/thumbnail — if this is a video candidate, verify
+          // via extracted keyframes instead of discarding it on text alone.
+          if (candidate.media_type === "video" && typeof candidate.media_url === "string") {
+            try {
+              const videoResult = await compareVideoCandidateAgainstReferences({
+                videoUrl: candidate.media_url,
+                referenceImages: references.imageBytes,
+                similarityThreshold: threshold,
+                signal: input.signal,
+              });
+              if (videoResult) {
+                const matchedFaceId =
+                  videoResult.matchedReferenceIndex !== null
+                    ? (references.faces[videoResult.matchedReferenceIndex]?.rekognition_face_id ??
+                      references.faces[videoResult.matchedReferenceIndex]?.id ??
+                      null)
+                    : null;
+                const band = classifyConfidenceBand(videoResult.similarity);
+                return {
+                  ...candidate,
+                  target_face_match: videoResult.similarity >= 70,
+                  face_similarity: videoResult.similarity,
+                  matched_face_id: matchedFaceId,
+                  face_verification_status:
+                    videoResult.similarity >= 85
+                      ? ("matched" as const)
+                      : videoResult.similarity >= 70
+                        ? ("needs_review" as const)
+                        : ("different_person" as const),
+                  confidence_band: band.band,
+                  confidence_label: `${band.label} (video keyframe ${videoResult.frameIndex ?? "?"})`,
+                  video_frames_compared: videoResult.framesCompared,
+                };
+              }
+            } catch (error) {
+              console.warn("[DEEPFAKE:FACE] Video candidate comparison failed:", {
+                url: candidate.url,
+                mediaUrl: candidate.media_url,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
+
           return {
             ...candidate,
             target_face_match: false,

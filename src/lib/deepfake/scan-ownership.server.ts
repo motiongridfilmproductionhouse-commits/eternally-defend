@@ -61,6 +61,13 @@ export type DiscoveryFunnelMetrics = {
   google_images_jobs_total: number;
   google_images_jobs_completed: number;
   google_images_progress_percent: number;
+  /** Reverse-image discovery wave (seeded from the target's own reference faces) */
+  reverse_image_reference_faces_used: number;
+  reverse_image_raw_candidates: number;
+  reverse_image_leads: number;
+  reverse_image_provider_failures: number;
+  /** Video candidates verified via extracted keyframes instead of a static thumbnail */
+  video_keyframe_comparisons: number;
 };
 
 export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
@@ -109,6 +116,11 @@ export function createDiscoveryFunnelMetrics(): DiscoveryFunnelMetrics {
     google_images_jobs_total: 0,
     google_images_jobs_completed: 0,
     google_images_progress_percent: 0,
+    reverse_image_reference_faces_used: 0,
+    reverse_image_raw_candidates: 0,
+    reverse_image_leads: 0,
+    reverse_image_provider_failures: 0,
+    video_keyframe_comparisons: 0,
   };
 }
 
@@ -157,7 +169,7 @@ async function applyOwnedUpdate(input: {
 }): Promise<number> {
   const supabase = await resolveScanWriter(input.supabase);
   const { ownership } = input;
-  let patch = { ...input.patch };
+  const patch = { ...input.patch };
 
   for (let attempt = 0; attempt < 4; attempt++) {
     const { data, error } = await ownershipFilter(

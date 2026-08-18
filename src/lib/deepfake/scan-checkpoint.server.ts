@@ -38,6 +38,7 @@ export type ScanCheckpoint = {
   verified_canonical_urls: string[];
   youtube_done: boolean;
   reddit_done: boolean;
+  reverse_image_done: boolean;
   related_done: boolean;
   serpapi_queries: string[];
   serpapi_next_query_index: number;
@@ -183,6 +184,11 @@ function asMetrics(value: unknown): DiscoveryFunnelMetrics {
     "google_images_jobs_total",
     "google_images_jobs_completed",
     "google_images_progress_percent",
+    "reverse_image_reference_faces_used",
+    "reverse_image_raw_candidates",
+    "reverse_image_leads",
+    "reverse_image_provider_failures",
+    "video_keyframe_comparisons",
   ];
   for (const key of numericKeys) {
     const fallback = base[key] as number;
@@ -225,6 +231,7 @@ export function createEmptyCheckpoint(input: {
     verified_canonical_urls: [],
     youtube_done: false,
     reddit_done: false,
+    reverse_image_done: false,
     related_done: false,
     serpapi_queries: [],
     serpapi_next_query_index: 0,
@@ -299,6 +306,7 @@ export function parseScanCheckpoint(value: unknown): ScanCheckpoint | null {
     verified_canonical_urls: verified,
     youtube_done: asBool(row.youtube_done),
     reddit_done: asBool(row.reddit_done),
+    reverse_image_done: asBool(row.reverse_image_done),
     related_done: asBool(row.related_done),
     serpapi_queries: asStringArray(row.serpapi_queries, CHECKPOINT_MAX_SERPAPI_QUERIES),
     serpapi_next_query_index: clampInt(
@@ -434,6 +442,7 @@ export function checkpointHasPendingWork(checkpoint: ScanCheckpoint): boolean {
     serpapiPending ||
     !checkpoint.youtube_done ||
     !checkpoint.reddit_done ||
+    !checkpoint.reverse_image_done ||
     !checkpoint.related_done ||
     checkpoint.pending_candidate_urls.length > 0
   );

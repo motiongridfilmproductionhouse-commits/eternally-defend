@@ -357,12 +357,7 @@ const FILM_REVIEW_HOSTS = [
   "deadline.com",
 ];
 
-const OFFICIAL_SOCIAL_HOSTS = [
-  "facebook.com",
-  "instagram.com",
-  "threads.net",
-  "linkedin.com",
-];
+const OFFICIAL_SOCIAL_HOSTS = ["facebook.com", "instagram.com", "threads.net", "linkedin.com"];
 
 const SHOPPING_HOSTS = [
   "amazon.com",
@@ -442,7 +437,8 @@ export function filterDeepfakeCandidates(
     const host = hostOf(hit.url);
 
     const isAppStore = hostMatches(host, APP_STORE_HOSTS);
-    const isBiography = hostMatches(host, SAFE_REFERENCE_HOSTS) || hostMatches(host, BIOGRAPHY_REFERENCE_HOSTS);
+    const isBiography =
+      hostMatches(host, SAFE_REFERENCE_HOSTS) || hostMatches(host, BIOGRAPHY_REFERENCE_HOSTS);
     const isFilmReview = hostMatches(host, FILM_REVIEW_HOSTS);
     const isOfficialSocial = hostMatches(host, OFFICIAL_SOCIAL_HOSTS);
     const isCollegeGov = isCollegeOrGovHost(host);
@@ -488,7 +484,11 @@ export function filterDeepfakeCandidates(
       diagnostics.unrelatedPagesDiscarded++;
     } else if (
       visibleTargetMatch &&
-      ((hit as any).image_url || (hit as any).thumbnail_url) &&
+      // A name-matched candidate should not be discarded just because the
+      // provider only returned a direct media URL (common for video hits)
+      // instead of a thumbnail/image — any of the three is sufficient
+      // evidence to send it on for face/media verification.
+      ((hit as any).image_url || (hit as any).thumbnail_url || (hit as any).media_url) &&
       !isGeneralNews &&
       !isBiography
     ) {
@@ -579,15 +579,37 @@ export function classifyPageType(url: string, title = ""): PageTypeCategory {
 
   if (urlLower.includes("wikipedia.org")) return "WIKIPEDIA";
   if (urlLower.includes("imdb.com") || urlLower.includes("rottentomatoes.com")) return "IMDB";
-  if (urlLower.includes(".edu") || urlLower.includes("/college") || urlLower.includes("/university")) return "COLLEGE";
+  if (
+    urlLower.includes(".edu") ||
+    urlLower.includes("/college") ||
+    urlLower.includes("/university")
+  )
+    return "COLLEGE";
   if (urlLower.includes(".gov") || urlLower.includes("/government")) return "GOVERNMENT";
-  if (urlLower.includes("apps.apple.com") || urlLower.includes("play.google.com")) return "APP_STORE";
-  if (urlLower.includes("amazon.") || urlLower.includes("ebay.") || urlLower.includes("etsy.") || urlLower.includes("/shop")) return "SHOP";
+  if (urlLower.includes("apps.apple.com") || urlLower.includes("play.google.com"))
+    return "APP_STORE";
+  if (
+    urlLower.includes("amazon.") ||
+    urlLower.includes("ebay.") ||
+    urlLower.includes("etsy.") ||
+    urlLower.includes("/shop")
+  )
+    return "SHOP";
 
-  if (urlLower.includes("t.me") || urlLower.includes("terabox") || urlLower.includes("mega.nz") || urlLower.includes("pixeldrain")) {
+  if (
+    urlLower.includes("t.me") ||
+    urlLower.includes("terabox") ||
+    urlLower.includes("mega.nz") ||
+    urlLower.includes("pixeldrain")
+  ) {
     return "DOWNLOAD_PAGE";
   }
-  if (urlLower.includes("mrdeepfakes") || urlLower.includes("sexcelebrity") || urlLower.includes("coomer") || urlLower.includes("nifty")) {
+  if (
+    urlLower.includes("mrdeepfakes") ||
+    urlLower.includes("sexcelebrity") ||
+    urlLower.includes("coomer") ||
+    urlLower.includes("nifty")
+  ) {
     return "HOSTING_PAGE";
   }
 
@@ -597,12 +619,19 @@ export function classifyPageType(url: string, title = ""): PageTypeCategory {
   if (titleLower.includes("biography") || urlLower.includes("biography")) return "BIOGRAPHY";
   if (titleLower.includes("review") || urlLower.includes("review")) return "MOVIE_REVIEW";
 
-  if (urlLower.includes("reddit.com") || urlLower.includes("/forum") || urlLower.includes("/thread")) return "FORUM_THREAD";
+  if (
+    urlLower.includes("reddit.com") ||
+    urlLower.includes("/forum") ||
+    urlLower.includes("/thread")
+  )
+    return "FORUM_THREAD";
   if (urlLower.includes("x.com") || urlLower.includes("twitter.com")) return "SOCIAL_POST";
 
   if (titleLower.includes("gallery") || urlLower.includes("gallery")) return "GALLERY_PAGE";
-  if (urlLower.includes(".jpg") || urlLower.includes(".png") || urlLower.includes(".webp")) return "IMAGE_PAGE";
-  if (urlLower.includes(".mp4") || urlLower.includes(".webm") || urlLower.includes("/video")) return "VIDEO_PAGE";
+  if (urlLower.includes(".jpg") || urlLower.includes(".png") || urlLower.includes(".webp"))
+    return "IMAGE_PAGE";
+  if (urlLower.includes(".mp4") || urlLower.includes(".webm") || urlLower.includes("/video"))
+    return "VIDEO_PAGE";
 
   return "PREVIEW_PAGE";
 }

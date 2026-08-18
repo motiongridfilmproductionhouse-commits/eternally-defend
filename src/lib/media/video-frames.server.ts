@@ -19,6 +19,8 @@ export interface ExtractedFrame {
   width: number | null;
   height: number | null;
   sceneChange: boolean;
+  /** Only populated when `includeThumbnails` is requested (base64 JPEG). */
+  thumbnailBase64: string | null;
 }
 
 export interface FrameExtractionResult {
@@ -34,7 +36,8 @@ export interface FrameExtractionResult {
 
 function crawlerBaseUrl(): string {
   const raw = process.env.CRAWLER_SERVICE_URL;
-  if (!raw) throw new Error("CRAWLER_SERVICE_URL is not configured — video frame hashing unavailable");
+  if (!raw)
+    throw new Error("CRAWLER_SERVICE_URL is not configured — video frame hashing unavailable");
   return raw.replace(/\/+$/, "");
 }
 
@@ -45,9 +48,21 @@ export function videoFrameExtractionConfigured(): boolean {
 /** Extract + hash keyframes for a video reachable at `videoUrl` (e.g. signed S3 URL). */
 export async function extractVideoFrames(
   videoUrl: string,
-  options: { maxFrames?: number; minIntervalSeconds?: number; timeoutMs?: number } = {},
+  options: {
+    maxFrames?: number;
+    minIntervalSeconds?: number;
+    timeoutMs?: number;
+    /** Also return a small per-frame JPEG thumbnail (base64). Costs payload
+     * size, so keep maxFrames small (e.g. 3-5) when this is true. */
+    includeThumbnails?: boolean;
+  } = {},
 ): Promise<FrameExtractionResult> {
-  const { maxFrames = 40, minIntervalSeconds = 1, timeoutMs = 180_000 } = options;
+  const {
+    maxFrames = 40,
+    minIntervalSeconds = 1,
+    timeoutMs = 180_000,
+    includeThumbnails = false,
+  } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -58,6 +73,7 @@ export async function extractVideoFrames(
         url: videoUrl,
         max_frames: maxFrames,
         min_interval_seconds: minIntervalSeconds,
+        include_thumbnails: includeThumbnails,
       }),
       signal: controller.signal,
     });
@@ -83,6 +99,7 @@ export async function extractVideoFrames(
         width: row.width != null ? Number(row.width) : null,
         height: row.height != null ? Number(row.height) : null,
         sceneChange: Boolean(row.scene_change),
+        thumbnailBase64: row.thumbnail_base64 ? String(row.thumbnail_base64) : null,
       }),
     );
     if (!frames.length) throw new Error("Frame extraction returned no frames");

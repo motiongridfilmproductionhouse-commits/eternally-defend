@@ -6,6 +6,7 @@
 import { compareAgainstReferences } from "./face-match.server";
 import { downloadFaceImage } from "./face-match.server";
 import { assertNotAborted, isAbortError } from "./scan-runtime.server";
+import { compareVideoCandidateAgainstReferences } from "./video-face-match.server";
 import type { CollectedReferenceImage } from "./reference-images";
 import type { FaceFilterCandidate, FaceVerifiedCandidate } from "./face-filter.server";
 
@@ -95,6 +96,43 @@ export async function filterCandidatesByAutoReferences(input: {
         const discoveredImageUrl = imageUrlForCandidate(candidate);
 
         if (!discoveredImageUrl) {
+          // No static image/thumbnail — if this is a video candidate, verify
+          // via extracted keyframes instead of discarding it on text alone.
+          if (candidate.media_type === "video" && typeof candidate.media_url === "string") {
+            try {
+              const videoResult = await compareVideoCandidateAgainstReferences({
+                videoUrl: candidate.media_url,
+                referenceImages: referenceBytes,
+                similarityThreshold: threshold,
+                signal: input.signal,
+              });
+              if (videoResult) {
+                comparisons += videoResult.framesCompared;
+                return {
+                  ...candidate,
+                  target_face_match: videoResult.similarity >= threshold,
+                  face_similarity: videoResult.similarity,
+                  matched_face_id:
+                    videoResult.matchedReferenceIndex !== null
+                      ? `auto_ref_${videoResult.matchedReferenceIndex}`
+                      : null,
+                  face_verification_status:
+                    videoResult.similarity >= threshold
+                      ? ("matched" as const)
+                      : ("different_person" as const),
+                  video_frames_compared: videoResult.framesCompared,
+                };
+              }
+            } catch (error) {
+              if (isAbortError(error)) throw error;
+              console.warn("[DEEPFAKE:FACE] Video candidate comparison failed:", {
+                url: candidate.url,
+                mediaUrl: candidate.media_url,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
+
           return {
             ...candidate,
             target_face_match: false,

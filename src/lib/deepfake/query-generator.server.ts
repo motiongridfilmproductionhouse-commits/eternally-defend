@@ -53,31 +53,70 @@ export function generateDeepfakeQueries(target: DeepfakeTarget): string[] {
     }
   }
 
-  // Tier 3 — Indexed Social / Platform Discovery
-  const socialQueries: string[] = [];
+  // Tier 3 — Distribution / Mirror Host Discovery.
+  // NOTE: reddit.com and x.com/twitter.com are intentionally NOT queried here.
+  // Both are on the platform blocklist (see isBlockedHost in ./queries) and any
+  // hit on those hosts is dropped before verification — querying them only
+  // burns query budget for zero possible findings. Target hosts that are
+  // actually reachable and already recognised as high-risk synthetic-media
+  // distribution points downstream (see HIGH_RISK_SYNTHETIC_HOSTS in
+  // ./filter.server).
+  const distributionQueries: string[] = [];
   for (const identity of identities) {
     const person = quote(identity);
-    socialQueries.push(
-      `${person} deepfake site:reddit.com`,
-      `${person} face swap site:reddit.com`,
+    distributionQueries.push(
       `${person} ai nude site:t.me`,
       `${person} deepfake site:t.me`,
-      `${person} fake video site:x.com`,
       `${person} synthetic media site:terabox.com`,
+      `${person} deepfake site:mega.nz`,
+      `${person} leaked site:coomer.su`,
+      `${person} leaked site:kemono.su`,
+      `${person} fake nude site:cyberdrop.me`,
+      `${person} deepfake site:pixeldrain.com`,
     );
   }
 
-  // Bounded focused budget: 64 queries max (40% High-Risk Domains, 40% Open-Web Threat, 20% Social/Indexed)
-  const maxTotal = 64;
+  // Tier 4 — Impersonation & Repost/Mirror-Context Discovery.
+  // Distinct from Tier 2's manipulation-keyword search: these target pages that
+  // describe *distribution* (a repost, a mirror, an impersonating account)
+  // rather than the media itself, which surfaces forum/aggregator pages that
+  // link onward to the actual hosted content.
+  const impersonationMirrorQueries: string[] = [];
+  for (const identity of identities) {
+    const person = quote(identity);
+    impersonationMirrorQueries.push(
+      `${person} impersonating deepfake`,
+      `${person} fake account deepfake`,
+      `${person} deepfake reupload`,
+      `${person} deepfake mirror link`,
+      `${person} fake nude backup link`,
+      `${person} catfish deepfake`,
+    );
+  }
+
+  // Bounded focused budget: ~68 queries max, split across four families so no
+  // single tier can starve the others. Query text is a discovery lead only —
+  // matching a keyword is never treated as proof of a threat.
+  const maxTotal = 68;
   const highRiskTargetCount = 28;
-  const openWebTargetCount = 26;
-  const socialTargetCount = 10;
+  const openWebTargetCount = 24;
+  const distributionTargetCount = 10;
+  const impersonationMirrorTargetCount = 6;
 
   const slicedHighRisk = unique(highRiskQueries).slice(0, highRiskTargetCount);
   const slicedOpenWeb = unique(threatWebQueries).slice(0, openWebTargetCount);
-  const slicedSocial = unique(socialQueries).slice(0, socialTargetCount);
+  const slicedDistribution = unique(distributionQueries).slice(0, distributionTargetCount);
+  const slicedImpersonationMirror = unique(impersonationMirrorQueries).slice(
+    0,
+    impersonationMirrorTargetCount,
+  );
 
-  const combined = unique([...slicedHighRisk, ...slicedOpenWeb, ...slicedSocial]);
+  const combined = unique([
+    ...slicedHighRisk,
+    ...slicedOpenWeb,
+    ...slicedDistribution,
+    ...slicedImpersonationMirror,
+  ]);
 
   return combined.slice(0, maxTotal);
 }

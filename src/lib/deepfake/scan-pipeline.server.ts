@@ -7,7 +7,6 @@ import {
   isProviderDisabledForFeature,
 } from "../policy/source-policy";
 
-
 import {
   buildExecutedQueryPlan,
   discoveredCandidateKey,
@@ -72,6 +71,7 @@ import {
   syncGoogleImagesScanMetrics,
 } from "./google-images-jobs.server";
 import { dispatchGoogleImagesWorker } from "./google-images-worker-dispatch.server";
+import { hydrateHighRiskRegistryFromDatabase } from "./high-risk-registry.server";
 
 type ProviderHit = {
   url: string;
@@ -363,6 +363,13 @@ export async function executeInterleavedDeepfakePipeline(input: {
   resumeCheckpoint?: ScanCheckpoint | null;
   workerLimits?: PipelineWorkerLimits;
 }): Promise<PipelineResult> {
+  // Hydrate the high-risk domain registry from prior scans (any target) before
+  // building this scan's query plan, so Tier 1 site: queries are not
+  // permanently limited to the 3-domain seed list. Idempotent and
+  // non-throwing — a hydration failure just means this run uses whatever the
+  // in-process registry already has (seed domains at minimum).
+  await hydrateHighRiskRegistryFromDatabase(input.supabase);
+
   const autoAliases = expandIdentityVariants({
     name: input.target.name,
     aliases: input.target.aliases,
@@ -846,6 +853,11 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
         metrics.face_comparisons += analyzableCandidates.length;
         metrics.images_compared += analyzableCandidates.length;
+        metrics.video_keyframe_comparisons += [
+          ...faceResults.matched,
+          ...faceResults.rejected,
+          ...faceResults.errors,
+        ].reduce((sum, item) => sum + ((item as any).video_frames_compared ?? 0), 0);
 
         metrics.serpapi_face_rejected += faceResults.rejected.filter(
           (item) => item.source === "serpapi_google_images",
@@ -895,6 +907,11 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
         metrics.face_comparisons += faceResults.comparisons;
         metrics.images_compared += faceResults.comparisons;
+        metrics.video_keyframe_comparisons += [
+          ...faceResults.matched,
+          ...faceResults.rejected,
+          ...faceResults.errors,
+        ].reduce((sum, item) => sum + ((item as any).video_frames_compared ?? 0), 0);
 
         const syntheticUnavailable = faceResults.errors.filter((item) => {
           const text = [
@@ -1084,6 +1101,31 @@ export async function executeInterleavedDeepfakePipeline(input: {
           return Boolean(key && !keysBefore.has(key) && persistedFindingKeys.has(key));
         });
         updateFindingMetrics(persistedFindings);
+
+        // Grow the high-risk domain registry from real qualified findings so
+        // future queries for THIS and other targets prioritise domains that
+        // have actually produced verified/probable deepfake findings, rather
+        // than the fixed 3-domain seed list. Best-effort only: a registry
+        // failure never blocks or fails the scan.
+        try {
+          const { recordQualifiedDomainFinding, persistQualifiedDomainFinding } =
+            await import("./high-risk-registry.server");
+          for (const item of persistedFindings) {
+            if (!isClientVisibleClassification(item.finding_classification)) continue;
+            const pageUrl = item.canonical_url ?? item.final_url ?? item.url;
+            if (!pageUrl) continue;
+            const entry = recordQualifiedDomainFinding({
+              hostname: pageUrl,
+              provider: item.source ?? undefined,
+              query: item.query,
+            });
+            await persistQualifiedDomainFinding(input.supabase, entry);
+          }
+        } catch (registryError) {
+          console.warn("[DEEPFAKE] High-risk domain registry update failed:", {
+            error: registryError instanceof Error ? registryError.message : String(registryError),
+          });
+        }
       }
 
       await heartbeat("saving");
@@ -1237,7 +1279,6 @@ export async function executeInterleavedDeepfakePipeline(input: {
       ) {
         continue;
       }
-
 
       const key = discoveredCandidateKey(hit);
       if (key && seenCandidateKeys.has(key)) continue;
@@ -1618,6 +1659,56 @@ export async function executeInterleavedDeepfakePipeline(input: {
       checkpoint.reddit_done = true;
     }
 
+    /*
+     * Reverse-image discovery wave. Text queries can only find pages that
+     * *mention* the target by name/alias/handle — an anonymously posted
+     * face-swap or leak never surfaces that way. This pushes the target's
+     * own enrolled reference face through the reverse-image providers
+     * (already wired for the copyright/asset-protection pipeline) and feeds
+     * any returned pages through the exact same enqueue → filter → face
+     * verification path as every other provider. It only ever widens
+     * discovery; a reverse-image hit still has to pass identity and
+     * manipulation verification before it can become a finding, and a
+     * missing/unconfigured provider degrades to zero leads rather than
+     * failing the scan.
+     */
+    if (
+      !checkpoint.reverse_image_done &&
+      canStartProviderCall(
+        budget,
+        Math.max(checkpoint.average_provider_latency_ms, MIN_PROVIDER_TIME_MS),
+      )
+    ) {
+      const startedAt = Date.now();
+      try {
+        assertNotAborted(input.runtime.signal);
+        const { seedDeepfakeLeadsFromReferenceFaces } = await import("./reverse-image-seed.server");
+        const seedResult = await seedDeepfakeLeadsFromReferenceFaces({
+          supabase: input.supabase,
+          userId: input.userId,
+          subject: input.target.name,
+          maxFaces: 2,
+        });
+        recordSpend(budget, "discovery", Date.now() - startedAt);
+        metrics.reverse_image_reference_faces_used += seedResult.diagnostics.reference_faces_used;
+        metrics.reverse_image_raw_candidates += seedResult.diagnostics.raw_candidates;
+        metrics.reverse_image_leads += seedResult.diagnostics.seeded_leads;
+        metrics.reverse_image_provider_failures += seedResult.diagnostics.providers_failed.length;
+        if (seedResult.leads.length) {
+          await enqueueProviderHits(seedResult.leads.map((lead) => ({ ...lead })) as ProviderHit[]);
+        }
+      } catch (error) {
+        if (isAbortError(error)) throw error;
+        metrics.provider_failures++;
+        metrics.reverse_image_provider_failures += 1;
+        console.warn("[DEEPFAKE] Reverse-image discovery failed:", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        checkpoint.reverse_image_done = true;
+        await heartbeat("discovering");
+      }
+    }
 
     await processPendingCandidates();
 
