@@ -156,7 +156,7 @@ export function AssetVerificationStep({
           </div>
         ) : assets.length === 0 ? (
           <div className="border border-dashed border-white/20 rounded-xl p-8 text-center text-white/50 text-sm">
-            No assets added yet. You must verify at least one asset to proceed.
+            No assets added yet. This step is optional — you can continue and add assets later.
           </div>
         ) : (
           <div className="space-y-4">

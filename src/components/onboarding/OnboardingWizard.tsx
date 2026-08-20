@@ -210,7 +210,6 @@ function LegacyOnboardingWizard({
                 const isPast = i < stepIndex;
                 const isLocked =
                   (i >= 2 && !isFaceHandled) ||
-                  (i >= 3 && !hasVerifiedAsset) ||
                   (i >= 4 && !hasScopes) ||
                   (i >= 5 && !isDraftReady) ||
                   (i >= 6 && !isReviewVisible) ||
@@ -605,10 +604,6 @@ function StepLockedPlaceholder({
           {!isFaceVerified && step >= 3 ? (
             <p className="text-sm text-red-400">
               Complete or defer Face Protection Enrollment (Step 2) to unlock this section.
-            </p>
-          ) : !hasVerifiedAsset && step >= 4 ? (
-            <p className="text-sm text-red-400">
-              You must verify at least one Digital Asset (Step 3) to unlock this section.
             </p>
           ) : !hasScopes && step >= 5 ? (
             <p className="text-sm text-red-400">
