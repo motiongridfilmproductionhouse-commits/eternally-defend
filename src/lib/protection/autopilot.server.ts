@@ -273,6 +273,17 @@ export async function runProtectionTarget(
     .select("id")
     .maybeSingle();
 
+  // First-run stamps are write-once so restarts/retries never rewrite history.
+  if (!target.initial_scan_started_at) {
+    await supabase
+      .from("protection_targets")
+      .update({
+        initial_scan_started_at: new Date().toISOString(),
+        initial_scan_queued_at: target.initial_scan_queued_at ?? new Date().toISOString(),
+      })
+      .eq("id", target.id);
+  }
+
   try {
     const candidates =
       target.target_kind === "asset"
@@ -285,16 +296,26 @@ export async function runProtectionTarget(
       await ingestCandidate(supabase, target, candidate, stats);
     }
 
-    await supabase
-      .from("protection_targets")
-      .update({
-        last_run_at: new Date().toISOString(),
-        last_run_status: "completed",
-        last_run_error: null,
-        consecutive_failures: 0,
-        next_run_at: computeNextRunAt(new Date(), target.cadence_minutes ?? 1440, 0),
-      })
-      .eq("id", target.id);
+    const completionPatch: Record<string, unknown> = {
+      last_run_at: new Date().toISOString(),
+      last_run_status: "completed",
+      last_run_error: null,
+      consecutive_failures: 0,
+      next_run_at: computeNextRunAt(new Date(), target.cadence_minutes ?? 1440, 0),
+    };
+    if (!target.initial_scan_completed_at) {
+      completionPatch.initial_scan_completed_at = new Date().toISOString();
+      completionPatch.initial_scan_ref = stats.scan_ref;
+    }
+    if (!target.evidence_captured_at && stats.evidence_preserved > 0) {
+      completionPatch.evidence_captured_at = new Date().toISOString();
+    }
+    if (!target.enforcement_case_created_at && stats.cases_created > 0) {
+      completionPatch.enforcement_case_created_at = new Date().toISOString();
+    }
+
+    await supabase.from("protection_targets").update(completionPatch).eq("id", target.id);
+
   } catch (err) {
     stats.status = "failed";
     stats.error = err instanceof Error ? err.message : String(err);
