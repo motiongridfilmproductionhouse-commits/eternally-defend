@@ -82,13 +82,31 @@ export async function activateProtectionAutopilot(
   const status: ProtectionProfileStatus = authorizationActive ? "ACTIVE" : "PENDING_AUTHORIZATION";
   const nowIso = new Date().toISOString();
 
+  // Audit trail is write-once: re-running activation (refresh, duplicate
+  // completion event, worker retry) must not move the original timestamps.
+  const { data: existingProfile } = await supabase
+    .from("protection_profiles")
+    .select(
+      "activated_at,onboarding_completed_at,protection_activated_at,continuous_monitoring_enabled_at",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
   await supabase.from("protection_profiles").upsert(
     {
       user_id: userId,
       status,
       auto_scan_enabled: true,
       paused: false,
-      activated_at: authorizationActive ? nowIso : null,
+      activated_at: existingProfile?.activated_at ?? (authorizationActive ? nowIso : null),
+      onboarding_completed_at:
+        existingProfile?.onboarding_completed_at ?? (profile?.onboarding_completed ? nowIso : null),
+      protection_activated_at:
+        existingProfile?.protection_activated_at ?? (authorizationActive ? nowIso : null),
+      continuous_monitoring_enabled_at:
+        existingProfile?.continuous_monitoring_enabled_at ?? (authorizationActive ? nowIso : null),
+      authorization_id: auth?.id ?? null,
+      authorization_level: profile?.authorization_level ?? null,
       updated_at: nowIso,
     },
     { onConflict: "user_id" },
@@ -110,27 +128,48 @@ export async function activateProtectionAutopilot(
   }
 
   const targets: ActivationSummary["targets"] = [];
+  let queued = 0;
   for (const item of desired) {
     const cadence = DEFAULT_CADENCE_MINUTES[item.kind];
+
+    // Idempotency: an existing target keeps its schedule and its original
+    // initial-scan queue stamp, so duplicate activations never re-queue a scan.
+    const { data: existingTarget } = await supabase
+      .from("protection_targets")
+      .select("id,next_run_at,initial_scan_queued_at")
+      .eq("user_id", userId)
+      .eq("target_kind", item.kind)
+      .eq("label", item.label)
+      .maybeSingle();
+
+    const alreadyQueued = Boolean(existingTarget?.initial_scan_queued_at);
+    const patch: Record<string, unknown> = {
+      user_id: userId,
+      target_kind: item.kind,
+      target_ref: item.ref,
+      label: item.label,
+      cadence_minutes: cadence,
+      active: true,
+      authorization_id: auth?.id ?? null,
+      updated_at: nowIso,
+    };
+    if (!alreadyQueued && authorizationActive) {
+      // Initial scan: due immediately, no manual "Scan" click required.
+      patch.next_run_at = nowIso;
+      patch.initial_scan_queued_at = nowIso;
+    } else if (existingTarget?.next_run_at) {
+      patch.next_run_at = existingTarget.next_run_at;
+    } else {
+      patch.next_run_at = nowIso;
+    }
+
     const { data: row } = await supabase
       .from("protection_targets")
-      .upsert(
-        {
-          user_id: userId,
-          target_kind: item.kind,
-          target_ref: item.ref,
-          label: item.label,
-          cadence_minutes: cadence,
-          active: true,
-          // Initial scan: due immediately, no manual "Scan" click required.
-          next_run_at: nowIso,
-          updated_at: nowIso,
-        },
-        { onConflict: "user_id,target_kind,label" },
-      )
-      .select("id,target_kind,label,cadence_minutes")
+      .upsert(patch, { onConflict: "user_id,target_kind,label" })
+      .select("id,target_kind,label,cadence_minutes,initial_scan_queued_at")
       .maybeSingle();
     if (row) {
+      if (!alreadyQueued && authorizationActive) queued += 1;
       targets.push({
         id: row.id,
         kind: row.target_kind,
@@ -140,12 +179,13 @@ export async function activateProtectionAutopilot(
     }
   }
 
+
   return {
     status,
     activated: authorizationActive && targets.length > 0,
     authorization_active: authorizationActive,
     targets,
-    initial_scans_queued: authorizationActive ? targets.length : 0,
+    initial_scans_queued: queued,
     reason: authorizationActive
       ? targets.length === 0
         ? "No fingerprinted assets or registered subject to enroll yet."
@@ -233,6 +273,17 @@ export async function runProtectionTarget(
     .select("id")
     .maybeSingle();
 
+  // First-run stamps are write-once so restarts/retries never rewrite history.
+  if (!target.initial_scan_started_at) {
+    await supabase
+      .from("protection_targets")
+      .update({
+        initial_scan_started_at: new Date().toISOString(),
+        initial_scan_queued_at: target.initial_scan_queued_at ?? new Date().toISOString(),
+      })
+      .eq("id", target.id);
+  }
+
   try {
     const candidates =
       target.target_kind === "asset"
@@ -245,16 +296,26 @@ export async function runProtectionTarget(
       await ingestCandidate(supabase, target, candidate, stats);
     }
 
-    await supabase
-      .from("protection_targets")
-      .update({
-        last_run_at: new Date().toISOString(),
-        last_run_status: "completed",
-        last_run_error: null,
-        consecutive_failures: 0,
-        next_run_at: computeNextRunAt(new Date(), target.cadence_minutes ?? 1440, 0),
-      })
-      .eq("id", target.id);
+    const completionPatch: Record<string, unknown> = {
+      last_run_at: new Date().toISOString(),
+      last_run_status: "completed",
+      last_run_error: null,
+      consecutive_failures: 0,
+      next_run_at: computeNextRunAt(new Date(), target.cadence_minutes ?? 1440, 0),
+    };
+    if (!target.initial_scan_completed_at) {
+      completionPatch.initial_scan_completed_at = new Date().toISOString();
+      completionPatch.initial_scan_ref = stats.scan_ref;
+    }
+    if (!target.evidence_captured_at && stats.evidence_preserved > 0) {
+      completionPatch.evidence_captured_at = new Date().toISOString();
+    }
+    if (!target.enforcement_case_created_at && stats.cases_created > 0) {
+      completionPatch.enforcement_case_created_at = new Date().toISOString();
+    }
+
+    await supabase.from("protection_targets").update(completionPatch).eq("id", target.id);
+
   } catch (err) {
     stats.status = "failed";
     stats.error = err instanceof Error ? err.message : String(err);

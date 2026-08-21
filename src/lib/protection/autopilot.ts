@@ -170,3 +170,112 @@ export function describeEnforcementOutcome(input: {
   }
   return { externalSendAllowed: true, blockingReason: null };
 }
+
+/* ------------------------------------------------------------------ */
+/* Customer-facing stage timeline (pure — derived from real audit data) */
+/* ------------------------------------------------------------------ */
+export type ProtectionStageKey =
+  | "onboarding_complete"
+  | "protection_activated"
+  | "initial_scan_queued"
+  | "discovery"
+  | "verification"
+  | "evidence"
+  | "enforcement"
+  | "continuous";
+
+export type ProtectionStageState = "pending" | "in_progress" | "done" | "blocked";
+
+export interface ProtectionStage {
+  key: ProtectionStageKey;
+  label: string;
+  state: ProtectionStageState;
+  at: string | null;
+  detail: string | null;
+}
+
+export interface ProtectionStageInput {
+  onboardingCompletedAt?: string | null;
+  protectionActivatedAt?: string | null;
+  continuousMonitoringEnabledAt?: string | null;
+  initialScanQueuedAt?: string | null;
+  initialScanStartedAt?: string | null;
+  initialScanCompletedAt?: string | null;
+  evidenceCapturedAt?: string | null;
+  enforcementCaseCreatedAt?: string | null;
+  /** Real counters from the latest completed run — never fabricated. */
+  discovered?: number | null;
+  verified?: number | null;
+  heldForReview?: number | null;
+  casesCreated?: number | null;
+  /** Exact blocking reason from the enforcement gates, if any. */
+  blockingReason?: string | null;
+}
+
+/**
+ * Turn recorded timestamps + real run counters into the customer-facing
+ * progression. Never produces percentages or invented findings: a stage is
+ * only `done` when the corresponding timestamp exists.
+ */
+export function deriveProtectionStages(input: ProtectionStageInput): ProtectionStage[] {
+  const scanRunning = Boolean(input.initialScanStartedAt) && !input.initialScanCompletedAt;
+  const n = (v: number | null | undefined) => (typeof v === "number" ? v : 0);
+
+  const stage = (
+    key: ProtectionStageKey,
+    label: string,
+    at: string | null | undefined,
+    opts: { state?: ProtectionStageState; detail?: string | null } = {},
+  ): ProtectionStage => ({
+    key,
+    label,
+    at: at ?? null,
+    state: opts.state ?? (at ? "done" : "pending"),
+    detail: opts.detail ?? null,
+  });
+
+  const discoveredCount = n(input.discovered);
+  const verifiedCount = n(input.verified);
+  const reviewCount = n(input.heldForReview);
+
+  return [
+    stage("onboarding_complete", "Onboarding complete", input.onboardingCompletedAt),
+    stage("protection_activated", "Protection activated", input.protectionActivatedAt),
+    stage("initial_scan_queued", "Initial scan queued", input.initialScanQueuedAt),
+    stage("discovery", "Scanning sources", input.initialScanStartedAt, {
+      state: scanRunning ? "in_progress" : input.initialScanCompletedAt ? "done" : "pending",
+      detail: input.initialScanCompletedAt
+        ? `${discoveredCount} candidate${discoveredCount === 1 ? "" : "s"} discovered`
+        : scanRunning
+          ? "Scan running"
+          : null,
+    }),
+    stage("verification", "Verifying identity", input.initialScanCompletedAt, {
+      state: input.initialScanCompletedAt ? "done" : scanRunning ? "in_progress" : "pending",
+      detail: input.initialScanCompletedAt
+        ? verifiedCount === 0 && reviewCount === 0
+          ? "No candidates required verification"
+          : `${verifiedCount} verified · ${reviewCount} awaiting review`
+        : scanRunning
+          ? "Verification queued"
+          : null,
+    }),
+    stage("evidence", "Capturing evidence", input.evidenceCapturedAt, {
+      state: input.evidenceCapturedAt
+        ? "done"
+        : input.initialScanCompletedAt
+          ? "pending"
+          : "pending",
+      detail: input.evidenceCapturedAt ? "Evidence preserved before any enforcement" : null,
+    }),
+    stage("enforcement", "Preparing enforcement", input.enforcementCaseCreatedAt, {
+      state: input.blockingReason
+        ? "blocked"
+        : input.enforcementCaseCreatedAt
+          ? "done"
+          : "pending",
+      detail: input.blockingReason ?? (n(input.casesCreated) ? `${n(input.casesCreated)} case(s) prepared` : null),
+    }),
+    stage("continuous", "Continuous protection active", input.continuousMonitoringEnabledAt),
+  ];
+}
