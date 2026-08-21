@@ -82,13 +82,31 @@ export async function activateProtectionAutopilot(
   const status: ProtectionProfileStatus = authorizationActive ? "ACTIVE" : "PENDING_AUTHORIZATION";
   const nowIso = new Date().toISOString();
 
+  // Audit trail is write-once: re-running activation (refresh, duplicate
+  // completion event, worker retry) must not move the original timestamps.
+  const { data: existingProfile } = await supabase
+    .from("protection_profiles")
+    .select(
+      "activated_at,onboarding_completed_at,protection_activated_at,continuous_monitoring_enabled_at",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
   await supabase.from("protection_profiles").upsert(
     {
       user_id: userId,
       status,
       auto_scan_enabled: true,
       paused: false,
-      activated_at: authorizationActive ? nowIso : null,
+      activated_at: existingProfile?.activated_at ?? (authorizationActive ? nowIso : null),
+      onboarding_completed_at:
+        existingProfile?.onboarding_completed_at ?? (profile?.onboarding_completed ? nowIso : null),
+      protection_activated_at:
+        existingProfile?.protection_activated_at ?? (authorizationActive ? nowIso : null),
+      continuous_monitoring_enabled_at:
+        existingProfile?.continuous_monitoring_enabled_at ?? (authorizationActive ? nowIso : null),
+      authorization_id: auth?.id ?? null,
+      authorization_level: profile?.authorization_level ?? null,
       updated_at: nowIso,
     },
     { onConflict: "user_id" },
@@ -110,27 +128,48 @@ export async function activateProtectionAutopilot(
   }
 
   const targets: ActivationSummary["targets"] = [];
+  let queued = 0;
   for (const item of desired) {
     const cadence = DEFAULT_CADENCE_MINUTES[item.kind];
+
+    // Idempotency: an existing target keeps its schedule and its original
+    // initial-scan queue stamp, so duplicate activations never re-queue a scan.
+    const { data: existingTarget } = await supabase
+      .from("protection_targets")
+      .select("id,next_run_at,initial_scan_queued_at")
+      .eq("user_id", userId)
+      .eq("target_kind", item.kind)
+      .eq("label", item.label)
+      .maybeSingle();
+
+    const alreadyQueued = Boolean(existingTarget?.initial_scan_queued_at);
+    const patch: Record<string, unknown> = {
+      user_id: userId,
+      target_kind: item.kind,
+      target_ref: item.ref,
+      label: item.label,
+      cadence_minutes: cadence,
+      active: true,
+      authorization_id: auth?.id ?? null,
+      updated_at: nowIso,
+    };
+    if (!alreadyQueued && authorizationActive) {
+      // Initial scan: due immediately, no manual "Scan" click required.
+      patch.next_run_at = nowIso;
+      patch.initial_scan_queued_at = nowIso;
+    } else if (existingTarget?.next_run_at) {
+      patch.next_run_at = existingTarget.next_run_at;
+    } else {
+      patch.next_run_at = nowIso;
+    }
+
     const { data: row } = await supabase
       .from("protection_targets")
-      .upsert(
-        {
-          user_id: userId,
-          target_kind: item.kind,
-          target_ref: item.ref,
-          label: item.label,
-          cadence_minutes: cadence,
-          active: true,
-          // Initial scan: due immediately, no manual "Scan" click required.
-          next_run_at: nowIso,
-          updated_at: nowIso,
-        },
-        { onConflict: "user_id,target_kind,label" },
-      )
-      .select("id,target_kind,label,cadence_minutes")
+      .upsert(patch, { onConflict: "user_id,target_kind,label" })
+      .select("id,target_kind,label,cadence_minutes,initial_scan_queued_at")
       .maybeSingle();
     if (row) {
+      if (!alreadyQueued && authorizationActive) queued += 1;
       targets.push({
         id: row.id,
         kind: row.target_kind,
@@ -139,6 +178,7 @@ export async function activateProtectionAutopilot(
       });
     }
   }
+
 
   return {
     status,
