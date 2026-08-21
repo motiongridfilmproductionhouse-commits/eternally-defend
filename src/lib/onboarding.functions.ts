@@ -280,5 +280,12 @@ export const submitAuthorization = createServerFn({ method: "POST" })
       user_agent: ua,
     });
 
+    // Post-onboarding automatic protection activation (best-effort, idempotent):
+    // enrolls every authorized identity/asset and queues the initial scan so the
+    // customer never has to press "Scan" manually.
+    await (
+      await import("@/lib/protection/autopilot.server")
+    ).activateProtectionAfterOnboarding(supabase, userId);
+
     return rec;
   });
