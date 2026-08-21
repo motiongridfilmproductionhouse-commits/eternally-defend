@@ -6969,33 +6969,48 @@ export type Database = {
       protection_profiles: {
         Row: {
           activated_at: string | null
+          authorization_id: string | null
+          authorization_level: string | null
           auto_scan_enabled: boolean
+          continuous_monitoring_enabled_at: string | null
           created_at: string
           default_cadence_minutes: number
           last_sweep_at: string | null
+          onboarding_completed_at: string | null
           paused: boolean
+          protection_activated_at: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
           activated_at?: string | null
+          authorization_id?: string | null
+          authorization_level?: string | null
           auto_scan_enabled?: boolean
+          continuous_monitoring_enabled_at?: string | null
           created_at?: string
           default_cadence_minutes?: number
           last_sweep_at?: string | null
+          onboarding_completed_at?: string | null
           paused?: boolean
+          protection_activated_at?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           activated_at?: string | null
+          authorization_id?: string | null
+          authorization_level?: string | null
           auto_scan_enabled?: boolean
+          continuous_monitoring_enabled_at?: string | null
           created_at?: string
           default_cadence_minutes?: number
           last_sweep_at?: string | null
+          onboarding_completed_at?: string | null
           paused?: boolean
+          protection_activated_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -7049,10 +7064,17 @@ export type Database = {
       protection_targets: {
         Row: {
           active: boolean
+          authorization_id: string | null
           cadence_minutes: number
           consecutive_failures: number
           created_at: string
+          enforcement_case_created_at: string | null
+          evidence_captured_at: string | null
           id: string
+          initial_scan_completed_at: string | null
+          initial_scan_queued_at: string | null
+          initial_scan_ref: string | null
+          initial_scan_started_at: string | null
           label: string
           last_run_at: string | null
           last_run_error: string | null
@@ -7065,10 +7087,17 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          authorization_id?: string | null
           cadence_minutes?: number
           consecutive_failures?: number
           created_at?: string
+          enforcement_case_created_at?: string | null
+          evidence_captured_at?: string | null
           id?: string
+          initial_scan_completed_at?: string | null
+          initial_scan_queued_at?: string | null
+          initial_scan_ref?: string | null
+          initial_scan_started_at?: string | null
           label: string
           last_run_at?: string | null
           last_run_error?: string | null
@@ -7081,10 +7110,17 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          authorization_id?: string | null
           cadence_minutes?: number
           consecutive_failures?: number
           created_at?: string
+          enforcement_case_created_at?: string | null
+          evidence_captured_at?: string | null
           id?: string
+          initial_scan_completed_at?: string | null
+          initial_scan_queued_at?: string | null
+          initial_scan_ref?: string | null
+          initial_scan_started_at?: string | null
           label?: string
           last_run_at?: string | null
           last_run_error?: string | null
