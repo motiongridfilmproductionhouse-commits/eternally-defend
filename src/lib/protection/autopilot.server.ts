@@ -185,7 +185,7 @@ export async function activateProtectionAutopilot(
     activated: authorizationActive && targets.length > 0,
     authorization_active: authorizationActive,
     targets,
-    initial_scans_queued: authorizationActive ? targets.length : 0,
+    initial_scans_queued: queued,
     reason: authorizationActive
       ? targets.length === 0
         ? "No fingerprinted assets or registered subject to enroll yet."
