@@ -61,41 +61,30 @@ export function parseTelemetry(scan: ScanRow | null): ScanTelemetry | null {
   return null;
 }
 
-/** Kick off a deepfake intelligence scan. Runs synchronously and returns the scan id. */
-export const runDeepfakeScan = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        target_name: z.string().trim().min(1).max(200),
-        profile_id: z.string().uuid().optional(),
-        aliases: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
-        handles: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
-        google_images_url: z.string().trim().max(5000).optional(),
-        max_queries: z.number().int().min(1).max(100).optional(),
-        per_query_limit: z.number().int().min(1).max(10).optional(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+const RunDeepfakeScanInput = z.object({
+  target_name: z.string().trim().min(1).max(200),
+  profile_id: z.string().uuid().optional(),
+  aliases: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
+  handles: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
+  google_images_url: z.string().trim().max(5000).optional(),
+  max_queries: z.number().int().min(1).max(100).optional(),
+  per_query_limit: z.number().int().min(1).max(10).optional(),
+});
 
-    // SUBJECT ISOLATION — the protected subject always comes from the workspace,
-    // never from the browser payload.
-    const enforced = await enforceScanSubject(context, {
-      targetName: data.target_name,
-      aliases: data.aliases,
-    });
-    data.target_name = enforced.targetName;
-    data.aliases = enforced.aliases;
-    data.handles = enforced.unrestricted
-      ? data.handles
-      : (data.handles ?? []).filter((h) =>
-          enforced.identity.authorizedHandles.some(
-            (a) => a.toLowerCase() === h.replace(/^@/, "").toLowerCase(),
-          ),
-        );
+export type RunDeepfakeScanInput = z.infer<typeof RunDeepfakeScanInput>;
 
+/**
+ * Real deepfake scan pipeline, callable headlessly by the protection
+ * orchestrator. The orchestrator is responsible for deriving the protected
+ * subject from the tenant's server-side protection profile.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function runDeepfakeScanCore(
+  supabase: any,
+  userId: string,
+  rawData: unknown,
+) {
+  const data = RunDeepfakeScanInput.parse(rawData);
 
     const hostOf = (url: string): string | null => {
       try {
@@ -173,7 +162,9 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         .maybeSingle();
 
       if (activeScanError || !activeScan) {
-        throw new Error("The active scan could not be loaded. Refresh the scan list and try again.");
+        throw new Error(
+          "The active scan could not be loaded. Refresh the scan list and try again.",
+        );
       }
 
       return {
@@ -184,7 +175,6 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       };
     }
     if (sErr || !scan) throw new Error(sErr?.message ?? "failed to create scan");
-
 
     const telemetry: ScanTelemetry = {
       stage: "initializing",
@@ -255,7 +245,9 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         new Set(combinedQueries.map((q) => q.trim()).filter(Boolean)),
       ).slice(0, data.max_queries ?? 56);
 
-      const totalHighRiskQueries = uniqueQueries.filter((q) => /\bsite:(?:desifakes|imgfy)\b/i.test(q)).length;
+      const totalHighRiskQueries = uniqueQueries.filter((q) =>
+        /\bsite:(?:desifakes|imgfy)\b/i.test(q),
+      ).length;
       const totalOpenWebQueries = uniqueQueries.length - totalHighRiskQueries;
       let executedHighRiskQueries = 0;
       let executedOpenWebQueries = 0;
@@ -316,8 +308,14 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
               current_provider: p.provider,
               current_query: p.query,
               queries_executed: executedQueriesCount,
-              high_risk_domain_queries: { executed: executedHighRiskQueries, total: totalHighRiskQueries },
-              open_web_threat_queries: { executed: executedOpenWebQueries, total: totalOpenWebQueries },
+              high_risk_domain_queries: {
+                executed: executedHighRiskQueries,
+                total: totalHighRiskQueries,
+              },
+              open_web_threat_queries: {
+                executed: executedOpenWebQueries,
+                total: totalOpenWebQueries,
+              },
               providers_used: Array.from(providersSet),
               candidates_found: telemetry.candidates_found + p.hitsFound,
               coverage_pct: Math.round((executedQueriesCount / uniqueQueries.length) * 100),
@@ -381,8 +379,10 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
       await updateTelemetry({
         stage: "crawling_pages",
         candidates_found: candidateFilter.accepted.length,
-        synthetic_candidates_found: candidateFilter.diagnostics?.syntheticCandidatesFound ?? candidateFilter.accepted.length,
-        unrelated_pages_discarded: candidateFilter.diagnostics?.unrelatedPagesDiscarded ?? candidateFilter.rejected.length,
+        synthetic_candidates_found:
+          candidateFilter.diagnostics?.syntheticCandidatesFound ?? candidateFilter.accepted.length,
+        unrelated_pages_discarded:
+          candidateFilter.diagnostics?.unrelatedPagesDiscarded ?? candidateFilter.rejected.length,
         official_pages_discarded: candidateFilter.diagnostics?.officialPagesDiscarded ?? 0,
         news_pages_discarded: candidateFilter.diagnostics?.newsPagesDiscarded ?? 0,
         biography_pages_discarded: candidateFilter.diagnostics?.biographyPagesDiscarded ?? 0,
@@ -573,8 +573,12 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
         low = 0;
 
       if (classified.length) {
-        const { verifyTargetIdentity, decideTargetThreat, isClientVisibleDecision, decisionToFindingClassification } =
-          await import("./deepfake/target-identity");
+        const {
+          verifyTargetIdentity,
+          decideTargetThreat,
+          isClientVisibleDecision,
+          decisionToFindingClassification,
+        } = await import("./deepfake/target-identity");
 
         const rows = classified.map((c) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -602,7 +606,8 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
               /explicit|nud|intimate|sexual/i.test(String(c.content_category ?? "")),
             syntheticConfirmed: c.is_synthetic === true,
             syntheticConfidence: raw.synthetic_media_confidence ?? c.confidence ?? 0,
-            hostingConfirmed: raw.hosting_or_distribution_confirmed ?? raw.target_face_match ?? false,
+            hostingConfirmed:
+              raw.hosting_or_distribution_confirmed ?? raw.target_face_match ?? false,
           });
 
           const clientVisible = isClientVisibleDecision(decision);
@@ -617,7 +622,11 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
           else low++;
 
           const origin = determineLeadOrigin(pageUrl, c.source);
-          if (clientVisible && decision === "VERIFIED_TARGET_THREAT" && origin === "REAL_NETWORK_DISCOVERY") {
+          if (
+            clientVisible &&
+            decision === "VERIFIED_TARGET_THREAT" &&
+            origin === "REAL_NETWORK_DISCOVERY"
+          ) {
             const host = hostOf(pageUrl);
             if (host) {
               recordQualifiedDomainFinding({
@@ -637,9 +646,7 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
             snippet: c.description ?? null,
             query: c.query,
             risk_level: riskLevel,
-            content_category: clientVisible
-              ? (c.content_category ?? "deepfake")
-              : "not_subject",
+            content_category: clientVisible ? (c.content_category ?? "deepfake") : "not_subject",
             confidence: clientVisible ? (c.confidence ?? 60) : 0,
             is_synthetic: clientVisible ? (c.is_synthetic ?? false) : false,
             face_referenced: identity.status !== "NOT_VERIFIED",
@@ -731,6 +738,36 @@ export const runDeepfakeScan = createServerFn({ method: "POST" })
 
       throw new Error(msg);
     }
+  }
+
+/** Kick off a deepfake intelligence scan. Runs synchronously and returns the scan id. */
+export const runDeepfakeScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => RunDeepfakeScanInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // SUBJECT ISOLATION — browser input can never choose another protected
+    // subject. Resolve/enforce identity from this authenticated workspace.
+    const enforced = await enforceScanSubject(context, {
+      targetName: data.target_name,
+      aliases: data.aliases,
+    });
+
+    const handles = enforced.unrestricted
+      ? data.handles
+      : (data.handles ?? []).filter((h) =>
+          enforced.identity.authorizedHandles.some(
+            (a) => a.toLowerCase() === h.replace(/^@/, "").toLowerCase(),
+          ),
+        );
+
+    return runDeepfakeScanCore(supabase, userId, {
+      ...data,
+      target_name: enforced.targetName,
+      aliases: enforced.aliases,
+      handles,
+    });
   });
 
 export const listDeepfakeScans = createServerFn({ method: "GET" })

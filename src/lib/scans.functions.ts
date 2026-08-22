@@ -159,14 +159,18 @@ const PersistInput = z.object({
     .optional(),
   status: z.enum(["queued", "running", "completed", "failed"]).optional(),
 });
+export type PersistScanInput = z.infer<typeof PersistInput>;
 
-/** Persist a full scan + hits. Batch-upserts to keep DB cost bounded. */
-export const persistScan = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => PersistInput.parse(d))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
+/**
+ * Core persistence logic, decoupled from the session-bound createServerFn
+ * wrapper so headless callers (the scan orchestrator hook) can persist
+ * results for a given userId using the service-role client, with no live
+ * user session required.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function persistScanCore(supabase: any, userId: string, rawData: unknown) {
+  const data = PersistInput.parse(rawData);
+  {
     // 1) Look up the previous most recent scan for this user+query to compute "new since last"
     const { data: prevRows } = await supabase
       .from("scans")
@@ -331,12 +335,10 @@ export const persistScan = createServerFn({ method: "POST" })
             times_detected: isExisting ? 2 : 1, // conservative bump; a trigger could do +1 precisely
           };
         });
-        const { error } = await supabase
-          .from("scan_hits")
-          .upsert(upsertRows as never, {
-            onConflict: `user_id,source,${col}`,
-            ignoreDuplicates: false,
-          });
+        const { error } = await supabase.from("scan_hits").upsert(upsertRows as never, {
+          onConflict: `user_id,source,${col}`,
+          ignoreDuplicates: false,
+        });
 
         if (error) {
           console.error("[scan_hits:upsert_error]", {
@@ -392,7 +394,7 @@ export const persistScan = createServerFn({ method: "POST" })
         for (const h of recent) {
           const pick = pickScanImageUrl(h);
           if (!pick) continue;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           await analyzeHitForFaces({
             supabase: supabase as any,
             userId,
@@ -413,6 +415,16 @@ export const persistScan = createServerFn({ method: "POST" })
       duplicatesRemoved: (data.totals?.duplicatesRemoved ?? 0) + dupsInBatch,
       uniqueHits: newCount + updatedCount,
     };
+  }
+}
+
+/** Persist a full scan + hits. Batch-upserts to keep DB cost bounded. */
+export const persistScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => PersistInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    return persistScanCore(supabase, userId, data);
   });
 
 const ListInput = z.object({

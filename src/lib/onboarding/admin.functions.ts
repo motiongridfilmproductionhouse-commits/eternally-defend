@@ -265,6 +265,11 @@ export const decideAuthorization = createServerFn({ method: "POST" })
         },
         { onConflict: "user_id" },
       );
+
+      // Admin-approved activation/renewal also builds the canonical
+      // protection profile and auto-enrolls eligible scan modules.
+      const { activateProtectionEnrollment } = await import("@/lib/protection/activate.server");
+      await activateProtectionEnrollment(auth.user_id);
     } else {
       await supabase
         .from("client_authorizations")
@@ -279,4 +284,35 @@ export const decideAuthorization = createServerFn({ method: "POST" })
       target: auth.auth_number,
     });
     return { ok: true };
+  });
+
+/**
+ * One-time (idempotent, safe to re-run) backfill: builds the canonical
+ * protection profile and enrolls eligible scan modules for every existing
+ * ACTIVE customer who was authorized before automatic enrollment existed.
+ * Does not touch client_authorizations/KYC/liveness data, and never forces
+ * a customer to repeat onboarding.
+ */
+export const backfillProtectionEnrollment = createServerFn({ method: "POST" })
+  .inputValidator((d: { user_id?: string } | undefined) => d ?? {})
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabase } = context;
+    let query = supabase.from("client_authorizations").select("user_id").eq("status", "ACTIVE");
+    if (data.user_id) query = query.eq("user_id", data.user_id);
+    const { data: activeAuths, error } = await query;
+    if (error) throw new Error(error.message);
+
+    const { activateProtectionEnrollment } = await import("@/lib/protection/activate.server");
+    const results: { user_id: string; ok: boolean }[] = [];
+    for (const row of activeAuths ?? []) {
+      try {
+        await activateProtectionEnrollment(row.user_id);
+        results.push({ user_id: row.user_id, ok: true });
+      } catch {
+        results.push({ user_id: row.user_id, ok: false });
+      }
+    }
+    return { processed: results.length, results };
   });

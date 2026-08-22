@@ -68,6 +68,45 @@ export const addYouTubeAsset = createServerFn({ method: "POST" })
     return row;
   });
 
+const SOCIAL_PLATFORMS = ["instagram", "x", "facebook", "website", "tiktok", "linkedin"] as const;
+
+/**
+ * Declares an official social/web link (Instagram, X, Facebook, website, ...)
+ * without requiring the code-challenge YouTube uses. These are customer-
+ * declared trusted references consumed automatically by scan modules once
+ * protection is active — not code-verified, so kept distinct from the
+ * verified YouTube channel via metadata.declared_official.
+ */
+export const addSocialAsset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { platform: string; url: string }) =>
+    z
+      .object({
+        platform: z.enum(SOCIAL_PLATFORMS),
+        url: z.string().trim().min(3).max(300),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const handleMatch = data.url.match(/(?:^|\/)@?([A-Za-z0-9._-]{2,40})\/?$/);
+    const { data: row, error } = await supabase
+      .from("digital_assets")
+      .insert({
+        user_id: userId,
+        kind: "social_account",
+        channel_url: data.url,
+        handle: handleMatch?.[1] ?? null,
+        name: data.platform,
+        metadata: { platform: data.platform, declared_official: true },
+        verification_status: "UNVERIFIED",
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
 export const removeAsset = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
@@ -175,14 +214,12 @@ export const verifyChallenge = createServerFn({ method: "POST" })
     }
 
     if (!found) {
-      await supabase
-        .from("asset_verification_events")
-        .insert({
-          user_id: userId,
-          asset_id: data.asset_id,
-          event: "verify_failed",
-          payload: evidence as never,
-        });
+      await supabase.from("asset_verification_events").insert({
+        user_id: userId,
+        asset_id: data.asset_id,
+        event: "verify_failed",
+        payload: evidence as never,
+      });
       throw new Error(
         "Verification code not found on channel. Ensure you posted it and try again.",
       );
@@ -200,14 +237,12 @@ export const verifyChallenge = createServerFn({ method: "POST" })
         verified_at: new Date().toISOString(),
       })
       .eq("id", data.asset_id);
-    await supabase
-      .from("asset_verification_events")
-      .insert({
-        user_id: userId,
-        asset_id: data.asset_id,
-        event: "verified",
-        payload: evidence as never,
-      });
+    await supabase.from("asset_verification_events").insert({
+      user_id: userId,
+      asset_id: data.asset_id,
+      event: "verified",
+      payload: evidence as never,
+    });
 
     const { upsertProgressPreservingVersion, normalizeOnboardingVersion } =
       await import("./version.server");

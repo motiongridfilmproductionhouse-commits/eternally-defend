@@ -109,11 +109,16 @@ function addToGroup(
   groups.set(input.key, group);
 }
 
-export const clusterFindings = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-
+/**
+ * Core clustering pass, decoupled from the session-bound createServerFn
+ * wrapper so it can run headlessly from the scan orchestrator with no live
+ * user session. Makes zero external/provider API calls — pure aggregation
+ * over data already collected by other pipelines — so it's cheap and safe
+ * to run on a short recurring cadence.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function clusterFindingsCore(supabase: any, userId: string) {
+  {
     const [jobsResult, findingsResult, channelVideosResult, watchesResult] = await Promise.all([
       supabase
         .from("multimedia_analysis_jobs")
@@ -442,6 +447,14 @@ export const clusterFindings = createServerFn({ method: "POST" })
       importedChannelWatch,
       eligibleChannelVideos: channelVideos.length,
     };
+  }
+}
+
+export const clusterFindings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    return clusterFindingsCore(supabase, userId);
   });
 
 export const listNarrativeClusters = createServerFn({ method: "GET" })
