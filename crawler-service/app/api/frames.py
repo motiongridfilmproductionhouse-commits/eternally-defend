@@ -14,6 +14,11 @@ class FramesUrlRequest(BaseModel):
     url: str
     max_frames: int = Field(default=40, ge=1, le=200)
     min_interval_seconds: float = Field(default=1.0, ge=0.1, le=30.0)
+    # Off by default: existing callers (protected-asset fingerprinting) only
+    # need hashes. Deepfake video-candidate face verification sets this to
+    # true and should also pass a small max_frames (e.g. 5) to bound payload
+    # size and downstream Rekognition/Vision cost.
+    include_thumbnails: bool = False
 
 
 @router.post("/frames")
@@ -37,6 +42,7 @@ async def frames_from_url(payload: FramesUrlRequest):
             data,
             max_frames=payload.max_frames,
             min_interval_seconds=payload.min_interval_seconds,
+            include_thumbnails=payload.include_thumbnails,
         )
     except Exception as exc:
         return JSONResponse({"error": f"extraction failed: {exc}"}, status_code=422)

@@ -152,6 +152,24 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
       ahash: hashes?.ahash ?? null,
     });
 
+    // Nudge the copyright_intel enrollment (if any) so this newly-added
+    // asset is picked up on the next orchestrator tick rather than waiting
+    // out the rest of the current cadence window. Best-effort — a customer
+    // without protection active yet simply has no row to nudge.
+    try {
+      const mod = await import("@/integrations/supabase/client.server");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const admin = mod.supabaseAdmin as any;
+      await admin
+        .from("scan_module_enrollments")
+        .update({ next_scan_at: new Date().toISOString() })
+        .eq("user_id", context.userId)
+        .eq("module_key", "copyright_intel")
+        .eq("eligible", true);
+    } catch (err) {
+      console.warn("[asset-registration] copyright_intel nudge failed", err);
+    }
+
     return {
       id: inserted.id,
       enrollment,
@@ -161,6 +179,5 @@ export const registerAssetAndSearch = createServerFn({ method: "POST" })
       reverse,
       reverseError,
     };
-
   });
 

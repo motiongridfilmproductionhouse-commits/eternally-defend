@@ -21,12 +21,22 @@ import {
 import {
   listAssets,
   addYouTubeAsset,
+  addSocialAsset,
   removeAsset,
   generateChallenge,
   verifyChallenge,
 } from "@/lib/onboarding/assets.functions";
 import { SocialProfilesPanel } from "@/components/onboarding/SocialProfilesPanel";
 import { SocialAssetProtectionPanel } from "@/components/social/SocialAssetProtectionPanel";
+
+const SOCIAL_PLATFORM_OPTIONS = [
+  { value: "instagram", label: "Instagram" },
+  { value: "x", label: "X / Twitter" },
+  { value: "facebook", label: "Facebook" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "website", label: "Official Website" },
+] as const;
 
 export function AssetVerificationStep({
   onBack,
@@ -37,6 +47,7 @@ export function AssetVerificationStep({
 }) {
   const fetchAssets = useServerFn(listAssets);
   const addAsset = useServerFn(addYouTubeAsset);
+  const addSocial = useServerFn(addSocialAsset);
   const remove = useServerFn(removeAsset);
   const genChallenge = useServerFn(generateChallenge);
   const verify = useServerFn(verifyChallenge);
@@ -55,6 +66,27 @@ export function AssetVerificationStep({
   const [activeChallenges, setActiveChallenges] = useState<
     Record<string, { code: string; expiresAt: string }>
   >({});
+  const [socialPlatform, setSocialPlatform] =
+    useState<(typeof SOCIAL_PLATFORM_OPTIONS)[number]["value"]>("instagram");
+  const [socialUrl, setSocialUrl] = useState("");
+
+  const youtubeAssets = assets.filter((a) => a.kind === "youtube");
+  const socialAssets = assets.filter((a) => a.kind === "social_account");
+
+  const handleAddSocial = async () => {
+    if (!socialUrl.trim()) return;
+    setBusy(true);
+    try {
+      await addSocial({ data: { platform: socialPlatform, url: socialUrl.trim() } });
+      setSocialUrl("");
+      await refetch();
+      toast.success("Official link added.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to add link");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleAdd = async () => {
     if (!url.trim()) return;
@@ -121,7 +153,7 @@ export function AssetVerificationStep({
     }
   };
 
-  const hasVerifiedAsset = assets.some((a) => a.verification_status === "VERIFIED");
+  const hasVerifiedAsset = youtubeAssets.some((a) => a.verification_status === "VERIFIED");
 
   return (
     <Card className="bg-[#0A1128] border-white/10 text-white shadow-2xl shadow-black/50">
@@ -154,13 +186,13 @@ export function AssetVerificationStep({
           <div className="py-8 flex justify-center">
             <Loader2 className="size-6 animate-spin text-blue-500" />
           </div>
-        ) : assets.length === 0 ? (
+        ) : youtubeAssets.length === 0 ? (
           <div className="border border-dashed border-white/20 rounded-xl p-8 text-center text-white/50 text-sm">
             No assets added yet. This step is optional — you can continue and add assets later.
           </div>
         ) : (
           <div className="space-y-4">
-            {assets.map((asset) => {
+            {youtubeAssets.map((asset) => {
               const isVerified = asset.verification_status === "VERIFIED";
               const isCodeGenerated = asset.verification_status === "CODE_GENERATED";
               const chal = activeChallenges[asset.id];
@@ -306,6 +338,7 @@ export function AssetVerificationStep({
         )}
 
         <SocialProfilesPanel />
+
         <SocialAssetProtectionPanel />
 
         <p className="text-xs text-white/50">
@@ -313,6 +346,73 @@ export function AssetVerificationStep({
           receive identity and public-web monitoring — protected media can be added any time from
           Assets or Settings without repeating onboarding.
         </p>
+
+        <div className="pt-2 border-t border-white/10 space-y-3">
+          <div>
+            <div className="font-semibold text-white text-sm">Official social links (optional)</div>
+            <div className="text-xs text-white/50">
+              Add Instagram, X, Facebook, or your official website. These are used automatically for
+              impersonation and discovery matching once protection is active — no need to paste them
+              again later.
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <select
+              value={socialPlatform}
+              onChange={(e) => setSocialPlatform(e.target.value as typeof socialPlatform)}
+              disabled={busy}
+              className="bg-[#0F172A] border border-white/10 text-white rounded-md px-3 text-sm shrink-0"
+            >
+              {SOCIAL_PLATFORM_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+
+            <Input
+              placeholder="Profile or website URL"
+              value={socialUrl}
+              onChange={(e) => setSocialUrl(e.target.value)}
+              className="bg-[#0F172A] border-white/10 text-white"
+              disabled={busy}
+            />
+
+            <Button
+              onClick={handleAddSocial}
+              disabled={!socialUrl.trim() || busy}
+              variant="outline"
+              className="border-white/20 text-white shrink-0"
+            >
+              Add
+            </Button>
+          </div>
+
+          {socialAssets.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {socialAssets.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full pl-3 pr-1 py-1 text-xs text-white/80"
+                >
+                  <span className="capitalize">{a.name}</span>
+                  <span className="text-white/40 truncate max-w-[160px]">{a.channel_url}</span>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-5 text-white/40 hover:text-red-400"
+                    onClick={() => handleRemove(a.id)}
+                    disabled={busy}
+                  >
+                    <Trash2 className="size-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="flex justify-between pt-4">
           <Button

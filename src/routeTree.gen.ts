@@ -61,6 +61,7 @@ import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admi
 import { Route as AppAdminInvitesRouteImport } from './routes/_app.admin.invites'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
+import { Route as ApiPublicHooksScanOrchestratorRouteImport } from './routes/api/public/hooks/scan-orchestrator'
 import { Route as ApiPublicHooksResendWebhookRouteImport } from './routes/api/public/hooks/resend-webhook'
 import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
 import { Route as ApiPublicHooksProtectionSchedulerTokenRouteImport } from './routes/api/public/hooks/protection-scheduler-token'
@@ -347,6 +348,12 @@ const AppSensitiveProtectionResultsIndexRoute =
     path: '/sensitive-protection/results/',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiPublicHooksScanOrchestratorRoute =
+  ApiPublicHooksScanOrchestratorRouteImport.update({
+    id: '/api/public/hooks/scan-orchestrator',
+    path: '/api/public/hooks/scan-orchestrator',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksResendWebhookRoute =
   ApiPublicHooksResendWebhookRouteImport.update({
     id: '/api/public/hooks/resend-webhook',
@@ -510,6 +517,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/protection-scheduler-token': typeof ApiPublicHooksProtectionSchedulerTokenRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
+  '/api/public/hooks/scan-orchestrator': typeof ApiPublicHooksScanOrchestratorRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -577,6 +585,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/protection-scheduler-token': typeof ApiPublicHooksProtectionSchedulerTokenRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
+  '/api/public/hooks/scan-orchestrator': typeof ApiPublicHooksScanOrchestratorRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
@@ -648,6 +657,7 @@ export interface FileRoutesById {
   '/api/public/hooks/protection-scheduler-token': typeof ApiPublicHooksProtectionSchedulerTokenRoute
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
+  '/api/public/hooks/scan-orchestrator': typeof ApiPublicHooksScanOrchestratorRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -718,6 +728,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/protection-scheduler-token'
     | '/api/public/hooks/release-protection-monitor'
     | '/api/public/hooks/resend-webhook'
+    | '/api/public/hooks/scan-orchestrator'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -785,6 +796,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/protection-scheduler-token'
     | '/api/public/hooks/release-protection-monitor'
     | '/api/public/hooks/resend-webhook'
+    | '/api/public/hooks/scan-orchestrator'
     | '/sensitive-protection/results'
   id:
     | '__root__'
@@ -855,6 +867,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/protection-scheduler-token'
     | '/api/public/hooks/release-protection-monitor'
     | '/api/public/hooks/resend-webhook'
+    | '/api/public/hooks/scan-orchestrator'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
@@ -888,6 +901,7 @@ export interface RootRouteChildren {
   ApiPublicHooksProtectionSchedulerTokenRoute: typeof ApiPublicHooksProtectionSchedulerTokenRoute
   ApiPublicHooksReleaseProtectionMonitorRoute: typeof ApiPublicHooksReleaseProtectionMonitorRoute
   ApiPublicHooksResendWebhookRoute: typeof ApiPublicHooksResendWebhookRoute
+  ApiPublicHooksScanOrchestratorRoute: typeof ApiPublicHooksScanOrchestratorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1256,6 +1270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/hooks/scan-orchestrator': {
+      id: '/api/public/hooks/scan-orchestrator'
+      path: '/api/public/hooks/scan-orchestrator'
+      fullPath: '/api/public/hooks/scan-orchestrator'
+      preLoaderRoute: typeof ApiPublicHooksScanOrchestratorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/resend-webhook': {
       id: '/api/public/hooks/resend-webhook'
       path: '/api/public/hooks/resend-webhook'
@@ -1518,17 +1539,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksReleaseProtectionMonitorRoute:
     ApiPublicHooksReleaseProtectionMonitorRoute,
   ApiPublicHooksResendWebhookRoute: ApiPublicHooksResendWebhookRoute,
+  ApiPublicHooksScanOrchestratorRoute: ApiPublicHooksScanOrchestratorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

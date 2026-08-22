@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { getProtectionEnrollments } from "@/lib/protection/enrollment.functions";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -264,6 +265,28 @@ function ScanPage() {
 
   const m = useMutation({ mutationFn: runScan });
   const autoScanStarted = useRef(false);
+
+  // Enrolled, protection-active customers already have recurring scans
+  // running automatically (see ProtectionStatusPanel on the dashboard).
+  // This page stays available as an ad-hoc/manual research tool — for an
+  // enrolled customer we just prefill their verified name and relabel the
+  // action, we never require them to retype it.
+  const fetchProtectionEnrollments = useServerFn(getProtectionEnrollments);
+  const protectionQuery = useQuery({
+    queryKey: ["protection-enrollments-scan-page"],
+    queryFn: () => fetchProtectionEnrollments(),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
+  const protectionProfile = protectionQuery.data?.profile ?? null;
+  const prefilledFromProfile = useRef(false);
+  useEffect(() => {
+    if (prefilledFromProfile.current || q.trim() || !protectionProfile) return;
+    const name = protectionProfile.display_name || protectionProfile.verified_name;
+    if (!name) return;
+    prefilledFromProfile.current = true;
+    setQ(name);
+  }, [protectionProfile, q]);
 
   const handleMetricClick = (filterType: "category" | "severity", value: string) => {
     if (filterType === "category") {
@@ -761,7 +784,11 @@ function ScanPage() {
                 ) : (
                   <ScanSearch className="size-4" />
                 )}
-                {m.isPending ? "Generating report…" : "Generate Reputation Report"}
+                {m.isPending
+                  ? "Generating report…"
+                  : protectionProfile
+                    ? "Run additional scan now"
+                    : "Generate Reputation Report"}
               </button>
             </div>
 

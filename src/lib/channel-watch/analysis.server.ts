@@ -209,6 +209,38 @@ export async function analyzeWatchVideo(supabase: Supa, videoRowId: string): Pro
             maxFaces: 5,
           });
           faceMatches = matches.length;
+
+          // Persist matches so they surface in the Face Protection review
+          // queue — previously computed here but silently discarded, so
+          // Channel Watch's face detection never reached face_match_events.
+          // scan_hit_id is null (this isn't a scan_hits row); the DB column
+          // is nullable, only analyzeHitForFaces's own TS signature requires
+          // a value, which is why we insert directly here instead of
+          // reusing that helper.
+          if (matches.length > 0) {
+            const faceIds = matches.map((m) => m.faceId);
+            const { data: prot } = await supabase
+              .from("protected_faces")
+              .select("id,face_id,asset_id")
+              .in("face_id", faceIds)
+              .eq("user_id", v.user_id);
+            const byFace = new Map((prot ?? []).map((p) => [p.face_id, p]));
+            for (const m of matches) {
+              const pf = byFace.get(m.faceId);
+              await supabase.from("face_match_events").insert({
+                user_id: v.user_id,
+                collection_id: col.collection_id,
+                matched_face_id: m.faceId,
+                matched_protected_face_id: pf?.id ?? null,
+                matched_asset_id: pf?.asset_id ?? null,
+                similarity: m.similarity,
+                source_url: v.url || `https://www.youtube.com/watch?v=${v.video_id}`,
+                source_type: "channel_watch_video",
+                scan_hit_id: null,
+                review_status: "pending",
+              } as never);
+            }
+          }
         }
       }
       // Reference analyzeHitForFaces to keep the import (used elsewhere)

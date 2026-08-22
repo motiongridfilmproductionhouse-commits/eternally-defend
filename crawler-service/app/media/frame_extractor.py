@@ -10,16 +10,25 @@ No audio fingerprinting here — frames only.
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import io
 import math
 import os
 import tempfile
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 import cv2
 import imagehash
 import numpy as np
 from PIL import Image
+
+# Cap on the longest edge of a returned thumbnail JPEG. Only used for face
+# verification (a handful of frames per video candidate), never for the
+# original protected-asset fingerprinting path, so this stays small on
+# purpose to bound payload size and Rekognition/Vision cost per frame.
+THUMBNAIL_MAX_EDGE = 640
+THUMBNAIL_JPEG_QUALITY = 85
 
 
 @dataclass
@@ -34,9 +43,24 @@ class FrameHash:
     width: int
     height: int
     scene_change: bool
+    thumbnail_base64: str | None = field(default=None)
 
 
-def _hash_frame(frame_bgr, frame_index: int, timestamp: float, scene_change: bool) -> FrameHash:
+def _encode_thumbnail(image: Image.Image) -> str:
+    thumb = image.copy()
+    thumb.thumbnail((THUMBNAIL_MAX_EDGE, THUMBNAIL_MAX_EDGE))
+    buffer = io.BytesIO()
+    thumb.convert("RGB").save(buffer, format="JPEG", quality=THUMBNAIL_JPEG_QUALITY)
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def _hash_frame(
+    frame_bgr,
+    frame_index: int,
+    timestamp: float,
+    scene_change: bool,
+    include_thumbnail: bool = False,
+) -> FrameHash:
     rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
     image = Image.fromarray(rgb)
     height, width = frame_bgr.shape[:2]
@@ -51,6 +75,7 @@ def _hash_frame(frame_bgr, frame_index: int, timestamp: float, scene_change: boo
         width=int(width),
         height=int(height),
         scene_change=scene_change,
+        thumbnail_base64=_encode_thumbnail(image) if include_thumbnail else None,
     )
 
 
@@ -66,6 +91,7 @@ def extract_keyframes(
     max_frames: int = 40,
     min_interval_seconds: float = 1.0,
     scene_threshold: float = 0.35,
+    include_thumbnails: bool = False,
 ) -> dict:
     """Sample keyframes from a video file and hash each one."""
 
@@ -112,7 +138,9 @@ def extract_keyframes(
             continue
 
         timestamp = index / fps
-        frames.append(_hash_frame(frame, index, timestamp, scene_change))
+        frames.append(
+            _hash_frame(frame, index, timestamp, scene_change, include_thumbnail=include_thumbnails)
+        )
         if len(frames) >= max_frames:
             break
 

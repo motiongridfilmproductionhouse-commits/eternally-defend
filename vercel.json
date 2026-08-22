@@ -3,6 +3,22 @@
     {
       "path": "/api/public/hooks/enforcement-worker",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/public/hooks/scan-orchestrator",
+      "schedule": "15 0 * * *"
+    },
+    {
+      "path": "/api/public/hooks/channel-watch-poll",
+      "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/public/hooks/distribution-monitor",
+      "schedule": "45 0 * * *"
+    },
+    {
+      "path": "/api/public/hooks/release-protection-monitor",
+      "schedule": "0 1 * * *"
     }
   ]
 }

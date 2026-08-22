@@ -1,4 +1,4 @@
-import {CompareFacesCommand} from "@aws-sdk/client-rekognition";
+import { CompareFacesCommand } from "@aws-sdk/client-rekognition";
 import { getRekognitionClient } from "@/lib/aws/rekognition-client.server";
 import {
   assertNotAborted,
@@ -128,6 +128,75 @@ export async function compareReferenceFace(input: {
       : undefined,
     unmatchedFaces: response.UnmatchedFaces?.length ?? 0,
   };
+}
+
+/**
+ * Same comparison as compareAgainstReferences, but for a discovered image
+ * that is already in memory (e.g. a decoded video-frame thumbnail) rather
+ * than a URL to download. Used for video-candidate face verification, where
+ * frames come back from the crawler service as base64 rather than as their
+ * own fetchable URLs.
+ */
+export async function compareAgainstReferencesFromBytes(input: {
+  referenceImages: Uint8Array[];
+  discoveredImageBytes: Uint8Array;
+  similarityThreshold?: number;
+  signal?: AbortSignal;
+}): Promise<
+  FaceMatchResult & {
+    matchedReferenceIndex: number | null;
+  }
+> {
+  assertNotAborted(input.signal);
+
+  if (!input.referenceImages.length) {
+    throw new Error("At least one reference image is required.");
+  }
+
+  let bestResult:
+    | (FaceMatchResult & {
+        matchedReferenceIndex: number;
+      })
+    | null = null;
+
+  for (let index = 0; index < input.referenceImages.length; index++) {
+    assertNotAborted(input.signal);
+    try {
+      const result = await compareReferenceFace({
+        referenceImageBytes: input.referenceImages[index],
+        discoveredImageBytes: input.discoveredImageBytes,
+        similarityThreshold: input.similarityThreshold,
+      });
+
+      if (!bestResult || result.similarity > bestResult.similarity) {
+        bestResult = {
+          ...result,
+          matchedReferenceIndex: index,
+        };
+      }
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+      console.warn("[DEEPFAKE:FACE] Reference comparison failed (frame):", {
+        referenceIndex: index,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (!bestResult) {
+    return {
+      matched: false,
+      similarity: 0,
+      threshold: input.similarityThreshold ?? DEFAULT_SIMILARITY_THRESHOLD,
+      faceConfidence: 0,
+      unmatchedFaces: 0,
+      matchedReferenceIndex: null,
+    };
+  }
+
+  return bestResult;
 }
 
 export async function compareAgainstReferences(input: {

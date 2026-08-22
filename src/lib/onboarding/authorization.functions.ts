@@ -212,16 +212,14 @@ export const generateDraftPdf = createServerFn({ method: "POST" })
     const key = `clients/${userId}/authorization/${auth.auth_number}-v${auth.version}-draft.pdf`;
     await putObject({ key, body: Buffer.from(bytes), contentType: "application/pdf" });
     const sha256 = createHash("sha256").update(bytes).digest("hex");
-    await supabase
-      .from("authorization_documents")
-      .insert({
-        authorization_id: auth.id,
-        user_id: userId,
-        kind: "draft",
-        version: auth.version,
-        s3_key: key,
-        sha256,
-      });
+    await supabase.from("authorization_documents").insert({
+      authorization_id: auth.id,
+      user_id: userId,
+      kind: "draft",
+      version: auth.version,
+      s3_key: key,
+      sha256,
+    });
     const url = await getSignedGetUrl(key, 600);
     return { url, sha256 };
   });
@@ -295,6 +293,8 @@ export const finalizeSignature = createServerFn({ method: "POST" })
           .limit(1)
           .maybeSingle();
         if (cert) {
+          const { activateProtectionEnrollment } = await import("@/lib/protection/activate.server");
+          await activateProtectionEnrollment(userId);
           const { upsertProgressPreservingVersion, normalizeOnboardingVersion } =
             await import("./version.server");
           const { data: prog } = await supabase
@@ -636,6 +636,11 @@ export const finalizeSignature = createServerFn({ method: "POST" })
         },
       ]);
 
+      // Build the canonical protection profile and auto-enroll eligible scan
+      // modules now that authorization is ACTIVE. Never blocks/fails this
+      // response — scanning proceeds asynchronously via the orchestrator.
+      const { activateProtectionEnrollment } = await import("@/lib/protection/activate.server");
+      await activateProtectionEnrollment(userId);
 
       const { data: progress } = await supabase
         .from("onboarding_progress")

@@ -34,16 +34,25 @@ test("1. Query generator generates 20+ specialized search variations", () => {
     true,
   );
   assert.equal(
-    queries.some((q) => q.includes("site:reddit.com")),
-    true,
-  );
-  assert.equal(
     queries.some((q) => q.includes("site:t.me")),
     true,
   );
   assert.equal(
     queries.some((q) => q.includes("site:terabox.com")),
     true,
+  );
+  assert.equal(
+    queries.some((q) => q.includes("impersonating")),
+    true,
+  );
+  // Reddit and X/Twitter are on the platform blocklist (see isBlockedHost in
+  // ./queries) — any hit on those hosts is dropped before verification, so a
+  // site:reddit.com / site:x.com query can never produce a usable candidate.
+  // Regression guard for the coverage-audit fix that removed those wasted
+  // queries in favour of reachable distribution hosts.
+  assert.equal(
+    queries.some((q) => q.includes("site:reddit.com") || q.includes("site:x.com")),
+    false,
   );
 });
 
