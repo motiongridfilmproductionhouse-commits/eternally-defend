@@ -63,17 +63,6 @@ export default defineConfig({
     build: {
       sourcemap: false,
     },
-    resolve: {
-      alias: [
-        // pdf-lib's default entry is CJS and pulls tslib through an interop shim that
-        // breaks in the Worker/ESM bundle ("Cannot destructure property '__extends'").
-        // Its prebuilt ESM bundle inlines the tslib helpers, so use that everywhere.
-        {
-          find: /^pdf-lib$/,
-          replacement: resolve("node_modules/pdf-lib/dist/pdf-lib.esm.js"),
-        },
-      ],
-    },
   },
 
   tanstackStart: {
