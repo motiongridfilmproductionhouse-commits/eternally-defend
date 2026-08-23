@@ -361,7 +361,9 @@ export async function buildScanReportsForModuleTick(
         userId: input.userId,
         moduleKey: input.moduleKey,
         scanId: run.id as string,
+        enqueueEnforcement: true,
       });
+
       if (result) built += 1;
     }
     return built;
