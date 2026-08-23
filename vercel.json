@@ -1,24 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/public/hooks/enforcement-worker",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/public/hooks/scan-orchestrator",
-      "schedule": "15 0 * * *"
-    },
-    {
-      "path": "/api/public/hooks/channel-watch-poll",
-      "schedule": "30 0 * * *"
-    },
-    {
-      "path": "/api/public/hooks/distribution-monitor",
-      "schedule": "45 0 * * *"
-    },
-    {
-      "path": "/api/public/hooks/release-protection-monitor",
-      "schedule": "0 1 * * *"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "comment": "Privileged background jobs are NOT scheduled from Vercel. They require the Lovable-managed backend admin credential, which only exists in the Lovable-managed server runtime, so they are scheduled inside the managed database (pg_cron + pg_net) and target the Lovable-hosted origin. Vercel hosts the public application only and needs no service-role credential."
 }

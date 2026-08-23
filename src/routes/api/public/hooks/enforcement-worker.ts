@@ -1,18 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { verifyEnforcementWorkerRequest } from "@/lib/enforcement/worker-auth.server";
+import {
+  authorizeCronRequest,
+  cronAuthResponse,
+  requireTrustedRuntime,
+} from "@/lib/protection/cron-auth.server";
 
 export const Route = createFileRoute("/api/public/hooks/enforcement-worker")({
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
-        // FAIL CLOSED: a missing/short worker secret is never "authenticated".
-        const auth = verifyEnforcementWorkerRequest(request);
-        if (!auth.ok) {
-          return new Response(JSON.stringify({ error: auth.code, message: auth.message }), {
-            status: auth.status,
-            headers: { "content-type": "application/json" },
-          });
-        }
+        // Privileged job: requires the managed backend admin credential.
+        const runtime = requireTrustedRuntime();
+        if (!runtime.ok) return runtime.response;
+
+        // FAIL CLOSED: with neither an env worker secret nor a managed
+        // scheduler token configured, this returns 503 — never "authenticated".
+        const auth = await authorizeCronRequest(request, {
+          jobName: "enforcement_worker",
+          envSecrets: [process.env.ENFORCEMENT_WORKER_SECRET],
+        });
+        if (!auth.ok) return cronAuthResponse(auth);
 
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
