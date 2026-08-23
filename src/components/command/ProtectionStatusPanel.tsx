@@ -91,7 +91,7 @@ export function ProtectionStatusPanel() {
 
   if (q.isLoading) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-background/60 backdrop-blur-md p-6 flex items-center gap-3 text-muted-foreground">
+      <div className="rounded-2xl border border-border bg-card/70 backdrop-blur-md p-6 flex items-center gap-3 text-muted-foreground">
         <Loader2 className="size-4 animate-spin" /> Loading protection status…
       </div>
     );
@@ -101,7 +101,7 @@ export function ProtectionStatusPanel() {
   const { profile, modules } = q.data;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-background/60 backdrop-blur-md shadow-[0_10px_40px_-15px_oklch(0.2_0.1_260_/_0.4)] p-5">
+    <div className="rounded-2xl border border-border bg-card/70 backdrop-blur-md shadow-[0_10px_40px_-15px_oklch(0.2_0.1_260_/_0.25)] p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-4 text-primary" />
@@ -110,11 +110,11 @@ export function ProtectionStatusPanel() {
           </div>
         </div>
         {profile ? (
-          <span className="text-xs px-2 py-1 rounded-full border border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+          <span className="text-xs px-2 py-1 rounded-full border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
             Protection Active
           </span>
         ) : (
-          <span className="text-xs px-2 py-1 rounded-full border border-white/10 text-white/40 bg-white/5">
+          <span className="text-xs px-2 py-1 rounded-full border border-border text-muted-foreground bg-muted/40">
             Not enrolled yet
           </span>
         )}
@@ -130,20 +130,18 @@ export function ProtectionStatusPanel() {
             const e = m.enrollment;
             if (!e?.eligible) return null;
             const badge = statusBadge(e.current_status, e.blocked_reason);
+            const reason = reasonText(e.blocked_reason);
             return (
-              <div
-                key={m.key}
-                className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2"
-              >
+              <div key={m.key} className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium text-white truncate">{m.label}</div>
+                  <div className="text-sm font-medium text-foreground truncate">{m.label}</div>
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full border ${badge.tone} shrink-0`}
                   >
                     {badge.label}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-[11px] text-white/50">
+                <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Clock className="size-3" /> Last: {relTime(e.last_scan_at)}
                   </span>
@@ -151,14 +149,18 @@ export function ProtectionStatusPanel() {
                     <CircleDashed className="size-3" /> Next: {relTime(e.next_scan_at)}
                   </span>
                 </div>
-                <div className="text-[11px] text-white/40">
+                <div className="text-[11px] text-muted-foreground">
                   {e.candidates_found} candidates · {e.verified_findings} findings
                 </div>
+                {reason && badge.label !== reason ? (
+                  <div className="text-[11px] text-amber-600 dark:text-amber-300">{reason}</div>
+                ) : null}
               </div>
             );
           })}
         </div>
       )}
     </div>
+
   );
 }
