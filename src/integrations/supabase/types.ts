@@ -5431,36 +5431,63 @@ export type Database = {
       generated_reports: {
         Row: {
           created_at: string
+          discovered_count: number
+          eligible_count: number
           filters: Json
           findings_count: number
           id: string
           kind: string
+          module_key: string | null
           name: string
+          not_eligible_count: number
+          payload: Json | null
           pdf_url: string | null
+          review_count: number
+          run_completed_at: string | null
+          run_started_at: string | null
+          scan_id: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          discovered_count?: number
+          eligible_count?: number
           filters?: Json
           findings_count?: number
           id?: string
           kind?: string
+          module_key?: string | null
           name: string
+          not_eligible_count?: number
+          payload?: Json | null
           pdf_url?: string | null
+          review_count?: number
+          run_completed_at?: string | null
+          run_started_at?: string | null
+          scan_id?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          discovered_count?: number
+          eligible_count?: number
           filters?: Json
           findings_count?: number
           id?: string
           kind?: string
+          module_key?: string | null
           name?: string
+          not_eligible_count?: number
+          payload?: Json | null
           pdf_url?: string | null
+          review_count?: number
+          run_completed_at?: string | null
+          run_started_at?: string | null
+          scan_id?: string | null
           status?: string
           updated_at?: string
           user_id?: string
