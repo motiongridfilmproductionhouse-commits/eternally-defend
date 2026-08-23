@@ -1,24 +1,29 @@
 /**
- * Scheduled poll worker endpoint — pg_cron hits this every few minutes.
- * Iterates channel_watches whose next_check_at has elapsed and runs
- * pollOneWatch for each. Auth: shared bearer secret (never PII exposure).
+ * Scheduled poll worker endpoint — the database scheduler hits this every few
+ * minutes. Iterates channel_watches whose next_check_at has elapsed and runs
+ * pollOneWatch for each. Auth: env worker secret or the managed scheduler
+ * token in internal_cron_secrets (never PII exposure).
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { timingSafeEqual } from "node:crypto";
+import {
+  authorizeCronRequest,
+  cronAuthResponse,
+  requireTrustedRuntime,
+} from "@/lib/protection/cron-auth.server";
 
 export const Route = createFileRoute("/api/public/hooks/channel-watch-poll")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env.CHANNEL_WATCH_POLL_SECRET;
-        if (!secret) return new Response("Not configured", { status: 500 });
-        const auth = request.headers.get("authorization") ?? "";
-        const token = auth.replace(/^Bearer\s+/i, "");
-        const a = Buffer.from(token);
-        const b = Buffer.from(secret);
-        if (a.length !== b.length || !timingSafeEqual(a, b)) {
-          return new Response("Unauthorized", { status: 401 });
-        }
+        const runtime = requireTrustedRuntime();
+        if (!runtime.ok) return runtime.response;
+
+        const auth = await authorizeCronRequest(request, {
+          jobName: "channel_watch_poll",
+          envSecrets: [process.env.CHANNEL_WATCH_POLL_SECRET],
+        });
+        if (!auth.ok) return cronAuthResponse(auth);
+
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { pollOneWatch } = await import("@/lib/channel-watch/poll.server");
         const nowIso = new Date().toISOString();
