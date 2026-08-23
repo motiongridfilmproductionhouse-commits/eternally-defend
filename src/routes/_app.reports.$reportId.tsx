@@ -3,9 +3,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
-import { ArrowLeft, ExternalLink, Loader2, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ExternalLink, Gavel, Loader2, ShieldAlert } from "lucide-react";
 import { getScanReport } from "@/lib/protection/report.functions";
-import { ELIGIBILITY_LABEL, type ReportEligibility } from "@/lib/protection/report/types";
+import { ELIGIBILITY_LABEL, type ReportEligibility, type EnforcementState } from "@/lib/protection/report/types";
+import { ENFORCEMENT_STATE_LABEL } from "@/lib/protection/report/enforcement-state";
+
 
 export const Route = createFileRoute("/_app/reports/$reportId")({
   head: () => ({
