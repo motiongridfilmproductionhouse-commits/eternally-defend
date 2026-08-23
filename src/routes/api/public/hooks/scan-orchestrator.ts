@@ -11,17 +11,15 @@
  * running/monitoring unless real work actually happened.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { timingSafeEqual } from "node:crypto";
 import { moduleConfig } from "@/lib/protection/module-registry";
 import { STALE_CLAIM_MINUTES, buildDueRowFilter } from "@/lib/protection/claim";
+import {
+  authorizeCronRequest,
+  cronAuthResponse,
+  requireTrustedRuntime,
+} from "@/lib/protection/cron-auth.server";
 
 const BATCH_SIZE = 20;
-
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
-}
 
 async function runReputationWebScan(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -492,7 +490,7 @@ export const Route = createFileRoute("/api/public/hooks/scan-orchestrator")({
           }
         }
 
-        return Response.json({ processed: results.length, results });
+        return Response.json({ processed: results.length, enrolled_users, results });
       },
     },
   },
