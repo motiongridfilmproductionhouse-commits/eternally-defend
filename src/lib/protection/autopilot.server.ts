@@ -92,11 +92,20 @@ export async function activateProtectionAutopilot(
     .eq("user_id", userId)
     .maybeSingle();
 
+  // Subject name must be carried onto the protection profile: dispatchers
+  // (deepfake, youtube removal, reputation) fail with NO_SUBJECT_NAME without it.
+  const verifiedName = (profile?.legal_name ?? profile?.full_name ?? null) || null;
+  const displayName =
+    (profile?.display_name ?? profile?.legal_name ?? profile?.full_name ?? null) || null;
+
   await supabase.from("protection_profiles").upsert(
     {
       user_id: userId,
       status,
+      verified_name: verifiedName,
+      display_name: displayName,
       auto_scan_enabled: true,
+
       paused: false,
       activated_at: existingProfile?.activated_at ?? (authorizationActive ? nowIso : null),
       onboarding_completed_at:
