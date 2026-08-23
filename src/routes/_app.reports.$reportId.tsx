@@ -3,9 +3,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
-import { ArrowLeft, ExternalLink, Loader2, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ExternalLink, Gavel, Loader2, ShieldAlert } from "lucide-react";
 import { getScanReport } from "@/lib/protection/report.functions";
-import { ELIGIBILITY_LABEL, type ReportEligibility } from "@/lib/protection/report/types";
+import { ELIGIBILITY_LABEL, type ReportEligibility, type EnforcementState } from "@/lib/protection/report/types";
+import { ENFORCEMENT_STATE_LABEL } from "@/lib/protection/report/enforcement-state";
+
 
 export const Route = createFileRoute("/_app/reports/$reportId")({
   head: () => ({
@@ -33,6 +35,18 @@ const ELIGIBILITY_COLOR: Record<ReportEligibility, string> = {
   REQUIRES_REVIEW: "oklch(0.75 0.16 70)",
   NOT_REMOVAL_ELIGIBLE: "oklch(0.55 0.03 275)",
 };
+
+const ENFORCEMENT_COLOR: Record<EnforcementState, string> = {
+  NOT_APPLICABLE: "oklch(0.55 0.03 275)",
+  BLOCKED: "oklch(0.6 0.19 25)",
+  QUEUED: "oklch(0.72 0.14 235)",
+  UNDER_REVIEW: "oklch(0.75 0.16 70)",
+  IN_PROGRESS: "oklch(0.72 0.14 235)",
+  SUBMITTED: "oklch(0.68 0.16 155)",
+  COMPLETED: "oklch(0.68 0.16 155)",
+  FAILED: "oklch(0.6 0.19 25)",
+};
+
 
 type Filter = "ALL" | ReportEligibility;
 
@@ -121,9 +135,11 @@ function ScanReportDetail() {
           <div className="flex items-start gap-2 text-xs text-muted-foreground border border-border rounded-xl p-3">
             <ShieldAlert className="size-4 mt-0.5 text-primary shrink-0" />
             <span>
-              Eligibility is an assessment only. Removal requests are never generated or sent from
-              this report — enforcement stays behind its own review and pre-send gates.
+              Automatic enforcement is prepared only for removal-eligible discoveries. Everything
+              else stays evidence only, and actual sending remains behind the pre-send gate — live
+              sending is disabled while the platform runs in test mode.
             </span>
+
           </div>
 
           <PageCard title="DISCOVERIES" sub="Source, evidence, confidence and eligibility">
@@ -199,6 +215,32 @@ function ScanReportDetail() {
                         <div key={i}>{r}</div>
                       ))}
                     </div>
+
+                    {d.enforcement && d.eligibility === "REMOVAL_ELIGIBLE" && (
+                      <div className="text-[11px] rounded-lg border border-border p-2 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Gavel className="size-3.5 text-primary" />
+                          <span className="font-semibold uppercase tracking-wide">Enforcement</span>
+                          <Pill color={ENFORCEMENT_COLOR[d.enforcement.state]}>
+                            {ENFORCEMENT_STATE_LABEL[d.enforcement.state]}
+                          </Pill>
+                        </div>
+                        <div className="text-muted-foreground">{d.enforcement.detail}</div>
+                        <div className="text-muted-foreground">
+                          {d.enforcement.basis ? `Basis: ${d.enforcement.basis} · ` : ""}
+                          {d.enforcement.route ? `Route: ${d.enforcement.route} · ` : ""}
+                          {d.enforcement.queuedAt
+                            ? `Started ${fmt(d.enforcement.queuedAt)}`
+                            : "Not started"}
+                        </div>
+                        {d.enforcement.testMode && (
+                          <div className="text-warning">
+                            Test mode: live sending is disabled, so nothing leaves the platform.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                   </div>
                 ))}
               </div>

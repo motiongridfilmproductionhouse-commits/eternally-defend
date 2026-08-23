@@ -52,6 +52,8 @@ export function normalizeCopyrightMatch(row: CopyrightMatchRow): ReportDiscovery
       row.ocr_text ? `OCR: ${row.ocr_text.slice(0, 240)}` : null,
     ]),
     status: row.review_status ?? "unreviewed",
+    riskType: "Copyright Infringement",
+    platform: row.platform ?? null,
     moduleVerified: row.confidence_band === "confirmed" && row.review_status !== "rejected",
   };
 }
@@ -94,6 +96,8 @@ export function normalizeDeepfakeFinding(row: DeepfakeFindingRow): ReportDiscove
       row.snippet,
     ]),
     status: row.review_status ?? "unreviewed",
+    riskType: row.content_category ? `Deepfake: ${row.content_category}` : "Deepfake",
+    platform: row.source_host ?? null,
     moduleVerified: row.takedown_recommended === true,
   };
 }
@@ -130,6 +134,8 @@ export function normalizeYoutubeRemovalFinding(row: YoutubeRemovalFindingRow): R
       row.assessment_reason ?? null,
     ]),
     status: row.recommended_action ?? "none",
+    riskType: row.recommended_action ?? null,
+    platform: "YouTube",
     moduleVerified:
       row.subject_status !== "not_subject" &&
       row.channel_class !== "official_news" &&
@@ -173,6 +179,8 @@ export function normalizeScanHit(row: ScanHitRow): ReportDiscovery {
       row.description,
     ]),
     status: severity || "unclassified",
+    riskType: row.risk_type ?? null,
+    platform: row.source ?? null,
     moduleVerified: severity === "critical" || severity === "high",
   };
 }
