@@ -226,6 +226,18 @@ export async function createLivenessSessionFor(supabase: Db, userId: string) {
   } catch (e: any) {
     if (/Biometric consent|CONSENT_REQUIRED/i.test(String(e?.message))) throw e;
     const info = classifyAwsError(e);
+    // Diagnostics only — no secret values. Production (custom domain) runs on a
+    // separate host with its own env, so a stale/whitespace-padded AWS key there
+    // signs requests that AWS rejects while the same code works elsewhere.
+    console.error(
+      "[face-enrollment] AWS failure",
+      JSON.stringify({
+        code: info.code,
+        awsName: e?.name ?? null,
+        awsMessage: String(e?.message ?? e).slice(0, 300),
+        env: awsEnvFingerprint(),
+      }),
+    );
     await supabase.from("protected_face_profiles").upsert(
       {
         user_id: userId,
