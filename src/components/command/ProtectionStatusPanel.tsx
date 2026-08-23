@@ -3,39 +3,68 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2, ShieldCheck, Clock, CircleDashed } from "lucide-react";
 import { getProtectionEnrollments } from "@/lib/protection/enrollment.functions";
 
+const REASON_LABEL: Record<string, string> = {
+  NO_SUBJECT_NAME: "Waiting for verified name",
+  NO_TARGET_PROFILE: "Face enrollment needed",
+  NO_REFERENCE_FACES: "Face enrollment needed",
+  NOT_AUTOMATED_YET: "Not yet automated",
+};
+
+function reasonText(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  return REASON_LABEL[reason] ?? reason;
+}
+
 function statusBadge(status: string | undefined, blockedReason: string | null | undefined) {
-  if (!status) return { label: "Not enrolled", tone: "text-white/40 bg-white/5 border-white/10" };
-  if (blockedReason === "NOT_AUTOMATED_YET") {
+  if (!status)
     return {
-      label: "Not yet automated",
-      tone: "text-amber-300/80 bg-amber-500/10 border-amber-500/20",
+      label: "Not enrolled",
+      tone: "text-muted-foreground bg-muted/40 border-border",
+    };
+  if (blockedReason && REASON_LABEL[blockedReason]) {
+    return {
+      label: REASON_LABEL[blockedReason],
+      tone: "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/20",
     };
   }
   switch (status) {
     case "COMPLETED":
       return {
         label: "Monitoring",
-        tone: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+        tone: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
       };
     case "RUNNING":
     case "DISCOVERY":
     case "VERIFYING":
-      return { label: "Running now", tone: "text-blue-400 bg-blue-500/10 border-blue-500/20" };
+      return {
+        label: "Running now",
+        tone: "text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20",
+      };
     case "QUEUED":
-      return { label: "Queued", tone: "text-blue-300 bg-blue-500/10 border-blue-500/20" };
+      return {
+        label: "Queued",
+        tone: "text-blue-600 dark:text-blue-300 bg-blue-500/10 border-blue-500/20",
+      };
     case "PARTIAL":
     case "PROVIDER_LIMITED":
     case "RETRYING":
       return {
         label: "Partial — retrying",
-        tone: "text-amber-300 bg-amber-500/10 border-amber-500/20",
+        tone: "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/20",
       };
     case "FAILED":
-      return { label: "Failed — retrying", tone: "text-red-400 bg-red-500/10 border-red-500/20" };
+      return {
+        label: "Failed — retrying",
+        tone: "text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20",
+      };
     default:
-      return { label: "Waiting for next scan", tone: "text-white/50 bg-white/5 border-white/10" };
+      return {
+        label: "Waiting for next scan",
+        tone: "text-muted-foreground bg-muted/40 border-border",
+      };
   }
 }
+
 
 function relTime(iso: string | null | undefined): string {
   if (!iso) return "—";
