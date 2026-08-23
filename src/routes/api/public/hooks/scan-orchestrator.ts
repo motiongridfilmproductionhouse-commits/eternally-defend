@@ -342,8 +342,11 @@ export const Route = createFileRoute("/api/public/hooks/scan-orchestrator")({
           const cadence = cfg?.cadenceMinutes ?? row.cadence_minutes ?? 1440;
           const nextScanAt = new Date(Date.now() + cadence * 60_000).toISOString();
 
+          const tickStartedAt = new Date(Date.now() - 60_000).toISOString();
+
           try {
             if (cfg?.driver === "orchestrator") {
+
               let outcome: {
                 status: string;
                 candidates_found: number;
@@ -394,9 +397,27 @@ export const Route = createFileRoute("/api/public/hooks/scan-orchestrator")({
                 }
               }
 
+              // Persistent, per-run scan report. Best effort and read-only
+              // with respect to enforcement — a reporting failure can never
+              // fail or retry the scan itself.
+              try {
+                const { buildScanReportsForModuleTick, isReportableModule } =
+                  await import("@/lib/protection/report/build.server");
+                if (isReportableModule(row.module_key)) {
+                  await buildScanReportsForModuleTick(supabaseAdmin, {
+                    userId: row.user_id,
+                    moduleKey: row.module_key,
+                    sinceIso: tickStartedAt,
+                  });
+                }
+              } catch (reportErr) {
+                console.error("[scan-orchestrator] report build failed", row.id, reportErr);
+              }
+
               await supabaseAdmin
                 .from("scan_module_enrollments")
                 .update({
+
                   current_status: outcome.status,
                   candidates_found: outcome.candidates_found,
                   verified_findings: outcome.verified_findings,

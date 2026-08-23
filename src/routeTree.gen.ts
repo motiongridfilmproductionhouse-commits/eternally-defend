@@ -53,6 +53,7 @@ import { Route as PartnerPartnerCommissionsRouteImport } from './routes/_partner
 import { Route as PartnerPartnerClientsRouteImport } from './routes/_partner.partner.clients'
 import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes/_app.sensitive-protection.removal-cases'
 import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
+import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
 import { Route as AppAdminSensitiveProtectionRouteImport } from './routes/_app.admin.sensitive-protection'
 import { Route as AppAdminRemovalRoutesRouteImport } from './routes/_app.admin.removal-routes'
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
@@ -303,6 +304,11 @@ const AppSensitiveProtectionEmergencyRoute =
     path: '/sensitive-protection/emergency',
     getParentRoute: () => AppRoute,
   } as any)
+const AppReportsReportIdRoute = AppReportsReportIdRouteImport.update({
+  id: '/$reportId',
+  path: '/$reportId',
+  getParentRoute: () => AppReportsRoute,
+} as any)
 const AppAdminSensitiveProtectionRoute =
   AppAdminSensitiveProtectionRouteImport.update({
     id: '/admin/sensitive-protection',
@@ -471,7 +477,7 @@ export interface FileRoutesByFullPath {
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
   '/removals': typeof AppRemovalsRoute
-  '/reports': typeof AppReportsRoute
+  '/reports': typeof AppReportsRouteWithChildren
   '/scan': typeof AppScanRoute
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
@@ -488,6 +494,7 @@ export interface FileRoutesByFullPath {
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/reports/$reportId': typeof AppReportsReportIdRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
   '/partner/clients': typeof PartnerPartnerClientsRoute
@@ -540,7 +547,7 @@ export interface FileRoutesByTo {
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
   '/removals': typeof AppRemovalsRoute
-  '/reports': typeof AppReportsRoute
+  '/reports': typeof AppReportsRouteWithChildren
   '/scan': typeof AppScanRoute
   '/settings': typeof AppSettingsRoute
   '/threat-monitoring': typeof AppThreatMonitoringRoute
@@ -556,6 +563,7 @@ export interface FileRoutesByTo {
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/reports/$reportId': typeof AppReportsReportIdRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
   '/partner/clients': typeof PartnerPartnerClientsRoute
@@ -610,7 +618,7 @@ export interface FileRoutesById {
   '/_app/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/removals': typeof AppRemovalsRoute
-  '/_app/reports': typeof AppReportsRoute
+  '/_app/reports': typeof AppReportsRouteWithChildren
   '/_app/scan': typeof AppScanRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/threat-monitoring': typeof AppThreatMonitoringRoute
@@ -628,6 +636,7 @@ export interface FileRoutesById {
   '/_app/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/_app/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/_app/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/_app/reports/$reportId': typeof AppReportsReportIdRoute
   '/_app/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/_app/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
   '/_partner/partner/clients': typeof PartnerPartnerClientsRoute
@@ -699,6 +708,7 @@ export interface FileRouteTypes {
     | '/admin/provider-activation'
     | '/admin/removal-routes'
     | '/admin/sensitive-protection'
+    | '/reports/$reportId'
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
     | '/partner/clients'
@@ -767,6 +777,7 @@ export interface FileRouteTypes {
     | '/admin/provider-activation'
     | '/admin/removal-routes'
     | '/admin/sensitive-protection'
+    | '/reports/$reportId'
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
     | '/partner/clients'
@@ -838,6 +849,7 @@ export interface FileRouteTypes {
     | '/_app/admin/provider-activation'
     | '/_app/admin/removal-routes'
     | '/_app/admin/sensitive-protection'
+    | '/_app/reports/$reportId'
     | '/_app/sensitive-protection/emergency'
     | '/_app/sensitive-protection/removal-cases'
     | '/_partner/partner/clients'
@@ -1214,6 +1226,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionEmergencyRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/$reportId': {
+      id: '/_app/reports/$reportId'
+      path: '/$reportId'
+      fullPath: '/reports/$reportId'
+      preLoaderRoute: typeof AppReportsReportIdRouteImport
+      parentRoute: typeof AppReportsRoute
+    }
     '/_app/admin/sensitive-protection': {
       id: '/_app/admin/sensitive-protection'
       path: '/admin/sensitive-protection'
@@ -1392,6 +1411,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppReportsRouteChildren {
+  AppReportsReportIdRoute: typeof AppReportsReportIdRoute
+}
+
+const AppReportsRouteChildren: AppReportsRouteChildren = {
+  AppReportsReportIdRoute: AppReportsReportIdRoute,
+}
+
+const AppReportsRouteWithChildren = AppReportsRoute._addFileChildren(
+  AppReportsRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAssetsRoute: typeof AppAssetsRoute
   AppCampaignsRoute: typeof AppCampaignsRoute
@@ -1406,7 +1437,7 @@ interface AppRouteChildren {
   AppNarrativeIntelligenceRoute: typeof AppNarrativeIntelligenceRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppRemovalsRoute: typeof AppRemovalsRoute
-  AppReportsRoute: typeof AppReportsRoute
+  AppReportsRoute: typeof AppReportsRouteWithChildren
   AppScanRoute: typeof AppScanRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppThreatMonitoringRoute: typeof AppThreatMonitoringRoute
@@ -1441,7 +1472,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNarrativeIntelligenceRoute: AppNarrativeIntelligenceRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppRemovalsRoute: AppRemovalsRoute,
-  AppReportsRoute: AppReportsRoute,
+  AppReportsRoute: AppReportsRouteWithChildren,
   AppScanRoute: AppScanRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppThreatMonitoringRoute: AppThreatMonitoringRoute,
