@@ -202,6 +202,13 @@ export function ProtectionAutopilotCard() {
           ))}
         </div>
       )}
+
+      <div className="mt-3">
+        <Link to="/reports" className="text-xs font-semibold text-primary hover:underline">
+          View scan reports →
+        </Link>
+      </div>
     </Card>
+
   );
 }
