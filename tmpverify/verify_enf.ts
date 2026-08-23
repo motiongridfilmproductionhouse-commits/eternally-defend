@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { autoEnforceEligibleDiscoveries } from "../src/lib/protection/report/auto-enforce.server";
 
 const sb = createClient(process.env.VITE_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
-const userId = "606afa01-0767-4356-8459-7e7d8521c233";
+const userId = "f4c7872b-6b47-4a89-addf-1d937a2b592e";
 const stamp = Date.now();
 const url = `https://eterna-enforcement-test.invalid/pipeline-verify/${stamp}`;
 
