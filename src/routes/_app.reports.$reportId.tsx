@@ -199,6 +199,32 @@ function ScanReportDetail() {
                         <div key={i}>{r}</div>
                       ))}
                     </div>
+
+                    {d.enforcement && d.eligibility === "REMOVAL_ELIGIBLE" && (
+                      <div className="text-[11px] rounded-lg border border-border p-2 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Gavel className="size-3.5 text-primary" />
+                          <span className="font-semibold uppercase tracking-wide">Enforcement</span>
+                          <Pill color={ENFORCEMENT_COLOR[d.enforcement.state]}>
+                            {ENFORCEMENT_STATE_LABEL[d.enforcement.state]}
+                          </Pill>
+                        </div>
+                        <div className="text-muted-foreground">{d.enforcement.detail}</div>
+                        <div className="text-muted-foreground">
+                          {d.enforcement.basis ? `Basis: ${d.enforcement.basis} · ` : ""}
+                          {d.enforcement.route ? `Route: ${d.enforcement.route} · ` : ""}
+                          {d.enforcement.queuedAt
+                            ? `Started ${fmt(d.enforcement.queuedAt)}`
+                            : "Not started"}
+                        </div>
+                        {d.enforcement.testMode && (
+                          <div className="text-warning">
+                            Test mode: live sending is disabled, so nothing leaves the platform.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                   </div>
                 ))}
               </div>
