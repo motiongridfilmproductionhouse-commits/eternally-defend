@@ -12,6 +12,27 @@ type Db = any;
 
 export type AwsErrorInfo = { code: string; message: string; retryable: boolean };
 
+/**
+ * Non-secret shape of the AWS env as the running host sees it. Used only for
+ * logging: key-id prefix, value lengths and stray-whitespace flags are enough
+ * to tell "key not configured" from "stale key" from "key with a newline".
+ */
+export function awsEnvFingerprint() {
+  const raw = (name: string) => process.env[name] ?? "";
+  const id = raw("AWS_ACCESS_KEY_ID");
+  const secret = raw("AWS_SECRET_ACCESS_KEY");
+  return {
+    region: raw("AWS_REGION").trim() || null,
+    accessKeyIdPrefix: id.trim() ? `${id.trim().slice(0, 8)}…` : null,
+    accessKeyIdLength: id.trim().length,
+    secretLength: secret.trim().length,
+    untrimmedAccessKeyId: id !== id.trim(),
+    untrimmedSecret: secret !== secret.trim(),
+    hasSessionToken: !!raw("AWS_SESSION_TOKEN").trim(),
+    bucket: raw("AWS_REKOGNITION_BUCKET").trim() || null,
+  };
+}
+
 export function classifyAwsError(e: any): AwsErrorInfo {
   const name = e?.name ?? e?.Code ?? "";
   const raw = String(e?.message ?? e);
