@@ -63,10 +63,21 @@ export function requireTrustedRuntime(): { ok: true } | { ok: false; response: R
   };
 }
 
+type CronSecretReader = {
+  from: (table: string) => {
+    select: (cols: string) => {
+      eq: (
+        col: string,
+        val: string,
+      ) => { maybeSingle: () => Promise<{ data: { token?: string | null } | null }> };
+    };
+  };
+};
+
 async function managedTokenFor(jobName: string): Promise<string | null> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await (supabaseAdmin as never as ReturnType<typeof adminShape>)
+    const { data } = await (supabaseAdmin as unknown as CronSecretReader)
       .from("internal_cron_secrets")
       .select("token")
       .eq("name", jobName)
@@ -79,15 +90,6 @@ async function managedTokenFor(jobName: string): Promise<string | null> {
     return null;
   }
 }
-
-// Local structural type so this module never widens to `any`.
-declare function adminShape(): {
-  from: (table: string) => {
-    select: (cols: string) => {
-      eq: (col: string, val: string) => { maybeSingle: () => Promise<{ data: { token?: string } | null }> };
-    };
-  };
-};
 
 export async function authorizeCronRequest(
   request: Request,
