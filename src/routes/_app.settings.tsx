@@ -224,7 +224,10 @@ function SettingsPage() {
         </div>
       </PageCard>
 
+      <SignedAuthorizationCard />
+
       <PageCard title="PLAN" sub="Elite Protection">
+
         <div
           className="rounded-xl p-4 flex items-center gap-4"
           style={{ background: "var(--gradient-soft)" }}
