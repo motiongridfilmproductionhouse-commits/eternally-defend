@@ -25,7 +25,9 @@ import {
   type ScanHitRow,
   type YoutubeRemovalFindingRow,
 } from "./normalize";
-import type { ReportDiscovery, ScanReportPayload } from "./types";
+import { buildDiscoveryEnforcement, type EnforcementCaseSnapshot } from "./enforcement-state";
+import type { ClassifiedDiscovery, ReportDiscovery, ScanReportPayload } from "./types";
+
 
 interface ModuleSource {
   runTable: string;
