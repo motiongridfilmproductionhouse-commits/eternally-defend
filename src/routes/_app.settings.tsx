@@ -8,6 +8,8 @@ import { PageCard } from "@/components/dashboard/PageCard";
 import { Switch } from "@/components/ui/switch";
 import { SocialProfilesPanel } from "@/components/onboarding/SocialProfilesPanel";
 import { SocialAssetProtectionPanel } from "@/components/social/SocialAssetProtectionPanel";
+import { SignedAuthorizationCard } from "@/components/profile/SignedAuthorizationCard";
+
 import { useSession } from "@/hooks/use-session";
 import {
   getAccountProfile,
@@ -224,7 +226,10 @@ function SettingsPage() {
         </div>
       </PageCard>
 
+      <SignedAuthorizationCard />
+
       <PageCard title="PLAN" sub="Elite Protection">
+
         <div
           className="rounded-xl p-4 flex items-center gap-4"
           style={{ background: "var(--gradient-soft)" }}
