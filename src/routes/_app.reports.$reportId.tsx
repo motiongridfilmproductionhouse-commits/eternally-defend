@@ -36,6 +36,18 @@ const ELIGIBILITY_COLOR: Record<ReportEligibility, string> = {
   NOT_REMOVAL_ELIGIBLE: "oklch(0.55 0.03 275)",
 };
 
+const ENFORCEMENT_COLOR: Record<EnforcementState, string> = {
+  NOT_APPLICABLE: "oklch(0.55 0.03 275)",
+  BLOCKED: "oklch(0.6 0.19 25)",
+  QUEUED: "oklch(0.72 0.14 235)",
+  UNDER_REVIEW: "oklch(0.75 0.16 70)",
+  IN_PROGRESS: "oklch(0.72 0.14 235)",
+  SUBMITTED: "oklch(0.68 0.16 155)",
+  COMPLETED: "oklch(0.68 0.16 155)",
+  FAILED: "oklch(0.6 0.19 25)",
+};
+
+
 type Filter = "ALL" | ReportEligibility;
 
 const FILTERS: { key: Filter; label: string }[] = [
