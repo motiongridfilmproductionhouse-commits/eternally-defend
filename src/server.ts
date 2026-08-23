@@ -18,6 +18,24 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
+// Dev only: the dev server's server-function registry is filled when Vite
+// transforms a `*.functions.ts` module. After a dev-server restart the browser
+// still holds cached module code, so RPC calls arrive for IDs the fresh server
+// has never seen and fail with "Invalid server function ID" (HTTP 500).
+// Eagerly touching every server-function module at startup re-registers all IDs.
+let serverFnWarmup: Promise<unknown> | undefined;
+function warmUpServerFunctionRegistry(): Promise<unknown> {
+  if (!serverFnWarmup) {
+    const modules = import.meta.glob("/src/**/*.functions.{ts,tsx}");
+    serverFnWarmup = Promise.all(
+      Object.values(modules).map((load) => load().catch(() => undefined)),
+    );
+  }
+  return serverFnWarmup;
+}
+
+
+
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
 async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
@@ -72,6 +90,7 @@ function applySecurityHeaders(response: Response): Response {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      if (import.meta.env.DEV) await warmUpServerFunctionRegistry();
       const handler = await getServerEntry();
       const rawResponse = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(rawResponse);
