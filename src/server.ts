@@ -90,6 +90,7 @@ function applySecurityHeaders(response: Response): Response {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      if (import.meta.env.DEV) await warmUpServerFunctionRegistry();
       const handler = await getServerEntry();
       const rawResponse = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(rawResponse);
