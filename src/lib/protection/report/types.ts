@@ -6,6 +6,32 @@
 
 export type ReportEligibility = "REMOVAL_ELIGIBLE" | "REQUIRES_REVIEW" | "NOT_REMOVAL_ELIGIBLE";
 
+/** Lifecycle of automatic enforcement for one removal-eligible discovery. */
+export type EnforcementState =
+  | "NOT_APPLICABLE"
+  | "BLOCKED"
+  | "QUEUED"
+  | "UNDER_REVIEW"
+  | "IN_PROGRESS"
+  | "SUBMITTED"
+  | "COMPLETED"
+  | "FAILED";
+
+export interface DiscoveryEnforcement {
+  state: EnforcementState;
+  /** Plain-language explanation of the current enforcement state. */
+  detail: string;
+  caseId: string | null;
+  caseStatus: string | null;
+  basis: string | null;
+  route: string | null;
+  jobStatus: string | null;
+  queuedAt: string | null;
+  updatedAt: string | null;
+  /** True while enforcement runs in test mode / live sending is disabled. */
+  testMode: boolean;
+}
+
 /** One discovery, normalized across every module's own finding schema. */
 export interface ReportDiscovery {
   id: string;
@@ -20,12 +46,18 @@ export interface ReportDiscovery {
   status: string;
   /** Module-native verification: did this clear the module's own verified bar? */
   moduleVerified: boolean;
+  /** Module-native risk classification, used to derive the enforcement basis. */
+  riskType?: string | null;
+  /** Platform/host label as recorded by the module. */
+  platform?: string | null;
 }
 
 export interface ClassifiedDiscovery extends ReportDiscovery {
   eligibility: ReportEligibility;
   eligibilityReasons: string[];
+  enforcement?: DiscoveryEnforcement;
 }
+
 
 export interface ScanReportPayload {
   moduleKey: string;
