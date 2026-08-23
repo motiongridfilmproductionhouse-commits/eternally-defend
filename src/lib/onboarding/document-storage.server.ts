@@ -45,7 +45,27 @@ export async function storeOnboardingDocument(opts: {
   return `${VAULT_PREFIX}${vaultPath}`;
 }
 
+/** Reads stored bytes for a document, transparently handling vault-backed paths. */
+export async function readOnboardingDocumentBytes(opts: {
+  supabase: AnyClient;
+  storagePath: string;
+}): Promise<Uint8Array | null> {
+  if (opts.storagePath.startsWith(VAULT_PREFIX)) {
+    const path = opts.storagePath.slice(VAULT_PREFIX.length);
+    const { data, error } = await opts.supabase.storage.from(VAULT_BUCKET).download(path);
+    if (error || !data) return null;
+    return new Uint8Array(await data.arrayBuffer());
+  }
+  try {
+    const { getObjectBytes } = await import("@/lib/aws/s3.server");
+    return await getObjectBytes(opts.storagePath);
+  } catch {
+    return null;
+  }
+}
+
 /** Short-lived inline URL for a stored onboarding document. */
+
 export async function signOnboardingDocumentUrl(opts: {
   supabase: AnyClient;
   storagePath: string;
