@@ -229,3 +229,36 @@ describe("report path is enforcement-free", () => {
     expect(writes).toContain("generated_reports");
   });
 });
+
+describe("enforcement state mapping", () => {
+  it("labels queued/submitted/failed cases and leaves unknown targets not applicable", async () => {
+    const { buildDiscoveryEnforcement } = await import("./enforcement-state");
+    const snap = {
+      caseId: "case-1",
+      targetUrl: "https://pirate.example/movie",
+      caseStatus: "QUEUED",
+      eligibilityStatus: "AUTO_ELIGIBLE",
+      basis: "COPYRIGHT",
+      route: "email",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      jobStatus: "queued",
+    };
+    expect(buildDiscoveryEnforcement(snap, { testMode: true }).state).toBe("QUEUED");
+    expect(
+      buildDiscoveryEnforcement({ ...snap, jobStatus: "processing" }, { testMode: true }).state,
+    ).toBe("IN_PROGRESS");
+    expect(
+      buildDiscoveryEnforcement({ ...snap, caseStatus: "SUBMITTED" }, { testMode: true }).state,
+    ).toBe("SUBMITTED");
+    expect(
+      buildDiscoveryEnforcement({ ...snap, caseStatus: "FAILED" }, { testMode: true }).state,
+    ).toBe("FAILED");
+    expect(
+      buildDiscoveryEnforcement({ ...snap, caseStatus: "UNDER_REVIEW" }, { testMode: true }).state,
+    ).toBe("UNDER_REVIEW");
+    const none = buildDiscoveryEnforcement(undefined, { testMode: true });
+    expect(none.state).toBe("NOT_APPLICABLE");
+    expect(none.caseId).toBe(null);
+  });
+});
