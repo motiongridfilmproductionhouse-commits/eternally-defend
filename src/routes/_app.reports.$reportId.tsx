@@ -135,9 +135,11 @@ function ScanReportDetail() {
           <div className="flex items-start gap-2 text-xs text-muted-foreground border border-border rounded-xl p-3">
             <ShieldAlert className="size-4 mt-0.5 text-primary shrink-0" />
             <span>
-              Eligibility is an assessment only. Removal requests are never generated or sent from
-              this report — enforcement stays behind its own review and pre-send gates.
+              Automatic enforcement is prepared only for removal-eligible discoveries. Everything
+              else stays evidence only, and actual sending remains behind the pre-send gate — live
+              sending is disabled while the platform runs in test mode.
             </span>
+
           </div>
 
           <PageCard title="DISCOVERIES" sub="Source, evidence, confidence and eligibility">
