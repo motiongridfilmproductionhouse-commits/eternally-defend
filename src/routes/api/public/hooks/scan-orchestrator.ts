@@ -11,17 +11,15 @@
  * running/monitoring unless real work actually happened.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { timingSafeEqual } from "node:crypto";
 import { moduleConfig } from "@/lib/protection/module-registry";
 import { STALE_CLAIM_MINUTES, buildDueRowFilter } from "@/lib/protection/claim";
+import {
+  authorizeCronRequest,
+  cronAuthResponse,
+  requireTrustedRuntime,
+} from "@/lib/protection/cron-auth.server";
 
 const BATCH_SIZE = 20;
-
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
-}
 
 async function runReputationWebScan(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -247,15 +245,19 @@ export const Route = createFileRoute("/api/public/hooks/scan-orchestrator")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Accepts either a dedicated secret or Vercel Cron's auto-injected
-        // CRON_SECRET bearer token (same dual pattern as enforcement-worker.ts).
-        const secret = process.env.SCAN_ORCHESTRATOR_SECRET || process.env.CRON_SECRET;
-        if (!secret) return new Response("Not configured", { status: 500 });
-        const auth = request.headers.get("authorization") ?? "";
-        const token = auth.replace(/^Bearer\s+/i, "");
-        if (!safeEqual(token, secret)) {
-          return new Response("Unauthorized", { status: 401 });
-        }
+        // Privileged job: needs the managed backend admin credential, which
+        // exists only in the Lovable-managed server runtime. Fail loudly
+        // (503) rather than throwing an opaque 500 elsewhere.
+        const runtime = requireTrustedRuntime();
+        if (!runtime.ok) return runtime.response;
+
+        // Accepts a dedicated env secret, Vercel Cron's CRON_SECRET, or the
+        // managed scheduler token in internal_cron_secrets (pg_cron path).
+        const auth = await authorizeCronRequest(request, {
+          jobName: "scan_orchestrator",
+          envSecrets: [process.env.SCAN_ORCHESTRATOR_SECRET, process.env.CRON_SECRET],
+        });
+        if (!auth.ok) return cronAuthResponse(auth);
 
         // scan_module_enrollments/protection_profiles are new tables not yet
         // reflected in the generated Database type until the migration is
@@ -265,7 +267,33 @@ export const Route = createFileRoute("/api/public/hooks/scan-orchestrator")({
         const mod = await import("@/integrations/supabase/client.server");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const supabaseAdmin = mod.supabaseAdmin as any;
+
+        // Idempotent enrollment reconciliation: every customer with an ACTIVE
+        // authorization and a protection profile must have module enrollment
+        // rows for the orchestrator to claim. enrollEligibleModules never
+        // resets a running enrollment and never duplicates rows.
+        let enrolled_users = 0;
+        try {
+          const { data: activeProfiles } = await supabaseAdmin
+            .from("protection_profiles")
+            .select("id, user_id")
+            .limit(200);
+          const { enrollEligibleModules } = await import("@/lib/protection/enrollment.server");
+          for (const p of activeProfiles ?? []) {
+            const { count } = await supabaseAdmin
+              .from("scan_module_enrollments")
+              .select("id", { count: "exact", head: true })
+              .eq("user_id", p.user_id);
+            if ((count ?? 0) > 0) continue;
+            await enrollEligibleModules(p.user_id, p.id);
+            enrolled_users += 1;
+          }
+        } catch (err) {
+          console.error("[scan-orchestrator] enrollment reconciliation failed", err);
+        }
+
         const nowIso = new Date().toISOString();
+
         // Rows stuck at RUNNING/QUEUED because a prior worker crashed or
         // timed out mid-dispatch (after claiming, before the final status
         // write) are reclaimable once stale — otherwise one crash would
@@ -462,7 +490,7 @@ export const Route = createFileRoute("/api/public/hooks/scan-orchestrator")({
           }
         }
 
-        return Response.json({ processed: results.length, results });
+        return Response.json({ processed: results.length, enrolled_users, results });
       },
     },
   },
