@@ -620,6 +620,119 @@ export type Database = {
           },
         ]
       }
+      automated_finding_evidence: {
+        Row: {
+          canonical_url: string | null
+          capture_error: string | null
+          captured_at: string
+          content_length: number | null
+          content_type: string | null
+          evidence_status: string
+          finding_id: string
+          finding_source_table: string
+          http_status: number | null
+          id: string
+          media_sha256: string | null
+          media_type: string | null
+          module_key: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          canonical_url?: string | null
+          capture_error?: string | null
+          captured_at?: string
+          content_length?: number | null
+          content_type?: string | null
+          evidence_status: string
+          finding_id: string
+          finding_source_table: string
+          http_status?: number | null
+          id?: string
+          media_sha256?: string | null
+          media_type?: string | null
+          module_key: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          canonical_url?: string | null
+          capture_error?: string | null
+          captured_at?: string
+          content_length?: number | null
+          content_type?: string | null
+          evidence_status?: string
+          finding_id?: string
+          finding_source_table?: string
+          http_status?: number | null
+          id?: string
+          media_sha256?: string | null
+          media_type?: string | null
+          module_key?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      automated_finding_evidence_captures: {
+        Row: {
+          canonical_url: string | null
+          capture_error: string | null
+          captured_at: string
+          content_length: number | null
+          content_type: string | null
+          evidence_id: string
+          evidence_status: string
+          http_status: number | null
+          id: string
+          media_sha256: string | null
+          media_type: string | null
+          module_key: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          canonical_url?: string | null
+          capture_error?: string | null
+          captured_at?: string
+          content_length?: number | null
+          content_type?: string | null
+          evidence_id: string
+          evidence_status: string
+          http_status?: number | null
+          id?: string
+          media_sha256?: string | null
+          media_type?: string | null
+          module_key: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          canonical_url?: string | null
+          capture_error?: string | null
+          captured_at?: string
+          content_length?: number | null
+          content_type?: string | null
+          evidence_id?: string
+          evidence_status?: string
+          http_status?: number | null
+          id?: string
+          media_sha256?: string | null
+          media_type?: string | null
+          module_key?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automated_finding_evidence_captures_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "automated_finding_evidence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_events: {
         Row: {
           created_at: string
@@ -2076,6 +2189,7 @@ export type Database = {
           error: string | null
           frame_paths: Json
           id: string
+          protected_asset_id: string | null
           reference_kind: string
           sha256: string | null
           stats: Json
@@ -2090,6 +2204,7 @@ export type Database = {
           error?: string | null
           frame_paths?: Json
           id?: string
+          protected_asset_id?: string | null
           reference_kind?: string
           sha256?: string | null
           stats?: Json
@@ -2104,6 +2219,7 @@ export type Database = {
           error?: string | null
           frame_paths?: Json
           id?: string
+          protected_asset_id?: string | null
           reference_kind?: string
           sha256?: string | null
           stats?: Json
@@ -2113,7 +2229,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "copyright_scans_protected_asset_id_fkey"
+            columns: ["protected_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       copyright_youtube_videos: {
         Row: {
@@ -6966,54 +7090,125 @@ export type Database = {
           },
         ]
       }
+      protection_profile_aliases: {
+        Row: {
+          active: boolean
+          alias: string
+          alias_type: string | null
+          created_at: string
+          id: string
+          language: string | null
+          profile_id: string
+        }
+        Insert: {
+          active?: boolean
+          alias: string
+          alias_type?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          profile_id: string
+        }
+        Update: {
+          active?: boolean
+          alias?: string
+          alias_type?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_profile_aliases_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "protection_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       protection_profiles: {
         Row: {
           activated_at: string | null
           authorization_id: string | null
           authorization_level: string | null
           auto_scan_enabled: boolean
+          built_at: string
+          client_id: string | null
           continuous_monitoring_enabled_at: string | null
+          country: string | null
           created_at: string
           default_cadence_minutes: number
+          display_name: string | null
+          id: string
           last_sweep_at: string | null
+          official_socials: Json | null
+          official_website: string | null
           onboarding_completed_at: string | null
           paused: boolean
+          profession_category: string | null
           protection_activated_at: string | null
+          protection_status: string | null
+          source_onboarding_version: string | null
           status: string
           updated_at: string
           user_id: string
+          verified_name: string | null
         }
         Insert: {
           activated_at?: string | null
           authorization_id?: string | null
           authorization_level?: string | null
           auto_scan_enabled?: boolean
+          built_at?: string
+          client_id?: string | null
           continuous_monitoring_enabled_at?: string | null
+          country?: string | null
           created_at?: string
           default_cadence_minutes?: number
+          display_name?: string | null
+          id?: string
           last_sweep_at?: string | null
+          official_socials?: Json | null
+          official_website?: string | null
           onboarding_completed_at?: string | null
           paused?: boolean
+          profession_category?: string | null
           protection_activated_at?: string | null
+          protection_status?: string | null
+          source_onboarding_version?: string | null
           status?: string
           updated_at?: string
           user_id: string
+          verified_name?: string | null
         }
         Update: {
           activated_at?: string | null
           authorization_id?: string | null
           authorization_level?: string | null
           auto_scan_enabled?: boolean
+          built_at?: string
+          client_id?: string | null
           continuous_monitoring_enabled_at?: string | null
+          country?: string | null
           created_at?: string
           default_cadence_minutes?: number
+          display_name?: string | null
+          id?: string
           last_sweep_at?: string | null
+          official_socials?: Json | null
+          official_website?: string | null
           onboarding_completed_at?: string | null
           paused?: boolean
+          profession_category?: string | null
           protection_activated_at?: string | null
+          protection_status?: string | null
+          source_onboarding_version?: string | null
           status?: string
           updated_at?: string
           user_id?: string
+          verified_name?: string | null
         }
         Relationships: []
       }
@@ -7547,6 +7742,80 @@ export type Database = {
             columns: ["scan_id"]
             isOneToOne: false
             referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scan_module_enrollments: {
+        Row: {
+          blocked_reason: string | null
+          cadence_minutes: number
+          candidates_found: number
+          created_at: string
+          current_run_id: string | null
+          current_status: string
+          eligible: boolean
+          enabled: boolean
+          id: string
+          last_scan_at: string | null
+          last_success_at: string | null
+          module_key: string
+          next_scan_at: string | null
+          profile_id: string
+          provider_failures: number
+          retry_count: number
+          updated_at: string
+          user_id: string
+          verified_findings: number
+        }
+        Insert: {
+          blocked_reason?: string | null
+          cadence_minutes?: number
+          candidates_found?: number
+          created_at?: string
+          current_run_id?: string | null
+          current_status?: string
+          eligible?: boolean
+          enabled?: boolean
+          id?: string
+          last_scan_at?: string | null
+          last_success_at?: string | null
+          module_key: string
+          next_scan_at?: string | null
+          profile_id: string
+          provider_failures?: number
+          retry_count?: number
+          updated_at?: string
+          user_id: string
+          verified_findings?: number
+        }
+        Update: {
+          blocked_reason?: string | null
+          cadence_minutes?: number
+          candidates_found?: number
+          created_at?: string
+          current_run_id?: string | null
+          current_status?: string
+          eligible?: boolean
+          enabled?: boolean
+          id?: string
+          last_scan_at?: string | null
+          last_success_at?: string | null
+          module_key?: string
+          next_scan_at?: string | null
+          profile_id?: string
+          provider_failures?: number
+          retry_count?: number
+          updated_at?: string
+          user_id?: string
+          verified_findings?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scan_module_enrollments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "protection_profiles"
             referencedColumns: ["id"]
           },
         ]
