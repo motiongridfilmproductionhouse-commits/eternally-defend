@@ -2,11 +2,13 @@
  * Unified scan-report builder.
  *
  * Reads a completed module run plus its own finding rows, normalizes them,
- * classifies removal eligibility from data that already exists, and stores a
- * single snapshot row in generated_reports. Strictly read-only with respect
- * to enforcement: it never writes enforcement_cases, enforcement_jobs,
- * enforcement_requests, or contacts any external platform.
+ * classifies removal eligibility from data that already exists, optionally
+ * hands REMOVAL_ELIGIBLE discoveries to AutoEnforcementOrchestrator (scan
+ * pipeline only, via enqueueEnforcement), and stores a single snapshot row in
+ * generated_reports. It never sends anything itself and never widens
+ * eligibility: enforcement decisions and the pre-send gate stay where they are.
  */
+
 import { moduleConfig } from "@/lib/protection/module-registry";
 import {
   classifyDiscoveries,
