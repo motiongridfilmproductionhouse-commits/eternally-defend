@@ -286,7 +286,14 @@ export const Route = createFileRoute("/api/public/hooks/scan-orchestrator")({
               .eq("user_id", p.user_id);
             if ((count ?? 0) > 0) continue;
             await enrollEligibleModules(p.user_id, p.id);
-            enrolled_users += 1;
+            // enrollEligibleModules is a no-op when the customer has no
+            // authorization record — count only real enrollments, never a
+            // hopeful one (no fabricated activation states).
+            const { count: after } = await supabaseAdmin
+              .from("scan_module_enrollments")
+              .select("id", { count: "exact", head: true })
+              .eq("user_id", p.user_id);
+            if ((after ?? 0) > 0) enrolled_users += 1;
           }
         } catch (err) {
           console.error("[scan-orchestrator] enrollment reconciliation failed", err);
