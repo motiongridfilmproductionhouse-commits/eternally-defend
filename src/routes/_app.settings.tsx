@@ -8,6 +8,8 @@ import { PageCard } from "@/components/dashboard/PageCard";
 import { Switch } from "@/components/ui/switch";
 import { SocialProfilesPanel } from "@/components/onboarding/SocialProfilesPanel";
 import { SocialAssetProtectionPanel } from "@/components/social/SocialAssetProtectionPanel";
+import { SignedAuthorizationCard } from "@/components/profile/SignedAuthorizationCard";
+
 import { useSession } from "@/hooks/use-session";
 import {
   getAccountProfile,
