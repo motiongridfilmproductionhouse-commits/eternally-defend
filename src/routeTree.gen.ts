@@ -31,6 +31,7 @@ import { Route as AppRemovalsRouteImport } from './routes/_app.removals'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppNarrativeIntelligenceRouteImport } from './routes/_app.narrative-intelligence'
 import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
+import { Route as AppFaceReferencesRouteImport } from './routes/_app.face-references'
 import { Route as AppFaceProtectionRouteImport } from './routes/_app.face-protection'
 import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vault'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
@@ -187,6 +188,11 @@ const AppNarrativeIntelligenceRoute =
 const AppIntelligenceRoute = AppIntelligenceRouteImport.update({
   id: '/intelligence',
   path: '/intelligence',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFaceReferencesRoute = AppFaceReferencesRouteImport.update({
+  id: '/face-references',
+  path: '/face-references',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFaceProtectionRoute = AppFaceProtectionRouteImport.update({
@@ -473,6 +479,7 @@ export interface FileRoutesByFullPath {
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
   '/face-protection': typeof AppFaceProtectionRoute
+  '/face-references': typeof AppFaceReferencesRoute
   '/intelligence': typeof AppIntelligenceRoute
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
@@ -543,6 +550,7 @@ export interface FileRoutesByTo {
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
   '/face-protection': typeof AppFaceProtectionRoute
+  '/face-references': typeof AppFaceReferencesRoute
   '/intelligence': typeof AppIntelligenceRoute
   '/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/notifications': typeof AppNotificationsRoute
@@ -614,6 +622,7 @@ export interface FileRoutesById {
   '/_app/enforcement': typeof AppEnforcementRoute
   '/_app/evidence-vault': typeof AppEvidenceVaultRoute
   '/_app/face-protection': typeof AppFaceProtectionRoute
+  '/_app/face-references': typeof AppFaceReferencesRoute
   '/_app/intelligence': typeof AppIntelligenceRoute
   '/_app/narrative-intelligence': typeof AppNarrativeIntelligenceRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -687,6 +696,7 @@ export interface FileRouteTypes {
     | '/enforcement'
     | '/evidence-vault'
     | '/face-protection'
+    | '/face-references'
     | '/intelligence'
     | '/narrative-intelligence'
     | '/notifications'
@@ -757,6 +767,7 @@ export interface FileRouteTypes {
     | '/enforcement'
     | '/evidence-vault'
     | '/face-protection'
+    | '/face-references'
     | '/intelligence'
     | '/narrative-intelligence'
     | '/notifications'
@@ -827,6 +838,7 @@ export interface FileRouteTypes {
     | '/_app/enforcement'
     | '/_app/evidence-vault'
     | '/_app/face-protection'
+    | '/_app/face-references'
     | '/_app/intelligence'
     | '/_app/narrative-intelligence'
     | '/_app/notifications'
@@ -1070,6 +1082,13 @@ declare module '@tanstack/react-router' {
       path: '/intelligence'
       fullPath: '/intelligence'
       preLoaderRoute: typeof AppIntelligenceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/face-references': {
+      id: '/_app/face-references'
+      path: '/face-references'
+      fullPath: '/face-references'
+      preLoaderRoute: typeof AppFaceReferencesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/face-protection': {
@@ -1433,6 +1452,7 @@ interface AppRouteChildren {
   AppEnforcementRoute: typeof AppEnforcementRoute
   AppEvidenceVaultRoute: typeof AppEvidenceVaultRoute
   AppFaceProtectionRoute: typeof AppFaceProtectionRoute
+  AppFaceReferencesRoute: typeof AppFaceReferencesRoute
   AppIntelligenceRoute: typeof AppIntelligenceRoute
   AppNarrativeIntelligenceRoute: typeof AppNarrativeIntelligenceRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -1468,6 +1488,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEnforcementRoute: AppEnforcementRoute,
   AppEvidenceVaultRoute: AppEvidenceVaultRoute,
   AppFaceProtectionRoute: AppFaceProtectionRoute,
+  AppFaceReferencesRoute: AppFaceReferencesRoute,
   AppIntelligenceRoute: AppIntelligenceRoute,
   AppNarrativeIntelligenceRoute: AppNarrativeIntelligenceRoute,
   AppNotificationsRoute: AppNotificationsRoute,
@@ -1576,12 +1597,3 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

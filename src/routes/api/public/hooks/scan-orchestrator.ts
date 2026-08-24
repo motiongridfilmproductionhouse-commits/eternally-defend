@@ -387,6 +387,10 @@ export const Route = createFileRoute("/api/public/hooks/scan-orchestrator")({
                   const { runNarrativeIntelForUser } =
                     await import("@/lib/protection/dispatch/narrative.server");
                   outcome = await runNarrativeIntelForUser(supabaseAdmin, row.user_id);
+                } else if (row.module_key === "face_reference_extraction") {
+                  const { runFaceReferenceExtractionForUser } =
+                    await import("@/lib/protection/dispatch/face-reference-extraction.server");
+                  outcome = await runFaceReferenceExtractionForUser(supabaseAdmin, row.user_id);
                 } else {
                   outcome = {
                     status: "WAITING_FOR_NEXT_SCAN",

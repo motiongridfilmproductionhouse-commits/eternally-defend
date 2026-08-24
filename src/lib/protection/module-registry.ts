@@ -69,6 +69,13 @@ export const MODULE_REGISTRY: ModuleConfig[] = [
     cadenceMinutes: 24 * 60,
   },
   {
+    key: "face_reference_extraction",
+    label: "Face Reference Extraction",
+    scopeKey: "detect_face_misuse",
+    driver: "orchestrator",
+    cadenceMinutes: 24 * 60,
+  },
+  {
     key: "copyright_intel",
     label: "Copyright / Protected-Asset Intelligence",
     scopeKey: "prepare_copyright",

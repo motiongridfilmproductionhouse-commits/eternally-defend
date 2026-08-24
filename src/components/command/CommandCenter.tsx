@@ -37,6 +37,7 @@ import { getCompanyProtectionStats } from "@/lib/company/protection-stats.functi
 import { useVerificationStatus } from "@/hooks/use-verification-status";
 import { faceProtectionApplies } from "@/lib/onboarding/v2-config";
 import { ProtectionStatusPanel } from "@/components/command/ProtectionStatusPanel";
+import { FaceReferenceCoveragePanel } from "@/components/command/FaceReferenceCoveragePanel";
 import {
   ScanFace,
   UserX,
@@ -167,6 +168,7 @@ export function CommandCenter() {
 
       <ProtectionStatusPanel />
 
+      <FaceReferenceCoveragePanel />
 
       <FaceProtectionRow />
 
