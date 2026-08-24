@@ -22,7 +22,10 @@ export function awsEnvFingerprint() {
   const id = raw("AWS_ACCESS_KEY_ID");
   const secret = raw("AWS_SECRET_ACCESS_KEY");
   return {
-    region: raw("AWS_REGION").trim() || null,
+    configuredRegion: raw("AWS_REGION").trim() || null,
+    rekognitionRegionOverride: raw("AWS_REKOGNITION_REGION").trim() || null,
+    defaultRegion: raw("AWS_DEFAULT_REGION").trim() || null,
+    accessKeyIdLooksValid: /^(AKIA|ASIA)[A-Z0-9]{16}$/.test(raw("AWS_ACCESS_KEY_ID").trim()),
     accessKeyIdPrefix: id.trim() ? `${id.trim().slice(0, 8)}…` : null,
     accessKeyIdLength: id.trim().length,
     secretLength: secret.trim().length,
