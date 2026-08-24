@@ -32,7 +32,7 @@ export function FaceReferenceCoveragePanel() {
   if (q.error || !q.data) return null;
 
   const d = q.data;
-  const hasAnyReferences = d.verifiedReferenceCount > 0 || d.approvedSecondaryReferenceCount > 0;
+  const hasAnySecondaryReferences = d.approvedSecondaryReferenceCount > 0;
 
   return (
     <div className="rounded-2xl border border-white/10 bg-background/60 backdrop-blur-md shadow-[0_10px_40px_-15px_oklch(0.2_0.1_260_/_0.4)] p-5">
@@ -51,10 +51,17 @@ export function FaceReferenceCoveragePanel() {
         </Link>
       </div>
 
-      {!hasAnyReferences ? (
+      {!d.verifiedIdentityActive ? (
         <div className="text-sm text-muted-foreground">
-          No reference faces yet. Secondary references are built automatically from your existing
-          protected screenshots once a verified identity reference exists.
+          Complete Face Protection to enable automatic face reference extraction.
+        </div>
+      ) : !hasAnySecondaryReferences ? (
+        <div className="space-y-2">
+          <div className="text-sm text-white/80">Verified identity reference active.</div>
+          <div className="text-sm text-muted-foreground">
+            Secondary face references will be built automatically from approved protected
+            screenshots.
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">

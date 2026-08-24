@@ -41,10 +41,17 @@ export interface PipelineDeps {
   matchIdentity: typeof matchTileAgainstReferences;
   computePhash: typeof computePerceptualHash;
   checkDuplicate: typeof checkDuplicate;
-  /** Indexes a promoted face into Rekognition + inserts the deepfake_reference_faces row. Returns the new row's id. */
+  /**
+   * Indexes a promoted face into Rekognition + inserts the
+   * deepfake_reference_faces row. Returns the new row's id. `profileId` is
+   * null when the customer has no deepfake_target_profiles row yet (a
+   * liveness-only trusted anchor) — the caller is responsible for resolving
+   * (and lazily creating, if truly needed) a real profile id before the
+   * insert; the pipeline itself never creates one.
+   */
   promoteToReferenceFace: (input: {
     userId: string;
-    profileId: string;
+    profileId: string | null;
     tileBytes: Uint8Array;
     tileStorageKey: string;
     sourceAssetId: string;
@@ -60,7 +67,8 @@ export type SupabaseLike = any;
 export interface ProcessAssetInput {
   supabase: SupabaseLike;
   userId: string;
-  profileId: string;
+  /** null when the trusted anchor is liveness-only and no deepfake_target_profiles row exists yet. */
+  profileId: string | null;
   asset: ProtectedAssetRow;
   referenceImages: Uint8Array[];
   existingReferences: ExistingReference[];

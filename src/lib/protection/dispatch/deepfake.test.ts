@@ -47,7 +47,7 @@ test("findExistingDeepfakeTarget: target profile exists but zero reference faces
   assert.deepEqual(result, { profileId: "dtp-1", referenceFaceCount: 0 });
 });
 
-test("runDeepfakeIntelForUser: no target profile -> honest NO_TARGET_PROFILE, pipeline never invoked", async () => {
+test("runDeepfakeIntelForUser: no target profile, no liveness anchor -> honest NO_VERIFIED_FACE_REFERENCE, pipeline never invoked", async () => {
   const supabase = createMockSupabase();
   let invoked = false;
   const outcome = await runDeepfakeIntelForUser(
@@ -59,11 +59,11 @@ test("runDeepfakeIntelForUser: no target profile -> honest NO_TARGET_PROFILE, pi
     },
   );
   assert.equal(outcome.status, "WAITING_FOR_NEXT_SCAN");
-  assert.equal(outcome.blocked_reason, "NO_TARGET_PROFILE");
+  assert.equal(outcome.blocked_reason, "NO_VERIFIED_FACE_REFERENCE");
   assert.equal(invoked, false);
 });
 
-test("runDeepfakeIntelForUser: target profile exists but no reference faces -> honest NO_REFERENCE_FACES, pipeline never invoked", async () => {
+test("runDeepfakeIntelForUser: target profile exists but no reference faces, no liveness anchor -> honest NO_VERIFIED_FACE_REFERENCE, pipeline never invoked (regression: unchanged from before the liveness bridge)", async () => {
   const supabase = createMockSupabase({
     deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1", target_name: "Jane Doe" }],
   });
@@ -77,8 +77,37 @@ test("runDeepfakeIntelForUser: target profile exists but no reference faces -> h
     },
   );
   assert.equal(outcome.status, "WAITING_FOR_NEXT_SCAN");
-  assert.equal(outcome.blocked_reason, "NO_REFERENCE_FACES");
+  assert.equal(outcome.blocked_reason, "NO_VERIFIED_FACE_REFERENCE");
   assert.equal(invoked, false);
+});
+
+test("runDeepfakeIntelForUser: no target profile, but a liveness-verified Face Protection anchor exists -> NOT blocked, scan runs text-only", async () => {
+  const supabase = createMockSupabase({
+    protected_face_profiles: [{ id: "pfp-1", user_id: "user-1", status: "FACE_VERIFIED" }],
+    protected_faces: [
+      { id: "pf-1", user_id: "user-1", status: "ACTIVE", s3_bucket: "b", s3_key: "k1" },
+    ],
+  });
+  let capturedProfileId: string | undefined | null = "unset";
+  const outcome = await runDeepfakeIntelForUser(
+    supabase,
+    "user-1",
+    { display_name: "Jane Doe", verified_name: null },
+    {
+      runDeepfakeScanCore: async (_s, _u, rawData) => {
+        capturedProfileId = (rawData as { profile_id?: string }).profile_id;
+        return { scan_id: "scan-1", already_running: false };
+      },
+    },
+  );
+  assert.notEqual(outcome.blocked_reason, "NO_VERIFIED_FACE_REFERENCE");
+  assert.equal(outcome.status, "COMPLETED");
+  // No deepfake_target_profiles row exists for this customer, and this
+  // dispatcher must never create one — the scan runs without a profile_id
+  // (text-only, no Rekognition face-filtering) rather than fabricating one.
+  assert.equal(capturedProfileId, undefined);
+  assert.equal(outcome.blocked_reason, "TEXT_ONLY_NO_FACE_FILTER");
+  assert.equal(supabase._store.deepfake_target_profiles?.length ?? 0, 0);
 });
 
 test("runDeepfakeIntelForUser: reuses the existing target profile id, never creates a new one", async () => {

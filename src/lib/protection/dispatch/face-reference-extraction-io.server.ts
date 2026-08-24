@@ -13,6 +13,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getS3, getBucket } from "@/lib/aws/clients.server";
 import { putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { indexDeepfakeReferenceFace } from "@/lib/deepfake/face-enrollment.server";
+import type { TrustedFaceAnchor } from "../trusted-face-anchors.server";
 
 export async function downloadAssetBytes(storagePath: string): Promise<Uint8Array> {
   const object = await getS3().send(
@@ -20,6 +21,31 @@ export async function downloadAssetBytes(storagePath: string): Promise<Uint8Arra
   );
   if (!object.Body) throw new Error("Empty S3 object body");
   return new Uint8Array(await object.Body.transformToByteArray());
+}
+
+/** protected_faces rows may live in a different bucket than the app's default — always use the row's own bucket. */
+async function downloadS3Bytes(bucket: string, key: string): Promise<Uint8Array> {
+  const object = await getS3().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  if (!object.Body) throw new Error("Empty S3 object body");
+  return new Uint8Array(await object.Body.transformToByteArray());
+}
+
+/**
+ * Normalizes both trusted-anchor sources to bytes: FACE_PROTECTION anchors
+ * live in S3 (protected_faces.s3_bucket/s3_key), DEEPFAKE_PROFILE anchors
+ * live in Supabase Storage (deepfake_reference_faces.storage_path, bucket
+ * "deepfake-reference-faces"). Never downloads anything outside the anchor
+ * the caller already resolved for this specific user.
+ */
+export async function downloadTrustedAnchorBytes(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  anchor: TrustedFaceAnchor,
+): Promise<Uint8Array> {
+  if (anchor.retrieval.kind === "s3") {
+    return downloadS3Bytes(anchor.retrieval.bucket, anchor.retrieval.key);
+  }
+  return downloadReferenceImageBytes(supabase, anchor.retrieval.path);
 }
 
 export async function uploadTileBytes(key: string, bytes: Uint8Array): Promise<void> {

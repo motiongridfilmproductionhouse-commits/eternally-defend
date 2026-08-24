@@ -9,21 +9,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-async function findTargetProfileId(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  userId: string,
-): Promise<string | null> {
-  const { data } = await supabase
-    .from("deepfake_target_profiles")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  return data?.id ?? null;
-}
+import {
+  getTrustedFaceAnchorsForUser,
+  ensureDeepfakeTargetProfileForUser,
+} from "./trusted-face-anchors.server";
 
 export interface FaceReferenceCoverage {
+  /** True when the customer has a liveness-verified (or otherwise canonical) trusted anchor — independent of whether any secondary reference has been built yet. */
+  verifiedIdentityActive: boolean;
   verifiedReferenceCount: number;
   approvedSecondaryReferenceCount: number;
   tilesAnalyzed: number;
@@ -43,57 +36,47 @@ export const getFaceReferenceCoverage = createServerFn({ method: "GET" })
     // src/lib/enforcement/worker.ts).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = context.supabase as any;
-    const profileId = await findTargetProfileId(supabase, userId);
 
-    if (!profileId) {
-      return {
-        verifiedReferenceCount: 0,
-        approvedSecondaryReferenceCount: 0,
-        tilesAnalyzed: 0,
-        facesDetected: 0,
-        matched: 0,
-        rejectedOrReview: 0,
-      };
-    }
+    // Tile-level stats are scoped by user_id directly, not by whether a
+    // deepfake_target_profiles row exists — a liveness-only customer can
+    // have tiles analyzed (and even promoted references, via a lazily
+    // created target profile) long before any manual Deepfake Intel setup.
+    const [anchorResult, { count: tilesAnalyzed }, { count: facesDetected }, { count: matched }] =
+      await Promise.all([
+        getTrustedFaceAnchorsForUser(supabase, userId),
+        supabase
+          .from("protected_asset_grid_tiles")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId),
+        supabase
+          .from("protected_asset_grid_tiles")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("face_classification", "USABLE_FACE"),
+        supabase
+          .from("protected_asset_grid_tiles")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .in("promotion_status", ["AUTO_APPROVED", "MANUALLY_APPROVED"]),
+      ]);
 
-    const [
-      { data: referenceRows },
-      { count: tilesAnalyzed },
-      { count: facesDetected },
-      { count: matched },
-    ] = await Promise.all([
-      supabase
-        .from("deepfake_reference_faces")
-        .select("reference_tier")
-        .eq("profile_id", profileId),
-      supabase
-        .from("protected_asset_grid_tiles")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId),
-      supabase
-        .from("protected_asset_grid_tiles")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("face_classification", "USABLE_FACE"),
-      supabase
-        .from("protected_asset_grid_tiles")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .in("promotion_status", ["AUTO_APPROVED", "MANUALLY_APPROVED"]),
-    ]);
-
-    const rows = (referenceRows ?? []) as Array<{ reference_tier: string }>;
-    const verifiedReferenceCount = rows.filter(
-      (r) => r.reference_tier === "CANONICAL_VERIFIED_REFERENCE",
-    ).length;
-    const approvedSecondaryReferenceCount = rows.filter(
-      (r) => r.reference_tier !== "CANONICAL_VERIFIED_REFERENCE",
+    // The trust-tier breakdown never mixes tiers: a verified identity
+    // anchor (liveness, or a canonical deepfake reference) is reported
+    // separately from approved/screenshot-derived secondary references —
+    // never combined into one misleading total.
+    const verifiedIdentityActive = anchorResult.anchors.some(
+      (a) => a.tier === "CANONICAL_VERIFIED_REFERENCE",
+    );
+    const verifiedReferenceCount = verifiedIdentityActive ? 1 : 0;
+    const approvedSecondaryReferenceCount = anchorResult.anchors.filter(
+      (a) => a.tier !== "CANONICAL_VERIFIED_REFERENCE",
     ).length;
 
     const facesDetectedCount = facesDetected ?? 0;
     const matchedCount = matched ?? 0;
 
     return {
+      verifiedIdentityActive,
       verifiedReferenceCount,
       approvedSecondaryReferenceCount,
       tilesAnalyzed: tilesAnalyzed ?? 0,
@@ -234,8 +217,18 @@ export const reviewFaceReferenceCandidate = createServerFn({ method: "POST" })
       return { ok: true, decision: "reject" as const };
     }
 
-    const profileId = await findTargetProfileId(supabase, userId);
-    if (!profileId) throw new Error("No protected identity profile found for approval.");
+    // Manual approval is a human-confirmed match — the same lazy find-or-create
+    // bridge the automated pipeline uses (ensureDeepfakeTargetProfileForUser)
+    // applies here too, so a liveness-only customer approving their first
+    // candidate doesn't need a pre-existing manual Deepfake Intel profile.
+    const { data: profileRow } = await supabase
+      .from("protection_profiles")
+      .select("display_name, verified_name")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const targetName =
+      (profileRow?.display_name || profileRow?.verified_name || "").trim() || "Protected Subject";
+    const profileId = await ensureDeepfakeTargetProfileForUser(supabase, userId, targetName);
     if (!tile.tile_storage_path) throw new Error("Tile image is missing — cannot approve.");
 
     const { getS3, getBucket } = await import("@/lib/aws/clients.server");

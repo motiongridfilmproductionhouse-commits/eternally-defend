@@ -5,19 +5,25 @@
  * scan-executor.server.ts/scan-pipeline.server.ts, which nothing in
  * production ever dispatches to.
  *
- * Uses the confirmed-real production face chain user_id ->
- * deepfake_target_profiles -> deepfake_reference_faces STRICTLY READ-ONLY.
- * Earlier versions of this module auto-created a deepfake_target_profiles
- * row and bridged a reference image copied from a table called
- * protected_faces — that table does not exist in production (confirmed by
- * direct schema inspection), so that bridge could never have worked and is
- * removed entirely. This module now only reuses whatever
- * deepfake_target_profiles/deepfake_reference_faces rows already exist for
- * a customer (created via the existing manual Deepfake Intel UI) and
- * returns an honest blocked status when they don't — it never creates,
- * modifies, or deletes rows in either table.
+ * Identity gating now goes through the shared getTrustedFaceAnchorsForUser
+ * resolver (src/lib/protection/trusted-face-anchors.server.ts). protected_faces
+ * / protected_face_profiles DO exist in production and are the table Face
+ * Protection / AWS Liveness enrollment actually writes to (confirmed by the
+ * current deployed src/lib/onboarding/face-enrollment-core.server.ts and
+ * src/lib/face-protection/protected-face-registry.ts) — an earlier version
+ * of this comment said otherwise; that was correct at the time it was
+ * written but is now stale. A customer with ONLY a liveness anchor (no
+ * deepfake_target_profiles row) is no longer reported as having no
+ * reference at all: the scan runs, just without Rekognition face-filtering
+ * until deepfake_reference_faces accumulates >=3 rows for them (via Face
+ * Reference Extraction's own auto-promotion, or the manual Deepfake Intel
+ * upload flow — either way, never a forced re-upload). This module still
+ * never creates, modifies, or deletes a deepfake_target_profiles or
+ * deepfake_reference_faces row itself — face-filtering eligibility is
+ * purely a read of whatever already exists.
  */
 import { AutoEnforcementOrchestrator, type FindingShape } from "@/lib/enforcement/orchestrator";
+import { getTrustedFaceAnchorsForUser } from "../trusted-face-anchors.server";
 
 export interface DeepfakeOutcome {
   status: string;
@@ -104,24 +110,29 @@ export async function runDeepfakeIntelForUser(
   }
 
   const existing = await findExistingDeepfakeTarget(supabaseAdmin, userId);
-  if (!existing) {
-    // No fabricated enrollment — this customer has never gone through the
-    // existing manual Deepfake Intel target-profile creation flow.
+  const anchorResult = await getTrustedFaceAnchorsForUser(supabaseAdmin, userId);
+  const hasLivenessAnchor = anchorResult.anchors.some((a) => a.source === "FACE_PROTECTION");
+  const referenceFaceCount = existing?.referenceFaceCount ?? 0;
+
+  // Preserves the exact pre-existing behavior for every case that doesn't
+  // involve a liveness anchor: a target profile with zero reference faces
+  // (and no liveness anchor) is still a hard block, same as before — this
+  // only adds the new case of "no target profile, but a liveness-verified
+  // Face Protection anchor exists," which must no longer be reported as
+  // having no reference at all.
+  if (!hasLivenessAnchor && referenceFaceCount === 0) {
     return {
       status: "WAITING_FOR_NEXT_SCAN",
       candidates_found: 0,
       verified_findings: 0,
-      blocked_reason: "NO_TARGET_PROFILE",
+      blocked_reason: "NO_VERIFIED_FACE_REFERENCE",
     };
   }
-  if (existing.referenceFaceCount === 0) {
-    return {
-      status: "WAITING_FOR_NEXT_SCAN",
-      candidates_found: 0,
-      verified_findings: 0,
-      blocked_reason: "NO_REFERENCE_FACES",
-    };
-  }
+  // referenceFaceCount drives face-filtering eligibility below
+  // (MIN_REFERENCE_FACES_FOR_MATCHING) — a liveness-only customer with no
+  // deepfake_target_profiles row has 0 here, same as before, and the scan
+  // still proceeds text-only via TEXT_ONLY_NO_FACE_FILTER rather than being
+  // blocked outright.
 
   const { data: profileRow } = await supabaseAdmin
     .from("protection_profiles")
@@ -156,7 +167,7 @@ export async function runDeepfakeIntelForUser(
       (await import("@/lib/deepfake-intel.functions")).runDeepfakeScanCore;
     result = await runDeepfakeScanCore(supabaseAdmin, userId, {
       target_name: targetName,
-      profile_id: existing.profileId,
+      profile_id: existing?.profileId,
       aliases,
       handles,
     });
@@ -201,9 +212,7 @@ export async function runDeepfakeIntelForUser(
   }
 
   const blockedReason =
-    existing.referenceFaceCount < MIN_REFERENCE_FACES_FOR_MATCHING
-      ? "TEXT_ONLY_NO_FACE_FILTER"
-      : null;
+    referenceFaceCount < MIN_REFERENCE_FACES_FOR_MATCHING ? "TEXT_ONLY_NO_FACE_FILTER" : null;
 
   return {
     status: "COMPLETED",
