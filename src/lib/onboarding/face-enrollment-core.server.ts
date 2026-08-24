@@ -44,6 +44,22 @@ export function classifyAwsError(e: any): AwsErrorInfo {
       retryable: true,
     };
   }
+  // Malformed credentials mention "region" in the AWS signature-template text
+  // ("keyid/date/region/service/term"), so they must be classified BEFORE the
+  // region branch or a bad access key id looks like a region mismatch.
+  if (
+    /AWS_CREDENTIAL_FORMAT/.test(raw) ||
+    name === "IncompleteSignatureException" ||
+    name === "AuthorizationHeaderMalformed" ||
+    /slash-delimited|mal-?formed|InvalidClientTokenId|SignatureDoesNotMatch/i.test(raw)
+  ) {
+    return {
+      code: "AWS_CREDENTIALS_ERROR",
+      message:
+        "Face Protection is temporarily unavailable (invalid service credentials). You can retry or complete this setup later.",
+      retryable: true,
+    };
+  }
   if (name === "InvalidSignatureException" || /Signature|clock skew/i.test(raw)) {
     return {
       code: "AWS_CREDENTIALS_ERROR",
