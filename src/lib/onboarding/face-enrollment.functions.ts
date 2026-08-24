@@ -122,12 +122,23 @@ export const deferFaceEnrollment = createServerFn({ method: "POST" })
     // protection is not gated on KYC. Identity verification is still enforced
     // later for sensitive actions (DMCA authorization, enforcement eligibility).
 
+    // Clears any failure detail from a preceding failed attempt (e.g. an AWS
+    // error) rather than leaving it stranded on the row — deferring after a
+    // failure is a distinct, deliberate customer action, not a continuation
+    // of that failure. Matches resumeFaceEnrollment's same cleanup. The
+    // failed attempt itself isn't lost: it was already logged server-side
+    // (console.error("[face-enrollment] AWS failure", ...) in
+    // face-enrollment-core.server.ts) at the time it happened.
     await supabase.from("protected_face_profiles").upsert(
       {
         user_id: userId,
         collection_id: collectionIdForUser(userId),
         status: "DEFERRED",
-      },
+        liveness_session_id: null,
+        failure_code: null,
+        failure_reason: null,
+        failure_at: null,
+      } as never,
       { onConflict: "user_id" },
     );
 
