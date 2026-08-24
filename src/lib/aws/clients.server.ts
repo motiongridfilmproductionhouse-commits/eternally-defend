@@ -21,6 +21,19 @@ function validateAndLog() {
     throw new Error(`AWS credentials not configured. Missing: ${missing.join(", ")}`);
   }
 
+  // An access key ID is always 20 chars beginning AKIA/ASIA. When the secret
+  // access key value is pasted into AWS_ACCESS_KEY_ID (a common mix-up) AWS
+  // rejects the signature with a message that mentions "region", which used to
+  // be misreported as a region mismatch. Fail with the real cause instead.
+  if (!/^(AKIA|ASIA)[A-Z0-9]{16}$/.test(accessKeyId!)) {
+    throw new Error(
+      "AWS_CREDENTIAL_FORMAT: AWS_ACCESS_KEY_ID is not a valid AWS access key ID " +
+        `(length ${accessKeyId!.length}, expected 20 starting with AKIA/ASIA). ` +
+        "It looks like a secret access key was stored in this variable.",
+    );
+  }
+
+
   console.log(`[AWS] Initialized successfully. Region: ${region} | Bucket: ${bucket}`);
   _hasValidated = true;
 }

@@ -17,7 +17,9 @@ function env(name: string): string | undefined {
 }
 
 export function rekognitionRegion(): string {
-  return env("AWS_REKOGNITION_REGION") ?? env("AWS_REGION") ?? "eu-north-1";
+  // Default must match the S3 bucket / Rekognition region actually in use
+  // (us-east-1). A different fallback silently produces cross-region failures.
+  return env("AWS_REKOGNITION_REGION") ?? env("AWS_REGION") ?? "us-east-1";
 }
 
 export function hasRekognitionCredentials(): boolean {

@@ -22,7 +22,10 @@ export function awsEnvFingerprint() {
   const id = raw("AWS_ACCESS_KEY_ID");
   const secret = raw("AWS_SECRET_ACCESS_KEY");
   return {
-    region: raw("AWS_REGION").trim() || null,
+    configuredRegion: raw("AWS_REGION").trim() || null,
+    rekognitionRegionOverride: raw("AWS_REKOGNITION_REGION").trim() || null,
+    defaultRegion: raw("AWS_DEFAULT_REGION").trim() || null,
+    accessKeyIdLooksValid: /^(AKIA|ASIA)[A-Z0-9]{16}$/.test(raw("AWS_ACCESS_KEY_ID").trim()),
     accessKeyIdPrefix: id.trim() ? `${id.trim().slice(0, 8)}…` : null,
     accessKeyIdLength: id.trim().length,
     secretLength: secret.trim().length,
@@ -41,6 +44,22 @@ export function classifyAwsError(e: any): AwsErrorInfo {
       code: "AWS_CONFIG_ERROR",
       message:
         "Face Protection is temporarily unavailable (service permissions). You can retry or complete this setup later.",
+      retryable: true,
+    };
+  }
+  // Malformed credentials mention "region" in the AWS signature-template text
+  // ("keyid/date/region/service/term"), so they must be classified BEFORE the
+  // region branch or a bad access key id looks like a region mismatch.
+  if (
+    /AWS_CREDENTIAL_FORMAT/.test(raw) ||
+    name === "IncompleteSignatureException" ||
+    name === "AuthorizationHeaderMalformed" ||
+    /slash-delimited|mal-?formed|InvalidClientTokenId|SignatureDoesNotMatch/i.test(raw)
+  ) {
+    return {
+      code: "AWS_CREDENTIALS_ERROR",
+      message:
+        "Face Protection is temporarily unavailable (invalid service credentials). You can retry or complete this setup later.",
       retryable: true,
     };
   }
