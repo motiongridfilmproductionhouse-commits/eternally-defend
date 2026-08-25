@@ -279,6 +279,7 @@ export const revokeAdminConfirmedAnchor = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     return revokeAdminConfirmedAnchorCore(supabaseAdmin, {
       adminUserId: context.userId,
+      targetUserId: data.targetUserId,
       referenceFaceId: data.referenceFaceId,
     });
   });

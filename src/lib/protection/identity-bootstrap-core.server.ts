@@ -256,15 +256,23 @@ async function cascadeRevokeDerivedReferences(
  * automatic match made against an anchor that turns out to be the wrong
  * person is no more trustworthy than the anchor itself. A reference that
  * independently matched a different, still-valid anchor is never touched.
+ *
+ * Defense in depth: targetUserId must actually own referenceFaceId (via its
+ * deepfake_target_profiles.user_id) before anything is touched. This never
+ * changes who may call this — the caller must still be an admin, re-verified
+ * by the createServerFn wrapper exactly as before — it only guards against a
+ * caller-side mismatch (e.g. a stale UI, a future bug) silently revoking the
+ * wrong customer's reference. A mismatch fails closed: no row is read for
+ * mutation, nothing is revoked, nothing cascades.
  */
 export async function revokeAdminConfirmedAnchorCore(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseAdmin: any,
-  input: { adminUserId: string; referenceFaceId: string },
+  input: { adminUserId: string; targetUserId: string; referenceFaceId: string },
 ): Promise<{ ok: true; alreadyRevoked: boolean; cascadedCount: number }> {
   const { data: reference, error } = await supabaseAdmin
     .from("deepfake_reference_faces")
-    .select("id, reference_tier, revoked_at")
+    .select("id, profile_id, reference_tier, revoked_at")
     .eq("id", input.referenceFaceId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -272,6 +280,17 @@ export async function revokeAdminConfirmedAnchorCore(
   if (reference.reference_tier !== CONFIRMED_TIER) {
     throw new Error("Only an admin-confirmed protected-asset reference can be revoked this way.");
   }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("deepfake_target_profiles")
+    .select("user_id")
+    .eq("id", reference.profile_id)
+    .maybeSingle();
+  if (profileError) throw new Error(profileError.message);
+  if (!profile || profile.user_id !== input.targetUserId) {
+    throw new Error("Reference not found.");
+  }
+
   if (reference.revoked_at) return { ok: true, alreadyRevoked: true, cascadedCount: 0 };
 
   const revokedAt = new Date().toISOString();

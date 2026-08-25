@@ -182,6 +182,7 @@ test("rejecting an already-reviewed cluster throws", async () => {
 
 test("revocation: marks revoked_at/revoked_by without deleting the row (audit history preserved)", async () => {
   const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1" }],
     deepfake_reference_faces: [
       {
         id: "ref-1",
@@ -194,6 +195,7 @@ test("revocation: marks revoked_at/revoked_by without deleting the row (audit hi
 
   const result = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "ref-1",
   });
 
@@ -207,6 +209,7 @@ test("revocation: marks revoked_at/revoked_by without deleting the row (audit hi
 
 test("revocation is idempotent: revoking an already-revoked reference is a safe no-op", async () => {
   const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1" }],
     deepfake_reference_faces: [
       {
         id: "ref-1",
@@ -220,6 +223,7 @@ test("revocation is idempotent: revoking an already-revoked reference is a safe 
 
   const result = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "ref-1",
   });
 
@@ -235,7 +239,11 @@ test("revocation refuses to touch a non-admin-confirmed tier (e.g. a screenshot-
     ],
   });
   await assert.rejects(() =>
-    revokeAdminConfirmedAnchorCore(supabase, { adminUserId: "admin-1", referenceFaceId: "ref-1" }),
+    revokeAdminConfirmedAnchorCore(supabase, {
+      adminUserId: "admin-1",
+      targetUserId: "user-1",
+      referenceFaceId: "ref-1",
+    }),
   );
 });
 
@@ -248,6 +256,7 @@ test("revocation refuses to touch a non-admin-confirmed tier (e.g. a screenshot-
 
 test("revocation cascade 1: confirmed anchor -> derived reference -> revoke anchor -> derived reference becomes inactive", async () => {
   const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1" }],
     deepfake_reference_faces: [
       {
         id: "anchor-1",
@@ -267,6 +276,7 @@ test("revocation cascade 1: confirmed anchor -> derived reference -> revoke anch
 
   const result = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "anchor-1",
   });
 
@@ -293,6 +303,7 @@ test("revocation cascade 1: confirmed anchor -> derived reference -> revoke anch
 
 test("revocation cascade transitively follows a multi-hop chain (derived reference that itself became an anchor for a further match)", async () => {
   const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1" }],
     deepfake_reference_faces: [
       {
         id: "anchor-1",
@@ -319,6 +330,7 @@ test("revocation cascade transitively follows a multi-hop chain (derived referen
 
   const result = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "anchor-1",
   });
 
@@ -336,6 +348,7 @@ test("revocation cascade transitively follows a multi-hop chain (derived referen
 
 test("revocation cascade 2: historical evidence remains intact — nothing is deleted, provenance is preserved", async () => {
   const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1" }],
     face_identity_candidate_clusters: [
       {
         id: "cluster-1",
@@ -367,6 +380,7 @@ test("revocation cascade 2: historical evidence remains intact — nothing is de
 
   await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "anchor-1",
   });
 
@@ -393,6 +407,10 @@ test("revocation cascade 2: historical evidence remains intact — nothing is de
 
 test("revocation cascade 3 / cross-user isolation: a reference derived from a DIFFERENT anchor (different customer) is never touched", async () => {
   const supabase = createMockSupabase({
+    deepfake_target_profiles: [
+      { id: "dtp-1", user_id: "user-1" },
+      { id: "dtp-2", user_id: "user-2" },
+    ],
     deepfake_reference_faces: [
       {
         id: "anchor-1",
@@ -426,6 +444,7 @@ test("revocation cascade 3 / cross-user isolation: a reference derived from a DI
 
   const result = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "anchor-1",
   });
 
@@ -444,6 +463,7 @@ test("revocation cascade 3 / cross-user isolation: a reference derived from a DI
 
 test("revocation cascade 4: repeated revocation creates no duplicate state", async () => {
   const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1" }],
     deepfake_reference_faces: [
       {
         id: "anchor-1",
@@ -463,6 +483,7 @@ test("revocation cascade 4: repeated revocation creates no duplicate state", asy
 
   const first = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "anchor-1",
   });
   assert.equal(first.cascadedCount, 1);
@@ -472,6 +493,7 @@ test("revocation cascade 4: repeated revocation creates no duplicate state", asy
 
   const second = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "anchor-1",
   });
   assert.equal(second.alreadyRevoked, true);
@@ -577,6 +599,7 @@ test("Face Protection activation failure never blocks or reverts the confirmatio
 
 test("revoking an admin-confirmed anchor deactivates its linked Face Protection reference and reverts the profile status — never touches a genuinely liveness-verified profile", async () => {
   const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1" }],
     deepfake_reference_faces: [
       {
         id: "anchor-1",
@@ -606,6 +629,7 @@ test("revoking an admin-confirmed anchor deactivates its linked Face Protection 
 
   const result = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "anchor-1",
   });
 
@@ -624,6 +648,7 @@ test("revoking an admin-confirmed anchor deactivates its linked Face Protection 
 
 test("revocation never downgrades a profile that reached FACE_VERIFIED through genuine liveness, even if a linked_reference_face_id row somehow exists", async () => {
   const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1" }],
     deepfake_reference_faces: [
       {
         id: "anchor-1",
@@ -650,9 +675,65 @@ test("revocation never downgrades a profile that reached FACE_VERIFIED through g
 
   await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: "admin-1",
+    targetUserId: "user-1",
     referenceFaceId: "anchor-1",
   });
 
   const profile = supabase._store["protected_face_profiles"].find((p) => p.user_id === "user-1")!;
   assert.equal(profile.status, "FACE_VERIFIED", "a genuine liveness verification is never touched");
+});
+
+test("revocation defense-in-depth: a targetUserId that does not actually own referenceFaceId fails closed — nothing is revoked, nothing cascades", async () => {
+  const supabase = createMockSupabase({
+    deepfake_target_profiles: [
+      { id: "dtp-1", user_id: "user-1" },
+      { id: "dtp-2", user_id: "user-2" },
+    ],
+    deepfake_reference_faces: [
+      {
+        id: "anchor-1",
+        profile_id: "dtp-1", // genuinely owned by user-1
+        reference_tier: "ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE",
+        revoked_at: null,
+      },
+      {
+        id: "derived-1",
+        profile_id: "dtp-1",
+        reference_tier: "SCREENSHOT_DERIVED_REFERENCE",
+        derived_from_reference_id: "anchor-1",
+        revoked_at: null,
+      },
+    ],
+  });
+
+  // The caller (or a stale UI) supplies user-2 as the target, but anchor-1
+  // actually belongs to user-1 — this must fail closed rather than revoke
+  // whatever reference id was supplied regardless of who it belongs to.
+  await assert.rejects(() =>
+    revokeAdminConfirmedAnchorCore(supabase, {
+      adminUserId: "admin-1",
+      targetUserId: "user-2",
+      referenceFaceId: "anchor-1",
+    }),
+  );
+
+  const anchor = supabase._store["deepfake_reference_faces"].find((r) => r.id === "anchor-1")!;
+  const derived = supabase._store["deepfake_reference_faces"].find((r) => r.id === "derived-1")!;
+  assert.equal(anchor.revoked_at, null, "the mismatched anchor is never revoked");
+  assert.equal(derived.revoked_at, null, "no cascade ever runs for a failed-closed mismatch");
+
+  // The correct owner can still revoke it normally — the fix only blocks a
+  // mismatch, it doesn't break the legitimate case.
+  const result = await revokeAdminConfirmedAnchorCore(supabase, {
+    adminUserId: "admin-1",
+    targetUserId: "user-1",
+    referenceFaceId: "anchor-1",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.cascadedCount, 1);
+  const anchorAfter = supabase._store["deepfake_reference_faces"].find((r) => r.id === "anchor-1")!;
+  assert.ok(
+    anchorAfter.revoked_at,
+    "the legitimate owner's revoke still works after a rejected mismatch",
+  );
 });

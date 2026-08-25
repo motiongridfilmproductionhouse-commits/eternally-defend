@@ -471,6 +471,7 @@ test("STEP 10 — revoking the admin-confirmed reference preserves all historica
 
   const result = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: ADMIN_ID,
+    targetUserId: "user-1",
     referenceFaceId: confirmedReferenceId,
   });
 

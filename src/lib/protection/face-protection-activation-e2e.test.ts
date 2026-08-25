@@ -394,6 +394,7 @@ test("6. revocation still works: revoked references cannot be used for future ma
 
   const result = await revokeAdminConfirmedAnchorCore(supabase, {
     adminUserId: ADMIN_ID,
+    targetUserId: "lena",
     referenceFaceId: confirmedReferenceId,
   });
   assert.equal(result.ok, true);
