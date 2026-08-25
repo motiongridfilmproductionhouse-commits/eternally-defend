@@ -29,9 +29,22 @@ export type TrustedAnchorSource = "FACE_PROTECTION" | "DEEPFAKE_PROFILE";
  * describes, so no new persisted tier is introduced. Source A anchors don't
  * persist a tier value anywhere (protected_faces has no such column); this
  * is purely a runtime label attached when normalizing the two sources.
+ *
+ * ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE is Path C (protected-asset
+ * bootstrap): a customer with no liveness and no existing Deepfake Intel
+ * enrollment can still get a trusted anchor once an authorized admin
+ * explicitly confirms which recurring face across their protected
+ * screenshots is genuinely them. It lives as an ordinary
+ * deepfake_reference_faces row (source_type='ADMIN_CONFIRMED_PROTECTED_ASSET')
+ * and is deliberately a distinct tier from both CANONICAL_VERIFIED_REFERENCE
+ * (liveness) and SCREENSHOT_DERIVED_REFERENCE (an automatic match against an
+ * already-trusted anchor) — it is never relabeled as either.
  */
 export type TrustedAnchorTier =
-  "CANONICAL_VERIFIED_REFERENCE" | "APPROVED_SECONDARY_REFERENCE" | "SCREENSHOT_DERIVED_REFERENCE";
+  | "CANONICAL_VERIFIED_REFERENCE"
+  | "APPROVED_SECONDARY_REFERENCE"
+  | "SCREENSHOT_DERIVED_REFERENCE"
+  | "ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE";
 
 export type AnchorRetrieval =
   | { kind: "s3"; bucket: string; key: string }
@@ -58,8 +71,9 @@ export function hasTrustedAnchor(result: TrustedFaceAnchorResult): boolean {
 
 const TIER_PRIORITY: Record<TrustedAnchorTier, number> = {
   CANONICAL_VERIFIED_REFERENCE: 0,
-  APPROVED_SECONDARY_REFERENCE: 1,
-  SCREENSHOT_DERIVED_REFERENCE: 2,
+  ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE: 1,
+  APPROVED_SECONDARY_REFERENCE: 2,
+  SCREENSHOT_DERIVED_REFERENCE: 3,
 };
 
 /** Canonical-first ordering, stable otherwise. Callers typically slice() the front for a comparison batch. */
@@ -123,14 +137,19 @@ export async function getTrustedFaceAnchorsForUser(
     deepfakeTargetProfileId = targetProfile.id;
     const { data: refFaces } = await supabaseAdmin
       .from("deepfake_reference_faces")
-      .select("id, storage_path, reference_tier")
+      .select("id, storage_path, reference_tier, revoked_at")
       .eq("profile_id", targetProfile.id);
     for (const ref of (refFaces ?? []) as Array<{
       id: string;
       storage_path: string | null;
       reference_tier: string | null;
+      revoked_at: string | null;
     }>) {
-      if (!ref.storage_path) continue;
+      // Filtered in JS rather than a `.is("revoked_at", null)` query clause
+      // so this behaves identically against both the real Postgres column
+      // (defaults to NULL) and rows in tests that predate this column
+      // (field simply absent) — both are "not revoked."
+      if (!ref.storage_path || ref.revoked_at) continue;
       anchors.push({
         source: "DEEPFAKE_PROFILE",
         tier: (ref.reference_tier as TrustedAnchorTier) ?? "APPROVED_SECONDARY_REFERENCE",

@@ -164,3 +164,48 @@ test("ensureDeepfakeTargetProfileForUser reuses an existing manually-created tar
   assert.equal(id, "dtp-existing");
   assert.equal((supabase._store["deepfake_target_profiles"] ?? []).length, 1);
 });
+
+test("Path C: an ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE row is recognized as a trusted anchor, ranked between canonical and approved-secondary", async () => {
+  const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1", target_name: "Lena Kumar" }],
+    deepfake_reference_faces: [
+      {
+        id: "f1",
+        profile_id: "dtp-1",
+        storage_path: "path/admin-confirmed.jpg",
+        reference_tier: "ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE",
+      },
+      {
+        id: "f2",
+        profile_id: "dtp-1",
+        storage_path: "path/secondary.jpg",
+        reference_tier: "APPROVED_SECONDARY_REFERENCE",
+      },
+    ],
+  });
+  const result = await getTrustedFaceAnchorsForUser(supabase, "user-1");
+  assert.equal(hasTrustedAnchor(result), true);
+  assert.equal(result.anchors.length, 2);
+  const ordered = orderAnchorsByTrust(result.anchors);
+  assert.equal(ordered[0].tier, "ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE");
+  assert.equal(ordered[1].tier, "APPROVED_SECONDARY_REFERENCE");
+});
+
+test("a revoked deepfake_reference_faces row is excluded from trusted anchors", async () => {
+  const supabase = createMockSupabase({
+    deepfake_target_profiles: [{ id: "dtp-1", user_id: "user-1", target_name: "Lena Kumar" }],
+    deepfake_reference_faces: [
+      {
+        id: "f1",
+        profile_id: "dtp-1",
+        storage_path: "path/revoked.jpg",
+        reference_tier: "ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE",
+        revoked_at: "2026-08-25T00:00:00.000Z",
+        revoked_by: "admin-1",
+      },
+    ],
+  });
+  const result = await getTrustedFaceAnchorsForUser(supabase, "user-1");
+  assert.equal(hasTrustedAnchor(result), false);
+  assert.equal(result.anchors.length, 0);
+});

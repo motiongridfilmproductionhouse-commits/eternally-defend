@@ -13,6 +13,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getS3, getBucket } from "@/lib/aws/clients.server";
 import { putObject, sha256Hex } from "@/lib/aws/s3.server";
 import { indexDeepfakeReferenceFace } from "@/lib/deepfake/face-enrollment.server";
+import { compareReferenceFace } from "@/lib/deepfake/face-match.server";
 import type { TrustedFaceAnchor } from "../trusted-face-anchors.server";
 
 export async function downloadAssetBytes(storagePath: string): Promise<Uint8Array> {
@@ -28,6 +29,28 @@ async function downloadS3Bytes(bucket: string, key: string): Promise<Uint8Array>
   const object = await getS3().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   if (!object.Body) throw new Error("Empty S3 object body");
   return new Uint8Array(await object.Body.transformToByteArray());
+}
+
+/** Downloads a candidate/screenshot-derived tile from the app's own default bucket by its storage key. */
+export async function downloadCandidateTileBytes(storageKey: string): Promise<Uint8Array> {
+  return downloadS3Bytes(getBucket(), storageKey);
+}
+
+/**
+ * Raw pairwise face similarity (0-100), used only for clustering candidate
+ * faces during Path C bootstrap — NOT a trust decision, just a grouping
+ * signal for the admin review screen. A very low SimilarityThreshold is
+ * passed through to Rekognition so weak matches still return their real
+ * number instead of being filtered to zero, leaving the actual clustering
+ * threshold to the caller.
+ */
+export async function compareFacesForClustering(a: Uint8Array, b: Uint8Array): Promise<number> {
+  const result = await compareReferenceFace({
+    referenceImageBytes: a,
+    discoveredImageBytes: b,
+    similarityThreshold: 1,
+  });
+  return result.similarity;
 }
 
 /**
@@ -89,6 +112,13 @@ export async function promoteToReferenceFace(
     sourceTileId: string;
     faceConfidence: number | null;
     phash: string;
+    /** Defaults to the automatic-match shape; Path C admin confirmation overrides both. */
+    referenceTier?: "SCREENSHOT_DERIVED_REFERENCE" | "ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE";
+    sourceType?: "SCREENSHOT_DERIVED" | "ADMIN_CONFIRMED_PROTECTED_ASSET";
+    confirmedBy?: string;
+    confirmedAt?: string;
+    /** The reference this was matched against, if any — lets revoking that reference cascade here. Never set for an admin-confirmed anchor, which is a root, not a match. */
+    derivedFromReferenceId?: string | null;
   },
 ): Promise<{ referenceId: string }> {
   const referenceFaceId = crypto.randomUUID();
@@ -107,17 +137,20 @@ export async function promoteToReferenceFace(
       rekognition_face_id: indexed.faceId,
       external_image_id: indexed.externalImageId,
       face_confidence: indexed.confidence,
-      reference_tier: "SCREENSHOT_DERIVED_REFERENCE",
-      source_type: "SCREENSHOT_DERIVED",
+      reference_tier: input.referenceTier ?? "SCREENSHOT_DERIVED_REFERENCE",
+      source_type: input.sourceType ?? "SCREENSHOT_DERIVED",
       source_asset_id: input.sourceAssetId,
       source_tile_id: input.sourceTileId,
       phash: input.phash,
+      confirmed_by: input.confirmedBy ?? null,
+      confirmed_at: input.confirmedAt ?? null,
+      derived_from_reference_id: input.derivedFromReferenceId ?? null,
     })
     .select("id")
     .single();
 
   if (error || !record) {
-    throw new Error(error?.message ?? "Failed to save screenshot-derived reference face.");
+    throw new Error(error?.message ?? "Failed to save reference face.");
   }
 
   return { referenceId: record.id };

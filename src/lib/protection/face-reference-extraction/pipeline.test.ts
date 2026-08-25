@@ -210,3 +210,104 @@ test("tile-level idempotency: a forced re-scan of the same content upserts onto 
     "no duplicate reference faces",
   );
 });
+
+test("bootstrap mode (Path C, empty referenceImages): USABLE_FACE tiles become UNCONFIRMED_IDENTITY_CANDIDATE, never compared, never promoted", async () => {
+  const mockSupabase = createMockSupabase({ protected_assets: [baseAsset()] });
+  const promoteCallLog: string[] = [];
+  let matchIdentityCalls = 0;
+  const deps = buildDeps(mockSupabase, promoteCallLog);
+  const wrappedDeps: PipelineDeps = {
+    ...deps,
+    matchIdentity: async (input) => {
+      matchIdentityCalls += 1;
+      return deps.matchIdentity(input);
+    },
+  };
+
+  const outcome = await processProtectedAssetForFaceReferences({
+    supabase: mockSupabase,
+    userId: "user-1",
+    profileId: null,
+    asset: baseAsset(),
+    referenceImages: [],
+    existingReferences: [],
+    deps: wrappedDeps,
+  });
+
+  assert.equal(outcome.status, "COMPLETED");
+  assert.equal(outcome.tilesCreated, 3);
+  assert.equal(outcome.usableFaces, 2, "the 2 USABLE_FACE tiles are still detected");
+  assert.equal(outcome.unconfirmedCandidates, 2);
+  assert.equal(outcome.matched, 0);
+  assert.equal(outcome.pendingReview, 0);
+  assert.equal(matchIdentityCalls, 0, "identity comparison must never run with no trusted anchor");
+  assert.equal(promoteCallLog.length, 0, "nothing may be auto-promoted without a trusted anchor");
+
+  const tileRows = mockSupabase._store["protected_asset_grid_tiles"] ?? [];
+  const candidateTiles = tileRows.filter(
+    (r) => r.promotion_status === "UNCONFIRMED_IDENTITY_CANDIDATE",
+  );
+  assert.equal(candidateTiles.length, 2);
+  for (const tile of candidateTiles) {
+    assert.equal(tile.identity_status, null);
+    assert.ok(
+      tile.tile_storage_path,
+      "candidate tiles are uploaded so a reviewer can see the crop",
+    );
+  }
+  assert.equal((mockSupabase._store["deepfake_reference_faces"] ?? []).length, 0);
+});
+
+test("resume after confirmation: bootstrap-extracted UNCONFIRMED_IDENTITY_CANDIDATE tiles get a real identity pass once a trusted anchor exists, and the asset only reaches COMPLETED then", async () => {
+  const mockSupabase = createMockSupabase({ protected_assets: [baseAsset()] });
+  const promoteCallLog: string[] = [];
+  const deps = buildDeps(mockSupabase, promoteCallLog);
+
+  // Pass 1: bootstrap mode, no anchor yet.
+  const first = await processProtectedAssetForFaceReferences({
+    supabase: mockSupabase,
+    userId: "user-1",
+    profileId: null,
+    asset: baseAsset(),
+    referenceImages: [],
+    existingReferences: [],
+    deps,
+  });
+  assert.equal(first.unconfirmedCandidates, 2);
+  assert.equal(promoteCallLog.length, 0);
+
+  const assetAfterBootstrap = mockSupabase._store["protected_assets"].find(
+    (r) => r.id === "asset-1",
+  );
+  assert.equal(
+    assetAfterBootstrap!.grid_screenshot_status,
+    "PENDING",
+    "must stay reprocessable, not COMPLETED, while unconfirmed candidates remain",
+  );
+
+  // Admin confirms an anchor elsewhere; pass 2 now has a reference image to compare against.
+  const second = await processProtectedAssetForFaceReferences({
+    supabase: mockSupabase,
+    userId: "user-1",
+    profileId: "profile-1",
+    asset: baseAsset({ grid_screenshot_status: assetAfterBootstrap!.grid_screenshot_status }),
+    referenceImages: [new Uint8Array([9, 9, 9])],
+    existingReferences: [],
+    deps,
+  });
+
+  assert.equal(second.unconfirmedCandidates, 0, "no tile is left unconfirmed after the real pass");
+  assert.equal(second.matched, 1);
+  assert.equal(second.pendingReview, 1);
+  assert.equal(promoteCallLog.length, 1);
+
+  const assetAfterResume = mockSupabase._store["protected_assets"].find((r) => r.id === "asset-1");
+  assert.equal(assetAfterResume!.grid_screenshot_status, "COMPLETED");
+
+  const tileRows = mockSupabase._store["protected_asset_grid_tiles"] ?? [];
+  assert.equal(tileRows.length, 3, "no duplicate tile rows created across the two passes");
+  assert.equal(
+    tileRows.filter((r) => r.promotion_status === "UNCONFIRMED_IDENTITY_CANDIDATE").length,
+    0,
+  );
+});

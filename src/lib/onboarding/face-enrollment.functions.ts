@@ -51,14 +51,29 @@ export const getFaceEnrollment = createServerFn({ method: "GET" })
       .limit(1)
       .maybeSingle();
 
-    const dbStatus = profile?.status ?? "NOT_STARTED";
+    // Widened to `string`: the generated Database type doesn't yet include
+    // FACE_VERIFIED_VIA_PROTECTED_ASSET (added by
+    // 20260825030000_face_protection_via_protected_asset.sql, ahead of
+    // codegen) — matches this codebase's existing convention for
+    // comparing against a column value newer than the last `npx supabase
+    // gen types` run.
+    const dbStatus = (profile?.status as string | undefined) ?? "NOT_STARTED";
     // Consent presence is authoritative: without an active consent the user must
     // never land on the scan screen (the liveness session would hard-fail).
+    // FACE_VERIFIED_VIA_PROTECTED_ASSET (Path C — see
+    // face-protection-bridge.server.ts) never requires biometric consent in
+    // the first place, since it never captures a new live face: it's an
+    // admin-confirmed match against images the customer already owns and
+    // authorized as protected_assets, so it passes through here exactly like
+    // FACE_VERIFIED/DEFERRED/DELETED regardless of whether consent exists.
     const status = consent
       ? dbStatus === "NOT_STARTED" || dbStatus === "CONSENT_REQUIRED"
         ? "CAMERA_PERMISSION_REQUIRED"
         : dbStatus
-      : dbStatus === "FACE_VERIFIED" || dbStatus === "DEFERRED" || dbStatus === "DELETED"
+      : dbStatus === "FACE_VERIFIED" ||
+          dbStatus === "DEFERRED" ||
+          dbStatus === "DELETED" ||
+          dbStatus === "FACE_VERIFIED_VIA_PROTECTED_ASSET"
         ? dbStatus
         : "CONSENT_REQUIRED";
 
@@ -192,7 +207,7 @@ export const resumeFaceEnrollment = createServerFn({ method: "POST" })
         failure_code: null,
         failure_reason: null,
         failure_at: null,
-      } as any,
+      } as never,
       { onConflict: "user_id" },
     );
 

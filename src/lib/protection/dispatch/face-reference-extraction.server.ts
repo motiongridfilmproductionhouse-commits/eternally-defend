@@ -124,12 +124,20 @@ export async function runFaceReferenceExtractionForUser(
   }
 
   const referenceImages: Uint8Array[] = [];
+  // Parallel to referenceImages — the deepfake_reference_faces id each entry
+  // came from, so a new match's promotion can record which specific
+  // reference it was compared against (revocation cascades walk this edge).
+  // A FACE_PROTECTION (liveness) anchor's referenceId is a protected_faces
+  // id, not a deepfake_reference_faces row, so it's recorded as null here —
+  // there's nothing in this table to cascade a revocation from.
+  const referenceIds: Array<string | null> = [];
   const existingReferences: Array<{ id: string; phash: string | null; imageBytes: Uint8Array }> =
     [];
   for (const anchor of orderedAnchors) {
     try {
       const bytes = await downloadTrustedAnchorBytes(supabaseAdmin, anchor);
       referenceImages.push(bytes);
+      referenceIds.push(anchor.source === "DEEPFAKE_PROFILE" ? anchor.referenceId : null);
       if (anchor.source === "DEEPFAKE_PROFILE") {
         existingReferences.push({
           id: anchor.referenceId,
@@ -208,6 +216,7 @@ export async function runFaceReferenceExtractionForUser(
         profileId: resolvedProfileId,
         asset,
         referenceImages,
+        referenceIds,
         existingReferences,
         deps: {
           downloadAssetBytes: (storagePath) => downloadAssetBytes(storagePath),

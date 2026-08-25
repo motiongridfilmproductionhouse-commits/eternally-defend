@@ -58,6 +58,8 @@ export interface PipelineDeps {
     sourceTileId: string;
     faceConfidence: number | null;
     phash: string;
+    /** The trusted reference this match was actually compared against, so revoking that anchor can find and cascade to this row. Null when there's no single upstream reference to attribute it to (e.g. matched only against a liveness anchor, which isn't itself a deepfake_reference_faces row). */
+    derivedFromReferenceId: string | null;
   }) => Promise<{ referenceId: string }>;
 }
 
@@ -71,6 +73,8 @@ export interface ProcessAssetInput {
   profileId: string | null;
   asset: ProtectedAssetRow;
   referenceImages: Uint8Array[];
+  /** Parallel to referenceImages — the deepfake_reference_faces id each entry came from, or null (e.g. a liveness anchor with no such row). Used only to attribute a new match's provenance for revocation cascades; matching itself is unaffected. */
+  referenceIds?: Array<string | null>;
   existingReferences: ExistingReference[];
   deps: PipelineDeps;
 }
@@ -83,6 +87,8 @@ export interface ProcessAssetOutcome {
   pendingReview: number;
   rejected: number;
   deduped: number;
+  /** USABLE_FACE tiles recorded with no comparison at all — only when referenceImages was empty (bootstrap mode). */
+  unconfirmedCandidates: number;
 }
 
 const MAX_TILES_PER_ASSET = 30;
@@ -98,6 +104,7 @@ export async function processProtectedAssetForFaceReferences(
     pendingReview: 0,
     rejected: 0,
     deduped: 0,
+    unconfirmedCandidates: 0,
   };
 
   if (
@@ -164,9 +171,17 @@ export async function processProtectedAssetForFaceReferences(
     const tileBytes = await deps.cropTile(screenshotBytes, tile);
     const tileSha256 = await deps.sha256(tileBytes);
 
-    if (existingTile && existingTile.tile_sha256 === tileSha256) {
-      // Already fully analyzed in a prior run — pure no-op, this is the
-      // tile-level idempotency guarantee.
+    if (
+      existingTile &&
+      existingTile.tile_sha256 === tileSha256 &&
+      existingTile.promotion_status !== "UNCONFIRMED_IDENTITY_CANDIDATE"
+    ) {
+      // Already fully analyzed (classified AND, if applicable, compared
+      // against a trusted anchor) in a prior run — pure no-op, this is the
+      // tile-level idempotency guarantee. A tile still sitting at
+      // UNCONFIRMED_IDENTITY_CANDIDATE (bootstrap-extracted before any
+      // trusted anchor existed) deliberately falls through instead: once an
+      // anchor exists, this same content needs its one real comparison pass.
       counts.tilesCreated += 1;
       continue;
     }
@@ -203,6 +218,40 @@ export async function processProtectedAssetForFaceReferences(
     }
 
     counts.usableFaces += 1;
+
+    if (referenceImages.length === 0) {
+      // Bootstrap mode (Path C): no trusted anchor exists yet for this
+      // customer, so there is nothing to compare against. The face is
+      // recorded — never silently dropped — but explicitly as an
+      // unconfirmed candidate, not compared, not promoted, not assumed to
+      // be the protected person. It only becomes eligible for identity
+      // comparison after an admin confirms which cluster it belongs to.
+      // Uploaded (like an already-promoted tile) so the admin review screen
+      // has a crop to actually show.
+      counts.unconfirmedCandidates += 1;
+      const candidateTileKey = `clients/${userId}/reference/candidate/${asset.id}/${tileIndex}.jpg`;
+      try {
+        await deps.uploadTileBytes(candidateTileKey, tileBytes);
+      } catch (err) {
+        console.warn(
+          "[face-reference-extraction] candidate tile upload failed",
+          asset.id,
+          tileIndex,
+          err,
+        );
+      }
+      await supabase.from("protected_asset_grid_tiles").upsert(
+        {
+          ...baseTileRow,
+          identity_status: null,
+          face_match_similarity: null,
+          tile_storage_path: candidateTileKey,
+          promotion_status: "UNCONFIRMED_IDENTITY_CANDIDATE",
+        },
+        { onConflict: "parent_asset_id,tile_index" },
+      );
+      continue;
+    }
 
     const identity = await deps.matchIdentity({
       tileBytes,
@@ -288,6 +337,10 @@ export async function processProtectedAssetForFaceReferences(
 
     const tileId = insertedTile?.id ?? existingTile?.id;
     const tileStorageKey = `clients/${userId}/reference/screenshot-derived/${asset.id}/${tileIndex}.jpg`;
+    const derivedFromReferenceId =
+      identity.matchedReferenceIndex !== null
+        ? (input.referenceIds?.[identity.matchedReferenceIndex] ?? null)
+        : null;
 
     try {
       await deps.uploadTileBytes(tileStorageKey, tileBytes);
@@ -300,6 +353,7 @@ export async function processProtectedAssetForFaceReferences(
         sourceTileId: tileId,
         faceConfidence: analysis.confidence,
         phash: candidatePhash,
+        derivedFromReferenceId,
       });
 
       await supabase
@@ -327,10 +381,15 @@ export async function processProtectedAssetForFaceReferences(
     }
   }
 
+  // A tile left at UNCONFIRMED_IDENTITY_CANDIDATE (bootstrap mode, no
+  // trusted anchor existed yet) means this asset isn't truly finished —
+  // stay PENDING so it's picked back up automatically once an anchor
+  // exists, instead of COMPLETED hiding it from every future run.
+  const stillNeedsIdentityPass = counts.unconfirmedCandidates > 0;
   await supabase
     .from("protected_assets")
     .update({
-      grid_screenshot_status: "COMPLETED",
+      grid_screenshot_status: stillNeedsIdentityPass ? "PENDING" : "COMPLETED",
       grid_processed_at: new Date().toISOString(),
       grid_tile_count: tiles.length,
     })
