@@ -28,6 +28,14 @@ export interface ClusterActionDeps {
     userId: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<any>;
+  /** Bridges this confirmation into Face Protection's own enrollment state (see face-protection-bridge.server.ts) — best-effort, never blocks or reverts the confirmation itself if it fails. */
+  activateFaceProtection?: (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabaseAdmin: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    input: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ) => Promise<any>;
 }
 
 export interface ConfirmClusterResult {
@@ -117,6 +125,29 @@ export async function confirmIdentityCandidateClusterCore(
     })
     .eq("id", cluster.id)
     .eq("user_id", input.targetUserId);
+
+  // Best-effort bridge into Face Protection's own enrollment state — reuses
+  // the confirmed representative tile so no second face capture is ever
+  // requested. Never blocks or reverts the confirmation above if it fails;
+  // a failure here just means Face Protection stays as it was.
+  if (deps.activateFaceProtection) {
+    try {
+      await deps.activateFaceProtection(supabaseAdmin, {
+        userId: input.targetUserId,
+        tileBytes,
+        tileStorageKey: tile.tile_storage_path,
+        referenceFaceId: promoted.referenceId,
+        faceConfidence: tile.face_confidence ?? null,
+        label: `${targetName} — protected image reference`,
+      });
+    } catch (err) {
+      console.error(
+        "[identity-bootstrap] Face Protection activation failed",
+        input.targetUserId,
+        err,
+      );
+    }
+  }
 
   let extraction: unknown = null;
   if (deps.runFaceReferenceExtraction) {
@@ -258,6 +289,31 @@ export async function revokeAdminConfirmedAnchorCore(
     revokedBy: input.adminUserId,
     revokedAt,
   });
+
+  // If this anchor was ever bridged into Face Protection (see
+  // face-protection-bridge.server.ts), that reference must stop being used
+  // for future automatic matching too — deactivated, never deleted, and
+  // Face Protection's own status reverts (never touching a genuinely
+  // liveness-verified profile, which this path never produces in the first
+  // place).
+  const { data: linkedFaces } = await supabaseAdmin
+    .from("protected_faces")
+    .select("id, user_id, status")
+    .eq("linked_reference_face_id", input.referenceFaceId);
+  for (const pf of (linkedFaces ?? []) as Array<{
+    id: string;
+    user_id: string;
+    status: string;
+  }>) {
+    if (pf.status === "ACTIVE") {
+      await supabaseAdmin.from("protected_faces").update({ status: "INACTIVE" }).eq("id", pf.id);
+    }
+    await supabaseAdmin
+      .from("protected_face_profiles")
+      .update({ status: "DEFERRED" })
+      .eq("user_id", pf.user_id)
+      .eq("status", "FACE_VERIFIED_VIA_PROTECTED_ASSET");
+  }
 
   return { ok: true, alreadyRevoked: false, cascadedCount };
 }

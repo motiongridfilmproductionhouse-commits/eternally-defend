@@ -228,6 +228,8 @@ export const confirmIdentityCandidateCluster = createServerFn({ method: "POST" }
       await import("./dispatch/face-reference-extraction-io.server");
     const { runFaceReferenceExtractionForUser } =
       await import("./dispatch/face-reference-extraction.server");
+    const { activateFaceProtectionFromProtectedAssetReference } =
+      await import("./dispatch/face-protection-bridge.server");
 
     return confirmIdentityCandidateClusterCore(
       supabaseAdmin,
@@ -244,6 +246,7 @@ export const confirmIdentityCandidateCluster = createServerFn({ method: "POST" }
         promoteToReferenceFace,
         runFaceReferenceExtraction: (admin, userId) =>
           runFaceReferenceExtractionForUser(admin, userId),
+        activateFaceProtection: activateFaceProtectionFromProtectedAssetReference,
       },
     );
   });

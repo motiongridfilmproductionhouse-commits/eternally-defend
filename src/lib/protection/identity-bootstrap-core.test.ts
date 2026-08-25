@@ -495,3 +495,164 @@ test("revocation cascade 4: repeated revocation creates no duplicate state", asy
     "still no rows deleted or duplicated",
   );
 });
+
+// ---------------------------------------------------------------------------
+// Face Protection activation bridge (Lena's flow) — confirming a cluster
+// also activates Face Protection from the SAME confirmed image, without any
+// second face capture, and revocation deactivates it again.
+// ---------------------------------------------------------------------------
+
+test("confirming a cluster also activates Face Protection from the same confirmed image — no second face capture is ever requested", async () => {
+  const supabase = createMockSupabase(baseFixture());
+  const promoteCallLog: unknown[] = [];
+  const activateCallLog: unknown[] = [];
+  const deps: ClusterActionDeps = {
+    ...fakeDeps(promoteCallLog),
+    activateFaceProtection: async (_supabaseAdmin, input) => {
+      activateCallLog.push(input);
+      return { activated: true };
+    },
+  };
+
+  const result = await confirmIdentityCandidateClusterCore(
+    supabase,
+    { adminUserId: "admin-1", targetUserId: "user-1", clusterId: "cluster-1" },
+    deps,
+  );
+
+  assert.equal(activateCallLog.length, 1, "Face Protection activation runs exactly once");
+  const call = activateCallLog[0] as {
+    userId: string;
+    tileBytes: Uint8Array;
+    tileStorageKey: string;
+    referenceFaceId: string;
+  };
+  assert.equal(call.userId, "user-1");
+  assert.ok(
+    call.tileBytes,
+    "reuses the same tile bytes already downloaded for the reference — no new capture",
+  );
+  assert.equal(
+    call.tileStorageKey,
+    "clients/user-1/reference/candidate/asset-1/0.jpg",
+    "reuses the exact same confirmed representative tile, never a second image",
+  );
+  assert.equal(
+    call.referenceFaceId,
+    result.referenceId,
+    "linked to the same reference just created — no second identity established",
+  );
+  assert.equal(promoteCallLog.length, 1, "no second reference/capture flow ran");
+});
+
+test("Face Protection activation failure never blocks or reverts the confirmation itself", async () => {
+  const supabase = createMockSupabase(baseFixture());
+  const promoteCallLog: unknown[] = [];
+  const deps: ClusterActionDeps = {
+    ...fakeDeps(promoteCallLog),
+    activateFaceProtection: async () => {
+      throw new Error("AWS IndexFaces unavailable");
+    },
+  };
+
+  const result = await confirmIdentityCandidateClusterCore(
+    supabase,
+    { adminUserId: "admin-1", targetUserId: "user-1", clusterId: "cluster-1" },
+    deps,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(
+    (supabase._store["deepfake_reference_faces"] ?? []).length,
+    1,
+    "the reference is still created",
+  );
+  const cluster = supabase._store["face_identity_candidate_clusters"][0];
+  assert.equal(
+    cluster.status,
+    "CONFIRMED",
+    "the confirmation itself is unaffected by an activation failure",
+  );
+});
+
+test("revoking an admin-confirmed anchor deactivates its linked Face Protection reference and reverts the profile status — never touches a genuinely liveness-verified profile", async () => {
+  const supabase = createMockSupabase({
+    deepfake_reference_faces: [
+      {
+        id: "anchor-1",
+        profile_id: "dtp-1",
+        reference_tier: "ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE",
+        revoked_at: null,
+      },
+    ],
+    protected_faces: [
+      {
+        id: "pf-1",
+        user_id: "user-1",
+        face_id: "aws-face-1",
+        collection_id: "eterna_user1",
+        status: "ACTIVE",
+        linked_reference_face_id: "anchor-1",
+      },
+    ],
+    protected_face_profiles: [
+      {
+        user_id: "user-1",
+        status: "FACE_VERIFIED_VIA_PROTECTED_ASSET",
+        collection_id: "eterna_user1",
+      },
+    ],
+  });
+
+  const result = await revokeAdminConfirmedAnchorCore(supabase, {
+    adminUserId: "admin-1",
+    referenceFaceId: "anchor-1",
+  });
+
+  assert.equal(result.ok, true);
+  const face = supabase._store["protected_faces"].find((f) => f.id === "pf-1")!;
+  assert.equal(face.status, "INACTIVE", "the linked Face Protection reference is deactivated");
+  assert.equal(supabase._store["protected_faces"].length, 1, "the row is never deleted");
+
+  const profile = supabase._store["protected_face_profiles"].find((p) => p.user_id === "user-1")!;
+  assert.equal(
+    profile.status,
+    "DEFERRED",
+    "Face Protection's own status reverts — it is no longer genuinely active",
+  );
+});
+
+test("revocation never downgrades a profile that reached FACE_VERIFIED through genuine liveness, even if a linked_reference_face_id row somehow exists", async () => {
+  const supabase = createMockSupabase({
+    deepfake_reference_faces: [
+      {
+        id: "anchor-1",
+        profile_id: "dtp-1",
+        reference_tier: "ADMIN_CONFIRMED_PROTECTED_ASSET_REFERENCE",
+        revoked_at: null,
+      },
+    ],
+    protected_faces: [
+      {
+        id: "pf-1",
+        user_id: "user-1",
+        face_id: "aws-face-1",
+        collection_id: "eterna_user1",
+        status: "ACTIVE",
+        linked_reference_face_id: "anchor-1",
+      },
+    ],
+    // A genuinely liveness-verified profile must never be reverted by this path.
+    protected_face_profiles: [
+      { user_id: "user-1", status: "FACE_VERIFIED", collection_id: "eterna_user1" },
+    ],
+  });
+
+  await revokeAdminConfirmedAnchorCore(supabase, {
+    adminUserId: "admin-1",
+    referenceFaceId: "anchor-1",
+  });
+
+  const profile = supabase._store["protected_face_profiles"].find((p) => p.user_id === "user-1")!;
+  assert.equal(profile.status, "FACE_VERIFIED", "a genuine liveness verification is never touched");
+});

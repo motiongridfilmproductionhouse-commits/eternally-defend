@@ -79,6 +79,41 @@ export function buildEnrollmentFaceRow(input: EnrollmentFaceInput) {
   };
 }
 
+export type ProtectedAssetAdminConfirmedFaceInput = EnrollmentFaceInput & {
+  /** The deepfake_reference_faces row (the admin-confirmed anchor) this Face Protection reference was bridged from — lets revocation find and deactivate it. */
+  linkedReferenceFaceId: string;
+};
+
+/**
+ * Row persisted when Face Protection is bridged from a Path C admin-confirmed
+ * protected-asset identity anchor instead of AWS Face Liveness — same shape
+ * and same ACTIVE status as buildEnrollmentFaceRow (so every existing
+ * consumer of protected_faces treats it identically), distinguished only by
+ * source/label/linked_reference_face_id so its provenance is always visible.
+ * Never claims "liveness" anywhere in its own fields.
+ */
+export function buildProtectedAssetAdminConfirmedFaceRow(
+  input: ProtectedAssetAdminConfirmedFaceInput,
+) {
+  return {
+    user_id: input.userId,
+    collection_id: input.collectionId,
+    platform: "protected_asset",
+    source: "protected_asset_admin_confirmed",
+    label: input.label?.trim() || "Admin-confirmed protected image reference",
+    s3_bucket: input.s3Bucket,
+    s3_key: input.s3Key,
+    face_id: input.faceId,
+    image_id: input.imageId ?? null,
+    external_image_id: input.externalImageId ?? null,
+    confidence: input.confidence ?? null,
+    bounding_box: input.boundingBox ?? null,
+    status: PROTECTED_FACE_ACTIVE,
+    last_verified_at: input.verifiedAt,
+    linked_reference_face_id: input.linkedReferenceFaceId,
+  };
+}
+
 export type ManualMatchVerdict = "MATCH" | "NO_MATCH" | "NEEDS_REVIEW";
 
 export type ManualMatchInput = {
@@ -109,10 +144,7 @@ export function classifyManualMatch(input: ManualMatchInput): {
     return { verdict: "MATCH", similarity, reason: "similarity_above_threshold" };
   }
 
-  if (
-    input.faceConfidence !== null &&
-    input.faceConfidence < FACE_QUALITY_MIN_CONFIDENCE
-  ) {
+  if (input.faceConfidence !== null && input.faceConfidence < FACE_QUALITY_MIN_CONFIDENCE) {
     return { verdict: "NEEDS_REVIEW", similarity, reason: "low_image_quality" };
   }
 
