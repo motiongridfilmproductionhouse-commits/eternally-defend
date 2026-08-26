@@ -129,7 +129,12 @@ export async function processProtectedAssetForFaceReferences(
     .eq("user_id", userId);
 
   let screenshotBytes: Uint8Array;
-  let grid: { tiles: DetectedTile[]; confidence: "HIGH" | "LOW" | "NONE" };
+  let grid: {
+    tiles: DetectedTile[];
+    confidence: "HIGH" | "LOW" | "NONE";
+    imageWidth?: number;
+    imageHeight?: number;
+  };
   try {
     screenshotBytes = await deps.downloadAssetBytes(asset.storage_path);
     grid = await deps.detectGrid(screenshotBytes);
@@ -143,16 +148,26 @@ export async function processProtectedAssetForFaceReferences(
     return { status: "FAILED", ...zero };
   }
 
-  if (grid.confidence === "NONE" || grid.tiles.length === 0) {
-    await supabase
-      .from("protected_assets")
-      .update({ grid_screenshot_status: "NOT_APPLICABLE", grid_tile_count: 0 })
-      .eq("id", asset.id)
-      .eq("user_id", userId);
-    return { status: "NOT_APPLICABLE", ...zero };
+  let detectedTiles = grid.tiles;
+  if (grid.confidence === "NONE" || detectedTiles.length === 0) {
+    // Not a social grid screenshot — most protected assets are ordinary
+    // single photos. Treat the whole image as one tile so a single-photo
+    // asset still yields a face candidate instead of being skipped, which
+    // previously left customers with only individual photos (no liveness,
+    // no grid screenshots) with nothing to review at all.
+    if (!grid.imageWidth || !grid.imageHeight) {
+      await supabase
+        .from("protected_assets")
+        .update({ grid_screenshot_status: "NOT_APPLICABLE", grid_tile_count: 0 })
+        .eq("id", asset.id)
+        .eq("user_id", userId);
+      return { status: "NOT_APPLICABLE", ...zero };
+    }
+    detectedTiles = [{ x: 0, y: 0, width: grid.imageWidth, height: grid.imageHeight }];
   }
 
-  const tiles = grid.tiles.slice(0, MAX_TILES_PER_ASSET);
+  const tiles = detectedTiles.slice(0, MAX_TILES_PER_ASSET);
+
   const counts = { ...zero };
   // Duplicate promotions within the same run must not double-count against
   // each other — track newly promoted references from this pass too.

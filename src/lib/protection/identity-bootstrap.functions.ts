@@ -87,8 +87,28 @@ export const triggerIdentityCandidateReview = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const anchorResult = await getTrustedFaceAnchorsForUser(supabaseAdmin, userId);
+    if (hasTrustedAnchor(anchorResult)) {
+      // A trusted anchor already exists (liveness OR manual Deepfake Intel
+      // enrollment), so bootstrap candidate generation is not the right pass —
+      // the protected assets need the real comparison pipeline instead, which
+      // promotes matches and queues near-matches for review. Reported in the
+      // same shape so the UI needs no special case.
+      const { runFaceReferenceExtractionForUser } = await import(
+        "./dispatch/face-reference-extraction.server"
+      );
+      const outcome = await runFaceReferenceExtractionForUser(supabaseAdmin, userId);
+      return {
+        status: outcome.blocked_reason ?? outcome.status,
+        assetsProcessed: 0,
+        candidatesFound: outcome.candidates_found,
+        newClustersCreated: 0,
+        pendingClusters: 0,
+      };
+    }
     return runProtectedAssetBootstrapForUser(supabaseAdmin, userId);
   });
+
 
 export interface IdentityCandidateClusterSummary {
   id: string;
