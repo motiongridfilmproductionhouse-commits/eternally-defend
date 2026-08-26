@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -2862,38 +2862,102 @@ export type Database = {
       }
       deepfake_reference_faces: {
         Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
+          derived_from_reference_id: string | null
           external_image_id: string | null
           face_confidence: number | null
           id: string
+          phash: string | null
           profile_id: string
+          reference_tier: string
           rekognition_face_id: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          revoked_cascade_root_id: string | null
+          revoked_reason: string | null
+          source_asset_id: string | null
+          source_tile_id: string | null
+          source_type: string
           storage_path: string
         }
         Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
+          derived_from_reference_id?: string | null
           external_image_id?: string | null
           face_confidence?: number | null
           id?: string
+          phash?: string | null
           profile_id: string
+          reference_tier?: string
           rekognition_face_id?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          revoked_cascade_root_id?: string | null
+          revoked_reason?: string | null
+          source_asset_id?: string | null
+          source_tile_id?: string | null
+          source_type?: string
           storage_path: string
         }
         Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
+          derived_from_reference_id?: string | null
           external_image_id?: string | null
           face_confidence?: number | null
           id?: string
+          phash?: string | null
           profile_id?: string
+          reference_tier?: string
           rekognition_face_id?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          revoked_cascade_root_id?: string | null
+          revoked_reason?: string | null
+          source_asset_id?: string | null
+          source_tile_id?: string | null
+          source_type?: string
           storage_path?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "deepfake_reference_faces_derived_from_reference_id_fkey"
+            columns: ["derived_from_reference_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_reference_faces"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "deepfake_reference_faces_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "deepfake_target_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deepfake_reference_faces_revoked_cascade_root_id_fkey"
+            columns: ["revoked_cascade_root_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_reference_faces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deepfake_reference_faces_source_asset_id_fkey"
+            columns: ["source_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deepfake_reference_faces_source_tile_id_fkey"
+            columns: ["source_tile_id"]
+            isOneToOne: false
+            referencedRelation: "protected_asset_grid_tiles"
             referencedColumns: ["id"]
           },
         ]
@@ -5208,6 +5272,60 @@ export type Database = {
         }
         Relationships: []
       }
+      face_identity_candidate_clusters: {
+        Row: {
+          confirmed_reference_id: string | null
+          created_at: string
+          id: string
+          representative_tile_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          tile_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confirmed_reference_id?: string | null
+          created_at?: string
+          id?: string
+          representative_tile_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tile_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          confirmed_reference_id?: string | null
+          created_at?: string
+          id?: string
+          representative_tile_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tile_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "face_identity_candidate_clusters_confirmed_reference_id_fkey"
+            columns: ["confirmed_reference_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_reference_faces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "face_identity_candidate_clusters_representative_tile_id_fkey"
+            columns: ["representative_tile_id"]
+            isOneToOne: false
+            referencedRelation: "protected_asset_grid_tiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       face_match_events: {
         Row: {
           bounding_box: Json | null
@@ -6762,6 +6880,131 @@ export type Database = {
           },
         ]
       }
+      protected_asset_grid_tiles: {
+        Row: {
+          captured_at: string
+          cluster_id: string | null
+          created_at: string
+          crop_height: number
+          crop_width: number
+          crop_x: number
+          crop_y: number
+          face_bounding_box: Json | null
+          face_classification: string
+          face_confidence: number | null
+          face_match_similarity: number | null
+          id: string
+          identity_status: string | null
+          matched_reference_face_id: string | null
+          parent_asset_id: string
+          platform: string
+          promoted_reference_id: string | null
+          promotion_status: string
+          retention_expires_at: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_media_type: string
+          source_type: string
+          tile_index: number
+          tile_phash: string | null
+          tile_sha256: string | null
+          tile_storage_path: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          captured_at: string
+          cluster_id?: string | null
+          created_at?: string
+          crop_height: number
+          crop_width: number
+          crop_x: number
+          crop_y: number
+          face_bounding_box?: Json | null
+          face_classification: string
+          face_confidence?: number | null
+          face_match_similarity?: number | null
+          id?: string
+          identity_status?: string | null
+          matched_reference_face_id?: string | null
+          parent_asset_id: string
+          platform?: string
+          promoted_reference_id?: string | null
+          promotion_status?: string
+          retention_expires_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_media_type?: string
+          source_type?: string
+          tile_index: number
+          tile_phash?: string | null
+          tile_sha256?: string | null
+          tile_storage_path?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          captured_at?: string
+          cluster_id?: string | null
+          created_at?: string
+          crop_height?: number
+          crop_width?: number
+          crop_x?: number
+          crop_y?: number
+          face_bounding_box?: Json | null
+          face_classification?: string
+          face_confidence?: number | null
+          face_match_similarity?: number | null
+          id?: string
+          identity_status?: string | null
+          matched_reference_face_id?: string | null
+          parent_asset_id?: string
+          platform?: string
+          promoted_reference_id?: string | null
+          promotion_status?: string
+          retention_expires_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_media_type?: string
+          source_type?: string
+          tile_index?: number
+          tile_phash?: string | null
+          tile_sha256?: string | null
+          tile_storage_path?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protected_asset_grid_tiles_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "face_identity_candidate_clusters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protected_asset_grid_tiles_matched_reference_face_id_fkey"
+            columns: ["matched_reference_face_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_reference_faces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protected_asset_grid_tiles_parent_asset_id_fkey"
+            columns: ["parent_asset_id"]
+            isOneToOne: false
+            referencedRelation: "protected_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protected_asset_grid_tiles_promoted_reference_id_fkey"
+            columns: ["promoted_reference_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_reference_faces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       protected_asset_matches: {
         Row: {
           copyright_risk: number | null
@@ -6839,6 +7082,9 @@ export type Database = {
           created_at: string
           dhash: string | null
           discovered_account_id: string | null
+          grid_processed_at: string | null
+          grid_screenshot_status: string
+          grid_tile_count: number
           hash_algorithm: string | null
           hashed_at: string | null
           id: string
@@ -6857,6 +7103,9 @@ export type Database = {
           created_at?: string
           dhash?: string | null
           discovered_account_id?: string | null
+          grid_processed_at?: string | null
+          grid_screenshot_status?: string
+          grid_tile_count?: number
           hash_algorithm?: string | null
           hashed_at?: string | null
           id?: string
@@ -6875,6 +7124,9 @@ export type Database = {
           created_at?: string
           dhash?: string | null
           discovered_account_id?: string | null
+          grid_processed_at?: string | null
+          grid_screenshot_status?: string
+          grid_tile_count?: number
           hash_algorithm?: string | null
           hashed_at?: string | null
           id?: string
@@ -6997,6 +7249,7 @@ export type Database = {
           image_id: string | null
           label: string | null
           last_verified_at: string | null
+          linked_reference_face_id: string | null
           platform: string | null
           s3_bucket: string
           s3_key: string
@@ -7018,6 +7271,7 @@ export type Database = {
           image_id?: string | null
           label?: string | null
           last_verified_at?: string | null
+          linked_reference_face_id?: string | null
           platform?: string | null
           s3_bucket: string
           s3_key: string
@@ -7039,6 +7293,7 @@ export type Database = {
           image_id?: string | null
           label?: string | null
           last_verified_at?: string | null
+          linked_reference_face_id?: string | null
           platform?: string | null
           s3_bucket?: string
           s3_key?: string
@@ -7060,6 +7315,13 @@ export type Database = {
             columns: ["discovered_account_id"]
             isOneToOne: false
             referencedRelation: "discovered_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protected_faces_linked_reference_face_id_fkey"
+            columns: ["linked_reference_face_id"]
+            isOneToOne: false
+            referencedRelation: "deepfake_reference_faces"
             referencedColumns: ["id"]
           },
         ]
@@ -9857,6 +10119,7 @@ export type Database = {
         | "DELETION_REQUESTED"
         | "DELETED"
         | "DEFERRED"
+        | "FACE_VERIFIED_VIA_PROTECTED_ASSET"
       kyc_status:
         | "NOT_STARTED"
         | "SESSION_CREATED"
@@ -10191,6 +10454,7 @@ export const Constants = {
         "DELETION_REQUESTED",
         "DELETED",
         "DEFERRED",
+        "FACE_VERIFIED_VIA_PROTECTED_ASSET",
       ],
       kyc_status: [
         "NOT_STARTED",
