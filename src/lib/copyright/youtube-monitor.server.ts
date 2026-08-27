@@ -180,12 +180,20 @@ export function scoreMetadataMatch(opts: {
  * Deterministic counterpart to decideVideoOutcome: the same three-way
  * safety model (kept/needs_review/drop), driven by metadata evidence +
  * existing Rekognition corroboration instead of AI vision classification.
- * The Rekognition "kept" bar is UNCHANGED (score >= 40). Because metadata
- * matching always runs (it has no "unavailable"/"error" state), the only
- * way to reach "drop" is a genuine double-negative: no textual evidence of
- * relevance AND no independent Rekognition corroboration — never merely
- * "we couldn't check", which is exactly what decideVideoOutcome already
- * guarded against on the AI side.
+ *
+ * IMPORTANT: metadata relevance alone can never produce "kept". Title/
+ * description/known-name matching proves the video is RELEVANT to the
+ * protected work — it says nothing about whether the work's actual footage/
+ * likeness is REUSED in it, which is what "kept" (an actionable finding)
+ * is supposed to mean. Only an independent visual signal — the existing
+ * Rekognition "kept" bar, UNCHANGED at score >= 40 — can produce "kept".
+ * A "strong_match" on metadata is still real, useful evidence, so it's
+ * never dropped either: it always lands in needs_review, same as a
+ * "weak_match". This means a logo/poster reference (where Rekognition has
+ * no face to corroborate against) can never auto-confirm a finding from
+ * text alone — every metadata-only match, however strong, waits for a
+ * human. "drop" is reserved for the genuine double-negative: no textual
+ * evidence of relevance AND no independent Rekognition corroboration.
  */
 export function decideVideoOutcomeFromEvidence(opts: {
   metadata: MetadataMatchResult;
@@ -194,8 +202,10 @@ export function decideVideoOutcomeFromEvidence(opts: {
   const rekScore = opts.rek.status === "checked" ? opts.rek.score : 0;
   const rekMatched = rekScore >= 40;
 
-  if (opts.metadata.status === "strong_match" || rekMatched) return "kept";
-  if (opts.metadata.status === "weak_match") return "needs_review";
+  if (rekMatched) return "kept";
+  if (opts.metadata.status === "strong_match" || opts.metadata.status === "weak_match") {
+    return "needs_review";
+  }
   return "drop";
 }
 

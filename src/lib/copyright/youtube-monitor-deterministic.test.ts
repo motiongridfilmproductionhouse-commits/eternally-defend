@@ -115,6 +115,16 @@ test("scoreMetadataMatch: an empty/blank work title never produces a fabricated 
 
 // ---------------------------------------------------------------------
 // decideVideoOutcomeFromEvidence — the deterministic three-way safety model
+//
+// SAFETY CORRECTION: metadata relevance alone (however strong) can never
+// produce "kept". Title/description/known-name matching proves the video
+// is RELEVANT to the protected work — it says nothing about whether the
+// work's footage/likeness is actually REUSED, which is what "kept" means.
+// Only an independent visual signal (the existing Rekognition threshold,
+// score >= 40, unchanged) can produce "kept". A strong metadata match
+// still isn't dropped — it always lands in needs_review, same as a weak
+// match — so a logo/poster reference (no face for Rekognition to
+// corroborate) can never auto-confirm a finding from text alone.
 // ---------------------------------------------------------------------
 
 test("SCENARIO: strong Rekognition match alone -> kept, even with no metadata overlap", () => {
@@ -125,15 +135,47 @@ test("SCENARIO: strong Rekognition match alone -> kept, even with no metadata ov
   assert.equal(outcome, "kept");
 });
 
-test("SCENARIO: strong metadata match alone -> kept, even with Rekognition unavailable", () => {
+test("SCENARIO: exact work title in the YouTube title, no Rekognition -> needs_review, never kept on text alone", () => {
   const outcome = decideVideoOutcomeFromEvidence({
     metadata: { status: "strong_match", matchedSignals: ["title_contains_work_title"] },
     rek: rekUnavailable,
   });
+  assert.equal(outcome, "needs_review");
+});
+
+test("SCENARIO: exact work title in the description, no Rekognition -> needs_review, never kept on text alone", () => {
+  const outcome = decideVideoOutcomeFromEvidence({
+    metadata: { status: "strong_match", matchedSignals: ["description_contains_work_title"] },
+    rek: rekUnavailable,
+  });
+  assert.equal(outcome, "needs_review");
+});
+
+test("SCENARIO: known actor/name match only, no Rekognition -> needs_review, never kept on text alone", () => {
+  const outcome = decideVideoOutcomeFromEvidence({
+    metadata: { status: "strong_match", matchedSignals: ["known_name_match"] },
+    rek: rekUnavailable,
+  });
+  assert.equal(outcome, "needs_review");
+});
+
+test("SCENARIO: strong metadata match + Rekognition just below threshold (39) -> needs_review, not kept", () => {
+  const outcome = decideVideoOutcomeFromEvidence({
+    metadata: { status: "strong_match", matchedSignals: ["title_contains_work_title"] },
+    rek: rekChecked(39),
+  });
+  assert.equal(outcome, "needs_review");
+});
+
+test("SCENARIO: strong metadata match + Rekognition at threshold (40) -> kept", () => {
+  const outcome = decideVideoOutcomeFromEvidence({
+    metadata: { status: "strong_match", matchedSignals: ["title_contains_work_title"] },
+    rek: rekChecked(40),
+  });
   assert.equal(outcome, "kept");
 });
 
-test("SCENARIO: metadata-relevant (weak match) candidate without Rekognition corroboration -> needs_review, never dropped", () => {
+test("SCENARIO: weak metadata match -> needs_review, never dropped, never kept", () => {
   const outcome = decideVideoOutcomeFromEvidence({
     metadata: { status: "weak_match", matchedSignals: ["title_token_overlap:1/3"] },
     rek: rekUnavailable,
@@ -160,15 +202,15 @@ test("SCENARIO: logo/poster reference — a weak metadata match is preserved for
   assert.equal(outcome, "needs_review");
 });
 
-test("SCENARIO: logo/poster reference — a strong metadata match is kept outright without depending on face Rekognition", () => {
+test("SCENARIO: logo/poster reference — even a strong (exact title) metadata match persists as needs_review, never auto-kept, since Rekognition cannot corroborate a logo", () => {
   const outcome = decideVideoOutcomeFromEvidence({
     metadata: { status: "strong_match", matchedSignals: ["title_contains_work_title"] },
     rek: rekUnavailable,
   });
-  assert.equal(outcome, "kept");
+  assert.equal(outcome, "needs_review");
 });
 
-test("SCENARIO: clearly unrelated candidate — no metadata evidence and no Rekognition corroboration -> drop", () => {
+test("SCENARIO: no metadata evidence and no Rekognition corroboration -> drop", () => {
   const outcome = decideVideoOutcomeFromEvidence({
     metadata: { status: "no_match", matchedSignals: [] },
     rek: rekUnavailable,
@@ -199,6 +241,22 @@ test("REGRESSION: the existing Rekognition 'kept' threshold (score >= 40) is unc
     }),
     "kept",
   );
+});
+
+test("REGRESSION: metadata relevance alone (strong or weak) never produces 'kept' — only an independent Rekognition match can", () => {
+  for (const status of ["strong_match", "weak_match"] as const) {
+    for (const rek of [rekUnavailable, rekError(), rekChecked(0), rekChecked(39)]) {
+      const outcome = decideVideoOutcomeFromEvidence({
+        metadata: { status, matchedSignals: [] },
+        rek,
+      });
+      assert.notEqual(
+        outcome,
+        "kept",
+        `metadata=${status} + rek.status=${rek.status}/score=${rek.score} must never be "kept"`,
+      );
+    }
+  }
 });
 
 // ---------------------------------------------------------------------
@@ -259,7 +317,7 @@ test("REGRESSION: monitoring still functions normally with neither GEMINI_API_KE
     });
     const outcome = decideVideoOutcomeFromEvidence({ metadata, rek: rekUnavailable });
     assert.equal(metadata.status, "strong_match");
-    assert.equal(outcome, "kept");
+    assert.equal(outcome, "needs_review");
   } finally {
     if (originalGemini !== undefined) process.env.GEMINI_API_KEY = originalGemini;
     if (originalLovable !== undefined) process.env.LOVABLE_API_KEY = originalLovable;
