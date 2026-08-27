@@ -31,6 +31,9 @@ interface SourceRow {
   status: string;
   youtube_video_id: string | null;
   youtube_channel_id: string | null;
+  last_polled_at: string | null;
+  next_poll_at: string | null;
+  last_error: string | null;
 }
 
 interface VideoRow {
@@ -133,6 +136,15 @@ function ReviewStatusBadge({ status }: { status: string }) {
       {meta.label}
     </Badge>
   );
+}
+
+/** Approved YouTube Sources' cron runs once daily (Vercel Hobby-plan limit — see vercel.json). */
+function pollingStatusText(source: SourceRow): string {
+  if (source.last_error) return `Last check failed: ${source.last_error}`;
+  if (source.last_polled_at) {
+    return `Last checked ${new Date(source.last_polled_at).toLocaleString()} — checked automatically once daily`;
+  }
+  return "Not checked yet — checked automatically once daily";
 }
 
 /**
@@ -275,17 +287,19 @@ function ApprovedSourcesPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Approved YouTube Sources</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Register YouTube channels or videos as known-legitimate. Approved channels are
-          automatically checked for new uploads; every video is still run through face and deepfake
-          matching and lands in your review queue below — nothing is ever auto-approved or acted on.
-          Approve what's genuinely yours, or send anything uncertain for review.
+          Adding a channel is the recommended way to use this page: once approved, it's checked
+          automatically once a day for new uploads, and every video it posts is still run through
+          face and deepfake matching before landing in your review queue below — approving a channel
+          means "allow it to be monitored automatically," not "trust it forever." A single video URL
+          remains available as an optional one-off. Nothing here is ever auto-approved or acted on;
+          approve what's genuinely yours, or send anything uncertain for review.
         </p>
       </div>
 
       <PageCard title="Add a source">
         <div className="flex gap-2">
           <Input
-            placeholder="YouTube channel URL or video URL"
+            placeholder="YouTube channel URL (recommended) — or a single video URL"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={busy}
@@ -367,12 +381,19 @@ function ApprovedSourcesPage() {
 
                 {source.source_kind === "channel" && (
                   <div className="mt-4 pt-4 border-t border-white/10">
-                    <div className="text-xs text-muted-foreground mb-2">
-                      Discovered uploads ({sourceVideos.length})
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <div className="text-xs text-muted-foreground">
+                        Discovered uploads ({sourceVideos.length})
+                      </div>
+                      <div
+                        className={`text-xs ${source.last_error ? "text-red-400" : "text-muted-foreground"}`}
+                      >
+                        {pollingStatusText(source)}
+                      </div>
                     </div>
                     {sourceVideos.length === 0 ? (
                       <div className="text-xs text-muted-foreground">
-                        No uploads discovered yet — checked automatically every 30–60 minutes.
+                        No uploads discovered yet.
                       </div>
                     ) : (
                       <div className="space-y-2">

@@ -104,7 +104,7 @@ export async function analyzeApprovedSourceVideo(
   const hasReferenceProfile = !!target && target.referenceFaceCount >= 3;
 
   if (!hasReferenceProfile) {
-    await supabaseAdmin
+    const { error: skipError } = await supabaseAdmin
       .from("approved_source_videos")
       .update({
         analysis_status: "skipped",
@@ -116,6 +116,12 @@ export async function analyzeApprovedSourceVideo(
         analyzed_at: new Date().toISOString(),
       })
       .eq("id", video.id);
+    if (skipError) {
+      // Thrown, not swallowed: a caller (poll/add) catches this and marks
+      // the row "failed" with the message, instead of it sitting at
+      // "running" forever with no visible error anywhere.
+      throw new Error(`Failed to record skipped analysis: ${skipError.message}`);
+    }
     return;
   }
 
@@ -223,7 +229,7 @@ export async function analyzeApprovedSourceVideo(
     evidenceId = evidence.evidenceId;
   }
 
-  await supabaseAdmin
+  const { error: completeError } = await supabaseAdmin
     .from("approved_source_videos")
     .update({
       analysis_status: "completed",
@@ -238,4 +244,10 @@ export async function analyzeApprovedSourceVideo(
       analyzed_at: new Date().toISOString(),
     })
     .eq("id", video.id);
+  if (completeError) {
+    // Thrown, not swallowed — see the matching comment on the skipped-path
+    // update above. Without this, a failed write here silently left the row
+    // at analysis_status "running" forever with no error recorded anywhere.
+    throw new Error(`Failed to record completed analysis: ${completeError.message}`);
+  }
 }

@@ -67,12 +67,28 @@ export const addApprovedYoutubeSource = createServerFn({ method: "POST" })
         .single();
 
       if (!videoError && videoRow) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { analyzeApprovedSourceVideo } = await import("./analyze-approved-video.server");
           await analyzeApprovedSourceVideo(supabaseAdmin, videoRow.id);
         } catch (err) {
-          console.error("[approved-sources] initial analysis failed", err);
+          console.error("[approved-sources] initial analysis failed", videoRow.id, err);
+          // Without this, a thrown analysis error left the row stuck at
+          // analysis_status "running" forever with no visible failure.
+          const { error: failUpdateError } = await supabaseAdmin
+            .from("approved_source_videos")
+            .update({
+              analysis_status: "failed",
+              analysis_error: (err as Error).message ?? String(err),
+            })
+            .eq("id", videoRow.id);
+          if (failUpdateError) {
+            console.error(
+              "[approved-sources] failed to record analysis failure — video may be stuck",
+              videoRow.id,
+              failUpdateError.message,
+            );
+          }
         }
       }
 
