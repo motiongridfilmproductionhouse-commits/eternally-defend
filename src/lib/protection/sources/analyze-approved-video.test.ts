@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { analyzeApprovedSourceVideo } from "./analyze-approved-video.server";
 import { createMockSupabase } from "../test-utils";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function seedVideo(overrides: Record<string, unknown> = {}) {
   return {
@@ -17,12 +22,23 @@ function seedVideo(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test("no target profile enrolled -> needs_review, skipped, no evidence/case-prep ever attempted", async () => {
+test("REGRESSION: the automatic pipeline never calls or imports case-prep at all — case-prep is only reachable via the admin Takedown action", () => {
+  const source = readFileSync(join(__dirname, "analyze-approved-video.server.ts"), "utf8");
+  // Matches an actual call or import, not the explanatory prose in this
+  // file's own doc comment (which names onVerifiedFinding by way of
+  // contrast, without calling or importing it).
+  assert.doesNotMatch(
+    source,
+    /onVerifiedFinding\(|from ["']@\/lib\/enforcement\/orchestrator["']/,
+    "the automatic pipeline must never call or import case-prep — only takedownSourceVideoCore may",
+  );
+});
+
+test("no target profile enrolled -> needs_review, pending_review, skipped, no evidence ever attempted", async () => {
   const supabase = createMockSupabase({
     approved_source_videos: [seedVideo()],
   });
   let evidenceCalled = false;
-  let onVerifiedCalled = false;
 
   await analyzeApprovedSourceVideo(supabase, "video-1", {
     findExistingDeepfakeTarget: async () => null,
@@ -30,25 +46,20 @@ test("no target profile enrolled -> needs_review, skipped, no evidence/case-prep
       (evidenceCalled = true),
       { ok: true, evidenceId: "e1", status: "captured" }
     ),
-    onVerifiedFinding: async () => (
-      (onVerifiedCalled = true),
-      { caseId: "c1", status: "QUEUED", idempotencyDeduplicated: false }
-    ),
   });
 
   const row = supabase._store.approved_source_videos[0];
   assert.equal(row.classification, "needs_review");
+  assert.equal(row.review_status, "pending_review");
   assert.equal(row.analysis_status, "skipped");
   assert.equal(evidenceCalled, false);
-  assert.equal(onVerifiedCalled, false);
 });
 
-test("face matched, synthetic detection confirms clean -> legitimate_appearance, no evidence capture, no case-prep call", async () => {
+test("face matched, synthetic detection confirms clean -> legitimate_appearance, pending_review, no evidence capture", async () => {
   const supabase = createMockSupabase({
     approved_source_videos: [seedVideo()],
   });
   let evidenceCalled = false;
-  let onVerifiedCalled = false;
 
   await analyzeApprovedSourceVideo(supabase, "video-1", {
     findExistingDeepfakeTarget: async () => ({ profileId: "dtp-1", referenceFaceCount: 3 }),
@@ -64,25 +75,24 @@ test("face matched, synthetic detection confirms clean -> legitimate_appearance,
       (evidenceCalled = true),
       { ok: true, evidenceId: "e1", status: "captured" }
     ),
-    onVerifiedFinding: async () => (
-      (onVerifiedCalled = true),
-      { caseId: "c1", status: "QUEUED", idempotencyDeduplicated: false }
-    ),
   });
 
   const row = supabase._store.approved_source_videos[0];
   assert.equal(row.classification, "legitimate_appearance");
+  assert.equal(
+    row.review_status,
+    "pending_review",
+    "even a legitimate result must await human review",
+  );
   assert.equal(row.analysis_status, "completed");
   assert.equal(evidenceCalled, false, "a genuine appearance must never create evidence");
-  assert.equal(onVerifiedCalled, false, "a genuine appearance must never reach case-prep");
 });
 
-test("face matched and synthetic confirmed -> flagged, evidence captured, case-prep invoked (same gated path as every other module)", async () => {
+test("face matched and synthetic confirmed -> flagged, evidence captured for preservation, still only pending_review (never auto-actioned)", async () => {
   const supabase = createMockSupabase({
     approved_source_videos: [seedVideo()],
   });
   let evidenceCalled = false;
-  let onVerifiedFindingArgs: unknown = null;
 
   await analyzeApprovedSourceVideo(supabase, "video-1", {
     findExistingDeepfakeTarget: async () => ({ profileId: "dtp-1", referenceFaceCount: 3 }),
@@ -98,30 +108,20 @@ test("face matched and synthetic confirmed -> flagged, evidence captured, case-p
       (evidenceCalled = true),
       { ok: true, evidenceId: "evidence-1", status: "captured" }
     ),
-    onVerifiedFinding: async (_s, _u, finding) => (
-      (onVerifiedFindingArgs = finding),
-      {
-        caseId: "case-1",
-        status: "QUEUED",
-        idempotencyDeduplicated: false,
-      }
-    ),
   });
 
   const row = supabase._store.approved_source_videos[0];
   assert.equal(row.classification, "verified_deepfake");
   assert.equal(row.automated_finding_evidence_id, "evidence-1");
-  assert.equal(evidenceCalled, true);
-  assert.deepEqual(onVerifiedFindingArgs, {
-    id: "video-1",
-    source: "approved_youtube_sources",
-    source_type: "deepfake",
-    canonical_url: "https://www.youtube.com/watch?v=yt-1",
-    risk_type: "DEEPFAKE",
-  });
+  assert.equal(evidenceCalled, true, "evidence should still be preserved automatically");
+  assert.equal(
+    row.review_status,
+    "pending_review",
+    "a verified_deepfake suggestion must still wait for a human decision, never auto-act",
+  );
 });
 
-test("confident non-match -> not_subject, synthetic classifier never even called", async () => {
+test("confident non-match -> not_subject, pending_review, synthetic classifier never even called", async () => {
   const supabase = createMockSupabase({
     approved_source_videos: [seedVideo()],
   });
@@ -139,6 +139,7 @@ test("confident non-match -> not_subject, synthetic classifier never even called
 
   const row = supabase._store.approved_source_videos[0];
   assert.equal(row.classification, "not_subject");
+  assert.equal(row.review_status, "pending_review");
   assert.equal(
     hiveCalled,
     false,
@@ -146,13 +147,12 @@ test("confident non-match -> not_subject, synthetic classifier never even called
   );
 });
 
-test("REGRESSION: face comparison lands in the errors bucket (comparison_failed/no_image) -> needs_review, never not_subject, no evidence/case-prep, hive never called", async () => {
+test("REGRESSION: face comparison lands in the errors bucket (comparison_failed/no_image) -> needs_review, never not_subject, no evidence, hive never called", async () => {
   const supabase = createMockSupabase({
     approved_source_videos: [seedVideo()],
   });
   let hiveCalled = false;
   let evidenceCalled = false;
-  let onVerifiedCalled = false;
 
   await analyzeApprovedSourceVideo(supabase, "video-1", {
     findExistingDeepfakeTarget: async () => ({ profileId: "dtp-1", referenceFaceCount: 3 }),
@@ -168,10 +168,6 @@ test("REGRESSION: face comparison lands in the errors bucket (comparison_failed/
       (evidenceCalled = true),
       { ok: true, evidenceId: "e1", status: "captured" }
     ),
-    onVerifiedFinding: async () => (
-      (onVerifiedCalled = true),
-      { caseId: "c1", status: "QUEUED", idempotencyDeduplicated: false }
-    ),
   });
 
   const row = supabase._store.approved_source_videos[0];
@@ -180,9 +176,9 @@ test("REGRESSION: face comparison lands in the errors bucket (comparison_failed/
     "needs_review",
     "a failed face comparison must never be treated as a confident non-match",
   );
+  assert.equal(row.review_status, "pending_review");
   assert.equal(hiveCalled, false);
   assert.equal(evidenceCalled, false);
-  assert.equal(onVerifiedCalled, false);
 });
 
 test("REGRESSION: filterCandidatesByTargetFace throws (e.g. Rekognition/storage outage) -> needs_review, not not_subject", async () => {
@@ -202,12 +198,11 @@ test("REGRESSION: filterCandidatesByTargetFace throws (e.g. Rekognition/storage 
   assert.equal(row.analysis_error, "Face comparison could not be completed.");
 });
 
-test("REGRESSION: face matched but Hive returns provider_error -> needs_review, never legitimate_appearance, no evidence/case-prep", async () => {
+test("REGRESSION: face matched but Hive returns provider_error -> needs_review, never legitimate_appearance, no evidence", async () => {
   const supabase = createMockSupabase({
     approved_source_videos: [seedVideo()],
   });
   let evidenceCalled = false;
-  let onVerifiedCalled = false;
 
   await analyzeApprovedSourceVideo(supabase, "video-1", {
     findExistingDeepfakeTarget: async () => ({ profileId: "dtp-1", referenceFaceCount: 3 }),
@@ -223,10 +218,6 @@ test("REGRESSION: face matched but Hive returns provider_error -> needs_review, 
       (evidenceCalled = true),
       { ok: true, evidenceId: "e1", status: "captured" }
     ),
-    onVerifiedFinding: async () => (
-      (onVerifiedCalled = true),
-      { caseId: "c1", status: "QUEUED", idempotencyDeduplicated: false }
-    ),
   });
 
   const row = supabase._store.approved_source_videos[0];
@@ -236,7 +227,6 @@ test("REGRESSION: face matched but Hive returns provider_error -> needs_review, 
     "an inconclusive Hive result must never be treated as confirmed clean",
   );
   assert.equal(evidenceCalled, false);
-  assert.equal(onVerifiedCalled, false);
 });
 
 test("REGRESSION: face matched but Hive returns no_media -> needs_review, never legitimate_appearance", async () => {

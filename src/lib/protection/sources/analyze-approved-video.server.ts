@@ -3,18 +3,22 @@
  * (identity match, then synthetic/manipulation detection — see
  * target-identity.ts) and records the result. No new face-recognition or
  * synthetic-media detection code: this only orchestrates
- * filterCandidatesByTargetFace, classifyHitsWithHive, and the same
- * evidence-capture / case-prep entry points every other automated
- * protection module already uses. Heavy pipeline pieces (AWS Rekognition,
- * Hive) are dynamically imported — mirrors dispatch/deepfake.server.ts's
- * deps-injection shape so this stays unit-testable without those SDKs.
+ * filterCandidatesByTargetFace and classifyHitsWithHive. Heavy pipeline
+ * pieces (AWS Rekognition, Hive) are dynamically imported — mirrors
+ * dispatch/deepfake.server.ts's deps-injection shape so this stays
+ * unit-testable without those SDKs.
  *
- * A genuine (non-synthetic) match is recorded as legitimate_appearance and
- * never reaches evidence capture or case-prep — that is the point of an
- * "approved" source. A synthetic/manipulated match still flows through
- * captureAndRecordFindingEvidence + AutoEnforcementOrchestrator.onVerifiedFinding,
- * landing in the same human-gated review queue as every other module —
- * src/lib/enforcement/worker.ts's gates are never touched or bypassed.
+ * Every completed analysis lands in review_status: "pending_review" —
+ * nothing is ever auto-approved or auto-acted-on. A synthetic/manipulated
+ * match still runs captureAndRecordFindingEvidence (a passive fetch+hash
+ * record; no case, nobody notified) so evidence isn't lost if the source
+ * content disappears before a human reviews it, but it does NOT call
+ * AutoEnforcementOrchestrator.onVerifiedFinding automatically — case-prep
+ * only happens via the explicit, admin-gated Takedown action in
+ * admin-takedown.functions.ts. The customer's own review actions
+ * (approveSourceVideo / sendSourceVideoForReview in
+ * approved-sources.functions.ts) never touch evidence or enforcement code
+ * at all, by construction.
  *
  * Both gates surface a THIRD outcome ("error" / "unknown") distinct from a
  * confident negative — filterCandidatesByTargetFace's "errors" bucket
@@ -72,14 +76,6 @@ export interface AnalyzeApprovedVideoDeps {
       mediaType?: "image" | "video" | "page";
     },
   ) => Promise<FindingEvidenceResult>;
-  onVerifiedFinding?: (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    supabase: any,
-    userId: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    finding: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ) => Promise<any>;
 }
 
 export async function analyzeApprovedSourceVideo(
@@ -116,6 +112,7 @@ export async function analyzeApprovedSourceVideo(
           ? "No target face profile enrolled."
           : "Fewer than 3 reference faces enrolled.",
         classification: "needs_review",
+        review_status: "pending_review",
         analyzed_at: new Date().toISOString(),
       })
       .eq("id", video.id);
@@ -204,6 +201,11 @@ export async function analyzeApprovedSourceVideo(
     syntheticConfidence,
   });
 
+  // Passive evidence preservation only — never case-prep. A verified/probable
+  // deepfake match here is a SUGGESTION for the customer's review queue, not
+  // an automatic action. Evidence capture is idempotent (upserts on
+  // (user_id, module_key, url)), so if an admin later takes this down, the
+  // Takedown action re-captures/upserts the same record safely.
   let evidenceId: string | null = null;
   if (classificationRequiresEvidence(classification)) {
     const captureEvidence =
@@ -219,22 +221,6 @@ export async function analyzeApprovedSourceVideo(
       mediaType: "video",
     });
     evidenceId = evidence.evidenceId;
-
-    try {
-      const onVerifiedFinding =
-        deps.onVerifiedFinding ??
-        (await import("@/lib/enforcement/orchestrator")).AutoEnforcementOrchestrator
-          .onVerifiedFinding;
-      await onVerifiedFinding(supabaseAdmin, video.user_id, {
-        id: video.id,
-        source: "approved_youtube_sources",
-        source_type: "deepfake",
-        canonical_url: canonicalUrl,
-        risk_type: "DEEPFAKE",
-      });
-    } catch (err) {
-      console.error("[approved-sources] case prep failed", video.id, err);
-    }
   }
 
   await supabaseAdmin
@@ -243,6 +229,7 @@ export async function analyzeApprovedSourceVideo(
       analysis_status: "completed",
       analysis_error: faceError ?? syntheticError ?? null,
       classification,
+      review_status: "pending_review",
       face_match: faceMatch === "matched",
       face_similarity: faceSimilarity,
       is_synthetic: synthetic === "synthetic",

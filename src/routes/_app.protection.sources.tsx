@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageCard } from "@/components/dashboard/PageCard";
-import { Youtube, Loader2, Trash2, ExternalLink } from "lucide-react";
+import { Youtube, Loader2, Trash2, ExternalLink, Check, Flag } from "lucide-react";
 import {
   listApprovedSources,
   addApprovedYoutubeSource,
   removeApprovedSource,
+  approveSourceVideo,
+  sendSourceVideoForReview,
 } from "@/lib/protection/sources/approved-sources.functions";
 
 export const Route = createFileRoute("/_app/protection/sources")({
@@ -40,6 +42,7 @@ interface VideoRow {
   classification: string | null;
   analysis_status: string;
   published_at: string | null;
+  review_status: string;
 }
 
 const CLASSIFICATION_LABEL: Record<string, { label: string; className: string }> = {
@@ -62,6 +65,25 @@ const CLASSIFICATION_LABEL: Record<string, { label: string; className: string }>
   needs_review: {
     label: "Needs Review",
     className: "border-amber-500/30 text-amber-400 bg-amber-500/10",
+  },
+};
+
+const REVIEW_STATUS_LABEL: Record<string, { label: string; className: string }> = {
+  pending_review: {
+    label: "Pending Your Review",
+    className: "border-blue-500/30 text-blue-400 bg-blue-500/10",
+  },
+  approved_legitimate: {
+    label: "Approved",
+    className: "border-emerald-500/30 text-emerald-400 bg-emerald-500/10",
+  },
+  sent_for_review: {
+    label: "Sent for Review",
+    className: "border-amber-500/30 text-amber-400 bg-amber-500/10",
+  },
+  takedown_requested: {
+    label: "Takedown Requested",
+    className: "border-red-500/30 text-red-400 bg-red-500/10",
   },
 };
 
@@ -104,10 +126,82 @@ function ClassificationBadge({ video }: { video: VideoRow }) {
   );
 }
 
+function ReviewStatusBadge({ status }: { status: string }) {
+  const meta = REVIEW_STATUS_LABEL[status] ?? REVIEW_STATUS_LABEL.pending_review;
+  return (
+    <Badge variant="outline" className={`text-[10px] uppercase ${meta.className}`}>
+      {meta.label}
+    </Badge>
+  );
+}
+
+/**
+ * One discovered video's review row: the automatic pipeline's suggested
+ * classification is shown as a hint only — the customer's own decision
+ * (Approve/Legitimate or Send for Review) is what actually changes
+ * review_status. Neither action ever creates evidence or an enforcement
+ * case; that only ever happens via the separate, admin-only Takedown
+ * action on a different page.
+ */
+function VideoReviewItem({
+  video,
+  busy,
+  onApprove,
+  onSendForReview,
+}: {
+  video: VideoRow;
+  busy: boolean;
+  onApprove: (id: string) => void;
+  onSendForReview: (id: string) => void;
+}) {
+  const needsDecision =
+    video.review_status === "pending_review" || video.review_status === "sent_for_review";
+  return (
+    <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-lg p-2">
+      <div className="flex items-center gap-2 min-w-0">
+        {video.thumbnail_url && (
+          <img src={video.thumbnail_url} alt="" className="size-8 rounded object-cover shrink-0" />
+        )}
+        <span className="text-sm text-foreground truncate">{video.title}</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <ClassificationBadge video={video} />
+        <ReviewStatusBadge status={video.review_status} />
+        {needsDecision && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground hover:text-emerald-400 hover:bg-white/10"
+              title="Approve / Legitimate"
+              onClick={() => onApprove(video.id)}
+              disabled={busy}
+            >
+              <Check className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground hover:text-amber-400 hover:bg-white/10"
+              title="Send for Review"
+              onClick={() => onSendForReview(video.id)}
+              disabled={busy}
+            >
+              <Flag className="size-4" />
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ApprovedSourcesPage() {
   const fetchSources = useServerFn(listApprovedSources);
   const addSource = useServerFn(addApprovedYoutubeSource);
   const remove = useServerFn(removeApprovedSource);
+  const approve = useServerFn(approveSourceVideo);
+  const sendForReview = useServerFn(sendSourceVideoForReview);
 
   const { data, refetch, isLoading } = useQuery({
     queryKey: ["approved_youtube_sources"],
@@ -150,6 +244,32 @@ function ApprovedSourcesPage() {
     }
   };
 
+  const handleApprove = async (videoId: string) => {
+    setBusy(true);
+    try {
+      await approve({ data: { id: videoId } });
+      await refetch();
+      toast.success("Marked legitimate.");
+    } catch {
+      toast.error("Failed to update review status");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSendForReview = async (videoId: string) => {
+    setBusy(true);
+    try {
+      await sendForReview({ data: { id: videoId } });
+      await refetch();
+      toast.success("Sent for review.");
+    } catch {
+      toast.error("Failed to update review status");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       <div>
@@ -157,8 +277,8 @@ function ApprovedSourcesPage() {
         <p className="text-sm text-muted-foreground mt-1">
           Register YouTube channels or videos as known-legitimate. Approved channels are
           automatically checked for new uploads; every video is still run through face and deepfake
-          matching — a genuine appearance is marked legitimate, a manipulated one is still flagged
-          for review.
+          matching and lands in your review queue below — nothing is ever auto-approved or acted on.
+          Approve what's genuinely yours, or send anything uncertain for review.
         </p>
       </div>
 
@@ -257,22 +377,13 @@ function ApprovedSourcesPage() {
                     ) : (
                       <div className="space-y-2">
                         {sourceVideos.map((v) => (
-                          <div
+                          <VideoReviewItem
                             key={v.id}
-                            className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-lg p-2"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              {v.thumbnail_url && (
-                                <img
-                                  src={v.thumbnail_url}
-                                  alt=""
-                                  className="size-8 rounded object-cover shrink-0"
-                                />
-                              )}
-                              <span className="text-sm text-foreground truncate">{v.title}</span>
-                            </div>
-                            <ClassificationBadge video={v} />
-                          </div>
+                            video={v}
+                            busy={busy}
+                            onApprove={handleApprove}
+                            onSendForReview={handleSendForReview}
+                          />
                         ))}
                       </div>
                     )}
@@ -280,9 +391,13 @@ function ApprovedSourcesPage() {
                 )}
 
                 {source.source_kind === "video" && sourceVideos[0] && (
-                  <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Analysis result</span>
-                    <ClassificationBadge video={sourceVideos[0]} />
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <VideoReviewItem
+                      video={sourceVideos[0]}
+                      busy={busy}
+                      onApprove={handleApprove}
+                      onSendForReview={handleSendForReview}
+                    />
                   </div>
                 )}
               </PageCard>

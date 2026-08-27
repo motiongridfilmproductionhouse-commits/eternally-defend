@@ -31,6 +31,7 @@ import {
   Lock,
   Copyright,
   Megaphone,
+  ShieldAlert,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useVerificationStatus } from "@/hooks/use-verification-status";
@@ -92,6 +93,12 @@ const adminSystemNav: NavItem[] = [
   { icon: PlugZap, label: "Provider Activation", to: "/admin/provider-activation", badge: "ADMIN" },
   { icon: Waypoints, label: "Removal Routes", to: "/admin/removal-routes", badge: "ADMIN" },
   { icon: KeyRound, label: "Invitation Codes", to: "/admin/invites", badge: "ADMIN" },
+  {
+    icon: ShieldAlert,
+    label: "Approved Sources Review",
+    to: "/admin/approved-sources-review",
+    badge: "ADMIN",
+  },
 
 ];
 
