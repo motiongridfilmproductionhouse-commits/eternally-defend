@@ -14,63 +14,30 @@ import {
   matchCandidateAgainstFingerprint,
   type MovieFingerprint,
 } from "@/lib/copyright/fingerprint.server";
+import { getCopyrightVisionProvider } from "./vision-provider";
+import type {
+  AiClassificationOutcome,
+  AiClassificationStatus,
+  CopyrightUsage,
+  Sentiment,
+  VideoIntel,
+  YtVideo,
+} from "./vision-provider";
+
+// Re-exported for backward compatibility — these types now live in
+// vision-provider.ts (the provider-agnostic contract Gemini/Lovable both
+// implement), but every existing import site (youtube-monitor.functions.ts,
+// the fail-visible regression tests) continues to work unchanged.
+export type {
+  AiClassificationOutcome,
+  AiClassificationStatus,
+  CopyrightUsage,
+  Sentiment,
+  VideoIntel,
+  YtVideo,
+};
 
 const YT = "https://www.googleapis.com/youtube/v3";
-
-export interface YtVideo {
-  videoId: string;
-  videoUrl: string;
-  title: string;
-  description: string;
-  channelId: string | null;
-  channelTitle: string | null;
-  channelUrl: string | null;
-  thumbnailUrl: string | null;
-  publishedAt: string | null;
-  viewCount: number | null;
-  likeCount: number | null;
-  commentCount: number | null;
-  durationSeconds: number | null;
-  matchedQuery: string;
-}
-
-export type CopyrightUsage =
-  | "none"
-  | "poster_or_screenshot"
-  | "trailer_footage"
-  | "movie_footage"
-  | "promotional_material"
-  /** Classification never ran (provider unavailable/error) — distinct from
-   * a confident "none". Must never be treated as safe/approved. */
-  | "unknown";
-export type Sentiment = "positive" | "neutral" | "negative";
-
-export interface VideoIntel {
-  contentCategory: string;
-  copyrightUsage: CopyrightUsage;
-  copyrightSignals: string[];
-  sentiment: Sentiment;
-  sentimentScore: number;
-  summary: string;
-  reputationRisk: string[];
-}
-
-/**
- * Three-way AI classification outcome — mirrors the "error is not a
- * confident negative" model used by Approved YouTube Sources'
- * classification.ts. "unavailable" (no provider configured) and "error"
- * (the call was attempted but failed) are BOTH distinct from "classified":
- * neither may ever be treated as a confident "no relevant usage" result.
- */
-export type AiClassificationStatus = "classified" | "unavailable" | "error";
-
-export interface AiClassificationOutcome {
-  status: AiClassificationStatus;
-  /** Present only when status === "classified". */
-  intel: VideoIntel | null;
-  /** Present only when status === "error". */
-  errorMessage?: string;
-}
 
 /**
  * Three-way Rekognition corroboration outcome. "unavailable" means
@@ -295,106 +262,21 @@ export async function discoverYoutubeVideos(
   return videos;
 }
 
-const SYSTEM = `You analyse a public YouTube video for a rights holder's copyright and reputation monitoring desk.
-You receive the video metadata, the protected work's details, the REFERENCE frame of the protected work and the video THUMBNAIL.
-
-Report strictly as JSON:
-{
-  "contentCategory": string,        // review | reaction | explainer | news | fan_edit | full_movie | clip | trailer_reupload | promo | unrelated
-  "copyrightUsage": string,         // none | poster_or_screenshot | trailer_footage | movie_footage | promotional_material
-  "copyrightSignals": string[],     // short evidence tags e.g. poster_in_thumbnail, scene_frame_used, logo_used, trailer_frames
-  "sentiment": string,              // positive | neutral | negative
-  "sentimentScore": number,         // -100 very negative .. 100 very positive
-  "reputationRisk": string[],       // e.g. defamation_claim, spoiler_leak, boycott_call, abusive_language, false_claim
-  "summary": string                 // one or two sentences of concrete evidence
-}
-Judge copyright usage from the visuals only; do not assume usage from the title alone.
-If the thumbnail is unrelated to the reference work, copyrightUsage must be "none".`;
-
-const USAGES: CopyrightUsage[] = [
-  "none",
-  "poster_or_screenshot",
-  "trailer_footage",
-  "movie_footage",
-  "promotional_material",
-];
-
+/**
+ * Thin delegation to whichever CopyrightVisionProvider is configured
+ * (Gemini direct if GEMINI_API_KEY is set, else Lovable's gateway if
+ * LOVABLE_API_KEY is set, else an explicit "unavailable" no-op — see
+ * vision-provider.ts's getCopyrightVisionProvider). This function's own
+ * contract (AiClassificationOutcome) is unchanged, so decideVideoOutcome
+ * and every caller need no changes regardless of which provider answers.
+ */
 export async function analyzeYoutubeVideo(opts: {
   video: YtVideo;
   workTitle: string;
   referenceDataUrl: string;
 }): Promise<AiClassificationOutcome> {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) return { status: "unavailable", intel: null };
-  try {
-    const content: any[] = [
-      {
-        type: "text",
-        text:
-          `Protected work: ${opts.workTitle}\n` +
-          `Video title: ${opts.video.title}\n` +
-          `Channel: ${opts.video.channelTitle ?? "unknown"}\n` +
-          `Published: ${opts.video.publishedAt ?? "unknown"}\n` +
-          `Views: ${opts.video.viewCount ?? "unknown"}\n` +
-          `Description: ${opts.video.description.slice(0, 1200)}\n\n` +
-          `First image = REFERENCE work. Second image = video THUMBNAIL.`,
-      },
-      { type: "image_url", image_url: { url: opts.referenceDataUrl } },
-    ];
-    if (opts.video.thumbnailUrl)
-      content.push({ type: "image_url", image_url: { url: opts.video.thumbnailUrl } });
-
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": key,
-        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!res.ok) {
-      const body = (await res.text().catch(() => "")).slice(0, 200);
-      console.warn("[yt-monitor] gateway", res.status, body);
-      return { status: "error", intel: null, errorMessage: `gateway ${res.status}: ${body}` };
-    }
-    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const p = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
-    const usage = String(p.copyrightUsage ?? "none") as CopyrightUsage;
-    const sentiment = String(p.sentiment ?? "neutral");
-    const score = Number(p.sentimentScore);
-    return {
-      status: "classified",
-      intel: {
-        contentCategory: String(p.contentCategory ?? "unrelated").slice(0, 40),
-        copyrightUsage: USAGES.includes(usage) ? usage : "none",
-        copyrightSignals: Array.isArray(p.copyrightSignals)
-          ? p.copyrightSignals.map((s) => String(s).slice(0, 48)).slice(0, 10)
-          : [],
-        sentiment: (["positive", "neutral", "negative"].includes(sentiment)
-          ? sentiment
-          : "neutral") as Sentiment,
-        sentimentScore: Number.isFinite(score)
-          ? Math.max(-100, Math.min(100, Math.round(score)))
-          : 0,
-        summary: String(p.summary ?? "").slice(0, 500),
-        reputationRisk: Array.isArray(p.reputationRisk)
-          ? p.reputationRisk.map((s) => String(s).slice(0, 48)).slice(0, 8)
-          : [],
-      },
-    };
-  } catch (e) {
-    const message = (e as Error).message;
-    console.warn("[yt-monitor] analyze failed", message);
-    return { status: "error", intel: null, errorMessage: message };
-  }
+  const provider = await getCopyrightVisionProvider();
+  return provider.analyzeYoutubeVideo(opts);
 }
 
 const USAGE_WEIGHT: Record<CopyrightUsage, number> = {
@@ -520,6 +402,17 @@ export async function fetchVideoComments(videoId: string, max = 12): Promise<str
     return [];
   }
 }
+
+// Used only by analyzeReleaseReview below to validate its own inline
+// Lovable-gateway response — the release-day-review pipeline is out of
+// scope for the vision-provider migration (unchanged from before Stage B).
+const USAGES: CopyrightUsage[] = [
+  "none",
+  "poster_or_screenshot",
+  "trailer_footage",
+  "movie_footage",
+  "promotional_material",
+];
 
 const REVIEW_SYSTEM = `You analyse a public YouTube movie review / reaction video for a rights holder's reputation monitoring desk.
 You receive video metadata, a sample of public comments, the protected work's REFERENCE frame and the video THUMBNAIL.

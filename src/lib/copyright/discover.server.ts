@@ -44,113 +44,20 @@ export interface ReferenceAnalysis {
   mediaType: string | null;
 }
 
-interface GatewayResponse {
-  choices?: Array<{ message?: { content?: string } }>;
-}
-
-function getAiGatewayHeaders(key: string) {
-  return {
-    "Content-Type": "application/json",
-    "Lovable-API-Key": key,
-    "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-  };
-}
-
-const ANALYSIS_SYSTEM = `You analyse a rights-holder's reference frame (poster, artwork, still or video frame).
-Identify the work as precisely as you can, using visible text, logos, cast faces and design language.
-Return JSON:
-{
-  "title": string,              // the film/show/artwork it belongs to, "" if unsure
-  "altTitles": string[],        // 0-6 alternate, translated or transliterated titles (native script welcome)
-  "language": string,           // primary/original language, "" if unsure
-  "audienceLanguages": string[],// 0-5 other languages dubbed/subbed audiences would search in
-  "region": string,             // country or region of origin, "" if unsure
-  "actors": string[],           // 0-6 recognisable actor names
-  "productionCompany": string,  // studio / production house / distributor, "" if unsure
-  "releaseDate": string,        // release date if visible or known, "" otherwise
-  "descriptors": string[],      // 4-8 short search phrases describing this exact frame
-  "ocrText": string,            // ALL visible text, verbatim ("" if none)
-  "watermark": string,          // any burned-in watermark / studio / site brand ("" if none)
-  "visualFeatures": string[],   // 3-6 notes: palette, composition, subjects, framing
-  "mediaType": string           // poster | artwork | still | screenshot | trailer_frame | unknown
-}
-Respond with JSON only.`;
-
-/** AI-vision analysis of the reference frame. */
+/**
+ * AI-vision analysis of the reference frame. Delegates to whichever
+ * CopyrightVisionProvider is configured (Gemini direct if GEMINI_API_KEY is
+ * set, else Lovable's gateway if LOVABLE_API_KEY is set, else a fallback
+ * that degrades gracefully) — see vision-provider.ts. Return shape and the
+ * "degrade to a title-only fallback on any failure" contract are unchanged.
+ */
 export async function analyzeReference(
   referenceDataUrl: string,
   workTitle: string,
 ): Promise<ReferenceAnalysis> {
-  const key = process.env.LOVABLE_API_KEY;
-  const fallback: ReferenceAnalysis = {
-    title: workTitle,
-    altTitles: [],
-    language: null,
-    audienceLanguages: [],
-    region: null,
-    actors: [],
-    productionCompany: null,
-    releaseDate: null,
-    descriptors: [],
-    ocrText: null,
-    watermark: null,
-    visualFeatures: [],
-    mediaType: null,
-  };
-  if (!key) return fallback;
-
-  try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: getAiGatewayHeaders(key),
-      signal: AbortSignal.timeout(10_000),
-      body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
-        messages: [
-          { role: "system", content: ANALYSIS_SYSTEM },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: `Owner-provided title: ${workTitle}. Respond JSON only.` },
-              { type: "image_url", image_url: { url: referenceDataUrl } },
-            ],
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!res.ok) return fallback;
-    const json = (await res.json()) as GatewayResponse;
-    const parsed = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<
-      string,
-      unknown
-    >;
-    const list = (v: unknown, n: number) =>
-      Array.isArray(v)
-        ? v
-            .map((d) => String(d).slice(0, 80))
-            .filter(Boolean)
-            .slice(0, n)
-        : [];
-    const str = (v: unknown, n: number) => (v ? String(v).slice(0, n) : null);
-    return {
-      title: str(parsed.title, 120) ?? workTitle,
-      altTitles: list(parsed.altTitles, 6),
-      language: str(parsed.language, 40),
-      audienceLanguages: list(parsed.audienceLanguages, 5),
-      region: str(parsed.region, 60),
-      actors: list(parsed.actors, 6),
-      productionCompany: str(parsed.productionCompany, 80),
-      releaseDate: str(parsed.releaseDate, 40),
-      descriptors: list(parsed.descriptors, 8),
-      ocrText: str(parsed.ocrText, 1500),
-      watermark: str(parsed.watermark, 200),
-      visualFeatures: list(parsed.visualFeatures, 6),
-      mediaType: str(parsed.mediaType, 40),
-    };
-  } catch {
-    return fallback;
-  }
+  const { getCopyrightVisionProvider } = await import("./vision-provider");
+  const provider = await getCopyrightVisionProvider();
+  return provider.analyzeReference(referenceDataUrl, workTitle);
 }
 
 interface FcImage {
