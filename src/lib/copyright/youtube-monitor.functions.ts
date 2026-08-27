@@ -26,6 +26,7 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
       analyzeYoutubeVideo,
       buildYoutubeQueries,
       corroborateThumbnail,
+      decideVideoOutcome,
       discoverYoutubeVideos,
       scoreVideo,
     } = ytm;
@@ -74,33 +75,48 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
     const videos = await discoverYoutubeVideos(queries, { publishedAfter, perQuery: 8 });
 
     const rows: VideoInsert[] = [];
+    let aiAttempted = 0;
+    let aiClassified = 0;
+    let rekognitionAttempted = 0;
+    let rekognitionMatched = 0;
+    let kept = 0;
+    let needsReview = 0;
+
     for (let i = 0; i < videos.length; i += 4) {
       const batch = videos.slice(i, i + 4);
       const analysed = await Promise.all(
         batch.map(async (video) => {
-          const [intel, rek] = await Promise.all([
+          const [ai, rek] = await Promise.all([
             analyzeYoutubeVideo({ video, workTitle: scan.title, referenceDataUrl }),
             corroborateThumbnail(fingerprint, video.thumbnailUrl),
           ]);
-          return { video, intel, rek };
+          return { video, ai, rek };
         }),
       );
 
-      for (const { video, intel, rek } of analysed) {
+      for (const { video, ai, rek } of analysed) {
+        // Every discovered video is an AI-classification candidate — count
+        // it as "attempted" even when the provider is entirely unconfigured,
+        // so a systemic outage shows up as aiFailed === aiAttempted (glaring)
+        // rather than 0/0/0 (which would look like nothing happened at all).
+        aiAttempted += 1;
+        if (ai.status === "classified") aiClassified += 1;
+        if (rek.status !== "unavailable") rekognitionAttempted += 1;
+        if (rek.status === "checked" && rek.score >= 40) rekognitionMatched += 1;
+
         const isSameDay = sameDay(video.publishedAt, analysis.releaseDate);
+        const intel = ai.status === "classified" ? ai.intel : null;
         const risk = scoreVideo({
           intel,
           video,
-          rekScore: rek?.score ?? 0,
+          rekScore: rek.status === "checked" ? rek.score : 0,
           sameDayRelease: isSameDay,
         });
-        // Keep only videos with copyright usage, reputation risk or a strong visual match.
-        const keep =
-          (intel && intel.copyrightUsage !== "none") ||
-          (intel && intel.sentiment === "negative") ||
-          (intel?.reputationRisk.length ?? 0) > 0 ||
-          (rek?.score ?? 0) >= 40;
-        if (!keep) continue;
+
+        const outcome = decideVideoOutcome({ ai, rek });
+        if (outcome === "drop") continue;
+        if (outcome === "kept") kept += 1;
+        else needsReview += 1;
 
         rows.push({
           scan_id: scan.id,
@@ -119,8 +135,10 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
           comment_count: video.commentCount,
           duration_seconds: video.durationSeconds,
           matched_query: video.matchedQuery,
+          // "unknown" (not "none") when the classifier never actually ran —
+          // a confident "none" must only ever come from a real classification.
           content_category: intel?.contentCategory ?? "unknown",
-          copyright_usage: intel?.copyrightUsage ?? "none",
+          copyright_usage: intel?.copyrightUsage ?? "unknown",
           copyright_signals: (intel?.copyrightSignals ??
             []) as unknown as VideoInsert["copyright_signals"],
           sentiment: intel?.sentiment ?? "neutral",
@@ -128,19 +146,28 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
           risk_score: risk,
           same_day_release: isSameDay,
           ai_summary: intel?.summary ?? null,
+          review_status: outcome === "needs_review" ? "needs_review" : "pending",
           evidence: {
+            ai_status: ai.status,
+            ai_error: ai.status === "error" ? ai.errorMessage : null,
             reputation_risk: intel?.reputationRisk ?? [],
-            recognition: rek
-              ? {
-                  provider: "aws_rekognition",
-                  score: rek.score,
-                  face_similarity: rek.faceSimilarity,
-                  actor_matches: rek.celebrityMatches,
-                  scene_overlap: rek.sceneOverlap,
-                  ocr_title_match: rek.ocrTitleMatch,
-                  signals: rek.signals,
-                }
-              : { provider: fingerprint.available ? "no_match" : "unavailable" },
+            recognition:
+              rek.status === "checked"
+                ? {
+                    provider: "aws_rekognition",
+                    status: "checked",
+                    score: rek.score,
+                    face_similarity: rek.faceSimilarity,
+                    actor_matches: rek.celebrityMatches,
+                    scene_overlap: rek.sceneOverlap,
+                    ocr_title_match: rek.ocrTitleMatch,
+                    signals: rek.signals,
+                  }
+                : {
+                    provider: "aws_rekognition",
+                    status: rek.status,
+                    error: rek.status === "error" ? rek.errorMessage : null,
+                  },
             reference_actors: analysis.actors,
             reference_alt_titles: analysis.altTitles,
             release_date: analysis.releaseDate,
@@ -158,11 +185,23 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
     }
 
     return {
+      // Legacy fields, kept for any existing caller compatibility.
       scanned: videos.length,
       queries: queries.length,
-      flagged: rows.length,
+      flagged: kept,
       rekognition: fingerprint.available,
       actors: fingerprint.celebrities,
+      // New execution metrics — a missing/failing provider must be visible
+      // here, never indistinguishable from "nothing found".
+      discovered: videos.length,
+      aiAttempted,
+      aiClassified,
+      aiFailed: aiAttempted - aiClassified,
+      rekognitionAttempted,
+      rekognitionMatched,
+      kept,
+      needsReview,
+      persisted: rows.length,
     };
   });
 

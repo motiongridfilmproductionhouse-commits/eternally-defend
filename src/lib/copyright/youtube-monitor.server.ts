@@ -35,7 +35,14 @@ export interface YtVideo {
 }
 
 export type CopyrightUsage =
-  "none" | "poster_or_screenshot" | "trailer_footage" | "movie_footage" | "promotional_material";
+  | "none"
+  | "poster_or_screenshot"
+  | "trailer_footage"
+  | "movie_footage"
+  | "promotional_material"
+  /** Classification never ran (provider unavailable/error) — distinct from
+   * a confident "none". Must never be treated as safe/approved. */
+  | "unknown";
 export type Sentiment = "positive" | "neutral" | "negative";
 
 export interface VideoIntel {
@@ -46,6 +53,80 @@ export interface VideoIntel {
   sentimentScore: number;
   summary: string;
   reputationRisk: string[];
+}
+
+/**
+ * Three-way AI classification outcome — mirrors the "error is not a
+ * confident negative" model used by Approved YouTube Sources'
+ * classification.ts. "unavailable" (no provider configured) and "error"
+ * (the call was attempted but failed) are BOTH distinct from "classified":
+ * neither may ever be treated as a confident "no relevant usage" result.
+ */
+export type AiClassificationStatus = "classified" | "unavailable" | "error";
+
+export interface AiClassificationOutcome {
+  status: AiClassificationStatus;
+  /** Present only when status === "classified". */
+  intel: VideoIntel | null;
+  /** Present only when status === "error". */
+  errorMessage?: string;
+}
+
+/**
+ * Three-way Rekognition corroboration outcome. "unavailable" means
+ * corroboration was never attempted (no fingerprint / no thumbnail) —
+ * different from "error" (attempted, the call failed) — different from
+ * "checked" (attempted and completed, whatever the resulting score).
+ */
+export type RekognitionStatus = "checked" | "unavailable" | "error";
+
+export interface RekognitionOutcome {
+  status: RekognitionStatus;
+  score: number;
+  signals: string[];
+  faceSimilarity: number;
+  celebrityMatches: string[];
+  sceneOverlap: number;
+  ocrTitleMatch: boolean;
+  /** Present only when status === "error". */
+  errorMessage?: string;
+}
+
+export type VideoOutcomeDecision = "kept" | "needs_review" | "drop";
+
+/**
+ * Pure decision function — given the two provider outcomes for one
+ * discovered video, decide whether it's a genuine finding, needs a human's
+ * eyes, or can be safely dropped. No I/O, unit-testable without mocking the
+ * YouTube/Lovable-AI/Rekognition calls.
+ *
+ * The existing "kept" bar is UNCHANGED (same copyrightUsage/sentiment/
+ * reputationRisk/rekScore>=40 conditions as before this fix) — this only
+ * adds a third bucket for "we don't actually know" so it stops being
+ * silently collapsed into "drop".
+ */
+export function decideVideoOutcome(opts: {
+  ai: AiClassificationOutcome;
+  rek: RekognitionOutcome;
+}): VideoOutcomeDecision {
+  const intel = opts.ai.status === "classified" ? opts.ai.intel : null;
+  const rekScore = opts.rek.status === "checked" ? opts.rek.score : 0;
+
+  const aiFoundSomething =
+    !!intel &&
+    (intel.copyrightUsage !== "none" ||
+      intel.sentiment === "negative" ||
+      intel.reputationRisk.length > 0);
+  const rekMatched = rekScore >= 40;
+
+  if (aiFoundSomething || rekMatched) return "kept";
+
+  // The AI classifier never actually reached a confident answer for this
+  // video (config missing or the call itself failed) — this is NOT
+  // evidence of "no relevant usage" and must never be silently discarded.
+  if (opts.ai.status !== "classified") return "needs_review";
+
+  return "drop";
 }
 
 const KEYWORDS = [
@@ -242,9 +323,9 @@ export async function analyzeYoutubeVideo(opts: {
   video: YtVideo;
   workTitle: string;
   referenceDataUrl: string;
-}): Promise<VideoIntel | null> {
+}): Promise<AiClassificationOutcome> {
   const key = process.env.LOVABLE_API_KEY;
-  if (!key) return null;
+  if (!key) return { status: "unavailable", intel: null };
   try {
     const content: any[] = [
       {
@@ -280,12 +361,9 @@ export async function analyzeYoutubeVideo(opts: {
       }),
     });
     if (!res.ok) {
-      console.warn(
-        "[yt-monitor] gateway",
-        res.status,
-        (await res.text().catch(() => "")).slice(0, 200),
-      );
-      return null;
+      const body = (await res.text().catch(() => "")).slice(0, 200);
+      console.warn("[yt-monitor] gateway", res.status, body);
+      return { status: "error", intel: null, errorMessage: `gateway ${res.status}: ${body}` };
     }
     const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const p = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
@@ -293,28 +371,38 @@ export async function analyzeYoutubeVideo(opts: {
     const sentiment = String(p.sentiment ?? "neutral");
     const score = Number(p.sentimentScore);
     return {
-      contentCategory: String(p.contentCategory ?? "unrelated").slice(0, 40),
-      copyrightUsage: USAGES.includes(usage) ? usage : "none",
-      copyrightSignals: Array.isArray(p.copyrightSignals)
-        ? p.copyrightSignals.map((s) => String(s).slice(0, 48)).slice(0, 10)
-        : [],
-      sentiment: (["positive", "neutral", "negative"].includes(sentiment)
-        ? sentiment
-        : "neutral") as Sentiment,
-      sentimentScore: Number.isFinite(score) ? Math.max(-100, Math.min(100, Math.round(score))) : 0,
-      summary: String(p.summary ?? "").slice(0, 500),
-      reputationRisk: Array.isArray(p.reputationRisk)
-        ? p.reputationRisk.map((s) => String(s).slice(0, 48)).slice(0, 8)
-        : [],
+      status: "classified",
+      intel: {
+        contentCategory: String(p.contentCategory ?? "unrelated").slice(0, 40),
+        copyrightUsage: USAGES.includes(usage) ? usage : "none",
+        copyrightSignals: Array.isArray(p.copyrightSignals)
+          ? p.copyrightSignals.map((s) => String(s).slice(0, 48)).slice(0, 10)
+          : [],
+        sentiment: (["positive", "neutral", "negative"].includes(sentiment)
+          ? sentiment
+          : "neutral") as Sentiment,
+        sentimentScore: Number.isFinite(score)
+          ? Math.max(-100, Math.min(100, Math.round(score)))
+          : 0,
+        summary: String(p.summary ?? "").slice(0, 500),
+        reputationRisk: Array.isArray(p.reputationRisk)
+          ? p.reputationRisk.map((s) => String(s).slice(0, 48)).slice(0, 8)
+          : [],
+      },
     };
   } catch (e) {
-    console.warn("[yt-monitor] analyze failed", (e as Error).message);
-    return null;
+    const message = (e as Error).message;
+    console.warn("[yt-monitor] analyze failed", message);
+    return { status: "error", intel: null, errorMessage: message };
   }
 }
 
 const USAGE_WEIGHT: Record<CopyrightUsage, number> = {
   none: 0,
+  // Classification never ran — contributes no risk weight of its own; the
+  // risk score for a needs_review row is driven entirely by whatever
+  // Rekognition signal (if any) is available.
+  unknown: 0,
   poster_or_screenshot: 22,
   promotional_material: 18,
   trailer_footage: 28,
@@ -343,25 +431,29 @@ export function scoreVideo(opts: {
   return Math.max(0, Math.min(100, score));
 }
 
+const EMPTY_REK_FIELDS = {
+  score: 0,
+  signals: [] as string[],
+  faceSimilarity: 0,
+  celebrityMatches: [] as string[],
+  sceneOverlap: 0,
+  ocrTitleMatch: false,
+};
+
 /** Rekognition corroboration of a video thumbnail against the reference fingerprint. */
 export async function corroborateThumbnail(
   fp: MovieFingerprint,
   thumbnailUrl: string | null,
-): Promise<{
-  score: number;
-  signals: string[];
-  faceSimilarity: number;
-  celebrityMatches: string[];
-  sceneOverlap: number;
-  ocrTitleMatch: boolean;
-} | null> {
-  if (!fp.available || !thumbnailUrl) return null;
+): Promise<RekognitionOutcome> {
+  if (!fp.available || !thumbnailUrl) return { status: "unavailable", ...EMPTY_REK_FIELDS };
   try {
     const { fetchImageBytes } = await import("@/lib/aws/s3.server");
     const fetched = await fetchImageBytes(thumbnailUrl);
-    if (!fetched) return null;
+    if (!fetched)
+      return { status: "error", ...EMPTY_REK_FIELDS, errorMessage: "thumbnail fetch failed" };
     const m = await matchCandidateAgainstFingerprint(fp, fetched.bytes, "");
     return {
+      status: "checked",
       score: m.score,
       signals: m.signals,
       faceSimilarity: m.faceSimilarity,
@@ -369,8 +461,8 @@ export async function corroborateThumbnail(
       sceneOverlap: m.sceneOverlap,
       ocrTitleMatch: m.ocrTitleMatch,
     };
-  } catch {
-    return null;
+  } catch (e) {
+    return { status: "error", ...EMPTY_REK_FIELDS, errorMessage: (e as Error).message };
   }
 }
 
