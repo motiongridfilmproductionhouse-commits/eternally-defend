@@ -55,6 +55,8 @@ export type VerificationSignals = {
   faceStatus?: string | null;
   verificationBadge?: string | null;
   authorizationStatus?: string | null;
+  /** Canonical client_authorizations.status of the latest signed authorization. */
+  signedAuthorizationStatus?: string | null;
 };
 
 /**
