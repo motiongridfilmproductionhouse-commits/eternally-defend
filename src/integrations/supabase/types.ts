@@ -239,6 +239,54 @@ export type Database = {
           },
         ]
       }
+      approved_source_takedown_log: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          enforcement_case_id: string | null
+          id: string
+          reason: string | null
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          action?: string
+          actor_id: string
+          created_at?: string
+          enforcement_case_id?: string | null
+          id?: string
+          reason?: string | null
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          enforcement_case_id?: string | null
+          id?: string
+          reason?: string | null
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approved_source_takedown_log_enforcement_case_id_fkey"
+            columns: ["enforcement_case_id"]
+            isOneToOne: false
+            referencedRelation: "enforcement_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approved_source_takedown_log_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "approved_source_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approved_source_videos: {
         Row: {
           analysis_error: string | null
@@ -253,6 +301,9 @@ export type Database = {
           id: string
           is_synthetic: boolean | null
           published_at: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           source_id: string
           synthetic_confidence: number | null
           thumbnail_url: string | null
@@ -274,6 +325,9 @@ export type Database = {
           id?: string
           is_synthetic?: boolean | null
           published_at?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           source_id: string
           synthetic_confidence?: number | null
           thumbnail_url?: string | null
@@ -295,6 +349,9 @@ export type Database = {
           id?: string
           is_synthetic?: boolean | null
           published_at?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           source_id?: string
           synthetic_confidence?: number | null
           thumbnail_url?: string | null

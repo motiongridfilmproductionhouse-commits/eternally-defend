@@ -64,6 +64,7 @@ import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admi
 import { Route as AppAdminInvitesRouteImport } from './routes/_app.admin.invites'
 import { Route as AppAdminIdentityReviewRouteImport } from './routes/_app.admin.identity-review'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
+import { Route as AppAdminApprovedSourcesReviewRouteImport } from './routes/_app.admin.approved-sources-review'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
 import { Route as ApiPublicHooksScanOrchestratorRouteImport } from './routes/api/public/hooks/scan-orchestrator'
 import { Route as ApiPublicHooksResendWebhookRouteImport } from './routes/api/public/hooks/resend-webhook'
@@ -367,6 +368,12 @@ const AppAdminDiagnosticsRoute = AppAdminDiagnosticsRouteImport.update({
   path: '/admin/diagnostics',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminApprovedSourcesReviewRoute =
+  AppAdminApprovedSourcesReviewRouteImport.update({
+    id: '/admin/approved-sources-review',
+    path: '/admin/approved-sources-review',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppSensitiveProtectionResultsIndexRoute =
   AppSensitiveProtectionResultsIndexRouteImport.update({
     id: '/sensitive-protection/results/',
@@ -513,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/verify/$slug': typeof VerifySlugRoute
+  '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/identity-review': typeof AppAdminIdentityReviewRoute
   '/admin/invites': typeof AppAdminInvitesRoute
@@ -586,6 +594,7 @@ export interface FileRoutesByTo {
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/verify/$slug': typeof VerifySlugRoute
+  '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/identity-review': typeof AppAdminIdentityReviewRoute
   '/admin/invites': typeof AppAdminInvitesRoute
@@ -663,6 +672,7 @@ export interface FileRoutesById {
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/_app/admin/identity-review': typeof AppAdminIdentityReviewRoute
   '/_app/admin/invites': typeof AppAdminInvitesRoute
@@ -739,6 +749,7 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/face-handoff/$token'
     | '/verify/$slug'
+    | '/admin/approved-sources-review'
     | '/admin/diagnostics'
     | '/admin/identity-review'
     | '/admin/invites'
@@ -812,6 +823,7 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/face-handoff/$token'
     | '/verify/$slug'
+    | '/admin/approved-sources-review'
     | '/admin/diagnostics'
     | '/admin/identity-review'
     | '/admin/invites'
@@ -888,6 +900,7 @@ export interface FileRouteTypes {
     | '/face-handoff/$token'
     | '/verify/$slug'
     | '/_app/'
+    | '/_app/admin/approved-sources-review'
     | '/_app/admin/diagnostics'
     | '/_app/admin/identity-review'
     | '/_app/admin/invites'
@@ -1353,6 +1366,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminDiagnosticsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/approved-sources-review': {
+      id: '/_app/admin/approved-sources-review'
+      path: '/admin/approved-sources-review'
+      fullPath: '/admin/approved-sources-review'
+      preLoaderRoute: typeof AppAdminApprovedSourcesReviewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sensitive-protection/results/': {
       id: '/_app/sensitive-protection/results/'
       path: '/sensitive-protection/results'
@@ -1523,6 +1543,7 @@ interface AppRouteChildren {
   AppThreatRadarRoute: typeof AppThreatRadarRoute
   AppYoutubeRemovalRoute: typeof AppYoutubeRemovalRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminApprovedSourcesReviewRoute: typeof AppAdminApprovedSourcesReviewRoute
   AppAdminDiagnosticsRoute: typeof AppAdminDiagnosticsRoute
   AppAdminIdentityReviewRoute: typeof AppAdminIdentityReviewRoute
   AppAdminInvitesRoute: typeof AppAdminInvitesRoute
@@ -1561,6 +1582,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppThreatRadarRoute: AppThreatRadarRoute,
   AppYoutubeRemovalRoute: AppYoutubeRemovalRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAdminApprovedSourcesReviewRoute: AppAdminApprovedSourcesReviewRoute,
   AppAdminDiagnosticsRoute: AppAdminDiagnosticsRoute,
   AppAdminIdentityReviewRoute: AppAdminIdentityReviewRoute,
   AppAdminInvitesRoute: AppAdminInvitesRoute,

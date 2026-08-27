@@ -138,3 +138,46 @@ export const removeApprovedSource = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     return removeApprovedSourceCore(supabase, userId, data.id);
   });
+
+const CUSTOMER_REVIEW_STATUSES = ["approved_legitimate", "sent_for_review"] as const;
+type CustomerReviewStatus = (typeof CUSTOMER_REVIEW_STATUSES)[number];
+
+/**
+ * The customer's own review decision on a discovered video. Deliberately the
+ * only thing this function touches — it never imports evidence-capture or
+ * enforcement code, so "approval/send-for-review can never trigger
+ * enforcement" is true by construction, not just by convention. Scoped to
+ * the caller's own row by both the RLS policy on approved_source_videos and
+ * this explicit eq("user_id", userId) filter (defense in depth, matching
+ * removeApprovedSourceCore).
+ */
+export async function updateSourceVideoReviewStatusCore(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  videoId: string,
+  status: CustomerReviewStatus,
+): Promise<{ ok: boolean }> {
+  await supabase
+    .from("approved_source_videos")
+    .update({ review_status: status, reviewed_by: userId, reviewed_at: new Date().toISOString() })
+    .eq("id", videoId)
+    .eq("user_id", userId);
+  return { ok: true };
+}
+
+export const approveSourceVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().min(1) }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    return updateSourceVideoReviewStatusCore(supabase, userId, data.id, "approved_legitimate");
+  });
+
+export const sendSourceVideoForReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().min(1) }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    return updateSourceVideoReviewStatusCore(supabase, userId, data.id, "sent_for_review");
+  });
