@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/public/hooks/approved-sources-poll",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
