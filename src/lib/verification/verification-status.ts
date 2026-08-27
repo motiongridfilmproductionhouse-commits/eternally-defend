@@ -55,6 +55,8 @@ export type VerificationSignals = {
   faceStatus?: string | null;
   verificationBadge?: string | null;
   authorizationStatus?: string | null;
+  /** Canonical client_authorizations.status of the latest signed authorization. */
+  signedAuthorizationStatus?: string | null;
 };
 
 /**
@@ -65,10 +67,14 @@ export function deriveVerificationStatus(signals: VerificationSignals): Verifica
   const kyc = (signals.kycStatus ?? "").toUpperCase();
   const face = (signals.faceStatus ?? "").toUpperCase();
   const authorization = (signals.authorizationStatus ?? "").toLowerCase();
+  const signed = (signals.signedAuthorizationStatus ?? "").toUpperCase();
 
   if (
     kyc === "APPROVED" ||
     face === "FACE_VERIFIED" ||
+    face === "FACE_VERIFIED_VIA_PROTECTED_ASSET" ||
+    signed === "SIGNED" ||
+    signed === "ACTIVE" ||
     authorization === "authorized" ||
     authorization === "enterprise_authorized" ||
     Boolean(signals.verificationBadge)

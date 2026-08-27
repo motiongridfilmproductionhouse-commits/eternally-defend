@@ -47,6 +47,9 @@ export function useVerificationStatus() {
     faceStatus: (faceQuery.data as { status?: string } | null)?.status,
     verificationBadge: profile?.verification_badge ?? null,
     authorizationStatus: profile?.authorization_status ?? null,
+    signedAuthorizationStatus:
+      (stateQuery.data as { clientAuthorizationStatus?: string | null } | undefined)
+        ?.clientAuthorizationStatus ?? null,
   });
 
   const accountType: V2AccountType | null = isV2AccountType(profile?.onboarding_account_type)

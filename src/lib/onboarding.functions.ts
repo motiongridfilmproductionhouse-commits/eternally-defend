@@ -23,7 +23,7 @@ export const getOnboardingState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [profile, assets, activeAuth, docs] = await Promise.all([
+    const [profile, assets, activeAuth, docs, signedAuth] = await Promise.all([
       supabase.from("client_profiles").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("onboarding_assets").select("*").eq("user_id", userId).order("created_at"),
       supabase
@@ -34,11 +34,21 @@ export const getOnboardingState = createServerFn({ method: "GET" })
         .order("signed_at", { ascending: false })
         .maybeSingle(),
       supabase.from("enterprise_documents").select("*").eq("user_id", userId).order("uploaded_at"),
+      // Canonical signed-authorization record (same source as the header
+      // "Authorized" badge) so the UI never nags a customer who already signed.
+      supabase
+        .from("client_authorizations")
+        .select("status")
+        .eq("user_id", userId)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
     return {
       profile: profile.data ?? null,
       assets: assets.data ?? [],
       authorization: activeAuth.data ?? null,
+      clientAuthorizationStatus: (signedAuth.data as { status?: string } | null)?.status ?? null,
       documents: docs.data ?? [],
       versions: { onboarding: ONBOARDING_VERSION, consent: CONSENT_VERSION },
     };
