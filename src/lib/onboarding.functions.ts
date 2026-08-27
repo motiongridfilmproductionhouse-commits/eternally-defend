@@ -23,7 +23,7 @@ export const getOnboardingState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [profile, assets, activeAuth, docs] = await Promise.all([
+    const [profile, assets, activeAuth, docs, signedAuth] = await Promise.all([
       supabase.from("client_profiles").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("onboarding_assets").select("*").eq("user_id", userId).order("created_at"),
       supabase
