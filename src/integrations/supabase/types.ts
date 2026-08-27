@@ -239,6 +239,144 @@ export type Database = {
           },
         ]
       }
+      approved_source_videos: {
+        Row: {
+          analysis_error: string | null
+          analysis_status: string
+          analyzed_at: string | null
+          automated_finding_evidence_id: string | null
+          classification: string | null
+          created_at: string
+          description: string | null
+          face_match: boolean | null
+          face_similarity: number | null
+          id: string
+          is_synthetic: boolean | null
+          published_at: string | null
+          source_id: string
+          synthetic_confidence: number | null
+          thumbnail_url: string | null
+          title: string | null
+          url: string | null
+          user_id: string
+          youtube_video_id: string
+        }
+        Insert: {
+          analysis_error?: string | null
+          analysis_status?: string
+          analyzed_at?: string | null
+          automated_finding_evidence_id?: string | null
+          classification?: string | null
+          created_at?: string
+          description?: string | null
+          face_match?: boolean | null
+          face_similarity?: number | null
+          id?: string
+          is_synthetic?: boolean | null
+          published_at?: string | null
+          source_id: string
+          synthetic_confidence?: number | null
+          thumbnail_url?: string | null
+          title?: string | null
+          url?: string | null
+          user_id: string
+          youtube_video_id: string
+        }
+        Update: {
+          analysis_error?: string | null
+          analysis_status?: string
+          analyzed_at?: string | null
+          automated_finding_evidence_id?: string | null
+          classification?: string | null
+          created_at?: string
+          description?: string | null
+          face_match?: boolean | null
+          face_similarity?: number | null
+          id?: string
+          is_synthetic?: boolean | null
+          published_at?: string | null
+          source_id?: string
+          synthetic_confidence?: number | null
+          thumbnail_url?: string | null
+          title?: string | null
+          url?: string | null
+          user_id?: string
+          youtube_video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approved_source_videos_automated_finding_evidence_id_fkey"
+            columns: ["automated_finding_evidence_id"]
+            isOneToOne: false
+            referencedRelation: "automated_finding_evidence"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approved_source_videos_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "approved_youtube_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approved_youtube_sources: {
+        Row: {
+          channel_title: string | null
+          created_at: string
+          id: string
+          input_url: string
+          last_error: string | null
+          last_polled_at: string | null
+          next_poll_at: string | null
+          source_kind: string
+          status: string
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          uploads_playlist_id: string | null
+          user_id: string
+          youtube_channel_id: string | null
+          youtube_video_id: string | null
+        }
+        Insert: {
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          input_url: string
+          last_error?: string | null
+          last_polled_at?: string | null
+          next_poll_at?: string | null
+          source_kind: string
+          status?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          uploads_playlist_id?: string | null
+          user_id: string
+          youtube_channel_id?: string | null
+          youtube_video_id?: string | null
+        }
+        Update: {
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          input_url?: string
+          last_error?: string | null
+          last_polled_at?: string | null
+          next_poll_at?: string | null
+          source_kind?: string
+          status?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          uploads_playlist_id?: string | null
+          user_id?: string
+          youtube_channel_id?: string | null
+          youtube_video_id?: string | null
+        }
+        Relationships: []
+      }
       asset_enforcement_settings: {
         Row: {
           asset_id: string
