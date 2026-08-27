@@ -36,6 +36,11 @@ export interface PipelineDeps {
   uploadTileBytes: (key: string, bytes: Uint8Array) => Promise<void>;
   sha256: (bytes: Uint8Array) => Promise<string>;
   detectGrid: typeof detectGridTiles;
+  /** Optional: face-region tiling used only when no social grid is detected (ordinary single photos). Injectable so tests never hit Rekognition. */
+  detectFaceRegions?: (
+    imageBytes: Uint8Array,
+  ) => Promise<{ tiles: DetectedTile[]; imageWidth?: number; imageHeight?: number }>;
+
   cropTile: typeof cropTile;
   analyzeFace: typeof analyzeTileForFace;
   matchIdentity: typeof matchTileAgainstReferences;
@@ -151,11 +156,23 @@ export async function processProtectedAssetForFaceReferences(
   let detectedTiles = grid.tiles;
   if (grid.confidence === "NONE" || detectedTiles.length === 0) {
     // Not a social grid screenshot — most protected assets are ordinary
-    // single photos. Treat the whole image as one tile so a single-photo
-    // asset still yields a face candidate instead of being skipped, which
-    // previously left customers with only individual photos (no liveness,
-    // no grid screenshots) with nothing to review at all.
-    if (!grid.imageWidth || !grid.imageHeight) {
+    // single photos. Tile each detected face region instead of skipping the
+    // asset, which previously left a customer whose assets are individual
+    // photos (no liveness, no grid screenshots) with nothing to review.
+    const detectFaceRegions =
+      deps.detectFaceRegions ??
+      (await import("./face-region-detect.server")).detectFaceRegionTiles;
+    let regions: { tiles: DetectedTile[] } = { tiles: [] };
+    try {
+      regions = await detectFaceRegions(screenshotBytes);
+    } catch (err) {
+      console.warn("[face-reference-extraction] face-region detection failed", asset.id, err);
+    }
+    if (regions.tiles.length > 0) {
+      detectedTiles = regions.tiles;
+    } else if (grid.imageWidth && grid.imageHeight) {
+      detectedTiles = [{ x: 0, y: 0, width: grid.imageWidth, height: grid.imageHeight }];
+    } else {
       await supabase
         .from("protected_assets")
         .update({ grid_screenshot_status: "NOT_APPLICABLE", grid_tile_count: 0 })
@@ -163,8 +180,8 @@ export async function processProtectedAssetForFaceReferences(
         .eq("user_id", userId);
       return { status: "NOT_APPLICABLE", ...zero };
     }
-    detectedTiles = [{ x: 0, y: 0, width: grid.imageWidth, height: grid.imageHeight }];
   }
+
 
   const tiles = detectedTiles.slice(0, MAX_TILES_PER_ASSET);
 
