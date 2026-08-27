@@ -36,6 +36,11 @@ export interface PipelineDeps {
   uploadTileBytes: (key: string, bytes: Uint8Array) => Promise<void>;
   sha256: (bytes: Uint8Array) => Promise<string>;
   detectGrid: typeof detectGridTiles;
+  /** Optional: face-region tiling used only when no social grid is detected (ordinary single photos). Injectable so tests never hit Rekognition. */
+  detectFaceRegions?: (
+    imageBytes: Uint8Array,
+  ) => Promise<{ tiles: DetectedTile[]; imageWidth?: number; imageHeight?: number }>;
+
   cropTile: typeof cropTile;
   analyzeFace: typeof analyzeTileForFace;
   matchIdentity: typeof matchTileAgainstReferences;
