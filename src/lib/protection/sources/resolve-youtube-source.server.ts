@@ -13,6 +13,12 @@ import {
   type YoutubeVideoRow,
 } from "@/lib/channel-watch/youtube.server";
 
+export interface ResolveYoutubeSourceDeps {
+  fetchVideoDetails?: typeof fetchVideoDetails;
+  hydrateChannelById?: typeof hydrateChannelById;
+  resolveChannelCandidates?: typeof resolveChannelCandidates;
+}
+
 export interface ResolvedApprovedChannel {
   kind: "channel";
   channelId: string;
@@ -55,10 +61,14 @@ export function extractVideoId(raw: string): string | null {
 }
 
 /** Resolves a pasted URL into either a channel or a single-video source. */
-export async function resolveApprovedYoutubeInput(input: string): Promise<ResolvedApprovedSource> {
+export async function resolveApprovedYoutubeInput(
+  input: string,
+  deps: ResolveYoutubeSourceDeps = {},
+): Promise<ResolvedApprovedSource> {
   const videoId = extractVideoId(input);
   if (videoId) {
-    const [video] = await fetchVideoDetails([videoId]);
+    const fetchDetails = deps.fetchVideoDetails ?? fetchVideoDetails;
+    const [video] = await fetchDetails([videoId]);
     if (!video || video.isPrivateOrDeleted) {
       throw new Error("That YouTube video could not be found or is unavailable.");
     }
@@ -71,7 +81,7 @@ export async function resolveApprovedYoutubeInput(input: string): Promise<Resolv
     };
   }
 
-  const channel = await resolveChannel(input);
+  const channel = await resolveChannel(input, deps);
   return {
     kind: "channel",
     channelId: channel.channelId,
@@ -82,13 +92,18 @@ export async function resolveApprovedYoutubeInput(input: string): Promise<Resolv
   };
 }
 
-async function resolveChannel(input: string): Promise<ResolvedChannel> {
+async function resolveChannel(
+  input: string,
+  deps: ResolveYoutubeSourceDeps,
+): Promise<ResolvedChannel> {
   const trimmed = input.trim();
+  const hydrateById = deps.hydrateChannelById ?? hydrateChannelById;
+  const resolveCandidates = deps.resolveChannelCandidates ?? resolveChannelCandidates;
   if (/^UC[A-Za-z0-9_-]{20,}$/.test(trimmed)) {
-    const byId = await hydrateChannelById(trimmed);
+    const byId = await hydrateById(trimmed);
     if (byId) return byId;
   }
-  const [candidate] = await resolveChannelCandidates(trimmed);
+  const [candidate] = await resolveCandidates(trimmed);
   if (!candidate) {
     throw new Error("That YouTube channel could not be found.");
   }

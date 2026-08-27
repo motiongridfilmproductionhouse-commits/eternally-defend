@@ -29,13 +29,19 @@ export const Route = createFileRoute("/api/public/hooks/approved-sources-poll")(
         const { pollApprovedChannelSource } =
           await import("@/lib/protection/sources/poll-approved-source.server");
         const nowIso = new Date().toISOString();
-        const { data: due } = await supabaseAdmin
+        const { data: due, error: dueError } = await supabaseAdmin
           .from("approved_youtube_sources")
           .select("id")
           .eq("source_kind", "channel")
           .eq("status", "active")
           .or(`next_poll_at.is.null,next_poll_at.lte.${nowIso}`)
           .limit(25);
+        if (dueError) {
+          // Fail loudly rather than silently processing zero sources — an
+          // empty `due` list from a failed query must not look identical to
+          // "nothing was due".
+          return Response.json({ ok: false, error: dueError.message }, { status: 500 });
+        }
         const results: Array<{ id: string; ok: boolean; error?: string }> = [];
         for (const s of due ?? []) {
           try {
