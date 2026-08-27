@@ -77,6 +77,37 @@ export const getFaceEnrollment = createServerFn({ method: "GET" })
         ? dbStatus
         : "CONSENT_REQUIRED";
 
+    // A customer can already have usable, verified face references without ever
+    // completing liveness (Path C: references extracted from their own
+    // protected assets / manual Deepfake Intel enrollment). Those accounts are
+    // face-protected in reality, so stop reporting an outstanding enrollment.
+    if (status !== "FACE_VERIFIED" && status !== "FACE_VERIFIED_VIA_PROTECTED_ASSET") {
+      const [{ count: activeFaces }, { data: targetProfile }] = await Promise.all([
+        supabase
+          .from("protected_faces")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("status", "ACTIVE"),
+        supabase
+          .from("deepfake_target_profiles")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle(),
+      ]);
+      let hasReference = (activeFaces ?? 0) > 0;
+      if (!hasReference && targetProfile) {
+        const { count } = await supabase
+          .from("deepfake_reference_faces")
+          .select("id", { count: "exact", head: true })
+          .eq("profile_id", targetProfile.id);
+        hasReference = (count ?? 0) > 0;
+      }
+      if (hasReference) {
+        const derived = "FACE_VERIFIED_VIA_PROTECTED_ASSET";
+        return profile ? { ...profile, status: derived } : { status: derived };
+      }
+    }
+
     return profile ? { ...profile, status } : { status };
   });
 
