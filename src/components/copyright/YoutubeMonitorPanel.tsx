@@ -20,7 +20,6 @@ import {
   ThumbsDown,
   ThumbsUp,
   Minus,
-  TriangleAlert,
 } from "lucide-react";
 
 const USAGE_LABEL: Record<string, { label: string; cls: string }> = {
@@ -41,12 +40,27 @@ const USAGE_LABEL: Record<string, { label: string; cls: string }> = {
     cls: "bg-sky-500/15 text-sky-300 border-sky-500/40",
   },
   none: { label: "No visual reuse", cls: "bg-muted/40 text-muted-foreground border-border/60" },
-  // Classification never completed (provider unavailable/error) — deliberately
-  // styled as a warning, not muted like "none", so it never reads as a
-  // confident negative.
+  // This workflow doesn't run visual-usage classification by design (see
+  // MetadataMatchResult / decideVideoOutcomeFromEvidence) — "unknown" here
+  // just means "no usage category applies", never a failure.
   unknown: {
-    label: "Classification unavailable",
+    label: "No usage category",
+    cls: "bg-muted/40 text-muted-foreground border-border/60",
+  },
+};
+
+const METADATA_MATCH_LABEL: Record<string, { label: string; cls: string }> = {
+  strong_match: {
+    label: "Evidence match",
+    cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
+  },
+  weak_match: {
+    label: "Partial evidence",
     cls: "bg-amber-500/15 text-amber-400 border-amber-500/40",
+  },
+  no_match: {
+    label: "No text evidence",
+    cls: "bg-muted/40 text-muted-foreground border-border/60",
   },
 };
 
@@ -88,29 +102,23 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
     queryFn: () => listFn({ data: { scanId } }),
   });
 
-  const [lastRunWarning, setLastRunWarning] = useState<string | null>(null);
+  const [lastRunSummary, setLastRunSummary] = useState<string | null>(null);
 
   const run = useMutation({
     mutationFn: () => runFn({ data: { scanId } }),
     onSuccess: (r) => {
-      // A missing/failing AI classifier must never look identical to "no
-      // relevant videos found" — surface it explicitly whenever discovery
-      // succeeded but classification could not complete for some/all of it.
-      if (r.aiFailed > 0) {
-        const warning =
-          r.aiClassified > 0
-            ? `YouTube discovery completed, but AI classification failed for ${r.aiFailed} of ${r.discovered} videos. ${r.needsReview} candidate${r.needsReview === 1 ? "" : "s"} need review.`
-            : `YouTube discovery completed, but AI classification is unavailable. ${r.needsReview} discovered candidate${r.needsReview === 1 ? "" : "s"} require review.`;
-        setLastRunWarning(r.needsReview > 0 ? warning : null);
-        toast.warning(warning);
-      } else {
-        setLastRunWarning(null);
-        toast.success(
-          r.kept > 0
-            ? `Monitored ${r.discovered} public videos · ${r.kept} flagged for review.`
-            : `Monitored ${r.discovered} public videos · no relevant videos found.`,
-        );
-      }
+      // Discovery + evidence scoring always completes (metadata matching has
+      // no external dependency) — a candidate is never dropped just because
+      // no automatic category could be assigned, so there's no "provider
+      // failed" state to report here, only what was actually found.
+      const summary =
+        r.discovered === 0
+          ? "No YouTube results found for this reference."
+          : r.kept === 0 && r.needsReview === 0
+            ? `Checked ${r.discovered} public videos — no relevant candidates found.`
+            : `Checked ${r.discovered} public videos — ${r.kept} evidence match${r.kept === 1 ? "" : "es"}, ${r.needsReview} need${r.needsReview === 1 ? "s" : ""} review.`;
+      setLastRunSummary(summary);
+      toast.success(summary);
       qc.invalidateQueries({ queryKey: ["copyright-youtube", scanId] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -134,9 +142,10 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
             Public Video Copyright &amp; Reputation Monitoring
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Public video platform data only. Detects reuse of your footage, posters and promos, plus
-            sentiment and reputation risk around the release window. Evidence collection only —
-            nothing is reported or removed.
+            Public video platform data only. Finds videos whose title, description, or channel
+            reference your protected work, corroborated with facial recognition where applicable.
+            Uncertain matches are queued for your review — evidence collection only, nothing is
+            reported or removed.
           </p>
         </div>
         <Button size="sm" onClick={() => run.mutate()} disabled={run.isPending}>
@@ -149,28 +158,36 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
         </Button>
       </div>
 
-      {lastRunWarning && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-400">
-          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{lastRunWarning}</span>
+      {lastRunSummary && (
+        <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-card/50 p-3 text-xs text-muted-foreground">
+          <Radar className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{lastRunSummary}</span>
         </div>
       )}
 
       {videos.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
       {!videos.isLoading && !rows.length && (
         <div className="rounded-lg border border-border/60 bg-card/50 p-6 text-sm text-muted-foreground">
-          No monitored public videos yet for this reference. Run monitoring to collect intelligence.
+          No relevant candidates found yet for this reference. Run monitoring to check YouTube.
         </div>
       )}
 
       {rows.map((v) => {
-        const usage = USAGE_LABEL[v.copyright_usage] ?? USAGE_LABEL.none;
         const ev = (v.evidence ?? {}) as Record<string, any>;
         const rek = (ev.recognition ?? {}) as Record<string, any>;
         const risks: string[] = Array.isArray(ev.reputation_risk) ? ev.reputation_risk : [];
         const signals: string[] = Array.isArray(v.copyright_signals)
           ? (v.copyright_signals as string[])
           : [];
+        // Rows produced by the deterministic (non-AI) pipeline carry
+        // evidence.classification_mode; older rows predate this change and
+        // still show their original AI-derived usage/category/sentiment.
+        const isDeterministic = ev.classification_mode === "deterministic";
+        const usage = USAGE_LABEL[v.copyright_usage] ?? USAGE_LABEL.none;
+        const metadataMatchStatus: string | undefined = ev.metadata_match?.status;
+        const metadataMatch = metadataMatchStatus
+          ? (METADATA_MATCH_LABEL[metadataMatchStatus] ?? METADATA_MATCH_LABEL.no_match)
+          : null;
         return (
           <article
             key={v.id}
@@ -190,19 +207,34 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
                   <Badge variant="outline" className={riskCls(v.risk_score)}>
                     RISK {v.risk_score}
                   </Badge>
-                  <Badge variant="outline" className={usage.cls}>
-                    {usage.label}
-                  </Badge>
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {v.content_category ?? "unknown"}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="flex items-center gap-1 text-[10px] capitalize"
-                  >
-                    <SentimentIcon s={v.sentiment} />
-                    {v.sentiment}
-                  </Badge>
+                  {isDeterministic ? (
+                    metadataMatch && (
+                      <Badge variant="outline" className={metadataMatch.cls}>
+                        {metadataMatch.label}
+                      </Badge>
+                    )
+                  ) : (
+                    <>
+                      <Badge variant="outline" className={usage.cls}>
+                        {usage.label}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {v.content_category ?? "unknown"}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-1 text-[10px] capitalize"
+                      >
+                        <SentimentIcon s={v.sentiment} />
+                        {v.sentiment}
+                      </Badge>
+                    </>
+                  )}
+                  {rek.status === "checked" && (
+                    <Badge variant="outline" className="text-[10px]">
+                      Rekognition {rek.score}
+                    </Badge>
+                  )}
                   {v.same_day_release && (
                     <Badge variant="outline" className="text-[10px] text-primary">
                       same-day release
@@ -220,11 +252,7 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
 
                 {v.review_status === "needs_review" && (
                   <p className="text-[11px] text-amber-400">
-                    {ev.ai_status === "unavailable"
-                      ? "AI classification was unavailable for this video — human review required."
-                      : ev.ai_status === "error"
-                        ? "AI classification failed for this video — human review required."
-                        : "Automated classification was inconclusive — human review required."}
+                    Automatic evidence was inconclusive for this video — human review requested.
                   </p>
                 )}
 
