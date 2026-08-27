@@ -6,28 +6,57 @@ import type { Database } from "@/integrations/supabase/types";
 
 type VideoInsert = Database["public"]["Tables"]["copyright_youtube_videos"]["Insert"];
 
-/** Discover and analyse public YouTube videos related to a protected work. */
+/** Human-readable, deterministic evidence summary — no AI-generated text. */
+function buildEvidenceSummary(opts: {
+  metadata: { status: string; matchedSignals: string[] };
+  rek: { status: string; score?: number };
+}): string {
+  const parts: string[] = [];
+  if (opts.metadata.status === "strong_match") {
+    parts.push(`Title/description evidence: ${opts.metadata.matchedSignals.join(", ")}.`);
+  } else if (opts.metadata.status === "weak_match") {
+    parts.push(`Partial title overlap: ${opts.metadata.matchedSignals.join(", ")}.`);
+  } else {
+    parts.push("No title/description text evidence found.");
+  }
+  if (opts.rek.status === "checked") {
+    parts.push(`Rekognition visual match score: ${opts.rek.score}.`);
+  } else if (opts.rek.status === "error") {
+    parts.push("Rekognition corroboration could not be completed.");
+  }
+  return parts.join(" ");
+}
+
+/**
+ * Discover and evaluate public YouTube videos related to a protected work.
+ *
+ * Deliberately independent of any external AI vision provider (Gemini or
+ * Lovable) — production must not require GEMINI_API_KEY or depend on
+ * LOVABLE_API_KEY for this workflow. Relevance is decided from the
+ * existing YouTube Data API metadata (title/description/query match)
+ * plus the existing AWS Rekognition corroboration, via
+ * decideVideoOutcomeFromEvidence's deterministic three-way model —
+ * exactly the same kept/needs_review/drop safety contract PR #106's Stage A
+ * established, just driven by deterministic evidence instead of AI
+ * classification. A candidate is never dropped merely because no AI
+ * ran — metadata matching always succeeds (it's a local computation with
+ * no external dependency), so "we don't know" simply doesn't arise here.
+ */
 export const runYoutubeMonitor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ scanId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const [
-      { readStoredObject, bytesToDataUrl },
-      { analyzeReference },
-      { buildMovieFingerprint },
-      ytm,
-    ] = await Promise.all([
+    const [{ readStoredObject }, { buildMovieFingerprint }, ytm] = await Promise.all([
       import("@/lib/copyright/storage.server"),
-      import("@/lib/copyright/discover.server"),
       import("@/lib/copyright/fingerprint.server"),
       import("@/lib/copyright/youtube-monitor.server"),
     ]);
     const {
-      analyzeYoutubeVideo,
       buildYoutubeQueries,
       corroborateThumbnail,
-      decideVideoOutcome,
+      decideVideoOutcomeFromEvidence,
       discoverYoutubeVideos,
+      scoreMetadataMatch,
       scoreVideo,
     } = ytm;
     const { supabase, userId } = context;
@@ -49,34 +78,28 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
     }
     if (!frames.length) throw new Error("Reference material for this scan could not be read.");
 
-    const referenceDataUrl = bytesToDataUrl(frames[0], guessType(framePaths[0]));
-
-    const [analysis, fingerprint] = await Promise.all([
-      analyzeReference(referenceDataUrl, scan.title),
-      buildMovieFingerprint(frames, scan.title),
-    ]);
+    // Reference-frame fingerprinting is AWS Rekognition (kept, unchanged) —
+    // it recognises faces/celebrities/OCR text/scene labels deterministically
+    // from the reference material, with no external AI-vision dependency.
+    // For a logo/poster/artwork reference this naturally yields no faces —
+    // fingerprint.available may still be true (OCR/scene labels), but
+    // corroborateThumbnail simply won't find a face to compare, which is
+    // the correct, expected outcome, not a failure.
+    const fingerprint = await buildMovieFingerprint(frames, scan.title);
 
     const queries = buildYoutubeQueries({
       title: scan.title,
-      altTitles: analysis.altTitles,
-      actors: [...new Set([...(analysis.actors ?? []), ...fingerprint.celebrities])],
+      altTitles: [],
+      actors: fingerprint.celebrities,
       director: null,
-      studio: analysis.productionCompany,
-      language: analysis.language,
+      studio: null,
+      language: null,
     });
 
-    // Focus on the release window when a release date is known.
-    let publishedAfter: string | null = null;
-    if (analysis.releaseDate) {
-      const rd = new Date(analysis.releaseDate);
-      if (!Number.isNaN(+rd)) publishedAfter = new Date(+rd - 7 * 86400_000).toISOString();
-    }
-
-    const videos = await discoverYoutubeVideos(queries, { publishedAfter, perQuery: 8 });
+    const videos = await discoverYoutubeVideos(queries, { perQuery: 8 });
 
     const rows: VideoInsert[] = [];
-    let aiAttempted = 0;
-    let aiClassified = 0;
+    let metadataMatched = 0;
     let rekognitionAttempted = 0;
     let rekognitionMatched = 0;
     let kept = 0;
@@ -86,34 +109,29 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
       const batch = videos.slice(i, i + 4);
       const analysed = await Promise.all(
         batch.map(async (video) => {
-          const [ai, rek] = await Promise.all([
-            analyzeYoutubeVideo({ video, workTitle: scan.title, referenceDataUrl }),
-            corroborateThumbnail(fingerprint, video.thumbnailUrl),
-          ]);
-          return { video, ai, rek };
+          const rek = await corroborateThumbnail(fingerprint, video.thumbnailUrl);
+          const metadata = scoreMetadataMatch({
+            video,
+            workTitle: scan.title,
+            knownNames: fingerprint.celebrities,
+          });
+          return { video, metadata, rek };
         }),
       );
 
-      for (const { video, ai, rek } of analysed) {
-        // Every discovered video is an AI-classification candidate — count
-        // it as "attempted" even when the provider is entirely unconfigured,
-        // so a systemic outage shows up as aiFailed === aiAttempted (glaring)
-        // rather than 0/0/0 (which would look like nothing happened at all).
-        aiAttempted += 1;
-        if (ai.status === "classified") aiClassified += 1;
+      for (const { video, metadata, rek } of analysed) {
+        if (metadata.status !== "no_match") metadataMatched += 1;
         if (rek.status !== "unavailable") rekognitionAttempted += 1;
         if (rek.status === "checked" && rek.score >= 40) rekognitionMatched += 1;
 
-        const isSameDay = sameDay(video.publishedAt, analysis.releaseDate);
-        const intel = ai.status === "classified" ? ai.intel : null;
         const risk = scoreVideo({
-          intel,
+          intel: null,
           video,
           rekScore: rek.status === "checked" ? rek.score : 0,
-          sameDayRelease: isSameDay,
+          sameDayRelease: false,
         });
 
-        const outcome = decideVideoOutcome({ ai, rek });
+        const outcome = decideVideoOutcomeFromEvidence({ metadata, rek });
         if (outcome === "drop") continue;
         if (outcome === "kept") kept += 1;
         else needsReview += 1;
@@ -135,22 +153,20 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
           comment_count: video.commentCount,
           duration_seconds: video.durationSeconds,
           matched_query: video.matchedQuery,
-          // "unknown" (not "none") when the classifier never actually ran —
-          // a confident "none" must only ever come from a real classification.
-          content_category: intel?.contentCategory ?? "unknown",
-          copyright_usage: intel?.copyrightUsage ?? "unknown",
-          copyright_signals: (intel?.copyrightSignals ??
-            []) as unknown as VideoInsert["copyright_signals"],
-          sentiment: intel?.sentiment ?? "neutral",
-          sentiment_score: intel?.sentimentScore ?? 0,
+          // No AI classifier runs in this workflow by design — "unknown" is
+          // the honest value here, never a fabricated category/usage.
+          content_category: "unclassified",
+          copyright_usage: "unknown",
+          copyright_signals: metadata.matchedSignals as unknown as VideoInsert["copyright_signals"],
+          sentiment: "neutral",
+          sentiment_score: 0,
           risk_score: risk,
-          same_day_release: isSameDay,
-          ai_summary: intel?.summary ?? null,
+          same_day_release: false,
+          ai_summary: buildEvidenceSummary({ metadata, rek }),
           review_status: outcome === "needs_review" ? "needs_review" : "pending",
           evidence: {
-            ai_status: ai.status,
-            ai_error: ai.status === "error" ? ai.errorMessage : null,
-            reputation_risk: intel?.reputationRisk ?? [],
+            classification_mode: "deterministic",
+            metadata_match: { status: metadata.status, matchedSignals: metadata.matchedSignals },
             recognition:
               rek.status === "checked"
                 ? {
@@ -168,9 +184,7 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
                     status: rek.status,
                     error: rek.status === "error" ? rek.errorMessage : null,
                   },
-            reference_actors: analysis.actors,
-            reference_alt_titles: analysis.altTitles,
-            release_date: analysis.releaseDate,
+            reference_known_names: fingerprint.celebrities,
             matched_query: video.matchedQuery,
           } as unknown as VideoInsert["evidence"],
         });
@@ -185,18 +199,15 @@ export const runYoutubeMonitor = createServerFn({ method: "POST" })
     }
 
     return {
-      // Legacy fields, kept for any existing caller compatibility.
+      // Legacy fields, kept for existing caller/UI compatibility.
       scanned: videos.length,
       queries: queries.length,
       flagged: kept,
       rekognition: fingerprint.available,
       actors: fingerprint.celebrities,
-      // New execution metrics — a missing/failing provider must be visible
-      // here, never indistinguishable from "nothing found".
+      // Deterministic-pipeline metrics.
       discovered: videos.length,
-      aiAttempted,
-      aiClassified,
-      aiFailed: aiAttempted - aiClassified,
+      metadataMatched,
       rekognitionAttempted,
       rekognitionMatched,
       kept,

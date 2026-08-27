@@ -96,6 +96,109 @@ export function decideVideoOutcome(opts: {
   return "drop";
 }
 
+/**
+ * Deterministic, non-AI relevance evidence for one discovered video: does
+ * its own title/description literally reference the protected work (or a
+ * name Rekognition already recognised in the reference material)? Pure
+ * string comparison — no external calls, no "AI score" — so unlike
+ * AiClassificationOutcome this can never be "unavailable" or "error": it
+ * always runs and always produces a real result.
+ */
+export type MetadataMatchStatus = "strong_match" | "weak_match" | "no_match";
+
+export interface MetadataMatchResult {
+  status: MetadataMatchStatus;
+  /** Short evidence tags, e.g. "title_contains_work_title", "known_name_match". */
+  matchedSignals: string[];
+}
+
+function normalizeMatchText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenizeMatchText(text: string): string[] {
+  return normalizeMatchText(text)
+    .split(" ")
+    .filter((t) => t.length >= 4);
+}
+
+/**
+ * Scores whether a discovered video's own metadata references the
+ * protected work. Reserved for YouTube Monitoring's deterministic
+ * pipeline — see decideVideoOutcomeFromEvidence. Deliberately conservative:
+ * only a literal (normalized) title/description containment or a known
+ * name hit counts as "strong"; any lesser token overlap is "weak" and
+ * never enough on its own to be treated as a confirmed finding.
+ */
+export function scoreMetadataMatch(opts: {
+  video: YtVideo;
+  workTitle: string;
+  /** e.g. fingerprint.celebrities — names Rekognition already recognised
+   * in the reference material. Purely deterministic; not an AI call. */
+  knownNames?: string[];
+}): MetadataMatchResult {
+  const workNormalized = normalizeMatchText(opts.workTitle);
+  if (!workNormalized) return { status: "no_match", matchedSignals: [] };
+
+  const titleNormalized = normalizeMatchText(opts.video.title);
+  const descriptionNormalized = normalizeMatchText(opts.video.description);
+  const signals: string[] = [];
+
+  if (titleNormalized.includes(workNormalized)) signals.push("title_contains_work_title");
+  if (descriptionNormalized.includes(workNormalized)) {
+    signals.push("description_contains_work_title");
+  }
+
+  const knownNames = (opts.knownNames ?? []).map(normalizeMatchText).filter((n) => n.length >= 3);
+  const nameMatch = knownNames.some(
+    (n) => titleNormalized.includes(n) || descriptionNormalized.includes(n),
+  );
+  if (nameMatch) signals.push("known_name_match");
+
+  if (signals.length > 0) return { status: "strong_match", matchedSignals: signals };
+
+  const workTokens = tokenizeMatchText(opts.workTitle);
+  const titleTokens = new Set(tokenizeMatchText(opts.video.title));
+  const overlap = workTokens.filter((t) => titleTokens.has(t));
+  if (overlap.length > 0) {
+    return {
+      status: "weak_match",
+      matchedSignals: [`title_token_overlap:${overlap.length}/${workTokens.length}`],
+    };
+  }
+
+  return { status: "no_match", matchedSignals: [] };
+}
+
+/**
+ * Deterministic counterpart to decideVideoOutcome: the same three-way
+ * safety model (kept/needs_review/drop), driven by metadata evidence +
+ * existing Rekognition corroboration instead of AI vision classification.
+ * The Rekognition "kept" bar is UNCHANGED (score >= 40). Because metadata
+ * matching always runs (it has no "unavailable"/"error" state), the only
+ * way to reach "drop" is a genuine double-negative: no textual evidence of
+ * relevance AND no independent Rekognition corroboration — never merely
+ * "we couldn't check", which is exactly what decideVideoOutcome already
+ * guarded against on the AI side.
+ */
+export function decideVideoOutcomeFromEvidence(opts: {
+  metadata: MetadataMatchResult;
+  rek: RekognitionOutcome;
+}): VideoOutcomeDecision {
+  const rekScore = opts.rek.status === "checked" ? opts.rek.score : 0;
+  const rekMatched = rekScore >= 40;
+
+  if (opts.metadata.status === "strong_match" || rekMatched) return "kept";
+  if (opts.metadata.status === "weak_match") return "needs_review";
+  return "drop";
+}
+
 const KEYWORDS = [
   "review",
   "reaction",
