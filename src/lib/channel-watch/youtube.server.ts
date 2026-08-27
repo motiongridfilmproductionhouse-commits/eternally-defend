@@ -33,6 +33,7 @@ export interface ResolvedChannel {
 
 export interface YoutubeVideoRow {
   videoId: string;
+  channelId: string;
   title: string;
   description: string;
   thumbnailUrl: string;
@@ -252,6 +253,7 @@ export async function fetchVideoDetails(videoIds: string[]): Promise<YoutubeVide
       const thumbs = sn.thumbnails ?? {};
       rows.push({
         videoId: id,
+        channelId: sn.channelId ?? "",
         title: sn.title ?? "Untitled",
         description: sn.description ?? "",
         thumbnailUrl:
@@ -271,6 +273,7 @@ export async function fetchVideoDetails(videoIds: string[]): Promise<YoutubeVide
     for (const missingId of batch.filter((v) => !seen.has(v))) {
       rows.push({
         videoId: missingId,
+        channelId: "",
         title: "Unavailable video",
         description: "",
         thumbnailUrl: `https://i.ytimg.com/vi/${missingId}/hqdefault.jpg`,

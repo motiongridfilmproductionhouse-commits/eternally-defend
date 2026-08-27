@@ -55,6 +55,7 @@ import { Route as PartnerPartnerClientsRouteImport } from './routes/_partner.par
 import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes/_app.sensitive-protection.removal-cases'
 import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
 import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
+import { Route as AppProtectionSourcesRouteImport } from './routes/_app.protection.sources'
 import { Route as AppAdminSensitiveProtectionRouteImport } from './routes/_app.admin.sensitive-protection'
 import { Route as AppAdminRemovalRoutesRouteImport } from './routes/_app.admin.removal-routes'
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
@@ -80,6 +81,7 @@ import { Route as ApiPublicHooksCopyrightScanExecuteRouteImport } from './routes
 import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
 import { Route as ApiPublicHooksAutomationStatusRouteImport } from './routes/api/public/hooks/automation-status'
 import { Route as ApiPublicHooksAutomationFetchRouteImport } from './routes/api/public/hooks/automation-fetch'
+import { Route as ApiPublicHooksApprovedSourcesPollRouteImport } from './routes/api/public/hooks/approved-sources-poll'
 import { Route as AppSensitiveProtectionResultsIdRouteImport } from './routes/_app.sensitive-protection.results.$id'
 
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -316,6 +318,11 @@ const AppReportsReportIdRoute = AppReportsReportIdRouteImport.update({
   path: '/$reportId',
   getParentRoute: () => AppReportsRoute,
 } as any)
+const AppProtectionSourcesRoute = AppProtectionSourcesRouteImport.update({
+  id: '/protection/sources',
+  path: '/protection/sources',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminSensitiveProtectionRoute =
   AppAdminSensitiveProtectionRouteImport.update({
     id: '/admin/sensitive-protection',
@@ -462,6 +469,12 @@ const ApiPublicHooksAutomationFetchRoute =
     path: '/api/public/hooks/automation-fetch',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksApprovedSourcesPollRoute =
+  ApiPublicHooksApprovedSourcesPollRouteImport.update({
+    id: '/api/public/hooks/approved-sources-poll',
+    path: '/api/public/hooks/approved-sources-poll',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppSensitiveProtectionResultsIdRoute =
   AppSensitiveProtectionResultsIdRouteImport.update({
     id: '/sensitive-protection/results/$id',
@@ -508,6 +521,7 @@ export interface FileRoutesByFullPath {
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/protection/sources': typeof AppProtectionSourcesRoute
   '/reports/$reportId': typeof AppReportsReportIdRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
@@ -523,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/partner/': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
@@ -579,6 +594,7 @@ export interface FileRoutesByTo {
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/protection/sources': typeof AppProtectionSourcesRoute
   '/reports/$reportId': typeof AppReportsReportIdRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
@@ -594,6 +610,7 @@ export interface FileRoutesByTo {
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/partner': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
@@ -654,6 +671,7 @@ export interface FileRoutesById {
   '/_app/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/_app/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/_app/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/_app/protection/sources': typeof AppProtectionSourcesRoute
   '/_app/reports/$reportId': typeof AppReportsReportIdRoute
   '/_app/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
   '/_app/sensitive-protection/removal-cases': typeof AppSensitiveProtectionRemovalCasesRoute
@@ -669,6 +687,7 @@ export interface FileRoutesById {
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_partner/partner/': typeof PartnerPartnerIndexRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
@@ -728,6 +747,7 @@ export interface FileRouteTypes {
     | '/admin/provider-activation'
     | '/admin/removal-routes'
     | '/admin/sensitive-protection'
+    | '/protection/sources'
     | '/reports/$reportId'
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
@@ -743,6 +763,7 @@ export interface FileRouteTypes {
     | '/sensitive-protection/'
     | '/partner/'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/approved-sources-poll'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
@@ -799,6 +820,7 @@ export interface FileRouteTypes {
     | '/admin/provider-activation'
     | '/admin/removal-routes'
     | '/admin/sensitive-protection'
+    | '/protection/sources'
     | '/reports/$reportId'
     | '/sensitive-protection/emergency'
     | '/sensitive-protection/removal-cases'
@@ -814,6 +836,7 @@ export interface FileRouteTypes {
     | '/sensitive-protection'
     | '/partner'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/approved-sources-poll'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
@@ -873,6 +896,7 @@ export interface FileRouteTypes {
     | '/_app/admin/provider-activation'
     | '/_app/admin/removal-routes'
     | '/_app/admin/sensitive-protection'
+    | '/_app/protection/sources'
     | '/_app/reports/$reportId'
     | '/_app/sensitive-protection/emergency'
     | '/_app/sensitive-protection/removal-cases'
@@ -888,6 +912,7 @@ export interface FileRouteTypes {
     | '/_app/sensitive-protection/'
     | '/_partner/partner/'
     | '/_app/sensitive-protection/results/$id'
+    | '/api/public/hooks/approved-sources-poll'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
     | '/api/public/hooks/channel-watch-poll'
@@ -922,6 +947,7 @@ export interface RootRouteChildren {
   ApiPublicImageProxyRoute: typeof ApiPublicImageProxyRoute
   ApiPublicOnboardingCompletionBackfillRoute: typeof ApiPublicOnboardingCompletionBackfillRoute
   ApiPublicVeriffWebhookRoute: typeof ApiPublicVeriffWebhookRoute
+  ApiPublicHooksApprovedSourcesPollRoute: typeof ApiPublicHooksApprovedSourcesPollRoute
   ApiPublicHooksAutomationFetchRoute: typeof ApiPublicHooksAutomationFetchRoute
   ApiPublicHooksAutomationStatusRoute: typeof ApiPublicHooksAutomationStatusRoute
   ApiPublicHooksChannelWatchPollRoute: typeof ApiPublicHooksChannelWatchPollRoute
@@ -1264,6 +1290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportsReportIdRouteImport
       parentRoute: typeof AppReportsRoute
     }
+    '/_app/protection/sources': {
+      id: '/_app/protection/sources'
+      path: '/protection/sources'
+      fullPath: '/protection/sources'
+      preLoaderRoute: typeof AppProtectionSourcesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/sensitive-protection': {
       id: '/_app/admin/sensitive-protection'
       path: '/admin/sensitive-protection'
@@ -1439,6 +1472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksAutomationFetchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/approved-sources-poll': {
+      id: '/api/public/hooks/approved-sources-poll'
+      path: '/api/public/hooks/approved-sources-poll'
+      fullPath: '/api/public/hooks/approved-sources-poll'
+      preLoaderRoute: typeof ApiPublicHooksApprovedSourcesPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/sensitive-protection/results/$id': {
       id: '/_app/sensitive-protection/results/$id'
       path: '/sensitive-protection/results/$id'
@@ -1491,6 +1531,7 @@ interface AppRouteChildren {
   AppAdminProviderActivationRoute: typeof AppAdminProviderActivationRoute
   AppAdminRemovalRoutesRoute: typeof AppAdminRemovalRoutesRoute
   AppAdminSensitiveProtectionRoute: typeof AppAdminSensitiveProtectionRoute
+  AppProtectionSourcesRoute: typeof AppProtectionSourcesRoute
   AppSensitiveProtectionEmergencyRoute: typeof AppSensitiveProtectionEmergencyRoute
   AppSensitiveProtectionRemovalCasesRoute: typeof AppSensitiveProtectionRemovalCasesRoute
   AppSensitiveProtectionIndexRoute: typeof AppSensitiveProtectionIndexRoute
@@ -1528,6 +1569,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminProviderActivationRoute: AppAdminProviderActivationRoute,
   AppAdminRemovalRoutesRoute: AppAdminRemovalRoutesRoute,
   AppAdminSensitiveProtectionRoute: AppAdminSensitiveProtectionRoute,
+  AppProtectionSourcesRoute: AppProtectionSourcesRoute,
   AppSensitiveProtectionEmergencyRoute: AppSensitiveProtectionEmergencyRoute,
   AppSensitiveProtectionRemovalCasesRoute:
     AppSensitiveProtectionRemovalCasesRoute,
@@ -1588,6 +1630,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicOnboardingCompletionBackfillRoute:
     ApiPublicOnboardingCompletionBackfillRoute,
   ApiPublicVeriffWebhookRoute: ApiPublicVeriffWebhookRoute,
+  ApiPublicHooksApprovedSourcesPollRoute:
+    ApiPublicHooksApprovedSourcesPollRoute,
   ApiPublicHooksAutomationFetchRoute: ApiPublicHooksAutomationFetchRoute,
   ApiPublicHooksAutomationStatusRoute: ApiPublicHooksAutomationStatusRoute,
   ApiPublicHooksChannelWatchPollRoute: ApiPublicHooksChannelWatchPollRoute,
@@ -1617,3 +1661,4 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+

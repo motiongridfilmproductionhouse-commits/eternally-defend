@@ -67,6 +67,7 @@ const mainNav: NavItem[] = [
   { icon: Network, label: "Narrative Intelligence", to: "/narrative-intelligence" },
   { icon: Radar, label: "Channel Watch", to: "/channel-watch" },
   { icon: Youtube, label: "YouTube Removal Intel", to: "/youtube-removal", badge: "NEW" },
+  { icon: Youtube, label: "Approved YouTube Sources", to: "/protection/sources", badge: "NEW" },
   { icon: ScanFace, label: "Face Protection", to: "/face-protection" },
   { icon: Lock, label: "Intimate Image & Deepfake Protection", to: "/sensitive-protection" },
   { icon: ScanFace, label: "Deepfake Intel", to: "/deepfake-intel", badge: "AI" },

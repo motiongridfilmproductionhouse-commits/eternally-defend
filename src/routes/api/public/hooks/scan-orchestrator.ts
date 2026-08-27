@@ -196,6 +196,39 @@ async function syncFaceProtection(supabaseAdmin: any, userId: string) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncApprovedYoutubeSources(supabaseAdmin: any, userId: string) {
+  const { data: sources } = await supabaseAdmin
+    .from("approved_youtube_sources")
+    .select("id, last_polled_at")
+    .eq("user_id", userId)
+    .neq("status", "removed");
+  const rows = sources ?? [];
+  if (rows.length === 0) {
+    return { status: "WAITING_FOR_NEXT_SCAN", candidates_found: 0, verified_findings: 0 };
+  }
+  const sourceIds = rows.map((r: { id: string }) => r.id);
+  const { data: videos } = await supabaseAdmin
+    .from("approved_source_videos")
+    .select("classification")
+    .in("source_id", sourceIds);
+  const verified = (videos ?? []).filter(
+    (v: { classification: string | null }) =>
+      v.classification === "verified_deepfake" || v.classification === "probable_deepfake",
+  ).length;
+  const lastPolled = rows
+    .map((r: { last_polled_at: string | null }) => r.last_polled_at)
+    .filter(Boolean)
+    .sort()
+    .pop();
+  return {
+    status: lastPolled ? "COMPLETED" : "QUEUED",
+    candidates_found: (videos ?? []).length,
+    verified_findings: verified,
+    last_scan_at: lastPolled ?? null,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function syncEvidencePrep(supabaseAdmin: any, userId: string) {
   const [{ count: evidenceCount }, { count: caseCount }] = await Promise.all([
     supabaseAdmin
@@ -450,7 +483,9 @@ export const Route = createFileRoute("/api/public/hooks/scan-orchestrator")({
                     ? await syncDistributionMonitor(supabaseAdmin, row.user_id)
                     : row.module_key === "face_protection"
                       ? await syncFaceProtection(supabaseAdmin, row.user_id)
-                      : await syncReleaseProtectionSweep(supabaseAdmin, row.user_id);
+                      : row.module_key === "approved_youtube_sources"
+                        ? await syncApprovedYoutubeSources(supabaseAdmin, row.user_id)
+                        : await syncReleaseProtectionSweep(supabaseAdmin, row.user_id);
               await supabaseAdmin
                 .from("scan_module_enrollments")
                 .update({

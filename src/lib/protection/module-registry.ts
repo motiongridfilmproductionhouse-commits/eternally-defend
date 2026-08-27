@@ -97,6 +97,13 @@ export const MODULE_REGISTRY: ModuleConfig[] = [
     cadenceMinutes: 60,
   },
   {
+    key: "approved_youtube_sources",
+    label: "Approved YouTube Sources",
+    scopeKey: "detect_face_misuse",
+    driver: "self-cron",
+    cadenceMinutes: 30,
+  },
+  {
     key: "evidence_prep",
     label: "Evidence Preparation",
     scopeKey: "collect_evidence",
