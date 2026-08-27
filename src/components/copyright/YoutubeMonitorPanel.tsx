@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -19,6 +20,7 @@ import {
   ThumbsDown,
   ThumbsUp,
   Minus,
+  TriangleAlert,
 } from "lucide-react";
 
 const USAGE_LABEL: Record<string, { label: string; cls: string }> = {
@@ -39,6 +41,19 @@ const USAGE_LABEL: Record<string, { label: string; cls: string }> = {
     cls: "bg-sky-500/15 text-sky-300 border-sky-500/40",
   },
   none: { label: "No visual reuse", cls: "bg-muted/40 text-muted-foreground border-border/60" },
+  // Classification never completed (provider unavailable/error) — deliberately
+  // styled as a warning, not muted like "none", so it never reads as a
+  // confident negative.
+  unknown: {
+    label: "Classification unavailable",
+    cls: "bg-amber-500/15 text-amber-400 border-amber-500/40",
+  },
+};
+
+const REVIEW_STATUS_STYLE: Record<string, string> = {
+  needs_review: "bg-amber-500/15 text-amber-400 border-amber-500/40",
+  evidence_ready: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
+  dismissed: "bg-muted/40 text-muted-foreground border-border/60",
 };
 
 function riskCls(score: number) {
@@ -73,10 +88,29 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
     queryFn: () => listFn({ data: { scanId } }),
   });
 
+  const [lastRunWarning, setLastRunWarning] = useState<string | null>(null);
+
   const run = useMutation({
     mutationFn: () => runFn({ data: { scanId } }),
     onSuccess: (r) => {
-      toast.success(`Monitored ${r.scanned} public videos · ${r.flagged} flagged`);
+      // A missing/failing AI classifier must never look identical to "no
+      // relevant videos found" — surface it explicitly whenever discovery
+      // succeeded but classification could not complete for some/all of it.
+      if (r.aiFailed > 0) {
+        const warning =
+          r.aiClassified > 0
+            ? `YouTube discovery completed, but AI classification failed for ${r.aiFailed} of ${r.discovered} videos. ${r.needsReview} candidate${r.needsReview === 1 ? "" : "s"} need review.`
+            : `YouTube discovery completed, but AI classification is unavailable. ${r.needsReview} discovered candidate${r.needsReview === 1 ? "" : "s"} require review.`;
+        setLastRunWarning(r.needsReview > 0 ? warning : null);
+        toast.warning(warning);
+      } else {
+        setLastRunWarning(null);
+        toast.success(
+          r.kept > 0
+            ? `Monitored ${r.discovered} public videos · ${r.kept} flagged for review.`
+            : `Monitored ${r.discovered} public videos · no relevant videos found.`,
+        );
+      }
       qc.invalidateQueries({ queryKey: ["copyright-youtube", scanId] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -114,6 +148,13 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
           Run video monitoring
         </Button>
       </div>
+
+      {lastRunWarning && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-400">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{lastRunWarning}</span>
+        </div>
+      )}
 
       {videos.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
       {!videos.isLoading && !rows.length && (
@@ -168,11 +209,24 @@ export function YoutubeMonitorPanel({ scanId }: { scanId: string }) {
                     </Badge>
                   )}
                   {v.review_status !== "pending" && (
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] capitalize ${REVIEW_STATUS_STYLE[v.review_status] ?? ""}`}
+                    >
                       {v.review_status.replace("_", " ")}
                     </Badge>
                   )}
                 </div>
+
+                {v.review_status === "needs_review" && (
+                  <p className="text-[11px] text-amber-400">
+                    {ev.ai_status === "unavailable"
+                      ? "AI classification was unavailable for this video — human review required."
+                      : ev.ai_status === "error"
+                        ? "AI classification failed for this video — human review required."
+                        : "Automated classification was inconclusive — human review required."}
+                  </p>
+                )}
 
                 <a
                   href={v.video_url}

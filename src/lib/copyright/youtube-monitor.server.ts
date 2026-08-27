@@ -14,38 +14,86 @@ import {
   matchCandidateAgainstFingerprint,
   type MovieFingerprint,
 } from "@/lib/copyright/fingerprint.server";
+import { getCopyrightVisionProvider } from "./vision-provider";
+import type {
+  AiClassificationOutcome,
+  AiClassificationStatus,
+  CopyrightUsage,
+  Sentiment,
+  VideoIntel,
+  YtVideo,
+} from "./vision-provider";
+
+// Re-exported for backward compatibility — these types now live in
+// vision-provider.ts (the provider-agnostic contract Gemini/Lovable both
+// implement), but every existing import site (youtube-monitor.functions.ts,
+// the fail-visible regression tests) continues to work unchanged.
+export type {
+  AiClassificationOutcome,
+  AiClassificationStatus,
+  CopyrightUsage,
+  Sentiment,
+  VideoIntel,
+  YtVideo,
+};
 
 const YT = "https://www.googleapis.com/youtube/v3";
 
-export interface YtVideo {
-  videoId: string;
-  videoUrl: string;
-  title: string;
-  description: string;
-  channelId: string | null;
-  channelTitle: string | null;
-  channelUrl: string | null;
-  thumbnailUrl: string | null;
-  publishedAt: string | null;
-  viewCount: number | null;
-  likeCount: number | null;
-  commentCount: number | null;
-  durationSeconds: number | null;
-  matchedQuery: string;
+/**
+ * Three-way Rekognition corroboration outcome. "unavailable" means
+ * corroboration was never attempted (no fingerprint / no thumbnail) —
+ * different from "error" (attempted, the call failed) — different from
+ * "checked" (attempted and completed, whatever the resulting score).
+ */
+export type RekognitionStatus = "checked" | "unavailable" | "error";
+
+export interface RekognitionOutcome {
+  status: RekognitionStatus;
+  score: number;
+  signals: string[];
+  faceSimilarity: number;
+  celebrityMatches: string[];
+  sceneOverlap: number;
+  ocrTitleMatch: boolean;
+  /** Present only when status === "error". */
+  errorMessage?: string;
 }
 
-export type CopyrightUsage =
-  "none" | "poster_or_screenshot" | "trailer_footage" | "movie_footage" | "promotional_material";
-export type Sentiment = "positive" | "neutral" | "negative";
+export type VideoOutcomeDecision = "kept" | "needs_review" | "drop";
 
-export interface VideoIntel {
-  contentCategory: string;
-  copyrightUsage: CopyrightUsage;
-  copyrightSignals: string[];
-  sentiment: Sentiment;
-  sentimentScore: number;
-  summary: string;
-  reputationRisk: string[];
+/**
+ * Pure decision function — given the two provider outcomes for one
+ * discovered video, decide whether it's a genuine finding, needs a human's
+ * eyes, or can be safely dropped. No I/O, unit-testable without mocking the
+ * YouTube/Lovable-AI/Rekognition calls.
+ *
+ * The existing "kept" bar is UNCHANGED (same copyrightUsage/sentiment/
+ * reputationRisk/rekScore>=40 conditions as before this fix) — this only
+ * adds a third bucket for "we don't actually know" so it stops being
+ * silently collapsed into "drop".
+ */
+export function decideVideoOutcome(opts: {
+  ai: AiClassificationOutcome;
+  rek: RekognitionOutcome;
+}): VideoOutcomeDecision {
+  const intel = opts.ai.status === "classified" ? opts.ai.intel : null;
+  const rekScore = opts.rek.status === "checked" ? opts.rek.score : 0;
+
+  const aiFoundSomething =
+    !!intel &&
+    (intel.copyrightUsage !== "none" ||
+      intel.sentiment === "negative" ||
+      intel.reputationRisk.length > 0);
+  const rekMatched = rekScore >= 40;
+
+  if (aiFoundSomething || rekMatched) return "kept";
+
+  // The AI classifier never actually reached a confident answer for this
+  // video (config missing or the call itself failed) — this is NOT
+  // evidence of "no relevant usage" and must never be silently discarded.
+  if (opts.ai.status !== "classified") return "needs_review";
+
+  return "drop";
 }
 
 const KEYWORDS = [
@@ -214,107 +262,29 @@ export async function discoverYoutubeVideos(
   return videos;
 }
 
-const SYSTEM = `You analyse a public YouTube video for a rights holder's copyright and reputation monitoring desk.
-You receive the video metadata, the protected work's details, the REFERENCE frame of the protected work and the video THUMBNAIL.
-
-Report strictly as JSON:
-{
-  "contentCategory": string,        // review | reaction | explainer | news | fan_edit | full_movie | clip | trailer_reupload | promo | unrelated
-  "copyrightUsage": string,         // none | poster_or_screenshot | trailer_footage | movie_footage | promotional_material
-  "copyrightSignals": string[],     // short evidence tags e.g. poster_in_thumbnail, scene_frame_used, logo_used, trailer_frames
-  "sentiment": string,              // positive | neutral | negative
-  "sentimentScore": number,         // -100 very negative .. 100 very positive
-  "reputationRisk": string[],       // e.g. defamation_claim, spoiler_leak, boycott_call, abusive_language, false_claim
-  "summary": string                 // one or two sentences of concrete evidence
-}
-Judge copyright usage from the visuals only; do not assume usage from the title alone.
-If the thumbnail is unrelated to the reference work, copyrightUsage must be "none".`;
-
-const USAGES: CopyrightUsage[] = [
-  "none",
-  "poster_or_screenshot",
-  "trailer_footage",
-  "movie_footage",
-  "promotional_material",
-];
-
+/**
+ * Thin delegation to whichever CopyrightVisionProvider is configured
+ * (Gemini direct if GEMINI_API_KEY is set, else Lovable's gateway if
+ * LOVABLE_API_KEY is set, else an explicit "unavailable" no-op — see
+ * vision-provider.ts's getCopyrightVisionProvider). This function's own
+ * contract (AiClassificationOutcome) is unchanged, so decideVideoOutcome
+ * and every caller need no changes regardless of which provider answers.
+ */
 export async function analyzeYoutubeVideo(opts: {
   video: YtVideo;
   workTitle: string;
   referenceDataUrl: string;
-}): Promise<VideoIntel | null> {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) return null;
-  try {
-    const content: any[] = [
-      {
-        type: "text",
-        text:
-          `Protected work: ${opts.workTitle}\n` +
-          `Video title: ${opts.video.title}\n` +
-          `Channel: ${opts.video.channelTitle ?? "unknown"}\n` +
-          `Published: ${opts.video.publishedAt ?? "unknown"}\n` +
-          `Views: ${opts.video.viewCount ?? "unknown"}\n` +
-          `Description: ${opts.video.description.slice(0, 1200)}\n\n` +
-          `First image = REFERENCE work. Second image = video THUMBNAIL.`,
-      },
-      { type: "image_url", image_url: { url: opts.referenceDataUrl } },
-    ];
-    if (opts.video.thumbnailUrl)
-      content.push({ type: "image_url", image_url: { url: opts.video.thumbnailUrl } });
-
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": key,
-        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!res.ok) {
-      console.warn(
-        "[yt-monitor] gateway",
-        res.status,
-        (await res.text().catch(() => "")).slice(0, 200),
-      );
-      return null;
-    }
-    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const p = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
-    const usage = String(p.copyrightUsage ?? "none") as CopyrightUsage;
-    const sentiment = String(p.sentiment ?? "neutral");
-    const score = Number(p.sentimentScore);
-    return {
-      contentCategory: String(p.contentCategory ?? "unrelated").slice(0, 40),
-      copyrightUsage: USAGES.includes(usage) ? usage : "none",
-      copyrightSignals: Array.isArray(p.copyrightSignals)
-        ? p.copyrightSignals.map((s) => String(s).slice(0, 48)).slice(0, 10)
-        : [],
-      sentiment: (["positive", "neutral", "negative"].includes(sentiment)
-        ? sentiment
-        : "neutral") as Sentiment,
-      sentimentScore: Number.isFinite(score) ? Math.max(-100, Math.min(100, Math.round(score))) : 0,
-      summary: String(p.summary ?? "").slice(0, 500),
-      reputationRisk: Array.isArray(p.reputationRisk)
-        ? p.reputationRisk.map((s) => String(s).slice(0, 48)).slice(0, 8)
-        : [],
-    };
-  } catch (e) {
-    console.warn("[yt-monitor] analyze failed", (e as Error).message);
-    return null;
-  }
+}): Promise<AiClassificationOutcome> {
+  const provider = await getCopyrightVisionProvider();
+  return provider.analyzeYoutubeVideo(opts);
 }
 
 const USAGE_WEIGHT: Record<CopyrightUsage, number> = {
   none: 0,
+  // Classification never ran — contributes no risk weight of its own; the
+  // risk score for a needs_review row is driven entirely by whatever
+  // Rekognition signal (if any) is available.
+  unknown: 0,
   poster_or_screenshot: 22,
   promotional_material: 18,
   trailer_footage: 28,
@@ -343,25 +313,29 @@ export function scoreVideo(opts: {
   return Math.max(0, Math.min(100, score));
 }
 
+const EMPTY_REK_FIELDS = {
+  score: 0,
+  signals: [] as string[],
+  faceSimilarity: 0,
+  celebrityMatches: [] as string[],
+  sceneOverlap: 0,
+  ocrTitleMatch: false,
+};
+
 /** Rekognition corroboration of a video thumbnail against the reference fingerprint. */
 export async function corroborateThumbnail(
   fp: MovieFingerprint,
   thumbnailUrl: string | null,
-): Promise<{
-  score: number;
-  signals: string[];
-  faceSimilarity: number;
-  celebrityMatches: string[];
-  sceneOverlap: number;
-  ocrTitleMatch: boolean;
-} | null> {
-  if (!fp.available || !thumbnailUrl) return null;
+): Promise<RekognitionOutcome> {
+  if (!fp.available || !thumbnailUrl) return { status: "unavailable", ...EMPTY_REK_FIELDS };
   try {
     const { fetchImageBytes } = await import("@/lib/aws/s3.server");
     const fetched = await fetchImageBytes(thumbnailUrl);
-    if (!fetched) return null;
+    if (!fetched)
+      return { status: "error", ...EMPTY_REK_FIELDS, errorMessage: "thumbnail fetch failed" };
     const m = await matchCandidateAgainstFingerprint(fp, fetched.bytes, "");
     return {
+      status: "checked",
       score: m.score,
       signals: m.signals,
       faceSimilarity: m.faceSimilarity,
@@ -369,8 +343,8 @@ export async function corroborateThumbnail(
       sceneOverlap: m.sceneOverlap,
       ocrTitleMatch: m.ocrTitleMatch,
     };
-  } catch {
-    return null;
+  } catch (e) {
+    return { status: "error", ...EMPTY_REK_FIELDS, errorMessage: (e as Error).message };
   }
 }
 
@@ -428,6 +402,17 @@ export async function fetchVideoComments(videoId: string, max = 12): Promise<str
     return [];
   }
 }
+
+// Used only by analyzeReleaseReview below to validate its own inline
+// Lovable-gateway response — the release-day-review pipeline is out of
+// scope for the vision-provider migration (unchanged from before Stage B).
+const USAGES: CopyrightUsage[] = [
+  "none",
+  "poster_or_screenshot",
+  "trailer_footage",
+  "movie_footage",
+  "promotional_material",
+];
 
 const REVIEW_SYSTEM = `You analyse a public YouTube movie review / reaction video for a rights holder's reputation monitoring desk.
 You receive video metadata, a sample of public comments, the protected work's REFERENCE frame and the video THUMBNAIL.
