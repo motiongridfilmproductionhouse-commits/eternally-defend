@@ -57,7 +57,7 @@ const CLASSIFICATION_LABEL: Record<string, { label: string; className: string }>
   },
   not_subject: {
     label: "Not the Subject",
-    className: "border-white/20 text-white/50 bg-white/5",
+    className: "border-white/20 text-muted-foreground bg-white/5",
   },
   needs_review: {
     label: "Needs Review",
@@ -70,7 +70,7 @@ function ClassificationBadge({ video }: { video: VideoRow }) {
     return (
       <Badge
         variant="outline"
-        className="text-[10px] uppercase border-white/20 text-white/50 bg-white/5"
+        className="text-[10px] uppercase border-white/20 text-muted-foreground bg-white/5"
       >
         Analyzing…
       </Badge>
@@ -91,7 +91,7 @@ function ClassificationBadge({ video }: { video: VideoRow }) {
     return (
       <Badge
         variant="outline"
-        className="text-[10px] uppercase border-white/20 text-white/50 bg-white/5"
+        className="text-[10px] uppercase border-white/20 text-muted-foreground bg-white/5"
       >
         Pending
       </Badge>
@@ -153,8 +153,8 @@ function ApprovedSourcesPage() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Approved YouTube Sources</h1>
-        <p className="text-sm text-white/60 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Approved YouTube Sources</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Register YouTube channels or videos as known-legitimate. Approved channels are
           automatically checked for new uploads; every video is still run through face and deepfake
           matching — a genuine appearance is marked legitimate, a manipulated one is still flagged
@@ -181,7 +181,7 @@ function ApprovedSourcesPage() {
           <Loader2 className="size-6 animate-spin text-blue-500" />
         </div>
       ) : sources.length === 0 ? (
-        <div className="border border-dashed border-white/20 rounded-xl p-8 text-center text-white/50 text-sm">
+        <div className="border border-dashed border-white/20 rounded-xl p-8 text-center text-muted-foreground text-sm">
           No approved sources yet. Add a channel or video URL above.
         </div>
       ) : (
@@ -205,12 +205,12 @@ function ApprovedSourcesPage() {
                       </div>
                     )}
                     <div className="min-w-0">
-                      <div className="font-semibold text-white truncate">{displayTitle}</div>
+                      <div className="font-semibold text-foreground truncate">{displayTitle}</div>
                       <a
                         href={source.input_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-blue-400 hover:underline flex items-center gap-1 truncate"
+                        className="text-xs text-primary hover:underline flex items-center gap-1 truncate"
                       >
                         {source.input_url} <ExternalLink className="size-3 shrink-0" />
                       </a>
@@ -219,7 +219,7 @@ function ApprovedSourcesPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge
                       variant="outline"
-                      className="text-[10px] uppercase border-white/20 text-white/60 bg-white/5"
+                      className="text-[10px] uppercase border-white/20 text-muted-foreground bg-white/5"
                     >
                       {source.source_kind}
                     </Badge>
@@ -228,7 +228,7 @@ function ApprovedSourcesPage() {
                       className={`text-[10px] uppercase ${
                         source.status === "active"
                           ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                          : "border-white/20 text-white/60 bg-white/5"
+                          : "border-white/20 text-muted-foreground bg-white/5"
                       }`}
                     >
                       {source.status}
@@ -236,7 +236,7 @@ function ApprovedSourcesPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-8 text-white/40 hover:text-red-400 hover:bg-white/10"
+                      className="size-8 text-muted-foreground hover:text-red-400 hover:bg-white/10"
                       onClick={() => handleRemove(source.id)}
                       disabled={busy}
                     >
@@ -247,11 +247,11 @@ function ApprovedSourcesPage() {
 
                 {source.source_kind === "channel" && (
                   <div className="mt-4 pt-4 border-t border-white/10">
-                    <div className="text-xs text-white/50 mb-2">
+                    <div className="text-xs text-muted-foreground mb-2">
                       Discovered uploads ({sourceVideos.length})
                     </div>
                     {sourceVideos.length === 0 ? (
-                      <div className="text-xs text-white/40">
+                      <div className="text-xs text-muted-foreground">
                         No uploads discovered yet — checked automatically every 30–60 minutes.
                       </div>
                     ) : (
@@ -269,7 +269,7 @@ function ApprovedSourcesPage() {
                                   className="size-8 rounded object-cover shrink-0"
                                 />
                               )}
-                              <span className="text-sm text-white/80 truncate">{v.title}</span>
+                              <span className="text-sm text-foreground truncate">{v.title}</span>
                             </div>
                             <ClassificationBadge video={v} />
                           </div>
@@ -281,7 +281,7 @@ function ApprovedSourcesPage() {
 
                 {source.source_kind === "video" && sourceVideos[0] && (
                   <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
-                    <span className="text-xs text-white/50">Analysis result</span>
+                    <span className="text-xs text-muted-foreground">Analysis result</span>
                     <ClassificationBadge video={sourceVideos[0]} />
                   </div>
                 )}
