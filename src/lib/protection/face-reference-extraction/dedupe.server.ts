@@ -9,11 +9,11 @@
  * exactly what the identity rules forbid.
  *
  * Two-stage check: a cheap perceptual-hash prefilter (DCT-based, computed
- * locally with sharp — no extra AWS calls for the common non-duplicate
+ * locally in pure JS — no extra AWS calls for the common non-duplicate
  * case), confirmed by a real face comparison only when the hash suggests a
  * possible match.
  */
-import sharp from "sharp";
+import { decodeToRgba, resizeToGray } from "@/lib/media/image-raster.server";
 import { compareReferenceFace } from "@/lib/deepfake/face-match.server";
 
 const PHASH_SIZE = 32; // DCT input size
@@ -36,11 +36,9 @@ function dct1d(input: number[]): number[] {
 
 /** Small dependency-free perceptual hash: grayscale -> DCT -> top-left low-frequency bits vs median. */
 export async function computePerceptualHash(imageBytes: Uint8Array): Promise<string> {
-  const { data } = await sharp(Buffer.from(imageBytes))
-    .resize(PHASH_SIZE, PHASH_SIZE, { fit: "fill" })
-    .grayscale()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+  const decoded = decodeToRgba(imageBytes);
+  if (!decoded) throw new Error("UNSUPPORTED_IMAGE_FORMAT");
+  const data = resizeToGray(decoded, PHASH_SIZE, PHASH_SIZE);
 
   const pixels: number[][] = [];
   for (let y = 0; y < PHASH_SIZE; y++) {

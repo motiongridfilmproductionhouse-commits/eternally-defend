@@ -14,7 +14,7 @@
  * confirmation in bootstrap mode) is untouched.
  */
 import { DetectFacesCommand } from "@aws-sdk/client-rekognition";
-import sharp from "sharp";
+import { imageMetadata } from "@/lib/media/image-raster.server";
 import { getRekognition } from "@/lib/aws/clients.server";
 import type { DetectedTile } from "./grid-detect.server";
 
@@ -28,9 +28,9 @@ export async function detectFaceRegionTiles(imageBytes: Uint8Array): Promise<{
   imageWidth: number;
   imageHeight: number;
 }> {
-  const meta = await sharp(Buffer.from(imageBytes)).metadata();
-  const imageWidth = meta.width ?? 0;
-  const imageHeight = meta.height ?? 0;
+  const meta = imageMetadata(imageBytes);
+  const imageWidth = meta.width;
+  const imageHeight = meta.height;
   if (!imageWidth || !imageHeight) return { tiles: [], imageWidth: 0, imageHeight: 0 };
 
   const out = await getRekognition().send(
