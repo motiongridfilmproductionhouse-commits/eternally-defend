@@ -21,7 +21,7 @@
  * `confidence: 'NONE'` and zero tiles, and the caller must skip the asset
  * rather than guess.
  */
-import sharp from "sharp";
+import { cropToJpeg, decodeToRgba, resizeToGray } from "@/lib/media/image-raster.server";
 
 export interface DetectedTile {
   x: number;
@@ -163,10 +163,9 @@ function isRoughlySquare(w: number, h: number): boolean {
 }
 
 export async function detectGridTiles(imageBytes: Uint8Array): Promise<GridDetectionResult> {
-  const image = sharp(Buffer.from(imageBytes));
-  const meta = await image.metadata();
-  const fullWidth = meta.width ?? 0;
-  const fullHeight = meta.height ?? 0;
+  const image = decodeToRgba(imageBytes);
+  const fullWidth = image?.width ?? 0;
+  const fullHeight = image?.height ?? 0;
   if (!fullWidth || !fullHeight) {
     return { tiles: [], confidence: "NONE", imageWidth: 0, imageHeight: 0 };
   }
@@ -175,12 +174,7 @@ export async function detectGridTiles(imageBytes: Uint8Array): Promise<GridDetec
   const analysisWidth = Math.max(1, Math.round(fullWidth * scale));
   const analysisHeight = Math.max(1, Math.round(fullHeight * scale));
 
-  const { data } = await image
-    .clone()
-    .resize(analysisWidth, analysisHeight, { fit: "fill" })
-    .grayscale()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+  const data = resizeToGray(image!, analysisWidth, analysisHeight);
 
   const band = findContentBand(data, analysisWidth, analysisHeight);
   if (!band)
@@ -290,13 +284,9 @@ export async function detectGridTiles(imageBytes: Uint8Array): Promise<GridDetec
 }
 
 export async function cropTile(imageBytes: Uint8Array, tile: DetectedTile): Promise<Buffer> {
-  return sharp(Buffer.from(imageBytes))
-    .extract({
-      left: Math.max(0, tile.x),
-      top: Math.max(0, tile.y),
-      width: Math.max(1, tile.width),
-      height: Math.max(1, tile.height),
-    })
-    .jpeg({ quality: 90 })
-    .toBuffer();
+  return cropToJpeg(
+    imageBytes,
+    { x: tile.x, y: tile.y, width: tile.width, height: tile.height },
+    90,
+  );
 }
