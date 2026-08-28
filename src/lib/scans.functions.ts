@@ -55,11 +55,19 @@ export function normalizeRiskScore(val: unknown): number | null {
   return Number(clamped.toFixed(3));
 }
 
+/**
+ * scan_hits.growth_pct is `numeric(8,3)` in Postgres — max storable
+ * magnitude 99999.999 (5 integer digits + 3 decimal). A viral clip's
+ * day-over-day growth is otherwise unbounded, so this clamp is the only
+ * thing standing between an extreme provider-reported value and a hard
+ * Postgres `numeric field overflow` (22003) that fails the entire batched
+ * upsert atomically, not just the one offending row.
+ */
 export function normalizePercentage(val: unknown): number | null {
   if (val === null || val === undefined || val === "") return null;
   const num = typeof val === "number" ? val : Number(val);
   if (!Number.isFinite(num)) return null;
-  const bounded = Math.max(-999_999, Math.min(999_999, num));
+  const bounded = Math.max(-99_999, Math.min(99_999, num));
   return Number(bounded.toFixed(3));
 }
 

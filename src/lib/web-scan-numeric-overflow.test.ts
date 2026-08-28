@@ -27,6 +27,41 @@ describe("Web Scan Numeric Overflow & Strict 0-100 Domain Normalization Tests", 
     assert.strictEqual(normalizePercentage(2500), 2500);
   });
 
+  // growth_pct is numeric(8,3) in Postgres (max magnitude 99999.999). These
+  // guard the application-level bound (-99_999..99_999) that keeps
+  // persistScanCore's batched scan_hits upsert from ever hitting a Postgres
+  // "numeric field overflow" (22003) on this column. See
+  // scan-persistence-growth-pct-overflow.test.ts for the persistence-path
+  // regression.
+  it("leaves an ordinary growth_pct (3697) unchanged", () => {
+    assert.strictEqual(normalizePercentage(3697), 3697);
+  });
+
+  it("bounds a growth_pct of 100000 to the numeric(8,3) column's safe ceiling (99999)", () => {
+    assert.strictEqual(normalizePercentage(100_000), 99_999);
+  });
+
+  it("bounds a growth_pct of 999999 to the numeric(8,3) column's safe ceiling (99999)", () => {
+    assert.strictEqual(normalizePercentage(999_999), 99_999);
+  });
+
+  it("bounds a large negative growth_pct to the numeric(8,3) column's safe floor (-99999)", () => {
+    assert.strictEqual(normalizePercentage(-500_000), -99_999);
+  });
+
+  it("still returns null for null/undefined/empty-string/non-finite growth_pct input", () => {
+    assert.strictEqual(normalizePercentage(null), null);
+    assert.strictEqual(normalizePercentage(undefined), null);
+    assert.strictEqual(normalizePercentage(""), null);
+    assert.strictEqual(normalizePercentage(NaN), null);
+    assert.strictEqual(normalizePercentage(Infinity), null);
+    assert.strictEqual(normalizePercentage(-Infinity), null);
+  });
+
+  it("leaves a normal percentage value (42.5) unchanged", () => {
+    assert.strictEqual(normalizePercentage(42.5), 42.5);
+  });
+
   it("normalizes reach = 2,500,000,000 (2.5 Billion) correctly as BIGINT", () => {
     assert.strictEqual(normalizeIntegerCount(2500000000), 2500000000);
   });
