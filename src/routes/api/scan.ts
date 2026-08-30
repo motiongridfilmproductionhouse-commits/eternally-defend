@@ -1159,7 +1159,9 @@ async function resolveBrandWithPlaces(
 
 function platformFromUrl(url: string): { platform: string; source: string } {
   try {
-    const h = new URL(url).hostname.replace(/^www\./, "");
+    const parsed = new URL(url);
+    const h = parsed.hostname.replace(/^www\./, "");
+    const path = parsed.pathname.toLowerCase();
     if (h.includes("youtube") || h.includes("youtu.be"))
       return { platform: "YouTube", source: "YouTube" };
     if (h.includes("instagram")) return { platform: "Instagram", source: "Instagram" };
@@ -1174,6 +1176,27 @@ function platformFromUrl(url: string): { platform: string; source: string } {
       return { platform: h, source: "Reviews" };
     if (h.includes("ripoff") || h.includes("complaintsboard"))
       return { platform: h, source: "Complaints" };
+    if (
+      h.includes("podcasts.apple.com") ||
+      h.includes("anchor.fm") ||
+      h.includes("buzzsprout.com") ||
+      h.includes("libsyn.com") ||
+      h.includes("podbean.com") ||
+      h.includes("simplecast.com") ||
+      h.includes("spreaker.com") ||
+      h.includes("megaphone.fm") ||
+      h.includes("podcast") ||
+      (h.includes("spotify.com") && (path.includes("/show/") || path.includes("/episode/")))
+    )
+      return { platform: h, source: "Podcasts" };
+    if (
+      h.includes("quora.com") ||
+      h.includes("stackexchange.com") ||
+      h.includes("stackoverflow.com") ||
+      h.includes("discourse") ||
+      h.includes("forum")
+    )
+      return { platform: h, source: "Forums" };
     if (
       TRUSTED_NEWS.test(h) ||
       /(news|times|post|guardian|bbc|cnn|reuters|bloomberg|herald)/i.test(h)

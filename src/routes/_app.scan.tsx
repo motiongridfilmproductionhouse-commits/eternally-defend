@@ -46,6 +46,12 @@ import {
 
 import { listEvidenceStatus, hideScanHit } from "@/lib/scan-actions.functions";
 import {
+  canonicalSourceType,
+  filterHitsBySourceType,
+  isCanonicalSourceType,
+  SOURCE_TYPE_FILTERS,
+} from "@/lib/scan/source-type";
+import {
   Radar,
   Search,
   ExternalLink,
@@ -367,7 +373,7 @@ function ScanPage() {
       try {
         const mapped = report.hits.map((h) => ({
           source: h.source,
-          sourceType: h.source === "YouTube" ? "youtube_video" : h.source.toLowerCase(),
+          sourceType: canonicalSourceType(h.source),
           externalId: h.media?.videoId ?? null,
           canonicalUrl: h.url,
           permalink: h.url,
@@ -2733,21 +2739,36 @@ function riskPriority(h: PersistedHit): number {
 }
 
 // Source display order for the filter chips only — never used to rank results by risk.
-const SOURCE_PRIORITY: { key: string; label: string; icon: React.ReactNode }[] = [
-  { key: "YouTube", label: "YouTube", icon: <Youtube className="size-3.5" /> },
-  { key: "News", label: "News", icon: <Newspaper className="size-3.5" /> },
-  { key: "X", label: "X", icon: <MessageCircle className="size-3.5" /> },
-  { key: "Instagram", label: "Instagram", icon: <Instagram className="size-3.5" /> },
-  { key: "TikTok", label: "TikTok", icon: <Flame className="size-3.5" /> },
-  { key: "Facebook", label: "Facebook", icon: <Facebook className="size-3.5" /> },
-  { key: "Reddit", label: "Reddit", icon: <MessageCircle className="size-3.5" /> },
-  { key: "Forums", label: "Forums", icon: <MessageCircle className="size-3.5" /> },
-  { key: "Blogs", label: "Blogs", icon: <Globe className="size-3.5" /> },
-  { key: "Web", label: "Websites", icon: <Globe className="size-3.5" /> },
-  { key: "Reviews", label: "Reviews", icon: <Gavel className="size-3.5" /> },
-  { key: "Complaints", label: "Complaints", icon: <AlertTriangle className="size-3.5" /> },
-  { key: "Archive", label: "Archive", icon: <Database className="size-3.5" /> },
-];
+// Canonical `source_type` values + order/labels come from SOURCE_TYPE_FILTERS so the
+// filter chips, the DB query, and the persisted column all agree on the same taxonomy.
+const SOURCE_TYPE_ICONS: Record<string, React.ReactNode> = {
+  youtube: <Youtube className="size-3.5" />,
+  news: <Newspaper className="size-3.5" />,
+  reddit: <MessageCircle className="size-3.5" />,
+  x: <MessageCircle className="size-3.5" />,
+  instagram: <Instagram className="size-3.5" />,
+  tiktok: <Flame className="size-3.5" />,
+  facebook: <Facebook className="size-3.5" />,
+  blog: <Globe className="size-3.5" />,
+  forum: <MessageCircle className="size-3.5" />,
+  review: <Gavel className="size-3.5" />,
+  archive: <Database className="size-3.5" />,
+  linkedin: <MessageCircle className="size-3.5" />,
+  podcast: <Globe className="size-3.5" />,
+  complaint: <AlertTriangle className="size-3.5" />,
+  web: <Globe className="size-3.5" />,
+};
+const SOURCE_PRIORITY = SOURCE_TYPE_FILTERS.filter((f) => f.value !== "").map((f) => ({
+  key: f.value,
+  label: f.label,
+  icon: SOURCE_TYPE_ICONS[f.value] ?? <Globe className="size-3.5" />,
+}));
+
+function sourceParamFromUrl(): string {
+  if (typeof window === "undefined") return "";
+  const raw = new URLSearchParams(window.location.search).get("source") ?? "";
+  return isCanonicalSourceType(raw) ? raw : "";
+}
 
 type TimeWindow = "all" | "24h" | "7d" | "30d";
 type QuickFilter = "all" | "critical" | "defamation" | "impersonation" | "deepfake" | "copyright";
@@ -2778,7 +2799,7 @@ function PersistedResults({
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<string>("");
+  const [source, setSource] = useState<string>(sourceParamFromUrl);
   const [onlyNew, setOnlyNew] = useState(false);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("all");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
@@ -2801,6 +2822,20 @@ function PersistedResults({
     setSelected(new Set());
   }, [scanId, source, onlyNew, hiddenFilter, reloadTick]);
 
+  // Keep the URL in sync with the active source filter (?source=reddit) so a refresh
+  // or a direct link preserves it — a plain history replace, never a navigation/reload,
+  // so switching sources can never re-trigger a scan.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (source) params.set("source", source);
+    else params.delete("source");
+    const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash}`;
+    if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+      window.history.replaceState(null, "", next);
+    }
+  }, [source]);
+
   const load = async (nextCursor: typeof cursor) => {
     if (loading || !hasMore) return;
     setLoading(true);
@@ -2809,7 +2844,7 @@ function PersistedResults({
       const res = await listFn({
         data: {
           scanId: scanId ?? undefined,
-          source: source || undefined,
+          sourceType: source || undefined,
           onlyNew: onlyNew || undefined,
           hiddenFilter,
           limit: 24,
@@ -2907,7 +2942,7 @@ function PersistedResults({
       return true;
     };
 
-    return items
+    return filterHitsBySourceType(items, source)
       .filter((h) => {
         if (windowMs && h.published_at) {
           if (now - new Date(h.published_at).getTime() > windowMs) return false;
@@ -2934,18 +2969,28 @@ function PersistedResults({
         const pb = b.published_at ? new Date(b.published_at).getTime() : 0;
         return pb - pa;
       });
-  }, [items, timeWindow, quickFilter]);
+  }, [items, source, timeWindow, quickFilter]);
 
+  // Counts are keyed by canonical source_type and derived from `items` (the currently
+  // loaded, already server-filtered page(s)) — so with a source selected, every count
+  // other than the active one reads 0, and risk/reach counters reflect only the
+  // filtered set, not the whole scan.
   const sourceCounts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const h of items) c[h.source] = (c[h.source] ?? 0) + 1;
+    for (const h of items) {
+      const t = canonicalSourceType(h.source);
+      c[t] = (c[t] ?? 0) + 1;
+    }
     return c;
   }, [items]);
   const criticalCount = useMemo(
-    () => items.filter((h) => (h.severity ?? "").toLowerCase() === "critical").length,
-    [items],
+    () => displayItems.filter((h) => (h.severity ?? "").toLowerCase() === "critical").length,
+    [displayItems],
   );
-  const totalReach = useMemo(() => items.reduce((s, h) => s + (h.reach ?? 0), 0), [items]);
+  const totalReach = useMemo(
+    () => displayItems.reduce((s, h) => s + (h.reach ?? 0), 0),
+    [displayItems],
+  );
 
   const toggleSelected = (id: string, checked: boolean) => {
     setSelected((prev) => {
@@ -2971,6 +3016,48 @@ function PersistedResults({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Bulk hide failed");
     }
+  };
+
+  // Exports exactly what's on screen — displayItems is already scoped to the active
+  // source_type, quick, and time-window filters — so the CSV always matches the filter.
+  const exportResultsCsv = () => {
+    if (!displayItems.length) return;
+    const csvCell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = [
+      "Source",
+      "Title",
+      "URL",
+      "Author",
+      "Published",
+      "Severity",
+      "Threat Score",
+      "Reach",
+    ];
+    const rows = displayItems.map((h) =>
+      [
+        h.source,
+        h.title,
+        h.canonical_url ?? h.permalink,
+        h.author,
+        h.published_at,
+        h.severity,
+        h.threat_score,
+        h.reach,
+      ]
+        .map(csvCell)
+        .join(","),
+    );
+    const csv = [header.map(csvCell).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `eterna-scan-findings${source ? `-${source}` : ""}.csv`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
   const bulkAction = () => {
@@ -3046,13 +3133,14 @@ function PersistedResults({
           </div>
         }
       >
-        <div className="flex flex-wrap gap-1.5 mb-3">
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
           <button
             onClick={() => setSource("")}
+            aria-pressed={source === ""}
             className={`text-[11px] px-3 py-1.5 rounded-full border inline-flex items-center gap-1.5 transition ${source === "" ? "text-white border-transparent" : "border-border bg-card hover:bg-accent"}`}
             style={source === "" ? { background: "var(--gradient-brand)" } : undefined}
           >
-            All sources
+            All Sources
           </button>
           {SOURCE_PRIORITY.map((s) => {
             const active = source === s.key;
@@ -3061,6 +3149,7 @@ function PersistedResults({
               <button
                 key={s.key}
                 onClick={() => setSource(s.key)}
+                aria-pressed={active}
                 className={`text-[11px] px-3 py-1.5 rounded-full border inline-flex items-center gap-1.5 transition ${active ? "text-white border-transparent" : "border-border bg-card hover:bg-accent"}`}
                 style={active ? { background: "var(--gradient-brand)" } : undefined}
               >
@@ -3075,6 +3164,17 @@ function PersistedResults({
               </button>
             );
           })}
+          <span className="ml-1 text-[11px] text-muted-foreground">
+            {displayItems.length} result{displayItems.length === 1 ? "" : "s"}
+            {hasMore ? "+" : ""}
+          </span>
+          <button
+            onClick={exportResultsCsv}
+            disabled={!displayItems.length}
+            className="ml-auto text-[11px] px-3 py-1.5 rounded-full border border-border bg-card hover:bg-accent inline-flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <FileDown className="size-3.5" /> Export CSV
+          </button>
         </div>
 
         <div className="flex flex-wrap gap-1.5 mb-3">
@@ -3124,32 +3224,32 @@ function PersistedResults({
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2 mb-4 text-[11px]">
           <SumChip
             label="YouTube"
-            value={sourceCounts["YouTube"] ?? 0}
+            value={sourceCounts["youtube"] ?? 0}
             icon={<Youtube className="size-3.5" />}
           />
           <SumChip
             label="News"
-            value={sourceCounts["News"] ?? 0}
+            value={sourceCounts["news"] ?? 0}
             icon={<Newspaper className="size-3.5" />}
           />
           <SumChip
             label="Social"
             value={
-              (sourceCounts["Instagram"] ?? 0) +
-              (sourceCounts["TikTok"] ?? 0) +
-              (sourceCounts["Facebook"] ?? 0) +
-              (sourceCounts["X"] ?? 0)
+              (sourceCounts["instagram"] ?? 0) +
+              (sourceCounts["tiktok"] ?? 0) +
+              (sourceCounts["facebook"] ?? 0) +
+              (sourceCounts["x"] ?? 0)
             }
             icon={<Instagram className="size-3.5" />}
           />
           <SumChip
             label="Reddit"
-            value={sourceCounts["Reddit"] ?? 0}
+            value={sourceCounts["reddit"] ?? 0}
             icon={<MessageCircle className="size-3.5" />}
           />
           <SumChip
             label="Archive"
-            value={sourceCounts["Archive"] ?? 0}
+            value={sourceCounts["archive"] ?? 0}
             icon={<Database className="size-3.5" />}
           />
           <SumChip
@@ -3195,7 +3295,11 @@ function PersistedResults({
 
         {items.length === 0 && !loading && (
           <div className="text-xs text-muted-foreground py-6 text-center">
-            {hiddenFilter === "hidden" ? "No hidden findings." : "No persisted results yet."}
+            {activeSource
+              ? `No ${activeSource.label} findings found`
+              : hiddenFilter === "hidden"
+                ? "No hidden findings."
+                : "No persisted results yet."}
           </div>
         )}
 
