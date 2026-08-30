@@ -438,6 +438,8 @@ export const persistScan = createServerFn({ method: "POST" })
 const ListInput = z.object({
   scanId: z.string().uuid().optional(),
   source: z.string().optional(),
+  /** Canonical source_type value (see src/lib/scan/source-type.ts), e.g. "reddit". Preferred over `source`. */
+  sourceType: z.string().optional(),
   severity: z.string().optional(),
   onlyNew: z.boolean().optional(),
   hiddenFilter: z.enum(["active", "hidden", "all"]).optional().default("active"),
@@ -470,7 +472,8 @@ export const listScanHits = createServerFn({ method: "GET" })
       .limit(data.limit + 1);
 
     if (data.scanId) q = q.eq("scan_id", data.scanId);
-    if (data.source) q = q.eq("source", data.source);
+    if (data.sourceType) q = q.eq("source_type", data.sourceType);
+    else if (data.source) q = q.eq("source", data.source);
     if (data.severity) q = q.eq("severity", data.severity);
     if (data.onlyNew) q = q.eq("is_new_since_last_scan", true);
     if (data.hiddenFilter === "active") q = q.is("hidden_at", null);
