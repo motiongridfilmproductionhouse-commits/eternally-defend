@@ -35,29 +35,20 @@
 import {
   canonicalMediaUrl,
   canonicalProfileUrl,
+  captionTextOf,
+  thumbnailUrlOf,
   getUserByUsername,
   getUserTaggedMedias,
   getUserMedias,
   getUserClips,
   isHikerApiEnabled,
+  HikerApiRequestBudget,
   type HikerMedia,
   type HikerUser,
 } from "./hikerapi-client.server";
 import { ProviderError } from "./provider";
 
-/** Mirrors AiCallBudget's shape (src/lib/scan/openai/client.server.ts) — take-until-exhausted. */
-export class HikerApiRequestBudget {
-  private used = 0;
-  constructor(private readonly max: number) {}
-  get remaining(): number {
-    return Math.max(0, this.max - this.used);
-  }
-  take(): boolean {
-    if (this.used >= this.max) return false;
-    this.used++;
-    return true;
-  }
-}
+export { HikerApiRequestBudget };
 
 function defaultBudgetSize(): number {
   const raw = Number(process.env.HIKERAPI_MAX_REQUESTS_PER_SCAN ?? 8);
@@ -77,7 +68,8 @@ interface HikerApiRawHit {
 }
 
 function mediaToHit(media: HikerMedia): HikerApiRawHit {
-  const caption = media.caption_text?.trim() || undefined;
+  const caption = captionTextOf(media);
+  const thumb = thumbnailUrlOf(media);
   return {
     url: canonicalMediaUrl(media),
     title: media.user?.username ? `Instagram — @${media.user.username}` : "Instagram post",
@@ -86,8 +78,8 @@ function mediaToHit(media: HikerMedia): HikerApiRawHit {
     date: media.taken_at ?? undefined,
     publishedDate: media.taken_at ?? undefined,
     media: {
-      thumbnail: media.thumbnail_url ?? undefined,
-      thumbnailHi: media.thumbnail_url ?? undefined,
+      thumbnail: thumb,
+      thumbnailHi: thumb,
       // Marker so the extraction stage skips re-fetching this URL — HikerAPI
       // already gave us the structured caption/metadata (same convention as
       // the existing `media.videoId` skip for YouTube API leads).

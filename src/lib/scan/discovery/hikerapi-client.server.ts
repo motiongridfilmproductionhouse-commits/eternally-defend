@@ -27,6 +27,26 @@ export function hikerApiKey(): string {
   return (process.env.HIKERAPI_ACCESS_KEY ?? "").trim();
 }
 
+/**
+ * Take-until-exhausted per-scan request counter — mirrors AiCallBudget's
+ * shape (src/lib/scan/openai/client.server.ts). Shared by both HikerAPI
+ * tiers (Tier 1's account-search cap in hikerapi-provider.server.ts and
+ * Tier 2's deep-dive cap in hikerapi-instagram.server.ts) rather than each
+ * defining its own counter class.
+ */
+export class HikerApiRequestBudget {
+  private used = 0;
+  constructor(private readonly max: number) {}
+  get remaining(): number {
+    return Math.max(0, this.max - this.used);
+  }
+  take(): boolean {
+    if (this.used >= this.max) return false;
+    this.used++;
+    return true;
+  }
+}
+
 export function hikerApiBaseUrl(): string {
   return (process.env.HIKERAPI_BASE_URL ?? DEFAULT_BASE_URL).trim().replace(/\/+$/, "");
 }
@@ -53,7 +73,16 @@ export interface HikerUser {
   biography?: string | null;
 }
 
-/** Instagram media object shape we rely on (subset of HikerAPI's `Media`). */
+/**
+ * Instagram media object shape we rely on. In practice this varies by
+ * endpoint (confirmed against live data, not assumed): `/v2/*` endpoints
+ * return HikerAPI's documented flat `Media` schema (`caption_text`,
+ * `thumbnail_url`), while the `/gql/*` endpoints (getUserMedias,
+ * getUserClips) pass through Instagram's own internal GraphQL object
+ * (`caption.text`, `image_versions2.candidates[].url`) instead — both
+ * shapes are modeled here; use captionTextOf()/thumbnailUrlOf() below
+ * rather than reading these fields directly.
+ */
 export interface HikerMedia {
   pk: string;
   id: string;
@@ -68,7 +97,11 @@ export interface HikerMedia {
   like_count?: number | null;
   play_count?: number | null;
   caption_text?: string | null;
+  /** GraphQL-shape caption, e.g. from /gql/user/medias, /gql/user/clips. */
+  caption?: { text?: string | null } | null;
   video_url?: string | null;
+  /** GraphQL-shape image candidates, e.g. from /gql/user/medias, /gql/user/clips. */
+  image_versions2?: { candidates?: { url?: string }[] } | null;
   image_versions?: unknown[];
 }
 
@@ -197,7 +230,7 @@ export async function getBalance(
 
 /** GET /v2/fbsearch/accounts — search Instagram accounts by name/alias/username text. */
 export async function searchAccounts(query: string, signal?: AbortSignal): Promise<HikerUser[]> {
-  const json = await hikerGet("/v2/fbsearch/accounts", { query }, signal);
+  const json = await hikerGet("/v2/fbsearch/accounts", { query, safe_int: true }, signal);
   const { items } = extractItems(json);
   return items.map(asUser).filter((u): u is HikerUser => u !== null);
 }
@@ -207,7 +240,7 @@ export async function getUserByUsername(
   username: string,
   signal?: AbortSignal,
 ): Promise<HikerUser | null> {
-  const json = await hikerGet("/v2/user/by/username", { username }, signal);
+  const json = await hikerGet("/v2/user/by/username", { username, safe_int: true }, signal);
   if (isPlainObject(json) && isPlainObject(json.user)) return asUser(json.user);
   return asUser(json);
 }
@@ -248,14 +281,18 @@ export async function getUserTaggedMedias(
   pageId?: string,
   signal?: AbortSignal,
 ): Promise<HikerPage<HikerMedia>> {
-  const json = await hikerGet("/v2/user/tag/medias", { user_id: userId, page_id: pageId }, signal);
+  const json = await hikerGet(
+    "/v2/user/tag/medias",
+    { user_id: userId, page_id: pageId, safe_int: true },
+    signal,
+  );
   const { items, nextPageId } = extractItems(json);
   return { items: items.map(asMedia).filter((m): m is HikerMedia => m !== null), nextPageId };
 }
 
 /** GET /v2/search/hashtags — search for hashtags matching a term. */
 export async function searchHashtags(query: string, signal?: AbortSignal): Promise<HikerHashtag[]> {
-  const json = await hikerGet("/v2/search/hashtags", { query }, signal);
+  const json = await hikerGet("/v2/search/hashtags", { query, safe_int: true }, signal);
   const { items } = extractItems(json);
   return items.filter(isPlainObject).map((h) => h as unknown as HikerHashtag);
 }
@@ -265,7 +302,7 @@ export async function getMediaInfoByUrl(
   url: string,
   signal?: AbortSignal,
 ): Promise<HikerMedia | null> {
-  const json = await hikerGet("/v2/media/info/by/url", { url }, signal);
+  const json = await hikerGet("/v2/media/info/by/url", { url, safe_int: true }, signal);
   if (isPlainObject(json) && isPlainObject(json.item)) return asMedia(json.item);
   return asMedia(json);
 }
@@ -276,7 +313,11 @@ export async function getMediaComments(
   pageId?: string,
   signal?: AbortSignal,
 ): Promise<HikerPage<HikerComment>> {
-  const json = await hikerGet("/v2/media/comments", { id: mediaId, page_id: pageId }, signal);
+  const json = await hikerGet(
+    "/v2/media/comments",
+    { id: mediaId, page_id: pageId, safe_int: true },
+    signal,
+  );
   const { items, nextPageId } = extractItems(json);
   return {
     items: items.filter(isPlainObject).map((c) => c as unknown as HikerComment),
@@ -284,9 +325,37 @@ export async function getMediaComments(
   };
 }
 
-/** Canonical, stable Instagram post/reel URL for a media's shortcode. */
+/**
+ * Caption text regardless of which shape this endpoint returned it in —
+ * confirmed against live data that /gql/user/medias and /gql/user/clips use
+ * the nested `caption.text` GraphQL field, not the flat `caption_text` the
+ * documented Media schema implies.
+ */
+export function captionTextOf(media: HikerMedia): string | undefined {
+  return media.caption_text?.trim() || media.caption?.text?.trim() || undefined;
+}
+
+/**
+ * Thumbnail URL regardless of shape — confirmed against live data that
+ * /gql/user/medias and /gql/user/clips have no top-level `thumbnail_url` at
+ * all and require reading `image_versions2.candidates[0].url` instead.
+ */
+export function thumbnailUrlOf(media: HikerMedia): string | undefined {
+  return (
+    media.thumbnail_url ??
+    media.image_versions2?.candidates?.[0]?.url ??
+    undefined
+  );
+}
+
+/**
+ * Canonical, stable Instagram post/reel URL for a media's shortcode.
+ * `product_type === "clips"` is the only field confirmed (against live data)
+ * to reliably distinguish a Reel — `media_type === 2` also appears on
+ * ordinary video feed posts, so it is not used here.
+ */
 export function canonicalMediaUrl(media: HikerMedia): string {
-  const kind = media.product_type === "clips" || media.media_type === 2 ? "reel" : "p";
+  const kind = media.product_type === "clips" ? "reel" : "p";
   return `https://www.instagram.com/${kind}/${media.code}/`;
 }
 

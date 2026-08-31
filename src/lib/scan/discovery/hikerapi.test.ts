@@ -164,6 +164,50 @@ test("response normalization: searchAccounts maps HikerAPI users into DiscoveryH
   assert.equal(hits[0].instagramIsVerified, true);
 });
 
+test("captionTextOf/thumbnailUrlOf: GraphQL shape (/gql/user/medias, /gql/user/clips) is handled, not just the flat schema", async () => {
+  const { captionTextOf, thumbnailUrlOf } = await import("./hikerapi-client.server");
+  // Confirmed against live data (2026-08-31): these two endpoints return
+  // Instagram's raw GraphQL object, not HikerAPI's documented flat Media
+  // schema — caption_text/thumbnail_url are absent entirely.
+  const graphQlShaped = {
+    pk: "1",
+    id: "1_1",
+    code: "ABC",
+    caption: { text: "hello from graphql" },
+    image_versions2: { candidates: [{ url: "https://example.com/hi-res.jpg" }] },
+  } as never;
+  assert.equal(captionTextOf(graphQlShaped), "hello from graphql");
+  assert.equal(thumbnailUrlOf(graphQlShaped), "https://example.com/hi-res.jpg");
+
+  const flatShaped = {
+    pk: "2",
+    id: "2_1",
+    code: "DEF",
+    caption_text: "hello from flat schema",
+    thumbnail_url: "https://example.com/flat.jpg",
+  } as never;
+  assert.equal(captionTextOf(flatShaped), "hello from flat schema");
+  assert.equal(thumbnailUrlOf(flatShaped), "https://example.com/flat.jpg");
+});
+
+test("safe_int=true is sent on endpoints where large media/user pks can exceed Number.MAX_SAFE_INTEGER", async () => {
+  const capturedUrls: string[] = [];
+  mock.method(globalThis, "fetch", async (url: string) => {
+    capturedUrls.push(String(url));
+    return jsonResponse(200, { response: { items: [], users: [] } });
+  });
+  const { searchAccounts, getUserByUsername, getUserTaggedMedias, searchHashtags, getMediaComments } =
+    await import("./hikerapi-client.server");
+  await searchAccounts("q");
+  await getUserByUsername("u");
+  await getUserTaggedMedias("1");
+  await searchHashtags("h");
+  await getMediaComments("1");
+  for (const u of capturedUrls) {
+    assert.ok(new URL(u).searchParams.get("safe_int") === "true", `expected safe_int=true on ${u}`);
+  }
+});
+
 test("malformed item within an otherwise-valid list is skipped, not thrown", async () => {
   mock.method(globalThis, "fetch", async () =>
     jsonResponse(200, {
@@ -248,6 +292,109 @@ test("request budget caps total HikerAPI calls per scan", async () => {
   // 1 resolve + (budget=2 total, so only 1 more call: tagged media) — own
   // media/reels never fire once the budget is exhausted.
   assert.equal(calls, 2);
+});
+
+test("Tier-1: identical repeated queries within one scan hit HikerAPI only once", async () => {
+  let calls = 0;
+  mock.method(globalThis, "fetch", async () => {
+    calls++;
+    return jsonResponse(200, {
+      response: { users: [{ pk: 1, username: "target", full_name: "Target" }] },
+    });
+  });
+  const { hikerapiProvider } = await import("./hikerapi-provider.server");
+  const { DiscoveryRouter, withDiscoveryRouter } = await import("./router.server");
+  const router = new DiscoveryRouter({ adapters: [hikerapiProvider] });
+
+  await withDiscoveryRouter(router, async () => {
+    const first = await hikerapiProvider.search("Target Client", 5);
+    const second = await hikerapiProvider.search("Target Client", 5);
+    assert.equal(first.length, 1);
+    assert.deepEqual(second, first, "cached call must return the same mapped hits");
+  });
+  assert.equal(calls, 1, "the second identical call must not hit the network again");
+});
+
+test("Tier-1: normalized-duplicate queries (case/whitespace) also dedupe to one request", async () => {
+  let calls = 0;
+  mock.method(globalThis, "fetch", async () => {
+    calls++;
+    return jsonResponse(200, { response: { users: [] } });
+  });
+  const { hikerapiProvider } = await import("./hikerapi-provider.server");
+  const { DiscoveryRouter, withDiscoveryRouter } = await import("./router.server");
+  const router = new DiscoveryRouter({ adapters: [hikerapiProvider] });
+
+  await withDiscoveryRouter(router, async () => {
+    await hikerapiProvider.search("  Target   Client ", 5);
+    await hikerapiProvider.search("target client", 5);
+  });
+  assert.equal(calls, 1);
+});
+
+test("Tier-1: separate scans (separate router instances) never share cache or budget", async () => {
+  let calls = 0;
+  mock.method(globalThis, "fetch", async () => {
+    calls++;
+    return jsonResponse(200, { response: { users: [] } });
+  });
+  const { hikerapiProvider } = await import("./hikerapi-provider.server");
+  const { DiscoveryRouter, withDiscoveryRouter } = await import("./router.server");
+
+  await withDiscoveryRouter(new DiscoveryRouter({ adapters: [hikerapiProvider] }), () =>
+    hikerapiProvider.search("Target Client", 5),
+  );
+  await withDiscoveryRouter(new DiscoveryRouter({ adapters: [hikerapiProvider] }), () =>
+    hikerapiProvider.search("Target Client", 5),
+  );
+  assert.equal(calls, 2, "a fresh scan (new router instance) must not reuse another scan's cache");
+});
+
+test("Tier-1: budget exhaustion returns [] gracefully and never throws", async () => {
+  process.env.HIKERAPI_TIER1_MAX_REQUESTS_PER_SCAN = "2";
+  let calls = 0;
+  mock.method(globalThis, "fetch", async () => {
+    calls++;
+    return jsonResponse(200, { response: { users: [] } });
+  });
+  const { hikerapiProvider } = await import("./hikerapi-provider.server");
+  const { DiscoveryRouter, withDiscoveryRouter } = await import("./router.server");
+  const router = new DiscoveryRouter({ adapters: [hikerapiProvider] });
+
+  await withDiscoveryRouter(router, async () => {
+    await hikerapiProvider.search("query one", 5);
+    await hikerapiProvider.search("query two", 5);
+    const third = await hikerapiProvider.search("query three", 5); // budget exhausted
+    assert.deepEqual(third, []);
+  });
+  assert.equal(calls, 2, "only the budgeted number of distinct queries reach the network");
+});
+
+test("Tier-1: budget exhaustion for HikerAPI never fails the scan or affects a sibling provider", async () => {
+  process.env.HIKERAPI_TIER1_MAX_REQUESTS_PER_SCAN = "1";
+  mock.method(globalThis, "fetch", async () => jsonResponse(200, { response: { users: [] } }));
+  const { hikerapiProvider } = await import("./hikerapi-provider.server");
+  const { DiscoveryRouter, withDiscoveryRouter } = await import("./router.server");
+
+  const workingBrave = {
+    id: "brave" as const,
+    label: "Brave",
+    isConfigured: () => true,
+    search: async (q: string) => [{ url: `https://example.com/${encodeURIComponent(q)}`, title: q }],
+  };
+  const router = new DiscoveryRouter({ adapters: [hikerapiProvider, workingBrave] });
+
+  await withDiscoveryRouter(router, async () => {
+    await router.search("query one", 5); // consumes HikerAPI's entire budget
+    const hits = await router.search("query two", 5); // HikerAPI now returns [] gracefully
+    assert.equal(hits.length, 1, "Brave's result must still come through");
+  });
+
+  const report = router.report();
+  const hiker = report.providers.find((p) => p.provider === "hikerapi")!;
+  assert.equal(hiker.healthy, true, "budget exhaustion must never mark the provider unhealthy");
+  assert.equal(hiker.state, "HEALTHY");
+  assert.equal(report.all_providers_down, false);
 });
 
 test("DiscoveryRouter: HikerAPI failing (e.g. credits exhausted) never zeroes out other providers", async () => {

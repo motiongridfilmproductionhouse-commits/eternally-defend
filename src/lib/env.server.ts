@@ -29,6 +29,7 @@ const serverEnvSchema = z.object({
   HIKERAPI_BASE_URL: z.string().url("HIKERAPI_BASE_URL must be a valid URL").optional(),
   HIKERAPI_ENABLED: z.string().optional(),
   HIKERAPI_MAX_REQUESTS_PER_SCAN: z.string().optional(),
+  HIKERAPI_TIER1_MAX_REQUESTS_PER_SCAN: z.string().optional(),
 
   AWS_REGION: z.string().optional(),
   AWS_ACCESS_KEY_ID: z.string().optional(),
