@@ -146,3 +146,47 @@ describe("filterHitsBySourceType — exclusivity guarantee", () => {
     assert.deepEqual(filterHitsBySourceType(onlyWeb, "reddit"), []);
   });
 });
+
+/**
+ * Regression test for the incident where /scan?source=instagram displayed
+ * 39/39 unfiltered results (News/YouTube included) on production: the
+ * Findings Feed section of _app.scan.tsx was never wired to any source
+ * filter at all (a separate bug from the DB-backed PersistedResults section,
+ * which already used this exact function). Both sections now delegate to
+ * filterHitsBySourceType — this locks in the exact reported scenario.
+ */
+describe("regression: /scan?source=instagram must never fall back to all results", () => {
+  const mixedRows = [
+    { id: "1", source: "News" },
+    { id: "2", source: "YouTube" },
+    { id: "3", source: "Instagram" },
+  ];
+
+  it("requesting source=instagram returns ONLY the Instagram row, count=1", () => {
+    const result = filterHitsBySourceType(mixedRows, "instagram");
+    assert.equal(result.length, 1);
+    assert.equal(result[0].id, "3");
+    assert.equal(canonicalSourceType(result[0].source), "instagram");
+  });
+
+  it("requesting source=youtube returns ONLY the YouTube row, count=1", () => {
+    const result = filterHitsBySourceType(mixedRows, "youtube");
+    assert.deepEqual(result.map((h) => h.id), ["2"]);
+  });
+
+  it("requesting source=news returns ONLY the News row, count=1", () => {
+    const result = filterHitsBySourceType(mixedRows, "news");
+    assert.deepEqual(result.map((h) => h.id), ["1"]);
+  });
+
+  it("requesting Instagram when there are zero Instagram rows returns [] / count=0 — never all rows", () => {
+    const noInstagramRows = [
+      { id: "1", source: "News" },
+      { id: "2", source: "YouTube" },
+    ];
+    const result = filterHitsBySourceType(noInstagramRows, "instagram");
+    assert.deepEqual(result, []);
+    assert.equal(result.length, 0);
+    assert.notEqual(result.length, noInstagramRows.length, "must not silently fall back to all rows");
+  });
+});
