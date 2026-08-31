@@ -49,6 +49,7 @@ import {
   canonicalSourceType,
   filterHitsBySourceType,
   isCanonicalSourceType,
+  labelForSourceType,
   SOURCE_TYPE_FILTERS,
 } from "@/lib/scan/source-type";
 import {
@@ -258,6 +259,23 @@ function ScanPage() {
   const [resultsTab, setResultsTab] = useState<"risk" | "review" | "mentions">("risk");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [activeSeverityFilter, setActiveSeverityFilter] = useState<string | null>(null);
+  // Canonical source_type filter for the Findings Feed (primary view) — driven
+  // by ?source= exactly like PersistedResults below, so both sections agree.
+  // sourceParamFromUrl() only ever returns "" or a validated canonical value
+  // (isCanonicalSourceType) — an unrecognized/missing param becomes "" (All),
+  // it never silently discards a VALID filter like "instagram".
+  const [activeSourceTypeFilter, setActiveSourceTypeFilter] = useState<string>(sourceParamFromUrl);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (activeSourceTypeFilter) params.set("source", activeSourceTypeFilter);
+    else params.delete("source");
+    const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash}`;
+    if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+      window.history.replaceState(null, "", next);
+    }
+  }, [activeSourceTypeFilter]);
 
   const [sources, setSources] = useState<SourceKey[]>(DEFAULT_SOURCES);
   const [added, setAdded] = useState<Set<string>>(new Set());
@@ -1030,6 +1048,18 @@ function ScanPage() {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  aria-label="Filter findings by source"
+                  value={activeSourceTypeFilter}
+                  onChange={(e) => setActiveSourceTypeFilter(e.target.value)}
+                  className="text-xs px-3 py-1.5 rounded-full border border-border bg-card"
+                >
+                  {SOURCE_TYPE_FILTERS.map((f) => (
+                    <option key={f.value || "all"} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
                 {(activeCategoryFilter || activeSeverityFilter) && (
                   <button
                     type="button"
@@ -1116,6 +1146,14 @@ function ScanPage() {
                   else if (sf === "viral") res = res.filter((h) => h.viral);
                   else res = res.filter((h) => h.severity === sf);
                 }
+                // Canonical source_type filter (?source=) — reuses the same
+                // filterHitsBySourceType() PersistedResults already relies on
+                // (re-derives from h.source via canonicalSourceType, never
+                // trusts a raw string match) so both sections of /scan apply
+                // identical semantics. NEVER falls back to unfiltered when
+                // the result is empty — every empty-state message below
+                // checks activeSourceTypeFilter to say so explicitly.
+                res = filterHitsBySourceType(res, activeSourceTypeFilter);
                 return res;
               };
 
@@ -1155,11 +1193,14 @@ function ScanPage() {
                             <CheckCircle className="size-6" />
                           </div>
                           <h3 className="text-base font-bold text-foreground">
-                            No medium or high reputation risk detected.
+                            {activeSourceTypeFilter
+                              ? `0 ${labelForSourceType(activeSourceTypeFilter)} results`
+                              : "No medium or high reputation risk detected."}
                           </h3>
                           <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                            Borderline items are in Needs Review; neutral, official and general
-                            mentions are in All Mentions.
+                            {activeSourceTypeFilter
+                              ? `No ${labelForSourceType(activeSourceTypeFilter)} reputation-risk findings for this scan.`
+                              : "Borderline items are in Needs Review; neutral, official and general mentions are in All Mentions."}
                           </p>
                         </div>
                       )}
@@ -1238,7 +1279,9 @@ function ScanPage() {
                         />
                       ) : (
                         <p className="text-xs text-muted-foreground px-1">
-                          No borderline findings for this scan.
+                          {activeSourceTypeFilter
+                            ? `0 ${labelForSourceType(activeSourceTypeFilter)} results`
+                            : "No borderline findings for this scan."}
                         </p>
                       )}
                     </>
@@ -1262,7 +1305,11 @@ function ScanPage() {
                           analyzingVideos={analyzingVideos}
                         />
                       ) : (
-                        <p className="text-xs text-muted-foreground px-1">No mentions found.</p>
+                        <p className="text-xs text-muted-foreground px-1">
+                          {activeSourceTypeFilter
+                            ? `0 ${labelForSourceType(activeSourceTypeFilter)} results`
+                            : "No mentions found."}
+                        </p>
                       )}
                     </>
                   )}
