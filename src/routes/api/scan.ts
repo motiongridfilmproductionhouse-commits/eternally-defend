@@ -142,6 +142,8 @@ export function getMonthWindow(filter: MonthFilter = "12m"): MonthWindow {
 
 export interface MediaMeta {
   videoId?: string;
+  /** HikerAPI Instagram media pk — see extraction-stage skip below. */
+  instagramMediaPk?: string;
   thumbnail?: string;
   thumbnailHi?: string;
   channelTitle?: string;
@@ -3439,6 +3441,14 @@ export const Route = createFileRoute("/api/scan")({
           const handles: string[] = Array.isArray(body?.handles)
             ? body.handles.map((a: unknown) => String(a).slice(0, 40)).slice(0, 20)
             : [];
+          // Platform-specific subset of the client's known handles — unlike
+          // `handles` above (mixed-platform, used for other providers),
+          // HikerAPI's deep-dive step must only ever attempt a genuine
+          // Instagram username, never a YouTube/TikTok handle that happens
+          // to share this client's request payload.
+          const instagramHandles: string[] = Array.isArray(body?.instagramHandles)
+            ? body.instagramHandles.map((a: unknown) => String(a).slice(0, 40)).slice(0, 5)
+            : [];
           const rawLimit = Math.min(Math.max(Number(body?.limit ?? 8), 1), 10);
           const limit = DEMO_SAFE_MODE_ENABLED
             ? Math.min(rawLimit, DEMO_SAFE_CAPS.perQueryLimit)
@@ -3475,6 +3485,7 @@ export const Route = createFileRoute("/api/scan")({
 
           const wantYouTube = sources.includes("youtube");
           const wantReddit = sources.includes("reddit");
+          const wantInstagram = sources.includes("instagram");
           const nonYtOrRedditSources = sources.filter(
             (s) => s !== "youtube" && s !== "reddit",
           ) as SourceKey[];
@@ -3486,7 +3497,7 @@ export const Route = createFileRoute("/api/scan")({
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 1 — Run YouTube, baseline Firecrawl, and Reddit concurrently
           // ══════════════════════════════════════════════════════════════════════
-          const [ytSettled, fcSettled, redditSettled] =
+          const [ytSettled, fcSettled, redditSettled, hikerSettled] =
             await Promise.allSettled([
               wantYouTube
                 ? runYouTube(query, aliases, variations, hashtags, handles, ytTarget, monthWindow)
@@ -3503,6 +3514,18 @@ export const Route = createFileRoute("/api/scan")({
               wantReddit
                 ? runReddit(query, aliases, monthWindow)
                 : Promise.resolve({ raw: [] as RawHit[], error: undefined as string | undefined }),
+              wantInstagram
+                ? (async () => {
+                    const { runHikerApiInstagram } = await import(
+                      "@/lib/scan/discovery/hikerapi-instagram.server"
+                    );
+                    return runHikerApiInstagram(query, instagramHandles);
+                  })()
+                : Promise.resolve({
+                    raw: [] as RawHit[],
+                    error: undefined as string | undefined,
+                    requestsUsed: 0,
+                  }),
             ]);
 
           // ══════════════════════════════════════════════════════════════════════
@@ -3584,6 +3607,31 @@ export const Route = createFileRoute("/api/scan")({
           } else {
             redditError = redditSettled.reason?.message || String(redditSettled.reason);
             console.error(`[scan] Reddit: error - ${redditError}`);
+          }
+
+          // HikerAPI failing (unconfigured, disabled, credits exhausted, rate
+          // limited, down) is never fatal to the scan — Instagram just yields
+          // zero hits for this run, identical to how a not-requested Reddit
+          // fetch behaves.
+          let hikerSuccess = false;
+          let hikerRaw: RawHit[] = [];
+          let hikerError: string | undefined = undefined;
+
+          if (hikerSettled.status === "fulfilled") {
+            const val = hikerSettled.value;
+            if (val.error) {
+              hikerError = val.error;
+              console.error(`[scan] HikerAPI: error - ${val.error}`);
+            } else {
+              hikerSuccess = true;
+              hikerRaw = val.raw;
+              console.log(
+                `[scan] HikerAPI: success (${val.raw.length} results, ${val.requestsUsed ?? 0} requests used)`,
+              );
+            }
+          } else {
+            hikerError = hikerSettled.reason?.message || String(hikerSettled.reason);
+            console.error(`[scan] HikerAPI: error - ${hikerError}`);
           }
 
           console.log("[scan-debug] YouTube stage result", {
@@ -4068,6 +4116,15 @@ export const Route = createFileRoute("/api/scan")({
             else mergedRuns.push({ source: "Reddit", raw: redditRaw });
           }
 
+          if (hikerRaw.length) {
+            // platformFromUrl already classifies instagram.com URLs as
+            // source:"Instagram" — this merge key just needs to match that
+            // so a later run's hits for the same source accumulate together.
+            const hikerRun = mergedRuns.find((r) => r.source === "Instagram");
+            if (hikerRun) hikerRun.raw.unshift(...hikerRaw);
+            else mergedRuns.push({ source: "Instagram", raw: hikerRaw });
+          }
+
           const overallErr =
             !mergedRuns.some((r) => r.raw.length > 0) && !ytQuotaExhaustedFinal && !fcError
               ? "No results returned"
@@ -4088,6 +4145,7 @@ export const Route = createFileRoute("/api/scan")({
             for (const hit of run.raw) {
               if (!hit.url) continue;
               if (hit.media?.videoId) continue; // YouTube API leads already have metadata
+              if (hit.media?.instagramMediaPk) continue; // HikerAPI leads already have caption/metadata
               extractTargets.push(hit.url);
             }
           }
