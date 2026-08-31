@@ -37,10 +37,16 @@ export function mapReputationReportToPersistInput(report: ReputationReport): Per
       credibilityScore: h.credibilityScore,
       viralityScore: h.viralityScore,
     } as Record<string, unknown>,
-    sourceMetadata: { platform: h.platform, channelId: h.media?.channelId ?? null } as Record<
-      string,
-      unknown
-    >,
+    sourceMetadata: {
+      platform: h.platform,
+      channelId: h.media?.channelId ?? null,
+      // Which discovery provider(s) actually found this hit — extends the
+      // existing JSONB column rather than a schema migration. See
+      // RawHit.provider / ScanHit.discoveredByProviders in api/scan.ts for
+      // where this is populated; [] (not omitted) means the pipeline ran
+      // but no provider tag was captured for this hit.
+      discoveredByProviders: h.discoveredByProviders ?? [],
+    } as Record<string, unknown>,
     evidenceRefs: [],
     classificationTier: h.classificationTier ?? null,
     riskEvidenceFound: h.riskEvidence?.riskEvidenceFound ?? false,

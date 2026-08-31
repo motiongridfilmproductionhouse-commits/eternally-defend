@@ -209,6 +209,15 @@ export interface ScanHit {
   /** VERIFIED = risk evidenced; NEEDS_REVIEW = kept for human review. */
   reviewStatus?: "VERIFIED" | "NEEDS_REVIEW";
 
+  /**
+   * Every discovery provider that found this canonical URL (deduped set,
+   * not just the first). Persisted into scan_hits.source_metadata — see
+   * mapReputationReportToPersistInput / _app.scan.tsx's persist mapping.
+   * Empty/absent means provenance genuinely wasn't captured for this hit
+   * (e.g. it predates this field), never "unknown provider" as a value.
+   */
+  discoveredByProviders?: string[];
+
   /** Search phrase that surfaced this result. */
   searchQueryUsed?: string;
   /** Excerpt of the full page captured during extraction. */
@@ -1428,6 +1437,18 @@ interface RawHit {
     score: number;
     reason: string;
   };
+  /**
+   * Which discovery provider produced this specific occurrence of the hit
+   * (e.g. "brave", "serpapi", "hikerapi", "youtube", "reddit"). Set at the
+   * earliest point each provider's raw result becomes a RawHit — for
+   * DiscoveryRouter-backed providers this already happens inside
+   * router.server.ts's search() and survives here via object spread; for
+   * YouTube/Reddit/HikerAPI-Tier2 (which bypass the router) it's set
+   * explicitly where each one builds its hits. buildReport() accumulates
+   * every provider that discovers the same canonical URL into
+   * ScanHit.discoveredByProviders rather than keeping only the first.
+   */
+  provider?: string;
 }
 
 /** Parse a single Firecrawl search result item into a RawHit. */
@@ -2228,6 +2249,7 @@ async function runYouTube(
     const engagementRate = views > 0 ? Number((((likes + comments) / views) * 100).toFixed(2)) : 0;
     raw.push({
       url: `https://www.youtube.com/watch?v=${id}`,
+      provider: "youtube",
       title: snip.title ?? "",
       description: (snip.description ?? "").slice(0, 800),
       author: snip.channelTitle,
@@ -2491,6 +2513,7 @@ async function runReddit(
 
       out.push({
         url: new URL(item.permalink, "https://www.reddit.com").toString(),
+        provider: "reddit",
         title,
         description: snippet,
         snippet,
@@ -2941,6 +2964,7 @@ function buildReport(
         identityConfidence: identity.confidence,
         identityReason: identity.reason,
         reviewStatus: needsReview ? "NEEDS_REVIEW" : "VERIFIED",
+        discoveredByProviders: o.provider ? [o.provider] : [],
 
         searchQueryUsed: o.queryUsed,
         pageExcerpt: pageText ? pageText.slice(0, 600) : undefined,
@@ -2986,6 +3010,16 @@ function buildReport(
       }
 
       if (dedupe.has(url)) {
+        // Same canonical URL discovered again, possibly by a different
+        // provider (e.g. Brave found it via a generic query, HikerAPI found
+        // it directly) — preserve every provider rather than only the
+        // first-seen one, so provenance reflects all discovery paths.
+        const existing = dedupe.get(url)!;
+        if (o.provider) {
+          existing.discoveredByProviders = Array.from(
+            new Set([...(existing.discoveredByProviders ?? []), o.provider]),
+          );
+        }
         duplicates.push(hit);
         if (audit) audit.funnel.duplicates_removed++;
         continue;

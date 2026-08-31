@@ -58,6 +58,8 @@ function defaultBudgetSize(): number {
 /** Minimal shape this module needs from RawHit — kept structural, not imported, to avoid a cycle with scan.ts. */
 interface HikerApiRawHit {
   url: string;
+  /** Always "hikerapi" — see RawHit.provider in api/scan.ts for how this is accumulated/persisted. */
+  provider: string;
   title?: string;
   description?: string;
   author?: string;
@@ -72,6 +74,7 @@ function mediaToHit(media: HikerMedia): HikerApiRawHit {
   const thumb = thumbnailUrlOf(media);
   return {
     url: canonicalMediaUrl(media),
+    provider: "hikerapi",
     title: media.user?.username ? `Instagram — @${media.user.username}` : "Instagram post",
     description: caption,
     author: media.user?.username ?? undefined,
@@ -172,6 +175,7 @@ export async function runHikerApiInstagram(
         seenProfileUrls.add(profileUrl);
         raw.push({
           url: profileUrl,
+          provider: "hikerapi",
           title: profile.full_name || profile.username,
           description: profile.biography ?? undefined,
           author: profile.username,
