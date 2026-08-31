@@ -17,6 +17,7 @@ import { braveProvider } from "./brave-provider.server";
 import { firecrawlProvider } from "./firecrawl-provider.server";
 import { geminiGroundingProvider } from "./gemini-grounding-provider.server";
 import { googleProvider } from "./google-provider.server";
+import { hikerapiProvider } from "./hikerapi-provider.server";
 import { serpapiProvider } from "./serpapi-provider.server";
 import type {
   DiscoveryHit,
@@ -95,7 +96,16 @@ export class DiscoveryRouter {
       options.adapters ??
       // Brave stays primary discovery; Gemini grounding is the Google-backed layer.
       // googleProvider (Custom Search JSON API) is retained but disabled by default.
-      [braveProvider, geminiGroundingProvider, firecrawlProvider, serpapiProvider, googleProvider];
+      // hikerapiProvider is Instagram-specific and off by default (HIKERAPI_ENABLED)
+      // until explicitly turned on — see hikerapi-provider.server.ts's isConfigured().
+      [
+        braveProvider,
+        geminiGroundingProvider,
+        firecrawlProvider,
+        serpapiProvider,
+        googleProvider,
+        hikerapiProvider,
+      ];
     const disabled = new Set(options.disable ?? []);
     const envDisabled = new Set(
       (process.env.SCAN_DISABLE_PROVIDERS ?? "")

@@ -22,6 +22,14 @@ const serverEnvSchema = z.object({
   GOOGLE_API_KEY: z.string().optional(),
   GOOGLE_PLACES_API_KEY: z.string().optional(),
   YOUTUBE_API_KEY: z.string().optional(),
+  // HikerAPI (Instagram discovery) — server-side only, never NEXT_PUBLIC_*.
+  // Opt-in via HIKERAPI_ENABLED=true (see isHikerApiEnabled()) so adding the
+  // key alone can never start incurring usage-based cost.
+  HIKERAPI_ACCESS_KEY: z.string().optional(),
+  HIKERAPI_BASE_URL: z.string().url("HIKERAPI_BASE_URL must be a valid URL").optional(),
+  HIKERAPI_ENABLED: z.string().optional(),
+  HIKERAPI_MAX_REQUESTS_PER_SCAN: z.string().optional(),
+  HIKERAPI_TIER1_MAX_REQUESTS_PER_SCAN: z.string().optional(),
 
   AWS_REGION: z.string().optional(),
   AWS_ACCESS_KEY_ID: z.string().optional(),

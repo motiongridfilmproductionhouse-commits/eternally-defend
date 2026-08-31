@@ -65,12 +65,27 @@ async function runReputationWebScan(
     .filter((a: string) => a && a.toLowerCase() !== query.toLowerCase());
 
   const handles: string[] = [];
+  const instagramHandles: string[] = [];
+  const isInstagramAsset = (channelUrl: unknown, metadata: unknown): boolean =>
+    (typeof channelUrl === "string" && channelUrl.toLowerCase().includes("instagram.com")) ||
+    (typeof metadata === "object" &&
+      metadata !== null &&
+      (metadata as Record<string, unknown>).platform === "instagram");
   for (const a of assets ?? []) {
-    if (a.handle) handles.push(String(a.handle).replace(/^@/, ""));
+    if (!a.handle) continue;
+    const clean = String(a.handle).replace(/^@/, "");
+    handles.push(clean);
+    if (isInstagramAsset(a.channel_url, a.metadata)) instagramHandles.push(clean);
   }
   for (const s of Array.isArray(profile.official_socials) ? profile.official_socials : []) {
-    const handle = (s as Record<string, unknown>)?.handle;
-    if (typeof handle === "string" && handle.trim()) handles.push(handle.replace(/^@/, ""));
+    const rec = s as Record<string, unknown>;
+    const handle = rec?.handle;
+    if (typeof handle !== "string" || !handle.trim()) continue;
+    const clean = handle.replace(/^@/, "");
+    handles.push(clean);
+    if (rec.platform === "instagram" || isInstagramAsset(rec.url, undefined)) {
+      instagramHandles.push(clean);
+    }
   }
 
   const publicBase = process.env.PUBLIC_APP_URL ?? "https://eternally-defend.lovable.app";
@@ -84,6 +99,14 @@ async function runReputationWebScan(
         query,
         aliases: aliasNames.slice(0, 20),
         handles: Array.from(new Set(handles)).slice(0, 20),
+        instagramHandles: Array.from(new Set(instagramHandles)).slice(0, 5),
+        // /api/scan's own default source list (web/reddit/youtube/news/x/
+        // blogs/forums/reviews) predates Instagram support and omits it —
+        // spelled out explicitly here, plus instagram, so this orchestrator
+        // run keeps its existing behavior for every other source and also
+        // enables Instagram discovery. Harmless when HikerAPI isn't
+        // configured/enabled: runHikerApiInstagram no-ops at zero cost.
+        sources: ["web", "reddit", "youtube", "news", "x", "blogs", "forums", "reviews", "instagram"],
         monthFilter: "30d",
       }),
     });

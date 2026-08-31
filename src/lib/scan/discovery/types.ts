@@ -5,7 +5,13 @@
  * per-provider health and continues with any remaining healthy provider.
  */
 
-export type ProviderId = "firecrawl" | "serpapi" | "brave" | "google" | "gemini_grounding";
+export type ProviderId =
+  | "firecrawl"
+  | "serpapi"
+  | "brave"
+  | "google"
+  | "gemini_grounding"
+  | "hikerapi";
 
 export type ProviderState =
   | "HEALTHY"
