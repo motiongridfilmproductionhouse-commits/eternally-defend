@@ -37,6 +37,32 @@ function AuthPage() {
   const verifyInvite = useServerFn(verifyInviteCode);
   const signUpInvited = useServerFn(signUpWithInvite);
 
+  // A waitlist approval email links here as /auth?invite=CODE — prefill and validate it.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("invite");
+    if (!code) return;
+    setMode("signup");
+    setInviteCode(code);
+    void (async () => {
+      setLoading(true);
+      try {
+        const res = await verifyInvite({ data: { code } });
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
+        setInviteAccountType(res.accountType ?? null);
+        if (res.assignedEmail) setEmail(res.assignedEmail);
+        setInviteAccepted(true);
+      } catch {
+        setError("Could not validate the invitation code. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) return;

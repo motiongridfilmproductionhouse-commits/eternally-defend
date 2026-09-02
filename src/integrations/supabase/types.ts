@@ -9621,51 +9621,75 @@ export type Database = {
       }
       waitlist_signups: {
         Row: {
+          admin_notes: string | null
           created_at: string
           email: string
           email_normalized: string
           full_name: string
           id: string
+          invite_email_error: string | null
+          invite_id: string | null
+          invite_sent_at: string | null
           organization: string | null
           persona: string
           phone: string
           phone_normalized: string
           referrer: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           source: string | null
+          status: string
+          updated_at: string
           utm_campaign: string | null
           utm_medium: string | null
           utm_source: string | null
           waitlist_id: string
         }
         Insert: {
+          admin_notes?: string | null
           created_at?: string
           email: string
           email_normalized: string
           full_name: string
           id?: string
+          invite_email_error?: string | null
+          invite_id?: string | null
+          invite_sent_at?: string | null
           organization?: string | null
           persona: string
           phone: string
           phone_normalized: string
           referrer?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           source?: string | null
+          status?: string
+          updated_at?: string
           utm_campaign?: string | null
           utm_medium?: string | null
           utm_source?: string | null
           waitlist_id: string
         }
         Update: {
+          admin_notes?: string | null
           created_at?: string
           email?: string
           email_normalized?: string
           full_name?: string
           id?: string
+          invite_email_error?: string | null
+          invite_id?: string | null
+          invite_sent_at?: string | null
           organization?: string | null
           persona?: string
           phone?: string
           phone_normalized?: string
           referrer?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           source?: string | null
+          status?: string
+          updated_at?: string
           utm_campaign?: string | null
           utm_medium?: string | null
           utm_source?: string | null
