@@ -101,6 +101,9 @@ export function extractVisibleText(html: string): string {
         "\n",
       )
       .replace(/<[^>]+>/g, " ")
+      // Escaped markup left behind by inline JSON/JS must not glue itself onto
+      // an address (e.g. "\u003esupport@x.test").
+      .replace(/\\u00[0-9a-f]{2}/gi, " ")
       .replace(/&nbsp;/gi, " ")
       .replace(/&#64;|&commat;/gi, "@")
       .replace(/&#46;/gi, ".")
