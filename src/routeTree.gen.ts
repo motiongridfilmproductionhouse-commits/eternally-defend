@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WaitinglistRouteImport } from './routes/waitinglist'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PartnerStatusRouteImport } from './routes/partner-status'
 import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
@@ -85,6 +86,11 @@ import { Route as ApiPublicHooksAutomationFetchRouteImport } from './routes/api/
 import { Route as ApiPublicHooksApprovedSourcesPollRouteImport } from './routes/api/public/hooks/approved-sources-poll'
 import { Route as AppSensitiveProtectionResultsIdRouteImport } from './routes/_app.sensitive-protection.results.$id'
 
+const WaitinglistRoute = WaitinglistRouteImport.update({
+  id: '/waitinglist',
+  path: '/waitinglist',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -496,6 +502,7 @@ export interface FileRoutesByFullPath {
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
+  '/waitinglist': typeof WaitinglistRoute
   '/assets': typeof AppAssetsRoute
   '/campaigns': typeof AppCampaignsRoute
   '/cases': typeof AppCasesRoute
@@ -571,6 +578,7 @@ export interface FileRoutesByTo {
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
+  '/waitinglist': typeof WaitinglistRoute
   '/assets': typeof AppAssetsRoute
   '/campaigns': typeof AppCampaignsRoute
   '/cases': typeof AppCasesRoute
@@ -647,6 +655,7 @@ export interface FileRoutesById {
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
+  '/waitinglist': typeof WaitinglistRoute
   '/_app/assets': typeof AppAssetsRoute
   '/_app/campaigns': typeof AppCampaignsRoute
   '/_app/cases': typeof AppCasesRoute
@@ -725,6 +734,7 @@ export interface FileRouteTypes {
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
+    | '/waitinglist'
     | '/assets'
     | '/campaigns'
     | '/cases'
@@ -800,6 +810,7 @@ export interface FileRouteTypes {
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
+    | '/waitinglist'
     | '/assets'
     | '/campaigns'
     | '/cases'
@@ -875,6 +886,7 @@ export interface FileRouteTypes {
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
+    | '/waitinglist'
     | '/_app/assets'
     | '/_app/campaigns'
     | '/_app/cases'
@@ -953,6 +965,7 @@ export interface RootRouteChildren {
   PartnerApplyRoute: typeof PartnerApplyRoute
   PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
+  WaitinglistRoute: typeof WaitinglistRoute
   ApiScanRoute: typeof ApiScanRoute
   FaceHandoffTokenRoute: typeof FaceHandoffTokenRoute
   VerifySlugRoute: typeof VerifySlugRoute
@@ -981,6 +994,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/waitinglist': {
+      id: '/waitinglist'
+      path: '/waitinglist'
+      fullPath: '/waitinglist'
+      preLoaderRoute: typeof WaitinglistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -1644,6 +1664,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartnerApplyRoute: PartnerApplyRoute,
   PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
+  WaitinglistRoute: WaitinglistRoute,
   ApiScanRoute: ApiScanRoute,
   FaceHandoffTokenRoute: FaceHandoffTokenRoute,
   VerifySlugRoute: VerifySlugRoute,
