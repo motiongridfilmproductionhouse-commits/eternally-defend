@@ -38,7 +38,7 @@ export interface RemovalRouteView {
     verification_method_candidate?: string | null;
     authority_signals?: string[];
     visible_text_verified?: boolean;
-    evidence_history?: unknown[];
+    evidence_history?: Record<string, unknown>[];
   };
   verifiedAt: string | null;
   verifiedBy: string | null;
