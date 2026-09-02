@@ -91,6 +91,16 @@ function WaitlistPage() {
     });
   }, []);
 
+  // Lock background scroll while the success modal is open.
+  useEffect(() => {
+    if (!result) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [result]);
+
   const canSubmit = useMemo(
     () =>
       form.fullName.trim().length >= 2 &&
