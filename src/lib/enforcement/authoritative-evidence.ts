@@ -12,7 +12,12 @@
  * gated by `evaluateVerification` (untouched).
  */
 
-import { evaluateDiscoveredContact, extractEmails, hostOfUrl, normalizeDomain } from "./contact-discovery";
+import {
+  evaluateDiscoveredContact,
+  extractEmails,
+  hostOfUrl,
+  normalizeDomain,
+} from "./contact-discovery";
 
 export type AuthoritativePageKind = "DMCA" | "COPYRIGHT" | "LEGAL" | "TERMS" | "CONTACT";
 
@@ -60,14 +65,18 @@ const PATH_KIND: Array<{ re: RegExp; kind: AuthoritativePageKind }> = [
 
 const TEXT_KIND: Array<{ re: RegExp; kind: AuthoritativePageKind }> = [
   { re: /\bdmca\b/i, kind: "DMCA" },
-  { re: /copyright (policy|notice|infringement|complaint)|notice and takedown|takedown (policy|request)/i, kind: "COPYRIGHT" },
+  {
+    re: /copyright (policy|notice|infringement|complaint)|notice and takedown|takedown (policy|request)/i,
+    kind: "COPYRIGHT",
+  },
   { re: /legal notice|legal information|imprint|impressum/i, kind: "LEGAL" },
   { re: /terms of (service|use)|terms (and|&) conditions/i, kind: "TERMS" },
   { re: /contact us|get in touch|contact information/i, kind: "CONTACT" },
 ];
 
 /** Copyright/legal context words required near a generic mailbox. */
-const COPYRIGHT_CONTEXT = /dmca|copyright|infring|takedown|intellectual property|legal (notice|department|team)|abuse/i;
+const COPYRIGHT_CONTEXT =
+  /dmca|copyright|infring|takedown|intellectual property|legal (notice|department|team)|abuse/i;
 
 /**
  * Removes markup that is not visible page content: scripts (including JSON-LD),
@@ -75,27 +84,32 @@ const COPYRIGHT_CONTEXT = /dmca|copyright|infring|takedown|intellectual property
  * these are NOT considered published by the organisation.
  */
 export function extractVisibleText(html: string): string {
-  return (html ?? "")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<template\b[\s\S]*?<\/template>/gi, " ")
-    .replace(/<head\b[\s\S]*?<\/head>/gi, " ")
-    // Keep mailto targets: they are author-published contact affordances.
-    .replace(/<a\b[^>]*href=["']mailto:([^"'?]+)[^>]*>/gi, " $1 ")
-    // Block-level boundaries become line breaks so a mailbox can be attributed
-    // to the specific sentence/line that publishes it.
-    .replace(/<\/?(p|div|br|li|tr|td|th|h[1-6]|section|article|header|footer|ul|ol|table)\b[^>]*>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&#64;|&commat;/gi, "@")
-    .replace(/&#46;/gi, ".")
-    .replace(/&amp;/gi, "&")
-    .replace(/[ \t\r\f\v]+/g, " ")
-    .replace(/\s*\n\s*/g, "\n")
-    .replace(/\n{2,}/g, "\n")
-    .trim();
+  return (
+    (html ?? "")
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+      .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
+      .replace(/<template\b[\s\S]*?<\/template>/gi, " ")
+      .replace(/<head\b[\s\S]*?<\/head>/gi, " ")
+      // Keep mailto targets: they are author-published contact affordances.
+      .replace(/<a\b[^>]*href=["']mailto:([^"'?]+)[^>]*>/gi, " $1 ")
+      // Block-level boundaries become line breaks so a mailbox can be attributed
+      // to the specific sentence/line that publishes it.
+      .replace(
+        /<\/?(p|div|br|li|tr|td|th|h[1-6]|section|article|header|footer|ul|ol|table)\b[^>]*>/gi,
+        "\n",
+      )
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&#64;|&commat;/gi, "@")
+      .replace(/&#46;/gi, ".")
+      .replace(/&amp;/gi, "&")
+      .replace(/[ \t\r\f\v]+/g, " ")
+      .replace(/\s*\n\s*/g, "\n")
+      .replace(/\n{2,}/g, "\n")
+      .trim()
+  );
 }
 
 export interface PageAuthorityClassification {
@@ -151,10 +165,7 @@ export function classifyAuthoritativePage(input: {
 export function publishingStatement(visibleText: string, email: string): string {
   const idx = visibleText.toLowerCase().indexOf(email.toLowerCase());
   if (idx === -1) return "";
-  const start = Math.max(
-    visibleText.lastIndexOf("\n", idx),
-    visibleText.lastIndexOf(". ", idx),
-  );
+  const start = Math.max(visibleText.lastIndexOf("\n", idx), visibleText.lastIndexOf(". ", idx));
   const nl = visibleText.indexOf("\n", idx);
   const dot = visibleText.indexOf(". ", idx);
   const ends = [nl, dot].filter((n) => n !== -1);

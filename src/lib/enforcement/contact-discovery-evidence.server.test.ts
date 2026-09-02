@@ -121,7 +121,12 @@ describe("authoritative discovery on a real-shaped site", () => {
 
   it("never overwrites an operator decision", async () => {
     const db = fakeSupabase([
-      { id: "x", domain: DOMAIN, verification_status: "VERIFIED", recipient_email: `legal@${DOMAIN}` },
+      {
+        id: "x",
+        domain: DOMAIN,
+        verification_status: "VERIFIED",
+        recipient_email: `legal@${DOMAIN}`,
+      },
     ]);
     const res = await discoverOnDomainCopyrightContact(`https://${DOMAIN}/watch/movie`);
     const out = await recordDiscoveredRouteCandidate({ supabase: db, result: res });

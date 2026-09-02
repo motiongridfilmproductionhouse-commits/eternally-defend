@@ -58,13 +58,18 @@ describe("visible text extraction", () => {
 
 describe("authoritative page classification", () => {
   it("classifies /dmca, /copyright, /legal and /contact", () => {
-    expect(classifyAuthoritativePage({ sourceUrl: `https://${D}/dmca`, html: dmcaPage }).kind).toBe("DMCA");
+    expect(classifyAuthoritativePage({ sourceUrl: `https://${D}/dmca`, html: dmcaPage }).kind).toBe(
+      "DMCA",
+    );
     expect(
       classifyAuthoritativePage({ sourceUrl: `https://${D}/copyright`, html: copyrightPage }).kind,
     ).toBe("COPYRIGHT");
-    expect(classifyAuthoritativePage({ sourceUrl: `https://${D}/legal`, html: legalPage }).kind).toBe("LEGAL");
     expect(
-      classifyAuthoritativePage({ sourceUrl: `https://${D}/contact`, html: contactPageSpecific }).kind,
+      classifyAuthoritativePage({ sourceUrl: `https://${D}/legal`, html: legalPage }).kind,
+    ).toBe("LEGAL");
+    expect(
+      classifyAuthoritativePage({ sourceUrl: `https://${D}/contact`, html: contactPageSpecific })
+        .kind,
     ).toBe("CONTACT");
   });
 
