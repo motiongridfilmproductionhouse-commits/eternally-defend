@@ -350,6 +350,15 @@ function WaitlistPage() {
           </div>
         </footer>
       </div>
+
+      {result && (
+        <SuccessModal
+          waitlistId={result.waitlistId}
+          alreadyJoined={result.alreadyJoined}
+          onClose={() => setResult(null)}
+          onReturn={() => navigate({ to: "/" })}
+        />
+      )}
     </main>
   );
 }
