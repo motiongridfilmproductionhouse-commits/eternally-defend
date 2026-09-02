@@ -1,12 +1,35 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 /**
  * Public, unauthenticated waitlist endpoints for /waitinglist.
- * Writes go through the admin client inside the handler (the table has no
- * anon grants), after strict server-side validation. No auth, KYC, or
- * account creation is involved, and nothing here touches existing auth.
+ * Writes go through the SECURITY DEFINER RPC `join_waitlist` using the
+ * publishable key, so registration never depends on the admin service-role
+ * credential (which is not present in every deployment target). The table
+ * itself has no anon grants; the RPC validates and dedupes server-side.
  */
+
+/** Publishable server client — safe for the two public waitlist RPCs. */
+function publicClient() {
+  const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]!;
+  const key =
+    process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]!;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init) => {
+        const h = new Headers(init?.headers);
+        if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) {
+          h.delete("Authorization");
+        }
+        h.set("apikey", key);
+        return fetch(input, { ...init, headers: h });
+      },
+    },
+  });
+}
+
 
 const PERSONAS = ["Student", "Individual", "Professional", "Organization"] as const;
 
