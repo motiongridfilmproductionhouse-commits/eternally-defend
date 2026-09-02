@@ -208,14 +208,7 @@ function WaitlistPage() {
           {/* White card */}
           <section className="lg:sticky lg:top-6">
             <div className="rounded-[26px] border border-white/60 bg-[#fbfcfe] p-6 shadow-[0_40px_120px_-40px_rgba(2,6,23,0.85)] sm:p-8">
-              {result ? (
-                <SuccessState
-                  waitlistId={result.waitlistId}
-                  alreadyJoined={result.alreadyJoined}
-                  onReturn={() => navigate({ to: "/" })}
-                />
-              ) : (
-                <form onSubmit={handleSubmit} noValidate>
+              <form onSubmit={handleSubmit} noValidate>
                   <div className="flex items-center gap-3">
                     <span className="grid size-10 place-items-center rounded-xl bg-[#0b1533]">
                       <ShieldCheck className="size-5 text-white" />
