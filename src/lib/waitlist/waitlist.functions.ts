@@ -92,8 +92,30 @@ export const joinWaitlist = createServerFn({ method: "POST" })
       return { status: "ERROR", message: "We couldn't complete your registration. Please try again." };
     }
 
+    // Notify the admin inbox. Never let a mail failure break the registration.
+    try {
+      const { sendWaitlistAdminAlert } = await import("./admin-alert.server");
+      const alert = await sendWaitlistAdminAlert({
+        waitlistId,
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        persona: data.persona,
+        organization: data.organization?.trim() || null,
+        source: data.source ?? null,
+        utmSource: data.utmSource ?? null,
+        utmMedium: data.utmMedium ?? null,
+        utmCampaign: data.utmCampaign ?? null,
+        referrer: data.referrer ?? null,
+      });
+      if (!alert.ok) console.error("[waitlist] admin alert failed:", alert.error);
+    } catch (err) {
+      console.error("[waitlist] admin alert threw:", (err as Error)?.message);
+    }
+
     return { status: "JOINED", waitlistId };
   });
+
 
 /** Real count only — returns null when the list is still empty so the UI never invents a number. */
 export const getWaitlistCount = createServerFn({ method: "GET" }).handler(async () => {
