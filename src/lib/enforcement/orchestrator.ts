@@ -337,7 +337,7 @@ export class AutoEnforcementOrchestrator {
 
     // Handle Auto Eligible -> Enqueue Job
     if (eligibility.status === "AUTO_ELIGIBLE") {
-      await supabase.from("enforcement_jobs").insert({
+      const { error: jobErr } = await supabase.from("enforcement_jobs").insert({
         case_id: caseId,
         user_id: userId,
         job_type: "AUTO_ENFORCEMENT_SUBMIT",
@@ -349,8 +349,76 @@ export class AutoEnforcementOrchestrator {
         },
         status: "queued",
       });
+
+      // A QUEUED case with no job would silently never be dispatched. Surface it
+      // in the audit trail instead of reporting a successful queue.
+      if (jobErr) {
+        console.error("[AutoEnforcementOrchestrator] failed to enqueue job", jobErr);
+        await supabase.from("enforcement_events").insert({
+          case_id: caseId,
+          user_id: userId,
+          event_type: "QUEUE_FAILED",
+          actor_type: "SYSTEM",
+          previous_state: initialStatus,
+          new_state: initialStatus,
+          metadata: { error: jobErr.message ?? String(jobErr) } as never,
+        });
+        return { caseId, status: "QUEUE_FAILED", idempotencyDeduplicated: false };
+      }
     }
 
     return { caseId, status: initialStatus, idempotencyDeduplicated: false };
   }
+
+  /**
+   * Self-heal: create the missing dispatch job for cases that are QUEUED but have
+   * no enforcement_jobs row (e.g. an earlier insert failed). Adds no eligibility
+   * and bypasses no send-time gate — the worker re-evaluates everything.
+   */
+  static async requeueMissingJobs(supabase: SupabaseClient, limit = 25): Promise<number> {
+    const { data: queued } = await supabase
+      .from("enforcement_cases")
+      .select("id, user_id, target_url, domain, connector_id, enforcement_basis")
+      .eq("status", "QUEUED")
+      .order("created_at", { ascending: true })
+      .limit(limit);
+
+    let repaired = 0;
+    for (const c of (queued ?? []) as Array<Record<string, string | null>>) {
+      const { data: existing } = await supabase
+        .from("enforcement_jobs")
+        .select("id")
+        .eq("case_id", c["id"] as string)
+        .in("job_type", ["AUTO_ENFORCEMENT_SUBMIT", "AUTO_ENFORCEMENT_RETRY"])
+        .limit(1)
+        .maybeSingle();
+      if (existing) continue;
+
+      const { error } = await supabase.from("enforcement_jobs").insert({
+        case_id: c["id"],
+        user_id: c["user_id"],
+        job_type: "AUTO_ENFORCEMENT_SUBMIT",
+        payload: {
+          targetUrl: c["target_url"],
+          domain: c["domain"],
+          connectorId: c["connector_id"],
+          enforcementBasis: c["enforcement_basis"],
+          repaired: true,
+        },
+        status: "queued",
+      });
+      if (!error) {
+        repaired += 1;
+        await supabase.from("enforcement_events").insert({
+          case_id: c["id"],
+          user_id: c["user_id"],
+          event_type: "QUEUE_REPAIRED",
+          actor_type: "SYSTEM",
+          metadata: { reason: "QUEUED case had no dispatch job" } as never,
+        });
+      }
+    }
+    return repaired;
+  }
 }
+
