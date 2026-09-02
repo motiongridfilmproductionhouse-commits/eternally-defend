@@ -305,7 +305,6 @@ function WaitlistPage() {
                     <ShieldCheck className="size-3.5" /> We respect your privacy. No spam, ever.
                   </p>
                 </form>
-              )}
             </div>
           </section>
 
