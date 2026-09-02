@@ -418,50 +418,96 @@ function InfoCard({
   );
 }
 
-function SuccessState({
+function SuccessModal({
   waitlistId,
   alreadyJoined,
+  onClose,
   onReturn,
 }: {
   waitlistId: string;
   alreadyJoined: boolean;
+  onClose: () => void;
   onReturn: () => void;
 }) {
   return (
-    <div className="animate-in fade-in zoom-in-95 py-2 text-center duration-500">
-      <span className="mx-auto grid size-14 place-items-center rounded-full bg-[#0b1533]">
-        <Check className="size-7 text-white" />
-      </span>
-      <h2 className="mt-5 text-xl font-semibold tracking-[0.04em] text-[#0b1533]">
-        {alreadyJoined ? "YOU'RE ALREADY ON THE LIST ✓" : "YOU'RE ON THE LIST"}
-      </h2>
-      <p className="mt-3 text-sm leading-relaxed text-[#0b1533]/65">
-        {alreadyJoined ? (
-          "Your Eterna priority access is already registered."
-        ) : (
-          <>
-            Welcome to the Eterna Waitlist.
-            <br />
-            Your priority access has been registered.
-          </>
-        )}
-      </p>
-      <div className="mt-6 rounded-2xl border border-[#0b1533]/10 bg-[#0b1533]/4 px-5 py-4">
-        <p className="text-[10px] font-semibold tracking-[0.22em] text-[#0b1533]/50">WAITLIST ID</p>
-        <p className="mt-1 text-lg font-semibold tracking-[0.08em] text-[#0b1533]">{waitlistId}</p>
-      </div>
-      {!alreadyJoined && (
-        <p className="mt-4 text-xs text-[#0b1533]/55">
-          We'll notify you when your Eterna access is ready.
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#04081c]/70 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label={alreadyJoined ? "Already on the Eterna waitlist" : "Waitlist registration complete"}
+    >
+      <div className="animate-in fade-in zoom-in-95 w-full max-w-[440px] rounded-[28px] border border-white/60 bg-[#fbfcfe] p-7 shadow-[0_50px_140px_-40px_rgba(2,6,23,0.9)] duration-500 sm:p-9">
+        {/* Eterna mark */}
+        <div className="flex items-center justify-center gap-2">
+          <span className="grid size-9 place-items-center rounded-lg bg-[#0b1533]">
+            <ShieldHalf className="size-4.5 text-white" />
+          </span>
+          <span className="text-sm font-semibold tracking-[0.16em] text-[#0b1533]">ETERNA</span>
+        </div>
+
+        {/* Animated checkmark */}
+        <div className="mt-6 flex justify-center">
+          <span className="relative grid size-16 place-items-center rounded-full bg-[#0b1533]">
+            <svg viewBox="0 0 24 24" className="size-8 text-white" fill="none">
+              <path
+                d="M5 12.5l4.2 4.2L19 7.5"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="checkmark-path"
+              />
+            </svg>
+          </span>
+        </div>
+
+        <h2 className="mt-5 text-center text-[19px] font-semibold tracking-[0.03em] text-[#0b1533] sm:text-[21px]">
+          {alreadyJoined ? "YOU'RE ALREADY ON THE LIST" : "YOU'RE ON THE ETERNA WAITLIST"}
+        </h2>
+
+        <p className="mt-3 text-center text-sm leading-relaxed text-[#0b1533]/65">
+          {alreadyJoined ? (
+            "Your Eterna waitlist registration is already active."
+          ) : (
+            "Your registration is complete."
+          )}
         </p>
-      )}
-      <button
-        type="button"
-        onClick={onReturn}
-        className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-[13px] bg-[#0b1533] text-base font-medium text-white transition hover:brightness-125"
-      >
-        Return to Eterna <ArrowRight className="size-4" />
-      </button>
+
+        <p className="mt-2 text-center text-sm leading-relaxed text-[#0b1533]/65">
+          {alreadyJoined
+            ? "We'll contact you when your Eterna access is ready."
+            : "We'll contact you using the communication details and preferences you provided."}
+        </p>
+
+        <div className="mt-6 rounded-2xl border border-[#0b1533]/10 bg-[#0b1533]/4 px-5 py-4 text-center">
+          <p className="text-[10px] font-semibold tracking-[0.22em] text-[#0b1533]/50">
+            WAITLIST ID
+          </p>
+          <p className="mt-1 text-lg font-semibold tracking-[0.08em] text-[#0b1533]">{waitlistId}</p>
+        </div>
+
+        {!alreadyJoined && (
+          <p className="mt-3 text-center text-xs text-[#0b1533]/55">
+            Keep your Waitlist ID for reference.
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-6 flex h-13 w-full items-center justify-center gap-2 rounded-[13px] bg-[#0b1533] text-base font-medium text-white transition hover:brightness-125"
+        >
+          DONE <ArrowRight className="size-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={onReturn}
+          className="mt-2.5 flex h-12 w-full items-center justify-center rounded-[13px] border border-[#0b1533]/15 text-sm font-medium text-[#0b1533] transition hover:bg-[#0b1533]/5"
+        >
+          RETURN TO ETERNA
+        </button>
+      </div>
     </div>
   );
 }
