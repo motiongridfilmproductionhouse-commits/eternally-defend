@@ -32,6 +32,7 @@ import {
   Copyright,
   Megaphone,
   ShieldAlert,
+  MailCheck,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useVerificationStatus } from "@/hooks/use-verification-status";
