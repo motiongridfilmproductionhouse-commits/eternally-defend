@@ -43,7 +43,7 @@ export class AutoEnforcementOrchestrator {
     userId: string,
     targetUrl: string,
     basis: string,
-    protectedAssetId?: string | null
+    protectedAssetId?: string | null,
   ): string {
     const raw = `${userId}:${targetUrl.toLowerCase().trim()}:${basis}:${protectedAssetId || "default"}`;
     return createHash("sha256").update(raw).digest("hex");
@@ -53,11 +53,11 @@ export class AutoEnforcementOrchestrator {
   static async evaluateEligibility(
     supabase: SupabaseClient,
     userId: string,
-    finding: FindingShape
+    finding: FindingShape,
   ): Promise<EligibilityResult> {
     const basis = EnforcementRouter.determineEnforcementBasis(
       finding.risk_type ?? null,
-      finding.source_type ?? finding.source
+      finding.source_type ?? finding.source,
     );
 
     // 1. Fetch Client Authorization & Profiles
@@ -101,10 +101,11 @@ export class AutoEnforcementOrchestrator {
       harassment: "REVIEW",
       legal_escalation: "MANUAL",
     };
-    const userPolicies = (settings?.enforcement_basis_policies || defaultPolicies) as Record<string, string>;
-    const catKey = basis.toLowerCase().includes("copyright")
-      ? "copyright"
-      : basis.toLowerCase();
+    const userPolicies = (settings?.enforcement_basis_policies || defaultPolicies) as Record<
+      string,
+      string
+    >;
+    const catKey = basis.toLowerCase().includes("copyright") ? "copyright" : basis.toLowerCase();
     const policySetting = userPolicies[catKey] || "AUTO";
 
     // 4. COPYRIGHT Rights & Ownership Gate
@@ -167,7 +168,8 @@ export class AutoEnforcementOrchestrator {
           scopeGranted: true,
           copyrightAssetVerified: false,
           policySetting,
-          details: "Copyright ownership of original work is unknown or involves third-party/public footage.",
+          details:
+            "Copyright ownership of original work is unknown or involves third-party/public footage.",
         },
       };
     }
@@ -220,17 +222,18 @@ export class AutoEnforcementOrchestrator {
   static async onVerifiedFinding(
     supabase: SupabaseClient,
     userId: string,
-    finding: FindingShape
+    finding: FindingShape,
   ): Promise<{ caseId: string | null; status: string; idempotencyDeduplicated: boolean }> {
     const targetUrl = finding.canonical_url || finding.permalink;
-    if (!targetUrl) return { caseId: null, status: "SKIPPED_NO_URL", idempotencyDeduplicated: false };
+    if (!targetUrl)
+      return { caseId: null, status: "SKIPPED_NO_URL", idempotencyDeduplicated: false };
 
     const eligibility = await this.evaluateEligibility(supabase, userId, finding);
     const idempotencyKey = this.generateIdempotencyKey(
       userId,
       targetUrl,
       eligibility.basis,
-      finding.protected_asset_id
+      finding.protected_asset_id,
     );
 
     // Check Idempotency Guard to prevent duplicate active complaints
@@ -256,8 +259,8 @@ export class AutoEnforcementOrchestrator {
       eligibility.status === "AUTO_ELIGIBLE"
         ? "QUEUED"
         : eligibility.status === "REVIEW_REQUIRED"
-        ? "UNDER_REVIEW"
-        : "NOT_ELIGIBLE";
+          ? "UNDER_REVIEW"
+          : "NOT_ELIGIBLE";
 
     // Findings arrive from several engines (scan hits, deepfake intel, discovery).
     // scan_hit_id is a FK into scan_hits, so only set it for real scan hits.
@@ -265,9 +268,8 @@ export class AutoEnforcementOrchestrator {
       finding.id ?? "",
     );
     const scanHitId = isUuid
-      ? (
-          await supabase.from("scan_hits").select("id").eq("id", finding.id).maybeSingle()
-        ).data?.id ?? null
+      ? ((await supabase.from("scan_hits").select("id").eq("id", finding.id).maybeSingle()).data
+          ?.id ?? null)
       : null;
 
     const { data: createdCase, error: caseErr } = await supabase
@@ -421,4 +423,3 @@ export class AutoEnforcementOrchestrator {
     return repaired;
   }
 }
-

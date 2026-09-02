@@ -35,7 +35,6 @@ export const Route = createFileRoute("/api/public/hooks/enforcement-worker")({
           let totalProcessed = 0;
           let hasMore = true;
 
-
           while (hasMore && totalProcessed < 10) {
             const processed = await EnforcementWorkerRunner.processNextJob(
               supabaseAdmin as never,
@@ -57,7 +56,6 @@ export const Route = createFileRoute("/api/public/hooks/enforcement-worker")({
             }),
             { status: 200, headers: { "content-type": "application/json" } },
           );
-
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           return new Response(JSON.stringify({ error: msg }), {

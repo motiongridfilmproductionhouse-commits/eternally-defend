@@ -92,7 +92,11 @@ export function createFakeSupabase(seed: Record<string, Row[]> = {}): FakeDb {
       then: (resolve: (v: unknown) => void) => {
         const rows = run();
         return Promise.resolve(
-          resolve(countMode ? { data: null, count: rows.length, error: null } : { data: rows, error: null }),
+          resolve(
+            countMode
+              ? { data: null, count: rows.length, error: null }
+              : { data: rows, error: null },
+          ),
         );
       },
       insert: (payload: Row | Row[]) => {
