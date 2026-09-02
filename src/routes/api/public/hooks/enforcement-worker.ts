@@ -24,6 +24,13 @@ export const Route = createFileRoute("/api/public/hooks/enforcement-worker")({
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { EnforcementWorkerRunner } = await import("@/lib/enforcement/worker");
+          const { AutoEnforcementOrchestrator } = await import("@/lib/enforcement/orchestrator");
+
+          // Self-heal QUEUED cases whose dispatch job was never created. All
+          // send-time gates are still evaluated by the worker below.
+          const repaired = await AutoEnforcementOrchestrator.requeueMissingJobs(
+            supabaseAdmin as never,
+          );
 
           let totalProcessed = 0;
           let hasMore = true;
@@ -43,6 +50,7 @@ export const Route = createFileRoute("/api/public/hooks/enforcement-worker")({
           return new Response(
             JSON.stringify({
               ok: true,
+              repairedQueueJobs: repaired,
               processedCount: totalProcessed,
               timestamp: new Date().toISOString(),
             }),
