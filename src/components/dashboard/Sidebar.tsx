@@ -93,6 +93,7 @@ const adminSystemNav: NavItem[] = [
   { icon: PlugZap, label: "Provider Activation", to: "/admin/provider-activation", badge: "ADMIN" },
   { icon: Waypoints, label: "Removal Routes", to: "/admin/removal-routes", badge: "ADMIN" },
   { icon: KeyRound, label: "Invitation Codes", to: "/admin/invites", badge: "ADMIN" },
+  { icon: MailCheck, label: "Waitlist Review", to: "/admin/waitlist", badge: "ADMIN" },
   {
     icon: ShieldAlert,
     label: "Approved Sources Review",

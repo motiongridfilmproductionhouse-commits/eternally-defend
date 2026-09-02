@@ -57,6 +57,7 @@ import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes
 import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
 import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
 import { Route as AppProtectionSourcesRouteImport } from './routes/_app.protection.sources'
+import { Route as AppAdminWaitlistRouteImport } from './routes/_app.admin.waitlist'
 import { Route as AppAdminSensitiveProtectionRouteImport } from './routes/_app.admin.sensitive-protection'
 import { Route as AppAdminRemovalRoutesRouteImport } from './routes/_app.admin.removal-routes'
 import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
@@ -330,6 +331,11 @@ const AppProtectionSourcesRoute = AppProtectionSourcesRouteImport.update({
   path: '/protection/sources',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminWaitlistRoute = AppAdminWaitlistRouteImport.update({
+  id: '/admin/waitlist',
+  path: '/admin/waitlist',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminSensitiveProtectionRoute =
   AppAdminSensitiveProtectionRouteImport.update({
     id: '/admin/sensitive-protection',
@@ -536,6 +542,7 @@ export interface FileRoutesByFullPath {
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/admin/waitlist': typeof AppAdminWaitlistRoute
   '/protection/sources': typeof AppProtectionSourcesRoute
   '/reports/$reportId': typeof AppReportsReportIdRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
@@ -611,6 +618,7 @@ export interface FileRoutesByTo {
   '/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/admin/waitlist': typeof AppAdminWaitlistRoute
   '/protection/sources': typeof AppProtectionSourcesRoute
   '/reports/$reportId': typeof AppReportsReportIdRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
@@ -690,6 +698,7 @@ export interface FileRoutesById {
   '/_app/admin/provider-activation': typeof AppAdminProviderActivationRoute
   '/_app/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/_app/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
+  '/_app/admin/waitlist': typeof AppAdminWaitlistRoute
   '/_app/protection/sources': typeof AppProtectionSourcesRoute
   '/_app/reports/$reportId': typeof AppReportsReportIdRoute
   '/_app/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
@@ -768,6 +777,7 @@ export interface FileRouteTypes {
     | '/admin/provider-activation'
     | '/admin/removal-routes'
     | '/admin/sensitive-protection'
+    | '/admin/waitlist'
     | '/protection/sources'
     | '/reports/$reportId'
     | '/sensitive-protection/emergency'
@@ -843,6 +853,7 @@ export interface FileRouteTypes {
     | '/admin/provider-activation'
     | '/admin/removal-routes'
     | '/admin/sensitive-protection'
+    | '/admin/waitlist'
     | '/protection/sources'
     | '/reports/$reportId'
     | '/sensitive-protection/emergency'
@@ -921,6 +932,7 @@ export interface FileRouteTypes {
     | '/_app/admin/provider-activation'
     | '/_app/admin/removal-routes'
     | '/_app/admin/sensitive-protection'
+    | '/_app/admin/waitlist'
     | '/_app/protection/sources'
     | '/_app/reports/$reportId'
     | '/_app/sensitive-protection/emergency'
@@ -1330,6 +1342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProtectionSourcesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/waitlist': {
+      id: '/_app/admin/waitlist'
+      path: '/admin/waitlist'
+      fullPath: '/admin/waitlist'
+      preLoaderRoute: typeof AppAdminWaitlistRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/sensitive-protection': {
       id: '/_app/admin/sensitive-protection'
       path: '/admin/sensitive-protection'
@@ -1572,6 +1591,7 @@ interface AppRouteChildren {
   AppAdminProviderActivationRoute: typeof AppAdminProviderActivationRoute
   AppAdminRemovalRoutesRoute: typeof AppAdminRemovalRoutesRoute
   AppAdminSensitiveProtectionRoute: typeof AppAdminSensitiveProtectionRoute
+  AppAdminWaitlistRoute: typeof AppAdminWaitlistRoute
   AppProtectionSourcesRoute: typeof AppProtectionSourcesRoute
   AppSensitiveProtectionEmergencyRoute: typeof AppSensitiveProtectionEmergencyRoute
   AppSensitiveProtectionRemovalCasesRoute: typeof AppSensitiveProtectionRemovalCasesRoute
@@ -1611,6 +1631,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminProviderActivationRoute: AppAdminProviderActivationRoute,
   AppAdminRemovalRoutesRoute: AppAdminRemovalRoutesRoute,
   AppAdminSensitiveProtectionRoute: AppAdminSensitiveProtectionRoute,
+  AppAdminWaitlistRoute: AppAdminWaitlistRoute,
   AppProtectionSourcesRoute: AppProtectionSourcesRoute,
   AppSensitiveProtectionEmergencyRoute: AppSensitiveProtectionEmergencyRoute,
   AppSensitiveProtectionRemovalCasesRoute:
