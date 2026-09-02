@@ -173,10 +173,20 @@ export function publishingStatement(visibleText: string, email: string): string 
   return visibleText.slice(start === -1 ? 0 : start + 1, end).trim();
 }
 
-export function isGenericLocalPart(email: string): boolean {
+/** True when the mailbox is itself a copyright/legal channel (dmca@, legal@…). */
+export function isSpecificLegalLocalPart(email: string): boolean {
   const local = (email.split("@")[0] ?? "").toLowerCase();
-  if (SPECIFIC_LEGAL_LOCAL_PARTS.some((p) => local === p || local.startsWith(p))) return false;
-  return GENERIC_LOCAL_PARTS.some((p) => local === p || local.startsWith(p));
+  return SPECIFIC_LEGAL_LOCAL_PARTS.some((p) => local === p || local.startsWith(p));
+}
+
+/**
+ * Any mailbox that is not itself a copyright/legal channel is treated as
+ * generic — including customer-facing variants such as customersupport@,
+ * consumerinfo@, feedback@ or hr@. Such addresses require an explicit
+ * copyright/legal publishing statement before they can be proposed.
+ */
+export function isGenericLocalPart(email: string): boolean {
+  return !isSpecificLegalLocalPart(email);
 }
 
 /** Visible-text excerpt centred on the address, used as stored evidence. */
