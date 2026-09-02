@@ -130,9 +130,9 @@ export const joinWaitlist = createServerFn({ method: "POST" })
 
 /** Real count only — returns null when the list is still empty so the UI never invents a number. */
 export const getWaitlistCount = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { count } = await supabaseAdmin
-    .from("waitlist_signups")
-    .select("id", { count: "exact", head: true });
-  return { count: count && count > 0 ? count : null };
+  const { data, error } = await publicClient().rpc("waitlist_public_count");
+  const count = typeof data === "number" ? data : 0;
+  if (error) console.error("[waitlist] count failed", error.message);
+  return { count: count > 0 ? count : null };
 });
+
