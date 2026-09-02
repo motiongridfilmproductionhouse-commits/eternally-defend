@@ -33,6 +33,12 @@ export interface RemovalRouteView {
     html_hash?: string;
     pages_inspected?: string[];
     rejected_addresses?: Array<{ email: string; reasons: string[] }>;
+    evidence_url?: string;
+    authoritative_page_kind?: string | null;
+    verification_method_candidate?: string | null;
+    authority_signals?: string[];
+    visible_text_verified?: boolean;
+    evidence_history?: unknown[];
   };
   verifiedAt: string | null;
   verifiedBy: string | null;
@@ -51,6 +57,11 @@ export interface RemovalRouteView {
   discoveryFindingUrl: string | null;
   discoverySourceType: string | null;
   autoDiscovered: boolean;
+  /** Evidence-quality context surfaced for operator verification. */
+  confidence: number;
+  authoritativePageKind: string | null;
+  verificationMethodCandidate: string | null;
+  evidenceUrl: string | null;
 }
 
 async function isOperator(ctx: { supabase: any; userId: string }): Promise<boolean> {
@@ -91,6 +102,11 @@ function toView(r: any): RemovalRouteView {
     discoveryFindingUrl: r.discovery_finding_url ?? null,
     discoverySourceType: r.discovery_source_type ?? null,
     autoDiscovered: r.verification_method === "AUTOMATED_ON_DOMAIN_DISCOVERY",
+    confidence: typeof r.confidence === "number" ? r.confidence : 0,
+    authoritativePageKind: (r.evidence_snapshot ?? {}).authoritative_page_kind ?? null,
+    verificationMethodCandidate: (r.evidence_snapshot ?? {}).verification_method_candidate ?? null,
+    evidenceUrl:
+      (r.evidence_snapshot ?? {}).evidence_url ?? r.authoritative_source_url ?? r.source_url ?? null,
   };
 }
 
@@ -262,4 +278,26 @@ export const setRemovalRouteStatus = createServerFn({ method: "POST" })
       .eq("domain", domain);
     if (error) throw new Error(error.message);
     return { ok: true as const, domain, status: data.status };
+  });
+
+/**
+ * Re-run authoritative on-domain evidence discovery for existing
+ * DISCOVERED_UNVERIFIED routes. Admin-only, idempotent, and incapable of
+ * promoting a route: `dryRun` defaults to true and writes nothing.
+ */
+export const reprocessDiscoveredRoutes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { limit?: number; dryRun?: boolean; domains?: string[] }) => d ?? {})
+  .handler(async ({ data, context }) => {
+    if (!(await isOperator(context as any))) {
+      return { ok: false as const, issues: ["Only an admin/operator may reprocess removal routes."] };
+    }
+    const { reprocessDiscoveredRouteCandidates } = await import("./contact-discovery.server");
+    const summary = await reprocessDiscoveredRouteCandidates({
+      supabase: (context as any).supabase,
+      limit: data.limit,
+      dryRun: data.dryRun !== false,
+      domains: data.domains,
+    });
+    return { ok: true as const, ...summary };
   });

@@ -2,9 +2,11 @@
  * On-domain copyright contact discovery — server side.
  *
  * Runs opportunistically during normal protection/discovery scans. It fetches a
- * host's OWN published legal/contact/copyright pages, extracts a literally
- * published on-domain mailbox, and records a `DISCOVERED_UNVERIFIED`
- * removal-route candidate for operator review in /admin/removal-routes.
+ * host's OWN authoritative pages (/dmca, /copyright, /legal, /terms, /contact
+ * and equivalents advertised by the site itself), extracts a mailbox only when
+ * the site's own visible page content publishes it as a contact, and records a
+ * `DISCOVERED_UNVERIFIED` removal-route candidate for operator review in
+ * /admin/removal-routes.
  *
  * It never sends anything, never verifies a route, never touches the production
  * allowlist and never writes over an operator decision (VERIFIED / REJECTED /
@@ -16,9 +18,7 @@ import { decidePlatformRoute } from "./removal-route-policy";
 import {
   DISCOVERY_VERIFICATION_METHOD,
   LEGAL_PAGE_PATHS,
-  buildEvidenceExcerpt,
   contentHash,
-  evaluateDiscoveredContact,
   extractLegalLinks,
   extractEmails,
   hostOfUrl,
@@ -26,12 +26,21 @@ import {
   rankContactCandidates,
   type ContactCandidate,
 } from "./contact-discovery";
+import {
+  evaluateAuthoritativeEvidence,
+  extractVisibleText,
+  type AuthoritativePageKind,
+  type VerificationMethodCandidate,
+} from "./authoritative-evidence";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
 const FETCH_TIMEOUT_MS = 12_000;
-const MAX_PAGES = 10;
+const MAX_PAGES = 12;
+
+/** Page-kind preference when several authoritative pages publish an address. */
+const KIND_RANK: AuthoritativePageKind[] = ["CONTACT", "TERMS", "LEGAL", "COPYRIGHT", "DMCA"];
 
 async function fetchText(url: string): Promise<{ ok: boolean; status: number; body: string }> {
   const controller = new AbortController();
@@ -53,7 +62,7 @@ async function fetchText(url: string): Promise<{ ok: boolean; status: number; bo
 
 export interface ContactDiscoveryResult {
   domain: string;
-  /** True only when an on-domain published contact was found and passed policy. */
+  /** True only when an authoritative on-domain published contact was found. */
   found: boolean;
   candidate: ContactCandidate | null;
   evidenceExcerpt: string | null;
@@ -61,11 +70,29 @@ export interface ContactDiscoveryResult {
   pagesInspected: string[];
   rejected: Array<{ email: string; reasons: string[] }>;
   skippedReason: string | null;
+  /** Which kind of authoritative page published the address. */
+  pageKind: AuthoritativePageKind | null;
+  /** Method an operator may pick in /admin/removal-routes. Never applied here. */
+  methodCandidate: VerificationMethodCandidate | null;
+  /** The real authoritative page URL the address was read from. */
+  evidenceUrl: string | null;
+  /** Discovery confidence (always < 1; never sufficient to auto-send). */
+  confidence: number;
+  /** Human-readable authority signals for the operator. */
+  signals: string[];
 }
 
+const EMPTY_EXTRAS = {
+  pageKind: null,
+  methodCandidate: null,
+  evidenceUrl: null,
+  confidence: 0,
+  signals: [] as string[],
+};
+
 /**
- * Inspects the publicly available legal/contact/copyright pages of an
- * independent host. Returns a proposal only — nothing is stored here.
+ * Inspects the publicly available authoritative pages of an independent host.
+ * Returns a proposal only — nothing is stored here.
  */
 export async function discoverOnDomainCopyrightContact(
   targetUrl: string,
@@ -80,6 +107,7 @@ export async function discoverOnDomainCopyrightContact(
     pagesInspected: [],
     rejected: [],
     skippedReason: null,
+    ...EMPTY_EXTRAS,
   };
 
   if (!domain) return { ...empty, skippedReason: "Target URL could not be parsed." };
@@ -99,8 +127,27 @@ export async function discoverOnDomainCopyrightContact(
   const pages: string[] = [origin, ...LEGAL_PAGE_PATHS.map((p) => `${origin}${p}`)];
   const inspected: string[] = [];
   const rejected: Array<{ email: string; reasons: string[] }> = [];
-  let best: { candidate: ContactCandidate; content: string } | null = null;
+  let best: {
+    candidate: ContactCandidate;
+    evaluation: ReturnType<typeof evaluateAuthoritativeEvidence>;
+    content: string;
+  } | null = null;
   let discoveredLinksAdded = false;
+
+  function noteRejection(email: string, reasons: string[]) {
+    if (!rejected.some((r) => r.email === email)) rejected.push({ email, reasons });
+  }
+
+  function isBetter(
+    next: ReturnType<typeof evaluateAuthoritativeEvidence>,
+    nextPriority: number,
+  ): boolean {
+    if (!best) return true;
+    const a = KIND_RANK.indexOf(best.evaluation.pageKind as AuthoritativePageKind);
+    const b = KIND_RANK.indexOf(next.pageKind as AuthoritativePageKind);
+    if (b !== a) return b > a;
+    return nextPriority > best.candidate.priority;
+  }
 
   for (let i = 0; i < pages.length && inspected.length < MAX_PAGES; i++) {
     const url = pages[i]!;
@@ -116,44 +163,42 @@ export async function discoverOnDomainCopyrightContact(
       }
     }
 
-    const emails = extractEmails(res.body);
+    // Only visible content counts as organisational publication.
+    const visible = extractVisibleText(res.body);
+    const emails = extractEmails(visible);
     if (emails.length === 0) continue;
 
     const ranked = rankContactCandidates(emails, url, domain);
     for (const email of emails) {
       if (ranked.some((r) => r.email === email)) continue;
-      const evaluation = evaluateDiscoveredContact({
+      const evaluation = evaluateAuthoritativeEvidence({
         domain,
         email,
         sourceUrl: url,
-        pageContent: res.body,
+        html: res.body,
       });
-      if (!evaluation.eligible && !rejected.some((r) => r.email === email)) {
-        rejected.push({ email, reasons: evaluation.reasons });
-      }
+      if (!evaluation.supported) noteRejection(email, evaluation.reasons);
     }
 
     for (const candidate of ranked) {
-      const evaluation = evaluateDiscoveredContact({
+      const evaluation = evaluateAuthoritativeEvidence({
         domain,
         email: candidate.email,
         sourceUrl: url,
-        pageContent: res.body,
+        html: res.body,
       });
-      if (!evaluation.eligible) {
-        if (!rejected.some((r) => r.email === candidate.email)) {
-          rejected.push({ email: candidate.email, reasons: evaluation.reasons });
-        }
+      if (!evaluation.supported) {
+        noteRejection(candidate.email, evaluation.reasons);
         continue;
       }
-      if (!best || candidate.priority > best.candidate.priority) {
-        best = { candidate, content: res.body };
+      if (isBetter(evaluation, candidate.priority)) {
+        best = { candidate, evaluation, content: res.body };
       }
       break;
     }
 
-    // A dedicated DMCA/copyright page with a specific mailbox is good enough.
-    if (best && best.candidate.priority >= 0.95) break;
+    // A dedicated DMCA page with a specific mailbox is good enough.
+    if (best && best.evaluation.pageKind === "DMCA" && best.candidate.priority >= 0.95) break;
   }
 
   if (!best) {
@@ -163,8 +208,8 @@ export async function discoverOnDomainCopyrightContact(
       rejected,
       skippedReason:
         inspected.length === 0
-          ? "No legal/contact page could be fetched from the host."
-          : "No on-domain copyright contact published on the inspected pages.",
+          ? "No authoritative page could be fetched from the host."
+          : "No copyright/legal contact is published on the host's own authoritative pages.",
     };
   }
 
@@ -172,11 +217,16 @@ export async function discoverOnDomainCopyrightContact(
     domain,
     found: true,
     candidate: best.candidate,
-    evidenceExcerpt: buildEvidenceExcerpt(best.content, best.candidate.email),
+    evidenceExcerpt: best.evaluation.excerpt,
     pageHash: contentHash(best.content),
     pagesInspected: inspected,
     rejected,
     skippedReason: null,
+    pageKind: best.evaluation.pageKind,
+    methodCandidate: best.evaluation.methodCandidate,
+    evidenceUrl: best.candidate.sourceUrl,
+    confidence: best.evaluation.confidence,
+    signals: best.evaluation.signals,
   };
 }
 
@@ -192,11 +242,19 @@ export interface RecordDiscoveredCandidateInput {
 
 export type RecordDiscoveredCandidateOutcome =
   | { stored: false; reason: string }
-  | { stored: true; domain: string; recipient: string; status: "DISCOVERED_UNVERIFIED" };
+  | {
+      stored: true;
+      domain: string;
+      recipient: string;
+      status: "DISCOVERED_UNVERIFIED";
+      pageKind: AuthoritativePageKind | null;
+      evidenceUrl: string | null;
+    };
 
 /**
  * Writes (or refreshes) a DISCOVERED_UNVERIFIED candidate. Operator decisions
- * are never overwritten.
+ * are never overwritten and historical evidence is preserved, never deleted.
+ * Idempotent per domain: the table is keyed on `domain`.
  */
 export async function recordDiscoveredRouteCandidate(
   input: RecordDiscoveredCandidateInput,
@@ -212,7 +270,7 @@ export async function recordDiscoveredRouteCandidate(
 
   const { data: existing } = await supabase
     .from("domain_enforcement_routes")
-    .select("id,verification_status,recipient_email")
+    .select("id,verification_status,recipient_email,evidence_snapshot")
     .eq("domain", domain)
     .maybeSingle();
 
@@ -222,6 +280,16 @@ export async function recordDiscoveredRouteCandidate(
       stored: false,
       reason: `Route for ${domain} already holds operator state ${existing.verification_status}; left untouched.`,
     };
+  }
+
+  // Preserve prior discovery evidence instead of discarding it.
+  const priorSnapshot = (existing?.evidence_snapshot ?? null) as any;
+  const history: any[] = Array.isArray(priorSnapshot?.evidence_history)
+    ? priorSnapshot.evidence_history.slice(-9)
+    : [];
+  if (priorSnapshot && (priorSnapshot.excerpt || priorSnapshot.evidence_url)) {
+    const { evidence_history: _drop, ...snapshotWithoutHistory } = priorSnapshot;
+    history.push(snapshotWithoutHistory);
   }
 
   const payload = {
@@ -235,16 +303,22 @@ export async function recordDiscoveredRouteCandidate(
     // Never VERIFIED. Operator promotion happens only in /admin/removal-routes.
     verification_status: "DISCOVERED_UNVERIFIED",
     verification_method: DISCOVERY_VERIFICATION_METHOD,
-    authoritative_source_url: result.candidate.sourceUrl,
-    source_url: result.candidate.sourceUrl,
-    confidence: Math.min(0.5, result.candidate.priority / 2),
+    authoritative_source_url: result.evidenceUrl ?? result.candidate.sourceUrl,
+    source_url: result.evidenceUrl ?? result.candidate.sourceUrl,
+    confidence: Math.min(0.5, result.confidence || result.candidate.priority / 2),
     evidence_snapshot: {
       excerpt: result.evidenceExcerpt,
+      evidence_url: result.evidenceUrl,
+      authoritative_page_kind: result.pageKind,
+      verification_method_candidate: result.methodCandidate,
+      authority_signals: result.signals,
+      visible_text_verified: true,
       html_hash: result.pageHash,
       pages_inspected: result.pagesInspected,
       rejected_addresses: result.rejected,
       discovery_method: DISCOVERY_VERIFICATION_METHOD,
       recorded_at: now,
+      evidence_history: history,
     },
     discovered_at: now,
     discovery_finding_id: input.findingId ?? null,
@@ -254,8 +328,7 @@ export async function recordDiscoveredRouteCandidate(
     verified_at: null,
     verified_by: null,
     last_checked_at: now,
-    notes:
-      "Automatically discovered from the host's own published legal/contact page. Requires operator verification before any send.",
+    notes: `Automatically discovered on the host's own ${result.pageKind ?? "legal"} page. Requires operator verification before any send.`,
     updated_at: now,
   };
 
@@ -265,7 +338,14 @@ export async function recordDiscoveredRouteCandidate(
 
   if (error) return { stored: false, reason: error.message };
 
-  return { stored: true, domain, recipient, status: "DISCOVERED_UNVERIFIED" };
+  return {
+    stored: true,
+    domain,
+    recipient,
+    status: "DISCOVERED_UNVERIFIED",
+    pageKind: result.pageKind,
+    evidenceUrl: result.evidenceUrl,
+  };
 }
 
 /**
@@ -292,4 +372,106 @@ export async function discoverAndRecordRouteCandidate(args: {
   } catch (err) {
     return { stored: false, reason: err instanceof Error ? err.message : "discovery failed" };
   }
+}
+
+export interface ReprocessSummary {
+  examined: number;
+  upgraded: number;
+  unchanged: number;
+  dryRun: boolean;
+  results: Array<{
+    domain: string;
+    upgraded: boolean;
+    reason: string;
+    pageKind?: AuthoritativePageKind | null;
+    evidenceUrl?: string | null;
+    recipient?: string | null;
+  }>;
+}
+
+/**
+ * Re-runs authoritative-evidence discovery for existing DISCOVERED_UNVERIFIED
+ * routes. Idempotent (upsert-by-domain), never promotes a route, never deletes
+ * history and never touches operator-decided rows. `dryRun` writes nothing.
+ */
+export async function reprocessDiscoveredRouteCandidates(args: {
+  supabase: any;
+  limit?: number;
+  dryRun?: boolean;
+  domains?: string[];
+}): Promise<ReprocessSummary> {
+  const dryRun = args.dryRun !== false;
+  const limit = Math.max(1, Math.min(args.limit ?? 25, 200));
+
+  let query = args.supabase
+    .from("domain_enforcement_routes")
+    .select("id,domain,verification_status,source_url,authoritative_source_url")
+    .eq("verification_status", "DISCOVERED_UNVERIFIED")
+    .order("updated_at", { ascending: true })
+    .limit(limit);
+  if (args.domains?.length) query = query.in("domain", args.domains.map(normalizeDomain));
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const summary: ReprocessSummary = {
+    examined: 0,
+    upgraded: 0,
+    unchanged: 0,
+    dryRun,
+    results: [],
+  };
+
+  for (const row of (data ?? []) as any[]) {
+    const domain = normalizeDomain(row.domain);
+    if (!domain) continue;
+    summary.examined += 1;
+    const result = await discoverOnDomainCopyrightContact(`https://${domain}/`);
+
+    if (!result.found) {
+      summary.unchanged += 1;
+      summary.results.push({
+        domain,
+        upgraded: false,
+        reason: result.skippedReason ?? "No authoritative evidence found.",
+      });
+      continue;
+    }
+
+    if (dryRun) {
+      summary.upgraded += 1;
+      summary.results.push({
+        domain,
+        upgraded: true,
+        reason: "Authoritative evidence available (dry run — nothing written).",
+        pageKind: result.pageKind,
+        evidenceUrl: result.evidenceUrl,
+        recipient: result.candidate?.email ?? null,
+      });
+      continue;
+    }
+
+    const stored = await recordDiscoveredRouteCandidate({
+      supabase: args.supabase,
+      result,
+      findingUrl: row.source_url ?? null,
+      sourceType: "route_reprocess",
+    });
+    if (stored.stored) {
+      summary.upgraded += 1;
+      summary.results.push({
+        domain,
+        upgraded: true,
+        reason: "Evidence upgraded; route remains DISCOVERED_UNVERIFIED.",
+        pageKind: stored.pageKind,
+        evidenceUrl: stored.evidenceUrl,
+        recipient: stored.recipient,
+      });
+    } else {
+      summary.unchanged += 1;
+      summary.results.push({ domain, upgraded: false, reason: stored.reason });
+    }
+  }
+
+  return summary;
 }
