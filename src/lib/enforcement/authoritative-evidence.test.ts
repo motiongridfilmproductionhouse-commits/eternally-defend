@@ -120,6 +120,36 @@ describe("evidence evaluation", () => {
     expect(isGenericLocalPart("dmca@x.test")).toBe(false);
   });
 
+  it("6b. customer-facing variants are treated as generic, not just support@/info@", () => {
+    for (const local of ["customersupport", "customerservice", "consumerinfo", "feedback", "hr"]) {
+      expect(isGenericLocalPart(`${local}@x.test`)).toBe(true);
+    }
+    expect(isGenericLocalPart("copyright@x.test")).toBe(false);
+  });
+
+  it("6c. customersupport@ on a cookie/legal page is refused (real-data false positive)", () => {
+    const cookiePage = `<html><body><h1>Cookie Policy</h1>
+      <p>If you have any questions about our use of cookies, please email us at customersupport@piracy-site.test.</p>
+      </body></html>`;
+    const r = ev(cookiePage, "customersupport@piracy-site.test", "/terms/cookie-policy/");
+    expect(r.supported).toBe(false);
+    expect(r.reasons.join(" ")).toMatch(/generic mailbox/i);
+  });
+
+  it("6d. an explicit copyright publishing statement qualifies the same mailbox", () => {
+    const legalPage = `<html><body><h1>Legal Notice</h1>
+      <p>For copyright infringement notices, contact customersupport@piracy-site.test.</p>
+      </body></html>`;
+    const r = ev(legalPage, "customersupport@piracy-site.test", "/legal");
+    expect(r.supported).toBe(true);
+    expect(r.methodCandidate).toBe("PUBLISHED_LEGAL_CONTACT");
+  });
+
+  it("6e. escaped inline-JSON markup cannot glue itself to an address", () => {
+    const escaped = `<html><body><h1>DMCA</h1><p>\\u003edmca@piracy-site.test\\u003c copyright notices</p></body></html>`;
+    expect(extractVisibleText(escaped)).not.toContain("u003e");
+  });
+
   it("7. malformed/irrelevant page yields nothing", () => {
     const r = ev("<html><body>???</body></html>", "dmca@piracy-site.test", "/dmca");
     expect(r.supported).toBe(false);
