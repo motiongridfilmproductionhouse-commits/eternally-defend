@@ -280,7 +280,6 @@ export function evaluateAuthoritativeEvidence(input: {
         `Generic mailbox ${email} is not presented as the copyright/legal contact on this page; it cannot be proposed as a removal recipient.`,
       );
     }
-    }
   }
 
   // 5. Source must be the target's own host (defensive; also covered above).
