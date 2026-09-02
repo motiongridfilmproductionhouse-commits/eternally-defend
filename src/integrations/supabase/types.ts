@@ -9619,6 +9619,60 @@ export type Database = {
           },
         ]
       }
+      waitlist_signups: {
+        Row: {
+          created_at: string
+          email: string
+          email_normalized: string
+          full_name: string
+          id: string
+          organization: string | null
+          persona: string
+          phone: string
+          phone_normalized: string
+          referrer: string | null
+          source: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          waitlist_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_normalized: string
+          full_name: string
+          id?: string
+          organization?: string | null
+          persona: string
+          phone: string
+          phone_normalized: string
+          referrer?: string | null
+          source?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          waitlist_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_normalized?: string
+          full_name?: string
+          id?: string
+          organization?: string | null
+          persona?: string
+          phone?: string
+          phone_normalized?: string
+          referrer?: string | null
+          source?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          waitlist_id?: string
+        }
+        Relationships: []
+      }
       web_scan_leads: {
         Row: {
           ai_content_type: string | null
