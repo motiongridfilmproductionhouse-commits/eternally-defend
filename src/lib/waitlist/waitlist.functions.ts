@@ -53,15 +53,6 @@ function normalizePhone(raw: string): string {
   return digits.length > 10 ? digits.slice(-10) : digits;
 }
 
-function generateWaitlistId(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let suffix = "";
-  const bytes = new Uint8Array(6);
-  crypto.getRandomValues(bytes);
-  for (const b of bytes) suffix += alphabet[b % alphabet.length];
-  return `ET-WL-${suffix}`;
-}
-
 export type JoinWaitlistResult =
   | { status: "JOINED"; waitlistId: string }
   | { status: "ALREADY_JOINED"; waitlistId: string }
@@ -70,50 +61,47 @@ export type JoinWaitlistResult =
 export const joinWaitlist = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => JoinInput.parse(d))
   .handler(async ({ data }): Promise<JoinWaitlistResult> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
     const emailNormalized = data.email.trim().toLowerCase();
     const phoneNormalized = normalizePhone(data.phone);
     if (phoneNormalized.length < 7) {
       return { status: "ERROR", message: "Please enter a valid mobile number." };
     }
 
-    const findExisting = async () => {
-      const { data: rows } = await supabaseAdmin
-        .from("waitlist_signups")
-        .select("waitlist_id")
-        .or(`email_normalized.eq.${emailNormalized},phone_normalized.eq.${phoneNormalized}`)
-        .limit(1);
-      return rows?.[0]?.waitlist_id ?? null;
-    };
-
-    const existing = await findExisting();
-    if (existing) return { status: "ALREADY_JOINED", waitlistId: existing };
-
-    const waitlistId = generateWaitlistId();
-    const { error } = await supabaseAdmin.from("waitlist_signups").insert({
-      waitlist_id: waitlistId,
-      full_name: data.fullName,
-      email: data.email,
-      email_normalized: emailNormalized,
-      phone: data.phone,
-      phone_normalized: phoneNormalized,
-      persona: data.persona,
-      organization: data.organization?.trim() || null,
-      source: data.source ?? null,
-      utm_source: data.utmSource ?? null,
-      utm_medium: data.utmMedium ?? null,
-      utm_campaign: data.utmCampaign ?? null,
-      referrer: data.referrer ?? null,
+    const { data: rows, error } = await publicClient().rpc("join_waitlist", {
+      p_full_name: data.fullName,
+      p_email: data.email,
+      p_email_normalized: emailNormalized,
+      p_phone: data.phone,
+      p_phone_normalized: phoneNormalized,
+      p_persona: data.persona,
+      p_organization: data.organization?.trim() || null,
+      p_source: data.source ?? null,
+      p_utm_source: data.utmSource ?? null,
+      p_utm_medium: data.utmMedium ?? null,
+      p_utm_campaign: data.utmCampaign ?? null,
+      p_referrer: data.referrer ?? null,
     });
 
-    if (error) {
-      // Unique violation = a concurrent submission of the same person.
-      const raced = await findExisting();
-      if (raced) return { status: "ALREADY_JOINED", waitlistId: raced };
-      console.error("[waitlist] insert failed", error.message);
-      return { status: "ERROR", message: "We couldn't complete your registration. Please try again." };
+    const row = (rows as Array<{ result_status: string; result_waitlist_id: string | null }> | null)?.[0];
+
+    if (error || !row) {
+      console.error("[waitlist] rpc failed", error?.message ?? "no row returned");
+      return {
+        status: "ERROR",
+        message: "We couldn't complete your registration. Please try again.",
+      };
     }
+
+    if (row.result_status === "ALREADY_JOINED" && row.result_waitlist_id) {
+      return { status: "ALREADY_JOINED", waitlistId: row.result_waitlist_id };
+    }
+
+    if (row.result_status !== "JOINED" || !row.result_waitlist_id) {
+      return { status: "ERROR", message: "Please check your details and try again." };
+    }
+
+    const waitlistId = row.result_waitlist_id;
+
 
     // Notify the admin inbox. Never let a mail failure break the registration.
     try {
