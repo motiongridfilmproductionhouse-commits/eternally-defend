@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Removal Route Management — operator server functions.
  *
@@ -33,6 +34,12 @@ export interface RemovalRouteView {
     html_hash?: string;
     pages_inspected?: string[];
     rejected_addresses?: Array<{ email: string; reasons: string[] }>;
+    evidence_url?: string;
+    authoritative_page_kind?: string | null;
+    verification_method_candidate?: string | null;
+    authority_signals?: string[];
+    visible_text_verified?: boolean;
+    evidence_history?: Array<{ excerpt?: string; evidence_url?: string; recorded_at?: string }>;
   };
   verifiedAt: string | null;
   verifiedBy: string | null;
@@ -51,6 +58,11 @@ export interface RemovalRouteView {
   discoveryFindingUrl: string | null;
   discoverySourceType: string | null;
   autoDiscovered: boolean;
+  /** Evidence-quality context surfaced for operator verification. */
+  confidence: number;
+  authoritativePageKind: string | null;
+  verificationMethodCandidate: string | null;
+  evidenceUrl: string | null;
 }
 
 async function isOperator(ctx: { supabase: any; userId: string }): Promise<boolean> {
@@ -91,6 +103,14 @@ function toView(r: any): RemovalRouteView {
     discoveryFindingUrl: r.discovery_finding_url ?? null,
     discoverySourceType: r.discovery_source_type ?? null,
     autoDiscovered: r.verification_method === "AUTOMATED_ON_DOMAIN_DISCOVERY",
+    confidence: typeof r.confidence === "number" ? r.confidence : 0,
+    authoritativePageKind: (r.evidence_snapshot ?? {}).authoritative_page_kind ?? null,
+    verificationMethodCandidate: (r.evidence_snapshot ?? {}).verification_method_candidate ?? null,
+    evidenceUrl:
+      (r.evidence_snapshot ?? {}).evidence_url ??
+      r.authoritative_source_url ??
+      r.source_url ??
+      null,
   };
 }
 
@@ -135,7 +155,10 @@ export const recordCandidateRoute = createServerFn({ method: "POST" })
         issues: ["Only an admin/operator may record a removal-route candidate."],
       };
     }
-    const domain = data.domain.trim().toLowerCase().replace(/^www\./, "");
+    const domain = data.domain
+      .trim()
+      .toLowerCase()
+      .replace(/^www\./, "");
     const candidate = (data.recipientEmail ?? `dmca@${domain}`).trim().toLowerCase();
 
     const { error } = await (context as any).supabase.from("domain_enforcement_routes").upsert(
@@ -177,7 +200,10 @@ export const verifyRemovalRoute = createServerFn({ method: "POST" })
   .inputValidator((d: VerifyRouteInput) => d)
   .handler(async ({ data, context }) => {
     const operator = await isOperator(context as any);
-    const domain = data.domain.trim().toLowerCase().replace(/^www\./, "");
+    const domain = data.domain
+      .trim()
+      .toLowerCase()
+      .replace(/^www\./, "");
     const recipient = data.recipientEmail.trim().toLowerCase();
     const routeType = data.routeType ?? "EMAIL_DMCA";
 
@@ -203,38 +229,36 @@ export const verifyRemovalRoute = createServerFn({ method: "POST" })
     }
 
     const now = new Date();
-    const { error } = await (context as any).supabase
-      .from("domain_enforcement_routes")
-      .upsert(
-        {
-          domain,
-          route_type: routeType,
-          recipient_email: recipient,
-          contact: recipient,
-          copyright_email: data.contactType === "ABUSE" ? null : recipient,
-          abuse_email: data.contactType === "ABUSE" ? recipient : null,
-          contact_type: data.contactType ?? "COPYRIGHT",
-          preferred_method: "EMAIL",
-          verification_status: "VERIFIED",
-          verification_method: data.verificationMethod.trim().toUpperCase(),
-          authoritative_source_url: data.authoritativeSourceUrl.trim(),
-          source_url: data.authoritativeSourceUrl.trim(),
-          evidence_snapshot: {
-            ...(data.evidenceExcerpt ? { excerpt: data.evidenceExcerpt } : {}),
-            ...(data.operatorNote ? { operator_note: data.operatorNote } : {}),
-            recorded_at: now.toISOString(),
-          },
-          hosting_provider: data.hostingProvider ?? null,
-          confidence: 1,
-          verified_at: now.toISOString(),
-          verified_by: (context as any).userId,
-          last_checked_at: now.toISOString(),
-          reverify_due_at: nextReverifyDueAt(now),
-          rejected_reason: null,
-          updated_at: now.toISOString(),
+    const { error } = await (context as any).supabase.from("domain_enforcement_routes").upsert(
+      {
+        domain,
+        route_type: routeType,
+        recipient_email: recipient,
+        contact: recipient,
+        copyright_email: data.contactType === "ABUSE" ? null : recipient,
+        abuse_email: data.contactType === "ABUSE" ? recipient : null,
+        contact_type: data.contactType ?? "COPYRIGHT",
+        preferred_method: "EMAIL",
+        verification_status: "VERIFIED",
+        verification_method: data.verificationMethod.trim().toUpperCase(),
+        authoritative_source_url: data.authoritativeSourceUrl.trim(),
+        source_url: data.authoritativeSourceUrl.trim(),
+        evidence_snapshot: {
+          ...(data.evidenceExcerpt ? { excerpt: data.evidenceExcerpt } : {}),
+          ...(data.operatorNote ? { operator_note: data.operatorNote } : {}),
+          recorded_at: now.toISOString(),
         },
-        { onConflict: "domain" },
-      );
+        hosting_provider: data.hostingProvider ?? null,
+        confidence: 1,
+        verified_at: now.toISOString(),
+        verified_by: (context as any).userId,
+        last_checked_at: now.toISOString(),
+        reverify_due_at: nextReverifyDueAt(now),
+        rejected_reason: null,
+        updated_at: now.toISOString(),
+      },
+      { onConflict: "domain" },
+    );
     if (error) throw new Error(error.message);
 
     return { ok: true as const, status: "VERIFIED" as const, domain, recipient };
@@ -243,18 +267,27 @@ export const verifyRemovalRoute = createServerFn({ method: "POST" })
 /** Reject or mark a route stale. Admin-only. */
 export const setRemovalRouteStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { domain: string; status: "REJECTED" | "STALE" | "MANUAL_REVIEW"; reason?: string }) => d)
+  .inputValidator(
+    (d: { domain: string; status: "REJECTED" | "STALE" | "MANUAL_REVIEW"; reason?: string }) => d,
+  )
   .handler(async ({ data, context }) => {
     const operator = await isOperator(context as any);
     if (!operator) {
-      return { ok: false as const, issues: ["Only an admin/operator may change a removal route status."] };
+      return {
+        ok: false as const,
+        issues: ["Only an admin/operator may change a removal route status."],
+      };
     }
-    const domain = data.domain.trim().toLowerCase().replace(/^www\./, "");
+    const domain = data.domain
+      .trim()
+      .toLowerCase()
+      .replace(/^www\./, "");
     const { error } = await (context as any).supabase
       .from("domain_enforcement_routes")
       .update({
         verification_status: data.status,
-        rejected_reason: data.status === "REJECTED" ? (data.reason ?? "Rejected by operator") : null,
+        rejected_reason:
+          data.status === "REJECTED" ? (data.reason ?? "Rejected by operator") : null,
         notes: data.reason ?? null,
         last_checked_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -262,4 +295,29 @@ export const setRemovalRouteStatus = createServerFn({ method: "POST" })
       .eq("domain", domain);
     if (error) throw new Error(error.message);
     return { ok: true as const, domain, status: data.status };
+  });
+
+/**
+ * Re-run authoritative on-domain evidence discovery for existing
+ * DISCOVERED_UNVERIFIED routes. Admin-only, idempotent, and incapable of
+ * promoting a route: `dryRun` defaults to true and writes nothing.
+ */
+export const reprocessDiscoveredRoutes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { limit?: number; dryRun?: boolean; domains?: string[] }) => d ?? {})
+  .handler(async ({ data, context }) => {
+    if (!(await isOperator(context as any))) {
+      return {
+        ok: false as const,
+        issues: ["Only an admin/operator may reprocess removal routes."],
+      };
+    }
+    const { reprocessDiscoveredRouteCandidates } = await import("./contact-discovery.server");
+    const summary = await reprocessDiscoveredRouteCandidates({
+      supabase: (context as any).supabase,
+      limit: data.limit,
+      dryRun: data.dryRun !== false,
+      domains: data.domains,
+    });
+    return { ok: true as const, ...summary };
   });

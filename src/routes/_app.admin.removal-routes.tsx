@@ -19,6 +19,7 @@ import {
 import {
   listRemovalRoutes,
   previewRemovalRoute,
+  reprocessDiscoveredRoutes,
   setRemovalRouteStatus,
   verifyRemovalRoute,
   type RemovalRouteView,
@@ -64,12 +65,7 @@ export const Route = createFileRoute("/_app/admin/removal-routes")({
  * abuse channels are deliberately absent: they route to manual escalation and
  * can never be promoted to an automated email recipient.
  */
-const METHODS = [
-  "PUBLISHED_DMCA_PAGE",
-  "PUBLISHED_LEGAL_CONTACT",
-  "OFFICIAL_CORRESPONDENCE",
-];
-
+const METHODS = ["PUBLISHED_DMCA_PAGE", "PUBLISHED_LEGAL_CONTACT", "OFFICIAL_CORRESPONDENCE"];
 
 const BUCKETS = [
   { key: "DISCOVERED_UNVERIFIED", label: "Discovered / Unverified" },
@@ -91,6 +87,7 @@ function RemovalRoutesPage() {
   const verify = useServerFn(verifyRemovalRoute);
   const setStatus = useServerFn(setRemovalRouteStatus);
   const preview = useServerFn(previewRemovalRoute);
+  const reprocess = useServerFn(reprocessDiscoveredRoutes);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin_removal_routes"],
@@ -115,7 +112,9 @@ function RemovalRoutesPage() {
     () =>
       routes.filter((r) =>
         search.trim()
-          ? `${r.domain} ${r.recipientEmail ?? ""}`.toLowerCase().includes(search.trim().toLowerCase())
+          ? `${r.domain} ${r.recipientEmail ?? ""}`
+              .toLowerCase()
+              .includes(search.trim().toLowerCase())
           : true,
       ),
     [routes, search],
@@ -124,10 +123,9 @@ function RemovalRoutesPage() {
   function openRoute(r: RemovalRouteView) {
     setSelected(r);
     setRecipient(r.recipientEmail ?? "");
-    setMethod(
-      r.verificationMethod && METHODS.includes(r.verificationMethod) ? r.verificationMethod : METHODS[0]!,
-    );
-    setSourceUrl(r.authoritativeSourceUrl ?? "");
+    const candidate = r.verificationMethodCandidate ?? r.verificationMethod;
+    setMethod(candidate && METHODS.includes(candidate) ? candidate : METHODS[0]!);
+    setSourceUrl(r.evidenceUrl ?? r.authoritativeSourceUrl ?? "");
     setExcerpt(String(r.evidenceSnapshot?.excerpt ?? ""));
     setNote(String(r.evidenceSnapshot?.operator_note ?? ""));
   }
@@ -148,7 +146,9 @@ function RemovalRoutesPage() {
         },
       });
       if (res.ok) {
-        toast.success(`${selected.domain} verified — email route now eligible (live sending still disabled).`);
+        toast.success(
+          `${selected.domain} verified — email route now eligible (live sending still disabled).`,
+        );
         setSelected(null);
         refetch();
       } else {
@@ -165,7 +165,9 @@ function RemovalRoutesPage() {
     if (!selected) return;
     setBusy(true);
     try {
-      const res = await setStatus({ data: { domain: selected.domain, status, reason: note || undefined } });
+      const res = await setStatus({
+        data: { domain: selected.domain, status, reason: note || undefined },
+      });
       if (res.ok) {
         toast.success(`${selected.domain} marked ${status}.`);
         setSelected(null);
@@ -175,6 +177,25 @@ function RemovalRoutesPage() {
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  const [reprocessing, setReprocessing] = useState(false);
+  async function onReprocess() {
+    setReprocessing(true);
+    try {
+      const res = await reprocess({ data: { limit: 25, dryRun: true } });
+      if (!res.ok) {
+        toast.error(res.issues?.join(" ") ?? "Not permitted.");
+        return;
+      }
+      toast.success(
+        `Evidence dry run: ${res.upgraded}/${res.examined} domains publish an authoritative contact. Nothing was written and no route was promoted.`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reprocess failed");
+    } finally {
+      setReprocessing(false);
     }
   }
 
@@ -194,13 +215,23 @@ function RemovalRoutesPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Removal Routes</h1>
           <p className="text-xs text-muted-foreground">
-            A recipient becomes auto-sendable only with authoritative evidence. Guessed mailboxes stay
-            unverified. Live sending remains disabled.
+            A recipient becomes auto-sendable only with authoritative evidence. Guessed mailboxes
+            stay unverified. Live sending remains disabled.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-          <RefreshCw className="size-4 mr-2" /> Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onReprocess} disabled={reprocessing}>
+            {reprocessing ? (
+              <Loader2 className="size-4 mr-2 animate-spin" />
+            ) : (
+              <Search className="size-4 mr-2" />
+            )}
+            Re-check evidence (dry run)
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+            <RefreshCw className="size-4 mr-2" /> Refresh
+          </Button>
+        </div>
       </div>
 
       <PageCard title="Route classifier" sub="Check how a target URL would be routed — read-only.">
@@ -250,22 +281,37 @@ function RemovalRoutesPage() {
                           </Badge>
                           <Badge variant="outline">{r.routeType}</Badge>
                           {r.autoDiscovered && (
-                            <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/30">
+                            <Badge
+                              variant="outline"
+                              className="bg-sky-500/10 text-sky-400 border-sky-500/30"
+                            >
                               auto-discovered
                             </Badge>
                           )}
                           {r.isGuessedCandidate && (
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-500/10 text-amber-400 border-amber-500/30"
+                            >
                               <AlertTriangle className="size-3 mr-1" /> guessed
                             </Badge>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
-                          {r.recipientEmail ?? "no recipient"} · {r.verificationMethod ?? "no method"}
-                          {r.discoveredAt ? ` · found ${r.discoveredAt.slice(0, 16).replace("T", " ")}` : ""}
+                          {r.recipientEmail ?? "no recipient"} ·{" "}
+                          {r.verificationMethod ?? "no method"}
+                          {r.discoveredAt
+                            ? ` · found ${r.discoveredAt.slice(0, 16).replace("T", " ")}`
+                            : ""}
                           {r.reverifyDueAt ? ` · re-verify ${r.reverifyDueAt.slice(0, 10)}` : ""}
                         </p>
-
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {r.authoritativePageKind
+                            ? `${r.authoritativePageKind} page evidence`
+                            : "no authoritative page evidence"}
+                          {r.evidenceUrl ? ` · ${r.evidenceUrl}` : ""} · confidence{" "}
+                          {r.confidence.toFixed(2)}
+                        </p>
                       </div>
                       <Button size="sm" variant="outline" onClick={() => openRoute(r)}>
                         Inspect
@@ -297,6 +343,19 @@ function RemovalRoutesPage() {
                   {selected.routeType}
                 </p>
                 <p>Discovered via: {selected.verificationMethod ?? "—"}</p>
+                <p>
+                  Authoritative page: {selected.authoritativePageKind ?? "none proven"} · method
+                  candidate: {selected.verificationMethodCandidate ?? "—"} · confidence{" "}
+                  {selected.confidence.toFixed(2)}
+                </p>
+                {selected.evidenceUrl && (
+                  <p className="truncate">Evidence page: {selected.evidenceUrl}</p>
+                )}
+                {(selected.evidenceSnapshot?.authority_signals?.length ?? 0) > 0 && (
+                  <p className="text-muted-foreground">
+                    Authority signals: {selected.evidenceSnapshot.authority_signals!.join(" ")}
+                  </p>
+                )}
                 {selected.discoveredAt && (
                   <p>Discovery timestamp: {selected.discoveredAt.slice(0, 19).replace("T", " ")}</p>
                 )}
@@ -335,7 +394,9 @@ function RemovalRoutesPage() {
                   </p>
                 )}
 
-                {selected.rejectedReason && <p className="text-rose-400">Rejected: {selected.rejectedReason}</p>}
+                {selected.rejectedReason && (
+                  <p className="text-rose-400">Rejected: {selected.rejectedReason}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -376,16 +437,35 @@ function RemovalRoutesPage() {
 
               <div className="flex flex-wrap gap-2 pt-1">
                 <Button size="sm" onClick={onVerify} disabled={busy}>
-                  {busy ? <Loader2 className="size-4 mr-2 animate-spin" /> : <ShieldCheck className="size-4 mr-2" />}
-                  Verify route
+                  {busy ? (
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="size-4 mr-2" />
+                  )}
+                  VERIFY ROUTE
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => onSetStatus("MANUAL_REVIEW")} disabled={busy}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onSetStatus("MANUAL_REVIEW")}
+                  disabled={busy}
+                >
                   <CheckCircle2 className="size-4 mr-2" /> Needs review
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => onSetStatus("STALE")} disabled={busy}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onSetStatus("STALE")}
+                  disabled={busy}
+                >
                   Mark stale
                 </Button>
-                <Button size="sm" variant="destructive" onClick={() => onSetStatus("REJECTED")} disabled={busy}>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => onSetStatus("REJECTED")}
+                  disabled={busy}
+                >
                   <XCircle className="size-4 mr-2" /> Reject
                 </Button>
               </div>
