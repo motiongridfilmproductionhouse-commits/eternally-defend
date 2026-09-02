@@ -19,19 +19,19 @@ import desktopBg from "@/assets/waitlist-bg.jpg";
 import mobileBg from "@/assets/waitlist-bg-mobile.jpg";
 
 export const Route = createFileRoute("/waitinglist")({
-  head: () => ({
+head: () => ({
     meta: [
-      { title: "Join the Eterna Waitlist — Priority Access" },
+      { title: "Eterna Waitlist — What If Someone Becomes You Online?" },
       {
         name: "description",
         content:
-          "Join the waitlist for priority access to Eterna's digital identity protection platform. Built for individuals, professionals and organizations.",
+          "Fake accounts, deepfakes and impersonation can put your identity in someone else's hands. Join Eterna Priority Access and take control.",
       },
-      { property: "og:title", content: "Join the Eterna Waitlist — Priority Access" },
+      { property: "og:title", content: "Eterna — What If Someone Becomes You Online?" },
       {
         property: "og:description",
         content:
-          "Be among the first to access Eterna Identity Protection. Priority access, early updates, digital protection.",
+          "Your face. Your name. Your photos. Your reputation. Join Eterna Priority Access and take control of your digital identity.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -196,22 +196,33 @@ function WaitlistPage() {
         </header>
 
         {/* Body */}
-        <div className="flex flex-1 flex-col gap-8 px-5 pb-8 pt-8 sm:px-9 lg:grid lg:grid-cols-[1.05fr_minmax(420px,0.95fr)] lg:items-start lg:gap-12 lg:pt-14">
+<div className="flex flex-1 flex-col gap-8 px-5 pb-8 pt-8 sm:px-9 lg:grid lg:grid-cols-[1.05fr_minmax(420px,0.95fr)] lg:items-start lg:gap-12 lg:pt-14">
           {/* Hero */}
           <section className="max-w-xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.22em] text-white/80 backdrop-blur-md">
               <Fingerprint className="size-3.5" /> ETERNA PRIORITY ACCESS
             </span>
-            <h1 className="mt-5 text-[34px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-5xl lg:text-[66px]">
-              Join the
-              <span className="block font-semibold">Eterna Waitlist</span>
+            <h1 className="mt-5 text-[34px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-5xl lg:text-[60px] xl:text-[66px]">
+              WHAT IF SOMEONE
+              <span className="block font-semibold">
+                BECOMES{" "}
+                <span className="underline decoration-[#93a3ff]/70 decoration-[3px] underline-offset-[8px]">
+                  YOU
+                </span>
+              </span>
+              <span className="block font-semibold">ONLINE?</span>
             </h1>
-            <p className="mt-5 max-w-md text-base leading-relaxed text-white/80 sm:text-lg">
-              Be among the first to access Eterna Identity Protection.
+            <p className="mt-6 text-lg font-medium leading-snug text-white sm:text-xl">
+              Your face. Your name.
+              <span className="block">Your photos. Your reputation.</span>
             </p>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/55">
-              Join the waitlist for priority access to Eterna's digital identity protection
-              platform.
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-white/60 sm:text-[15px]">
+              Fake accounts, deepfakes, impersonation and unauthorized content can put your
+              digital identity in someone else's hands.
+            </p>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80 sm:text-[15px]">
+              Eterna helps you discover where your identity is being misused online — and
+              understand what to do next.
             </p>
           </section>
 
@@ -219,13 +230,18 @@ function WaitlistPage() {
           <section className="lg:sticky lg:top-6">
             <div className="rounded-[26px] border border-white/60 bg-[#fbfcfe] p-6 shadow-[0_40px_120px_-40px_rgba(2,6,23,0.85)] sm:p-8">
               <form onSubmit={handleSubmit} noValidate>
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-10 place-items-center rounded-xl bg-[#0b1533]">
+<div className="flex items-center gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0b1533]">
                       <ShieldCheck className="size-5 text-white" />
                     </span>
-                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-[#0b1533] sm:text-[22px]">
-                      Secure Your Priority Access
-                    </h2>
+                    <div>
+                      <h2 className="text-xl font-semibold leading-tight tracking-[-0.01em] text-[#0b1533] sm:text-[22px]">
+                        YOUR IDENTITY. YOUR CONTROL.
+                      </h2>
+                      <p className="mt-1 text-[13px] text-[#0b1533]/55">
+                        Join Eterna Priority Access.
+                      </p>
+                    </div>
                   </div>
 
                   <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -295,7 +311,7 @@ function WaitlistPage() {
                     </p>
                   )}
 
-                  <button
+<button
                     type="submit"
                     disabled={loading}
                     className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-[13px] bg-[#0b1533] text-base font-medium text-white transition hover:brightness-125 hover:shadow-[0_12px_30px_-12px_rgba(11,21,51,0.8)] disabled:opacity-70"
@@ -306,16 +322,49 @@ function WaitlistPage() {
                       </>
                     ) : (
                       <>
-                        Join the Waitlist <ArrowRight className="size-4" />
+                        PROTECT MY DIGITAL IDENTITY <ArrowRight className="size-4" />
                       </>
                     )}
                   </button>
 
-                  <p className="mt-4 flex items-center justify-center gap-2 text-xs text-[#0b1533]/55">
+                  <p className="mt-4 text-center text-xs text-[#0b1533]/55">
+                    Join the Eterna Waitlist • No payment required
+                  </p>
+                  <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-[#0b1533]/55">
                     <ShieldCheck className="size-3.5" /> We respect your privacy. No spam, ever.
                   </p>
                 </form>
             </div>
+</section>
+
+          {/* Micro messages */}
+          <section className="max-w-md" aria-label="How Eterna helps you">
+            <ul className="space-y-4">
+              <li className="flex items-baseline gap-3 sm:gap-4">
+                <span className="shrink-0 text-[11px] font-semibold tracking-[0.22em] text-white/45">
+                  01 — DISCOVER
+                </span>
+                <span className="text-[13px] font-medium tracking-[0.06em] text-white/90">
+                  KNOW WHERE YOU'RE BEING USED.
+                </span>
+              </li>
+              <li className="flex items-baseline gap-3 sm:gap-4">
+                <span className="shrink-0 text-[11px] font-semibold tracking-[0.22em] text-white/45">
+                  02 — DETECT
+                </span>
+                <span className="text-[13px] font-medium tracking-[0.06em] text-white/90">
+                  KNOW WHEN SOMETHING IS WRONG.
+                </span>
+              </li>
+              <li className="flex items-baseline gap-3 sm:gap-4">
+                <span className="shrink-0 text-[11px] font-semibold tracking-[0.22em] text-white/45">
+                  03 — RESPOND
+                </span>
+                <span className="text-[13px] font-medium tracking-[0.06em] text-white/90">
+                  KNOW WHAT YOU CAN DO ABOUT IT.
+                </span>
+              </li>
+            </ul>
           </section>
 
           {/* Info cards */}
