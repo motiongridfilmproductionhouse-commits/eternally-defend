@@ -4,6 +4,8 @@
  * uses: select/eq/in/gte/lte/neq/order/limit/single/maybeSingle, insert,
  * update, upsert, count queries and rpc.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any -- test double mimics the untyped Supabase builder */
+
 
 type Row = Record<string, unknown>;
 type Filter = { op: string; col: string; val: unknown };
