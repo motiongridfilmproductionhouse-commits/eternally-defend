@@ -268,9 +268,10 @@ export function evaluateAuthoritativeEvidence(input: {
 
   const excerpt = buildVisibleExcerpt(input.html, email);
 
-  // 4. Generic mailboxes (support@, info@, …) are never authoritative merely
-  //    because they exist: the page must present them as the copyright/legal
-  //    channel.
+  // 4. Any mailbox that is not itself a copyright/legal channel (support@,
+  //    info@, customersupport@, feedback@, hr@ …) is never authoritative merely
+  //    because it appears on a legal-ish page: the publishing statement must
+  //    present it as the copyright/legal channel.
   if (isGenericLocalPart(email)) {
     const specificPage = page.kind === "DMCA" || page.kind === "COPYRIGHT" || page.kind === "LEGAL";
     const contextual = COPYRIGHT_CONTEXT.test(publishingStatement(visible, email));
