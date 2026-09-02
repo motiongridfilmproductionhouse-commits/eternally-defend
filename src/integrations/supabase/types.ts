@@ -10229,6 +10229,26 @@ export type Database = {
         }
         Returns: boolean
       }
+      join_waitlist: {
+        Args: {
+          p_email: string
+          p_email_normalized: string
+          p_full_name: string
+          p_organization?: string
+          p_persona: string
+          p_phone: string
+          p_phone_normalized: string
+          p_referrer?: string
+          p_source?: string
+          p_utm_campaign?: string
+          p_utm_medium?: string
+          p_utm_source?: string
+        }
+        Returns: {
+          result_status: string
+          result_waitlist_id: string
+        }[]
+      }
       record_route_outcome: {
         Args: { p_domain: string; p_outcome: string }
         Returns: undefined
@@ -10237,6 +10257,7 @@ export type Database = {
         Args: { _invite_id: string }
         Returns: undefined
       }
+      waitlist_public_count: { Args: never; Returns: number }
     }
     Enums: {
       account_type_enum: "personal" | "business"
