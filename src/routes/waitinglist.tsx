@@ -202,14 +202,9 @@ function WaitlistPage() {
             <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.22em] text-white/80 backdrop-blur-md">
               <Fingerprint className="size-3.5" /> ETERNA PRIORITY ACCESS
             </span>
-            <h1 className="mt-5 text-[34px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-5xl lg:text-[60px] xl:text-[66px]">
+<h1 className="mt-5 text-[34px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-5xl lg:text-[60px] xl:text-[66px]">
               WHAT IF SOMEONE
-              <span className="block font-semibold">
-                BECOMES{" "}
-                <span className="underline decoration-[#93a3ff]/70 decoration-[3px] underline-offset-[8px]">
-                  YOU
-                </span>
-              </span>
+              <span className="block font-semibold">BECOMES YOU</span>
               <span className="block font-semibold">ONLINE?</span>
             </h1>
             <p className="mt-6 text-lg font-medium leading-snug text-white sm:text-xl">
