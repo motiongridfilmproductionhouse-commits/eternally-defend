@@ -84,12 +84,17 @@ export function extractVisibleText(html: string): string {
     .replace(/<head\b[\s\S]*?<\/head>/gi, " ")
     // Keep mailto targets: they are author-published contact affordances.
     .replace(/<a\b[^>]*href=["']mailto:([^"'?]+)[^>]*>/gi, " $1 ")
+    // Block-level boundaries become line breaks so a mailbox can be attributed
+    // to the specific sentence/line that publishes it.
+    .replace(/<\/?(p|div|br|li|tr|td|th|h[1-6]|section|article|header|footer|ul|ol|table)\b[^>]*>/gi, "\n")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&#64;|&commat;/gi, "@")
     .replace(/&#46;/gi, ".")
     .replace(/&amp;/gi, "&")
-    .replace(/\s+/g, " ")
+    .replace(/[ \t\r\f\v]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .replace(/\n{2,}/g, "\n")
     .trim();
 }
 
@@ -128,14 +133,33 @@ export function classifyAuthoritativePage(input: {
   const textHit = TEXT_KIND.find((t) => t.re.test(text));
   if (textHit) {
     signals.push(`Page content declares a ${textHit.kind} notice.`);
-    // Content wins when it is more specific than the path guess.
-    const rank: AuthoritativePageKind[] = ["CONTACT", "TERMS", "LEGAL", "COPYRIGHT", "DMCA"];
-    if (!kind || rank.indexOf(textHit.kind) > rank.indexOf(kind)) kind = textHit.kind;
+    // The URL path is the site's own declaration of the page's purpose and
+    // takes precedence; page content only classifies otherwise-unlabelled URLs.
+    if (!kind) kind = textHit.kind;
   }
 
   const authoritative = Boolean(kind) && (Boolean(pathHit) || Boolean(textHit));
   if (!authoritative) signals.push("No DMCA/copyright/legal/terms/contact signal on this page.");
   return { kind, authoritative, signals };
+}
+
+/**
+ * The line/sentence that actually publishes the address. Used so a generic
+ * mailbox printed elsewhere on a DMCA page is not treated as the copyright
+ * channel just because the page mentions copyright.
+ */
+export function publishingStatement(visibleText: string, email: string): string {
+  const idx = visibleText.toLowerCase().indexOf(email.toLowerCase());
+  if (idx === -1) return "";
+  const start = Math.max(
+    visibleText.lastIndexOf("\n", idx),
+    visibleText.lastIndexOf(". ", idx),
+  );
+  const nl = visibleText.indexOf("\n", idx);
+  const dot = visibleText.indexOf(". ", idx);
+  const ends = [nl, dot].filter((n) => n !== -1);
+  const end = ends.length ? Math.min(...ends) : visibleText.length;
+  return visibleText.slice(start === -1 ? 0 : start + 1, end).trim();
 }
 
 export function isGenericLocalPart(email: string): boolean {
@@ -228,7 +252,7 @@ export function evaluateAuthoritativeEvidence(input: {
   //    channel.
   if (isGenericLocalPart(email)) {
     const specificPage = page.kind === "DMCA" || page.kind === "COPYRIGHT" || page.kind === "LEGAL";
-    const contextual = COPYRIGHT_CONTEXT.test(excerpt);
+    const contextual = COPYRIGHT_CONTEXT.test(publishingStatement(visible, email));
     if (!specificPage || !contextual) {
       reasons.push(
         `Generic mailbox ${email} is not presented as the copyright/legal contact on this page; it cannot be proposed as a removal recipient.`,
