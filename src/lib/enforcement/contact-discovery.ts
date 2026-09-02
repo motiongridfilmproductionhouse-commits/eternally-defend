@@ -112,7 +112,10 @@ const PREFERRED_LOCAL_PARTS = [
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
 
 export function normalizeDomain(value: string): string {
-  return (value ?? "").trim().toLowerCase().replace(/^www\./, "");
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, "");
 }
 
 export function hostOfUrl(url: string): string | null {
@@ -133,7 +136,10 @@ export function extractEmails(text: string): string[] {
   const found = decoded.match(EMAIL_RE) ?? [];
   const out: string[] = [];
   for (const raw of found) {
-    const e = raw.trim().toLowerCase().replace(/[.,;:)]+$/, "");
+    const e = raw
+      .trim()
+      .toLowerCase()
+      .replace(/[.,;:)]+$/, "");
     // Skip asset filenames that look like addresses and obvious placeholders.
     if (/\.(png|jpe?g|gif|webp|svg|css|js|woff2?)$/i.test(e)) continue;
     if (/^(example|test|user|name|email|you|someone)@/.test(e)) continue;
@@ -205,7 +211,9 @@ export function rankContactCandidates(
     .filter((e) => isSameOrganisationRecipient(e, d) && !isThirdPartyMailHost(e))
     .map((email) => {
       const localPart = email.split("@")[0] ?? "";
-      const idx = PREFERRED_LOCAL_PARTS.findIndex((p) => localPart === p || localPart.startsWith(p));
+      const idx = PREFERRED_LOCAL_PARTS.findIndex(
+        (p) => localPart === p || localPart.startsWith(p),
+      );
       const base = idx === -1 ? 0.2 : 1 - idx * 0.07;
       return { email, sourceUrl, localPart, priority: Math.min(1, base + pageBonus) };
     })
@@ -261,7 +269,10 @@ export function evaluateDiscoveredContact(input: {
 
 /** Short excerpt around the address, stored as discovery evidence. */
 export function buildEvidenceExcerpt(pageContent: string, email: string, radius = 220): string {
-  const text = (pageContent ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const text = (pageContent ?? "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const idx = text.toLowerCase().indexOf(email.toLowerCase());
   if (idx === -1) return text.slice(0, radius * 2);
   return text.slice(Math.max(0, idx - radius), idx + email.length + radius).trim();
@@ -273,7 +284,7 @@ export function contentHash(content: string): string {
   let h2 = 0x01000193;
   for (let i = 0; i < content.length; i++) {
     const c = content.charCodeAt(i);
-    h1 = (h1 ^ c) * 16777619 >>> 0;
+    h1 = ((h1 ^ c) * 16777619) >>> 0;
     h2 = (h2 + c * 31 + i) >>> 0;
   }
   return `fnv1a_${h1.toString(16)}${h2.toString(16)}`;
