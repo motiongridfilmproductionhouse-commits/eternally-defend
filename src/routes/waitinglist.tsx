@@ -216,7 +216,7 @@ function WaitlistPage() {
               digital identity in someone else's hands.
             </p>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80 sm:text-[15px]">
-              Eterna helps you discover where your identity is being misused online — and
+Eterna helps you discover where your identity is being misused online and
               understand what to do next.
             </p>
           </section>
@@ -337,7 +337,7 @@ function WaitlistPage() {
             <ul className="space-y-4">
               <li className="flex items-baseline gap-3 sm:gap-4">
                 <span className="shrink-0 text-[11px] font-semibold tracking-[0.22em] text-white/45">
-                  01 — DISCOVER
+                  01 DISCOVER
                 </span>
                 <span className="text-[13px] font-medium tracking-[0.06em] text-white/90">
                   KNOW WHERE YOU'RE BEING USED.
@@ -345,7 +345,7 @@ function WaitlistPage() {
               </li>
               <li className="flex items-baseline gap-3 sm:gap-4">
                 <span className="shrink-0 text-[11px] font-semibold tracking-[0.22em] text-white/45">
-                  02 — DETECT
+                  02 DETECT
                 </span>
                 <span className="text-[13px] font-medium tracking-[0.06em] text-white/90">
                   KNOW WHEN SOMETHING IS WRONG.
@@ -353,7 +353,7 @@ function WaitlistPage() {
               </li>
               <li className="flex items-baseline gap-3 sm:gap-4">
                 <span className="shrink-0 text-[11px] font-semibold tracking-[0.22em] text-white/45">
-                  03 — RESPOND
+                  03 RESPOND
                 </span>
                 <span className="text-[13px] font-medium tracking-[0.06em] text-white/90">
                   KNOW WHAT YOU CAN DO ABOUT IT.
