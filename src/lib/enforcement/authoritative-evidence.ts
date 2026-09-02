@@ -101,6 +101,9 @@ export function extractVisibleText(html: string): string {
         "\n",
       )
       .replace(/<[^>]+>/g, " ")
+      // Escaped markup left behind by inline JSON/JS must not glue itself onto
+      // an address (e.g. "\u003esupport@x.test").
+      .replace(/\\u00[0-9a-f]{2}/gi, " ")
       .replace(/&nbsp;/gi, " ")
       .replace(/&#64;|&commat;/gi, "@")
       .replace(/&#46;/gi, ".")
@@ -173,10 +176,20 @@ export function publishingStatement(visibleText: string, email: string): string 
   return visibleText.slice(start === -1 ? 0 : start + 1, end).trim();
 }
 
-export function isGenericLocalPart(email: string): boolean {
+/** True when the mailbox is itself a copyright/legal channel (dmca@, legal@…). */
+export function isSpecificLegalLocalPart(email: string): boolean {
   const local = (email.split("@")[0] ?? "").toLowerCase();
-  if (SPECIFIC_LEGAL_LOCAL_PARTS.some((p) => local === p || local.startsWith(p))) return false;
-  return GENERIC_LOCAL_PARTS.some((p) => local === p || local.startsWith(p));
+  return SPECIFIC_LEGAL_LOCAL_PARTS.some((p) => local === p || local.startsWith(p));
+}
+
+/**
+ * Any mailbox that is not itself a copyright/legal channel is treated as
+ * generic — including customer-facing variants such as customersupport@,
+ * consumerinfo@, feedback@ or hr@. Such addresses require an explicit
+ * copyright/legal publishing statement before they can be proposed.
+ */
+export function isGenericLocalPart(email: string): boolean {
+  return !isSpecificLegalLocalPart(email);
 }
 
 /** Visible-text excerpt centred on the address, used as stored evidence. */
@@ -258,9 +271,10 @@ export function evaluateAuthoritativeEvidence(input: {
 
   const excerpt = buildVisibleExcerpt(input.html, email);
 
-  // 4. Generic mailboxes (support@, info@, …) are never authoritative merely
-  //    because they exist: the page must present them as the copyright/legal
-  //    channel.
+  // 4. Any mailbox that is not itself a copyright/legal channel (support@,
+  //    info@, customersupport@, feedback@, hr@ …) is never authoritative merely
+  //    because it appears on a legal-ish page: the publishing statement must
+  //    present it as the copyright/legal channel.
   if (isGenericLocalPart(email)) {
     const specificPage = page.kind === "DMCA" || page.kind === "COPYRIGHT" || page.kind === "LEGAL";
     const contextual = COPYRIGHT_CONTEXT.test(publishingStatement(visible, email));
