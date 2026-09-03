@@ -8,10 +8,7 @@
  * allowlist or the enforcement worker. HIGH here means "this row already
  * passed the existing gates, look at it first", not "this is removable".
  */
-import {
-  AUTHORITATIVE_METHODS,
-  isSameOrganisationRecipient,
-} from "./removal-route-policy";
+import { AUTHORITATIVE_METHODS, isSameOrganisationRecipient } from "./removal-route-policy";
 import type { RemovalRouteView } from "./removal-routes.functions";
 
 export type TriagePriority = "HIGH" | "MEDIUM" | "LOW";
@@ -82,7 +79,9 @@ export function triageRemovalRoute(route: RemovalRouteView): RouteTriage {
   const generic = isGenericMailbox(route.recipientEmail);
   const authoritativePage = Boolean(route.authoritativePageKind);
   const candidateMethod = route.verificationMethodCandidate ?? route.verificationMethod ?? null;
-  const authoritativeMethod = Boolean(candidateMethod && AUTHORITATIVE_METHODS.has(candidateMethod));
+  const authoritativeMethod = Boolean(
+    candidateMethod && AUTHORITATIVE_METHODS.has(candidateMethod),
+  );
 
   // ---- Priority 1: already cleared every existing gate the UI can observe.
   if (route.effectiveStatus === "VERIFIED" && route.canAutoSend && hasRecipient && sameOrg) {

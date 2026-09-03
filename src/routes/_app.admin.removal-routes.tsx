@@ -42,7 +42,6 @@ import {
   XCircle,
 } from "lucide-react";
 
-
 export const Route = createFileRoute("/_app/admin/removal-routes")({
   head: () => ({
     meta: [
@@ -131,9 +130,7 @@ function RouteRow({
             : "no authoritative page evidence"}
           {r.evidenceUrl ? ` · ${r.evidenceUrl}` : ""} · confidence {r.confidence.toFixed(2)}
         </p>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {item.triage.reasons.join(" · ")}
-        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">{item.triage.reasons.join(" · ")}</p>
       </div>
       <Button size="sm" variant="outline" onClick={() => onInspect(r)}>
         Inspect
@@ -141,7 +138,6 @@ function RouteRow({
     </li>
   );
 }
-
 
 function RemovalRoutesPage() {
   const fetchRoutes = useServerFn(listRemovalRoutes);
@@ -186,8 +182,6 @@ function RemovalRoutesPage() {
   const highRows = triaged.filter((t) => t.triage.priority === "HIGH");
   const mediumRows = triaged.filter((t) => t.triage.priority === "MEDIUM");
   const lowRows = triaged.filter((t) => t.triage.priority === "LOW");
-
-
 
   function openRoute(r: RemovalRouteView) {
     setSelected(r);
@@ -367,11 +361,7 @@ function RemovalRoutesPage() {
             onClick={() => setShowLow((v) => !v)}
             className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
           >
-            {showLow ? (
-              <ChevronDown className="size-4" />
-            ) : (
-              <ChevronRight className="size-4" />
-            )}
+            {showLow ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
             {showLow ? "Hide" : "Show"} generic mailboxes, unproven pages, blocked hosts, rejected
             and stale routes
           </button>
@@ -380,15 +370,12 @@ function RemovalRoutesPage() {
               {lowRows.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nothing in this bucket.</p>
               ) : (
-                lowRows.map((t) => (
-                  <RouteRow key={t.route.id} item={t} onInspect={openRoute} />
-                ))
+                lowRows.map((t) => <RouteRow key={t.route.id} item={t} onInspect={openRoute} />)
               )}
             </ul>
           )}
         </PageCard>
       </div>
-
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-xl">
