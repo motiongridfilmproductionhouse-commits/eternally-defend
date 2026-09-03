@@ -25,8 +25,15 @@ import {
   type RemovalRouteView,
 } from "@/lib/enforcement/removal-routes.functions";
 import {
+  triageAndSortRoutes,
+  type TriagedRoute,
+  type TriagePriority,
+} from "@/lib/enforcement/route-triage";
+import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ExternalLink,
   Loader2,
   RefreshCw,
@@ -34,6 +41,7 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/_app/admin/removal-routes")({
   head: () => ({
