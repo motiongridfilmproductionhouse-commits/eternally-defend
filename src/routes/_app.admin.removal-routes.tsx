@@ -67,20 +67,73 @@ export const Route = createFileRoute("/_app/admin/removal-routes")({
  */
 const METHODS = ["PUBLISHED_DMCA_PAGE", "PUBLISHED_LEGAL_CONTACT", "OFFICIAL_CORRESPONDENCE"];
 
-const BUCKETS = [
-  { key: "DISCOVERED_UNVERIFIED", label: "Discovered / Unverified" },
-  { key: "MANUAL_REVIEW", label: "Needs review" },
-  { key: "VERIFIED", label: "Verified" },
-  { key: "STALE", label: "Stale" },
-  { key: "REJECTED", label: "Rejected" },
-] as const;
-
 function statusTone(status: string) {
   if (status === "VERIFIED") return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
   if (status === "STALE") return "bg-amber-500/15 text-amber-400 border-amber-500/30";
   if (status === "REJECTED") return "bg-rose-500/15 text-rose-400 border-rose-500/30";
   return "bg-slate-500/15 text-slate-300 border-slate-500/30";
 }
+
+function triageTone(priority: TriagePriority) {
+  if (priority === "HIGH") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/40";
+  if (priority === "MEDIUM") return "bg-amber-500/15 text-amber-300 border-amber-500/40";
+  return "bg-slate-500/15 text-slate-400 border-slate-500/30";
+}
+
+/** Presentation-only row. Actions still run through the existing server gates. */
+function RouteRow({
+  item,
+  onInspect,
+}: {
+  item: TriagedRoute;
+  onInspect: (r: RemovalRouteView) => void;
+}) {
+  const r = item.route;
+  return (
+    <li className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-border/60 bg-background/40 p-3">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium truncate">{r.domain}</span>
+          <Badge variant="outline" className={triageTone(item.triage.priority)}>
+            {item.triage.label}
+          </Badge>
+          <Badge variant="outline" className={statusTone(r.effectiveStatus)}>
+            {r.effectiveStatus}
+          </Badge>
+          <Badge variant="outline">{r.routeType}</Badge>
+          {r.autoDiscovered && (
+            <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/30">
+              auto-discovered
+            </Badge>
+          )}
+          {r.isGuessedCandidate && (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
+              <AlertTriangle className="size-3 mr-1" /> guessed
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground truncate">
+          {r.recipientEmail ?? "no recipient"} · {r.verificationMethod ?? "no method"}
+          {r.discoveredAt ? ` · found ${r.discoveredAt.slice(0, 16).replace("T", " ")}` : ""}
+          {r.reverifyDueAt ? ` · re-verify ${r.reverifyDueAt.slice(0, 10)}` : ""}
+        </p>
+        <p className="text-[11px] text-muted-foreground truncate">
+          {r.authoritativePageKind
+            ? `${r.authoritativePageKind} page evidence`
+            : "no authoritative page evidence"}
+          {r.evidenceUrl ? ` · ${r.evidenceUrl}` : ""} · confidence {r.confidence.toFixed(2)}
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {item.triage.reasons.join(" · ")}
+        </p>
+      </div>
+      <Button size="sm" variant="outline" onClick={() => onInspect(r)}>
+        Inspect
+      </Button>
+    </li>
+  );
+}
+
 
 function RemovalRoutesPage() {
   const fetchRoutes = useServerFn(listRemovalRoutes);
