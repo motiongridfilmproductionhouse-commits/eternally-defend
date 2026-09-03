@@ -25,8 +25,15 @@ import {
   type RemovalRouteView,
 } from "@/lib/enforcement/removal-routes.functions";
 import {
+  triageAndSortRoutes,
+  type TriagedRoute,
+  type TriagePriority,
+} from "@/lib/enforcement/route-triage";
+import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ExternalLink,
   Loader2,
   RefreshCw,
@@ -67,19 +74,69 @@ export const Route = createFileRoute("/_app/admin/removal-routes")({
  */
 const METHODS = ["PUBLISHED_DMCA_PAGE", "PUBLISHED_LEGAL_CONTACT", "OFFICIAL_CORRESPONDENCE"];
 
-const BUCKETS = [
-  { key: "DISCOVERED_UNVERIFIED", label: "Discovered / Unverified" },
-  { key: "MANUAL_REVIEW", label: "Needs review" },
-  { key: "VERIFIED", label: "Verified" },
-  { key: "STALE", label: "Stale" },
-  { key: "REJECTED", label: "Rejected" },
-] as const;
-
 function statusTone(status: string) {
   if (status === "VERIFIED") return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
   if (status === "STALE") return "bg-amber-500/15 text-amber-400 border-amber-500/30";
   if (status === "REJECTED") return "bg-rose-500/15 text-rose-400 border-rose-500/30";
   return "bg-slate-500/15 text-slate-300 border-slate-500/30";
+}
+
+function triageTone(priority: TriagePriority) {
+  if (priority === "HIGH") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/40";
+  if (priority === "MEDIUM") return "bg-amber-500/15 text-amber-300 border-amber-500/40";
+  return "bg-slate-500/15 text-slate-400 border-slate-500/30";
+}
+
+/** Presentation-only row. Actions still run through the existing server gates. */
+function RouteRow({
+  item,
+  onInspect,
+}: {
+  item: TriagedRoute;
+  onInspect: (r: RemovalRouteView) => void;
+}) {
+  const r = item.route;
+  return (
+    <li className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-border/60 bg-background/40 p-3">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium truncate">{r.domain}</span>
+          <Badge variant="outline" className={triageTone(item.triage.priority)}>
+            {item.triage.label}
+          </Badge>
+          <Badge variant="outline" className={statusTone(r.effectiveStatus)}>
+            {r.effectiveStatus}
+          </Badge>
+          <Badge variant="outline">{r.routeType}</Badge>
+          {r.autoDiscovered && (
+            <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/30">
+              auto-discovered
+            </Badge>
+          )}
+          {r.isGuessedCandidate && (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
+              <AlertTriangle className="size-3 mr-1" /> guessed
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground truncate">
+          {r.recipientEmail ?? "no recipient"} · {r.verificationMethod ?? "no method"}
+          {r.discoveredAt ? ` · found ${r.discoveredAt.slice(0, 16).replace("T", " ")}` : ""}
+          {r.reverifyDueAt ? ` · re-verify ${r.reverifyDueAt.slice(0, 10)}` : ""}
+        </p>
+        <p className="text-[11px] text-muted-foreground truncate">
+          {r.authoritativePageKind
+            ? `${r.authoritativePageKind} page evidence`
+            : "no authoritative page evidence"}
+          {r.evidenceUrl ? ` · ${r.evidenceUrl}` : ""} · confidence {r.confidence.toFixed(2)}
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">{item.triage.reasons.join(" · ")}</p>
+      </div>
+      <Button size="sm" variant="outline" onClick={() => onInspect(r)}>
+        Inspect
+      </Button>
+    </li>
+  );
 }
 
 function RemovalRoutesPage() {
@@ -119,6 +176,12 @@ function RemovalRoutesPage() {
       ),
     [routes, search],
   );
+
+  const [showLow, setShowLow] = useState(false);
+  const triaged = useMemo(() => triageAndSortRoutes(filtered), [filtered]);
+  const highRows = triaged.filter((t) => t.triage.priority === "HIGH");
+  const mediumRows = triaged.filter((t) => t.triage.priority === "MEDIUM");
+  const lowRows = triaged.filter((t) => t.triage.priority === "LOW");
 
   function openRoute(r: RemovalRouteView) {
     setSelected(r);
@@ -259,70 +322,59 @@ function RemovalRoutesPage() {
         {isLoading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        {BUCKETS.map((bucket) => {
-          const rows = filtered.filter((r) => r.effectiveStatus === bucket.key);
-          return (
-            <PageCard key={bucket.key} title={`${bucket.label} (${rows.length})`}>
-              {rows.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No routes in this state.</p>
+      <div className="space-y-4">
+        <PageCard
+          title={`Ready for removal review (${highRows.length})`}
+          sub="Operator-verified routes with a same-organisation recipient that already satisfy the existing verification gates. Live sending stays disabled — review only."
+        >
+          {highRows.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No route currently satisfies every existing gate.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {highRows.map((t) => (
+                <RouteRow key={t.route.id} item={t} onInspect={openRoute} />
+              ))}
+            </ul>
+          )}
+        </PageCard>
+
+        <PageCard
+          title={`Needs verification (${mediumRows.length})`}
+          sub="Authoritative page evidence captured, but nothing is actionable until an operator verifies the route."
+        >
+          {mediumRows.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No candidate evidence awaiting review.</p>
+          ) : (
+            <ul className="space-y-2">
+              {mediumRows.map((t) => (
+                <RouteRow key={t.route.id} item={t} onInspect={openRoute} />
+              ))}
+            </ul>
+          )}
+        </PageCard>
+
+        <PageCard title={`Other / Not currently actionable (${lowRows.length})`}>
+          <button
+            type="button"
+            onClick={() => setShowLow((v) => !v)}
+            className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            {showLow ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+            {showLow ? "Hide" : "Show"} generic mailboxes, unproven pages, blocked hosts, rejected
+            and stale routes
+          </button>
+          {showLow && (
+            <ul className="mt-3 space-y-2">
+              {lowRows.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nothing in this bucket.</p>
               ) : (
-                <ul className="space-y-2">
-                  {rows.map((r) => (
-                    <li
-                      key={r.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-background/40 p-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium truncate">{r.domain}</span>
-                          <Badge variant="outline" className={statusTone(r.effectiveStatus)}>
-                            {r.effectiveStatus}
-                          </Badge>
-                          <Badge variant="outline">{r.routeType}</Badge>
-                          {r.autoDiscovered && (
-                            <Badge
-                              variant="outline"
-                              className="bg-sky-500/10 text-sky-400 border-sky-500/30"
-                            >
-                              auto-discovered
-                            </Badge>
-                          )}
-                          {r.isGuessedCandidate && (
-                            <Badge
-                              variant="outline"
-                              className="bg-amber-500/10 text-amber-400 border-amber-500/30"
-                            >
-                              <AlertTriangle className="size-3 mr-1" /> guessed
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {r.recipientEmail ?? "no recipient"} ·{" "}
-                          {r.verificationMethod ?? "no method"}
-                          {r.discoveredAt
-                            ? ` · found ${r.discoveredAt.slice(0, 16).replace("T", " ")}`
-                            : ""}
-                          {r.reverifyDueAt ? ` · re-verify ${r.reverifyDueAt.slice(0, 10)}` : ""}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {r.authoritativePageKind
-                            ? `${r.authoritativePageKind} page evidence`
-                            : "no authoritative page evidence"}
-                          {r.evidenceUrl ? ` · ${r.evidenceUrl}` : ""} · confidence{" "}
-                          {r.confidence.toFixed(2)}
-                        </p>
-                      </div>
-                      <Button size="sm" variant="outline" onClick={() => openRoute(r)}>
-                        Inspect
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+                lowRows.map((t) => <RouteRow key={t.route.id} item={t} onInspect={openRoute} />)
               )}
-            </PageCard>
-          );
-        })}
+            </ul>
+          )}
+        </PageCard>
       </div>
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
