@@ -230,10 +230,21 @@ function ApprovedSourcesPage() {
     if (!url.trim()) return;
     setBusy(true);
     try {
-      await addSource({ data: { url: url.trim() } });
+      const result = (await addSource({ data: { url: url.trim() } })) as
+        | { kind?: string; added?: number; skipped?: number }
+        | undefined;
       setUrl("");
       await refetch();
-      toast.success("Source added and queued for analysis.");
+      if (result?.kind === "playlist") {
+        toast.success(
+          `Playlist added: ${result.added} video${result.added === 1 ? "" : "s"} marked approved (no scan)${
+            result.skipped ? `, ${result.skipped} already present` : ""
+          }.`,
+        );
+      } else {
+        toast.success("Source added and queued for analysis.");
+      }
+
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to add source");
     } finally {
@@ -299,7 +310,7 @@ function ApprovedSourcesPage() {
       <PageCard title="Add a source">
         <div className="flex gap-2">
           <Input
-            placeholder="YouTube channel URL (recommended) — or a single video URL"
+            placeholder="YouTube channel URL (recommended) — or a single video / playlist URL"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={busy}

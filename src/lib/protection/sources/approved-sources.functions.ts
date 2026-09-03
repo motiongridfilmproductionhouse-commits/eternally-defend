@@ -1,7 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { resolveApprovedYoutubeInput } from "./resolve-youtube-source.server";
+import {
+  resolveApprovedYoutubeInput,
+  extractPlaylistId,
+} from "./resolve-youtube-source.server";
+
 
 export const listApprovedSources = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -34,7 +38,75 @@ export const addApprovedYoutubeSource = createServerFn({ method: "POST" })
   .inputValidator((d: { url: string }) => z.object({ url: z.string().min(1) }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+
+    // Playlist: bulk-add every video as an already-approved legitimate
+    // appearance. No analysis is queued and no enforcement code is touched —
+    // this is a pure "these are mine, just record them" path.
+    const playlistId = extractPlaylistId(data.url);
+    if (playlistId) {
+      const { fetchPlaylistVideos } = await import("@/lib/channel-watch/youtube.server");
+      const videos = await fetchPlaylistVideos({ playlistId, max: 200 });
+      const usable = videos.filter((v) => !v.isPrivateOrDeleted);
+      if (usable.length === 0) {
+        throw new Error("No public videos could be read from that playlist.");
+      }
+
+      const { data: existing } = await supabase
+        .from("approved_youtube_sources")
+        .select("youtube_video_id")
+        .eq("user_id", userId)
+        .neq("status", "removed")
+        .in(
+          "youtube_video_id",
+          usable.map((v) => v.videoId),
+        );
+      const already = new Set((existing ?? []).map((r) => r.youtube_video_id));
+      const fresh = usable.filter((v) => !already.has(v.videoId));
+
+      let added = 0;
+      for (const video of fresh) {
+        const { data: source, error } = await supabase
+          .from("approved_youtube_sources")
+          .insert({
+            user_id: userId,
+            source_kind: "video",
+            input_url: data.url,
+            youtube_video_id: video.videoId,
+            youtube_channel_id: video.channelId || null,
+            title: video.title,
+            thumbnail_url: video.thumbnailUrl,
+          })
+          .select("id")
+          .single();
+        if (error || !source) continue;
+
+        await supabase.from("approved_source_videos").insert({
+          source_id: source.id,
+          user_id: userId,
+          youtube_video_id: video.videoId,
+          title: video.title,
+          thumbnail_url: video.thumbnailUrl,
+          url: `https://www.youtube.com/watch?v=${video.videoId}`,
+          published_at: video.publishedAt,
+          analysis_status: "skipped",
+          classification: "legitimate_appearance",
+          review_status: "approved_legitimate",
+          reviewed_by: userId,
+          reviewed_at: new Date().toISOString(),
+        });
+        added += 1;
+      }
+
+      return {
+        kind: "playlist" as const,
+        playlistId,
+        added,
+        skipped: usable.length - fresh.length,
+      };
+    }
+
     const resolved = await resolveApprovedYoutubeInput(data.url);
+
 
     if (resolved.kind === "video") {
       const { data: source, error } = await supabase

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractVideoId, resolveApprovedYoutubeInput } from "./resolve-youtube-source.server";
+import { extractVideoId, extractPlaylistId, resolveApprovedYoutubeInput } from "./resolve-youtube-source.server";
 
 function fakeResolvedChannel(overrides: Record<string, unknown> = {}) {
   return {
@@ -133,4 +133,24 @@ test("a single video URL still resolves via the video path (unaffected by adding
   if (resolved.kind !== "video") throw new Error("unreachable");
   assert.equal(resolved.videoId, "dQw4w9WgXcQ");
   assert.equal(resolved.channelId, "UCowner00000000000000001");
+});
+
+test("extractPlaylistId: playlist URL", () => {
+  assert.equal(
+    extractPlaylistId(
+      "https://youtube.com/playlist?list=PL5qdoRCKwiZSLyFWMnXoEsYhlF9omEjuG&si=pLUc6",
+    ),
+    "PL5qdoRCKwiZSLyFWMnXoEsYhlF9omEjuG",
+  );
+});
+
+test("extractPlaylistId: watch URL with a list param is NOT a playlist", () => {
+  assert.equal(
+    extractPlaylistId("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL5qdoRCKwiZSLyFWMnXo"),
+    null,
+  );
+});
+
+test("extractPlaylistId: channel URL is not a playlist", () => {
+  assert.equal(extractPlaylistId("https://youtube.com/@someone"), null);
 });

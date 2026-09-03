@@ -234,6 +234,43 @@ export async function fetchUploadsSince(opts: {
   return fetchVideoDetails(videoIds);
 }
 
+/**
+ * Lists the videos of an arbitrary public playlist (not just a channel's
+ * uploads playlist). Same paginated /playlistItems call as fetchUploadsSince,
+ * without the "newer than cursor" cutoff.
+ */
+export async function fetchPlaylistVideos(opts: {
+  playlistId: string;
+  max?: number;
+}): Promise<YoutubeVideoRow[]> {
+  const max = opts.max ?? 200;
+  const videoIds: string[] = [];
+  let pageToken: string | undefined;
+  while (videoIds.length < max) {
+    const params: Record<string, string> = {
+      part: "snippet",
+      playlistId: opts.playlistId,
+      maxResults: "50",
+    };
+    if (pageToken) params.pageToken = pageToken;
+    const j = await ytGet<{
+      nextPageToken?: string;
+      items?: Array<{ snippet?: { resourceId?: { videoId?: string } } }>;
+    }>("/playlistItems", params);
+    for (const it of j.items ?? []) {
+      const vid = it.snippet?.resourceId?.videoId;
+      if (vid && !videoIds.includes(vid)) videoIds.push(vid);
+      if (videoIds.length >= max) break;
+    }
+    if (!j.nextPageToken) break;
+    pageToken = j.nextPageToken;
+  }
+  if (videoIds.length === 0) return [];
+  return fetchVideoDetails(videoIds);
+}
+
+
+
 export async function fetchVideoDetails(videoIds: string[]): Promise<YoutubeVideoRow[]> {
   const rows: YoutubeVideoRow[] = [];
   for (let i = 0; i < videoIds.length; i += 50) {
