@@ -173,6 +173,14 @@ function RemovalRoutesPage() {
     [routes, search],
   );
 
+  const [showLow, setShowLow] = useState(false);
+  const triaged = useMemo(() => triageAndSortRoutes(filtered), [filtered]);
+  const highRows = triaged.filter((t) => t.triage.priority === "HIGH");
+  const mediumRows = triaged.filter((t) => t.triage.priority === "MEDIUM");
+  const lowRows = triaged.filter((t) => t.triage.priority === "LOW");
+
+
+
   function openRoute(r: RemovalRouteView) {
     setSelected(r);
     setRecipient(r.recipientEmail ?? "");
