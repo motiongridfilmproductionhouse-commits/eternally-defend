@@ -111,3 +111,22 @@ async function resolveChannel(
 }
 
 export type { YoutubeVideoRow };
+
+/**
+ * Playlist id for a /playlist?list=... URL (or a bare PL... id). Deliberately
+ * ignores the `list` param on a watch?v=...&list=... URL — that is a single
+ * video the customer pasted while a playlist happened to be open.
+ */
+export function extractPlaylistId(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (/^(PL|OL|UU|FL|LL)[A-Za-z0-9_-]{10,}$/.test(trimmed)) return trimmed;
+  try {
+    const u = new URL(trimmed);
+    if (!/\/playlist\/?$/.test(u.pathname)) return null;
+    const list = u.searchParams.get("list");
+    if (list && /^[A-Za-z0-9_-]{12,}$/.test(list)) return list;
+  } catch {
+    return null;
+  }
+  return null;
+}
