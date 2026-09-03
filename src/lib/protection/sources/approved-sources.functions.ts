@@ -1,11 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import {
-  resolveApprovedYoutubeInput,
-  extractPlaylistId,
-} from "./resolve-youtube-source.server";
-
+import { resolveApprovedYoutubeInput, extractPlaylistId } from "./resolve-youtube-source.server";
 
 export const listApprovedSources = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -106,7 +102,6 @@ export const addApprovedYoutubeSource = createServerFn({ method: "POST" })
     }
 
     const resolved = await resolveApprovedYoutubeInput(data.url);
-
 
     if (resolved.kind === "video") {
       const { data: source, error } = await supabase

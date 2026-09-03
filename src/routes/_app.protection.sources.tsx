@@ -244,7 +244,6 @@ function ApprovedSourcesPage() {
       } else {
         toast.success("Source added and queued for analysis.");
       }
-
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to add source");
     } finally {

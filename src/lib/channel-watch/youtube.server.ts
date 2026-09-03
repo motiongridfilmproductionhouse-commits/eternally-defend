@@ -269,8 +269,6 @@ export async function fetchPlaylistVideos(opts: {
   return fetchVideoDetails(videoIds);
 }
 
-
-
 export async function fetchVideoDetails(videoIds: string[]): Promise<YoutubeVideoRow[]> {
   const rows: YoutubeVideoRow[] = [];
   for (let i = 0; i < videoIds.length; i += 50) {
