@@ -4,6 +4,7 @@ import { CelebrityHome } from "@/components/celebrity/CelebrityHome";
 import { PendingSetupCard } from "@/components/dashboard/PendingSetupCard";
 import { VerifyProfileCard } from "@/components/verification/VerifyProfileCard";
 import { ProtectionAutopilotCard } from "@/components/protection/ProtectionAutopilotCard";
+import { ProtectionInbox } from "@/components/protection/ProtectionInbox";
 import { useVerificationStatus } from "@/hooks/use-verification-status";
 import { workspaceModeFor } from "@/lib/workspace/workspace-nav";
 
