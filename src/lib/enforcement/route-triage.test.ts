@@ -56,9 +56,7 @@ describe("route triage (UI prioritisation only)", () => {
   });
 
   it("never promotes a verified route whose gates say canAutoSend=false", () => {
-    const t = triageRemovalRoute(
-      verified() && route({ effectiveStatus: "VERIFIED", canAutoSend: false }),
-    );
+    const t = triageRemovalRoute(route({ effectiveStatus: "VERIFIED", canAutoSend: false }));
     expect(t.priority).not.toBe("HIGH");
   });
 
