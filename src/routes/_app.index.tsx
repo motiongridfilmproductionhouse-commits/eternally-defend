@@ -21,6 +21,7 @@ function DashboardPage() {
       <div className="space-y-4">
         <VerifyProfileCard />
         <ProtectionAutopilotCard />
+        <ProtectionInbox />
         <CelebrityHome />
       </div>
     );
@@ -31,6 +32,7 @@ function DashboardPage() {
       <PendingSetupCard />
       <VerifyProfileCard />
       <ProtectionAutopilotCard />
+      <ProtectionInbox />
       <CommandCenter />
     </div>
   );
