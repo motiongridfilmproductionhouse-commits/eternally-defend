@@ -203,7 +203,9 @@ export function classifyInboxFinding(f: InboxFindingInput): InboxItem {
       } else {
         reasons.push("Evidence package is complete — eligible for automated case preparation.");
       }
-      reasons.push("Sending still requires the existing authorization, route-verification and pre-send gates.");
+      reasons.push(
+        "Sending still requires the existing authorization, route-verification and pre-send gates.",
+      );
       return {
         ...f,
         bucket: "POSSIBLE_REMOVAL",

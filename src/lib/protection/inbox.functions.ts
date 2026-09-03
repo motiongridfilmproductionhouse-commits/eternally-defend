@@ -48,7 +48,10 @@ export const getProtectionInbox = createServerFn({ method: "GET" })
     const rows = findings ?? [];
     const urls = Array.from(new Set(rows.map((r) => r.video_url).filter(Boolean))) as string[];
 
-    const caseByUrl = new Map<string, { status: string | null; eligibilityStatus: string | null; basis: string | null }>();
+    const caseByUrl = new Map<
+      string,
+      { status: string | null; eligibilityStatus: string | null; basis: string | null }
+    >();
     if (urls.length > 0) {
       const { data: cases } = await context.supabase
         .from("enforcement_cases")

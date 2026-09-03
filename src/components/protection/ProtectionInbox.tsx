@@ -76,7 +76,12 @@ export function ProtectionInbox() {
       .catch(() => undefined);
   }, [data, startScan, inboxQuery]);
 
-  const summary = data?.summary ?? { analyzed: 0, possibleRemoval: 0, needsReview: 0, monitoring: 0 };
+  const summary = data?.summary ?? {
+    analyzed: 0,
+    possibleRemoval: 0,
+    needsReview: 0,
+    monitoring: 0,
+  };
   const items = data?.items ?? [];
 
   return (
@@ -99,9 +104,17 @@ export function ProtectionInbox() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-2 sm:grid-cols-3">
-          <SummaryTile dot="bg-destructive" value={summary.possibleRemoval} label="Possible removal actions" />
+          <SummaryTile
+            dot="bg-destructive"
+            value={summary.possibleRemoval}
+            label="Possible removal actions"
+          />
           <SummaryTile dot="bg-amber-500" value={summary.needsReview} label="Need review" />
-          <SummaryTile dot="bg-emerald-500" value={summary.monitoring} label="Legitimate / monitoring" />
+          <SummaryTile
+            dot="bg-emerald-500"
+            value={summary.monitoring}
+            label="Legitimate / monitoring"
+          />
         </div>
 
         {summary.analyzed === 0 ? (
@@ -145,7 +158,9 @@ export function ProtectionInbox() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={item.bucket === "POSSIBLE_REMOVAL" ? "destructive" : "outline"}>
+                        <Badge
+                          variant={item.bucket === "POSSIBLE_REMOVAL" ? "destructive" : "outline"}
+                        >
                           {item.label}
                         </Badge>
                         <Button size="sm" variant="outline" onClick={() => setSelected(item)}>
@@ -178,11 +193,18 @@ export function ProtectionInbox() {
                 <Meta label="Risk" value={selected.riskLevel ?? "—"} />
                 <Meta label="Subject match" value={selected.subjectStatus ?? "—"} />
                 <Meta label="Channel type" value={selected.channelClass ?? "—"} />
-                <Meta label="Evidence package" value={selected.evidenceVerified ? "complete" : "incomplete"} />
+                <Meta
+                  label="Evidence package"
+                  value={selected.evidenceVerified ? "complete" : "incomplete"}
+                />
                 <Meta label="Enforcement case" value={selected.caseStatusText ?? "none yet"} />
                 <Meta
                   label="Your input needed"
-                  value={selected.userAction === "NONE" ? "no" : selected.userAction.toLowerCase().replace("_", " ")}
+                  value={
+                    selected.userAction === "NONE"
+                      ? "no"
+                      : selected.userAction.toLowerCase().replace("_", " ")
+                  }
                 />
               </dl>
               <Button asChild size="sm" variant="outline">

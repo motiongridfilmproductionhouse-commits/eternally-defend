@@ -39,7 +39,15 @@ describe("protection inbox classification", () => {
   });
 
   it("never claims a send is allowed", () => {
-    const item = classifyInboxFinding(finding({ enforcementCase: { status: "QUEUED", eligibilityStatus: "AUTO_ELIGIBLE", basis: "IMPERSONATION" } }));
+    const item = classifyInboxFinding(
+      finding({
+        enforcementCase: {
+          status: "QUEUED",
+          eligibilityStatus: "AUTO_ELIGIBLE",
+          basis: "IMPERSONATION",
+        },
+      }),
+    );
     expect(item.bucket).toBe("POSSIBLE_REMOVAL");
     expect(item.reasons.join(" ")).toMatch(/only if every existing gate passes/i);
   });
@@ -53,7 +61,9 @@ describe("protection inbox classification", () => {
       "QUEUE_FAILED",
     ]) {
       const item = classifyInboxFinding(
-        finding({ enforcementCase: { status, eligibilityStatus: "REVIEW_REQUIRED", basis: "IMPERSONATION" } }),
+        finding({
+          enforcementCase: { status, eligibilityStatus: "REVIEW_REQUIRED", basis: "IMPERSONATION" },
+        }),
       );
       expect(item.bucket).toBe("NEEDS_REVIEW");
     }
@@ -61,13 +71,21 @@ describe("protection inbox classification", () => {
 
   it("treats NOT_ELIGIBLE cases as review, not removal", () => {
     const item = classifyInboxFinding(
-      finding({ enforcementCase: { status: "NOT_ELIGIBLE", eligibilityStatus: "NOT_ELIGIBLE", basis: "IMPERSONATION" } }),
+      finding({
+        enforcementCase: {
+          status: "NOT_ELIGIBLE",
+          eligibilityStatus: "NOT_ELIGIBLE",
+          basis: "IMPERSONATION",
+        },
+      }),
     );
     expect(item.bucket).toBe("NEEDS_REVIEW");
   });
 
   it("holds incomplete evidence for review", () => {
-    const item = classifyInboxFinding(finding({ evidenceVerified: false, removalPotential: "medium" }));
+    const item = classifyInboxFinding(
+      finding({ evidenceVerified: false, removalPotential: "medium" }),
+    );
     expect(item.bucket).toBe("NEEDS_REVIEW");
     expect(item.reasons.join(" ")).toMatch(/not yet complete/i);
   });
@@ -86,11 +104,15 @@ describe("protection inbox classification", () => {
   });
 
   it("treats legitimate appearances as monitoring, not threats", () => {
-    expect(classifyInboxFinding(finding({ subjectStatus: "not_subject" })).bucket).toBe("MONITORING");
-    expect(classifyInboxFinding(finding({ channelClass: "official_news" })).bucket).toBe("MONITORING");
-    expect(classifyInboxFinding(finding({ riskLevel: "low", recommendedAction: null })).bucket).toBe(
+    expect(classifyInboxFinding(finding({ subjectStatus: "not_subject" })).bucket).toBe(
       "MONITORING",
     );
+    expect(classifyInboxFinding(finding({ channelClass: "official_news" })).bucket).toBe(
+      "MONITORING",
+    );
+    expect(
+      classifyInboxFinding(finding({ riskLevel: "low", recommendedAction: null })).bucket,
+    ).toBe("MONITORING");
   });
 
   it("mirrors the dispatch actionability gate", () => {
@@ -104,7 +126,12 @@ describe("protection inbox classification", () => {
   it("orders POSSIBLE_REMOVAL first, then review, then monitoring", () => {
     const { items, summary } = buildProtectionInbox([
       finding({ id: "low", riskLevel: "low", recommendedAction: null, priorityScore: 99 }),
-      finding({ id: "review", evidenceVerified: false, removalPotential: "medium", priorityScore: 50 }),
+      finding({
+        id: "review",
+        evidenceVerified: false,
+        removalPotential: "medium",
+        priorityScore: 50,
+      }),
       finding({ id: "high", priorityScore: 10 }),
     ]);
     expect(items.map((i) => i.id)).toEqual(["high", "review", "low"]);
