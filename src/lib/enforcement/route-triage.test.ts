@@ -99,8 +99,8 @@ describe("route triage (UI prioritisation only)", () => {
 
   it("sorts HIGH before MEDIUM before LOW", () => {
     const sorted = triageAndSortRoutes([
-      route({ id: "low", domain: "low.com", authoritativePageKind: null }),
-      route({ id: "med", domain: "med.com" }),
+      route({ id: "low", domain: "low.com", recipientEmail: "dmca@low.com", authoritativePageKind: null }),
+      route({ id: "med", domain: "med.com", recipientEmail: "dmca@med.com" }),
       route({
         id: "high",
         domain: "high.com",
