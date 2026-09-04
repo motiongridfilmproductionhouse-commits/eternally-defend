@@ -105,6 +105,72 @@ function isLegitimateAppearance(f: InboxFindingInput): boolean {
 }
 
 /**
+ * Existing enforcement threat categories. A finding only qualifies as
+ * POSSIBLE_REMOVAL when the pipeline's own signals (potential violation,
+ * recommended action, or the enforcement case basis) name one of these.
+ * This is not a keyword filter over titles — titles are never inspected.
+ */
+export type ActionableCategory =
+  | "IMPERSONATION"
+  | "DEEPFAKE"
+  | "IDENTITY_MISUSE"
+  | "UNAUTHORIZED_CONTENT"
+  | "PRIVACY_SENSITIVE"
+  | "COPYRIGHT_INFRINGEMENT";
+
+const CATEGORY_TOKENS: [ActionableCategory, RegExp][] = [
+  ["IMPERSONATION", /\b(IMPERSONAT\w*|FAKE_ACCOUNT|FAKE_PROFILE|CATFISH\w*)\b/],
+  ["DEEPFAKE", /\b(DEEPFAKE\w*|SYNTHETIC\w*|MANIPULATED\w*|AI_GENERATED|FACE_SWAP)\b/],
+  ["IDENTITY_MISUSE", /\b(IDENTITY_MISUSE|IDENTITY_THEFT|NAME_MISUSE|ENDORSEMENT_FRAUD|SCAM\w*|FRAUD\w*)\b/],
+  [
+    "UNAUTHORIZED_CONTENT",
+    /\b(UNAUTHORIZED\w*|UNLICENSED\w*|PROTECTED_ASSET\w*|ASSET_MISUSE|LEAKED_CONTENT|PIRAC\w*|PIRATED)\b/,
+  ],
+  [
+    "PRIVACY_SENSITIVE",
+    /\b(PRIVACY\w*|NCII|INTIMATE\w*|SEXUAL\w*|EXPLICIT\w*|LEAK|LEAKED|DOXX\w*)\b/,
+  ],
+  ["COPYRIGHT_INFRINGEMENT", /\b(COPYRIGHT_INFRINGEMENT|DMCA\w*|COPYRIGHT_TAKEDOWN)\b/],
+];
+
+/** Signals that explicitly ask for a human decision rather than assert a violation. */
+const REVIEW_ONLY = /\b(REVIEW|MONITOR\w*|NO_ACTION|INSUFFICIENT\w*|PENDING|UNKNOWN|POLICY_NOT_IDENTIFIED)\b/;
+
+function normalizeSignal(value: string | null | undefined): string {
+  return (value ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+}
+
+/**
+ * Reads the actionable enforcement category out of existing pipeline signals.
+ * Returns null when the pipeline only produced a review/monitor recommendation,
+ * an identity/face match, or a generic high risk score — a face match or the
+ * mere presence of the subject is never actionable on its own.
+ */
+export function actionableCategoryOf(f: InboxFindingInput): ActionableCategory | null {
+  const signals = [
+    normalizeSignal(f.potentialViolation),
+    normalizeSignal(f.recommendedAction),
+    normalizeSignal(f.enforcementCase?.basis ?? null),
+  ].filter(Boolean);
+
+  for (const signal of signals) {
+    if (REVIEW_ONLY.test(signal)) continue;
+    for (const [category, pattern] of CATEGORY_TOKENS) {
+      if (pattern.test(signal)) return category;
+    }
+  }
+  return null;
+}
+
+/** True when the pipeline signals only ask for human review, not a removal. */
+export function isReviewOnlySignal(f: InboxFindingInput): boolean {
+  return [f.potentialViolation, f.recommendedAction]
+    .map(normalizeSignal)
+    .filter(Boolean)
+    .some((s) => REVIEW_ONLY.test(s));
+}
+
+/**
  * Same actionability semantics already used by the automated dispatch
  * (selectActionableYoutubeFindings) — kept in sync deliberately so the inbox
  * never claims more than the pipeline itself considers actionable.
@@ -117,6 +183,7 @@ export function isActionableFinding(f: InboxFindingInput): boolean {
     Boolean(f.recommendedAction)
   );
 }
+
 
 export function classifyInboxFinding(f: InboxFindingInput): InboxItem {
   const reasons: string[] = [];
