@@ -143,7 +143,11 @@ describe("protection inbox classification", () => {
 describe("actionable category gating", () => {
   const ordinary = [
     { label: "movie scene", potentialViolation: null, recommendedAction: "MONITOR" },
-    { label: "song / music video", potentialViolation: "COPYRIGHT_REVIEW", recommendedAction: "COPYRIGHT_REVIEW" },
+    {
+      label: "song / music video",
+      potentialViolation: "COPYRIGHT_REVIEW",
+      recommendedAction: "COPYRIGHT_REVIEW",
+    },
     { label: "interview", potentialViolation: null, recommendedAction: "NO_ACTION" },
     { label: "podcast", potentialViolation: null, recommendedAction: "INSUFFICIENT_EVIDENCE" },
     { label: "trailer", potentialViolation: null, recommendedAction: "Continue monitoring" },
@@ -198,7 +202,10 @@ describe("actionable category gating", () => {
     ];
     for (const violation of cases) {
       const item = classifyInboxFinding(
-        finding({ potentialViolation: violation, recommendedAction: `Prepare ${violation} notice` }),
+        finding({
+          potentialViolation: violation,
+          recommendedAction: `Prepare ${violation} notice`,
+        }),
       );
       expect(item.bucket).toBe("POSSIBLE_REMOVAL");
     }
@@ -210,10 +217,16 @@ describe("actionable category gating", () => {
         finding({
           potentialViolation: null,
           recommendedAction: "Prepare notice",
-          enforcementCase: { status: "QUEUED", eligibilityStatus: "AUTO_ELIGIBLE", basis: "IMPERSONATION" },
+          enforcementCase: {
+            status: "QUEUED",
+            eligibilityStatus: "AUTO_ELIGIBLE",
+            basis: "IMPERSONATION",
+          },
         }),
       ),
     ).toBe("IMPERSONATION");
-    expect(actionableCategoryOf(finding({ potentialViolation: null, recommendedAction: "MONITOR" }))).toBeNull();
+    expect(
+      actionableCategoryOf(finding({ potentialViolation: null, recommendedAction: "MONITOR" })),
+    ).toBeNull();
   });
 });

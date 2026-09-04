@@ -126,10 +126,7 @@ const CATEGORY_TOKENS: [ActionableCategory, RegExp][] = [
     "UNAUTHORIZED_CONTENT",
     /(UNAUTHORIZED|UNLICENSED|PROTECTED_ASSET|ASSET_MISUSE|LEAKED_CONTENT|PIRAC|PIRATED)/,
   ],
-  [
-    "PRIVACY_SENSITIVE",
-    /(PRIVACY|NCII|INTIMATE|SEXUAL|EXPLICIT|LEAK|DOXX)/,
-  ],
+  ["PRIVACY_SENSITIVE", /(PRIVACY|NCII|INTIMATE|SEXUAL|EXPLICIT|LEAK|DOXX)/],
   ["COPYRIGHT_INFRINGEMENT", /(COPYRIGHT_INFRINGEMENT|DMCA|COPYRIGHT_TAKEDOWN)/],
 ];
 
@@ -183,7 +180,6 @@ export function isActionableFinding(f: InboxFindingInput): boolean {
     Boolean(f.recommendedAction)
   );
 }
-
 
 export function classifyInboxFinding(f: InboxFindingInput): InboxItem {
   const reasons: string[] = [];
@@ -296,7 +292,6 @@ export function classifyInboxFinding(f: InboxFindingInput): InboxItem {
     const inPipeline = CASE_IN_PIPELINE.has(caseStatus);
     const strongEvidence =
       f.evidenceVerified === true || (f.removalPotential ?? "").toLowerCase() === "high";
-
 
     if (inPipeline || strongEvidence) {
       if (inPipeline) {
