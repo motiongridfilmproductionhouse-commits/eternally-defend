@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildProtectionInbox,
   classifyInboxFinding,
+  actionableCategoryOf,
   isActionableFinding,
   type InboxFindingInput,
 } from "./inbox";
@@ -136,5 +137,83 @@ describe("protection inbox classification", () => {
     ]);
     expect(items.map((i) => i.id)).toEqual(["high", "review", "low"]);
     expect(summary).toEqual({ analyzed: 3, possibleRemoval: 1, needsReview: 1, monitoring: 1 });
+  });
+});
+
+describe("actionable category gating", () => {
+  const ordinary = [
+    { label: "movie scene", potentialViolation: null, recommendedAction: "MONITOR" },
+    { label: "song / music video", potentialViolation: "COPYRIGHT_REVIEW", recommendedAction: "COPYRIGHT_REVIEW" },
+    { label: "interview", potentialViolation: null, recommendedAction: "NO_ACTION" },
+    { label: "podcast", potentialViolation: null, recommendedAction: "INSUFFICIENT_EVIDENCE" },
+    { label: "trailer", potentialViolation: null, recommendedAction: "Continue monitoring" },
+  ];
+
+  for (const c of ordinary) {
+    it(`never marks a normal ${c.label} as possible removal on face/name match alone`, () => {
+      const item = classifyInboxFinding(
+        finding({
+          subjectStatus: "verified",
+          subjectConfidence: 100,
+          riskLevel: "critical",
+          removalPotential: "high",
+          evidenceVerified: true,
+          potentialViolation: c.potentialViolation,
+          recommendedAction: c.recommendedAction,
+        }),
+      );
+      expect(item.bucket).not.toBe("POSSIBLE_REMOVAL");
+      expect(item.reasons.join(" ")).toMatch(/never treated as removable on its own/i);
+    });
+  }
+
+  it("moves the real Sheriyethu song finding out of POSSIBLE_REMOVAL", () => {
+    const item = classifyInboxFinding(
+      finding({
+        title: "Sheriyethu Video Song | Perfume Movie | Kaniha | Rajesh Babu K | Tini Tom",
+        channelTitle: "123Musix",
+        subjectStatus: "verified",
+        subjectConfidence: 100,
+        channelClass: "independent",
+        riskLevel: "critical",
+        removalPotential: "high",
+        recommendedAction: "COPYRIGHT_REVIEW",
+        potentialViolation: "COPYRIGHT_REVIEW",
+        assessmentReason: "EVIDENCE_TRANSCRIPT_MISSING",
+        evidenceVerified: false,
+        transcriptState: "captions_unavailable:empty_track",
+      }),
+    );
+    expect(item.bucket).toBe("NEEDS_REVIEW");
+  });
+
+  it("still allows genuine actionable categories to reach POSSIBLE_REMOVAL", () => {
+    const cases = [
+      "Impersonation",
+      "DEEPFAKE_MANIPULATION",
+      "IDENTITY_MISUSE",
+      "UNAUTHORIZED_CONTENT_USE",
+      "PRIVACY_LEAKED_MATERIAL",
+      "COPYRIGHT_INFRINGEMENT",
+    ];
+    for (const violation of cases) {
+      const item = classifyInboxFinding(
+        finding({ potentialViolation: violation, recommendedAction: `Prepare ${violation} notice` }),
+      );
+      expect(item.bucket).toBe("POSSIBLE_REMOVAL");
+    }
+  });
+
+  it("reads the enforcement case basis as an actionable signal", () => {
+    expect(
+      actionableCategoryOf(
+        finding({
+          potentialViolation: null,
+          recommendedAction: "Prepare notice",
+          enforcementCase: { status: "QUEUED", eligibilityStatus: "AUTO_ELIGIBLE", basis: "IMPERSONATION" },
+        }),
+      ),
+    ).toBe("IMPERSONATION");
+    expect(actionableCategoryOf(finding({ potentialViolation: null, recommendedAction: "MONITOR" }))).toBeNull();
   });
 });
