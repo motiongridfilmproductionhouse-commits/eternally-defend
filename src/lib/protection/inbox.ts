@@ -105,6 +105,69 @@ function isLegitimateAppearance(f: InboxFindingInput): boolean {
 }
 
 /**
+ * Existing enforcement threat categories. A finding only qualifies as
+ * POSSIBLE_REMOVAL when the pipeline's own signals (potential violation,
+ * recommended action, or the enforcement case basis) name one of these.
+ * This is not a keyword filter over titles — titles are never inspected.
+ */
+export type ActionableCategory =
+  | "IMPERSONATION"
+  | "DEEPFAKE"
+  | "IDENTITY_MISUSE"
+  | "UNAUTHORIZED_CONTENT"
+  | "PRIVACY_SENSITIVE"
+  | "COPYRIGHT_INFRINGEMENT";
+
+const CATEGORY_TOKENS: [ActionableCategory, RegExp][] = [
+  ["IMPERSONATION", /(IMPERSONAT|FAKE_ACCOUNT|FAKE_PROFILE|CATFISH)/],
+  ["DEEPFAKE", /(DEEPFAKE|SYNTHETIC|MANIPULAT|AI_GENERATED|FACE_SWAP)/],
+  ["IDENTITY_MISUSE", /(IDENTITY_MISUSE|IDENTITY_THEFT|NAME_MISUSE|ENDORSEMENT_FRAUD|SCAM|FRAUD)/],
+  [
+    "UNAUTHORIZED_CONTENT",
+    /(UNAUTHORIZED|UNLICENSED|PROTECTED_ASSET|ASSET_MISUSE|LEAKED_CONTENT|PIRAC|PIRATED)/,
+  ],
+  ["PRIVACY_SENSITIVE", /(PRIVACY|NCII|INTIMATE|SEXUAL|EXPLICIT|LEAK|DOXX)/],
+  ["COPYRIGHT_INFRINGEMENT", /(COPYRIGHT_INFRINGEMENT|DMCA|COPYRIGHT_TAKEDOWN)/],
+];
+
+/** Signals that explicitly ask for a human decision rather than assert a violation. */
+const REVIEW_ONLY = /(REVIEW|MONITOR|NO_ACTION|INSUFFICIENT|PENDING|UNKNOWN|POLICY_NOT_IDENTIFIED)/;
+
+function normalizeSignal(value: string | null | undefined): string {
+  return (value ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+}
+
+/**
+ * Reads the actionable enforcement category out of existing pipeline signals.
+ * Returns null when the pipeline only produced a review/monitor recommendation,
+ * an identity/face match, or a generic high risk score — a face match or the
+ * mere presence of the subject is never actionable on its own.
+ */
+export function actionableCategoryOf(f: InboxFindingInput): ActionableCategory | null {
+  const signals = [
+    normalizeSignal(f.potentialViolation),
+    normalizeSignal(f.recommendedAction),
+    normalizeSignal(f.enforcementCase?.basis ?? null),
+  ].filter(Boolean);
+
+  for (const signal of signals) {
+    if (REVIEW_ONLY.test(signal)) continue;
+    for (const [category, pattern] of CATEGORY_TOKENS) {
+      if (pattern.test(signal)) return category;
+    }
+  }
+  return null;
+}
+
+/** True when the pipeline signals only ask for human review, not a removal. */
+export function isReviewOnlySignal(f: InboxFindingInput): boolean {
+  return [f.potentialViolation, f.recommendedAction]
+    .map(normalizeSignal)
+    .filter(Boolean)
+    .some((s) => REVIEW_ONLY.test(s));
+}
+
+/**
  * Same actionability semantics already used by the automated dispatch
  * (selectActionableYoutubeFindings) — kept in sync deliberately so the inbox
  * never claims more than the pipeline itself considers actionable.
@@ -190,6 +253,41 @@ export function classifyInboxFinding(f: InboxFindingInput): InboxItem {
         caseStatusText,
       };
     }
+
+    // Removal requires a named actionable enforcement category from the
+    // existing pipeline. Identity/face matches, high risk scores and the
+    // subject merely appearing in a video are NOT actionable on their own.
+    const category = actionableCategoryOf(f);
+    if (!category) {
+      reasons.push(
+        "No actionable enforcement category (impersonation, deepfake, identity misuse, unauthorized content, privacy-sensitive material or eligible copyright infringement) was identified by the analysis pipeline.",
+      );
+      reasons.push(
+        "An identity/face match or the subject appearing in a video is never treated as removable on its own.",
+      );
+      if (isReviewOnlySignal(f) || CASE_IN_PIPELINE.has(caseStatus)) {
+        reasons.push("The pipeline asked for a human decision — held for review.");
+        return {
+          ...f,
+          bucket: "NEEDS_REVIEW",
+          label: INBOX_LABELS.NEEDS_REVIEW,
+          reasons,
+          userAction: "REVIEW",
+          caseStatusText,
+        };
+      }
+      reasons.push("Treated as an ordinary appearance — monitored, not a threat.");
+      return {
+        ...f,
+        bucket: "MONITORING",
+        label: INBOX_LABELS.MONITORING,
+        reasons,
+        userAction: "NONE",
+        caseStatusText,
+      };
+    }
+
+    reasons.push(`Actionable category identified by the pipeline: ${category}.`);
 
     const inPipeline = CASE_IN_PIPELINE.has(caseStatus);
     const strongEvidence =
