@@ -258,9 +258,45 @@ export function classifyInboxFinding(f: InboxFindingInput): InboxItem {
       };
     }
 
+    // Removal requires a named actionable enforcement category from the
+    // existing pipeline. Identity/face matches, high risk scores and the
+    // subject merely appearing in a video are NOT actionable on their own.
+    const category = actionableCategoryOf(f);
+    if (!category) {
+      reasons.push(
+        "No actionable enforcement category (impersonation, deepfake, identity misuse, unauthorized content, privacy-sensitive material or eligible copyright infringement) was identified by the analysis pipeline.",
+      );
+      reasons.push(
+        "An identity/face match or the subject appearing in a video is never treated as removable on its own.",
+      );
+      if (isReviewOnlySignal(f) || CASE_IN_PIPELINE.has(caseStatus)) {
+        reasons.push("The pipeline asked for a human decision — held for review.");
+        return {
+          ...f,
+          bucket: "NEEDS_REVIEW",
+          label: INBOX_LABELS.NEEDS_REVIEW,
+          reasons,
+          userAction: "REVIEW",
+          caseStatusText,
+        };
+      }
+      reasons.push("Treated as an ordinary appearance — monitored, not a threat.");
+      return {
+        ...f,
+        bucket: "MONITORING",
+        label: INBOX_LABELS.MONITORING,
+        reasons,
+        userAction: "NONE",
+        caseStatusText,
+      };
+    }
+
+    reasons.push(`Actionable category identified by the pipeline: ${category}.`);
+
     const inPipeline = CASE_IN_PIPELINE.has(caseStatus);
     const strongEvidence =
       f.evidenceVerified === true || (f.removalPotential ?? "").toLowerCase() === "high";
+
 
     if (inPipeline || strongEvidence) {
       if (inPipeline) {
