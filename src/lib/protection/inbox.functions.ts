@@ -149,6 +149,11 @@ export const getProtectionInbox = createServerFn({ method: "GET" })
         targetName: (latest?.target_name as string) ?? null,
       },
       items,
-      summary,
+      removals,
+      summary: {
+        ...summary,
+        removalsInProgress: removals.filter((r) => r.status === "Sent").length,
+      },
     };
+
   });
