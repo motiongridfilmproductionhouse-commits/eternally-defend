@@ -12,9 +12,49 @@ import { buildProtectionInbox, type InboxFindingInput } from "./inbox";
 
 const MAX_FINDINGS = 150;
 
+export interface InboxRemovalRow {
+  id: string;
+  targetUrl: string | null;
+  platform: string;
+  method: string;
+  status: string;
+  submissionStatus: string | null;
+  submittedAt: string | null;
+  createdAt: string;
+}
+
+/** Read-only view of removal requests already submitted for this user. */
+async function readSubmittedRemovals(
+  supabase: { from: (t: string) => any },
+  userId: string,
+): Promise<InboxRemovalRow[]> {
+  const { data } = await supabase
+    .from("enforcement_requests")
+    .select(
+      "id, target_url, platform, method, status, submission_status, submitted_at, created_at, user_id",
+    )
+    .eq("user_id", userId)
+    .in("status", ["Sent", "Approved", "Rejected"])
+    .order("submitted_at", { ascending: false })
+    .limit(100);
+
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: String(r["id"]),
+    targetUrl: (r["target_url"] as string) ?? null,
+    platform: (r["platform"] as string) ?? "—",
+    method: (r["method"] as string) ?? "—",
+    status: (r["status"] as string) ?? "—",
+    submissionStatus: (r["submission_status"] as string) ?? null,
+    submittedAt: (r["submitted_at"] as string) ?? null,
+    createdAt: (r["created_at"] as string) ?? "",
+  }));
+}
+
 export const getProtectionInbox = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const removals = await readSubmittedRemovals(context.supabase, context.userId);
+
     const { data: scans } = await context.supabase
       .from("youtube_removal_scans")
       .select("id, status, stage, created_at, updated_at, target_name")
@@ -30,9 +70,17 @@ export const getProtectionInbox = createServerFn({ method: "GET" })
       return {
         discovery: { lastScanAt: null, status: null, running: false, targetName: null },
         items: [],
-        summary: { analyzed: 0, possibleRemoval: 0, needsReview: 0, monitoring: 0 },
+        removals,
+        summary: {
+          analyzed: 0,
+          possibleRemoval: 0,
+          needsReview: 0,
+          monitoring: 0,
+          removalsInProgress: removals.filter((r) => r.status === "Sent").length,
+        },
       };
     }
+
 
     const { data: findings, error } = await context.supabase
       .from("youtube_removal_findings")
