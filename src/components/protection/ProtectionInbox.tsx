@@ -81,8 +81,10 @@ export function ProtectionInbox() {
     possibleRemoval: 0,
     needsReview: 0,
     monitoring: 0,
+    removalsInProgress: 0,
   };
   const items = data?.items ?? [];
+  const removals = data?.removals ?? [];
 
   return (
     <Card className="card-surface">
@@ -100,10 +102,13 @@ export function ProtectionInbox() {
         <p className="text-sm text-muted-foreground">
           {summary.analyzed} item{summary.analyzed === 1 ? "" : "s"} discovered and analysed
           automatically. No manual searching required.
+          {removals.length > 0
+            ? ` ${removals.length} removal request${removals.length === 1 ? "" : "s"} tracked, ${summary.removalsInProgress} submitted and awaiting the platform.`
+            : ""}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-4">
           <SummaryTile
             dot="bg-destructive"
             value={summary.possibleRemoval}
@@ -115,14 +120,66 @@ export function ProtectionInbox() {
             value={summary.monitoring}
             label="Legitimate / monitoring"
           />
+          <SummaryTile
+            dot="bg-sky-500"
+            value={summary.removalsInProgress}
+            label="Removals submitted"
+          />
         </div>
 
-        {summary.analyzed === 0 ? (
+        {removals.length > 0 ? (
+          <div className="rounded-lg border">
+            <div className="flex items-center gap-2 px-3 py-2 text-sm font-semibold">
+              <span className="size-2 rounded-full bg-sky-500" />
+              Removal requests in progress
+              <Badge variant="secondary">{removals.length}</Badge>
+            </div>
+            <div className="divide-y border-t">
+              {removals.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {r.targetUrl ? (
+                        <a
+                          href={r.targetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {r.targetUrl}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.platform} · {r.method}
+                      {r.submittedAt
+                        ? ` · submitted ${new Date(r.submittedAt).toLocaleDateString()}`
+                        : ""}
+                    </p>
+                  </div>
+                  <Badge variant={r.status === "Rejected" ? "destructive" : "outline"}>
+                    {r.status === "Sent"
+                      ? "SUBMITTED — AWAITING PLATFORM"
+                      : r.status.toUpperCase()}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {summary.analyzed === 0 && removals.length === 0 ? (
           <p className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">
             Automated discovery is running. Interviews, podcasts, appearances, videos and Shorts are
             found and analysed for you — results appear here as soon as the pipeline completes.
           </p>
         ) : null}
+
 
         {SECTIONS.map((section) => {
           const sectionItems = items.filter((i) => i.bucket === section.bucket);
