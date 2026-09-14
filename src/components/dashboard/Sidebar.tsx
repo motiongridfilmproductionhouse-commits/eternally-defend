@@ -94,6 +94,7 @@ const adminSystemNav: NavItem[] = [
   { icon: PlugZap, label: "Provider Activation", to: "/admin/provider-activation", badge: "ADMIN" },
   { icon: Waypoints, label: "Removal Routes", to: "/admin/removal-routes", badge: "ADMIN" },
   { icon: KeyRound, label: "Invitation Codes", to: "/admin/invites", badge: "ADMIN" },
+  { icon: KeyRound, label: "Agent Assessments", to: "/agent-admin", badge: "ADMIN" },
   { icon: MailCheck, label: "Waitlist Review", to: "/admin/waitlist", badge: "ADMIN" },
   {
     icon: ShieldAlert,
@@ -101,7 +102,6 @@ const adminSystemNav: NavItem[] = [
     to: "/admin/approved-sources-review",
     badge: "ADMIN",
   },
-
 ];
 
 export function Sidebar() {
@@ -130,8 +130,6 @@ export function Sidebar() {
     ? baseNav
     : baseNav.filter((n) => n.to !== "/face-protection");
 
-
-
   const user = session?.user;
   const meta = (user?.user_metadata ?? {}) as {
     full_name?: string;
@@ -150,7 +148,6 @@ export function Sidebar() {
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   };
-
 
   const widthClass = collapsed ? "w-[72px]" : "w-64";
 

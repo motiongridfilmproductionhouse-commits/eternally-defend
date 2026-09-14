@@ -17,7 +17,8 @@
     "test:scan-source-filter": "node --import tsx --test src/lib/scan/source-type.test.ts src/lib/scan/source-type-migration.test.ts",
     "test:hikerapi": "node --import tsx --test src/lib/scan/discovery/hikerapi.test.ts",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:agent": "node --import tsx --test src/lib/agent/assessment.test.ts src/lib/agent/database.test.ts"
   },
   "dependencies": {
     "@aws-amplify/ui-react-liveness": "^3.6.7",
@@ -121,6 +122,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.16",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "@electric-sql/pglite": "0.5.8"
   }
 }

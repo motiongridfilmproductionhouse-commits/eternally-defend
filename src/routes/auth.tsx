@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { verifyInviteCode, signUpWithInvite } from "@/lib/invites/invites.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { agentAccess, claimAssessment, previewAssessment } from "@/lib/agent/assessment.functions";
 import { ShieldHalf, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign In — Eterna Sentinel" },
+      { name: "referrer", content: "no-referrer" },
       {
         name: "description",
         content:
@@ -29,6 +31,31 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const agentMode = new URLSearchParams(window.location.search).get("agent") === "1";
+  const [assessmentToken] = useState(() => {
+    const token = new URLSearchParams(window.location.search).get("assessment");
+    if (token && /^[A-Za-z0-9_-]{43}$/.test(token))
+      sessionStorage.setItem("eterna-assessment", token);
+    return token ?? sessionStorage.getItem("eterna-assessment");
+  });
+  const claim = useServerFn(claimAssessment);
+  const preview = useServerFn(previewAssessment);
+  const checkAgent = useServerFn(agentAccess);
+  const [handoffNeedsClient, setHandoffNeedsClient] = useState(false);
+  async function finishAssessment() {
+    if (!assessmentToken) return;
+    await claim({ data: { token: assessmentToken } });
+    sessionStorage.removeItem("eterna-assessment");
+  }
+  useEffect(() => {
+    if (assessmentToken)
+      void preview({ data: { token: assessmentToken } }).catch(() => {
+        setError(
+          "Assessment reference is invalid, expired, or already used. Request a new link from your agent.",
+        );
+      });
+  }, [assessmentToken, preview]);
 
   // Invite gate — signup is only reachable after a code validates server-side.
   const [inviteCode, setInviteCode] = useState("");
@@ -66,6 +93,20 @@ function AuthPage() {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) return;
+      if (agentMode) {
+        try {
+          await checkAgent();
+          navigate({ to: "/agent" });
+        } catch {
+          setError("Agent access is not enabled for this account.");
+        }
+        return;
+      }
+      if (assessmentToken) {
+        // A representative may still be logged in on this device. Never attach silently.
+        setHandoffNeedsClient(true);
+        return;
+      }
       // Route by onboarding status — dashboard gate would just bounce back here otherwise.
       const { data: profile } = await supabase
         .from("client_profiles")
@@ -74,7 +115,7 @@ function AuthPage() {
         .maybeSingle();
       navigate({ to: profile?.onboarding_completed ? "/" : "/onboarding" });
     });
-  }, [navigate]);
+  }, [navigate, agentMode, assessmentToken, checkAgent]);
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,10 +151,17 @@ function AuthPage() {
         }
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        await finishAssessment();
         navigate({ to: "/onboarding" });
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (agentMode) {
+          await checkAgent();
+          navigate({ to: "/agent" });
+          return;
+        }
+        await finishAssessment();
         const { data: profile } = await supabase
           .from("client_profiles")
           .select("onboarding_completed")
@@ -121,15 +169,12 @@ function AuthPage() {
           .maybeSingle();
         navigate({ to: profile?.onboarding_completed ? "/" : "/onboarding" });
       }
-    } catch (e: any) {
-      setError(e?.message ?? "Authentication failed");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Authentication failed");
     } finally {
       setLoading(false);
     }
   };
-
-
-
 
   return (
     <div className="min-h-screen grid md:grid-cols-2 bg-background">
@@ -209,8 +254,65 @@ function AuthPage() {
             </p>
           </div>
 
-          {null}
-
+          {assessmentToken && (
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-sm">
+              <p className="font-semibold text-blue-800">PRIVATE ETERNA ASSESSMENT</p>
+              <p className="mt-2 text-slate-600">
+                Continue with the client’s account to link the assessment. New accounts require an
+                existing Eterna invitation.
+              </p>
+              {handoffNeedsClient && (
+                <div className="mt-3 space-y-2">
+                  <Button
+                    type="button"
+                    disabled={loading}
+                    className="w-full"
+                    onClick={async () => {
+                      setLoading(true);
+                      setError(null);
+                      try {
+                        await finishAssessment();
+                        const { data: session } = await supabase.auth.getSession();
+                        const { data: profile } = await supabase
+                          .from("client_profiles")
+                          .select("onboarding_completed")
+                          .eq("user_id", session.session!.user.id)
+                          .maybeSingle();
+                        navigate({ to: profile?.onboarding_completed ? "/" : "/onboarding" });
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : "Unable to link assessment.");
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                  >
+                    Continue with signed-in client
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={async () => {
+                      const { error } = await supabase.auth.signOut();
+                      if (error) {
+                        setError("Could not sign out. Please try again.");
+                        return;
+                      }
+                      setHandoffNeedsClient(false);
+                      setError(null);
+                    }}
+                  >
+                    Sign out and use client account
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          {agentMode && (
+            <p className="text-sm text-blue-700">
+              Agent Access · sign in with your existing Eterna account.
+            </p>
+          )}
 
           {mode === "signup" && !inviteAccepted ? (
             <form onSubmit={handleInviteSubmit} className="space-y-3">
@@ -279,9 +381,14 @@ function AuthPage() {
             >
               {mode === "signin" ? "Create account" : "Sign in"}
             </button>
-
           </p>
 
+          <a
+            href={agentMode ? "/auth" : "/auth?agent=1"}
+            className="block min-h-11 text-center text-sm font-medium text-blue-600"
+          >
+            {agentMode ? "Client login" : "Agent Access →"}
+          </a>
           <div className="pt-4 border-t border-border">
             <a
               href="/partner-apply"
@@ -298,4 +405,3 @@ function AuthPage() {
     </div>
   );
 }
-
