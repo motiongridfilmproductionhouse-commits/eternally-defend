@@ -6,6 +6,10 @@ import { enforceScanSubject } from "@/lib/security/protected-subject.server";
 import { isVerifiedSubject } from "@/lib/firecrawl/entity-verifier";
 import { buildQueryPlan } from "./queries";
 import { SourceScope, buildAllegationQueryPlan } from "./news-intelligence";
+import {
+  isApprovedSourceVideo,
+  listApprovedSourceVideoIds,
+} from "@/lib/protection/sources/approved-video-ids";
 
 export const previewQueryPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -63,7 +67,12 @@ export const getYoutubeRemovalScan = createServerFn({ method: "POST" })
     ]);
     if (scanRes.error) throw new Error(scanRes.error.message);
     if (findingsRes.error) throw new Error(findingsRes.error.message);
-    const all: any[] = findingsRes.data ?? [];
+    // Already-approved videos from approved sources (e.g. approved playlists)
+    // are never presented as search discoveries.
+    const approvedVideoIds = await listApprovedSourceVideoIds(context.supabase, context.userId);
+    const all: any[] = (findingsRes.data ?? []).filter(
+      (f: any) => !isApprovedSourceVideo(approvedVideoIds, { videoId: f.video_id, url: f.video_url }),
+    );
     const scope: SourceScope = data.sourceScope || (scanRes.data as any)?.source_scope || "NON_OFFICIAL_ONLY";
 
     const verifiedFindings = all.filter((f) => isVerifiedSubject(f.subject_status));
