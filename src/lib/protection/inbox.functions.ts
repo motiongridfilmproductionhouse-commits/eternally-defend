@@ -9,6 +9,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildProtectionInbox, type InboxFindingInput } from "./inbox";
+import {
+  isApprovedSourceVideo,
+  listApprovedSourceVideoIds,
+} from "./sources/approved-video-ids";
 
 const MAX_FINDINGS = 150;
 
@@ -93,7 +97,10 @@ export const getProtectionInbox = createServerFn({ method: "GET" })
       .limit(MAX_FINDINGS);
     if (error) throw new Error(error.message);
 
-    const rows = findings ?? [];
+    const approvedVideoIds = await listApprovedSourceVideoIds(context.supabase, context.userId);
+    const rows = (findings ?? []).filter(
+      (r) => !isApprovedSourceVideo(approvedVideoIds, { url: r.video_url as string | null }),
+    );
     const urls = Array.from(new Set(rows.map((r) => r.video_url).filter(Boolean))) as string[];
 
     const caseByUrl = new Map<

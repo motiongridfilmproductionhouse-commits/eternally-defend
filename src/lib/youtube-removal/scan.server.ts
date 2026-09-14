@@ -25,6 +25,7 @@ import {
   buildAllegationQueryPlan,
 } from "./news-intelligence";
 import { getCachedSearch, setCachedSearch } from "./youtube-quota-cache";
+import { listApprovedSourceVideoIds } from "@/lib/protection/sources/approved-video-ids";
 
 type Supa = SupabaseClient<Database>;
 
@@ -243,6 +244,23 @@ export async function runYoutubeRemovalScan(
     }
 
     stage = "DISCOVERY_COMPLETE";
+
+    // Suppress videos already approved as legitimate under an approved source
+    // (e.g. an approved playlist). Read-only check; no classification change.
+    const approvedVideoIds = await listApprovedSourceVideoIds(supabase, userId);
+    let approvedSuppressed = 0;
+    for (const id of [...byVideo.keys()]) {
+      if (approvedVideoIds.has(id)) {
+        byVideo.delete(id);
+        approvedSuppressed++;
+      }
+    }
+    if (approvedSuppressed > 0) {
+      console.info(
+        `[YT-SCAN] scanId=${scanId} suppressed ${approvedSuppressed} already-approved source videos from discovery`,
+      );
+    }
+
     console.info(`[YT-SCAN] scanId=${scanId} stage=${stage} rawVideoCount=${rawVideoCount} deduplicated=${byVideo.size} searchApiRequests=${searchApiRequestsCount}`);
 
     if (!byVideo.size) {
