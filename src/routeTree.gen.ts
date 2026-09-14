@@ -15,6 +15,9 @@ import { Route as PartnerStatusRouteImport } from './routes/partner-status'
 import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AgentAssessmentRouteImport } from './routes/agent-assessment'
+import { Route as AgentAdminRouteImport } from './routes/agent-admin'
+import { Route as AgentRouteImport } from './routes/agent'
 import { Route as PartnerRouteImport } from './routes/_partner'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
@@ -85,6 +88,7 @@ import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api
 import { Route as ApiPublicHooksAutomationStatusRouteImport } from './routes/api/public/hooks/automation-status'
 import { Route as ApiPublicHooksAutomationFetchRouteImport } from './routes/api/public/hooks/automation-fetch'
 import { Route as ApiPublicHooksApprovedSourcesPollRouteImport } from './routes/api/public/hooks/approved-sources-poll'
+import { Route as ApiPublicHooksAgentAssessmentsRouteImport } from './routes/api/public/hooks/agent-assessments'
 import { Route as AppSensitiveProtectionResultsIdRouteImport } from './routes/_app.sensitive-protection.results.$id'
 
 const WaitinglistRoute = WaitinglistRouteImport.update({
@@ -115,6 +119,21 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentAssessmentRoute = AgentAssessmentRouteImport.update({
+  id: '/agent-assessment',
+  path: '/agent-assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentAdminRoute = AgentAdminRouteImport.update({
+  id: '/agent-admin',
+  path: '/agent-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PartnerRoute = PartnerRouteImport.update({
@@ -494,6 +513,12 @@ const ApiPublicHooksApprovedSourcesPollRoute =
     path: '/api/public/hooks/approved-sources-poll',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksAgentAssessmentsRoute =
+  ApiPublicHooksAgentAssessmentsRouteImport.update({
+    id: '/api/public/hooks/agent-assessments',
+    path: '/api/public/hooks/agent-assessments',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppSensitiveProtectionResultsIdRoute =
   AppSensitiveProtectionResultsIdRouteImport.update({
     id: '/sensitive-protection/results/$id',
@@ -503,6 +528,9 @@ const AppSensitiveProtectionResultsIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/agent': typeof AgentRoute
+  '/agent-admin': typeof AgentAdminRoute
+  '/agent-assessment': typeof AgentAssessmentRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
@@ -559,6 +587,7 @@ export interface FileRoutesByFullPath {
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/partner/': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/agent-assessments': typeof ApiPublicHooksAgentAssessmentsRoute
   '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
@@ -580,6 +609,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
+  '/agent': typeof AgentRoute
+  '/agent-admin': typeof AgentAdminRoute
+  '/agent-assessment': typeof AgentAssessmentRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
@@ -635,6 +667,7 @@ export interface FileRoutesByTo {
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/partner': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/agent-assessments': typeof ApiPublicHooksAgentAssessmentsRoute
   '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
@@ -658,6 +691,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_partner': typeof PartnerRouteWithChildren
+  '/agent': typeof AgentRoute
+  '/agent-admin': typeof AgentAdminRoute
+  '/agent-assessment': typeof AgentAssessmentRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
@@ -715,6 +751,7 @@ export interface FileRoutesById {
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_partner/partner/': typeof PartnerPartnerIndexRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
+  '/api/public/hooks/agent-assessments': typeof ApiPublicHooksAgentAssessmentsRoute
   '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
@@ -738,6 +775,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/agent'
+    | '/agent-admin'
+    | '/agent-assessment'
     | '/auth'
     | '/onboarding'
     | '/partner-apply'
@@ -794,6 +834,7 @@ export interface FileRouteTypes {
     | '/sensitive-protection/'
     | '/partner/'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/agent-assessments'
     | '/api/public/hooks/approved-sources-poll'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
@@ -815,6 +856,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/agent'
+    | '/agent-admin'
+    | '/agent-assessment'
     | '/auth'
     | '/onboarding'
     | '/partner-apply'
@@ -870,6 +914,7 @@ export interface FileRouteTypes {
     | '/sensitive-protection'
     | '/partner'
     | '/sensitive-protection/results/$id'
+    | '/api/public/hooks/agent-assessments'
     | '/api/public/hooks/approved-sources-poll'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
@@ -892,6 +937,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/_partner'
+    | '/agent'
+    | '/agent-admin'
+    | '/agent-assessment'
     | '/auth'
     | '/onboarding'
     | '/partner-apply'
@@ -949,6 +997,7 @@ export interface FileRouteTypes {
     | '/_app/sensitive-protection/'
     | '/_partner/partner/'
     | '/_app/sensitive-protection/results/$id'
+    | '/api/public/hooks/agent-assessments'
     | '/api/public/hooks/approved-sources-poll'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
@@ -972,6 +1021,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   PartnerRoute: typeof PartnerRouteWithChildren
+  AgentRoute: typeof AgentRoute
+  AgentAdminRoute: typeof AgentAdminRoute
+  AgentAssessmentRoute: typeof AgentAssessmentRoute
   AuthRoute: typeof AuthRoute
   OnboardingRoute: typeof OnboardingRoute
   PartnerApplyRoute: typeof PartnerApplyRoute
@@ -985,6 +1037,7 @@ export interface RootRouteChildren {
   ApiPublicImageProxyRoute: typeof ApiPublicImageProxyRoute
   ApiPublicOnboardingCompletionBackfillRoute: typeof ApiPublicOnboardingCompletionBackfillRoute
   ApiPublicVeriffWebhookRoute: typeof ApiPublicVeriffWebhookRoute
+  ApiPublicHooksAgentAssessmentsRoute: typeof ApiPublicHooksAgentAssessmentsRoute
   ApiPublicHooksApprovedSourcesPollRoute: typeof ApiPublicHooksApprovedSourcesPollRoute
   ApiPublicHooksAutomationFetchRoute: typeof ApiPublicHooksAutomationFetchRoute
   ApiPublicHooksAutomationStatusRoute: typeof ApiPublicHooksAutomationStatusRoute
@@ -1046,6 +1099,27 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent-assessment': {
+      id: '/agent-assessment'
+      path: '/agent-assessment'
+      fullPath: '/agent-assessment'
+      preLoaderRoute: typeof AgentAssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent-admin': {
+      id: '/agent-admin'
+      path: '/agent-admin'
+      fullPath: '/agent-admin'
+      preLoaderRoute: typeof AgentAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_partner': {
@@ -1538,6 +1612,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksApprovedSourcesPollRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/agent-assessments': {
+      id: '/api/public/hooks/agent-assessments'
+      path: '/api/public/hooks/agent-assessments'
+      fullPath: '/api/public/hooks/agent-assessments'
+      preLoaderRoute: typeof ApiPublicHooksAgentAssessmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/sensitive-protection/results/$id': {
       id: '/_app/sensitive-protection/results/$id'
       path: '/sensitive-protection/results/$id'
@@ -1680,6 +1761,9 @@ const PartnerRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   PartnerRoute: PartnerRouteWithChildren,
+  AgentRoute: AgentRoute,
+  AgentAdminRoute: AgentAdminRoute,
+  AgentAssessmentRoute: AgentAssessmentRoute,
   AuthRoute: AuthRoute,
   OnboardingRoute: OnboardingRoute,
   PartnerApplyRoute: PartnerApplyRoute,
@@ -1694,6 +1778,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicOnboardingCompletionBackfillRoute:
     ApiPublicOnboardingCompletionBackfillRoute,
   ApiPublicVeriffWebhookRoute: ApiPublicVeriffWebhookRoute,
+  ApiPublicHooksAgentAssessmentsRoute: ApiPublicHooksAgentAssessmentsRoute,
   ApiPublicHooksApprovedSourcesPollRoute:
     ApiPublicHooksApprovedSourcesPollRoute,
   ApiPublicHooksAutomationFetchRoute: ApiPublicHooksAutomationFetchRoute,
@@ -1725,3 +1810,4 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
