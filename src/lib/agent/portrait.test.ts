@@ -2,9 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { fetchArtistPortrait } from "./portrait.server.ts";
 
-const searchBody = (titles: string[]) => ({
-  query: { search: titles.map((title) => ({ title })) },
+const searchBody = (titles: string[], image?: string) => ({
+  query: {
+    pages: Object.fromEntries(
+      titles.map((title, index) => [
+        String(index + 1),
+        image ? { title, original: { source: image } } : { title },
+      ]),
+    ),
+  },
 });
+
 const ok = (json: unknown) =>
   ({
     ok: true,
