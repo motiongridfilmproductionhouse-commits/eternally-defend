@@ -32,7 +32,12 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const agentMode = new URLSearchParams(window.location.search).get("agent") === "1";
+  // Captured once: recomputing during a navigation transition would flip this to false
+  // and bounce an agent to the client onboarding route.
+  const [agentMode] = useState(
+    () => new URLSearchParams(window.location.search).get("agent") === "1",
+  );
+  const redirected = useRef(false);
   const [assessmentToken] = useState(() => {
     const token = new URLSearchParams(window.location.search).get("assessment");
     if (token && /^[A-Za-z0-9_-]{43}$/.test(token))
