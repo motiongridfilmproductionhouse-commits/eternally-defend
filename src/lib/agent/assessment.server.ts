@@ -11,17 +11,20 @@ export const hashReference = (raw: string) => createHash("sha256").update(raw).d
 export const newReference = () => randomBytes(32).toString("base64url");
 export const publicColumns =
   "id,agent_id,artist_name,official_profile_url,image_url,status,stage,signals,pricing,reason,conversion_status,created_at,updated_at";
-export async function access(userId: string) {
+export async function accessWithClient(client: SupabaseClient, userId: string) {
   const [admin, superAdmin, member] = await Promise.all([
-    db.rpc("has_role", { _user_id: userId, _role: "admin" }),
-    db.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
-    db.from("agent_memberships").select("active").eq("user_id", userId).maybeSingle(),
+    client.rpc("has_role", { _user_id: userId, _role: "admin" }),
+    client.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
+    client.from("agent_memberships").select("active").eq("user_id", userId).maybeSingle(),
   ]);
   if (admin.error || superAdmin.error || member.error) throw new Error("Unable to verify access.");
   return {
     admin: admin.data === true || superAdmin.data === true,
     active: member.data?.active === true,
   };
+}
+export async function access(userId: string) {
+  return accessWithClient(db, userId);
 }
 export async function requireAgent(userId: string, id?: string) {
   const role = await access(userId);
