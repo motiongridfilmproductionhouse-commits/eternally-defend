@@ -109,12 +109,15 @@ export async function executeAssessmentScan(
       status: result.pricing ? "READY" : "REVIEW_REQUIRED",
       stage: result.pricing ? "Assessment complete" : "Eterna review required",
     });
-  } catch {
+  } catch (error) {
     await deps.persist({
       status: "FAILED",
       stage: "Scan unavailable",
       pricing: null,
-      reason: "Scan temporarily unavailable. Please try again.",
+      reason:
+        error instanceof NoProvidersError
+          ? "Public web search capacity is currently unavailable. No search provider answered, so no assessment was produced. Please try again later."
+          : "Scan temporarily unavailable. Please try again.",
     });
   }
 }
