@@ -506,6 +506,63 @@ function LandingPage() {
           </div>
         </section>
 
+        <section id="testimonials" className="border-t border-landing-line py-24 md:py-32">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="text-center">
+              <p className="landing-kicker">Trusted in the public eye</p>
+              <h2 className="mx-auto mt-4 max-w-3xl text-balance text-4xl font-medium leading-[1.04] md:text-6xl">
+                Carried by the people
+                <br />
+                the internet <span className="font-landing-serif italic">watches most.</span>
+              </h2>
+              <p className="mx-auto mt-6 max-w-xl text-sm leading-6 text-landing-muted">
+                Eterna protects leading figures from film and politics, and enterprises whose names
+                carry real weight — with client identities kept confidential by default.
+              </p>
+            </div>
+
+            <div className="mt-16 grid gap-6 md:grid-cols-3">
+              {[
+                {
+                  icon: Mic2,
+                  quote:
+                    "My name and face travel further than I do. Eterna separates what is genuinely harmful from ordinary noise, and nothing happens without my team's approval.",
+                  role: "Film industry public figure",
+                  context: "Protected identity · Southern cinema",
+                },
+                {
+                  icon: Building2,
+                  quote:
+                    "We needed discretion above everything. Evidence is preserved, reviewed and escalated through proper channels — exactly how a public office requires it.",
+                  role: "Public affairs representative",
+                  context: "Reputation monitoring · Political individual",
+                },
+                {
+                  icon: Users,
+                  quote:
+                    "As an enterprise, our brand faces constant impersonation. Eterna gives us one protected view and a governed process instead of scattered takedown emails.",
+                  role: "Enterprise client",
+                  context: "Brand & executive protection",
+                },
+              ].map(({ icon: Icon, quote, role, context }) => (
+                <figure
+                  key={role}
+                  className="flex flex-col rounded-lg border border-landing-line p-7"
+                >
+                  <Icon className="size-5 text-landing-accent" />
+                  <blockquote className="mt-6 flex-1 font-landing-serif text-lg leading-7 text-landing-ink">
+                    “{quote}”
+                  </blockquote>
+                  <figcaption className="mt-8 border-t border-landing-line pt-4">
+                    <p className="text-sm font-semibold">{role}</p>
+                    <p className="mt-1 text-xs text-landing-muted">{context}</p>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="border-y border-landing-line bg-landing-ink py-20 text-landing md:py-28">
           <div className="mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-[0.9fr_1.1fr] md:items-center">
             <div>
