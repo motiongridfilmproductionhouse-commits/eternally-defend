@@ -12,10 +12,13 @@ export type ScanDependencies = {
   search: (query: string, signal: AbortSignal) => Promise<Hit[]>;
   successfulQueries: () => number;
   policy: () => Promise<PricingPolicy | null>;
+  /** Optional public portrait lookup. Display-only; failure never fails the scan. */
+  portrait?: (name: string, signal: AbortSignal) => Promise<string | null>;
   persist: (
     patch: Partial<Assessment> & { discovery?: unknown; policy_snapshot?: unknown },
   ) => Promise<void>;
 };
+class NoProvidersError extends Error {}
 export async function executeAssessmentScan(
   artist: string,
   official: string | null,
