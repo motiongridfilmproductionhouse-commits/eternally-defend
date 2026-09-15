@@ -211,13 +211,23 @@ function AgentAssessment() {
                   <p role="status">Loading assessment…</p>
                 ) : !isTerminal(a.status) ? (
                   <section className={surface + " text-center"} aria-live="polite">
-                    <div className="mx-auto mb-7 grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-blue-50 to-violet-100 text-2xl text-blue-600">
-                      {a.artist_name
-                        .split(" ")
-                        .map((s) => s[0])
-                        .slice(0, 2)
-                        .join("")}
-                    </div>
+                    {a.image_url ? (
+                      <img
+                        src={a.image_url}
+                        alt={a.artist_name}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="mx-auto mb-7 size-20 rounded-3xl object-cover"
+                      />
+                    ) : (
+                      <div className="mx-auto mb-7 grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-blue-50 to-violet-100 text-2xl text-blue-600">
+                        {a.artist_name
+                          .split(" ")
+                          .map((s) => s[0])
+                          .slice(0, 2)
+                          .join("")}
+                      </div>
+                    )}
                     <h2 className="text-2xl font-medium">Analyzing {a.artist_name}</h2>
                     <div className="mx-auto my-8 h-1.5 max-w-xs overflow-hidden rounded-full bg-gradient-to-r from-blue-100 via-violet-200 to-blue-100 motion-safe:animate-pulse" />
                     <p className="text-slate-600">{a.stage}</p>
