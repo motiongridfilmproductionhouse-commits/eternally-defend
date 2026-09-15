@@ -1,4 +1,5 @@
 import { Search, ShieldCheck } from "lucide-react";
+import type { CSSProperties } from "react";
 
 type AssessmentSearchAnimationProps = {
   artistName: string;
@@ -94,7 +95,7 @@ export function AssessmentSearchAnimation({
 
       <div className="assessment-search__checks">
         {checks.map((check, index) => (
-          <div key={check} className="assessment-search__check" style={{ "--check-index": index } as React.CSSProperties}>
+          <div key={check} className="assessment-search__check" style={{ "--check-index": index } as CSSProperties}>
             <ShieldCheck className="size-4" />
             <span>{check}</span>
           </div>

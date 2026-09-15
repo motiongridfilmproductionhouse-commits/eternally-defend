@@ -14,6 +14,7 @@ import {
 } from "@/lib/agent/assessment.functions";
 import { isTerminal, formatPrice } from "@/lib/agent/model";
 import { elitePackage, exposureLevel } from "@/lib/agent/policy";
+import { AssessmentSearchAnimation } from "@/components/agent/AssessmentSearchAnimation";
 
 export const Route = createFileRoute("/agent-assessment")({
   ssr: false,
@@ -211,31 +212,11 @@ function AgentAssessment() {
                 ) : !a ? (
                   <p role="status">Loading assessment…</p>
                 ) : !isTerminal(a.status) ? (
-                  <section className={surface + " text-center"} aria-live="polite">
-                    {a.image_url ? (
-                      <img
-                        src={a.image_url}
-                        alt={a.artist_name}
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        className="mx-auto mb-7 size-20 rounded-3xl object-cover"
-                      />
-                    ) : (
-                      <div className="mx-auto mb-7 grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-blue-50 to-violet-100 text-2xl text-blue-600">
-                        {a.artist_name
-                          .split(" ")
-                          .map((s) => s[0])
-                          .slice(0, 2)
-                          .join("")}
-                      </div>
-                    )}
-                    <h2 className="text-2xl font-medium">Analyzing {a.artist_name}</h2>
-                    <div className="mx-auto my-8 h-1.5 max-w-xs overflow-hidden rounded-full bg-gradient-to-r from-blue-100 via-violet-200 to-blue-100 motion-safe:animate-pulse" />
-                    <p className="text-slate-600">{a.stage}</p>
-                    <p className="mt-5 text-xs text-slate-400">
-                      Progress updates as the backend completes each stage.
-                    </p>
-                  </section>
+                  <AssessmentSearchAnimation
+                    artistName={a.artist_name}
+                    imageUrl={a.image_url}
+                    stage={a.stage}
+                  />
                 ) : (
                   <section className={surface}>
                     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
