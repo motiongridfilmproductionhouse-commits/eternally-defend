@@ -34,23 +34,34 @@ function safeImage(raw: unknown): string | null {
 }
 
 async function getJson(url: string, signal?: AbortSignal): Promise<unknown | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const onAbort = () => controller.abort();
-  signal?.addEventListener("abort", onAbort);
-  try {
-    const res = await fetch(url, {
-      headers: { accept: "application/json" },
-      signal: controller.signal,
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as unknown;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-    signal?.removeEventListener("abort", onAbort);
+  const { fetchJsonWithTimeout } = await import("../scan/discovery/provider");
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const res = await fetchJsonWithTimeout(
+        url,
+        {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+            // Wikimedia requires a descriptive User-Agent; anonymous requests are rejected.
+            "user-agent": "EternaSentinel/1.0 (public reference image lookup)",
+          },
+        },
+        TIMEOUT_MS,
+        signal,
+      );
+      if (res.status === 200) return JSON.parse(res.text) as unknown;
+      // Public API rate limit: one short backoff, then give up silently.
+      if (res.status === 429 && attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        continue;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
+  return null;
 }
 
 /** Best-effort public picture for a name. Returns null when nothing safe is found. */
@@ -62,23 +73,39 @@ export async function fetchArtistPortrait(
   if (cleaned.length < 2) return null;
   const wanted = normalize(cleaned);
 
+  // Single keyless Action API call: search for the name and read page images.
   const search = new URL(SEARCH);
   search.searchParams.set("action", "query");
-  search.searchParams.set("list", "search");
-  search.searchParams.set("srsearch", cleaned);
-  search.searchParams.set("srlimit", "5");
+  search.searchParams.set("generator", "search");
+  search.searchParams.set("gsrsearch", cleaned);
+  search.searchParams.set("gsrlimit", "5");
+  search.searchParams.set("prop", "pageimages");
+  search.searchParams.set("piprop", "original|thumbnail");
+  search.searchParams.set("pithumbsize", "1000");
   search.searchParams.set("format", "json");
   search.searchParams.set("origin", "*");
 
   const found = (await getJson(search.toString(), signal)) as {
-    query?: { search?: { title?: string }[] };
+    query?: {
+      pages?: Record<
+        string,
+        { title?: string; original?: { source?: string }; thumbnail?: { source?: string } }
+      >;
+    };
   } | null;
-  const titles = (found?.query?.search ?? [])
-    .map((r) => (typeof r.title === "string" ? r.title : ""))
-    .filter((t) => t && normalize(t).includes(wanted))
-    .slice(0, 3);
 
-  for (const title of titles) {
+  const pages = Object.values(found?.query?.pages ?? {});
+  for (const page of pages) {
+    const title = typeof page.title === "string" ? page.title : "";
+    if (!title || !normalize(title).includes(wanted)) continue;
+    const image = safeImage(page.original?.source) ?? safeImage(page.thumbnail?.source);
+    if (image) return image;
+  }
+
+  // Fallback: REST summary for the best-matching title.
+  for (const page of pages) {
+    const title = typeof page.title === "string" ? page.title : "";
+    if (!title || !normalize(title).includes(wanted)) continue;
     const summary = (await getJson(
       SUMMARY + encodeURIComponent(title.replace(/ /g, "_")),
       signal,

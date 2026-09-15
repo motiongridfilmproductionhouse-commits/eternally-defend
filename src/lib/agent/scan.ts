@@ -26,16 +26,36 @@ export async function executeAssessmentScan(
 ) {
   try {
     await deps.persist({ status: "SCANNING", stage: "Discovering public profiles" });
-    const signal = AbortSignal.timeout(25000);
+    // Display-only public picture, fetched before the search sweep so the public
+    // API is not already rate limited. Never evidence, never affects pricing or gates.
+    if (deps.portrait) {
+      const image = await deps.portrait(artist, AbortSignal.timeout(10000)).catch(() => null);
+      if (image) await deps.persist({ image_url: image });
+    }
+    const signal = AbortSignal.timeout(60000);
     const queryName = artist.replace(/["\\]/g, " ");
     const hits: Hit[] = [];
-    for (const [query, stage] of [
+
+    // Broad public-web sweep. Each angle is a normal public search query; the
+    // name-match filter below still decides what counts as observed exposure.
+    const queries: [string, string][] = [
       [`"${queryName}" official profile`, "Discovering public profiles"],
       [
         `"${queryName}"${official ? ` "${new URL(official).hostname}"` : ""}`,
         "Mapping public web presence",
       ],
-    ]) {
+      [`"${queryName}" news`, "Scanning news coverage"],
+      [`"${queryName}" controversy allegation`, "Scanning allegation coverage"],
+      [`"${queryName}" case complaint court`, "Scanning legal reporting"],
+      [`"${queryName}" viral video clip`, "Scanning video and clip coverage"],
+      [`"${queryName}" fake account impersonation`, "Scanning impersonation signals"],
+      [`"${queryName}" instagram facebook youtube`, "Scanning social platforms"],
+      [`"${queryName}" interview statement`, "Scanning interviews and statements"],
+      [`"${queryName}" photos leaked morphed`, "Scanning image and media exposure"],
+    ];
+    let failedAngles = 0;
+    for (const [query, stage] of queries) {
+      if (signal.aborted) break;
       await deps.persist({ stage });
       // Providers receive an abort signal; the deadline also bounds adapters that ignore it.
       let onAbort: () => void = () => {};
@@ -46,18 +66,21 @@ export async function executeAssessmentScan(
           else signal.addEventListener("abort", onAbort, { once: true });
         });
         hits.push(...(await Promise.race([deps.search(query, signal), timeout])));
+      } catch (error) {
+        // One exhausted or slow angle never discards the angles already collected,
+        // but a search layer that fails for every angle stays a hard failure.
+        failedAngles += 1;
+        if (failedAngles === queries.length) throw error;
       } finally {
         signal.removeEventListener("abort", onAbort);
       }
     }
+
     if (deps.successfulQueries() === 0)
       throw new NoProvidersError("No discovery provider answered");
+
     await deps.persist({ status: "ANALYZING", stage: "Analyzing observed web exposure" });
-    // Display-only public picture. Never evidence, never affects pricing or gates.
-    if (deps.portrait) {
-      const image = await deps.portrait(artist, signal).catch(() => null);
-      if (image) await deps.persist({ image_url: image });
-    }
+
     const normalize = (s: string) =>
       s
         .normalize("NFKC")
