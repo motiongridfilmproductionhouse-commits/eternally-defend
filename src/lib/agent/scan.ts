@@ -50,7 +50,8 @@ export async function executeAssessmentScan(
         signal.removeEventListener("abort", onAbort);
       }
     }
-    if (deps.successfulQueries() === 0) throw new NoProvidersError("No discovery provider answered");
+    if (deps.successfulQueries() === 0)
+      throw new NoProvidersError("No discovery provider answered");
     await deps.persist({ status: "ANALYZING", stage: "Analyzing observed web exposure" });
     // Display-only public picture. Never evidence, never affects pricing or gates.
     if (deps.portrait) {

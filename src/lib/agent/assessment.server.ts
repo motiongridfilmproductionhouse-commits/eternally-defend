@@ -64,7 +64,13 @@ export async function runAssessment(id: string) {
   // Wikipedia's keyless public API is a fallback so identity resolution still works
   // when the paid providers are rate limited or out of credits.
   const router = new DiscoveryRouter({
-    adapters: [braveProvider, serpapiProvider, firecrawlProvider, googleProvider, wikipediaProvider],
+    adapters: [
+      braveProvider,
+      serpapiProvider,
+      firecrawlProvider,
+      googleProvider,
+      wikipediaProvider,
+    ],
     only: ["brave", "google", "serpapi", "firecrawl", "wikipedia"],
   });
   await executeAssessmentScan(row.artist_name, row.official_profile_url, {

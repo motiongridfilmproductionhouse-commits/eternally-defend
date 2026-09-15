@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { fetchArtistPortrait } from "./portrait.server.ts";
 
-const searchBody = (titles: string[]) => ({ query: { search: titles.map((title) => ({ title })) } });
+const searchBody = (titles: string[]) => ({
+  query: { search: titles.map((title) => ({ title })) },
+});
 const ok = (json: unknown) => ({ ok: true, json: async () => json }) as unknown as Response;
 const original = globalThis.fetch;
 
@@ -22,7 +24,9 @@ const restore = () => {
 test("returns a Wikimedia image for a name-matched article", async () => {
   stub((url) =>
     url.includes("/api/rest_v1/")
-      ? ok({ originalimage: { source: "https://upload.wikimedia.org/wikipedia/commons/a/b/x.jpg" } })
+      ? ok({
+          originalimage: { source: "https://upload.wikimedia.org/wikipedia/commons/a/b/x.jpg" },
+        })
       : ok(searchBody(["Edavela Babu"])),
   );
   try {

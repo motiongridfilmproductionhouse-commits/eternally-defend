@@ -70,9 +70,9 @@ export async function fetchArtistPortrait(
   search.searchParams.set("format", "json");
   search.searchParams.set("origin", "*");
 
-  const found = (await getJson(search.toString(), signal)) as
-    | { query?: { search?: { title?: string }[] } }
-    | null;
+  const found = (await getJson(search.toString(), signal)) as {
+    query?: { search?: { title?: string }[] };
+  } | null;
   const titles = (found?.query?.search ?? [])
     .map((r) => (typeof r.title === "string" ? r.title : ""))
     .filter((t) => t && normalize(t).includes(wanted))
