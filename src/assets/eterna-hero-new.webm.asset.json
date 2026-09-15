@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "asset_id": "20472760-d3d7-4f89-94e1-2b5172c46f3d",
+  "asset_id": "b87e8204-c5be-4924-aadd-ae5fbe455f7d",
   "project_id": "cee11c03-c063-46d5-9436-8e007b1b3e97",
-  "url": "/__l5e/assets-v1/20472760-d3d7-4f89-94e1-2b5172c46f3d/eterna-hero-new.webm",
-  "r2_key": "a/v1/cee11c03-c063-46d5-9436-8e007b1b3e97/20472760-d3d7-4f89-94e1-2b5172c46f3d/eterna-hero-new.webm",
-  "original_filename": "eterna-hero-new.webm",
-  "size": 1078429,
+  "url": "/__l5e/assets-v1/b87e8204-c5be-4924-aadd-ae5fbe455f7d/eterna-hero-new-audio.webm",
+  "r2_key": "a/v1/cee11c03-c063-46d5-9436-8e007b1b3e97/b87e8204-c5be-4924-aadd-ae5fbe455f7d/eterna-hero-new-audio.webm",
+  "original_filename": "eterna-hero-new-audio.webm",
+  "size": 1895652,
   "content_type": "video/webm",
-  "created_at": "2026-09-15T15:48:52Z"
+  "created_at": "2026-09-15T16:58:19Z"
 }
