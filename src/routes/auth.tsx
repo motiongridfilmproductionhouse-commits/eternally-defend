@@ -164,6 +164,7 @@ function AuthPage() {
         if (error) throw error;
         if (agentMode) {
           await checkAgent();
+          redirected.current = true;
           navigate({ to: "/agent" });
           return;
         }
