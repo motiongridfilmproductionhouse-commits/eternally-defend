@@ -1,65 +1,84 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchArtistPortrait } from "./portrait.server";
+import test from "node:test";
+import assert from "node:assert/strict";
+import { fetchArtistPortrait } from "./portrait.server.ts";
 
-const searchBody = (titles: string[]) => ({
-  query: { search: titles.map((title) => ({ title })) },
-});
+const searchBody = (titles: string[]) => ({ query: { search: titles.map((title) => ({ title })) } });
 const ok = (json: unknown) => ({ ok: true, json: async () => json }) as unknown as Response;
+const original = globalThis.fetch;
 
-function mockFetch(handler: (url: string) => Response | Promise<Response>) {
-  vi.stubGlobal("fetch", vi.fn(async (input: unknown) => handler(String(input))));
+function stub(handler: (url: string) => Response | Promise<Response>) {
+  const calls: string[] = [];
+  globalThis.fetch = (async (input: unknown) => {
+    const url = String(input);
+    calls.push(url);
+    return handler(url);
+  }) as typeof fetch;
+  return calls;
 }
+const restore = () => {
+  globalThis.fetch = original;
+};
 
-afterEach(() => vi.unstubAllGlobals());
-
-describe("fetchArtistPortrait", () => {
-  it("returns a Wikimedia image for a name-matched article", async () => {
-    mockFetch((url) =>
-      url.includes("/api/rest_v1/")
-        ? ok({
-            originalimage: { source: "https://upload.wikimedia.org/wikipedia/commons/a/b/x.jpg" },
-          })
-        : ok(searchBody(["Edavela Babu"])),
-    );
-    await expect(fetchArtistPortrait("edavela babu")).resolves.toBe(
+test("returns a Wikimedia image for a name-matched article", async () => {
+  stub((url) =>
+    url.includes("/api/rest_v1/")
+      ? ok({ originalimage: { source: "https://upload.wikimedia.org/wikipedia/commons/a/b/x.jpg" } })
+      : ok(searchBody(["Edavela Babu"])),
+  );
+  try {
+    assert.equal(
+      await fetchArtistPortrait("edavela babu"),
       "https://upload.wikimedia.org/wikipedia/commons/a/b/x.jpg",
     );
-  });
+  } finally {
+    restore();
+  }
+});
 
-  it("rejects images hosted outside Wikimedia", async () => {
-    mockFetch((url) =>
+test("portrait lookup rejects unsafe or off-host images", async () => {
+  for (const source of [
+    "https://evil.example.com/x.jpg",
+    "http://upload.wikimedia.org/x.jpg",
+    "https://user:pass@upload.wikimedia.org/x.jpg",
+    "not a url",
+  ]) {
+    stub((url) =>
       url.includes("/api/rest_v1/")
-        ? ok({ originalimage: { source: "https://evil.example.com/x.jpg" } })
+        ? ok({ originalimage: { source } })
         : ok(searchBody(["Edavela Babu"])),
     );
-    await expect(fetchArtistPortrait("edavela babu")).resolves.toBeNull();
-  });
+    try {
+      assert.equal(await fetchArtistPortrait("edavela babu"), null, source);
+    } finally {
+      restore();
+    }
+  }
+});
 
-  it("rejects non-https images", async () => {
-    mockFetch((url) =>
-      url.includes("/api/rest_v1/")
-        ? ok({ thumbnail: { source: "http://upload.wikimedia.org/x.jpg" } })
-        : ok(searchBody(["Edavela Babu"])),
-    );
-    await expect(fetchArtistPortrait("edavela babu")).resolves.toBeNull();
-  });
+test("portrait lookup ignores articles that do not match the name", async () => {
+  const calls = stub(() => ok(searchBody(["Some Other Person"])));
+  try {
+    assert.equal(await fetchArtistPortrait("edavela babu"), null);
+    assert.equal(calls.length, 1);
+  } finally {
+    restore();
+  }
+});
 
-  it("ignores articles whose title does not contain the name", async () => {
-    const fetchSpy = vi.fn(async () => ok(searchBody(["Some Other Person"])));
-    vi.stubGlobal("fetch", fetchSpy);
-    await expect(fetchArtistPortrait("edavela babu")).resolves.toBeNull();
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+test("portrait lookup fails closed on network and unusable input", async () => {
+  stub(() => {
+    throw new Error("network down");
   });
-
-  it("returns null when the lookup fails", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
-    await expect(fetchArtistPortrait("edavela babu")).resolves.toBeNull();
-  });
-
-  it("does not call the network for an unusable name", async () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
-    await expect(fetchArtistPortrait("a")).resolves.toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
+  try {
+    assert.equal(await fetchArtistPortrait("edavela babu"), null);
+  } finally {
+    restore();
+  }
+  const calls = stub(() => ok({}));
+  try {
+    assert.equal(await fetchArtistPortrait("a"), null);
+    assert.equal(calls.length, 0);
+  } finally {
+    restore();
+  }
 });
