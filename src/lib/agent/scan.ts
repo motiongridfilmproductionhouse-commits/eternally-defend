@@ -26,9 +26,16 @@ export async function executeAssessmentScan(
 ) {
   try {
     await deps.persist({ status: "SCANNING", stage: "Discovering public profiles" });
+    // Display-only public picture, fetched before the search sweep so the public
+    // API is not already rate limited. Never evidence, never affects pricing or gates.
+    if (deps.portrait) {
+      const image = await deps.portrait(artist, AbortSignal.timeout(10000)).catch(() => null);
+      if (image) await deps.persist({ image_url: image });
+    }
     const signal = AbortSignal.timeout(60000);
     const queryName = artist.replace(/["\\]/g, " ");
     const hits: Hit[] = [];
+
     // Broad public-web sweep. Each angle is a normal public search query; the
     // name-match filter below still decides what counts as observed exposure.
     const queries: [string, string][] = [
