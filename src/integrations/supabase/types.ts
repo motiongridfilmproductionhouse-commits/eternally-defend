@@ -120,6 +120,184 @@ export type Database = {
           },
         ]
       }
+      agent_assessment_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          assessment_id: string | null
+          created_at: string
+          id: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          assessment_id?: string | null
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          assessment_id?: string | null
+          created_at?: string
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_assessment_audit_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "agent_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_assessment_handoffs: {
+        Row: {
+          assessment_id: string
+          claimed_at: string | null
+          claimed_by: string | null
+          expires_at: string
+          token_hash: string
+        }
+        Insert: {
+          assessment_id: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          expires_at: string
+          token_hash: string
+        }
+        Update: {
+          assessment_id?: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          expires_at?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_assessment_handoffs_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: true
+            referencedRelation: "agent_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_assessments: {
+        Row: {
+          agent_id: string
+          artist_name: string
+          client_user_id: string | null
+          conversion_status: string
+          created_at: string
+          dedup_key: string
+          discovery: Json | null
+          id: string
+          official_profile_url: string | null
+          policy_snapshot: Json | null
+          pricing: Json | null
+          reason: string | null
+          signals: Json | null
+          stage: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          artist_name: string
+          client_user_id?: string | null
+          conversion_status?: string
+          created_at?: string
+          dedup_key: string
+          discovery?: Json | null
+          id?: string
+          official_profile_url?: string | null
+          policy_snapshot?: Json | null
+          pricing?: Json | null
+          reason?: string | null
+          signals?: Json | null
+          stage?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          artist_name?: string
+          client_user_id?: string | null
+          conversion_status?: string
+          created_at?: string
+          dedup_key?: string
+          discovery?: Json | null
+          id?: string
+          official_profile_url?: string | null
+          policy_snapshot?: Json | null
+          pricing?: Json | null
+          reason?: string | null
+          signals?: Json | null
+          stage?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agent_memberships: {
+        Row: {
+          active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      agent_pricing_policy: {
+        Row: {
+          annual_per_domain: number
+          base_annual: number
+          enabled: boolean
+          hourly_review_rate: number
+          id: boolean
+          minimum_domains: number
+          minimum_pages: number
+          range_margin: number
+          review_minutes_per_page_month: number
+          version: number
+        }
+        Insert: {
+          annual_per_domain?: number
+          base_annual?: number
+          enabled?: boolean
+          hourly_review_rate?: number
+          id?: boolean
+          minimum_domains?: number
+          minimum_pages?: number
+          range_margin?: number
+          review_minutes_per_page_month?: number
+          version?: number
+        }
+        Update: {
+          annual_per_domain?: number
+          base_annual?: number
+          enabled?: boolean
+          hourly_review_rate?: number
+          id?: boolean
+          minimum_domains?: number
+          minimum_pages?: number
+          range_margin?: number
+          review_minutes_per_page_month?: number
+          version?: number
+        }
+        Relationships: []
+      }
       api_usage: {
         Row: {
           cost_usd: number
@@ -10172,6 +10350,18 @@ export type Database = {
           scan_id: string
           scan_run_token: string
         }[]
+      }
+      agent_claim_assessment: {
+        Args: { p_client: string; p_hash: string }
+        Returns: string
+      }
+      agent_create_assessment: {
+        Args: { p_actor: string; p_key: string; p_name: string; p_url: string }
+        Returns: string
+      }
+      agent_update_configuration: {
+        Args: { p_actor: string; p_change: Json }
+        Returns: undefined
       }
       claim_next_enforcement_job: {
         Args: { p_worker_id: string }
