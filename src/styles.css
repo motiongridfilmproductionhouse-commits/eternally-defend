@@ -1602,3 +1602,83 @@
     transition: none !important;
   }
 }
+
+/* Logo micro-interaction: light sweep masked to the wordmark + gentle lift */
+.landing-logo {
+  position: relative;
+  display: inline-flex;
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.4s ease;
+  will-change: transform;
+}
+
+.landing-logo img {
+  display: block;
+}
+
+.landing-logo-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.9) 50%,
+    transparent 65%
+  );
+  background-size: 250% 100%;
+  background-position: 130% 0;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.landing-logo:hover,
+.landing-logo:focus-visible {
+  transform: translateY(-1px) scale(1.02);
+  filter: drop-shadow(0 6px 16px rgba(37, 99, 235, 0.18));
+}
+
+.landing-logo:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: 0.12s;
+}
+
+.landing-logo:hover .landing-logo-shine,
+.landing-logo:focus-visible .landing-logo-shine {
+  opacity: 1;
+  animation: landing-logo-shine 0.9s ease-out;
+}
+
+@keyframes landing-logo-shine {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -130% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-logo {
+    transition: none;
+  }
+
+  .landing-logo:hover,
+  .landing-logo:focus-visible,
+  .landing-logo:active {
+    transform: none;
+    filter: none;
+  }
+
+  .landing-logo:hover .landing-logo-shine,
+  .landing-logo:focus-visible .landing-logo-shine {
+    animation: none;
+    opacity: 0;
+  }
+}
