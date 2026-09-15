@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -93,6 +93,20 @@ function LandingPage() {
   const [muted, setMuted] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const startVideo = () => {
+      video.muted = true;
+      void video.play().catch(() => undefined);
+    };
+
+    startVideo();
+    document.addEventListener("visibilitychange", startVideo);
+    return () => document.removeEventListener("visibilitychange", startVideo);
+  }, []);
+
   const toggleSound = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -105,7 +119,7 @@ function LandingPage() {
     <div className="landing-shell min-h-screen bg-landing text-landing-ink">
       <header className="mx-auto flex h-20 max-w-[1380px] items-center justify-between px-5 md:px-10">
         <Link to="/" className="flex items-center gap-3" aria-label="Eterna Sentinel home">
-          <span className="grid size-8 place-items-center rounded-full bg-landing-accent text-landing-accent-foreground">
+          <span className="landing-accent-fill grid size-8 place-items-center rounded-full text-landing-accent-foreground">
             <ShieldCheck className="size-4" />
           </span>
           <span className="text-[15px] font-semibold">Eterna Sentinel</span>
@@ -185,7 +199,10 @@ function LandingPage() {
       )}
 
       <main>
-        <section className="mx-auto max-w-[1380px] px-4 md:px-8" aria-labelledby="hero-title">
+        <section
+          className="mx-auto max-w-[1380px] px-4 md:px-8"
+          aria-label="Eterna Sentinel identity protection"
+        >
           <div className="landing-hero relative min-h-[600px] overflow-hidden rounded-lg md:min-h-[720px]">
             <video
               ref={videoRef}
@@ -195,25 +212,14 @@ function LandingPage() {
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="auto"
               aria-hidden="true"
             >
               <source src={heroVideoWebm.url} type="video/webm" />
               <source src={heroVideo.url} type="video/mp4" />
             </video>
             <div className="landing-hero-overlay absolute inset-0" />
-            <div className="relative z-10 flex min-h-[600px] flex-col items-center justify-center px-5 pb-28 pt-20 text-center md:min-h-[720px]">
-              <p className="mb-7 text-[11px] font-semibold uppercase text-landing-on-media-muted">
-                Identity protection for the public-facing world
-              </p>
-              <h1
-                id="hero-title"
-                className="max-w-5xl text-balance font-landing-serif text-[clamp(3rem,7vw,7.4rem)] font-medium leading-[0.94] text-landing-on-media"
-              >
-                Your identity,
-                <br />
-                protected with <em className="font-normal">clarity.</em>
-              </h1>
+            <div className="relative z-10 flex min-h-[600px] flex-col items-center justify-end px-5 pb-28 pt-20 text-center md:min-h-[720px]">
               <p className="mt-7 max-w-2xl text-pretty text-sm leading-6 text-landing-on-media-muted md:text-base">
                 Eterna Sentinel helps public figures and organizations discover digital risk,
                 preserve evidence and coordinate responsible action.
@@ -222,7 +228,7 @@ function LandingPage() {
                 <Button
                   asChild
                   size="lg"
-                  className="bg-landing-accent text-landing-accent-foreground hover:bg-landing-accent/90"
+                  className="landing-accent-fill text-landing-accent-foreground hover:brightness-110"
                 >
                   <Link to="/waitinglist" search={{ source: "hero-demo" }}>
                     Book a demo <ArrowRight />
@@ -279,11 +285,11 @@ function LandingPage() {
             <div className="grid gap-10 md:grid-cols-[1.15fr_0.85fr] md:items-end">
               <div>
                 <p className="landing-kicker">The protection layer</p>
-                <h2 className="mt-4 max-w-2xl text-balance text-4xl font-medium leading-[1.02] md:text-6xl">
+                <h1 className="mt-4 max-w-2xl text-balance text-4xl font-medium leading-[1.02] md:text-6xl">
                   A real protection partner,
                   <br />
                   not an alarm <span className="font-landing-serif italic">in disguise.</span>
-                </h2>
+                </h1>
               </div>
               <p className="max-w-md text-pretty text-base leading-7 text-landing-muted md:justify-self-end">
                 Eterna connects verified identity, continuous discovery and a governed response
