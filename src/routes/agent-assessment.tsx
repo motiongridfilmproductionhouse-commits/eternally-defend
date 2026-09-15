@@ -1,15 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { ShieldHalf, ArrowRight, Plus, Check, ArrowLeft } from "lucide-react";
+import { ShieldHalf, ArrowRight, Plus, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   agentAccess,
   createAssessment,
   getAssessment,
-  listAssessments,
   assessmentDecision,
 } from "@/lib/agent/assessment.functions";
 import { isTerminal, formatPrice } from "@/lib/agent/model";
@@ -29,7 +28,6 @@ function AgentAssessment() {
   const accessFn = useServerFn(agentAccess);
   const create = useServerFn(createAssessment);
   const get = useServerFn(getAssessment);
-  const list = useServerFn(listAssessments);
   const decide = useServerFn(assessmentDecision);
   const [id, setId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -62,7 +60,6 @@ function AgentAssessment() {
     try {
       const created = await create({ data: { artist_name: name, official_profile_url: profile } });
       setId(created.id);
-      await recent.refetch();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Unable to start assessment.");
     } finally {
@@ -86,7 +83,6 @@ function AgentAssessment() {
         );
       } else setNotice(value === "SAVED" ? "Assessment saved." : "Client decision saved.");
       await current.refetch();
-      await recent.refetch();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not save assessment.");
     } finally {
