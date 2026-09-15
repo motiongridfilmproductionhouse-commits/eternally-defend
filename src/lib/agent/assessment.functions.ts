@@ -10,8 +10,13 @@ const tokenSchema = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })
 export const agentAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { requireAgent } = await import("./assessment.server");
-    return (await requireAgent(context.userId)).role;
+    // Access is decided with the caller's own RLS-scoped session, so sign-in never
+    // depends on privileged backend credentials being present in the runtime.
+    const { accessWithClient } = await import("./assessment.server");
+    const { assertAgentAccess } = await import("./policy");
+    const role = await accessWithClient(context.supabase, context.userId);
+    assertAgentAccess(context.userId, role.active, role.admin);
+    return role;
   });
 export const createAssessment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
