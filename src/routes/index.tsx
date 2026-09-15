@@ -150,6 +150,33 @@ function LandingPage() {
     return () => document.removeEventListener("visibilitychange", startVideo);
   }, []);
 
+  useEffect(() => {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>("[data-landing-reveal]"));
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      elements.forEach((element) => element.classList.add("is-visible"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "0px 0px -10%", threshold: 0.12 },
+    );
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
+
+  const moveHeroLight = (event: React.PointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty("--hero-pointer-x", `${event.clientX - bounds.left}px`);
+    event.currentTarget.style.setProperty("--hero-pointer-y", `${event.clientY - bounds.top}px`);
+  };
+
   const toggleSound = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -246,10 +273,13 @@ function LandingPage() {
           className="mx-auto max-w-[1380px] px-4 md:px-8"
           aria-label="Eterna Sentinel identity protection"
         >
-          <div className="landing-hero relative min-h-[600px] overflow-hidden rounded-lg md:min-h-[720px]">
+          <div
+            className="landing-hero relative min-h-[600px] overflow-hidden rounded-lg md:min-h-[720px]"
+            onPointerMove={moveHeroLight}
+          >
             <video
               ref={videoRef}
-              className="absolute inset-0 size-full object-cover"
+              className="landing-hero-video absolute inset-0 size-full object-cover"
               poster={newHeroPoster.url}
               autoPlay
               muted
@@ -262,7 +292,8 @@ function LandingPage() {
               <source src={newHeroVideo.url} type="video/mp4" />
             </video>
             <div className="landing-hero-overlay absolute inset-0" />
-            <div className="relative z-10 flex min-h-[600px] flex-col items-center justify-end px-5 pb-28 pt-20 text-center md:min-h-[720px]">
+            <div className="landing-hero-light absolute inset-0 z-[1]" aria-hidden="true" />
+            <div className="landing-hero-content relative z-10 flex min-h-[600px] flex-col items-center justify-end px-5 pb-28 pt-20 text-center md:min-h-[720px]">
               <p className="mt-7 max-w-2xl text-pretty text-sm leading-6 text-landing-on-media-muted md:text-base">
                 Eterna Sentinel helps public figures and organizations discover digital risk,
                 preserve evidence and coordinate responsible action.
@@ -288,7 +319,7 @@ function LandingPage() {
               </div>
             </div>
 
-            <div className="absolute bottom-6 left-6 z-10 hidden items-end gap-12 text-[10px] uppercase text-landing-on-media-muted md:flex">
+            <div className="landing-hero-status absolute bottom-6 left-6 z-10 hidden items-end gap-12 text-[10px] uppercase text-landing-on-media-muted md:flex">
               <div>
                 <span className="mb-2 block opacity-60">Protection status</span>
                 <span className="flex items-center gap-2 text-landing-on-media">
@@ -319,7 +350,7 @@ function LandingPage() {
           aria-label="Protection highlights"
         >
           {protections.map(({ icon: Icon, label, detail }) => (
-            <div key={label} className="bg-landing px-6 py-7">
+            <div key={label} className="landing-highlight bg-landing px-6 py-7">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase text-landing-ink">
                 <Icon className="size-4 text-landing-accent" />
                 {label}
@@ -331,7 +362,7 @@ function LandingPage() {
 
         <section id="platform" className="border-t border-landing-line py-24 md:py-36">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="grid gap-10 md:grid-cols-[1.15fr_0.85fr] md:items-end">
+            <div data-landing-reveal className="grid gap-10 md:grid-cols-[1.15fr_0.85fr] md:items-end">
               <div>
                 <p className="landing-kicker">The protection layer</p>
                 <h1 className="mt-4 max-w-2xl text-balance text-4xl font-medium leading-[1.02] md:text-6xl">
@@ -346,11 +377,11 @@ function LandingPage() {
               </p>
             </div>
 
-            <div className="mt-16 grid gap-px overflow-hidden rounded-lg border border-landing-line bg-landing-line md:grid-cols-4">
+            <div data-landing-reveal className="landing-stagger mt-16 grid gap-px overflow-hidden rounded-lg border border-landing-line bg-landing-line md:grid-cols-4">
               {features.map(({ icon: Icon, number, title, body }, index) => (
                 <article
                   key={title}
-                  className={`min-h-[320px] bg-landing p-7 ${index === 0 ? "md:min-h-[370px]" : ""}`}
+                  className={`landing-feature-card min-h-[320px] bg-landing p-7 ${index === 0 ? "md:min-h-[370px]" : ""}`}
                 >
                   <div className="flex items-start justify-between">
                     <span className="text-xs text-landing-muted">{number}</span>
@@ -370,7 +401,7 @@ function LandingPage() {
 
         <section id="protection" className="bg-landing-soft py-24 md:py-36">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="grid gap-12 md:grid-cols-[0.8fr_1.2fr] md:gap-20">
+            <div data-landing-reveal className="grid gap-12 md:grid-cols-[0.8fr_1.2fr] md:gap-20">
               <div>
                 <p className="landing-kicker">One protected view</p>
                 <h2 className="mt-4 text-4xl font-medium leading-[1.04] md:text-6xl">
@@ -384,7 +415,7 @@ function LandingPage() {
                 </p>
               </div>
 
-              <div className="landing-console overflow-hidden rounded-lg border border-landing-console-line bg-landing-console text-landing-console-foreground">
+              <div className="landing-console landing-console-interactive overflow-hidden rounded-lg border border-landing-console-line bg-landing-console text-landing-console-foreground">
                 <div className="flex items-center justify-between border-b border-landing-console-line px-5 py-4">
                   <div className="flex items-center gap-2 text-xs font-semibold">
                     <span className="size-2 rounded-full bg-landing-accent" />
@@ -435,7 +466,7 @@ function LandingPage() {
               </div>
             </div>
 
-            <div className="mt-16 grid gap-8 border-t border-landing-line pt-10 md:grid-cols-3">
+            <div data-landing-reveal className="landing-stagger mt-16 grid gap-8 border-t border-landing-line pt-10 md:grid-cols-3">
               {[
                 [
                   "Identity misuse",
@@ -461,7 +492,7 @@ function LandingPage() {
 
         <section id="approach" className="py-24 md:py-36">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="text-center">
+            <div data-landing-reveal className="text-center">
               <p className="landing-kicker">Built for careful action</p>
               <h2 className="mx-auto mt-4 max-w-3xl text-balance text-4xl font-medium leading-[1.04] md:text-6xl">
                 Protection that works
@@ -473,7 +504,7 @@ function LandingPage() {
               </p>
             </div>
 
-            <div className="mt-16 grid gap-6 md:grid-cols-3">
+            <div data-landing-reveal className="landing-stagger mt-16 grid gap-6 md:grid-cols-3">
               {[
                 {
                   icon: Mic2,
@@ -491,7 +522,7 @@ function LandingPage() {
                   body: "Give trusted teams a structured way to review findings, preserve context and manage cases.",
                 },
               ].map(({ icon: Icon, title, body }) => (
-                <article key={title} className="rounded-lg border border-landing-line p-7">
+                <article key={title} className="landing-audience-card rounded-lg border border-landing-line p-7">
                   <Icon className="size-5 text-landing-accent" />
                   <h3 className="mt-16 text-xl font-semibold">{title}</h3>
                   <p className="mt-3 text-sm leading-6 text-landing-muted">{body}</p>
@@ -508,7 +539,7 @@ function LandingPage() {
 
         <section id="testimonials" className="border-t border-landing-line py-24 md:py-32">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="text-center">
+            <div data-landing-reveal className="text-center">
               <p className="landing-kicker">Trusted in the public eye</p>
               <h2 className="mx-auto mt-4 max-w-3xl text-balance text-4xl font-medium leading-[1.04] md:text-6xl">
                 Carried by the people
@@ -521,7 +552,7 @@ function LandingPage() {
               </p>
             </div>
 
-            <div className="mt-16 grid gap-6 md:grid-cols-3">
+            <div data-landing-reveal className="landing-stagger mt-16 grid gap-6 md:grid-cols-3">
               {[
                 {
                   icon: Mic2,
@@ -547,7 +578,7 @@ function LandingPage() {
               ].map(({ icon: Icon, quote, role, context }) => (
                 <figure
                   key={role}
-                  className="flex flex-col rounded-lg border border-landing-line p-7"
+                  className="landing-testimonial flex flex-col rounded-lg border border-landing-line p-7"
                 >
                   <Icon className="size-5 text-landing-accent" />
                   <blockquote className="mt-6 flex-1 font-landing-serif text-lg leading-7 text-landing-ink">
@@ -564,7 +595,7 @@ function LandingPage() {
         </section>
 
         <section className="border-y border-landing-line bg-landing-ink py-20 text-landing md:py-28">
-          <div className="mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-[0.9fr_1.1fr] md:items-center">
+          <div data-landing-reveal className="mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-[0.9fr_1.1fr] md:items-center">
             <div>
               <p className="landing-kicker text-landing-accent">Control is part of protection</p>
               <h2 className="mt-4 text-4xl font-medium leading-[1.04] md:text-5xl">
@@ -593,7 +624,7 @@ function LandingPage() {
         </section>
 
         <section id="questions" className="py-24 md:py-32">
-          <div className="mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-[0.75fr_1.25fr]">
+          <div data-landing-reveal className="mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-[0.75fr_1.25fr]">
             <div>
               <p className="landing-kicker">Questions</p>
               <h2 className="mt-4 text-4xl font-medium md:text-5xl">
@@ -635,7 +666,7 @@ function LandingPage() {
         </section>
 
         <section className="mx-auto max-w-[1380px] px-4 pb-4 md:px-8 md:pb-8">
-          <div className="relative min-h-[460px] overflow-hidden rounded-lg">
+          <div data-landing-reveal className="landing-final-cta relative min-h-[460px] overflow-hidden rounded-lg">
             <video
               className="absolute inset-0 size-full object-cover"
               muted
