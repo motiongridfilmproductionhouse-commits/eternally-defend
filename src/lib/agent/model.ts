@@ -20,6 +20,8 @@ export type Assessment = {
   agent_id: string;
   artist_name: string;
   official_profile_url: string | null;
+  /** Public portrait for display only — never evidence, never used for pricing. */
+  image_url: string | null;
   status: AssessmentStatus;
   stage: string;
   signals: Signals | null;

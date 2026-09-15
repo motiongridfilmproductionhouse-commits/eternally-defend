@@ -10,7 +10,7 @@ export const db = supabaseAdmin as SupabaseClient;
 export const hashReference = (raw: string) => createHash("sha256").update(raw).digest("hex");
 export const newReference = () => randomBytes(32).toString("base64url");
 export const publicColumns =
-  "id,agent_id,artist_name,official_profile_url,status,stage,signals,pricing,reason,conversion_status,created_at,updated_at";
+  "id,agent_id,artist_name,official_profile_url,image_url,status,stage,signals,pricing,reason,conversion_status,created_at,updated_at";
 export async function access(userId: string) {
   const [admin, superAdmin, member] = await Promise.all([
     db.rpc("has_role", { _user_id: userId, _role: "admin" }),
