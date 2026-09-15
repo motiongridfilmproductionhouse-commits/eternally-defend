@@ -42,7 +42,7 @@ export const wikipediaProvider: SearchProviderAdapter = {
     url.searchParams.set("action", "query");
     url.searchParams.set("list", "search");
     url.searchParams.set("srsearch", query.replace(/["\\]/g, " ").trim());
-    url.searchParams.set("srlimit", String(Math.min(Math.max(limit, 1), 20)));
+    url.searchParams.set("srlimit", String(Math.min(Math.max(limit, 1), 50)));
     url.searchParams.set("format", "json");
     url.searchParams.set("origin", "*");
 

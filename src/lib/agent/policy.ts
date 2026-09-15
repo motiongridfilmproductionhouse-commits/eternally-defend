@@ -105,3 +105,46 @@ export function assertAgentAccess(
   if (!active && !admin) throw new Error("Agent access is not enabled for this account.");
   if (owner && owner !== userId && !admin) throw new Error("Assessment not found.");
 }
+
+/**
+ * Eterna Elite — a fixed top-tier annual package quoted in USD, with an
+ * indicative INR conversion for the client conversation. It is a package
+ * price, not a computed estimate of this subject's exposure, and it never
+ * affects findings, evidence, verification or enforcement.
+ */
+export const ELITE_PACKAGE = {
+  usd_annual: 20000,
+  /** Indicative conversion rate only; the invoice rate is set at contracting. */
+  inr_per_usd: 88,
+} as const;
+export function elitePackage() {
+  const usd = ELITE_PACKAGE.usd_annual;
+  const inr = Math.round((usd * ELITE_PACKAGE.inr_per_usd) / 1000) * 1000;
+  const fmt = (value: number, currency: "USD" | "INR", locale: string) =>
+    new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(value);
+  return {
+    usd,
+    inr,
+    usd_label: fmt(usd, "USD", "en-US"),
+    inr_label: fmt(inr, "INR", "en-IN"),
+    rate: ELITE_PACKAGE.inr_per_usd,
+  };
+}
+
+/**
+ * Observed exposure level — a presentation-only band derived from how much
+ * public material the scan actually observed. It describes exposure volume,
+ * NOT verified misuse, and never affects pricing, evidence or enforcement.
+ */
+export type ExposureLevel = "HIGH" | "ELEVATED" | "MODERATE" | "LOW";
+export function exposureLevel(signals: { matched_pages: number; domains: number }): ExposureLevel {
+  const { matched_pages: pages, domains } = signals;
+  if (pages >= 25 || domains >= 12) return "HIGH";
+  if (pages >= 10 || domains >= 5) return "ELEVATED";
+  if (pages >= 3) return "MODERATE";
+  return "LOW";
+}

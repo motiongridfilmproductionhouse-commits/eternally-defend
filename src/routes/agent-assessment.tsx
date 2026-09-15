@@ -13,6 +13,7 @@ import {
   assessmentDecision,
 } from "@/lib/agent/assessment.functions";
 import { isTerminal, formatPrice } from "@/lib/agent/model";
+import { elitePackage, exposureLevel } from "@/lib/agent/policy";
 
 export const Route = createFileRoute("/agent-assessment")({
   ssr: false,
@@ -237,60 +238,130 @@ function AgentAssessment() {
                   </section>
                 ) : (
                   <section className={surface}>
-                    <p className="text-xs tracking-[0.18em] text-blue-600">
-                      DIGITAL PROTECTION ASSESSMENT
-                    </p>
-                    <div className="mt-3 flex items-center gap-4">
-                      {a.image_url && (
-                        <img
-                          src={a.image_url}
-                          alt={a.artist_name}
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                          className="size-16 shrink-0 rounded-2xl object-cover"
-                        />
-                      )}
-                      <h2 className="text-3xl font-semibold">{a.artist_name}</h2>
-                    </div>
-                    {a.status === "READY" && a.pricing ? (
-                      <>
-                        <p className="mt-10 text-xs tracking-[0.12em] text-slate-500">
-                          ESTIMATED ETERNA PROTECTION
+                    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+                      <div className="min-w-0">
+                        <p className="text-xs tracking-[0.18em] text-blue-600">
+                          DIGITAL PROTECTION ASSESSMENT
                         </p>
-                        <p className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                          {formatPrice(a.pricing)}
-                        </p>
-                        <p className="mt-5 text-sm leading-6 text-slate-500">
-                          Estimated from the observed public-web sample and anticipated monitoring
-                          and review workload. This is an estimate, subject to Eterna review.
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <h3 className="mt-8 text-xl font-medium">
-                          {a.status === "FAILED"
-                            ? "Scan temporarily unavailable."
-                            : "Assessment requires Eterna review."}
-                        </h3>
-                        <p className="mt-3 text-sm leading-6 text-slate-500">{a.reason}</p>
-                      </>
-                    )}
-                    {a.signals && (
-                      <div className="mt-8 grid grid-cols-2 gap-4">
-                        <div className="rounded-2xl bg-slate-50 p-5">
-                          <p className="text-xs text-slate-500">Name-matched pages</p>
-                          <p className="mt-2 text-2xl">{a.signals.matched_pages}</p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-5">
-                          <p className="text-xs text-slate-500">Observed domains</p>
-                          <p className="mt-2 text-2xl">{a.signals.domains}</p>
-                        </div>
-                        <p className="col-span-2 text-xs leading-5 text-slate-400">
-                          {a.signals.scope} Identity misuse and AI misuse assessments are
-                          unavailable in this quick scan.
+                        <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+                          {a.artist_name}
+                        </h2>
+                        {a.signals && (
+                          <>
+                            <div className="mt-7 flex items-center gap-3">
+                              <span
+                                className={
+                                  "rounded-full px-3 py-1 text-xs font-semibold tracking-[0.12em] " +
+                                  (exposureLevel(a.signals) === "HIGH"
+                                    ? "bg-red-50 text-red-700"
+                                    : exposureLevel(a.signals) === "ELEVATED"
+                                      ? "bg-amber-50 text-amber-700"
+                                      : exposureLevel(a.signals) === "MODERATE"
+                                        ? "bg-blue-50 text-blue-700"
+                                        : "bg-slate-100 text-slate-600")
+                                }
+                              >
+                                {exposureLevel(a.signals)} EXPOSURE
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                Observed volume, not verified misuse
+                              </span>
+                            </div>
+                            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                              <div className="rounded-2xl bg-slate-50 p-5">
+                                <p className="text-xs text-slate-500">Name-matched pages</p>
+                                <p className="mt-2 text-3xl font-semibold tracking-tight">
+                                  {a.signals.matched_pages}
+                                </p>
+                              </div>
+                              <div className="rounded-2xl bg-slate-50 p-5">
+                                <p className="text-xs text-slate-500">Observed domains</p>
+                                <p className="mt-2 text-3xl font-semibold tracking-tight">
+                                  {a.signals.domains}
+                                </p>
+                              </div>
+                              <div className="rounded-2xl bg-slate-50 p-5">
+                                <p className="text-xs text-slate-500">Official profile</p>
+                                <p className="mt-2 text-xl font-semibold">
+                                  {a.signals.official_profile_found ? "Resolved" : "Not resolved"}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="mt-4 text-xs leading-5 text-slate-400">
+                              {a.signals.scope} Identity misuse and AI misuse assessments are
+                              unavailable in this quick scan.
+                            </p>
+                          </>
+                        )}
+                        {a.status === "READY" && a.pricing ? (
+                          <>
+                            <p className="mt-9 text-xs tracking-[0.12em] text-slate-500">
+                              ESTIMATED ETERNA PROTECTION
+                            </p>
+                            <p className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+                              {formatPrice(a.pricing)}
+                            </p>
+                            <p className="mt-4 text-sm leading-6 text-slate-500">
+                              Estimated from the observed public-web sample and anticipated
+                              monitoring and review workload. This is an estimate, subject to Eterna
+                              review.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <h3 className="mt-8 text-xl font-medium">
+                              {a.status === "FAILED"
+                                ? "Scan temporarily unavailable."
+                                : "Assessment requires Eterna review."}
+                            </h3>
+                            <p className="mt-3 text-sm leading-6 text-slate-500">{a.reason}</p>
+                          </>
+                        )}
+                        {(a.status === "READY" || a.status === "REVIEW_REQUIRED") &&
+                          (() => {
+                            const elite = elitePackage();
+                            return (
+                              <div className="mt-8 rounded-2xl border border-blue-100 bg-blue-50/60 p-6">
+                                <p className="text-xs tracking-[0.14em] text-blue-700">
+                                  RECOMMENDED — ETERNA ELITE
+                                </p>
+                                <p className="mt-3 text-2xl font-semibold tracking-tight">
+                                  {elite.usd_label} / year
+                                </p>
+                                <p className="mt-1 text-sm text-slate-600">
+                                  ≈ {elite.inr_label} / year (indicative at ₹{elite.rate} per US$1)
+                                </p>
+                                <p className="mt-4 text-sm leading-6 text-slate-500">
+                                  Full-scope protection for high-exposure public figures: continuous
+                                  monitoring across the public web and social platforms,
+                                  impersonation and deepfake detection, evidence preservation, and
+                                  managed removal handling by the Eterna team. Fixed package price —
+                                  final rate and scope are confirmed at contracting.
+                                </p>
+                              </div>
+                            );
+                          })()}
+                      </div>
+                      <div className="lg:sticky lg:top-6">
+                        {a.image_url ? (
+                          <img
+                            src={a.image_url}
+                            alt={a.artist_name}
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            className="aspect-[4/5] w-full rounded-3xl object-cover shadow-sm"
+                          />
+                        ) : (
+                          <div className="grid aspect-[4/5] w-full place-items-center rounded-3xl bg-gradient-to-br from-blue-100 via-slate-100 to-violet-100 text-6xl font-semibold text-slate-400">
+                            {a.artist_name.trim().charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <p className="mt-3 text-center text-xs text-slate-400">
+                          Public reference image
                         </p>
                       </div>
-                    )}
+                    </div>
+
                     {a.status === "READY" ? (
                       <div className="mt-9 space-y-3 border-t border-slate-100 pt-7">
                         <p className="mb-4 text-sm">

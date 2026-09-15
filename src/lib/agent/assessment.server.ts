@@ -74,7 +74,7 @@ export async function runAssessment(id: string) {
     only: ["brave", "google", "serpapi", "firecrawl", "wikipedia"],
   });
   await executeAssessmentScan(row.artist_name, row.official_profile_url, {
-    search: (query, signal) => router.search(query, 15, { signal }),
+    search: (query, signal) => router.search(query, 50, { signal }),
     successfulQueries: () =>
       router.report().providers.reduce((sum, p) => sum + p.queriesSuccessful, 0),
     portrait: (name, signal) => fetchArtistPortrait(name, signal),
