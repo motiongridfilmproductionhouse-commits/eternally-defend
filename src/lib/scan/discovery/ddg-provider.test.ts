@@ -33,7 +33,7 @@ test("parses public result links, titles and snippets", () => {
 test("honours the result limit and drops search-engine self links", () => {
   assert.equal(parseDdgResults(page, 1).length, 1);
   assert.equal(
-    parseDdgResults(page, 50).some((h) => h.url.includes("duckduckgo.com")),
+    parseDdgResults(page, 50).some((h) => (h.url ?? "").includes("duckduckgo.com")),
     false,
   );
 });
