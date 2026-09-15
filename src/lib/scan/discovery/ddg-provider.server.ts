@@ -107,23 +107,30 @@ export const ddgHtmlProvider: SearchProviderAdapter = {
 
     let status = 0;
     let text = "";
-    try {
-      const res = await fetchJsonWithTimeout(
-        url.toString(),
-        {
-          method: "GET",
-          headers: { accept: "text/html", "user-agent": USER_AGENT },
-        },
-        TIMEOUT_MS,
-        signal,
-      );
-      status = res.status;
-      text = res.text;
-    } catch (e) {
-      throw new ProviderError(
-        classifyThrownFailure(e),
-        e instanceof Error ? e.message.slice(0, 200) : "Public web request failed",
-      );
+    // The public endpoint intermittently answers 202/429 under load; one short
+    // backoff retry keeps discovery from losing an angle for a transient throttle.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 900));
+      try {
+        const res = await fetchJsonWithTimeout(
+          url.toString(),
+          {
+            method: "GET",
+            headers: { accept: "text/html", "user-agent": USER_AGENT },
+          },
+          TIMEOUT_MS,
+          signal,
+        );
+        status = res.status;
+        text = res.text;
+      } catch (e) {
+        throw new ProviderError(
+          classifyThrownFailure(e),
+          e instanceof Error ? e.message.slice(0, 200) : "Public web request failed",
+        );
+      }
+      if (status === 200) break;
+      if (status !== 202 && status !== 429) break;
     }
 
     if (status !== 200) {
