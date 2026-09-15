@@ -15,7 +15,6 @@ import {
   Radar,
   ScanFace,
   ShieldCheck,
-  Sparkles,
   UserCheck,
   Users,
   Volume2,
