@@ -444,55 +444,12 @@ function AgentAssessment() {
               </p>
             )}
             <section className="mt-12">
-              <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-lg font-medium">Recent assessments</h2>
-                <button
-                  onClick={reset}
-                  className="flex min-h-11 items-center gap-2 text-sm text-blue-600"
-                >
-                  <Plus className="size-4" /> New
-                </button>
-              </div>
-              {recent.error ? (
-                <p role="alert">Could not load history.</p>
-              ) : recent.isLoading ? (
-                <p>Loading history…</p>
-              ) : !recent.data?.length ? (
-                <p className="text-sm text-slate-400">Your assessments will appear here.</p>
-              ) : (
-                <div className="space-y-3">
-                  {recent.data.map((row) => (
-                    <button
-                      key={row.id}
-                      onClick={() => {
-                        setId(row.id);
-                        setHandoff(null);
-                        setQr(null);
-                        setNotice("");
-                        if (row.status === "READY")
-                          void decide({ data: { id: row.id, decision: "VIEWED" } }).catch(() => {});
-                      }}
-                      className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white p-5 text-left transition hover:border-blue-200"
-                    >
-                      <div>
-                        <p className="font-medium">{row.artist_name}</p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {new Date(row.created_at).toLocaleDateString()} ·{" "}
-                          {row.conversion_status.replaceAll("_", " ").toLowerCase()}
-                        </p>
-                      </div>
-                      <div className="text-right text-sm text-slate-500">
-                        {row.pricing
-                          ? formatPrice(row.pricing)
-                          : row.status.replaceAll("_", " ").toLowerCase()}
-                        {row.status === "READY" && (
-                          <Check className="ml-2 inline size-4 text-blue-500" />
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <button
+                onClick={reset}
+                className="flex min-h-11 items-center gap-2 text-sm text-blue-600"
+              >
+                <Plus className="size-4" /> New assessment
+              </button>
             </section>
           </>
         )}
