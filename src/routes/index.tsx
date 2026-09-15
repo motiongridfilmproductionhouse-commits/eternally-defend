@@ -3,8 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowRight,
-  BadgeCheck,
-  Building2,
   Check,
   Copyright,
   Eye,
