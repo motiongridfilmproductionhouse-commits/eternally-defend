@@ -12,7 +12,8 @@ export type ProviderId =
   | "google"
   | "gemini_grounding"
   | "hikerapi"
-  | "wikipedia";
+  | "wikipedia"
+  | "ddg_html";
 
 export type ProviderState =
   | "HEALTHY"
