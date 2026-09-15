@@ -2,7 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { agentAdminData, updateAgentAdmin } from "@/lib/agent/assessment.functions";
+import {
+  agentAdminData,
+  updateAgentAdmin,
+  createAgentAccount,
+} from "@/lib/agent/assessment.functions";
 import type { PricingPolicy } from "@/lib/agent/policy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +22,9 @@ const fields = [
 ] as const;
 function AgentAdmin() {
   const get = useServerFn(agentAdminData);
+  const createAgent = useServerFn(createAgentAccount);
+  const [agentEmail, setAgentEmail] = useState("");
+  const [agentPassword, setAgentPassword] = useState("");
   const update = useServerFn(updateAgentAdmin);
   const q = useQuery({ queryKey: ["agent-admin"], queryFn: () => get(), retry: false });
   const [policy, setPolicy] = useState<PricingPolicy | null>(null);
@@ -59,7 +66,59 @@ function AgentAdmin() {
         ) : (
           <>
             <section className="mb-8 rounded-[28px] border border-slate-200 bg-white p-7">
-              <h2 className="mb-4 text-xl font-medium">Agent access</h2>
+              <h2 className="mb-4 text-xl font-medium">Create agent account</h2>
+              <p className="mb-5 text-sm text-slate-500">
+                Set an email username and password. Agents sign in directly without an invitation
+                code.
+              </p>
+              <form
+                className="mb-8 space-y-3"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setBusy(true);
+                  setNotice("");
+                  try {
+                    const result = await createAgent({
+                      data: { email: agentEmail, password: agentPassword },
+                    });
+                    setAgentPassword("");
+                    setNotice(
+                      result.enabled
+                        ? "Agent account created. Sign in using the email and password."
+                        : `Account created, but agent access could not be enabled. Enable this user ID below: ${result.id}`,
+                    );
+                    await q.refetch();
+                  } catch (e) {
+                    setNotice(e instanceof Error ? e.message : "Could not create agent.");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Input
+                  type="email"
+                  autoComplete="off"
+                  aria-label="Agent username (email)"
+                  placeholder="Agent username (email)"
+                  required
+                  maxLength={254}
+                  value={agentEmail}
+                  onChange={(e) => setAgentEmail(e.target.value)}
+                />
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  aria-label="Agent password"
+                  placeholder="Agent password"
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  value={agentPassword}
+                  onChange={(e) => setAgentPassword(e.target.value)}
+                />
+                <Button disabled={busy}>Create agent</Button>
+              </form>
+              <h2 className="mb-4 text-xl font-medium">Existing account access</h2>
               <p className="mb-5 text-sm text-slate-500">
                 Enable an existing Eterna account using its user ID. This does not change its login
                 or create an account.
