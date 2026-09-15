@@ -97,7 +97,8 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) return;
+      if (!data.session || redirected.current) return;
+      redirected.current = true;
       if (agentMode) {
         try {
           await checkAgent();
