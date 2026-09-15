@@ -20,6 +20,12 @@ const normalize = (value: string) =>
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 
+function titleMatchesName(title: string, wanted: string): boolean {
+  const titleTokens = new Set(normalize(title).split(" ").filter(Boolean));
+  const wantedTokens = normalize(wanted).split(" ").filter(Boolean);
+  return wantedTokens.length > 0 && wantedTokens.every((token) => titleTokens.has(token));
+}
+
 function safeImage(raw: unknown): string | null {
   if (typeof raw !== "string" || !raw.trim()) return null;
   try {
@@ -97,7 +103,7 @@ export async function fetchArtistPortrait(
   const pages = Object.values(found?.query?.pages ?? {});
   for (const page of pages) {
     const title = typeof page.title === "string" ? page.title : "";
-    if (!title || !normalize(title).includes(wanted)) continue;
+    if (!title || !titleMatchesName(title, wanted)) continue;
     const image = safeImage(page.original?.source) ?? safeImage(page.thumbnail?.source);
     if (image) return image;
   }
@@ -105,7 +111,7 @@ export async function fetchArtistPortrait(
   // Fallback: REST summary for the best-matching title.
   for (const page of pages) {
     const title = typeof page.title === "string" ? page.title : "";
-    if (!title || !normalize(title).includes(wanted)) continue;
+    if (!title || !titleMatchesName(title, wanted)) continue;
     const summary = (await getJson(
       SUMMARY + encodeURIComponent(title.replace(/ /g, "_")),
       signal,
