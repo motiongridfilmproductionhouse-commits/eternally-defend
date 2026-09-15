@@ -240,7 +240,18 @@ function AgentAssessment() {
                     <p className="text-xs tracking-[0.18em] text-blue-600">
                       DIGITAL PROTECTION ASSESSMENT
                     </p>
-                    <h2 className="mt-3 text-3xl font-semibold">{a.artist_name}</h2>
+                    <div className="mt-3 flex items-center gap-4">
+                      {a.image_url && (
+                        <img
+                          src={a.image_url}
+                          alt={a.artist_name}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          className="size-16 shrink-0 rounded-2xl object-cover"
+                        />
+                      )}
+                      <h2 className="text-3xl font-semibold">{a.artist_name}</h2>
+                    </div>
                     {a.status === "READY" && a.pricing ? (
                       <>
                         <p className="mt-10 text-xs tracking-[0.12em] text-slate-500">
