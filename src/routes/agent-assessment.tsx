@@ -39,11 +39,6 @@ function AgentAssessment() {
   const [handoff, setHandoff] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const access = useQuery({ queryKey: ["agent-access"], queryFn: () => accessFn(), retry: false });
-  const recent = useQuery({
-    queryKey: ["agent-assessments"],
-    queryFn: () => list(),
-    enabled: !!access.data,
-  });
   const current = useQuery({
     queryKey: ["agent-assessment", id],
     queryFn: () => get({ data: { id: id! } }),
@@ -54,10 +49,6 @@ function AgentAssessment() {
   });
   const a = current.data;
   const status = a?.status;
-  const refreshRecent = recent.refetch;
-  useEffect(() => {
-    if (status && isTerminal(status)) void refreshRecent();
-  }, [status, refreshRecent]);
   const reset = () => {
     setId(null);
     setHandoff(null);
