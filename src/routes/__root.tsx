@@ -111,10 +111,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       // Cache-busted favicon — version param forces browsers to reload immediately after deployment
-      { rel: "icon", href: "/favicon.ico?v=2", type: "image/x-icon" },
-      { rel: "icon", href: "/eterna-icon-32.png?v=2", type: "image/png", sizes: "32x32" },
-      { rel: "icon", href: "/eterna-icon-16.png?v=2", type: "image/png", sizes: "16x16" },
-      { rel: "apple-touch-icon", href: "/eterna-icon-180.png?v=2", sizes: "180x180" },
+      { rel: "icon", href: "/favicon.png?v=3", type: "image/png" },
+      { rel: "icon", href: "/eterna-icon-32.png?v=3", type: "image/png", sizes: "32x32" },
+      { rel: "icon", href: "/eterna-icon-16.png?v=3", type: "image/png", sizes: "16x16" },
+      { rel: "apple-touch-icon", href: "/eterna-icon-180.png?v=3", sizes: "180x180" },
       { rel: "manifest", href: "/site.webmanifest" },
       // Fonts
       { rel: "preconnect", href: "https://fonts.googleapis.com" },

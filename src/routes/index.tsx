@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowRight,
-  BadgeCheck,
   Building2,
   Check,
   Copyright,
@@ -17,7 +16,6 @@ import {
   Radar,
   ScanFace,
   ShieldCheck,
-  Sparkles,
   UserCheck,
   Users,
   Volume2,
@@ -38,6 +36,8 @@ import heroPoster from "@/assets/eterna-hero-poster.jpg.asset.json";
 import newHeroVideo from "@/assets/eterna-hero-new.mp4.asset.json";
 import newHeroVideoWebm from "@/assets/eterna-hero-new.webm.asset.json";
 import newHeroPoster from "@/assets/eterna-hero-new-poster.jpg.asset.json";
+import eternaLogo from "@/assets/eterna-logo.png.asset.json";
+import eternaLogoWhite from "@/assets/eterna-logo-white.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -189,10 +189,13 @@ function LandingPage() {
     <div className="landing-shell min-h-screen bg-landing text-landing-ink">
       <header className="mx-auto flex h-20 max-w-[1380px] items-center justify-between px-5 md:px-10">
         <Link to="/" className="flex items-center gap-3" aria-label="Eterna Sentinel home">
-          <span className="landing-accent-fill grid size-8 place-items-center rounded-full text-landing-accent-foreground">
-            <ShieldCheck className="size-4" />
-          </span>
-          <span className="text-[15px] font-semibold">Eterna Sentinel</span>
+          <img
+            src={eternaLogo.url}
+            alt="Éterna"
+            className="h-4 w-auto md:h-[22px]"
+            width={1712}
+            height={480}
+          />
         </Link>
 
         <nav
@@ -681,7 +684,14 @@ function LandingPage() {
             </video>
             <div className="landing-cta-overlay absolute inset-0" />
             <div className="relative z-10 flex min-h-[460px] flex-col items-center justify-center px-6 text-center text-landing-on-media">
-              <BadgeCheck className="size-7 text-landing-accent" />
+              <img
+                src={eternaLogoWhite.url}
+                alt=""
+                aria-hidden="true"
+                className="h-5 w-auto opacity-90 md:h-7"
+                width={1712}
+                height={480}
+              />
               <h2 className="mt-5 max-w-3xl text-balance font-landing-serif text-5xl font-medium leading-none md:text-7xl">
                 Meet your protection partner.
               </h2>
@@ -716,12 +726,13 @@ function LandingPage() {
 
       <footer className="mx-auto grid max-w-[1380px] gap-10 px-6 py-12 md:grid-cols-[1fr_auto] md:px-10">
         <div>
-          <div className="flex items-center gap-3 text-sm font-semibold">
-            <span className="grid size-7 place-items-center rounded-full bg-landing-accent text-landing-accent-foreground">
-              <Sparkles className="size-3.5" />
-            </span>
-            Eterna Sentinel
-          </div>
+            <img
+              src={eternaLogo.url}
+              alt="Éterna"
+              className="h-4 w-auto md:h-5"
+              width={1712}
+              height={480}
+            />
           <p className="mt-4 max-w-sm text-xs leading-5 text-landing-muted">
             Identity, reputation and content protection with evidence-led human review.
           </p>
