@@ -119,7 +119,7 @@ function AuthPage() {
         .select("onboarding_completed")
         .eq("user_id", data.session.user.id)
         .maybeSingle();
-      navigate({ to: profile?.onboarding_completed ? "/" : "/onboarding" });
+      navigate({ to: profile?.onboarding_completed ? "/dashboard" : "/onboarding" });
     });
   }, [navigate, agentMode, assessmentToken, checkAgent]);
 
@@ -174,7 +174,7 @@ function AuthPage() {
           .select("onboarding_completed")
           .eq("user_id", data.user.id)
           .maybeSingle();
-        navigate({ to: profile?.onboarding_completed ? "/" : "/onboarding" });
+        navigate({ to: profile?.onboarding_completed ? "/dashboard" : "/onboarding" });
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Authentication failed");

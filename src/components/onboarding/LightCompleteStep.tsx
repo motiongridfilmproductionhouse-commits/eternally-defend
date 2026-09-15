@@ -23,7 +23,7 @@ export function LightCompleteStep({ onCompleted }: { onCompleted?: () => Promise
       await finish();
       await onCompleted?.();
       toast.success("Monitoring is active. You can verify later.");
-      navigate({ to: "/" });
+      navigate({ to: "/dashboard" });
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Unable to finish setup");
     } finally {

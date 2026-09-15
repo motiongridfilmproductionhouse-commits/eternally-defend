@@ -20,7 +20,7 @@ export const Route = createFileRoute("/onboarding")({
 
     // Demo bypass: send demo account straight to the dashboard.
     if (DEMO_MODE && DEMO_USER_EMAIL && data.user.email?.toLowerCase() === DEMO_USER_EMAIL) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: "/dashboard" });
     }
 
     const { data: profile } = await supabase
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/onboarding")({
       .eq("user_id", data.user.id)
       .maybeSingle();
     if (profile?.onboarding_completed)
-      throw redirect({ to: "/", search: { onboarding: "complete" } as never });
+      throw redirect({ to: "/dashboard", search: { onboarding: "complete" } as never });
     return { user: data.user };
   },
   component: OnboardingPage,

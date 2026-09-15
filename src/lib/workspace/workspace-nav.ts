@@ -24,7 +24,7 @@ export function workspaceModeFor(accountType: V2AccountType | null): WorkspaceMo
  * advertised to public figures.
  */
 export const CELEBRITY_NAV_ROUTES = [
-  "/",
+  "/dashboard",
   "/scan",
   "/face-protection",
   "/campaigns",
@@ -35,7 +35,7 @@ export const CELEBRITY_NAV_ROUTES = [
 
 /** Celebrity-facing labels for shared routes. */
 export const CELEBRITY_NAV_LABELS: Record<string, string> = {
-  "/": "Home",
+  "/dashboard": "Home",
   "/scan": "Reputation Scanner",
   "/face-protection": "Face Protection",
   "/campaigns": "Copyright & Campaign Protection",
@@ -49,7 +49,6 @@ export const REPRESENTATIVE_EXTRA_ROUTES = ["/assets", "/cases", "/reports"] as 
 
 export function visibleNavRoutes(mode: WorkspaceMode): string[] | null {
   if (mode === "celebrity") return [...CELEBRITY_NAV_ROUTES];
-  if (mode === "representative")
-    return [...CELEBRITY_NAV_ROUTES, ...REPRESENTATIVE_EXTRA_ROUTES];
+  if (mode === "representative") return [...CELEBRITY_NAV_ROUTES, ...REPRESENTATIVE_EXTRA_ROUTES];
   return null; // enterprise: unchanged, show everything
 }

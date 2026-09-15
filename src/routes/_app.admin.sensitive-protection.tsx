@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app/admin/sensitive-protection")({
   beforeLoad: ({ context }) => {
     // Only admins can load this route
     if (!context.isAdmin) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: "/dashboard" });
     }
   },
   component: AdminSensitiveProtection,

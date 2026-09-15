@@ -8,7 +8,7 @@ import { ProtectionInbox } from "@/components/protection/ProtectionInbox";
 import { useVerificationStatus } from "@/hooks/use-verification-status";
 import { workspaceModeFor } from "@/lib/workspace/workspace-nav";
 
-export const Route = createFileRoute("/_app/")({
+export const Route = createFileRoute("/_app/dashboard")({
   component: DashboardPage,
 });
 
