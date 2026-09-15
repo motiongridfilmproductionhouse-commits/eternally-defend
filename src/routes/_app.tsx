@@ -59,7 +59,7 @@ function WorkspaceError({ error, reset }: { error: Error; reset: () => void }) {
             Try again
           </button>
           <a
-            href="/"
+            href="/dashboard"
             className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
           >
             Back to dashboard

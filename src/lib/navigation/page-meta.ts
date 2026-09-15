@@ -11,7 +11,10 @@
 export type PageMeta = { title: string; sub: string };
 
 export const PAGE_META: Record<string, PageMeta> = {
-  "/": { title: "Eterna Command Center", sub: "Mission control for digital reputation protection" },
+  "/dashboard": {
+    title: "Eterna Command Center",
+    sub: "Mission control for digital reputation protection",
+  },
   "/onboarding": {
     title: "Verification & Authorization",
     sub: "Identity, assets and legal authorization",
@@ -71,15 +74,15 @@ export const PAGE_META: Record<string, PageMeta> = {
 };
 
 export function pageMetaFor(pathname: string): PageMeta {
-  if (pathname === "/") return PAGE_META["/"];
+  if (pathname === "/dashboard") return PAGE_META["/dashboard"];
   let best: PageMeta | null = null;
   let bestLen = 0;
   for (const [prefix, meta] of Object.entries(PAGE_META)) {
-    if (prefix === "/") continue;
+    if (prefix === "/dashboard") continue;
     if ((pathname === prefix || pathname.startsWith(`${prefix}/`)) && prefix.length > bestLen) {
       best = meta;
       bestLen = prefix.length;
     }
   }
-  return best ?? PAGE_META["/"];
+  return best ?? PAGE_META["/dashboard"];
 }

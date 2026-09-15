@@ -14,7 +14,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!isAdmin) {
-      navigate({ to: "/" });
+      navigate({ to: "/dashboard" });
     }
   }, [ready, isAdmin, session, navigate]);
 

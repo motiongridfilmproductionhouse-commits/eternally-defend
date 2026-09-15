@@ -22,7 +22,7 @@ export function CompanyCompleteStep({ onCompleted }: { onCompleted?: () => Promi
       await finish({});
       await onCompleted?.();
       toast.success("Company onboarding complete. Monitoring is active.");
-      navigate({ to: "/" });
+      navigate({ to: "/dashboard" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to finish setup");
     } finally {

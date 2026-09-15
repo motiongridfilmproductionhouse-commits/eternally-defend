@@ -106,7 +106,6 @@ export function OnboardingCompleteStep({
       toast.error(e instanceof Error ? e.message : "We couldn't build your protection bundle.");
     } finally {
       setBusy(null);
-
     }
   };
 
@@ -265,7 +264,7 @@ export function OnboardingCompleteStep({
                 try {
                   if (isV2) await completeV2();
                   else await completeV1();
-                  navigate({ to: "/" });
+                  navigate({ to: "/dashboard" });
                 } catch (e: unknown) {
                   toast.error(e instanceof Error ? e.message : "Failed to complete onboarding");
                 }
@@ -311,7 +310,10 @@ export function OnboardingCompleteStep({
               <ShieldCheck className="size-4 mr-2" /> Public Registry
             </Button>
             <Link to="/assets">
-              <Button variant="outline" className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white">
+              <Button
+                variant="outline"
+                className="bg-slate-950/60 border-sky-500/30 text-sky-100 hover:bg-sky-950/40 hover:text-white"
+              >
                 <Settings className="size-4 mr-2" /> Manage Assets
               </Button>
             </Link>

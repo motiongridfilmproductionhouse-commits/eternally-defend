@@ -59,7 +59,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 type NavItem = { icon: typeof LayoutDashboard; label: string; to: string; badge?: string };
 
 const mainNav: NavItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", to: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
   { icon: ShieldCheck, label: "Verification & Auth", to: "/onboarding" },
   { icon: Package, label: "Verified Assets", to: "/assets" },
   { icon: Search, label: "Web Scan", to: "/scan", badge: "LIVE" },
@@ -157,7 +157,7 @@ export function Sidebar() {
         className={`${widthClass} shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col p-3 gap-3 text-sidebar-foreground transition-[width] duration-200`}
       >
         <div className="flex items-center gap-2 px-1 pt-1 pb-1">
-          <Link to="/" className="flex items-center gap-3 min-w-0 flex-1">
+          <Link to="/dashboard" className="flex items-center gap-3 min-w-0 flex-1">
             <div
               className="size-10 shrink-0 rounded-xl grid place-items-center text-white"
               style={{ background: "var(--gradient-brand)", boxShadow: "var(--shadow-glow)" }}

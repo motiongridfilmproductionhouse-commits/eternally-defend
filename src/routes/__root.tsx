@@ -88,7 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
       },
-      { name: "theme-color", content: "#6B21A8" },
+      { name: "theme-color", content: "#f7f6f1" },
       { name: "application-name", content: "Eterna Sentinel" },
       // Open Graph
       { property: "og:site_name", content: "Eterna Sentinel" },
@@ -99,7 +99,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: "/eterna-icon-512.png" },
       // Twitter / X
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Eterna Sentinel — Digital Protection" },
@@ -108,7 +107,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
       },
-      { name: "twitter:image", content: "/eterna-icon-512.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -123,7 +121,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,500;1,500&display=swap",
       },
     ],
   }),

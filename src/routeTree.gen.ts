@@ -20,7 +20,7 @@ import { Route as AgentAdminRouteImport } from './routes/agent-admin'
 import { Route as AgentRouteImport } from './routes/agent'
 import { Route as PartnerRouteImport } from './routes/_partner'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
 import { Route as FaceHandoffTokenRouteImport } from './routes/face-handoff.$token'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
@@ -40,6 +40,7 @@ import { Route as AppFaceProtectionRouteImport } from './routes/_app.face-protec
 import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vault'
 import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
 import { Route as AppDeepfakeIntelRouteImport } from './routes/_app.deepfake-intel'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCopyrightIntelRouteImport } from './routes/_app.copyright-intel'
 import { Route as AppChannelWatchRouteImport } from './routes/_app.channel-watch'
 import { Route as AppCasesRouteImport } from './routes/_app.cases'
@@ -144,10 +145,10 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppIndexRoute = AppIndexRouteImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 const VerifySlugRoute = VerifySlugRouteImport.update({
   id: '/verify/$slug',
@@ -243,6 +244,11 @@ const AppEnforcementRoute = AppEnforcementRouteImport.update({
 const AppDeepfakeIntelRoute = AppDeepfakeIntelRouteImport.update({
   id: '/deepfake-intel',
   path: '/deepfake-intel',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCopyrightIntelRoute = AppCopyrightIntelRouteImport.update({
@@ -527,7 +533,7 @@ const AppSensitiveProtectionResultsIdRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AppIndexRoute
+  '/': typeof IndexRoute
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
@@ -542,6 +548,7 @@ export interface FileRoutesByFullPath {
   '/cases': typeof AppCasesRoute
   '/channel-watch': typeof AppChannelWatchRoute
   '/copyright-intel': typeof AppCopyrightIntelRoute
+  '/dashboard': typeof AppDashboardRoute
   '/deepfake-intel': typeof AppDeepfakeIntelRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
@@ -608,7 +615,7 @@ export interface FileRoutesByFullPath {
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof AppIndexRoute
+  '/': typeof IndexRoute
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
@@ -623,6 +630,7 @@ export interface FileRoutesByTo {
   '/cases': typeof AppCasesRoute
   '/channel-watch': typeof AppChannelWatchRoute
   '/copyright-intel': typeof AppCopyrightIntelRoute
+  '/dashboard': typeof AppDashboardRoute
   '/deepfake-intel': typeof AppDeepfakeIntelRoute
   '/enforcement': typeof AppEnforcementRoute
   '/evidence-vault': typeof AppEvidenceVaultRoute
@@ -689,6 +697,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_partner': typeof PartnerRouteWithChildren
   '/agent': typeof AgentRoute
@@ -705,6 +714,7 @@ export interface FileRoutesById {
   '/_app/cases': typeof AppCasesRoute
   '/_app/channel-watch': typeof AppChannelWatchRoute
   '/_app/copyright-intel': typeof AppCopyrightIntelRoute
+  '/_app/dashboard': typeof AppDashboardRoute
   '/_app/deepfake-intel': typeof AppDeepfakeIntelRoute
   '/_app/enforcement': typeof AppEnforcementRoute
   '/_app/evidence-vault': typeof AppEvidenceVaultRoute
@@ -724,7 +734,6 @@ export interface FileRoutesById {
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/verify/$slug': typeof VerifySlugRoute
-  '/_app/': typeof AppIndexRoute
   '/_app/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/_app/admin/identity-review': typeof AppAdminIdentityReviewRoute
@@ -789,6 +798,7 @@ export interface FileRouteTypes {
     | '/cases'
     | '/channel-watch'
     | '/copyright-intel'
+    | '/dashboard'
     | '/deepfake-intel'
     | '/enforcement'
     | '/evidence-vault'
@@ -870,6 +880,7 @@ export interface FileRouteTypes {
     | '/cases'
     | '/channel-watch'
     | '/copyright-intel'
+    | '/dashboard'
     | '/deepfake-intel'
     | '/enforcement'
     | '/evidence-vault'
@@ -935,6 +946,7 @@ export interface FileRouteTypes {
     | '/sensitive-protection/results'
   id:
     | '__root__'
+    | '/'
     | '/_app'
     | '/_partner'
     | '/agent'
@@ -951,6 +963,7 @@ export interface FileRouteTypes {
     | '/_app/cases'
     | '/_app/channel-watch'
     | '/_app/copyright-intel'
+    | '/_app/dashboard'
     | '/_app/deepfake-intel'
     | '/_app/enforcement'
     | '/_app/evidence-vault'
@@ -970,7 +983,6 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/face-handoff/$token'
     | '/verify/$slug'
-    | '/_app/'
     | '/_app/admin/approved-sources-review'
     | '/_app/admin/diagnostics'
     | '/_app/admin/identity-review'
@@ -1019,6 +1031,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   PartnerRoute: typeof PartnerRouteWithChildren
   AgentRoute: typeof AgentRoute
@@ -1136,12 +1149,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/': {
-      id: '/_app/'
+    '/': {
+      id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/verify/$slug': {
       id: '/verify/$slug'
@@ -1274,6 +1287,13 @@ declare module '@tanstack/react-router' {
       path: '/deepfake-intel'
       fullPath: '/deepfake-intel'
       preLoaderRoute: typeof AppDeepfakeIntelRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/copyright-intel': {
@@ -1647,6 +1667,7 @@ interface AppRouteChildren {
   AppCasesRoute: typeof AppCasesRoute
   AppChannelWatchRoute: typeof AppChannelWatchRoute
   AppCopyrightIntelRoute: typeof AppCopyrightIntelRoute
+  AppDashboardRoute: typeof AppDashboardRoute
   AppDeepfakeIntelRoute: typeof AppDeepfakeIntelRoute
   AppEnforcementRoute: typeof AppEnforcementRoute
   AppEvidenceVaultRoute: typeof AppEvidenceVaultRoute
@@ -1662,7 +1683,6 @@ interface AppRouteChildren {
   AppThreatMonitoringRoute: typeof AppThreatMonitoringRoute
   AppThreatRadarRoute: typeof AppThreatRadarRoute
   AppYoutubeRemovalRoute: typeof AppYoutubeRemovalRoute
-  AppIndexRoute: typeof AppIndexRoute
   AppAdminApprovedSourcesReviewRoute: typeof AppAdminApprovedSourcesReviewRoute
   AppAdminDiagnosticsRoute: typeof AppAdminDiagnosticsRoute
   AppAdminIdentityReviewRoute: typeof AppAdminIdentityReviewRoute
@@ -1687,6 +1707,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCasesRoute: AppCasesRoute,
   AppChannelWatchRoute: AppChannelWatchRoute,
   AppCopyrightIntelRoute: AppCopyrightIntelRoute,
+  AppDashboardRoute: AppDashboardRoute,
   AppDeepfakeIntelRoute: AppDeepfakeIntelRoute,
   AppEnforcementRoute: AppEnforcementRoute,
   AppEvidenceVaultRoute: AppEvidenceVaultRoute,
@@ -1702,7 +1723,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppThreatMonitoringRoute: AppThreatMonitoringRoute,
   AppThreatRadarRoute: AppThreatRadarRoute,
   AppYoutubeRemovalRoute: AppYoutubeRemovalRoute,
-  AppIndexRoute: AppIndexRoute,
   AppAdminApprovedSourcesReviewRoute: AppAdminApprovedSourcesReviewRoute,
   AppAdminDiagnosticsRoute: AppAdminDiagnosticsRoute,
   AppAdminIdentityReviewRoute: AppAdminIdentityReviewRoute,
@@ -1759,6 +1779,7 @@ const PartnerRouteWithChildren =
   PartnerRoute._addFileChildren(PartnerRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   PartnerRoute: PartnerRouteWithChildren,
   AgentRoute: AgentRoute,
