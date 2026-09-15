@@ -20,9 +20,23 @@ const normalize = (value: string) =>
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 
+const ROLE_QUALIFIERS = new Set([
+  "actor",
+  "actress",
+  "artist",
+  "celebrity",
+  "director",
+  "filmmaker",
+  "musician",
+  "producer",
+  "singer",
+]);
+
 function titleMatchesName(title: string, wanted: string): boolean {
   const titleTokens = new Set(normalize(title).split(" ").filter(Boolean));
-  const wantedTokens = normalize(wanted).split(" ").filter(Boolean);
+  const allWantedTokens = normalize(wanted).split(" ").filter(Boolean);
+  const identityTokens = allWantedTokens.filter((token) => !ROLE_QUALIFIERS.has(token));
+  const wantedTokens = identityTokens.length > 0 ? identityTokens : allWantedTokens;
   return wantedTokens.length > 0 && wantedTokens.every((token) => titleTokens.has(token));
 }
 

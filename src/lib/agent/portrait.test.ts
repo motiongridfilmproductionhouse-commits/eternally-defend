@@ -58,7 +58,7 @@ test("matches the same name when Wikipedia reverses a role qualifier", async () 
   stub(() =>
     ok(
       searchBody(
-        ["Dileep (actor)"],
+        ["Dileep"],
         "https://upload.wikimedia.org/wikipedia/commons/a/b/dileep.jpg",
       ),
     ),
