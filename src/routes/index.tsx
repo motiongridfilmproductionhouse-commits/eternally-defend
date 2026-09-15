@@ -29,6 +29,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import heroVideo from "@/assets/eterna-hero.mp4.asset.json";
+import heroVideoWebm from "@/assets/eterna-hero.webm.asset.json";
 import heroPoster from "@/assets/eterna-hero-poster.jpg.asset.json";
 
 export const Route = createFileRoute("/")({
@@ -189,7 +190,6 @@ function LandingPage() {
             <video
               ref={videoRef}
               className="absolute inset-0 size-full object-cover"
-              src={heroVideo.url}
               poster={heroPoster.url}
               autoPlay
               muted
@@ -197,7 +197,10 @@ function LandingPage() {
               playsInline
               preload="metadata"
               aria-hidden="true"
-            />
+            >
+              <source src={heroVideoWebm.url} type="video/webm" />
+              <source src={heroVideo.url} type="video/mp4" />
+            </video>
             <div className="landing-hero-overlay absolute inset-0" />
             <div className="relative z-10 flex min-h-[600px] flex-col items-center justify-center px-5 pb-28 pt-20 text-center md:min-h-[720px]">
               <p className="mb-7 text-[11px] font-semibold uppercase text-landing-on-media-muted">
@@ -523,14 +526,16 @@ function LandingPage() {
           <div className="relative min-h-[460px] overflow-hidden rounded-lg">
             <video
               className="absolute inset-0 size-full object-cover"
-              src={heroVideo.url}
               muted
               loop
               autoPlay
               playsInline
               preload="none"
               aria-hidden="true"
-            />
+            >
+              <source src={heroVideoWebm.url} type="video/webm" />
+              <source src={heroVideo.url} type="video/mp4" />
+            </video>
             <div className="landing-cta-overlay absolute inset-0" />
             <div className="relative z-10 flex min-h-[460px] flex-col items-center justify-center px-6 text-center text-landing-on-media">
               <BadgeCheck className="size-7 text-landing-accent" />
