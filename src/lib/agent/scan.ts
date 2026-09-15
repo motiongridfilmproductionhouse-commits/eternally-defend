@@ -73,17 +73,7 @@ export async function executeAssessmentScan(
       throw new NoProvidersError("No discovery provider answered");
 
     await deps.persist({ status: "ANALYZING", stage: "Analyzing observed web exposure" });
-    // Display-only public picture. Never evidence, never affects pricing or gates.
-    if (deps.portrait) {
-      // Own short deadline: a long discovery sweep must not consume the picture lookup.
-      const image = await deps.portrait(artist, AbortSignal.timeout(10000)).catch((e) => {
-        console.error("[agent:portrait] failed", e);
-        return null;
-      });
-      console.log("[agent:portrait] result", artist, image);
-      if (image) await deps.persist({ image_url: image });
 
-    }
 
     const normalize = (s: string) =>
       s
