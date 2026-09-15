@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { verifyInviteCode, signUpWithInvite } from "@/lib/invites/invites.functions";
@@ -32,7 +32,12 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const agentMode = new URLSearchParams(window.location.search).get("agent") === "1";
+  // Captured once: recomputing during a navigation transition would flip this to false
+  // and bounce an agent to the client onboarding route.
+  const [agentMode] = useState(
+    () => new URLSearchParams(window.location.search).get("agent") === "1",
+  );
+  const redirected = useRef(false);
   const [assessmentToken] = useState(() => {
     const token = new URLSearchParams(window.location.search).get("assessment");
     if (token && /^[A-Za-z0-9_-]{43}$/.test(token))
@@ -92,7 +97,8 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) return;
+      if (!data.session || redirected.current) return;
+      redirected.current = true;
       if (agentMode) {
         try {
           await checkAgent();
@@ -158,6 +164,7 @@ function AuthPage() {
         if (error) throw error;
         if (agentMode) {
           await checkAgent();
+          redirected.current = true;
           navigate({ to: "/agent" });
           return;
         }
