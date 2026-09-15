@@ -54,6 +54,25 @@ test("returns a Wikimedia image for a name-matched article", async () => {
   }
 });
 
+test("matches the same name when Wikipedia reverses a role qualifier", async () => {
+  stub(() =>
+    ok(
+      searchBody(
+        ["Dileep"],
+        "https://upload.wikimedia.org/wikipedia/commons/a/b/dileep.jpg",
+      ),
+    ),
+  );
+  try {
+    assert.equal(
+      await fetchArtistPortrait("actor dileep"),
+      "https://upload.wikimedia.org/wikipedia/commons/a/b/dileep.jpg",
+    );
+  } finally {
+    restore();
+  }
+});
+
 test("portrait lookup rejects unsafe or off-host images", async () => {
   for (const source of [
     "https://evil.example.com/x.jpg",
