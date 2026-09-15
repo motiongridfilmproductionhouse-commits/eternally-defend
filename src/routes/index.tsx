@@ -31,6 +31,9 @@ import {
 import heroVideo from "@/assets/eterna-hero.mp4.asset.json";
 import heroVideoWebm from "@/assets/eterna-hero.webm.asset.json";
 import heroPoster from "@/assets/eterna-hero-poster.jpg.asset.json";
+import newHeroVideo from "@/assets/eterna-hero-new.mp4.asset.json";
+import newHeroVideoWebm from "@/assets/eterna-hero-new.webm.asset.json";
+import newHeroPoster from "@/assets/eterna-hero-new-poster.jpg.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -82,10 +85,26 @@ const features = [
 ];
 
 const protections = [
-  { icon: ScanFace, label: "Face & deepfake protection", tone: "coral" },
-  { icon: Users, label: "Impersonation monitoring", tone: "amber" },
-  { icon: Copyright, label: "Copyright intelligence", tone: "cyan" },
-  { icon: Eye, label: "Reputation monitoring", tone: "ink" },
+  {
+    icon: ScanFace,
+    label: "Face & deepfake protection",
+    detail: "Detect synthetic and unauthorized identity use.",
+  },
+  {
+    icon: Users,
+    label: "Impersonation monitoring",
+    detail: "Surface suspicious accounts and identity misuse.",
+  },
+  {
+    icon: Copyright,
+    label: "Copyright intelligence",
+    detail: "Preserve evidence for human-reviewed action.",
+  },
+  {
+    icon: Eye,
+    label: "Reputation monitoring",
+    detail: "Track emerging public-web risk and context.",
+  },
 ];
 
 function LandingPage() {
@@ -207,7 +226,7 @@ function LandingPage() {
             <video
               ref={videoRef}
               className="absolute inset-0 size-full object-cover"
-              poster={heroPoster.url}
+              poster={newHeroPoster.url}
               autoPlay
               muted
               loop
@@ -215,8 +234,8 @@ function LandingPage() {
               preload="auto"
               aria-hidden="true"
             >
-              <source src={heroVideoWebm.url} type="video/webm" />
-              <source src={heroVideo.url} type="video/mp4" />
+              <source src={newHeroVideoWebm.url} type="video/webm" />
+              <source src={newHeroVideo.url} type="video/mp4" />
             </video>
             <div className="landing-hero-overlay absolute inset-0" />
             <div className="relative z-10 flex min-h-[600px] flex-col items-center justify-end px-5 pb-28 pt-20 text-center md:min-h-[720px]">
@@ -271,11 +290,17 @@ function LandingPage() {
           </div>
         </section>
 
-        <section className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-4 px-6 py-10 text-[10px] font-semibold uppercase text-landing-muted md:justify-between">
-          {protections.map(({ icon: Icon, label }) => (
-            <div key={label} className="flex items-center gap-2">
-              <Icon className="size-4" />
-              {label}
+        <section
+          className="mx-auto grid max-w-6xl gap-px overflow-hidden border-x border-b border-landing-line bg-landing-line md:grid-cols-4"
+          aria-label="Protection highlights"
+        >
+          {protections.map(({ icon: Icon, label, detail }) => (
+            <div key={label} className="bg-landing px-6 py-7">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase text-landing-ink">
+                <Icon className="size-4 text-landing-accent" />
+                {label}
+              </div>
+              <p className="mt-3 text-xs leading-5 text-landing-muted">{detail}</p>
             </div>
           ))}
         </section>
