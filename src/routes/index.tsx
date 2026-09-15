@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
+  Archive,
   ArrowRight,
   BadgeCheck,
   Building2,
   Check,
   Copyright,
   Eye,
+  FileBarChart2,
   FileCheck2,
   Fingerprint,
   LockKeyhole,
@@ -16,10 +18,12 @@ import {
   ScanFace,
   ShieldCheck,
   Sparkles,
+  UserCheck,
   Users,
   Volume2,
   VolumeX,
   X,
+  Youtube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -104,6 +108,26 @@ const protections = [
     icon: Eye,
     label: "Reputation monitoring",
     detail: "Track emerging public-web risk and context.",
+  },
+  {
+    icon: Youtube,
+    label: "YouTube monitoring",
+    detail: "Watch channels and video platforms for misuse of your work.",
+  },
+  {
+    icon: Archive,
+    label: "Evidence preservation",
+    detail: "Findings are recorded with source context for review.",
+  },
+  {
+    icon: UserCheck,
+    label: "Verified onboarding",
+    detail: "Identity checks and liveness confirm who is being protected.",
+  },
+  {
+    icon: FileBarChart2,
+    label: "Risk assessment reports",
+    detail: "Structured exposure scans with clear risk context.",
   },
 ];
 
