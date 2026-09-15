@@ -64,8 +64,6 @@ async function getJson(url: string, signal?: AbortSignal): Promise<unknown | nul
   return null;
 }
 
-
-
 /** Best-effort public picture for a name. Returns null when nothing safe is found. */
 export async function fetchArtistPortrait(
   name: string,
@@ -118,4 +116,3 @@ export async function fetchArtistPortrait(
   }
   return null;
 }
-

@@ -81,7 +81,6 @@ export async function executeAssessmentScan(
 
     await deps.persist({ status: "ANALYZING", stage: "Analyzing observed web exposure" });
 
-
     const normalize = (s: string) =>
       s
         .normalize("NFKC")
