@@ -35,30 +35,35 @@ function safeImage(raw: unknown): string | null {
 
 async function getJson(url: string, signal?: AbortSignal): Promise<unknown | null> {
   const { fetchJsonWithTimeout } = await import("../scan/discovery/provider");
-  try {
-    const res = await fetchJsonWithTimeout(
-      url,
-      {
-        method: "GET",
-        headers: {
-          accept: "application/json",
-          // Wikimedia requires a descriptive User-Agent; anonymous requests are rejected.
-          "user-agent": "EternaSentinel/1.0 (public reference image lookup)",
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const res = await fetchJsonWithTimeout(
+        url,
+        {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+            // Wikimedia requires a descriptive User-Agent; anonymous requests are rejected.
+            "user-agent": "EternaSentinel/1.0 (public reference image lookup)",
+          },
         },
-      },
-      TIMEOUT_MS,
-      signal,
-    );
-    if (res.status !== 200) {
-      console.error("[agent:portrait] http", res.status, res.text.slice(0, 200));
+        TIMEOUT_MS,
+        signal,
+      );
+      if (res.status === 200) return JSON.parse(res.text) as unknown;
+      // Public API rate limit: one short backoff, then give up silently.
+      if (res.status === 429 && attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        continue;
+      }
+      return null;
+    } catch {
       return null;
     }
-    return JSON.parse(res.text) as unknown;
-  } catch (e) {
-    console.error("[agent:portrait] fetch failed", e instanceof Error ? e.message : e);
-    return null;
   }
+  return null;
 }
+
 
 
 /** Best-effort public picture for a name. Returns null when nothing safe is found. */
