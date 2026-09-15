@@ -5,7 +5,14 @@ import { fetchArtistPortrait } from "./portrait.server.ts";
 const searchBody = (titles: string[]) => ({
   query: { search: titles.map((title) => ({ title })) },
 });
-const ok = (json: unknown) => ({ ok: true, json: async () => json }) as unknown as Response;
+const ok = (json: unknown) =>
+  ({
+    ok: true,
+    status: 200,
+    text: async () => JSON.stringify(json),
+    json: async () => json,
+  }) as unknown as Response;
+
 const original = globalThis.fetch;
 
 function stub(handler: (url: string) => Response | Promise<Response>) {
