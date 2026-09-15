@@ -1,5 +1,11 @@
 export type AssessmentStatus =
-  "QUEUED" | "SCANNING" | "ANALYZING" | "READY" | "FAILED" | "REVIEW_REQUIRED" | "EXPIRED";
+  | "QUEUED"
+  | "SCANNING"
+  | "ANALYZING"
+  | "READY"
+  | "FAILED"
+  | "REVIEW_REQUIRED"
+  | "EXPIRED";
 export type Price = {
   minimum: number;
   maximum: number;
@@ -20,6 +26,8 @@ export type Assessment = {
   agent_id: string;
   artist_name: string;
   official_profile_url: string | null;
+  /** Public portrait for display only — never evidence, never used for pricing. */
+  image_url: string | null;
   status: AssessmentStatus;
   stage: string;
   signals: Signals | null;

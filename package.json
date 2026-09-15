@@ -18,7 +18,7 @@
     "test:hikerapi": "node --import tsx --test src/lib/scan/discovery/hikerapi.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:agent": "node --import tsx --test src/lib/agent/assessment.test.ts src/lib/agent/database.test.ts"
+    "test:agent": "node --import tsx --test src/lib/agent/assessment.test.ts src/lib/agent/database.test.ts src/lib/agent/portrait.test.ts src/lib/agent/scan-portrait.test.ts"
   },
   "dependencies": {
     "@aws-amplify/ui-react-liveness": "^3.6.7",

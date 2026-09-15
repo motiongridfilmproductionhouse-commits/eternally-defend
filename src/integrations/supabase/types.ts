@@ -194,6 +194,7 @@ export type Database = {
           dedup_key: string
           discovery: Json | null
           id: string
+          image_url: string | null
           official_profile_url: string | null
           policy_snapshot: Json | null
           pricing: Json | null
@@ -212,6 +213,7 @@ export type Database = {
           dedup_key: string
           discovery?: Json | null
           id?: string
+          image_url?: string | null
           official_profile_url?: string | null
           policy_snapshot?: Json | null
           pricing?: Json | null
@@ -230,6 +232,7 @@ export type Database = {
           dedup_key?: string
           discovery?: Json | null
           id?: string
+          image_url?: string | null
           official_profile_url?: string | null
           policy_snapshot?: Json | null
           pricing?: Json | null

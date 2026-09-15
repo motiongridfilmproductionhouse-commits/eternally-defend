@@ -10,7 +10,7 @@ export const db = supabaseAdmin as SupabaseClient;
 export const hashReference = (raw: string) => createHash("sha256").update(raw).digest("hex");
 export const newReference = () => randomBytes(32).toString("base64url");
 export const publicColumns =
-  "id,agent_id,artist_name,official_profile_url,status,stage,signals,pricing,reason,conversion_status,created_at,updated_at";
+  "id,agent_id,artist_name,official_profile_url,image_url,status,stage,signals,pricing,reason,conversion_status,created_at,updated_at";
 export async function access(userId: string) {
   const [admin, superAdmin, member] = await Promise.all([
     db.rpc("has_role", { _user_id: userId, _role: "admin" }),
@@ -54,12 +54,30 @@ export async function runAssessment(id: string) {
   if (error) throw new Error("Unable to claim assessment job.");
   if (!row) return;
   const { DiscoveryRouter } = await import("@/lib/scan/discovery/router.server");
+  const { braveProvider } = await import("@/lib/scan/discovery/brave-provider.server");
+  const { serpapiProvider } = await import("@/lib/scan/discovery/serpapi-provider.server");
+  const { firecrawlProvider } = await import("@/lib/scan/discovery/firecrawl-provider.server");
+  const { googleProvider } = await import("@/lib/scan/discovery/google-provider.server");
+  const { wikipediaProvider } = await import("@/lib/scan/discovery/wikipedia-provider.server");
+  const { fetchArtistPortrait } = await import("./portrait.server");
   // Use actual search APIs. LLM grounding is excluded from evidence used for a price.
-  const router = new DiscoveryRouter({ only: ["brave", "google", "serpapi", "firecrawl"] });
+  // Wikipedia's keyless public API is a fallback so identity resolution still works
+  // when the paid providers are rate limited or out of credits.
+  const router = new DiscoveryRouter({
+    adapters: [
+      braveProvider,
+      serpapiProvider,
+      firecrawlProvider,
+      googleProvider,
+      wikipediaProvider,
+    ],
+    only: ["brave", "google", "serpapi", "firecrawl", "wikipedia"],
+  });
   await executeAssessmentScan(row.artist_name, row.official_profile_url, {
     search: (query, signal) => router.search(query, 15, { signal }),
     successfulQueries: () =>
       router.report().providers.reduce((sum, p) => sum + p.queriesSuccessful, 0),
+    portrait: (name, signal) => fetchArtistPortrait(name, signal),
     policy: async () => {
       const { data, error } = await db
         .from("agent_pricing_policy")

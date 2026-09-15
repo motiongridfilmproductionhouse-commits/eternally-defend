@@ -11,7 +11,8 @@ export type ProviderId =
   | "brave"
   | "google"
   | "gemini_grounding"
-  | "hikerapi";
+  | "hikerapi"
+  | "wikipedia";
 
 export type ProviderState =
   | "HEALTHY"

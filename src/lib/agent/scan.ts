@@ -12,10 +12,13 @@ export type ScanDependencies = {
   search: (query: string, signal: AbortSignal) => Promise<Hit[]>;
   successfulQueries: () => number;
   policy: () => Promise<PricingPolicy | null>;
+  /** Optional public portrait lookup. Display-only; failure never fails the scan. */
+  portrait?: (name: string, signal: AbortSignal) => Promise<string | null>;
   persist: (
     patch: Partial<Assessment> & { discovery?: unknown; policy_snapshot?: unknown },
   ) => Promise<void>;
 };
+class NoProvidersError extends Error {}
 export async function executeAssessmentScan(
   artist: string,
   official: string | null,
@@ -47,8 +50,14 @@ export async function executeAssessmentScan(
         signal.removeEventListener("abort", onAbort);
       }
     }
-    if (deps.successfulQueries() === 0) throw new Error("No discovery providers available");
+    if (deps.successfulQueries() === 0)
+      throw new NoProvidersError("No discovery provider answered");
     await deps.persist({ status: "ANALYZING", stage: "Analyzing observed web exposure" });
+    // Display-only public picture. Never evidence, never affects pricing or gates.
+    if (deps.portrait) {
+      const image = await deps.portrait(artist, signal).catch(() => null);
+      if (image) await deps.persist({ image_url: image });
+    }
     const normalize = (s: string) =>
       s
         .normalize("NFKC")
@@ -101,12 +110,15 @@ export async function executeAssessmentScan(
       status: result.pricing ? "READY" : "REVIEW_REQUIRED",
       stage: result.pricing ? "Assessment complete" : "Eterna review required",
     });
-  } catch {
+  } catch (error) {
     await deps.persist({
       status: "FAILED",
       stage: "Scan unavailable",
       pricing: null,
-      reason: "Scan temporarily unavailable. Please try again.",
+      reason:
+        error instanceof NoProvidersError
+          ? "Public web search capacity is currently unavailable. No search provider answered, so no assessment was produced. Please try again later."
+          : "Scan temporarily unavailable. Please try again.",
     });
   }
 }
