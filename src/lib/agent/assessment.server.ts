@@ -59,10 +59,12 @@ export async function runAssessment(id: string) {
   const { firecrawlProvider } = await import("@/lib/scan/discovery/firecrawl-provider.server");
   const { googleProvider } = await import("@/lib/scan/discovery/google-provider.server");
   const { wikipediaProvider } = await import("@/lib/scan/discovery/wikipedia-provider.server");
+  const { ddgHtmlProvider } = await import("@/lib/scan/discovery/ddg-provider.server");
   const { fetchArtistPortrait } = await import("./portrait.server");
   // Use actual search APIs. LLM grounding is excluded from evidence used for a price.
   // Wikipedia's keyless public API is a fallback so identity resolution still works
-  // when the paid providers are rate limited or out of credits.
+  // when the paid providers are rate limited or out of credits, and the keyless
+  // public-web adapter keeps general web exposure observable in that same case.
   const router = new DiscoveryRouter({
     adapters: [
       braveProvider,
@@ -70,8 +72,9 @@ export async function runAssessment(id: string) {
       firecrawlProvider,
       googleProvider,
       wikipediaProvider,
+      ddgHtmlProvider,
     ],
-    only: ["brave", "google", "serpapi", "firecrawl", "wikipedia"],
+    only: ["brave", "google", "serpapi", "firecrawl", "wikipedia", "ddg_html"],
   });
   await executeAssessmentScan(row.artist_name, row.official_profile_url, {
     search: (query, signal) => router.search(query, 50, { signal }),
