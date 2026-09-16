@@ -19,7 +19,7 @@ import desktopBg from "@/assets/waitlist-bg.jpg";
 import mobileBg from "@/assets/waitlist-bg-mobile.jpg";
 
 export const Route = createFileRoute("/waitinglist")({
-head: () => ({
+  head: () => ({
     meta: [
       { title: "Eterna Waitlist — What If Someone Becomes You Online?" },
       {
@@ -36,6 +36,7 @@ head: () => ({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://eternasentinel.com/waitinglist" }],
   }),
   component: WaitlistPage,
 });
@@ -189,20 +190,18 @@ function WaitlistPage() {
             <span className="flex items-center justify-end gap-2 text-sm font-medium text-white/85">
               <Lock className="size-3.5" /> Secure. Private. Trusted.
             </span>
-            <span className="mt-1 block text-xs text-white/50">
-              Your information is protected.
-            </span>
+            <span className="mt-1 block text-xs text-white/50">Your information is protected.</span>
           </div>
         </header>
 
         {/* Body */}
-<div className="flex flex-1 flex-col gap-8 px-5 pb-8 pt-8 sm:px-9 lg:grid lg:grid-cols-[1.05fr_minmax(420px,0.95fr)] lg:items-start lg:gap-12 lg:pt-14">
+        <div className="flex flex-1 flex-col gap-8 px-5 pb-8 pt-8 sm:px-9 lg:grid lg:grid-cols-[1.05fr_minmax(420px,0.95fr)] lg:items-start lg:gap-12 lg:pt-14">
           {/* Hero */}
           <section className="max-w-xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.22em] text-white/80 backdrop-blur-md">
               <Fingerprint className="size-3.5" /> ETERNA PRIORITY ACCESS
             </span>
-<h1 className="mt-5 text-[34px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-5xl lg:text-[60px] xl:text-[66px]">
+            <h1 className="mt-5 text-[34px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-5xl lg:text-[60px] xl:text-[66px]">
               WHAT IF SOMEONE
               <span className="block font-semibold">BECOMES YOU</span>
               <span className="block font-semibold">ONLINE?</span>
@@ -212,12 +211,12 @@ function WaitlistPage() {
               <span className="block">Your photos. Your reputation.</span>
             </p>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-white/60 sm:text-[15px]">
-              Fake accounts, deepfakes, impersonation and unauthorized content can put your
-              digital identity in someone else's hands.
+              Fake accounts, deepfakes, impersonation and unauthorized content can put your digital
+              identity in someone else's hands.
             </p>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80 sm:text-[15px]">
-Eterna helps you discover where your identity is being misused online and
-              understand what to do next.
+              Eterna helps you discover where your identity is being misused online and understand
+              what to do next.
             </p>
           </section>
 
@@ -225,112 +224,112 @@ Eterna helps you discover where your identity is being misused online and
           <section className="lg:sticky lg:top-6">
             <div className="rounded-[26px] border border-white/60 bg-[#fbfcfe] p-6 shadow-[0_40px_120px_-40px_rgba(2,6,23,0.85)] sm:p-8">
               <form onSubmit={handleSubmit} noValidate>
-<div className="flex items-center gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0b1533]">
-                      <ShieldCheck className="size-5 text-white" />
-                    </span>
-                    <div>
-                      <h2 className="text-xl font-semibold leading-tight tracking-[-0.01em] text-[#0b1533] sm:text-[22px]">
-                        YOUR IDENTITY. YOUR CONTROL.
-                      </h2>
-                      <p className="mt-1 text-[13px] text-[#0b1533]/55">
-                        Join Eterna Priority Access.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                    <Field
-                      label="Full Name"
-                      value={form.fullName}
-                      onChange={(v) => setForm((f) => ({ ...f, fullName: v }))}
-                      autoComplete="name"
-                      placeholder="Your full name"
-                    />
-                    <Field
-                      label="Mobile Number"
-                      value={form.phone}
-                      onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      placeholder="+91 90000 00000"
-                    />
-                    <div className="sm:col-span-2">
-                      <Field
-                        label="Email Address"
-                        value={form.email}
-                        onChange={(v) => setForm((f) => ({ ...f, email: v }))}
-                        type="email"
-                        inputMode="email"
-                        autoComplete="email"
-                        placeholder="you@example.com"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-[13px] font-medium text-[#0b1533]/70">
-                        I am a
-                        <select
-                          value={form.persona}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              persona: e.target.value as FormState["persona"],
-                            }))
-                          }
-                          className="mt-1.5 h-[52px] w-full appearance-none rounded-xl border border-[#0b1533]/12 bg-white px-4 text-base text-[#0b1533] outline-none transition focus:border-[#0b1533]/40 focus:ring-4 focus:ring-[#0b1533]/5"
-                        >
-                          <option value="">Select one</option>
-                          {PERSONAS.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Field
-                        label="College / Organization (optional)"
-                        value={form.organization}
-                        onChange={(v) => setForm((f) => ({ ...f, organization: v }))}
-                        autoComplete="organization"
-                        placeholder="Institution or company"
-                      />
-                    </div>
-                  </div>
-
-                  {error && (
-                    <p className="mt-4 rounded-xl bg-[#b3261e]/8 px-4 py-3 text-sm text-[#b3261e]">
-                      {error}
+                <div className="flex items-center gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0b1533]">
+                    <ShieldCheck className="size-5 text-white" />
+                  </span>
+                  <div>
+                    <h2 className="text-xl font-semibold leading-tight tracking-[-0.01em] text-[#0b1533] sm:text-[22px]">
+                      YOUR IDENTITY. YOUR CONTROL.
+                    </h2>
+                    <p className="mt-1 text-[13px] text-[#0b1533]/55">
+                      Join Eterna Priority Access.
                     </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <Field
+                    label="Full Name"
+                    value={form.fullName}
+                    onChange={(v) => setForm((f) => ({ ...f, fullName: v }))}
+                    autoComplete="name"
+                    placeholder="Your full name"
+                  />
+                  <Field
+                    label="Mobile Number"
+                    value={form.phone}
+                    onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="+91 90000 00000"
+                  />
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="Email Address"
+                      value={form.email}
+                      onChange={(v) => setForm((f) => ({ ...f, email: v }))}
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[13px] font-medium text-[#0b1533]/70">
+                      I am a
+                      <select
+                        value={form.persona}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            persona: e.target.value as FormState["persona"],
+                          }))
+                        }
+                        className="mt-1.5 h-[52px] w-full appearance-none rounded-xl border border-[#0b1533]/12 bg-white px-4 text-base text-[#0b1533] outline-none transition focus:border-[#0b1533]/40 focus:ring-4 focus:ring-[#0b1533]/5"
+                      >
+                        <option value="">Select one</option>
+                        {PERSONAS.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="College / Organization (optional)"
+                      value={form.organization}
+                      onChange={(v) => setForm((f) => ({ ...f, organization: v }))}
+                      autoComplete="organization"
+                      placeholder="Institution or company"
+                    />
+                  </div>
+                </div>
+
+                {error && (
+                  <p className="mt-4 rounded-xl bg-[#b3261e]/8 px-4 py-3 text-sm text-[#b3261e]">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-[13px] bg-[#0b1533] text-base font-medium text-white transition hover:brightness-125 hover:shadow-[0_12px_30px_-12px_rgba(11,21,51,0.8)] disabled:opacity-70"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Joining Waitlist...
+                    </>
+                  ) : (
+                    <>
+                      PROTECT MY DIGITAL IDENTITY <ArrowRight className="size-4" />
+                    </>
                   )}
+                </button>
 
-<button
-                    type="submit"
-                    disabled={loading}
-                    className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-[13px] bg-[#0b1533] text-base font-medium text-white transition hover:brightness-125 hover:shadow-[0_12px_30px_-12px_rgba(11,21,51,0.8)] disabled:opacity-70"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" /> Joining Waitlist...
-                      </>
-                    ) : (
-                      <>
-                        PROTECT MY DIGITAL IDENTITY <ArrowRight className="size-4" />
-                      </>
-                    )}
-                  </button>
-
-                  <p className="mt-4 text-center text-xs text-[#0b1533]/55">
-                    Join the Eterna Waitlist • No payment required
-                  </p>
-                  <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-[#0b1533]/55">
-                    <ShieldCheck className="size-3.5" /> We respect your privacy. No spam, ever.
-                  </p>
-                </form>
+                <p className="mt-4 text-center text-xs text-[#0b1533]/55">
+                  Join the Eterna Waitlist • No payment required
+                </p>
+                <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-[#0b1533]/55">
+                  <ShieldCheck className="size-3.5" /> We respect your privacy. No spam, ever.
+                </p>
+              </form>
             </div>
-</section>
+          </section>
 
           {/* Micro messages */}
           <section className="max-w-md" aria-label="How Eterna helps you">
@@ -478,7 +477,9 @@ function SuccessModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-[#04081c]/70 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label={alreadyJoined ? "Already on the Eterna waitlist" : "Waitlist registration complete"}
+      aria-label={
+        alreadyJoined ? "Already on the Eterna waitlist" : "Waitlist registration complete"
+      }
     >
       <div className="animate-in fade-in zoom-in-95 w-full max-w-[440px] rounded-[28px] border border-white/60 bg-[#fbfcfe] p-7 shadow-[0_50px_140px_-40px_rgba(2,6,23,0.9)] duration-500 sm:p-9">
         {/* Eterna mark */}
@@ -510,11 +511,9 @@ function SuccessModal({
         </h2>
 
         <p className="mt-3 text-center text-sm leading-relaxed text-[#0b1533]/65">
-          {alreadyJoined ? (
-            "Your Eterna waitlist registration is already active."
-          ) : (
-            "Your registration is complete."
-          )}
+          {alreadyJoined
+            ? "Your Eterna waitlist registration is already active."
+            : "Your registration is complete."}
         </p>
 
         <p className="mt-2 text-center text-sm leading-relaxed text-[#0b1533]/65">
@@ -527,7 +526,9 @@ function SuccessModal({
           <p className="text-[10px] font-semibold tracking-[0.22em] text-[#0b1533]/50">
             WAITLIST ID
           </p>
-          <p className="mt-1 text-lg font-semibold tracking-[0.08em] text-[#0b1533]">{waitlistId}</p>
+          <p className="mt-1 text-lg font-semibold tracking-[0.08em] text-[#0b1533]">
+            {waitlistId}
+          </p>
         </div>
 
         {!alreadyJoined && (
