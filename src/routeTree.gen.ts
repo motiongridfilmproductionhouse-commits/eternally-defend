@@ -10,14 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WaitinglistRouteImport } from './routes/waitinglist'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SecurityRouteImport } from './routes/security'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PartnerStatusRouteImport } from './routes/partner-status'
 import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as CaseStudiesRouteImport } from './routes/case-studies'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AgentAssessmentRouteImport } from './routes/agent-assessment'
 import { Route as AgentAdminRouteImport } from './routes/agent-admin'
 import { Route as AgentRouteImport } from './routes/agent'
+import { Route as AcceptableUseRouteImport } from './routes/acceptable-use'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as PartnerRouteImport } from './routes/_partner'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -97,6 +103,16 @@ const WaitinglistRoute = WaitinglistRouteImport.update({
   path: '/waitinglist',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SecurityRoute = SecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -117,6 +133,16 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CaseStudiesRoute = CaseStudiesRouteImport.update({
+  id: '/case-studies',
+  path: '/case-studies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -135,6 +161,16 @@ const AgentAdminRoute = AgentAdminRouteImport.update({
 const AgentRoute = AgentRouteImport.update({
   id: '/agent',
   path: '/agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptableUseRoute = AcceptableUseRouteImport.update({
+  id: '/acceptable-use',
+  path: '/acceptable-use',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PartnerRoute = PartnerRouteImport.update({
@@ -534,14 +570,20 @@ const AppSensitiveProtectionResultsIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/acceptable-use': typeof AcceptableUseRoute
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
   '/auth': typeof AuthRoute
+  '/case-studies': typeof CaseStudiesRoute
+  '/cookies': typeof CookiesRoute
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
+  '/security': typeof SecurityRoute
+  '/terms': typeof TermsRoute
   '/waitinglist': typeof WaitinglistRoute
   '/assets': typeof AppAssetsRoute
   '/campaigns': typeof AppCampaignsRoute
@@ -616,14 +658,20 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/acceptable-use': typeof AcceptableUseRoute
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
   '/auth': typeof AuthRoute
+  '/case-studies': typeof CaseStudiesRoute
+  '/cookies': typeof CookiesRoute
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
+  '/security': typeof SecurityRoute
+  '/terms': typeof TermsRoute
   '/waitinglist': typeof WaitinglistRoute
   '/assets': typeof AppAssetsRoute
   '/campaigns': typeof AppCampaignsRoute
@@ -700,14 +748,20 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_partner': typeof PartnerRouteWithChildren
+  '/about': typeof AboutRoute
+  '/acceptable-use': typeof AcceptableUseRoute
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
   '/auth': typeof AuthRoute
+  '/case-studies': typeof CaseStudiesRoute
+  '/cookies': typeof CookiesRoute
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
+  '/security': typeof SecurityRoute
+  '/terms': typeof TermsRoute
   '/waitinglist': typeof WaitinglistRoute
   '/_app/assets': typeof AppAssetsRoute
   '/_app/campaigns': typeof AppCampaignsRoute
@@ -784,14 +838,20 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
+    | '/acceptable-use'
     | '/agent'
     | '/agent-admin'
     | '/agent-assessment'
     | '/auth'
+    | '/case-studies'
+    | '/cookies'
     | '/onboarding'
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
+    | '/security'
+    | '/terms'
     | '/waitinglist'
     | '/assets'
     | '/campaigns'
@@ -866,14 +926,20 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
+    | '/acceptable-use'
     | '/agent'
     | '/agent-admin'
     | '/agent-assessment'
     | '/auth'
+    | '/case-studies'
+    | '/cookies'
     | '/onboarding'
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
+    | '/security'
+    | '/terms'
     | '/waitinglist'
     | '/assets'
     | '/campaigns'
@@ -949,14 +1015,20 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/_partner'
+    | '/about'
+    | '/acceptable-use'
     | '/agent'
     | '/agent-admin'
     | '/agent-assessment'
     | '/auth'
+    | '/case-studies'
+    | '/cookies'
     | '/onboarding'
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
+    | '/security'
+    | '/terms'
     | '/waitinglist'
     | '/_app/assets'
     | '/_app/campaigns'
@@ -1034,14 +1106,20 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   PartnerRoute: typeof PartnerRouteWithChildren
+  AboutRoute: typeof AboutRoute
+  AcceptableUseRoute: typeof AcceptableUseRoute
   AgentRoute: typeof AgentRoute
   AgentAdminRoute: typeof AgentAdminRoute
   AgentAssessmentRoute: typeof AgentAssessmentRoute
   AuthRoute: typeof AuthRoute
+  CaseStudiesRoute: typeof CaseStudiesRoute
+  CookiesRoute: typeof CookiesRoute
   OnboardingRoute: typeof OnboardingRoute
   PartnerApplyRoute: typeof PartnerApplyRoute
   PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
+  SecurityRoute: typeof SecurityRoute
+  TermsRoute: typeof TermsRoute
   WaitinglistRoute: typeof WaitinglistRoute
   ApiScanRoute: typeof ApiScanRoute
   FaceHandoffTokenRoute: typeof FaceHandoffTokenRoute
@@ -1079,6 +1157,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WaitinglistRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/security': {
+      id: '/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof SecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -1107,6 +1199,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/case-studies': {
+      id: '/case-studies'
+      path: '/case-studies'
+      fullPath: '/case-studies'
+      preLoaderRoute: typeof CaseStudiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -1133,6 +1239,20 @@ declare module '@tanstack/react-router' {
       path: '/agent'
       fullPath: '/agent'
       preLoaderRoute: typeof AgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acceptable-use': {
+      id: '/acceptable-use'
+      path: '/acceptable-use'
+      fullPath: '/acceptable-use'
+      preLoaderRoute: typeof AcceptableUseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_partner': {
@@ -1782,14 +1902,20 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   PartnerRoute: PartnerRouteWithChildren,
+  AboutRoute: AboutRoute,
+  AcceptableUseRoute: AcceptableUseRoute,
   AgentRoute: AgentRoute,
   AgentAdminRoute: AgentAdminRoute,
   AgentAssessmentRoute: AgentAssessmentRoute,
   AuthRoute: AuthRoute,
+  CaseStudiesRoute: CaseStudiesRoute,
+  CookiesRoute: CookiesRoute,
   OnboardingRoute: OnboardingRoute,
   PartnerApplyRoute: PartnerApplyRoute,
   PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
+  SecurityRoute: SecurityRoute,
+  TermsRoute: TermsRoute,
   WaitinglistRoute: WaitinglistRoute,
   ApiScanRoute: ApiScanRoute,
   FaceHandoffTokenRoute: FaceHandoffTokenRoute,
