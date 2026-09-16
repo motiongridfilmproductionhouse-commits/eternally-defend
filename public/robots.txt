@@ -14,4 +14,4 @@ Disallow: /verify/
 Disallow: /face-handoff/
 Disallow: /api/
 
-Sitemap: https://eternasentinel.com/sitemap.xml
+Sitemap: https://protectbyeterna.com/sitemap.xml

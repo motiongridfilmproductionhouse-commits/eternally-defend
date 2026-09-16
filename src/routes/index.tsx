@@ -34,7 +34,7 @@ import newHeroVideo from "@/assets/eterna-hero-new.mp4.asset.json";
 import newHeroVideoWebm from "@/assets/eterna-hero-new.webm.asset.json";
 import newHeroPoster from "@/assets/eterna-hero-new-poster.jpg.asset.json";
 
-const CANONICAL = "https://eternasentinel.com/";
+const CANONICAL = "https://protectbyeterna.com/";
 
 export const Route = createFileRoute("/")({
   head: () => ({

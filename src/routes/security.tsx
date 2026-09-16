@@ -21,7 +21,7 @@ export const Route = createFileRoute("/security")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
-    links: [{ rel: "canonical", href: "https://eternasentinel.com/security" }],
+    links: [{ rel: "canonical", href: "https://protectbyeterna.com/security" }],
   }),
   component: SecurityPage,
 });

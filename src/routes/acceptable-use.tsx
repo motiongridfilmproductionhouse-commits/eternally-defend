@@ -20,7 +20,7 @@ export const Route = createFileRoute("/acceptable-use")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
-    links: [{ rel: "canonical", href: "https://eternasentinel.com/acceptable-use" }],
+    links: [{ rel: "canonical", href: "https://protectbyeterna.com/acceptable-use" }],
   }),
   component: AcceptableUsePage,
 });

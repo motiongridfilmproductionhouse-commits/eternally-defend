@@ -3,7 +3,7 @@ import { ArrowRight, BookOpen, Radar, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
 
-const CANONICAL = "https://eternasentinel.com/identity-response-observatory";
+const CANONICAL = "https://protectbyeterna.com/identity-response-observatory";
 
 export const Route = createFileRoute("/identity-response-observatory")({
   head: () => ({

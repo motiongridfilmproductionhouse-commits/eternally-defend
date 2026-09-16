@@ -3,7 +3,7 @@ import { ArrowRight, FileSearch, Link2, ShieldCheck, UserCheck } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
 
-const CANONICAL = "https://eternasentinel.com/methodology";
+const CANONICAL = "https://protectbyeterna.com/methodology";
 
 export const Route = createFileRoute("/methodology")({
   head: () => ({

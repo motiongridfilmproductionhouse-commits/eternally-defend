@@ -3,7 +3,7 @@ import { ArrowRight, Handshake, LifeBuoy, Mail, ShieldCheck, Users } from "lucid
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
 
-const CANONICAL = "https://eternasentinel.com/contact";
+const CANONICAL = "https://protectbyeterna.com/contact";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({

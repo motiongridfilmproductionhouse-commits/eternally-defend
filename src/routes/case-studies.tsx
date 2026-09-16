@@ -21,7 +21,7 @@ export const Route = createFileRoute("/case-studies")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
-    links: [{ rel: "canonical", href: "https://eternasentinel.com/case-studies" }],
+    links: [{ rel: "canonical", href: "https://protectbyeterna.com/case-studies" }],
   }),
   component: CaseStudiesPage,
 });

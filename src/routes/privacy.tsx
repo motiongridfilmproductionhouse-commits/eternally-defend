@@ -18,7 +18,7 @@ export const Route = createFileRoute("/privacy")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
-    links: [{ rel: "canonical", href: "https://eternasentinel.com/privacy" }],
+    links: [{ rel: "canonical", href: "https://protectbyeterna.com/privacy" }],
   }),
   component: PrivacyPage,
 });
@@ -317,12 +317,12 @@ function PrivacyPage() {
               <p>
                 Website:{" "}
                 <a
-                  href="https://eternasentinel.com"
+                  href="https://protectbyeterna.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary underline underline-offset-4 hover:opacity-80"
                 >
-                  https://eternasentinel.com
+                  https://protectbyeterna.com
                 </a>
               </p>
             </div>

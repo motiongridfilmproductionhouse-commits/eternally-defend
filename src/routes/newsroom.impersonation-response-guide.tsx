@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
 
-const CANONICAL = "https://eternasentinel.com/newsroom/impersonation-response-guide";
+const CANONICAL = "https://protectbyeterna.com/newsroom/impersonation-response-guide";
 const PUBLISHED = "2026-09-16";
 
 export const Route = createFileRoute("/newsroom/impersonation-response-guide")({

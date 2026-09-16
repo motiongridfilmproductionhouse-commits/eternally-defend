@@ -36,7 +36,7 @@ export const Route = createFileRoute("/waitinglist")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "https://eternasentinel.com/waitinglist" }],
+    links: [{ rel: "canonical", href: "https://protectbyeterna.com/waitinglist" }],
   }),
   component: WaitlistPage,
 });

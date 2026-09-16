@@ -18,7 +18,7 @@ export const Route = createFileRoute("/cookies")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
-    links: [{ rel: "canonical", href: "https://eternasentinel.com/cookies" }],
+    links: [{ rel: "canonical", href: "https://protectbyeterna.com/cookies" }],
   }),
   component: CookiesPage,
 });
