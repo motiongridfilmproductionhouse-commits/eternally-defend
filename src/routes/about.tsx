@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, BrainCircuit, Scale, ShieldCheck, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
+import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -124,11 +124,17 @@ function AboutPage() {
               Eterna welcomes enquiries from people experienced in trust and safety, investigations,
               security operations and responsible technology.
             </p>
-            <Button asChild variant="link" className="mt-5 h-auto p-0 text-landing-ink">
-              <Link to="/waitinglist" search={{ source: "company-enquiry" }}>
-                Contact Eterna <ArrowRight />
-              </Link>
-            </Button>
+            <EnquiryButton
+              variant="link"
+              className="mt-5 h-auto p-0 text-landing-ink"
+              prefill={{
+                sourcePage: "about-careers",
+                sourceCta: "Contact Eterna",
+                department: "general",
+              }}
+            >
+              Contact Eterna <ArrowRight />
+            </EnquiryButton>
           </div>
         </div>
       </section>

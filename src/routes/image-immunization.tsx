@@ -5,8 +5,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
+import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
 const CANONICAL = "https://protectbyeterna.com/image-immunization";
 
@@ -46,6 +46,13 @@ function schema() {
   });
 }
 
+const EIP_REQUEST_PREFILL = {
+  sourcePage: "image-immunization",
+  sourceCta: "Request EIP protection",
+  department: "protection",
+  protectionService: "image-immunization",
+} as const;
+
 function ImageImmunizationPage() {
   return (
     <PublicPage
@@ -61,9 +68,9 @@ function ImageImmunizationPage() {
 
       <section className="py-16 md:py-20">
         <div className="mx-auto max-w-3xl px-6">
-          <Button asChild size="lg">
-            <Link to="/contact">Request EIP protection</Link>
-          </Button>
+          <EnquiryButton size="lg" prefill={EIP_REQUEST_PREFILL}>
+            Request EIP protection
+          </EnquiryButton>
         </div>
       </section>
 
@@ -289,9 +296,9 @@ function ImageImmunizationPage() {
           <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-landing-muted">
             Reach out to request EIP protection for an authorized image.
           </p>
-          <Button asChild size="lg" className="mt-8">
-            <Link to="/contact">Request EIP protection</Link>
-          </Button>
+          <EnquiryButton size="lg" className="mt-8" prefill={EIP_REQUEST_PREFILL}>
+            Request EIP protection
+          </EnquiryButton>
 
           <div className="mt-12 border-t border-landing-line pt-8 text-left">
             <h2 className="text-xs font-semibold uppercase text-landing-ink">Related reading</h2>

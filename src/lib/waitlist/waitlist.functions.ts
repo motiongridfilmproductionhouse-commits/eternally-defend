@@ -10,8 +10,13 @@ import { z } from "zod";
  * itself has no anon grants; the RPC validates and dedupes server-side.
  */
 
-/** Publishable server client — safe for the two public waitlist RPCs. */
-function publicClient() {
+/**
+ * Publishable server client — safe for the two public waitlist RPCs.
+ * Exported so other public, unauthenticated submission flows (e.g. the
+ * universal enquiry modal) that write through the same `join_waitlist` RPC
+ * can reuse this exact client construction instead of duplicating it.
+ */
+export function publicClient() {
   const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]!;
   const key =
     process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]!;
@@ -30,7 +35,6 @@ function publicClient() {
   });
 }
 
-
 const PERSONAS = ["Student", "Individual", "Professional", "Organization"] as const;
 
 const JoinInput = z.object({
@@ -46,7 +50,7 @@ const JoinInput = z.object({
   referrer: z.string().trim().max(500).optional().nullable(),
 });
 
-function normalizePhone(raw: string): string {
+export function normalizePhone(raw: string): string {
   const digits = raw.replace(/[^\d]/g, "");
   // Compare on the last 10 significant digits so +91 / 0091 / 0-prefixed
   // variants of the same number are treated as one person.
@@ -82,7 +86,9 @@ export const joinWaitlist = createServerFn({ method: "POST" })
       p_referrer: data.referrer ?? null,
     });
 
-    const row = (rows as Array<{ result_status: string; result_waitlist_id: string | null }> | null)?.[0];
+    const row = (
+      rows as Array<{ result_status: string; result_waitlist_id: string | null }> | null
+    )?.[0];
 
     if (error || !row) {
       console.error("[waitlist] rpc failed", error?.message ?? "no row returned");
@@ -101,7 +107,6 @@ export const joinWaitlist = createServerFn({ method: "POST" })
     }
 
     const waitlistId = row.result_waitlist_id;
-
 
     // Notify the admin inbox. Never let a mail failure break the registration.
     try {
@@ -127,7 +132,6 @@ export const joinWaitlist = createServerFn({ method: "POST" })
     return { status: "JOINED", waitlistId };
   });
 
-
 /** Real count only — returns null when the list is still empty so the UI never invents a number. */
 export const getWaitlistCount = createServerFn({ method: "GET" }).handler(async () => {
   const { data, error } = await publicClient().rpc("waitlist_public_count");
@@ -135,4 +139,3 @@ export const getWaitlistCount = createServerFn({ method: "GET" }).handler(async 
   if (error) console.error("[waitlist] count failed", error.message);
   return { count: count > 0 ? count : null };
 });
-

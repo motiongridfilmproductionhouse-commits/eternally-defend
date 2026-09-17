@@ -13,6 +13,10 @@ import {
 import { cn } from "@/lib/utils";
 import eternaLogo from "@/assets/eterna-logo.png.asset.json";
 import eternaLogoWhite from "@/assets/eterna-logo-white.png.asset.json";
+import {
+  EnquiryModalProvider,
+  useEnquiryModal,
+} from "@/components/public/enquiry/enquiry-modal-context";
 
 export function EternaLogo({
   inverse = false,
@@ -281,6 +285,7 @@ function PlatformMegaContent() {
 }
 
 function SolutionsMegaContent() {
+  const { openEnquiryModal } = useEnquiryModal();
   const category = navigationCategories[1];
   return (
     <div className="grid h-full grid-cols-[1.3fr_1fr] gap-10">
@@ -308,9 +313,15 @@ function SolutionsMegaContent() {
           </p>
         </div>
         <NavigationMenuPrimitive.Link asChild>
-          <Link
-            to="/waitinglist"
-            search={{ source: "nav-solutions-feature" }}
+          <button
+            type="button"
+            onClick={() =>
+              openEnquiryModal({
+                sourcePage: "nav-solutions-feature",
+                sourceCta: "Request Protection",
+                department: "protection",
+              })
+            }
             className="group mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-landing-ink"
           >
             Request Protection
@@ -318,7 +329,7 @@ function SolutionsMegaContent() {
               className="size-3.5 transition-transform duration-150 ease-out group-hover:translate-x-1"
               aria-hidden="true"
             />
-          </Link>
+          </button>
         </NavigationMenuPrimitive.Link>
       </div>
     </div>
@@ -508,6 +519,7 @@ function DesktopNav() {
 }
 
 function MobileNav({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
+  const { openEnquiryModal } = useEnquiryModal();
   return (
     <nav
       id="mobile-navigation"
@@ -558,14 +570,19 @@ function MobileNav({ open, onNavigate }: { open: boolean; onNavigate: () => void
             Client Sign In
           </Link>
         </Button>
-        <Button asChild className="landing-accent-fill text-landing-accent-foreground">
-          <Link
-            to="/waitinglist"
-            search={{ source: "mobile-request-protection" }}
-            onClick={onNavigate}
-          >
-            Request Protection
-          </Link>
+        <Button
+          type="button"
+          className="landing-accent-fill text-landing-accent-foreground"
+          onClick={() => {
+            onNavigate();
+            openEnquiryModal({
+              sourcePage: "mobile-request-protection",
+              sourceCta: "Request Protection",
+              department: "protection",
+            });
+          }}
+        >
+          Request Protection
         </Button>
       </div>
     </nav>
@@ -574,6 +591,7 @@ function MobileNav({ open, onNavigate }: { open: boolean; onNavigate: () => void
 
 export function PublicHeader() {
   const [open, setOpen] = useState(false);
+  const { openEnquiryModal } = useEnquiryModal();
 
   useEffect(() => {
     if (!open) return;
@@ -594,10 +612,18 @@ export function PublicHeader() {
         <Button asChild variant="ghost" className="text-landing-ink hover:bg-landing-soft">
           <Link to="/auth">Client Sign In</Link>
         </Button>
-        <Button asChild className="landing-accent-fill text-landing-accent-foreground">
-          <Link to="/waitinglist" search={{ source: "request-protection" }}>
-            Request Protection
-          </Link>
+        <Button
+          type="button"
+          className="landing-accent-fill text-landing-accent-foreground"
+          onClick={() =>
+            openEnquiryModal({
+              sourcePage: "header",
+              sourceCta: "Request Protection",
+              department: "protection",
+            })
+          }
+        >
+          Request Protection
         </Button>
       </div>
       <Button
@@ -733,37 +759,39 @@ export function PublicPage({
   children: ReactNode;
 }) {
   return (
-    <div className="landing-shell min-h-screen bg-landing text-landing-ink">
-      <PublicHeader />
-      <main>
-        <section className="border-y border-landing-line">
-          <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-            <p className="landing-kicker">{eyebrow}</p>
-            <h1 className="mt-5 max-w-4xl text-balance text-5xl font-medium leading-[1.02] md:text-7xl">
-              {title}
-            </h1>
-            <p className="mt-7 max-w-2xl text-base leading-7 text-landing-muted">{intro}</p>
-          </div>
-        </section>
-        {image && (
-          <section className="border-b border-landing-line bg-landing-soft">
-            <div className="mx-auto max-w-3xl px-6 py-10 md:py-12">
-              <div className="aspect-video w-full overflow-hidden rounded-sm border border-landing-line bg-landing">
-                <img
-                  src={image.src}
-                  alt={image.alt}
-                  width={1344}
-                  height={752}
-                  loading="eager"
-                  className="h-full w-full object-cover"
-                />
-              </div>
+    <EnquiryModalProvider>
+      <div className="landing-shell min-h-screen bg-landing text-landing-ink">
+        <PublicHeader />
+        <main>
+          <section className="border-y border-landing-line">
+            <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+              <p className="landing-kicker">{eyebrow}</p>
+              <h1 className="mt-5 max-w-4xl text-balance text-5xl font-medium leading-[1.02] md:text-7xl">
+                {title}
+              </h1>
+              <p className="mt-7 max-w-2xl text-base leading-7 text-landing-muted">{intro}</p>
             </div>
           </section>
-        )}
-        {children}
-      </main>
-      <PublicFooter />
-    </div>
+          {image && (
+            <section className="border-b border-landing-line bg-landing-soft">
+              <div className="mx-auto max-w-3xl px-6 py-10 md:py-12">
+                <div className="aspect-video w-full overflow-hidden rounded-sm border border-landing-line bg-landing">
+                  <img
+                    src={image.src}
+                    alt={image.alt}
+                    width={1344}
+                    height={752}
+                    loading="eager"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+          {children}
+        </main>
+        <PublicFooter />
+      </div>
+    </EnquiryModalProvider>
   );
 }
