@@ -1,10 +1,13 @@
 # Eterna Sentinel — public site
 # Authenticated app, admin and partner areas are intentionally excluded.
+# /auth and /onboarding are deliberately left crawlable (not Disallowed):
+# they are public entry screens, not authenticated content, and each carries
+# its own `noindex, follow` meta tag. Disallowing them here would stop
+# crawlers from ever reading that noindex directive, which is the opposite
+# of the intended effect. See docs/seo/AUTH_ONBOARDING_INDEX_CONTROL.md.
 
 User-agent: *
 Allow: /
-Disallow: /auth
-Disallow: /onboarding
 Disallow: /agent
 Disallow: /agent-admin
 Disallow: /agent-assessment

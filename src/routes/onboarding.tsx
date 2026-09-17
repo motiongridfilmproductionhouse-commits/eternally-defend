@@ -16,7 +16,7 @@ export const Route = createFileRoute("/onboarding")({
   head: () => ({
     meta: [
       { title: "Onboarding — Eterna Sentinel" },
-      { name: "robots", content: "noindex, nofollow" },
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   beforeLoad: async () => {
