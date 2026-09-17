@@ -53,12 +53,11 @@ function AnnouncementPage() {
       <section className="py-16 md:py-20">
         <div className="mx-auto max-w-3xl space-y-8 px-6 text-sm leading-7 text-landing-muted">
           <p>
-            [CITY], [DATE] — Eterna Sentinel today introduced Eterna Image Immunization (EIP), a
-            proprietary pre-publication image protection technology developed through Eterna's
-            internal research and development and currently under validation. EIP is designed to
-            help reduce the risk of deepfake creation, AI identity replication and unauthorized
-            likeness reuse, protecting an authorized image at the source, before it is published or
-            distributed.
+            Eterna Sentinel today introduced Eterna Image Immunization (EIP), a proprietary
+            pre-publication image protection technology developed through Eterna's internal research
+            and development and currently under validation. EIP is designed to help reduce the risk
+            of deepfake creation, AI identity replication and unauthorized likeness reuse,
+            protecting an authorized image at the source, before it is published or distributed.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
@@ -130,13 +129,6 @@ function AnnouncementPage() {
             </Link>
             .
           </p>
-
-          <div className="border-t border-landing-line pt-8">
-            <h2 className="text-sm font-semibold text-landing-ink">Press contact</h2>
-            <p className="mt-4 text-xs leading-6">
-              [Press Contact Name] · [Press Contact Email] · [Press Contact Phone, if applicable]
-            </p>
-          </div>
 
           <div className="border-t border-landing-line pt-8">
             <h2 className="text-sm font-semibold text-landing-ink">Related reading</h2>
