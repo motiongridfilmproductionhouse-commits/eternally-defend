@@ -26,6 +26,7 @@ import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CaseStudiesRouteImport } from './routes/case-studies'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AiImpersonationRouteImport } from './routes/ai-impersonation'
 import { Route as AgentAssessmentRouteImport } from './routes/agent-assessment'
 import { Route as AgentAdminRouteImport } from './routes/agent-admin'
 import { Route as AgentRouteImport } from './routes/agent'
@@ -199,6 +200,11 @@ const CaseStudiesRoute = CaseStudiesRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiImpersonationRoute = AiImpersonationRouteImport.update({
+  id: '/ai-impersonation',
+  path: '/ai-impersonation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgentAssessmentRoute = AgentAssessmentRouteImport.update({
@@ -682,6 +688,7 @@ export interface FileRoutesByFullPath {
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
+  '/ai-impersonation': typeof AiImpersonationRoute
   '/auth': typeof AuthRoute
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
@@ -786,6 +793,7 @@ export interface FileRoutesByTo {
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
+  '/ai-impersonation': typeof AiImpersonationRoute
   '/auth': typeof AuthRoute
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
@@ -892,6 +900,7 @@ export interface FileRoutesById {
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
+  '/ai-impersonation': typeof AiImpersonationRoute
   '/auth': typeof AuthRoute
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
@@ -998,6 +1007,7 @@ export interface FileRouteTypes {
     | '/agent'
     | '/agent-admin'
     | '/agent-assessment'
+    | '/ai-impersonation'
     | '/auth'
     | '/case-studies'
     | '/contact'
@@ -1102,6 +1112,7 @@ export interface FileRouteTypes {
     | '/agent'
     | '/agent-admin'
     | '/agent-assessment'
+    | '/ai-impersonation'
     | '/auth'
     | '/case-studies'
     | '/contact'
@@ -1207,6 +1218,7 @@ export interface FileRouteTypes {
     | '/agent'
     | '/agent-admin'
     | '/agent-assessment'
+    | '/ai-impersonation'
     | '/auth'
     | '/case-studies'
     | '/contact'
@@ -1314,6 +1326,7 @@ export interface RootRouteChildren {
   AgentRoute: typeof AgentRoute
   AgentAdminRoute: typeof AgentAdminRoute
   AgentAssessmentRoute: typeof AgentAssessmentRoute
+  AiImpersonationRoute: typeof AiImpersonationRoute
   AuthRoute: typeof AuthRoute
   CaseStudiesRoute: typeof CaseStudiesRoute
   ContactRoute: typeof ContactRoute
@@ -1486,6 +1499,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-impersonation': {
+      id: '/ai-impersonation'
+      path: '/ai-impersonation'
+      fullPath: '/ai-impersonation'
+      preLoaderRoute: typeof AiImpersonationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agent-assessment': {
@@ -2238,6 +2258,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgentRoute: AgentRoute,
   AgentAdminRoute: AgentAdminRoute,
   AgentAssessmentRoute: AgentAssessmentRoute,
+  AiImpersonationRoute: AiImpersonationRoute,
   AuthRoute: AuthRoute,
   CaseStudiesRoute: CaseStudiesRoute,
   ContactRoute: ContactRoute,

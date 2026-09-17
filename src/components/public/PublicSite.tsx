@@ -141,6 +141,7 @@ export function PublicFooter() {
           label: "Online Reputation Protection",
           to: "/online-reputation-protection" as const,
         },
+        { label: "AI Impersonation", to: "/ai-impersonation" as const },
         { label: "How It Works", href: "/#how-it-works" },
         { label: "Case Studies", to: "/case-studies" as const },
         { label: "Identity Response Observatory", to: "/identity-response-observatory" as const },
