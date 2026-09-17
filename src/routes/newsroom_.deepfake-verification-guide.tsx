@@ -48,6 +48,10 @@ function GuidePage() {
       eyebrow="Newsroom · Eterna-owned guide"
       title="The Deepfake Verification Guide"
       intro="What actually counts as a verified deepfake — and the standard Eterna applies before calling one confirmed."
+      image={{
+        src: "/images/newsroom/deepfake-verification-guide.png",
+        alt: "Abstract visual representing deepfake verification",
+      }}
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
       <section className="py-16 md:py-20">

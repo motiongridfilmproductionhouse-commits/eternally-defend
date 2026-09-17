@@ -74,6 +74,10 @@ function GuidePage() {
       eyebrow="Newsroom · Eterna-owned guide"
       title="The Executive First Hour Response Playbook"
       intro="A condensed playbook for executives and communications leads: the decisions that matter most in the first hour, before the fuller response process begins."
+      image={{
+        src: "/images/newsroom/executive-first-hour-response-playbook.png",
+        alt: "Abstract visual representing executive incident response",
+      }}
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
       <section className="py-16 md:py-20">

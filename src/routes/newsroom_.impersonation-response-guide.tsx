@@ -48,6 +48,10 @@ function GuidePage() {
       eyebrow="Newsroom · Eterna-owned guide"
       title="The Impersonation Response Guide"
       intro="What actually happens, step by step, after you discover a deepfake or an account impersonating you — and why the order matters. There's no fixed timeline that fits every case; the sequence below is what matters, not the clock."
+      image={{
+        src: "/images/newsroom/impersonation-response-guide.png",
+        alt: "Abstract visual representing impersonation response",
+      }}
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
       <section className="py-16 md:py-20">
