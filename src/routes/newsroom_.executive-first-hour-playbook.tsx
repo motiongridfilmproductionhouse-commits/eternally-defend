@@ -75,8 +75,8 @@ function GuidePage() {
       title="The Executive First Hour Response Playbook"
       intro="A condensed playbook for executives and communications leads: the decisions that matter most in the first hour, before the fuller response process begins."
       image={{
-        src: "/images/newsroom/executive-first-hour-response-playbook.png",
-        alt: "Abstract visual representing executive incident response",
+        src: "/images/newsroom/deepfake-verification-guide.png",
+        alt: "Desk with a checklist, clock, documents, and response workspace",
       }}
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
