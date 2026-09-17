@@ -131,7 +131,7 @@ function TechnicalBlogPage() {
           </h2>
           <p>
             <strong className="text-landing-ink">Is Image Immunization available today?</strong>{" "}
-            [VERIFY with Eterna: launch timing and access model to be confirmed before publication.]
+            Launch timing and access details will be announced separately.
           </p>
           <p>
             <strong className="text-landing-ink">

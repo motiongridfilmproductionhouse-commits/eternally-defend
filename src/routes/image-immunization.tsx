@@ -69,7 +69,7 @@ function ImageImmunizationPage() {
 
       <section className="border-t border-landing-line bg-landing-soft py-16 md:py-20">
         <div className="mx-auto max-w-3xl space-y-6 px-6 text-sm leading-7 text-landing-muted">
-          <p className="landing-kicker">The AI identity problem</p>
+          <h2 className="landing-kicker">The AI identity problem</h2>
           <p>
             A single publicly available photo can be enough for common AI systems to reproduce or
             extend a person's likeness, often without their knowledge. As image-generation and
@@ -81,7 +81,7 @@ function ImageImmunizationPage() {
 
       <section className="py-16 md:py-20">
         <div className="mx-auto max-w-3xl space-y-6 px-6 text-sm leading-7 text-landing-muted">
-          <p className="landing-kicker">Why protection normally begins too late</p>
+          <h2 className="landing-kicker">Why protection normally begins too late</h2>
           <p>
             Most protection today starts after an image has already been misused: once a deepfake
             exists, a likeness has been reused, or an impersonation has spread. EIP is built for the
@@ -92,7 +92,7 @@ function ImageImmunizationPage() {
 
       <section className="border-t border-landing-line bg-landing-soft py-16 md:py-20">
         <div className="mx-auto max-w-3xl space-y-6 px-6 text-sm leading-7 text-landing-muted">
-          <p className="landing-kicker">What EIP is</p>
+          <h2 className="landing-kicker">What EIP is</h2>
           <p>
             EIP is Eterna's proprietary technology for preparing an authorized image before it goes
             out into the world. It's designed to reduce how useful that image is as a source for AI
@@ -104,7 +104,7 @@ function ImageImmunizationPage() {
       <section className="py-16 md:py-20">
         <div className="mx-auto max-w-3xl px-6">
           <div className="border-t border-landing-line pt-10">
-            <p className="landing-kicker">Protecting the source image</p>
+            <h2 className="landing-kicker">Protecting the source image</h2>
             <p className="mt-4 text-sm leading-7 text-landing-muted">
               EIP is applied at the source, before an image is published or distributed, rather than
               after it has already been copied, reused or altered elsewhere. Protecting at the
@@ -129,7 +129,7 @@ function ImageImmunizationPage() {
               />
             </div>
             <div>
-              <p className="landing-kicker">Human-visible appearance and machine identity use</p>
+              <h2 className="landing-kicker">Human-visible appearance and machine identity use</h2>
               <p className="mt-4 text-sm leading-7 text-landing-muted">
                 EIP is designed to preserve an image's natural, human-visible appearance while
                 reducing its usefulness as a reusable machine identity source. The person in the
@@ -143,7 +143,7 @@ function ImageImmunizationPage() {
 
       <section className="border-t border-landing-line bg-landing-soft py-16 md:py-20">
         <div className="mx-auto max-w-3xl px-6">
-          <p className="landing-kicker">Who EIP is designed for</p>
+          <h2 className="landing-kicker">Who EIP is designed for</h2>
           <p className="mt-4 text-sm leading-7 text-landing-muted">
             EIP is designed for anyone who shares images that could be reused without their consent:
             people with a public profile, and the organizations responsible for the images of the
@@ -209,7 +209,7 @@ function ImageImmunizationPage() {
               />
             </div>
             <div className="md:[direction:ltr]">
-              <p className="landing-kicker">How EIP fits into Eterna protection</p>
+              <h2 className="landing-kicker">How EIP fits into Eterna protection</h2>
               <p className="mt-4 text-sm leading-7 text-landing-muted">
                 EIP is an additional layer of digital identity defense, applied before an image is
                 published. It works alongside Eterna's{" "}
@@ -230,7 +230,7 @@ function ImageImmunizationPage() {
 
       <section className="border-t border-landing-line bg-landing-soft py-16 md:py-20">
         <div className="mx-auto max-w-3xl px-6">
-          <p className="landing-kicker">Responsible protection</p>
+          <h2 className="landing-kicker">Responsible protection</h2>
           <p className="mt-4 text-sm leading-7 text-landing-muted">
             Eterna develops EIP the same way it operates every part of its platform: with a
             documented process and a clear account of what's proven and what's still in progress.
@@ -242,7 +242,7 @@ function ImageImmunizationPage() {
 
       <section className="py-16 md:py-20">
         <div className="mx-auto max-w-3xl px-6">
-          <p className="landing-kicker">Frequently asked questions</p>
+          <h2 className="landing-kicker">Frequently asked questions</h2>
           <Accordion type="single" collapsible className="mt-8">
             <AccordionItem value="protects-against">
               <AccordionTrigger className="text-left text-sm font-semibold text-landing-ink">
@@ -285,7 +285,7 @@ function ImageImmunizationPage() {
 
       <section className="border-t border-landing-line bg-landing-soft py-16 md:py-20">
         <div className="mx-auto max-w-3xl px-6 text-center">
-          <p className="landing-kicker">Request EIP protection</p>
+          <h2 className="landing-kicker">Request EIP protection</h2>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-landing-muted">
             Reach out to request EIP protection for an authorized image.
           </p>
