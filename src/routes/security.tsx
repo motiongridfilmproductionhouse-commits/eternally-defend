@@ -26,6 +26,22 @@ export const Route = createFileRoute("/security")({
   component: SecurityPage,
 });
 
+function schema() {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "Security & Governance: Eterna Sentinel",
+    description:
+      "How Eterna Sentinel governs authorization, identity verification, evidence, human review and sensitive information.",
+    publisher: {
+      "@type": "Organization",
+      name: "Eterna Sentinel",
+      url: "https://protectbyeterna.com/",
+    },
+    mainEntityOfPage: "https://protectbyeterna.com/security",
+  });
+}
+
 function SecurityPage() {
   const controls = [
     {
@@ -65,6 +81,8 @@ function SecurityPage() {
       title="Evidence preserved. Actions governed."
       intro="Eterna combines technical controls with human review so protection work remains authorized, traceable and proportionate."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
+
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <div className="grid gap-px overflow-hidden border border-landing-line bg-landing-line md:grid-cols-2 lg:grid-cols-3">

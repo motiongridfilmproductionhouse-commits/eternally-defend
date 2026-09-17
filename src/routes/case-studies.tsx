@@ -26,6 +26,22 @@ export const Route = createFileRoute("/case-studies")({
   component: CaseStudiesPage,
 });
 
+function schema() {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Protection in Practice: Eterna Sentinel",
+    description:
+      "Anonymized examples of Eterna Sentinel detection, investigation, evidence preservation and governed response workflows.",
+    publisher: {
+      "@type": "Organization",
+      name: "Eterna Sentinel",
+      url: "https://protectbyeterna.com/",
+    },
+    mainEntityOfPage: "https://protectbyeterna.com/case-studies",
+  });
+}
+
 const studies = [
   {
     icon: Users,
@@ -74,6 +90,8 @@ function CaseStudiesPage() {
       title="Real activity. Careful conclusions."
       intro="These anonymized examples reflect operating workflows in the Eterna platform. Client-identifying information is excluded, and no unverified removal outcome is presented."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
+
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl space-y-6 px-6">
           {studies.map(({ icon: Icon, type, summary, steps, outcome }, index) => (

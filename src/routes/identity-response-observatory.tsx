@@ -28,6 +28,22 @@ export const Route = createFileRoute("/identity-response-observatory")({
   component: ObservatoryPage,
 });
 
+function schema() {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "Eterna Identity Response Observatory",
+    description:
+      "Eterna's initiative to build a sourced, methodology-transparent public record of digital-identity incidents: verified, reported or disputed, and shown that way.",
+    publisher: {
+      "@type": "Organization",
+      name: "Eterna Sentinel",
+      url: "https://protectbyeterna.com/",
+    },
+    mainEntityOfPage: CANONICAL,
+  });
+}
+
 function ObservatoryPage() {
   return (
     <PublicPage
@@ -35,6 +51,7 @@ function ObservatoryPage() {
       title="A public record of digital-identity incidents, built to be checked, not just cited."
       intro="Deepfake and impersonation statistics circulate widely. Few sources show how a single incident is actually confirmed before it's counted. The Observatory is Eterna's initiative to change that, starting with the same verification standard Eterna applies to its own case review."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <p className="landing-kicker">What it is</p>

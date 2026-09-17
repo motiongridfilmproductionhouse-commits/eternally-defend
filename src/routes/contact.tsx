@@ -28,6 +28,22 @@ export const Route = createFileRoute("/contact")({
   component: ContactPage,
 });
 
+function schema() {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    name: "Contact Eterna Sentinel",
+    description:
+      "Reach Eterna Sentinel for protection requests, business enquiries, media, partnerships or client support.",
+    publisher: {
+      "@type": "Organization",
+      name: "Eterna Sentinel",
+      url: "https://protectbyeterna.com/",
+    },
+    mainEntityOfPage: CANONICAL,
+  });
+}
+
 function ContactPage() {
   return (
     <PublicPage
@@ -35,6 +51,7 @@ function ContactPage() {
       title="Reach the right team the first time."
       intro="Protection requests, business enquiries, media, partnerships and support go through different channels so they reach the right people faster."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-6">
           <div className="grid gap-px overflow-hidden border border-landing-line bg-landing-line md:grid-cols-2">

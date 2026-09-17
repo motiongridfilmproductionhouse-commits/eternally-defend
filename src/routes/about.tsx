@@ -26,6 +26,22 @@ export const Route = createFileRoute("/about")({
   component: AboutPage,
 });
 
+function schema() {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    name: "About Eterna Sentinel",
+    description:
+      "Eterna Sentinel is a managed digital protection operation and technology platform for public figures, executives, organizations and their authorized representatives.",
+    publisher: {
+      "@type": "Organization",
+      name: "Eterna Sentinel",
+      url: "https://protectbyeterna.com/",
+    },
+    mainEntityOfPage: "https://protectbyeterna.com/about",
+  });
+}
+
 function AboutPage() {
   const principles = [
     {
@@ -55,6 +71,8 @@ function AboutPage() {
       title="Protection built for the realities of public identity."
       intro="Eterna Sentinel is a managed digital protection operation and technology platform for public figures, executives, organizations and their authorized representatives."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
+
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <div className="grid gap-px overflow-hidden border border-landing-line bg-landing-line md:grid-cols-2">
