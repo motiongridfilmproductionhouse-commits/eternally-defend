@@ -1,0 +1,17 @@
+# Eterna Sentinel — public site
+# Authenticated app, admin and partner areas are intentionally excluded.
+
+User-agent: *
+Allow: /
+Disallow: /auth
+Disallow: /onboarding
+Disallow: /agent
+Disallow: /agent-admin
+Disallow: /agent-assessment
+Disallow: /partner
+Allow: /partner-apply
+Disallow: /verify/
+Disallow: /face-handoff/
+Disallow: /api/
+
+Sitemap: https://protectbyeterna.com/sitemap.xml

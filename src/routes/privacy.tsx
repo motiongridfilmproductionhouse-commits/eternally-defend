@@ -18,6 +18,7 @@ export const Route = createFileRoute("/privacy")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: "https://protectbyeterna.com/privacy" }],
   }),
   component: PrivacyPage,
 });
@@ -48,7 +49,7 @@ function PrivacyPage() {
       <header className="border-b border-border/60 bg-card/40 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-5">
           <Link to="/" className="text-sm font-semibold tracking-tight text-foreground">
-            Eterna AI
+            Eterna Sentinel
           </Link>
           <span className="text-xs text-muted-foreground">Last updated: {updated}</span>
         </div>
@@ -59,19 +60,19 @@ function PrivacyPage() {
           <p className="text-xs font-medium uppercase tracking-widest text-primary">Legal</p>
           <h1 className="mt-2 text-4xl font-bold tracking-tight text-foreground">Privacy Policy</h1>
           <p className="mt-4 text-base text-muted-foreground">
-            This Privacy Policy describes how Eterna AI ("Eterna", "we", "our", or "us") collects,
-            uses, discloses, and safeguards information when you use our digital protection and
-            reputation intelligence platform, websites, applications, and related services
-            (collectively, the "Services").
+            This Privacy Policy describes how Eterna Sentinel ("Eterna", "we", "our", or "us")
+            collects, uses, discloses, and safeguards information when you use our digital
+            protection and reputation intelligence platform, websites, applications, and related
+            services (collectively, the "Services").
           </p>
         </div>
 
         <div className="space-y-12">
           <Section id="introduction" title="1. Introduction">
             <p>
-              Eterna AI provides digital protection, reputation monitoring, threat intelligence,
-              copyright monitoring, impersonation detection, deepfake detection, evidence
-              collection, and enforcement support services to individuals, brands, and
+              Eterna Sentinel provides digital protection, reputation monitoring, threat
+              intelligence, copyright monitoring, impersonation detection, deepfake detection,
+              evidence collection, and enforcement support services to individuals, brands, and
               organizations. Our platform helps authorized users identify, document, and respond to
               online risks that may harm their reputation, intellectual property, identity, or
               digital safety.
@@ -134,10 +135,10 @@ function PrivacyPage() {
 
           <Section id="public-content" title="4. Public Content Monitoring">
             <p>
-              Eterna AI may analyze publicly available content from websites, search engines, social
-              media platforms, news sites, forums, public archives, and publicly available YouTube
-              content for authorized monitoring purposes. We do not access private accounts, private
-              messages, or content protected by authentication controls without explicit
+              Eterna Sentinel may analyze publicly available content from websites, search engines,
+              social media platforms, news sites, forums, public archives, and publicly available
+              YouTube content for authorized monitoring purposes. We do not access private accounts,
+              private messages, or content protected by authentication controls without explicit
               authorization from the account holder.
             </p>
             <p>
@@ -148,8 +149,8 @@ function PrivacyPage() {
 
           <Section id="youtube-disclosure" title="5. YouTube API Services Disclosure">
             <p>
-              Eterna AI uses YouTube API Services to retrieve publicly available YouTube metadata
-              and content information for monitoring and reporting purposes.
+              Eterna Sentinel uses YouTube API Services to retrieve publicly available YouTube
+              metadata and content information for monitoring and reporting purposes.
             </p>
             <p>
               By using features that interact with YouTube services, users acknowledge and agree to
@@ -177,8 +178,8 @@ function PrivacyPage() {
               .
             </p>
             <p>
-              Users may revoke Eterna AI's access to their Google or YouTube data at any time via
-              the{" "}
+              Users may revoke Eterna Sentinel's access to their Google or YouTube data at any time
+              via the{" "}
               <a
                 href="https://security.google.com/settings/security/permissions"
                 target="_blank"
@@ -203,7 +204,7 @@ function PrivacyPage() {
 
           <Section id="sharing" title="7. Sharing of Information">
             <p>
-              Eterna AI does not sell personal information. We share information only in the
+              Eterna Sentinel does not sell personal information. We share information only in the
               following circumstances:
             </p>
             <ul className="list-disc space-y-2 pl-6">
@@ -242,10 +243,10 @@ function PrivacyPage() {
             <p>
               To exercise these rights, contact us at{" "}
               <a
-                href="mailto:privacy@eternai.ai"
+                href="mailto:privacy@eternasentinel.com"
                 className="text-primary underline underline-offset-4 hover:opacity-80"
               >
-                privacy@eternai.ai
+                privacy@eternasentinel.com
               </a>
               .
             </p>
@@ -253,7 +254,7 @@ function PrivacyPage() {
 
           <Section id="international" title="10. International Data Transfers">
             <p>
-              Eterna AI operates globally, and information may be processed and stored in
+              Eterna Sentinel operates globally, and information may be processed and stored in
               jurisdictions other than the user's country of residence. Where required, we rely on
               appropriate safeguards such as standard contractual clauses to protect cross-border
               transfers.
@@ -303,25 +304,25 @@ function PrivacyPage() {
           <Section id="contact" title="15. Contact Information">
             <p>For questions or requests regarding this Privacy Policy, contact:</p>
             <div className="rounded-lg border border-border/60 bg-card p-5">
-              <p className="font-semibold text-foreground">Eterna AI</p>
+              <p className="font-semibold text-foreground">Eterna Sentinel</p>
               <p className="mt-1">
                 Email:{" "}
                 <a
-                  href="mailto:privacy@eternai.ai"
+                  href="mailto:privacy@eternasentinel.com"
                   className="text-primary underline underline-offset-4 hover:opacity-80"
                 >
-                  privacy@eternai.ai
+                  privacy@eternasentinel.com
                 </a>
               </p>
               <p>
                 Website:{" "}
                 <a
-                  href="https://eternai.ai"
+                  href="https://protectbyeterna.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary underline underline-offset-4 hover:opacity-80"
                 >
-                  https://eternai.ai
+                  https://protectbyeterna.com
                 </a>
               </p>
             </div>
@@ -329,7 +330,7 @@ function PrivacyPage() {
         </div>
 
         <footer className="mt-16 border-t border-border/60 pt-6 text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Eterna AI. All rights reserved.
+          © {new Date().getFullYear()} Eterna Sentinel. All rights reserved.
         </footer>
       </main>
     </div>
