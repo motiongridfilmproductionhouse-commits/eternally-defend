@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -153,6 +153,37 @@ const navigationCategories: NavCategory[] = [
   },
 ];
 
+// Right-column feature panels for the desktop mega menu. Every line of copy
+// here is drawn from that page's own existing, approved wording (its <head>
+// description or intro), condensed for a compact card — not new marketing
+// claims. Sources: image-immunization.tsx (Platform), the homepage tagline
+// + solution pages (Solutions), newsroom_.detection-is-not-prevention.tsx
+// (Research), security.tsx (Company).
+type MegaFeature = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  ctaLabel: string;
+  to: NavRouteTo;
+};
+
+const megaFeatures: Record<"platform" | "research", MegaFeature> = {
+  platform: {
+    eyebrow: "Preventative protection",
+    title: "Image Immunization",
+    body: "Eterna's proprietary pre-publication image protection, developed through internal R&D and currently under validation. Designed to reduce unauthorized AI identity reuse while preserving natural appearance.",
+    ctaLabel: "Explore Image Immunization",
+    to: "/image-immunization" as const,
+  },
+  research: {
+    eyebrow: "From the Newsroom",
+    title: "Detection Is Not Prevention",
+    body: "Monitoring and takedown work after an image has already been misused — why prevention has to start earlier, and how detection and prevention fit together.",
+    ctaLabel: "Read article",
+    to: "/newsroom/detection-is-not-prevention" as const,
+  },
+};
+
 function NavDestinationLink({
   item,
   className,
@@ -166,12 +197,14 @@ function NavDestinationLink({
     return (
       <Link
         to={item.to}
-        className={className}
+        className={cn("group", className)}
         onClick={onNavigate}
         activeProps={{ "data-current": "true" }}
         activeOptions={{ exact: true }}
       >
-        <span className="block text-sm font-semibold text-landing-ink">{item.label}</span>
+        <span className="block text-sm font-semibold text-landing-ink transition-transform duration-150 ease-out group-hover:translate-x-[2px]">
+          {item.label}
+        </span>
         <span className="mt-0.5 block text-xs leading-5 text-landing-muted">
           {item.description}
         </span>
@@ -179,25 +212,249 @@ function NavDestinationLink({
     );
   }
   return (
-    <a href={item.href} className={className} onClick={onNavigate}>
-      <span className="block text-sm font-semibold text-landing-ink">{item.label}</span>
+    <a href={item.href} className={cn("group", className)} onClick={onNavigate}>
+      <span className="block text-sm font-semibold text-landing-ink transition-transform duration-150 ease-out group-hover:translate-x-[2px]">
+        {item.label}
+      </span>
       <span className="mt-0.5 block text-xs leading-5 text-landing-muted">{item.description}</span>
     </a>
   );
 }
 
+const megaLinkClassName =
+  "block rounded-md px-3 py-2.5 outline-none transition-colors hover:bg-landing-soft focus-visible:bg-landing-soft data-[current=true]:bg-landing-soft";
+
+function MegaEyebrow({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-wide text-landing-muted">
+      {children}
+    </p>
+  );
+}
+
+function MegaFeatureCard({ feature }: { feature: MegaFeature }) {
+  return (
+    <div className="eterna-nav-emphasis eterna-nav-feature flex h-full flex-col justify-between rounded-xl border p-6">
+      <div>
+        <MegaEyebrow>{feature.eyebrow}</MegaEyebrow>
+        <h3 className="mt-2 text-lg font-semibold text-landing-ink">{feature.title}</h3>
+        <p className="mt-3 text-sm leading-6 text-landing-muted">{feature.body}</p>
+      </div>
+      <NavigationMenuPrimitive.Link asChild>
+        <Link
+          to={feature.to}
+          className="group mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-landing-ink"
+        >
+          {feature.ctaLabel}
+          <ArrowRight
+            className="size-3.5 transition-transform duration-150 ease-out group-hover:translate-x-1"
+            aria-hidden="true"
+          />
+        </Link>
+      </NavigationMenuPrimitive.Link>
+    </div>
+  );
+}
+
+function PlatformMegaContent() {
+  const category = navigationCategories[0];
+  return (
+    <div className="grid h-full grid-cols-[1.3fr_1fr] gap-10">
+      <div>
+        <MegaEyebrow>{category.label}</MegaEyebrow>
+        <ul className="mt-3 flex flex-col gap-0.5">
+          {category.items.map((item) => (
+            <li key={item.label}>
+              <NavigationMenuPrimitive.Link asChild>
+                <NavDestinationLink
+                  item={item}
+                  className={cn(megaLinkClassName, item.emphasis && "eterna-nav-emphasis border")}
+                />
+              </NavigationMenuPrimitive.Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <MegaFeatureCard feature={megaFeatures.platform} />
+    </div>
+  );
+}
+
+function SolutionsMegaContent() {
+  const category = navigationCategories[1];
+  return (
+    <div className="grid h-full grid-cols-[1.3fr_1fr] gap-10">
+      <div>
+        <MegaEyebrow>{category.label}</MegaEyebrow>
+        <ul className="mt-3 flex flex-col gap-0.5">
+          {category.items.map((item) => (
+            <li key={item.label}>
+              <NavigationMenuPrimitive.Link asChild>
+                <NavDestinationLink item={item} className={megaLinkClassName} />
+              </NavigationMenuPrimitive.Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="eterna-nav-emphasis eterna-nav-feature flex h-full flex-col justify-between rounded-xl border p-6">
+        <div>
+          <MegaEyebrow>Who this is for</MegaEyebrow>
+          <h3 className="mt-2 text-lg font-semibold text-landing-ink">
+            Protection for high-exposure identities
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-landing-muted">
+            Digital identity protection for people and organizations in the public eye — deepfakes,
+            impersonation and reputation threats, addressed together.
+          </p>
+        </div>
+        <NavigationMenuPrimitive.Link asChild>
+          <Link
+            to="/waitinglist"
+            search={{ source: "nav-solutions-feature" }}
+            className="group mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-landing-ink"
+          >
+            Request Protection
+            <ArrowRight
+              className="size-3.5 transition-transform duration-150 ease-out group-hover:translate-x-1"
+              aria-hidden="true"
+            />
+          </Link>
+        </NavigationMenuPrimitive.Link>
+      </div>
+    </div>
+  );
+}
+
+function ResearchMegaContent() {
+  const category = navigationCategories[2];
+  const sideLinks = category.items.filter((item) => item.label !== "Newsroom");
+  const newsroomLink = category.items.find((item) => item.label === "Newsroom");
+  return (
+    <div className="grid h-full grid-cols-[1fr_1fr_1.2fr] gap-10">
+      <div>
+        <MegaEyebrow>{category.label}</MegaEyebrow>
+        <ul className="mt-3 flex flex-col gap-0.5">
+          {sideLinks.map((item) => (
+            <li key={item.label}>
+              <NavigationMenuPrimitive.Link asChild>
+                <NavDestinationLink item={item} className={megaLinkClassName} />
+              </NavigationMenuPrimitive.Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="border-l border-landing-line pl-10">
+        <MegaEyebrow>Newsroom</MegaEyebrow>
+        {newsroomLink && (
+          <ul className="mt-3 flex flex-col gap-0.5">
+            <li>
+              <NavigationMenuPrimitive.Link asChild>
+                <NavDestinationLink item={newsroomLink} className={megaLinkClassName} />
+              </NavigationMenuPrimitive.Link>
+            </li>
+          </ul>
+        )}
+      </div>
+      <MegaFeatureCard feature={megaFeatures.research} />
+    </div>
+  );
+}
+
+function CompanyMegaContent() {
+  const category = navigationCategories[3];
+  return (
+    <div className="grid h-full grid-cols-[1.3fr_1fr] gap-10">
+      <div>
+        <MegaEyebrow>{category.label}</MegaEyebrow>
+        <ul className="mt-3 flex flex-col gap-0.5">
+          {category.items.map((item) => (
+            <li key={item.label}>
+              <NavigationMenuPrimitive.Link asChild>
+                <NavDestinationLink item={item} className={megaLinkClassName} />
+              </NavigationMenuPrimitive.Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="eterna-nav-emphasis eterna-nav-feature flex h-full flex-col justify-between rounded-xl border p-6">
+        <div>
+          <MegaEyebrow>How we operate</MegaEyebrow>
+          <h3 className="mt-2 text-lg font-semibold text-landing-ink">
+            Built on authorization, evidence and human judgment
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-landing-muted">
+            Eterna combines technical controls with human review so protection work stays
+            authorized, traceable and proportionate.
+          </p>
+        </div>
+        <div className="mt-6 flex flex-col gap-2">
+          <NavigationMenuPrimitive.Link asChild>
+            <Link
+              to="/security"
+              className="group inline-flex items-center gap-1.5 text-sm font-semibold text-landing-ink"
+            >
+              Security
+              <ArrowRight
+                className="size-3.5 transition-transform duration-150 ease-out group-hover:translate-x-1"
+                aria-hidden="true"
+              />
+            </Link>
+          </NavigationMenuPrimitive.Link>
+          <NavigationMenuPrimitive.Link asChild>
+            <Link
+              to="/methodology"
+              className="group inline-flex items-center gap-1.5 text-sm font-semibold text-landing-ink"
+            >
+              Methodology
+              <ArrowRight
+                className="size-3.5 transition-transform duration-150 ease-out group-hover:translate-x-1"
+                aria-hidden="true"
+              />
+            </Link>
+          </NavigationMenuPrimitive.Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const megaContentByCategory: Record<string, () => ReactNode> = {
+  Platform: PlatformMegaContent,
+  Solutions: SolutionsMegaContent,
+  Research: ResearchMegaContent,
+  Company: CompanyMegaContent,
+};
+
+// One shared premium shell (fixed position/size, `Viewport`-driven) instead
+// of four small independent dropdowns: switching triggers only crossfades
+// the inner content in place, the shell itself never closes/reopens or
+// changes size. The shell (`Viewport`) is `forceMount`ed and shown/hidden
+// via Radix's own `data-state` (which it sets correctly on itself), but
+// Radix does NOT set `data-state` on each category's own `Content` node
+// once it's rendered through a shared `Viewport` (confirmed by reading
+// node_modules/@radix-ui/react-navigation-menu: `NavigationMenuViewportItem`
+// forwards props straight into `NavigationMenuContentImpl` with no
+// `data-state`, unlike the standalone-dropdown codepath) — so per-category
+// visibility is driven explicitly here via controlled `value`/
+// `onValueChange` state instead. Every `Content` stays `forceMount`ed so all
+// destination links stay real, crawlable anchors in the server-rendered
+// HTML at all times, and `data-motion` (which Radix does set correctly on
+// every Content, active or not) still drives the crossfade animation.
 function DesktopNav() {
+  const [activeCategory, setActiveCategory] = useState("");
   return (
     <NavigationMenuPrimitive.Root
       aria-label="Main navigation"
-      delayDuration={150}
+      delayDuration={100}
       skipDelayDuration={200}
-      className="relative hidden lg:flex"
+      value={activeCategory}
+      onValueChange={setActiveCategory}
+      className="hidden lg:flex"
     >
       <NavigationMenuPrimitive.List className="flex items-center gap-1 text-[13px] text-landing-muted">
         {navigationCategories.map((category) => (
-          <NavigationMenuPrimitive.Item key={category.label} className="relative">
-            <NavigationMenuPrimitive.Trigger className="group flex items-center gap-1 rounded-md px-3 py-2 text-[13px] font-medium text-landing-muted outline-none transition-colors hover:text-landing-ink focus-visible:text-landing-ink focus-visible:ring-2 focus-visible:ring-landing-accent/40 data-[state=open]:text-landing-ink">
+          <NavigationMenuPrimitive.Item key={category.label} value={category.label}>
+            <NavigationMenuPrimitive.Trigger className="group relative flex items-center gap-1 rounded-md px-3 py-2 text-[13px] font-medium text-landing-muted outline-none transition-colors duration-[180ms] ease-out hover:-translate-y-px hover:text-landing-ink focus-visible:text-landing-ink focus-visible:ring-2 focus-visible:ring-landing-accent/40 data-[state=open]:text-landing-ink">
               {category.label}
               <ChevronDown
                 className="size-3 text-landing-muted/70 transition-transform duration-200 group-data-[state=open]:rotate-180"
@@ -205,37 +462,47 @@ function DesktopNav() {
               />
             </NavigationMenuPrimitive.Trigger>
             {/*
-              forceMount keeps every dropdown's links in the server-rendered
-              HTML at all times (not just after the trigger is opened), so
-              they stay normal crawlable anchors instead of depending on
-              JavaScript interaction. Visibility is handled purely by the
-              data-state-driven `hidden` / `block` classes below; closed
-              content is display:none, which also removes it from the tab
-              order until its trigger is opened.
+              forceMount keeps this category's links in the server-rendered
+              HTML at all times, not just while its content is the active one
+              in the shared shell below — see the module-level comment above
+              DesktopNav. Visibility inside the shell is driven by comparing
+              this category to `activeCategory` (not Radix's `data-state`,
+              which isn't set here); a hidden panel is display:none, which
+              also removes it from the tab order.
             */}
             <NavigationMenuPrimitive.Content
               forceMount
-              className="eterna-nav-panel absolute left-1/2 top-full z-50 mt-2 hidden w-[300px] max-w-[calc(100vw-2.5rem)] -translate-x-1/2 rounded-md border border-landing-line bg-landing p-2 data-[state=open]:block data-[motion^=from-]:animate-in data-[motion^=to-]:animate-out data-[motion^=from-]:fade-in data-[motion^=to-]:fade-out data-[motion^=from-]:zoom-in-95 data-[motion^=to-]:zoom-out-95"
+              className={cn(
+                "absolute inset-0 h-full w-full overflow-y-auto p-9 data-[motion^=from-]:animate-in data-[motion^=to-]:animate-out data-[motion^=from-]:fade-in data-[motion^=to-]:fade-out data-[motion^=from-]:slide-in-from-bottom-1 data-[motion^=to-]:slide-out-to-bottom-1",
+                activeCategory === category.label ? "block" : "hidden",
+              )}
             >
-              <ul className="flex flex-col gap-0.5">
-                {category.items.map((item) => (
-                  <li key={item.label}>
-                    <NavigationMenuPrimitive.Link asChild>
-                      <NavDestinationLink
-                        item={item}
-                        className={cn(
-                          "block rounded-md px-3 py-2.5 outline-none transition-colors hover:bg-landing-soft focus-visible:bg-landing-soft data-[current=true]:bg-landing-soft",
-                          item.emphasis && "eterna-nav-emphasis border",
-                        )}
-                      />
-                    </NavigationMenuPrimitive.Link>
-                  </li>
-                ))}
-              </ul>
+              {megaContentByCategory[category.label]?.()}
             </NavigationMenuPrimitive.Content>
           </NavigationMenuPrimitive.Item>
         ))}
+        <NavigationMenuPrimitive.Indicator className="top-full flex h-2 items-end justify-center overflow-hidden transition-[width,transform] duration-200 ease-out data-[state=hidden]:animate-out data-[state=hidden]:fade-out data-[state=visible]:animate-in data-[state=visible]:fade-in">
+          <div className="h-[2px] w-6 rounded-full bg-landing-accent" />
+        </NavigationMenuPrimitive.Indicator>
       </NavigationMenuPrimitive.List>
+      {/*
+        Fixed-size shell (not Radix's auto width/height CSS vars, which
+        would resize/animate the panel per active category's natural
+        content size): every category's content is designed to fit the same
+        box, so the shell truly never moves or resizes while switching —
+        only the inner content crossfades. Positioned `absolute` against the
+        nearest positioned ancestor — deliberately not Root itself (Root has
+        no `position` set above), which is only as wide as the trigger row,
+        but the surrounding `<header>` (`position: relative`, the same
+        `max-w-[1380px] mx-auto` box the rest of the header content uses) —
+        so the shell centers under the full header and never overflows the
+        viewport at any width, instead of centering on the narrower trigger
+        row's own off-center position within the header.
+      */}
+      <NavigationMenuPrimitive.Viewport
+        forceMount
+        className="eterna-nav-panel eterna-mega-shell absolute left-1/2 top-full z-50 mt-3 hidden h-[400px] w-[calc(100vw-3rem)] max-w-[1380px] -translate-x-1/2 overflow-hidden rounded-2xl border border-landing-line bg-landing data-[state=open]:block"
+      />
     </NavigationMenuPrimitive.Root>
   );
 }
@@ -255,7 +522,7 @@ function MobileNav({ open, onNavigate }: { open: boolean; onNavigate: () => void
       )}
       aria-label="Mobile navigation"
     >
-      <Accordion type="multiple" className="w-full">
+      <Accordion type="single" collapsible className="w-full">
         {navigationCategories.map((category) => (
           <AccordionItem
             key={category.label}
