@@ -6,7 +6,7 @@ import { PublicPage } from "@/components/public/PublicSite";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About Eterna Sentinel — Digital Protection" },
+      { title: "About Eterna Sentinel: Digital Protection" },
       {
         name: "description",
         content:

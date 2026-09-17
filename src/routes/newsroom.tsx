@@ -7,13 +7,13 @@ const CANONICAL = "https://protectbyeterna.com/newsroom";
 export const Route = createFileRoute("/newsroom")({
   head: () => ({
     meta: [
-      { title: "Newsroom & Insights — Eterna Sentinel" },
+      { title: "Newsroom & Insights: Eterna Sentinel" },
       {
         name: "description",
         content:
           "Eterna Sentinel guidance on deepfake verification and impersonation response, written and published by Eterna.",
       },
-      { property: "og:title", content: "Newsroom & Insights — Eterna Sentinel" },
+      { property: "og:title", content: "Newsroom & Insights: Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -102,7 +102,7 @@ function NewsroomPage() {
             Eterna Sentinel publishes these guides as original, evidence-based educational content.
             Statistics cited are sourced and referenced in each guide; where a figure is drawn from
             a third-party report via an aggregator, that is stated explicitly. These pages are not
-            press coverage of Eterna by an independent outlet — for that, see future updates on this
+            press coverage of Eterna by an independent outlet. For that, see future updates on this
             page as Eterna's media presence develops.
           </p>
         </div>

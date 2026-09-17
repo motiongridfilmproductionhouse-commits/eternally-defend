@@ -82,7 +82,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Eterna Sentinel — Digital Protection" },
+      { title: "Eterna Sentinel: Digital Protection" },
       {
         name: "description",
         content:
@@ -92,7 +92,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "application-name", content: "Eterna Sentinel" },
       // Open Graph
       { property: "og:site_name", content: "Eterna Sentinel" },
-      { property: "og:title", content: "Eterna Sentinel — Digital Protection" },
+      { property: "og:title", content: "Eterna Sentinel: Digital Protection" },
       {
         property: "og:description",
         content:
@@ -101,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       // Twitter / X
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Eterna Sentinel — Digital Protection" },
+      { name: "twitter:title", content: "Eterna Sentinel: Digital Protection" },
       {
         name: "twitter:description",
         content:

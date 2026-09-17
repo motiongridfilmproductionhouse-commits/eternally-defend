@@ -8,7 +8,7 @@ const PUBLISHED = "2026-09-16";
 export const Route = createFileRoute("/newsroom_/executive-first-hour-playbook")({
   head: () => ({
     meta: [
-      { title: "The Executive First Hour Response Playbook — Eterna Sentinel" },
+      { title: "The Executive First Hour Response Playbook: Eterna Sentinel" },
       {
         name: "description",
         content:
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/newsroom_/executive-first-hour-playbook")
       },
       {
         property: "og:title",
-        content: "The Executive First Hour Response Playbook — Eterna Sentinel",
+        content: "The Executive First Hour Response Playbook: Eterna Sentinel",
       },
       {
         property: "og:description",
@@ -52,7 +52,7 @@ const moves = [
   },
   {
     title: "Assign one owner",
-    body: "One person — not a group chat — owns evidence capture, internal updates and the incident log: a running, timestamped record of what's known, what's been done and who authorized it. Split ownership is how details get lost or contradicted later.",
+    body: "One person (not a group chat) owns evidence capture, internal updates and the incident log: a running, timestamped record of what's known, what's been done and who authorized it. Split ownership is how details get lost or contradicted later.",
   },
   {
     title: "Capture evidence before anything moves or disappears",
@@ -64,7 +64,7 @@ const moves = [
   },
   {
     title: "Decide what you actually know, versus what you suspect",
-    body: "Write down the difference explicitly. Nothing gets called 'confirmed fake' or 'AI-generated' externally until it clears a real verification standard — see the linked guide below for what that requires.",
+    body: "Write down the difference explicitly. Nothing gets called 'confirmed fake' or 'AI-generated' externally until it clears a real verification standard. See the linked guide below for what that requires.",
   },
 ] as const;
 
@@ -84,7 +84,7 @@ function GuidePage() {
         <div className="mx-auto max-w-3xl space-y-8 px-6 text-sm leading-7 text-landing-muted">
           <p>
             When a deepfake or impersonation incident touching an executive or organization
-            surfaces, the pressure to respond immediately is real — and it's usually the wrong
+            surfaces, the pressure to respond immediately is real, and it's usually the wrong
             instinct. The first hour is not for solving the problem. It's for not making it worse
             while the fuller process (covered in the Impersonation Response Guide) gets underway.
           </p>
@@ -106,7 +106,7 @@ function GuidePage() {
             Not a public statement. Not a resolved case. Done looks like: evidence preserved, one
             owner assigned, legal and comms both briefed, and an incident log with a clear, written
             line between what's confirmed and what's still being assessed. That's the handoff into
-            the fuller response process — there's no fixed length for how long that takes; it runs
+            the fuller response process: there's no fixed length for how long that takes; it runs
             until the incident is resolved.
           </p>
 
@@ -118,7 +118,7 @@ function GuidePage() {
                   to="/newsroom/impersonation-response-guide"
                   className="landing-link text-landing-ink"
                 >
-                  The full Impersonation Response Guide — the complete response process
+                  The full Impersonation Response Guide: the complete response process
                 </Link>
               </li>
               <li>
@@ -126,7 +126,7 @@ function GuidePage() {
                   to="/newsroom/deepfake-verification-guide"
                   className="landing-link text-landing-ink"
                 >
-                  The Deepfake Verification Guide — what "confirmed" actually requires
+                  The Deepfake Verification Guide: what "confirmed" actually requires
                 </Link>
               </li>
               <li>

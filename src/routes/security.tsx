@@ -6,13 +6,13 @@ import { PublicPage } from "@/components/public/PublicSite";
 export const Route = createFileRoute("/security")({
   head: () => ({
     meta: [
-      { title: "Security & Governance — Eterna Sentinel" },
+      { title: "Security & Governance: Eterna Sentinel" },
       {
         name: "description",
         content:
           "How Eterna Sentinel governs authorization, identity verification, evidence, human review and sensitive information.",
       },
-      { property: "og:title", content: "Security & Governance — Eterna Sentinel" },
+      { property: "og:title", content: "Security & Governance: Eterna Sentinel" },
       {
         property: "og:description",
         content:

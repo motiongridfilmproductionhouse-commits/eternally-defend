@@ -39,13 +39,13 @@ const CANONICAL = "https://protectbyeterna.com/";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Eterna Sentinel — Digital Identity Protection" },
+      { title: "Eterna Sentinel: Digital Identity Protection" },
       {
         name: "description",
         content:
           "Digital identity protection for people and organizations in the public eye, with evidence-led investigation and human review.",
       },
-      { property: "og:title", content: "Eterna Sentinel — Digital Identity Protection" },
+      { property: "og:title", content: "Eterna Sentinel: Digital Identity Protection" },
       {
         property: "og:description",
         content:
@@ -53,7 +53,7 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Eterna Sentinel — Digital Identity Protection" },
+      { name: "twitter:title", content: "Eterna Sentinel: Digital Identity Protection" },
       {
         name: "twitter:description",
         content:
@@ -284,7 +284,7 @@ function LandingPage() {
             <div data-landing-reveal>
               <p className="landing-kicker">What Eterna protects</p>
               <h2 className="mt-4 max-w-3xl text-4xl font-medium md:text-6xl">
-                Identity, reputation and content—seen together.
+                Identity, reputation and content, seen together.
               </h2>
             </div>
             <div

@@ -8,13 +8,13 @@ const PUBLISHED = "2026-09-16";
 export const Route = createFileRoute("/newsroom_/deepfake-verification-guide")({
   head: () => ({
     meta: [
-      { title: "The Deepfake Verification Guide — Eterna Sentinel" },
+      { title: "The Deepfake Verification Guide: Eterna Sentinel" },
       {
         name: "description",
         content:
           "What actually counts as a verified deepfake incident, and the four-part test Eterna applies before calling one confirmed.",
       },
-      { property: "og:title", content: "The Deepfake Verification Guide — Eterna Sentinel" },
+      { property: "og:title", content: "The Deepfake Verification Guide: Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -47,7 +47,7 @@ function GuidePage() {
     <PublicPage
       eyebrow="Newsroom · Eterna-owned guide"
       title="The Deepfake Verification Guide"
-      intro="What actually counts as a verified deepfake — and the standard Eterna applies before calling one confirmed."
+      intro="What actually counts as a verified deepfake, and the standard Eterna applies before calling one confirmed."
       image={{
         src: "/images/newsroom/deepfake-verification-guide.png",
         alt: "Abstract visual representing deepfake verification",
@@ -57,7 +57,7 @@ function GuidePage() {
       <section className="py-16 md:py-20">
         <div className="mx-auto max-w-3xl space-y-8 px-6 text-sm leading-7 text-landing-muted">
           <p>
-            Every week brings a new headline number about deepfake fraud — billions in losses,
+            Every week brings a new headline number about deepfake fraud: billions in losses,
             hundreds of thousands of victims, exponential growth. Some of these figures are solid.
             Others are extrapolated from small samples or vendor telemetry that measures something
             narrower than the headline suggests. Almost none of the coverage explains how a single
@@ -81,18 +81,18 @@ function GuidePage() {
           <p>
             The data that exists is genuinely significant, even accounting for measurement caveats.
             One 2025 aggregation of verified incidents documented more than $1.28 billion in
-            confirmed deepfake-related fraud losses across 1,567 verified cases — and noted that
-            over 80% of reported incidents disclosed no financial figure at all, meaning the real
-            total is almost certainly higher. A separate first-half-2026 review of news-reported
-            attacks identified 821 verified incidents drawn from 1,760 news reports, with at least
-            15,736 documented victims. On the identity-verification side, a 2026 report covering
-            more than a billion verification events across 195 countries found deepfakes present in
-            roughly one in five biometric fraud attempts.
+            confirmed deepfake-related fraud losses across 1,567 verified cases, and noted that over
+            80% of reported incidents disclosed no financial figure at all, meaning the real total
+            is almost certainly higher. A separate first-half-2026 review of news-reported attacks
+            identified 821 verified incidents drawn from 1,760 news reports, with at least 15,736
+            documented victims. On the identity-verification side, a 2026 report covering more than
+            a billion verification events across 195 countries found deepfakes present in roughly
+            one in five biometric fraud attempts.
           </p>
           <p>
             Those figures share something important: each traces back to a named methodology and a
             defined sample. That's the bar. A lot of circulating "deepfake statistics" content
-            doesn't clear it — numbers get repeated across posts until the original caveat
+            doesn't clear it; numbers get repeated across posts until the original caveat
             disappears.
           </p>
 
@@ -101,7 +101,7 @@ function GuidePage() {
           </h2>
           <p>
             It's tempting to assume a trained eye can catch what a headline can't. Published
-            research says otherwise — studies on human accuracy identifying high-quality deepfake
+            research says otherwise: studies on human accuracy identifying high-quality deepfake
             video have found rates as low as 24.5%, worse than a coin flip. Automated detectors fare
             better in controlled conditions, but independent real-world benchmarking (the
             Deepfake-Eval-2024 benchmark) found detector accuracy dropped by roughly 45–50% outside
@@ -112,19 +112,19 @@ function GuidePage() {
             The standard: four tests before "verified"
           </h2>
           <p>
-            An incident earns a verified tag in Eterna's own case review — and in the Identity
-            Response Observatory — only when it clears four checks. The full standard, with each
-            test explained, is published on the{" "}
+            An incident earns a verified tag in Eterna's own case review (and in the Identity
+            Response Observatory) only when it clears four checks. The full standard, with each test
+            explained, is published on the{" "}
             <Link to="/methodology" className="landing-link text-landing-ink">
               Methodology page
             </Link>
             : sourced to a checkable origin, corroborated by an independent second signal,
-            attributable to a stated verification method, and — where an active response is involved
-            — authorized by the affected party before anything is escalated.
+            attributable to a stated verification method, and (where an active response is involved)
+            authorized by the affected party before anything is escalated.
           </p>
           <p>
-            Anything that doesn't clear all four is labeled reported but unconfirmed, or disputed —
-            visibly, not quietly dropped.
+            Anything that doesn't clear all four is labeled visibly as reported but unconfirmed, or
+            disputed, not quietly dropped.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
@@ -134,7 +134,7 @@ function GuidePage() {
             The deepfake-defence category has largely competed on detection speed and confidence
             scores. Those are useful signals, but they answer the wrong question for someone whose
             identity has just been weaponized. The real question is whether something can be
-            substantiated well enough that a platform, a newsroom or a court will act on it — a
+            substantiated well enough that a platform, a newsroom or a court will act on it: a
             documentation and verification question, not a model-accuracy question. If you're
             responding to a live incident right now, see the{" "}
             <Link

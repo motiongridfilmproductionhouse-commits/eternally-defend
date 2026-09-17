@@ -4,12 +4,12 @@ import { PublicPage } from "@/components/public/PublicSite";
 export const Route = createFileRoute("/terms")({
   head: () => ({
     meta: [
-      { title: "Terms of Service — Eterna Sentinel" },
+      { title: "Terms of Service: Eterna Sentinel" },
       {
         name: "description",
         content: "Terms governing access to Eterna Sentinel digital protection services.",
       },
-      { property: "og:title", content: "Terms of Service — Eterna Sentinel" },
+      { property: "og:title", content: "Terms of Service: Eterna Sentinel" },
       {
         property: "og:description",
         content: "Terms governing access to Eterna Sentinel digital protection services.",
