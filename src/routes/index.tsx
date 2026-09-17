@@ -27,6 +27,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { cn } from "@/lib/utils";
 import { EternaLogo, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
 import heroVideo from "@/assets/eterna-hero.mp4.asset.json";
 import heroVideoWebm from "@/assets/eterna-hero.webm.asset.json";
@@ -93,6 +94,70 @@ const process = [
   ["04", "Preserve Evidence", "Retain source, timestamp and context for review."],
   ["05", "Enforce", "Submit eligible, authorized and approved cases appropriately."],
   ["06", "Monitor Again", "Track status, recurrence and emerging exposure."],
+] as const;
+
+const engagementCards = [
+  {
+    icon: Mic2,
+    category: "Public figures",
+    description:
+      "Film, media, entertainment and other individuals exposed to public identity misuse.",
+    services: ["Identity protection", "Synthetic media review", "Impersonation monitoring"],
+  },
+  {
+    icon: UserCheck,
+    category: "Executives & founders",
+    description:
+      "Protection for individuals whose name, face or reputation is closely connected to an organization.",
+    services: ["Executive monitoring", "Identity misuse review", "Evidence-led response"],
+  },
+  {
+    icon: Building2,
+    category: "Organizations",
+    description:
+      "Protection for businesses and institutions facing impersonation, synthetic media or reputation threats.",
+    services: ["Brand monitoring", "Executive protection", "Evidence preservation"],
+  },
+] as const;
+
+const standardExposureSteps = [
+  { step: "01", title: "Original image published", detail: "Shared publicly, as usual." },
+  {
+    step: "02",
+    title: "Image becomes reusable in AI systems",
+    detail: "Public images can be collected and reused.",
+  },
+  {
+    step: "03",
+    title: "Identity may be replicated, manipulated or misused",
+    detail: "Face and likeness put at risk.",
+  },
+] as const;
+
+const eipProtectionSteps = [
+  {
+    step: "01",
+    title: "Authorized image prepared with EIP",
+    detail: "Applied before publication, with authorization.",
+  },
+  {
+    step: "02",
+    title: "Natural human-visible appearance retained",
+    detail: "Looks unchanged to the human eye.",
+  },
+  {
+    step: "03",
+    title: "Designed to reduce unauthorized AI identity reuse",
+    detail: "A layer of protective friction, not a guarantee.",
+  },
+] as const;
+
+const engagementCapabilityStrip = [
+  "Identity Protection",
+  "Impersonation Monitoring",
+  "Synthetic Media Review",
+  "Evidence Preservation",
+  "Human-Reviewed Response",
 ] as const;
 
 function LandingPage() {
@@ -253,29 +318,64 @@ function LandingPage() {
           </div>
         </section>
 
-        <section className="py-20 md:py-28">
-          <div data-landing-reveal className="mx-auto max-w-6xl px-6">
-            <p className="landing-kicker">Protected engagements</p>
-            <h2 className="mt-4 max-w-3xl text-4xl font-medium md:text-6xl">
-              Trusted to protect identities that operate in the public eye.
-            </h2>
-            <p className="mt-6 max-w-2xl text-sm leading-6 text-landing-muted">
-              Client identities remain confidential. These categories reflect real protected-account
-              types without presenting names, photographs or endorsements.
-            </p>
-            <div className="landing-stagger mt-12 grid gap-px border border-landing-line bg-landing-line md:grid-cols-3">
-              {[
-                [Mic2, "Film industry public figure", "Identity protection"],
-                [Building2, "Organization", "Brand and executive protection"],
-                [Users, "Public-facing individual", "Impersonation monitoring"],
-              ].map(([Icon, title, service]) => (
-                <article key={title as string} className="landing-feature-card bg-landing p-8">
-                  <Icon className="size-5 text-landing-accent" />
-                  <h3 className="mt-16 text-xl font-semibold">{title as string}</h3>
-                  <p className="mt-2 text-sm text-landing-muted">{service as string}</p>
+        <section className="py-20 md:py-28" aria-label="Protected engagements">
+          <div className="mx-auto max-w-6xl px-6">
+            <div data-landing-reveal>
+              <p className="landing-kicker">Protected engagements</p>
+              <div className="mt-4 grid gap-8 md:grid-cols-[1.05fr_0.95fr] md:items-end">
+                <h2 className="max-w-[740px] text-4xl font-medium md:text-5xl">
+                  Protection for identities that operate in public.
+                </h2>
+                <div className="md:pb-1">
+                  <p className="text-sm leading-6 text-landing-muted">
+                    Eterna supports public figures, organizations and public-facing individuals
+                    through confidential, authorized protection engagements.
+                  </p>
+                  <p className="mt-3 text-xs leading-5 text-landing-muted">
+                    Client identities remain private unless explicit permission is provided for
+                    public disclosure.
+                  </p>
+                  <p className="mt-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-landing-muted">
+                    <i className="size-1.5 rounded-full bg-landing-accent" aria-hidden="true" />
+                    Confidential by design
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div data-landing-reveal className="mt-14">
+              <p className="landing-kicker">How EIP changes the image lifecycle</p>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-landing-muted">
+                From ordinary image exposure to pre-publication protection.
+              </p>
+              <EipLifecycleVisual />
+            </div>
+
+            <div data-landing-reveal className="landing-stagger mt-16 grid gap-6 md:grid-cols-3">
+              {engagementCards.map(({ icon: Icon, category, description, services }, index) => (
+                <article
+                  key={category}
+                  className="landing-audience-card rounded-md border border-landing-line bg-landing p-7"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-landing-accent">0{index + 1}</span>
+                    <Icon className="size-5 text-landing-accent" />
+                  </div>
+                  <h3 className="mt-10 text-lg font-semibold">{category}</h3>
+                  <p className="mt-3 text-sm leading-6 text-landing-muted">{description}</p>
+                  <p className="mt-5 border-t border-landing-line pt-4 text-[11px] uppercase tracking-wide text-landing-muted">
+                    {services.join(" · ")}
+                  </p>
                 </article>
               ))}
             </div>
+
+            <p
+              data-landing-reveal
+              className="mt-10 border-t border-landing-line pt-6 text-[11px] uppercase tracking-wide text-landing-muted"
+            >
+              {engagementCapabilityStrip.join(" · ")}
+            </p>
           </div>
         </section>
 
@@ -590,6 +690,106 @@ function LandingPage() {
         </section>
       </main>
       <PublicFooter />
+    </div>
+  );
+}
+
+type EipFlow = "standard" | "eip";
+type EipStep = { step: string; title: string; detail: string };
+
+function EipLifecycleRow({
+  flow,
+  label,
+  steps,
+  activeKey,
+  activeFlow,
+  onActivate,
+  onDeactivate,
+}: {
+  flow: EipFlow;
+  label: string;
+  steps: readonly EipStep[];
+  activeKey: string | null;
+  activeFlow: EipFlow | null;
+  onActivate: (key: string) => void;
+  onDeactivate: () => void;
+}) {
+  return (
+    <div className="eip-row">
+      <p className="eip-flow-label">{label}</p>
+      <div
+        data-landing-reveal
+        className={cn(
+          "landing-stagger mt-4 grid gap-3 sm:grid-cols-3",
+          flow === "eip" ? "eip-row--eip" : "eip-row--standard",
+        )}
+      >
+        {steps.map((item, index) => {
+          const key = `${flow}-${index}`;
+          const isActive = activeKey === key;
+          const isDimmed = activeKey !== null && !isActive && activeFlow !== flow;
+          return (
+            <article
+              key={key}
+              tabIndex={0}
+              onMouseEnter={() => onActivate(key)}
+              onMouseLeave={onDeactivate}
+              onFocus={() => onActivate(key)}
+              onBlur={onDeactivate}
+              className={cn(
+                "eip-panel rounded-2xl p-5",
+                flow === "eip" ? "eip-panel--eip" : "eip-panel--standard",
+                isActive && "is-active",
+                isDimmed && "is-dimmed",
+              )}
+            >
+              <span
+                className={cn(
+                  "text-xs",
+                  flow === "eip" ? "text-landing-accent" : "text-landing-muted",
+                )}
+              >
+                {item.step}
+              </span>
+              <h3 className="mt-3 text-sm font-semibold leading-5">{item.title}</h3>
+              <p className="mt-2 text-xs leading-5 text-landing-muted">{item.detail}</p>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EipLifecycleVisual() {
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const activeFlow = (activeKey?.split("-")[0] as EipFlow | undefined) ?? null;
+
+  return (
+    <div className="eip-visual-frame mt-6 rounded-lg border border-landing-line p-6 md:p-8">
+      <EipLifecycleRow
+        flow="standard"
+        label="Standard image exposure"
+        steps={standardExposureSteps}
+        activeKey={activeKey}
+        activeFlow={activeFlow}
+        onActivate={setActiveKey}
+        onDeactivate={() => setActiveKey(null)}
+      />
+      <div className="my-6 flex items-center gap-3 md:my-8" aria-hidden="true">
+        <span className="h-px flex-1 bg-landing-line" />
+        <ArrowRight className="size-3.5 rotate-90 text-landing-accent" />
+        <span className="h-px flex-1 bg-landing-line" />
+      </div>
+      <EipLifecycleRow
+        flow="eip"
+        label="Eterna EIP protection flow"
+        steps={eipProtectionSteps}
+        activeKey={activeKey}
+        activeFlow={activeFlow}
+        onActivate={setActiveKey}
+        onDeactivate={() => setActiveKey(null)}
+      />
     </div>
   );
 }

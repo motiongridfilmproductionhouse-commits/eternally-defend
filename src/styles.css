@@ -1684,3 +1684,93 @@
     opacity: 0;
   }
 }
+
+/* Protected engagements — EIP lifecycle visual */
+.eip-visual-frame {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      120% 140% at 12% 0%,
+      color-mix(in oklab, var(--landing-accent) 9%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      120% 140% at 100% 100%,
+      color-mix(in oklab, var(--landing-cyan) 8%, transparent),
+      transparent 55%
+    ),
+    var(--landing-soft);
+}
+
+.eip-flow-label {
+  color: var(--landing-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.eip-panel {
+  --eip-y: 0px;
+  --eip-hover-y: 0px;
+  position: relative;
+  border: 1px solid var(--landing-line);
+  background: color-mix(in oklab, var(--landing) 88%, transparent);
+  backdrop-filter: blur(6px);
+  outline: none;
+  transform: translateY(calc(var(--eip-y) + var(--eip-hover-y)));
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 420ms ease,
+    border-color 420ms ease,
+    box-shadow 420ms ease,
+    background-color 420ms ease;
+}
+
+.eip-panel--eip {
+  border-color: color-mix(in oklab, var(--landing-accent) 22%, var(--landing-line));
+  background: color-mix(in oklab, var(--landing) 90%, var(--landing-accent));
+}
+
+.eip-panel.is-active {
+  --eip-hover-y: -6px;
+  border-color: color-mix(in oklab, var(--landing-accent) 45%, var(--landing-line));
+  box-shadow: 0 26px 50px -38px color-mix(in oklab, var(--landing-ink) 40%, transparent);
+}
+
+.eip-panel.is-dimmed {
+  opacity: 0.55;
+}
+
+.eip-panel:focus-visible {
+  border-color: color-mix(in oklab, var(--landing-accent) 55%, var(--landing-line));
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--landing-accent) 30%, transparent);
+}
+
+@media (min-width: 640px) {
+  .eip-row--standard > :nth-child(2) {
+    --eip-y: -6px;
+  }
+  .eip-row--standard > :nth-child(3) {
+    --eip-y: -11px;
+  }
+  .eip-row--eip > :nth-child(1) {
+    --eip-y: 5px;
+  }
+  .eip-row--eip > :nth-child(2) {
+    --eip-y: -2px;
+  }
+  .eip-row--eip > :nth-child(3) {
+    --eip-y: -9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eip-panel {
+    transition: none;
+  }
+  .eip-panel.is-active {
+    --eip-hover-y: 0px;
+  }
+}
