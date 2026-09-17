@@ -39,13 +39,12 @@ const guides = [
     icon: Users,
     to: "/newsroom/impersonation-response-guide" as const,
     title: "The Impersonation Response Guide",
-    summary:
-      "What to do, in order, in the first 72 hours after discovering impersonation or synthetic media.",
+    summary: "What to do, in order, right after discovering impersonation or synthetic media.",
   },
   {
     icon: FileText,
     to: "/newsroom/executive-first-hour-playbook" as const,
-    title: "The Executive First-Hour Response Playbook",
+    title: "The Executive First Hour Response Playbook",
     summary:
       "A condensed playbook for executives and comms teams for the first hour after an incident surfaces.",
   },

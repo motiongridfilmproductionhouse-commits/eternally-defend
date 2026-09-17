@@ -5,16 +5,19 @@ import { PublicPage } from "@/components/public/PublicSite";
 const CANONICAL = "https://protectbyeterna.com/newsroom/executive-first-hour-playbook";
 const PUBLISHED = "2026-09-16";
 
-export const Route = createFileRoute("/newsroom/executive-first-hour-playbook")({
+export const Route = createFileRoute("/newsroom_/executive-first-hour-playbook")({
   head: () => ({
     meta: [
-      { title: "Executive First-Hour Response Playbook — Eterna Sentinel" },
+      { title: "The Executive First Hour Response Playbook — Eterna Sentinel" },
       {
         name: "description",
         content:
           "A condensed playbook for executives and comms teams for the first hour after a deepfake or impersonation incident surfaces.",
       },
-      { property: "og:title", content: "Executive First-Hour Response Playbook — Eterna Sentinel" },
+      {
+        property: "og:title",
+        content: "The Executive First Hour Response Playbook — Eterna Sentinel",
+      },
       {
         property: "og:description",
         content:
@@ -33,7 +36,7 @@ function schema() {
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: "Executive First-Hour Response Playbook",
+    headline: "The Executive First Hour Response Playbook",
     author: { "@type": "Organization", name: "Eterna Sentinel" },
     publisher: { "@type": "Organization", name: "Eterna Sentinel" },
     datePublished: PUBLISHED,
@@ -49,7 +52,7 @@ const moves = [
   },
   {
     title: "Assign one owner",
-    body: "One person — not a group chat — owns evidence capture, internal updates and the decision log. Split ownership is how details get lost or contradicted later.",
+    body: "One person — not a group chat — owns evidence capture, internal updates and the incident log: a running, timestamped record of what's known, what's been done and who authorized it. Split ownership is how details get lost or contradicted later.",
   },
   {
     title: "Capture evidence before anything moves or disappears",
@@ -69,7 +72,7 @@ function GuidePage() {
   return (
     <PublicPage
       eyebrow="Newsroom · Eterna-owned guide"
-      title="Executive First-Hour Response Playbook"
+      title="The Executive First Hour Response Playbook"
       intro="A condensed playbook for executives and communications leads: the decisions that matter most in the first hour, before the fuller response process begins."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
@@ -97,9 +100,10 @@ function GuidePage() {
           </h2>
           <p>
             Not a public statement. Not a resolved case. Done looks like: evidence preserved, one
-            owner assigned, legal and comms both briefed, and a clear, written line between what's
-            confirmed and what's still being assessed. That's the handoff into the full 72-hour
-            process.
+            owner assigned, legal and comms both briefed, and an incident log with a clear, written
+            line between what's confirmed and what's still being assessed. That's the handoff into
+            the fuller response process — there's no fixed length for how long that takes; it runs
+            until the incident is resolved.
           </p>
 
           <div className="border-t border-landing-line pt-8">
@@ -110,7 +114,7 @@ function GuidePage() {
                   to="/newsroom/impersonation-response-guide"
                   className="landing-link text-landing-ink"
                 >
-                  The full Impersonation Response Guide — hours 0 through 72
+                  The full Impersonation Response Guide — the complete response process
                 </Link>
               </li>
               <li>
