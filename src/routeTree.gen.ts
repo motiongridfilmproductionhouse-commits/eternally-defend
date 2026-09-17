@@ -18,6 +18,7 @@ import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NewsroomRouteImport } from './routes/newsroom'
 import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as ImageImmunizationRouteImport } from './routes/image-immunization'
 import { Route as IdentityResponseObservatoryRouteImport } from './routes/identity-response-observatory'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -32,8 +33,12 @@ import { Route as PartnerRouteImport } from './routes/_partner'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
+import { Route as NewsroomWhatIsImageImmunizationRouteImport } from './routes/newsroom_.what-is-image-immunization'
+import { Route as NewsroomInsideEternaImageImmunizationRouteImport } from './routes/newsroom_.inside-eterna-image-immunization'
 import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes/newsroom_.impersonation-response-guide'
+import { Route as NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport } from './routes/newsroom_.how-eterna-validates-image-immunization-responsibly'
 import { Route as NewsroomExecutiveFirstHourPlaybookRouteImport } from './routes/newsroom_.executive-first-hour-playbook'
+import { Route as NewsroomEternaIntroducesImageImmunizationRouteImport } from './routes/newsroom_.eterna-introduces-image-immunization'
 import { Route as NewsroomDeepfakeVerificationGuideRouteImport } from './routes/newsroom_.deepfake-verification-guide'
 import { Route as FaceHandoffTokenRouteImport } from './routes/face-handoff.$token'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
@@ -150,6 +155,11 @@ const MethodologyRoute = MethodologyRouteImport.update({
   path: '/methodology',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ImageImmunizationRoute = ImageImmunizationRouteImport.update({
+  id: '/image-immunization',
+  path: '/image-immunization',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IdentityResponseObservatoryRoute =
   IdentityResponseObservatoryRouteImport.update({
     id: '/identity-response-observatory',
@@ -219,16 +229,40 @@ const VerifySlugRoute = VerifySlugRouteImport.update({
   path: '/verify/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NewsroomWhatIsImageImmunizationRoute =
+  NewsroomWhatIsImageImmunizationRouteImport.update({
+    id: '/newsroom_/what-is-image-immunization',
+    path: '/newsroom/what-is-image-immunization',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomInsideEternaImageImmunizationRoute =
+  NewsroomInsideEternaImageImmunizationRouteImport.update({
+    id: '/newsroom_/inside-eterna-image-immunization',
+    path: '/newsroom/inside-eterna-image-immunization',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const NewsroomImpersonationResponseGuideRoute =
   NewsroomImpersonationResponseGuideRouteImport.update({
     id: '/newsroom_/impersonation-response-guide',
     path: '/newsroom/impersonation-response-guide',
     getParentRoute: () => rootRouteImport,
   } as any)
+const NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute =
+  NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport.update({
+    id: '/newsroom_/how-eterna-validates-image-immunization-responsibly',
+    path: '/newsroom/how-eterna-validates-image-immunization-responsibly',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const NewsroomExecutiveFirstHourPlaybookRoute =
   NewsroomExecutiveFirstHourPlaybookRouteImport.update({
     id: '/newsroom_/executive-first-hour-playbook',
     path: '/newsroom/executive-first-hour-playbook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomEternaIntroducesImageImmunizationRoute =
+  NewsroomEternaIntroducesImageImmunizationRouteImport.update({
+    id: '/newsroom_/eterna-introduces-image-immunization',
+    path: '/newsroom/eterna-introduces-image-immunization',
     getParentRoute: () => rootRouteImport,
   } as any)
 const NewsroomDeepfakeVerificationGuideRoute =
@@ -626,6 +660,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
+  '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
@@ -660,8 +695,12 @@ export interface FileRoutesByFullPath {
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/newsroom/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
+  '/newsroom/eterna-introduces-image-immunization': typeof NewsroomEternaIntroducesImageImmunizationRoute
   '/newsroom/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
+  '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
+  '/newsroom/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
+  '/newsroom/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -721,6 +760,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
+  '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
@@ -754,8 +794,12 @@ export interface FileRoutesByTo {
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/newsroom/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
+  '/newsroom/eterna-introduces-image-immunization': typeof NewsroomEternaIntroducesImageImmunizationRoute
   '/newsroom/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
+  '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
+  '/newsroom/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
+  '/newsroom/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -818,6 +862,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
+  '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
@@ -852,8 +897,12 @@ export interface FileRoutesById {
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/newsroom_/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
+  '/newsroom_/eterna-introduces-image-immunization': typeof NewsroomEternaIntroducesImageImmunizationRoute
   '/newsroom_/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
+  '/newsroom_/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
   '/newsroom_/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
+  '/newsroom_/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
+  '/newsroom_/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/_app/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -915,6 +964,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/cookies'
     | '/identity-response-observatory'
+    | '/image-immunization'
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
@@ -949,8 +999,12 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/face-handoff/$token'
     | '/newsroom/deepfake-verification-guide'
+    | '/newsroom/eterna-introduces-image-immunization'
     | '/newsroom/executive-first-hour-playbook'
+    | '/newsroom/how-eterna-validates-image-immunization-responsibly'
     | '/newsroom/impersonation-response-guide'
+    | '/newsroom/inside-eterna-image-immunization'
+    | '/newsroom/what-is-image-immunization'
     | '/verify/$slug'
     | '/admin/approved-sources-review'
     | '/admin/diagnostics'
@@ -1010,6 +1064,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/cookies'
     | '/identity-response-observatory'
+    | '/image-immunization'
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
@@ -1043,8 +1098,12 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/face-handoff/$token'
     | '/newsroom/deepfake-verification-guide'
+    | '/newsroom/eterna-introduces-image-immunization'
     | '/newsroom/executive-first-hour-playbook'
+    | '/newsroom/how-eterna-validates-image-immunization-responsibly'
     | '/newsroom/impersonation-response-guide'
+    | '/newsroom/inside-eterna-image-immunization'
+    | '/newsroom/what-is-image-immunization'
     | '/verify/$slug'
     | '/admin/approved-sources-review'
     | '/admin/diagnostics'
@@ -1106,6 +1165,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/cookies'
     | '/identity-response-observatory'
+    | '/image-immunization'
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
@@ -1140,8 +1200,12 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/face-handoff/$token'
     | '/newsroom_/deepfake-verification-guide'
+    | '/newsroom_/eterna-introduces-image-immunization'
     | '/newsroom_/executive-first-hour-playbook'
+    | '/newsroom_/how-eterna-validates-image-immunization-responsibly'
     | '/newsroom_/impersonation-response-guide'
+    | '/newsroom_/inside-eterna-image-immunization'
+    | '/newsroom_/what-is-image-immunization'
     | '/verify/$slug'
     | '/_app/admin/approved-sources-review'
     | '/_app/admin/diagnostics'
@@ -1204,6 +1268,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
   IdentityResponseObservatoryRoute: typeof IdentityResponseObservatoryRoute
+  ImageImmunizationRoute: typeof ImageImmunizationRoute
   MethodologyRoute: typeof MethodologyRoute
   NewsroomRoute: typeof NewsroomRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -1216,8 +1281,12 @@ export interface RootRouteChildren {
   ApiScanRoute: typeof ApiScanRoute
   FaceHandoffTokenRoute: typeof FaceHandoffTokenRoute
   NewsroomDeepfakeVerificationGuideRoute: typeof NewsroomDeepfakeVerificationGuideRoute
+  NewsroomEternaIntroducesImageImmunizationRoute: typeof NewsroomEternaIntroducesImageImmunizationRoute
   NewsroomExecutiveFirstHourPlaybookRoute: typeof NewsroomExecutiveFirstHourPlaybookRoute
+  NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
   NewsroomImpersonationResponseGuideRoute: typeof NewsroomImpersonationResponseGuideRoute
+  NewsroomInsideEternaImageImmunizationRoute: typeof NewsroomInsideEternaImageImmunizationRoute
+  NewsroomWhatIsImageImmunizationRoute: typeof NewsroomWhatIsImageImmunizationRoute
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
   ApiPublicImageProxyRoute: typeof ApiPublicImageProxyRoute
@@ -1306,6 +1375,13 @@ declare module '@tanstack/react-router' {
       path: '/methodology'
       fullPath: '/methodology'
       preLoaderRoute: typeof MethodologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/image-immunization': {
+      id: '/image-immunization'
+      path: '/image-immunization'
+      fullPath: '/image-immunization'
+      preLoaderRoute: typeof ImageImmunizationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/identity-response-observatory': {
@@ -1406,6 +1482,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifySlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/newsroom_/what-is-image-immunization': {
+      id: '/newsroom_/what-is-image-immunization'
+      path: '/newsroom/what-is-image-immunization'
+      fullPath: '/newsroom/what-is-image-immunization'
+      preLoaderRoute: typeof NewsroomWhatIsImageImmunizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/inside-eterna-image-immunization': {
+      id: '/newsroom_/inside-eterna-image-immunization'
+      path: '/newsroom/inside-eterna-image-immunization'
+      fullPath: '/newsroom/inside-eterna-image-immunization'
+      preLoaderRoute: typeof NewsroomInsideEternaImageImmunizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/newsroom_/impersonation-response-guide': {
       id: '/newsroom_/impersonation-response-guide'
       path: '/newsroom/impersonation-response-guide'
@@ -1413,11 +1503,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsroomImpersonationResponseGuideRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/newsroom_/how-eterna-validates-image-immunization-responsibly': {
+      id: '/newsroom_/how-eterna-validates-image-immunization-responsibly'
+      path: '/newsroom/how-eterna-validates-image-immunization-responsibly'
+      fullPath: '/newsroom/how-eterna-validates-image-immunization-responsibly'
+      preLoaderRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/newsroom_/executive-first-hour-playbook': {
       id: '/newsroom_/executive-first-hour-playbook'
       path: '/newsroom/executive-first-hour-playbook'
       fullPath: '/newsroom/executive-first-hour-playbook'
       preLoaderRoute: typeof NewsroomExecutiveFirstHourPlaybookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/eterna-introduces-image-immunization': {
+      id: '/newsroom_/eterna-introduces-image-immunization'
+      path: '/newsroom/eterna-introduces-image-immunization'
+      fullPath: '/newsroom/eterna-introduces-image-immunization'
+      preLoaderRoute: typeof NewsroomEternaIntroducesImageImmunizationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/newsroom_/deepfake-verification-guide': {
@@ -2056,6 +2160,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
   IdentityResponseObservatoryRoute: IdentityResponseObservatoryRoute,
+  ImageImmunizationRoute: ImageImmunizationRoute,
   MethodologyRoute: MethodologyRoute,
   NewsroomRoute: NewsroomRoute,
   OnboardingRoute: OnboardingRoute,
@@ -2069,10 +2174,17 @@ const rootRouteChildren: RootRouteChildren = {
   FaceHandoffTokenRoute: FaceHandoffTokenRoute,
   NewsroomDeepfakeVerificationGuideRoute:
     NewsroomDeepfakeVerificationGuideRoute,
+  NewsroomEternaIntroducesImageImmunizationRoute:
+    NewsroomEternaIntroducesImageImmunizationRoute,
   NewsroomExecutiveFirstHourPlaybookRoute:
     NewsroomExecutiveFirstHourPlaybookRoute,
+  NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute:
+    NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute,
   NewsroomImpersonationResponseGuideRoute:
     NewsroomImpersonationResponseGuideRoute,
+  NewsroomInsideEternaImageImmunizationRoute:
+    NewsroomInsideEternaImageImmunizationRoute,
+  NewsroomWhatIsImageImmunizationRoute: NewsroomWhatIsImageImmunizationRoute,
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
   ApiPublicImageProxyRoute: ApiPublicImageProxyRoute,
