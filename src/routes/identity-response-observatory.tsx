@@ -12,7 +12,7 @@ export const Route = createFileRoute("/identity-response-observatory")({
       {
         name: "description",
         content:
-          "Eterna's initiative to build a sourced, methodology-transparent public record of digital-identity incidents — verified, reported or disputed, and shown that way.",
+          "Eterna's initiative to build a sourced, methodology-transparent public record of digital-identity incidents: verified, reported or disputed, and shown that way.",
       },
       { property: "og:title", content: "Eterna Identity Response Observatory" },
       {
@@ -33,7 +33,7 @@ function ObservatoryPage() {
     <PublicPage
       eyebrow="Eterna Identity Response Observatory"
       title="A public record of digital-identity incidents, built to be checked, not just cited."
-      intro="Deepfake and impersonation statistics circulate widely. Few sources show how a single incident is actually confirmed before it's counted. The Observatory is Eterna's initiative to change that — starting with the same verification standard Eterna applies to its own case review."
+      intro="Deepfake and impersonation statistics circulate widely. Few sources show how a single incident is actually confirmed before it's counted. The Observatory is Eterna's initiative to change that, starting with the same verification standard Eterna applies to its own case review."
     >
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
@@ -48,24 +48,24 @@ function ObservatoryPage() {
               <p className="mt-3 text-sm leading-6 text-landing-muted">
                 Every entry considered for the Observatory is assessed against Eterna's published
                 four-part verification standard: sourced, corroborated, attributable to a method,
-                and — where enforcement is involved — authorized.
+                and (where enforcement is involved) authorized.
               </p>
             </article>
             <article className="bg-landing p-8">
               <BookOpen className="size-5 text-landing-accent" />
               <h3 className="mt-10 text-lg font-semibold">How entries are labeled</h3>
               <p className="mt-3 text-sm leading-6 text-landing-muted">
-                Each record is shown as verified, reported but unconfirmed, or disputed — visibly,
-                not quietly dropped. A record that only shows confirmed outcomes isn't a
-                verification standard.
+                Each record is shown visibly as verified, reported but unconfirmed, or disputed, not
+                quietly dropped. A record that only shows confirmed outcomes isn't a verification
+                standard.
               </p>
             </article>
             <article className="bg-landing p-8">
               <Radar className="size-5 text-landing-accent" />
               <h3 className="mt-10 text-lg font-semibold">What feeds it</h3>
               <p className="mt-3 text-sm leading-6 text-landing-muted">
-                Publicly documented incidents — reporting, platform disclosures, regulator and court
-                actions — plus, over time, anonymized and aggregated patterns from Eterna's own case
+                Publicly documented incidents (reporting, platform disclosures, regulator and court
+                actions), plus, over time, anonymized and aggregated patterns from Eterna's own case
                 review, where client consent allows it.
               </p>
             </article>
@@ -83,7 +83,7 @@ function ObservatoryPage() {
           </div>
           <div className="space-y-5 text-sm leading-7 text-landing-muted">
             <p>
-              The verification standard behind the Observatory is published today — see the
+              The verification standard behind the Observatory is published today. See the
               Methodology page. The Observatory's public, browsable record of individual incidents
               is in active development and is not yet published on this site.
             </p>
@@ -130,8 +130,8 @@ function ObservatoryPage() {
             <Users className="mt-0.5 size-4 shrink-0 text-landing-accent" />
             <p>
               Client identities and case details remain confidential. The Observatory records
-              publicly documented incidents and, where permitted, anonymized aggregate patterns only
-              — it never publishes a client's name, case file or evidence without separate,
+              publicly documented incidents and, where permitted, anonymized aggregate patterns
+              only; it never publishes a client's name, case file or evidence without separate,
               explicit, written consent.
             </p>
           </div>

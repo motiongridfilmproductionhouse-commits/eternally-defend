@@ -7,7 +7,7 @@ export const Route = createFileRoute("/privacy")({
       {
         name: "description",
         content:
-          "Privacy Policy for Eterna Sentinel — digital protection, reputation intelligence, and YouTube API Services disclosure.",
+          "Privacy Policy for Eterna Sentinel: digital protection, reputation intelligence, and YouTube API Services disclosure.",
       },
       { property: "og:title", content: "Privacy Policy | Eterna Sentinel" },
       {
@@ -87,33 +87,33 @@ function PrivacyPage() {
             <p>We collect the following categories of information:</p>
             <ul className="list-disc space-y-2 pl-6">
               <li>
-                <strong className="text-foreground">Account information</strong> — name, username,
+                <strong className="text-foreground">Account information</strong>: name, username,
                 password credentials, and authentication identifiers.
               </li>
               <li>
-                <strong className="text-foreground">Contact details</strong> — email address,
+                <strong className="text-foreground">Contact details</strong>: email address,
                 telephone number, and mailing address where provided.
               </li>
               <li>
-                <strong className="text-foreground">Organization information</strong> — company
-                name, role, team members, and billing details.
+                <strong className="text-foreground">Organization information</strong>: company name,
+                role, team members, and billing details.
               </li>
               <li>
-                <strong className="text-foreground">Protected assets submitted by users</strong> —
+                <strong className="text-foreground">Protected assets submitted by users</strong>:
                 names, handles, brand identifiers, URLs, images, videos, documents, and other assets
                 that users designate for monitoring.
               </li>
               <li>
-                <strong className="text-foreground">Publicly available online content</strong> —
+                <strong className="text-foreground">Publicly available online content</strong>:
                 metadata and content retrieved from public websites, search engines, social
                 platforms, news sources, forums, archives, and publicly available YouTube content.
               </li>
               <li>
-                <strong className="text-foreground">Usage and analytics data</strong> — feature
+                <strong className="text-foreground">Usage and analytics data</strong>: feature
                 usage, interaction events, scan history, and diagnostic logs.
               </li>
               <li>
-                <strong className="text-foreground">Device and browser information</strong> — IP
+                <strong className="text-foreground">Device and browser information</strong>: IP
                 address, browser type, operating system, device identifiers, language, and referral
                 URLs.
               </li>

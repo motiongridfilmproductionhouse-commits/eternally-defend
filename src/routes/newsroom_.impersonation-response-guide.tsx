@@ -8,13 +8,13 @@ const PUBLISHED = "2026-09-16";
 export const Route = createFileRoute("/newsroom_/impersonation-response-guide")({
   head: () => ({
     meta: [
-      { title: "The Impersonation Response Guide — Eterna Sentinel" },
+      { title: "The Impersonation Response Guide: Eterna Sentinel" },
       {
         name: "description",
         content:
-          "What actually happens, step by step, when you respond to a deepfake or impersonation account — and why the order matters.",
+          "What actually happens, step by step, when you respond to a deepfake or impersonation account, and why the order matters.",
       },
-      { property: "og:title", content: "The Impersonation Response Guide — Eterna Sentinel" },
+      { property: "og:title", content: "The Impersonation Response Guide: Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -47,7 +47,7 @@ function GuidePage() {
     <PublicPage
       eyebrow="Newsroom · Eterna-owned guide"
       title="The Impersonation Response Guide"
-      intro="What actually happens, step by step, after you discover a deepfake or an account impersonating you — and why the order matters. There's no fixed timeline that fits every case; the sequence below is what matters, not the clock."
+      intro="What actually happens, step by step, after you discover a deepfake or an account impersonating you, and why the order matters. There's no fixed timeline that fits every case; the sequence below is what matters, not the clock."
       image={{
         src: "/images/newsroom/impersonation-response-guide.png",
         alt: "Abstract visual representing impersonation response",
@@ -60,11 +60,11 @@ function GuidePage() {
             Most people encounter this problem for the first time in the worst possible way: a
             friend sends a screenshot, a client asks an awkward question, or a video shows up that
             looks and sounds like you saying something you never said. The instinct is to act
-            immediately — report the account, post a denial, call a lawyer. Some of that instinct is
+            immediately: report the account, post a denial, call a lawyer. Some of that instinct is
             right. Some of it can weaken the case. Here's what a properly run response looks like,
-            in order. How long each step takes varies by platform, jurisdiction and case complexity
-            — this guide doesn't promise a removal or a fixed completion time, because no one
-            honestly can.
+            in order. How long each step takes varies by platform, jurisdiction and case complexity;
+            this guide doesn't promise a removal or a fixed completion time, because no one honestly
+            can.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
@@ -72,11 +72,11 @@ function GuidePage() {
           </h2>
           <p>
             The most damaging mistake early on is reacting publicly before preserving evidence.
-            Platforms remove content, accounts get deleted, pages update — once that happens, the
+            Platforms remove content, accounts get deleted, pages update; once that happens, the
             record needed to prove what was said, where, and when can disappear with it.
           </p>
           <p>
-            Screenshot or record the content in context — the full post, the account profile, the
+            Screenshot or record the content in context: the full post, the account profile, the
             URL, timestamps and visible engagement. Save the direct link. Do not engage with the
             account, comment, or share it further; engagement can increase distribution and
             complicate later claims about how far it spread.
@@ -101,7 +101,7 @@ function GuidePage() {
           <p>
             Not everything that looks like a deepfake is one, and not every impersonation is
             coordinated. Is it synthetic media, account impersonation, or both? Is there a
-            discernible motive — financial scam, harassment, brand sabotage — or does it look
+            discernible motive (financial scam, harassment, brand sabotage), or does it look
             opportunistic? What is the actual reach right now, versus what it could become?
           </p>
           <p>
@@ -120,8 +120,8 @@ function GuidePage() {
           <p>
             Build a clear, chronological evidence file before you submit anything: what was posted,
             where, when it was first observed, how it has spread, and any prior contact with the
-            account or its owner. A stronger submission — to a platform, a lawyer or an investigator
-            — includes a concise statement of why the content is false or unauthorized, proof of
+            account or its owner. A stronger submission (to a platform, a lawyer or an investigator)
+            includes a concise statement of why the content is false or unauthorized, proof of
             authority to act on the affected party's behalf, and the specific policy the content
             violates, cited by name.
           </p>
@@ -130,7 +130,7 @@ function GuidePage() {
             Step 5: Report through the platform's actual channels
           </h2>
           <p>
-            Platform reporting tools are necessary but rarely sufficient alone — high-volume
+            Platform reporting tools are necessary but rarely sufficient alone; high-volume
             platforms triage reports algorithmically, and a bare report with no context often sits
             in a generic queue. Use the specific report category that matches the violation
             (impersonation, synthetic/manipulated media, or account compromise are usually distinct
@@ -139,15 +139,15 @@ function GuidePage() {
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
-            Step 6: Communicate with stakeholders — facts only
+            Step 6: Communicate with stakeholders (facts only)
           </h2>
           <p>
             Loop in the people who need to know before they hear it elsewhere: internal stakeholders
-            such as leadership, legal and communications, and — where relevant — external
-            stakeholders such as clients or partners who may encounter the content. Share only
-            what's confirmed versus what's still being assessed, avoid speculation about who is
-            responsible or why, and avoid promising a specific removal outcome or timeline before
-            either is actually known.
+            such as leadership, legal and communications, and (where relevant) external stakeholders
+            such as clients or partners who may encounter the content. Share only what's confirmed
+            versus what's still being assessed, avoid speculation about who is responsible or why,
+            and avoid promising a specific removal outcome or timeline before either is actually
+            known.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
@@ -157,7 +157,7 @@ function GuidePage() {
             This is the step most purely automated tools skip, because it's a human judgment step,
             not a technical one: before any enforcement action is taken on someone's behalf, the
             affected person or their verified representative should explicitly authorize it. This
-            protects against a second failure mode that's just as damaging as inaction — an
+            protects against a second failure mode that's just as damaging as inaction: an
             overzealous response that draws far more attention to a low-reach post than it ever
             would have received on its own.
           </p>
@@ -183,7 +183,7 @@ function GuidePage() {
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">Why the order matters</h2>
           <p>
-            Skipping straight to a public statement or a bare platform report is understandable —
+            Skipping straight to a public statement or a bare platform report is understandable:
             it's the natural reaction to something that feels like an emergency. It's also how weak
             cases get built, evidence gets lost, and low-reach incidents get amplified by the
             response itself. If you need a condensed version of this process for executives and
@@ -201,7 +201,7 @@ function GuidePage() {
             <h2 className="text-sm font-semibold text-landing-ink">Basis for this guide</h2>
             <p className="mt-4 text-xs leading-6">
               This walkthrough reflects general trust-and-safety incident-response practice and
-              Eterna's stated operating model — verified authorization before enforcement, human
+              Eterna's stated operating model: verified authorization before enforcement, human
               approval for consequential actions. It does not reference a specific client case; any
               future case example would require separate, explicit client consent before
               publication. It is educational guidance, not a guarantee of any particular outcome or
@@ -217,7 +217,7 @@ function GuidePage() {
                   to="/newsroom/deepfake-verification-guide"
                   className="landing-link text-landing-ink"
                 >
-                  The Deepfake Verification Guide — what "confirmed" actually requires
+                  The Deepfake Verification Guide: what "confirmed" actually requires
                 </Link>
               </li>
               <li>
@@ -225,7 +225,7 @@ function GuidePage() {
                   to="/newsroom/executive-first-hour-playbook"
                   className="landing-link text-landing-ink"
                 >
-                  The Executive First Hour Response Playbook — a condensed first move
+                  The Executive First Hour Response Playbook: a condensed first move
                 </Link>
               </li>
             </ul>

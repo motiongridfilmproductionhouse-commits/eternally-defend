@@ -6,13 +6,13 @@ import { PublicPage } from "@/components/public/PublicSite";
 export const Route = createFileRoute("/case-studies")({
   head: () => ({
     meta: [
-      { title: "Protection in Practice — Eterna Sentinel" },
+      { title: "Protection in Practice: Eterna Sentinel" },
       {
         name: "description",
         content:
           "Anonymized examples of Eterna Sentinel detection, investigation, evidence preservation and governed response workflows.",
       },
-      { property: "og:title", content: "Protection in Practice — Eterna Sentinel" },
+      { property: "og:title", content: "Protection in Practice: Eterna Sentinel" },
       {
         property: "og:description",
         content:

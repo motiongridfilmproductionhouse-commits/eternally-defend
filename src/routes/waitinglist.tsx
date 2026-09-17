@@ -21,13 +21,13 @@ import mobileBg from "@/assets/waitlist-bg-mobile.jpg";
 export const Route = createFileRoute("/waitinglist")({
   head: () => ({
     meta: [
-      { title: "Eterna Waitlist — What If Someone Becomes You Online?" },
+      { title: "Eterna Waitlist: What If Someone Becomes You Online?" },
       {
         name: "description",
         content:
           "Fake accounts, deepfakes and impersonation can put your identity in someone else's hands. Join Eterna Priority Access and take control.",
       },
-      { property: "og:title", content: "Eterna — What If Someone Becomes You Online?" },
+      { property: "og:title", content: "Eterna: What If Someone Becomes You Online?" },
       {
         property: "og:description",
         content:

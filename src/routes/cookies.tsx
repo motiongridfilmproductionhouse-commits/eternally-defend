@@ -5,12 +5,12 @@ import { PolicySections } from "./terms";
 export const Route = createFileRoute("/cookies")({
   head: () => ({
     meta: [
-      { title: "Cookie Policy — Eterna Sentinel" },
+      { title: "Cookie Policy: Eterna Sentinel" },
       {
         name: "description",
         content: "How Eterna Sentinel uses essential cookies and similar technologies.",
       },
-      { property: "og:title", content: "Cookie Policy — Eterna Sentinel" },
+      { property: "og:title", content: "Cookie Policy: Eterna Sentinel" },
       {
         property: "og:description",
         content: "How Eterna Sentinel uses essential cookies and similar technologies.",

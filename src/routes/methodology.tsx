@@ -8,17 +8,17 @@ const CANONICAL = "https://protectbyeterna.com/methodology";
 export const Route = createFileRoute("/methodology")({
   head: () => ({
     meta: [
-      { title: "Verification Methodology — Eterna Sentinel" },
+      { title: "Verification Methodology: Eterna Sentinel" },
       {
         name: "description",
         content:
           "The four-part standard Eterna Sentinel applies before any impersonation, deepfake or content-misuse finding is treated as verified.",
       },
-      { property: "og:title", content: "Verification Methodology — Eterna Sentinel" },
+      { property: "og:title", content: "Verification Methodology: Eterna Sentinel" },
       {
         property: "og:description",
         content:
-          "Sourced, corroborated, attributable to a method, and authorized before enforcement — how Eterna decides what counts as verified.",
+          "Sourced, corroborated, attributable to a method, and authorized before enforcement: how Eterna decides what counts as verified.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -33,7 +33,7 @@ const standard = [
     icon: Link2,
     step: "01",
     title: "Sourced",
-    body: "A finding needs a citable, checkable origin — platform-confirmed data, direct first-party evidence with a preserved chain of custody, or another checkable source. Unsourced claims are not carried forward as findings.",
+    body: "A finding needs a citable, checkable origin: platform-confirmed data, direct first-party evidence with a preserved chain of custody, or another checkable source. Unsourced claims are not carried forward as findings.",
   },
   {
     icon: FileSearch,
@@ -45,7 +45,7 @@ const standard = [
     icon: ShieldCheck,
     step: "03",
     title: "Attributable to a method",
-    body: "Every finding states how the determination was made — forensic review, platform confirmation, subject confirmation or investigative review — not just the conclusion.",
+    body: "Every finding states how the determination was made (forensic review, platform confirmation, subject confirmation or investigative review), not just the conclusion.",
   },
   {
     icon: UserCheck,
@@ -60,7 +60,7 @@ function MethodologyPage() {
     <PublicPage
       eyebrow="Methodology"
       title="What counts as verified, and why it matters."
-      intro="Detection technology can flag something as suspicious. It doesn't tell you whether a platform, a court or a newsroom will act on it. That gap is a documentation and verification question — this is the standard Eterna applies to close it."
+      intro="Detection technology can flag something as suspicious. It doesn't tell you whether a platform, a court or a newsroom will act on it. That gap is a documentation and verification question: this is the standard Eterna applies to close it."
     >
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
@@ -86,14 +86,14 @@ function MethodologyPage() {
           <div>
             <p className="landing-kicker">What doesn't clear the bar</p>
             <h2 className="mt-4 text-3xl font-medium">
-              Reported, not verified — and shown that way.
+              Reported, not verified, and shown that way.
             </h2>
           </div>
           <div className="space-y-5 text-sm leading-7 text-landing-muted">
             <p>
-              Anything that doesn't pass all four checks is labeled reported but unconfirmed or
-              disputed — visibly, not quietly dropped. A record that only shows confirmed outcomes
-              isn't a verification standard, it's marketing.
+              Anything that doesn't pass all four checks is labeled visibly as reported but
+              unconfirmed or disputed, not quietly dropped. A record that only shows confirmed
+              outcomes isn't a verification standard, it's marketing.
             </p>
             <p>
               This is also why detection accuracy alone is not treated as protection. Independent
@@ -117,7 +117,7 @@ function MethodologyPage() {
             </div>
             <p className="max-w-md text-sm leading-6 text-landing-muted">
               This is the same standard used inside client case review, and the standard behind
-              every entry considered for the Eterna Identity Response Observatory — Eterna's public
+              every entry considered for the Eterna Identity Response Observatory: Eterna's public
               record of documented digital-identity incidents.
             </p>
           </div>
