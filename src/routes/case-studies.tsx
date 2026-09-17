@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, Check, FileSearch, ScanFace, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
+import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
 export const Route = createFileRoute("/case-studies")({
   head: () => ({
@@ -136,11 +136,16 @@ function CaseStudiesPage() {
               Tell Eterna what needs protection and why.
             </p>
           </div>
-          <Button asChild className="landing-accent-fill text-landing-accent-foreground">
-            <Link to="/waitinglist" search={{ source: "case-studies" }}>
-              Request Protection <ArrowRight />
-            </Link>
-          </Button>
+          <EnquiryButton
+            className="landing-accent-fill text-landing-accent-foreground"
+            prefill={{
+              sourcePage: "case-studies",
+              sourceCta: "Request Protection",
+              department: "protection",
+            }}
+          >
+            Request Protection <ArrowRight />
+          </EnquiryButton>
         </div>
       </section>
     </PublicPage>

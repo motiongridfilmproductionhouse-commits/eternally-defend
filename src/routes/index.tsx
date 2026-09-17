@@ -29,6 +29,10 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import { EternaLogo, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
+import {
+  EnquiryModalProvider,
+  useEnquiryModal,
+} from "@/components/public/enquiry/enquiry-modal-context";
 import heroVideo from "@/assets/eterna-hero.mp4.asset.json";
 import heroVideoWebm from "@/assets/eterna-hero.webm.asset.json";
 import newHeroVideo from "@/assets/eterna-hero-new.mp4.asset.json";
@@ -160,6 +164,15 @@ const engagementCapabilityStrip = [
 ] as const;
 
 function LandingPage() {
+  return (
+    <EnquiryModalProvider>
+      <LandingPageContent />
+    </EnquiryModalProvider>
+  );
+}
+
+function LandingPageContent() {
+  const { openEnquiryModal } = useEnquiryModal();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
   useEffect(() => {
@@ -244,13 +257,18 @@ function LandingPage() {
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <Button
-                  asChild
+                  type="button"
                   size="lg"
                   className="landing-accent-fill text-landing-accent-foreground"
+                  onClick={() =>
+                    openEnquiryModal({
+                      sourcePage: "hero-request",
+                      sourceCta: "Request Protection",
+                      department: "protection",
+                    })
+                  }
                 >
-                  <Link to="/waitinglist" search={{ source: "hero-request" }}>
-                    Request Protection <ArrowRight />
-                  </Link>
+                  Request Protection <ArrowRight />
                 </Button>
                 <Button
                   asChild
@@ -673,23 +691,32 @@ function LandingPage() {
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <Button
-                  asChild
+                  type="button"
                   size="lg"
                   className="landing-accent-fill text-landing-accent-foreground"
+                  onClick={() =>
+                    openEnquiryModal({
+                      sourcePage: "footer-request",
+                      sourceCta: "Request Protection",
+                      department: "protection",
+                    })
+                  }
                 >
-                  <Link to="/waitinglist" search={{ source: "footer-request" }}>
-                    Request Protection <ArrowRight />
-                  </Link>
+                  Request Protection <ArrowRight />
                 </Button>
                 <Button
-                  asChild
+                  type="button"
                   size="lg"
                   variant="outline"
                   className="border-landing-on-media/30 bg-landing-on-media/10 text-landing-on-media hover:bg-landing-on-media/20 hover:text-landing-on-media"
+                  onClick={() =>
+                    openEnquiryModal({
+                      sourcePage: "footer-contact",
+                      sourceCta: "Contact us",
+                    })
+                  }
                 >
-                  <Link to="/waitinglist" search={{ source: "contact" }}>
-                    Contact us
-                  </Link>
+                  Contact us
                 </Button>
               </div>
             </div>

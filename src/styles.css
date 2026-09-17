@@ -1847,3 +1847,43 @@
     transform: none;
   }
 }
+
+/* Universal enquiry modal (EternaInquiryModal) */
+.eterna-enquiry-modal {
+  box-shadow: 0 40px 96px -32px color-mix(in oklab, var(--landing-ink) 45%, transparent);
+}
+
+/* Step-to-step transition: opacity + a small horizontal shift, direction
+   aware (forward = new content enters from the right, back = from the
+   left), replayed by React's `key={stepKey}` remount rather than an
+   imperative animation library. */
+@keyframes eterna-enquiry-step-in-forward {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes eterna-enquiry-step-in-back {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.eterna-enquiry-step--forward {
+  animation: eterna-enquiry-step-in-forward 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.eterna-enquiry-step--back {
+  animation: eterna-enquiry-step-in-back 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Restrained visual panel — no hover zoom, unlike the homepage's final CTA
+   video, since the spec calls for "no dramatic animation" inside the modal. */
+.eterna-enquiry-video video {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eterna-enquiry-modal {
+    animation: none !important;
+  }
+  .eterna-enquiry-step--forward,
+  .eterna-enquiry-step--back {
+    animation: none;
+  }
+}

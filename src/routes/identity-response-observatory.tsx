@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpen, Radar, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
+import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
 const CANONICAL = "https://protectbyeterna.com/identity-response-observatory";
 
@@ -134,9 +135,16 @@ function ObservatoryPage() {
                 Read the verification standard <ArrowRight />
               </Link>
             </Button>
-            <Button asChild className="landing-accent-fill text-landing-accent-foreground">
-              <Link to="/contact">Contact Eterna</Link>
-            </Button>
+            <EnquiryButton
+              className="landing-accent-fill text-landing-accent-foreground"
+              prefill={{
+                sourcePage: "identity-response-observatory",
+                sourceCta: "Contact Eterna",
+                department: "general",
+              }}
+            >
+              Contact Eterna
+            </EnquiryButton>
           </div>
         </div>
       </section>

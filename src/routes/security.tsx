@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Archive, Check, Fingerprint, KeyRound, Scale, ShieldAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
+import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
 export const Route = createFileRoute("/security")({
   head: () => ({
@@ -112,11 +112,16 @@ function SecurityPage() {
               Service providers are assessed for the function they support. Incident concerns can be
               raised directly with Eterna for triage and response.
             </p>
-            <Button asChild className="mt-3 bg-landing-accent text-landing-accent-foreground">
-              <Link to="/waitinglist" search={{ source: "security-enquiry" }}>
-                Security enquiry
-              </Link>
-            </Button>
+            <EnquiryButton
+              className="mt-3 bg-landing-accent text-landing-accent-foreground"
+              prefill={{
+                sourcePage: "security-enquiry",
+                sourceCta: "Security enquiry",
+                department: "security",
+              }}
+            >
+              Security enquiry
+            </EnquiryButton>
           </div>
         </div>
       </section>

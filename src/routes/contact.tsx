@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Handshake, LifeBuoy, Mail, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
+import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
 const CANONICAL = "https://protectbyeterna.com/contact";
 
@@ -61,11 +62,17 @@ function ContactPage() {
               <p className="mt-3 text-sm leading-6 text-landing-muted">
                 Individuals, executives and organizations requesting Eterna's protection services.
               </p>
-              <Button asChild variant="link" className="mt-5 h-auto p-0 text-landing-ink">
-                <Link to="/waitinglist" search={{ source: "contact-protection-request" }}>
-                  Request Protection <ArrowRight className="size-3.5" />
-                </Link>
-              </Button>
+              <EnquiryButton
+                variant="link"
+                className="mt-5 h-auto p-0 text-landing-ink"
+                prefill={{
+                  sourcePage: "contact-protection-request",
+                  sourceCta: "Request Protection",
+                  department: "protection",
+                }}
+              >
+                Request Protection <ArrowRight className="size-3.5" />
+              </EnquiryButton>
             </article>
 
             <article className="bg-landing p-8">
@@ -74,11 +81,17 @@ function ContactPage() {
               <p className="mt-3 text-sm leading-6 text-landing-muted">
                 General company and enterprise enquiries not covered by the categories here.
               </p>
-              <Button asChild variant="link" className="mt-5 h-auto p-0 text-landing-ink">
-                <Link to="/waitinglist" search={{ source: "contact-business-enquiry" }}>
-                  Start a business enquiry <ArrowRight className="size-3.5" />
-                </Link>
-              </Button>
+              <EnquiryButton
+                variant="link"
+                className="mt-5 h-auto p-0 text-landing-ink"
+                prefill={{
+                  sourcePage: "contact-business-enquiry",
+                  sourceCta: "Start a business enquiry",
+                  department: "general",
+                }}
+              >
+                Start a business enquiry <ArrowRight className="size-3.5" />
+              </EnquiryButton>
             </article>
 
             <article className="bg-landing p-8">
