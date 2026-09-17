@@ -5,7 +5,7 @@ import { PublicPage } from "@/components/public/PublicSite";
 const CANONICAL = "https://protectbyeterna.com/newsroom/deepfake-verification-guide";
 const PUBLISHED = "2026-09-16";
 
-export const Route = createFileRoute("/newsroom/deepfake-verification-guide")({
+export const Route = createFileRoute("/newsroom_/deepfake-verification-guide")({
   head: () => ({
     meta: [
       { title: "The Deepfake Verification Guide — Eterna Sentinel" },
@@ -139,7 +139,14 @@ function GuidePage() {
             >
               Impersonation Response Guide
             </Link>{" "}
-            for the first-72-hours process.
+            for the full response process, or the{" "}
+            <Link
+              to="/newsroom/executive-first-hour-playbook"
+              className="landing-link text-landing-ink"
+            >
+              Executive First Hour Response Playbook
+            </Link>{" "}
+            for a condensed first move.
           </p>
 
           <div className="border-t border-landing-line pt-8">

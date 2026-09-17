@@ -32,9 +32,9 @@ import { Route as PartnerRouteImport } from './routes/_partner'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
-import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes/newsroom.impersonation-response-guide'
-import { Route as NewsroomExecutiveFirstHourPlaybookRouteImport } from './routes/newsroom.executive-first-hour-playbook'
-import { Route as NewsroomDeepfakeVerificationGuideRouteImport } from './routes/newsroom.deepfake-verification-guide'
+import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes/newsroom_.impersonation-response-guide'
+import { Route as NewsroomExecutiveFirstHourPlaybookRouteImport } from './routes/newsroom_.executive-first-hour-playbook'
+import { Route as NewsroomDeepfakeVerificationGuideRouteImport } from './routes/newsroom_.deepfake-verification-guide'
 import { Route as FaceHandoffTokenRouteImport } from './routes/face-handoff.$token'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
 import { Route as PartnerPartnerRouteImport } from './routes/_partner.partner'
@@ -221,21 +221,21 @@ const VerifySlugRoute = VerifySlugRouteImport.update({
 } as any)
 const NewsroomImpersonationResponseGuideRoute =
   NewsroomImpersonationResponseGuideRouteImport.update({
-    id: '/impersonation-response-guide',
-    path: '/impersonation-response-guide',
-    getParentRoute: () => NewsroomRoute,
+    id: '/newsroom_/impersonation-response-guide',
+    path: '/newsroom/impersonation-response-guide',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const NewsroomExecutiveFirstHourPlaybookRoute =
   NewsroomExecutiveFirstHourPlaybookRouteImport.update({
-    id: '/executive-first-hour-playbook',
-    path: '/executive-first-hour-playbook',
-    getParentRoute: () => NewsroomRoute,
+    id: '/newsroom_/executive-first-hour-playbook',
+    path: '/newsroom/executive-first-hour-playbook',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const NewsroomDeepfakeVerificationGuideRoute =
   NewsroomDeepfakeVerificationGuideRouteImport.update({
-    id: '/deepfake-verification-guide',
-    path: '/deepfake-verification-guide',
-    getParentRoute: () => NewsroomRoute,
+    id: '/newsroom_/deepfake-verification-guide',
+    path: '/newsroom/deepfake-verification-guide',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const FaceHandoffTokenRoute = FaceHandoffTokenRouteImport.update({
   id: '/face-handoff/$token',
@@ -627,7 +627,7 @@ export interface FileRoutesByFullPath {
   '/cookies': typeof CookiesRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/methodology': typeof MethodologyRoute
-  '/newsroom': typeof NewsroomRouteWithChildren
+  '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
@@ -722,7 +722,7 @@ export interface FileRoutesByTo {
   '/cookies': typeof CookiesRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/methodology': typeof MethodologyRoute
-  '/newsroom': typeof NewsroomRouteWithChildren
+  '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
@@ -819,7 +819,7 @@ export interface FileRoutesById {
   '/cookies': typeof CookiesRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/methodology': typeof MethodologyRoute
-  '/newsroom': typeof NewsroomRouteWithChildren
+  '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
@@ -851,9 +851,9 @@ export interface FileRoutesById {
   '/_partner/partner': typeof PartnerPartnerRouteWithChildren
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
-  '/newsroom/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
-  '/newsroom/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
-  '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
+  '/newsroom_/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
+  '/newsroom_/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
+  '/newsroom_/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/_app/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
@@ -1139,9 +1139,9 @@ export interface FileRouteTypes {
     | '/_partner/partner'
     | '/api/scan'
     | '/face-handoff/$token'
-    | '/newsroom/deepfake-verification-guide'
-    | '/newsroom/executive-first-hour-playbook'
-    | '/newsroom/impersonation-response-guide'
+    | '/newsroom_/deepfake-verification-guide'
+    | '/newsroom_/executive-first-hour-playbook'
+    | '/newsroom_/impersonation-response-guide'
     | '/verify/$slug'
     | '/_app/admin/approved-sources-review'
     | '/_app/admin/diagnostics'
@@ -1205,7 +1205,7 @@ export interface RootRouteChildren {
   CookiesRoute: typeof CookiesRoute
   IdentityResponseObservatoryRoute: typeof IdentityResponseObservatoryRoute
   MethodologyRoute: typeof MethodologyRoute
-  NewsroomRoute: typeof NewsroomRouteWithChildren
+  NewsroomRoute: typeof NewsroomRoute
   OnboardingRoute: typeof OnboardingRoute
   PartnerApplyRoute: typeof PartnerApplyRoute
   PartnerStatusRoute: typeof PartnerStatusRoute
@@ -1215,6 +1215,9 @@ export interface RootRouteChildren {
   WaitinglistRoute: typeof WaitinglistRoute
   ApiScanRoute: typeof ApiScanRoute
   FaceHandoffTokenRoute: typeof FaceHandoffTokenRoute
+  NewsroomDeepfakeVerificationGuideRoute: typeof NewsroomDeepfakeVerificationGuideRoute
+  NewsroomExecutiveFirstHourPlaybookRoute: typeof NewsroomExecutiveFirstHourPlaybookRoute
+  NewsroomImpersonationResponseGuideRoute: typeof NewsroomImpersonationResponseGuideRoute
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
   ApiPublicImageProxyRoute: typeof ApiPublicImageProxyRoute
@@ -1403,26 +1406,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifySlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/newsroom/impersonation-response-guide': {
-      id: '/newsroom/impersonation-response-guide'
-      path: '/impersonation-response-guide'
+    '/newsroom_/impersonation-response-guide': {
+      id: '/newsroom_/impersonation-response-guide'
+      path: '/newsroom/impersonation-response-guide'
       fullPath: '/newsroom/impersonation-response-guide'
       preLoaderRoute: typeof NewsroomImpersonationResponseGuideRouteImport
-      parentRoute: typeof NewsroomRoute
+      parentRoute: typeof rootRouteImport
     }
-    '/newsroom/executive-first-hour-playbook': {
-      id: '/newsroom/executive-first-hour-playbook'
-      path: '/executive-first-hour-playbook'
+    '/newsroom_/executive-first-hour-playbook': {
+      id: '/newsroom_/executive-first-hour-playbook'
+      path: '/newsroom/executive-first-hour-playbook'
       fullPath: '/newsroom/executive-first-hour-playbook'
       preLoaderRoute: typeof NewsroomExecutiveFirstHourPlaybookRouteImport
-      parentRoute: typeof NewsroomRoute
+      parentRoute: typeof rootRouteImport
     }
-    '/newsroom/deepfake-verification-guide': {
-      id: '/newsroom/deepfake-verification-guide'
-      path: '/deepfake-verification-guide'
+    '/newsroom_/deepfake-verification-guide': {
+      id: '/newsroom_/deepfake-verification-guide'
+      path: '/newsroom/deepfake-verification-guide'
       fullPath: '/newsroom/deepfake-verification-guide'
       preLoaderRoute: typeof NewsroomDeepfakeVerificationGuideRouteImport
-      parentRoute: typeof NewsroomRoute
+      parentRoute: typeof rootRouteImport
     }
     '/face-handoff/$token': {
       id: '/face-handoff/$token'
@@ -2039,25 +2042,6 @@ const PartnerRouteChildren: PartnerRouteChildren = {
 const PartnerRouteWithChildren =
   PartnerRoute._addFileChildren(PartnerRouteChildren)
 
-interface NewsroomRouteChildren {
-  NewsroomDeepfakeVerificationGuideRoute: typeof NewsroomDeepfakeVerificationGuideRoute
-  NewsroomExecutiveFirstHourPlaybookRoute: typeof NewsroomExecutiveFirstHourPlaybookRoute
-  NewsroomImpersonationResponseGuideRoute: typeof NewsroomImpersonationResponseGuideRoute
-}
-
-const NewsroomRouteChildren: NewsroomRouteChildren = {
-  NewsroomDeepfakeVerificationGuideRoute:
-    NewsroomDeepfakeVerificationGuideRoute,
-  NewsroomExecutiveFirstHourPlaybookRoute:
-    NewsroomExecutiveFirstHourPlaybookRoute,
-  NewsroomImpersonationResponseGuideRoute:
-    NewsroomImpersonationResponseGuideRoute,
-}
-
-const NewsroomRouteWithChildren = NewsroomRoute._addFileChildren(
-  NewsroomRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
@@ -2073,7 +2057,7 @@ const rootRouteChildren: RootRouteChildren = {
   CookiesRoute: CookiesRoute,
   IdentityResponseObservatoryRoute: IdentityResponseObservatoryRoute,
   MethodologyRoute: MethodologyRoute,
-  NewsroomRoute: NewsroomRouteWithChildren,
+  NewsroomRoute: NewsroomRoute,
   OnboardingRoute: OnboardingRoute,
   PartnerApplyRoute: PartnerApplyRoute,
   PartnerStatusRoute: PartnerStatusRoute,
@@ -2083,6 +2067,12 @@ const rootRouteChildren: RootRouteChildren = {
   WaitinglistRoute: WaitinglistRoute,
   ApiScanRoute: ApiScanRoute,
   FaceHandoffTokenRoute: FaceHandoffTokenRoute,
+  NewsroomDeepfakeVerificationGuideRoute:
+    NewsroomDeepfakeVerificationGuideRoute,
+  NewsroomExecutiveFirstHourPlaybookRoute:
+    NewsroomExecutiveFirstHourPlaybookRoute,
+  NewsroomImpersonationResponseGuideRoute:
+    NewsroomImpersonationResponseGuideRoute,
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
   ApiPublicImageProxyRoute: ApiPublicImageProxyRoute,
@@ -2122,12 +2112,3 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
