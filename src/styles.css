@@ -1788,3 +1788,62 @@
 .eterna-nav-emphasis:hover {
   background: color-mix(in oklab, var(--landing) 84%, var(--landing-accent));
 }
+
+/* Shared mega-menu shell: open/close transition for the whole panel.
+   Category switching itself never triggers this — only the shell's own
+   data-state changes when the menu opens/closes; content within stays
+   mounted and crossfades via the per-Content data-motion classes. */
+.eterna-mega-shell {
+  transform-origin: top center;
+  transition:
+    opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.eterna-mega-shell[data-state="closed"] {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.99);
+}
+
+.eterna-mega-shell[data-state="open"] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.eterna-nav-feature {
+  border-color: var(--landing-line);
+  background: var(--landing);
+  transition:
+    border-color 200ms ease-out,
+    background-color 200ms ease-out;
+}
+
+.eterna-nav-feature:hover {
+  border-color: color-mix(in oklab, var(--landing-accent) 24%, var(--landing-line));
+  background: color-mix(in oklab, var(--landing) 94%, var(--landing-accent));
+}
+
+.eterna-nav-feature img {
+  transition: transform 260ms ease-out;
+}
+
+.eterna-nav-feature:hover img {
+  transform: scale(1.015);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eterna-mega-shell {
+    transition: opacity 120ms linear;
+  }
+  .eterna-mega-shell[data-state="closed"],
+  .eterna-mega-shell[data-state="open"] {
+    transform: none;
+  }
+  .eterna-nav-feature,
+  .eterna-nav-feature img {
+    transition: none;
+  }
+  .eterna-nav-feature:hover img {
+    transform: none;
+  }
+}
