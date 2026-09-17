@@ -1774,3 +1774,17 @@
     --eip-hover-y: 0px;
   }
 }
+
+/* Primary navigation dropdowns */
+.eterna-nav-panel {
+  box-shadow: 0 20px 48px -32px color-mix(in oklab, var(--landing-ink) 38%, transparent);
+}
+
+.eterna-nav-emphasis {
+  border-color: color-mix(in oklab, var(--landing-accent) 28%, var(--landing-line));
+  background: color-mix(in oklab, var(--landing) 90%, var(--landing-accent));
+}
+
+.eterna-nav-emphasis:hover {
+  background: color-mix(in oklab, var(--landing) 84%, var(--landing-accent));
+}

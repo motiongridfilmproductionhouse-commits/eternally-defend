@@ -40,7 +40,12 @@ const AccordionContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <AccordionPrimitive.Content
     ref={ref}
-    className="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
+    // `hidden` + `data-[state=open]:block` only matters for a caller that
+    // passes `forceMount` (keeping content in the DOM while collapsed, e.g.
+    // for a crawlable nav accordion); it is a no-op for every existing
+    // caller, since without `forceMount` this element is unmounted entirely
+    // while closed and the class never gets a chance to apply.
+    className="hidden overflow-hidden text-sm data-[state=open]:block data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
     {...props}
   >
     <div className={cn("pb-4 pt-0", className)}>{children}</div>
