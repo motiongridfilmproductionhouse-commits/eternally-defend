@@ -28,6 +28,22 @@ export const Route = createFileRoute("/methodology")({
   component: MethodologyPage,
 });
 
+function schema() {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "Verification Methodology: Eterna Sentinel",
+    description:
+      "The four-part standard Eterna Sentinel applies before any impersonation, deepfake or content-misuse finding is treated as verified.",
+    publisher: {
+      "@type": "Organization",
+      name: "Eterna Sentinel",
+      url: "https://protectbyeterna.com/",
+    },
+    mainEntityOfPage: CANONICAL,
+  });
+}
+
 const standard = [
   {
     icon: Link2,
@@ -62,6 +78,8 @@ function MethodologyPage() {
       title="What counts as verified, and why it matters."
       intro="Detection technology can flag something as suspicious. It doesn't tell you whether a platform, a court or a newsroom will act on it. That gap is a documentation and verification question: this is the standard Eterna applies to close it."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
+
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <p className="landing-kicker">The four-part standard</p>

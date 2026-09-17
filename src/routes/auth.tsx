@@ -14,6 +14,7 @@ export const Route = createFileRoute("/auth")({
     meta: [
       { title: "Sign In — Eterna Sentinel" },
       { name: "referrer", content: "no-referrer" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content:

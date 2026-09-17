@@ -39,6 +39,7 @@ import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes
 import { Route as NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport } from './routes/newsroom_.how-eterna-validates-image-immunization-responsibly'
 import { Route as NewsroomExecutiveFirstHourPlaybookRouteImport } from './routes/newsroom_.executive-first-hour-playbook'
 import { Route as NewsroomEternaIntroducesImageImmunizationRouteImport } from './routes/newsroom_.eterna-introduces-image-immunization'
+import { Route as NewsroomDetectionIsNotPreventionRouteImport } from './routes/newsroom_.detection-is-not-prevention'
 import { Route as NewsroomDeepfakeVerificationGuideRouteImport } from './routes/newsroom_.deepfake-verification-guide'
 import { Route as FaceHandoffTokenRouteImport } from './routes/face-handoff.$token'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
@@ -263,6 +264,12 @@ const NewsroomEternaIntroducesImageImmunizationRoute =
   NewsroomEternaIntroducesImageImmunizationRouteImport.update({
     id: '/newsroom_/eterna-introduces-image-immunization',
     path: '/newsroom/eterna-introduces-image-immunization',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomDetectionIsNotPreventionRoute =
+  NewsroomDetectionIsNotPreventionRouteImport.update({
+    id: '/newsroom_/detection-is-not-prevention',
+    path: '/newsroom/detection-is-not-prevention',
     getParentRoute: () => rootRouteImport,
   } as any)
 const NewsroomDeepfakeVerificationGuideRoute =
@@ -695,6 +702,7 @@ export interface FileRoutesByFullPath {
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/newsroom/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
+  '/newsroom/detection-is-not-prevention': typeof NewsroomDetectionIsNotPreventionRoute
   '/newsroom/eterna-introduces-image-immunization': typeof NewsroomEternaIntroducesImageImmunizationRoute
   '/newsroom/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
   '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
@@ -794,6 +802,7 @@ export interface FileRoutesByTo {
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/newsroom/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
+  '/newsroom/detection-is-not-prevention': typeof NewsroomDetectionIsNotPreventionRoute
   '/newsroom/eterna-introduces-image-immunization': typeof NewsroomEternaIntroducesImageImmunizationRoute
   '/newsroom/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
   '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
@@ -897,6 +906,7 @@ export interface FileRoutesById {
   '/api/scan': typeof ApiScanRoute
   '/face-handoff/$token': typeof FaceHandoffTokenRoute
   '/newsroom_/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
+  '/newsroom_/detection-is-not-prevention': typeof NewsroomDetectionIsNotPreventionRoute
   '/newsroom_/eterna-introduces-image-immunization': typeof NewsroomEternaIntroducesImageImmunizationRoute
   '/newsroom_/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
   '/newsroom_/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
@@ -999,6 +1009,7 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/face-handoff/$token'
     | '/newsroom/deepfake-verification-guide'
+    | '/newsroom/detection-is-not-prevention'
     | '/newsroom/eterna-introduces-image-immunization'
     | '/newsroom/executive-first-hour-playbook'
     | '/newsroom/how-eterna-validates-image-immunization-responsibly'
@@ -1098,6 +1109,7 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/face-handoff/$token'
     | '/newsroom/deepfake-verification-guide'
+    | '/newsroom/detection-is-not-prevention'
     | '/newsroom/eterna-introduces-image-immunization'
     | '/newsroom/executive-first-hour-playbook'
     | '/newsroom/how-eterna-validates-image-immunization-responsibly'
@@ -1200,6 +1212,7 @@ export interface FileRouteTypes {
     | '/api/scan'
     | '/face-handoff/$token'
     | '/newsroom_/deepfake-verification-guide'
+    | '/newsroom_/detection-is-not-prevention'
     | '/newsroom_/eterna-introduces-image-immunization'
     | '/newsroom_/executive-first-hour-playbook'
     | '/newsroom_/how-eterna-validates-image-immunization-responsibly'
@@ -1281,6 +1294,7 @@ export interface RootRouteChildren {
   ApiScanRoute: typeof ApiScanRoute
   FaceHandoffTokenRoute: typeof FaceHandoffTokenRoute
   NewsroomDeepfakeVerificationGuideRoute: typeof NewsroomDeepfakeVerificationGuideRoute
+  NewsroomDetectionIsNotPreventionRoute: typeof NewsroomDetectionIsNotPreventionRoute
   NewsroomEternaIntroducesImageImmunizationRoute: typeof NewsroomEternaIntroducesImageImmunizationRoute
   NewsroomExecutiveFirstHourPlaybookRoute: typeof NewsroomExecutiveFirstHourPlaybookRoute
   NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
@@ -1522,6 +1536,13 @@ declare module '@tanstack/react-router' {
       path: '/newsroom/eterna-introduces-image-immunization'
       fullPath: '/newsroom/eterna-introduces-image-immunization'
       preLoaderRoute: typeof NewsroomEternaIntroducesImageImmunizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/detection-is-not-prevention': {
+      id: '/newsroom_/detection-is-not-prevention'
+      path: '/newsroom/detection-is-not-prevention'
+      fullPath: '/newsroom/detection-is-not-prevention'
+      preLoaderRoute: typeof NewsroomDetectionIsNotPreventionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/newsroom_/deepfake-verification-guide': {
@@ -2174,6 +2195,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaceHandoffTokenRoute: FaceHandoffTokenRoute,
   NewsroomDeepfakeVerificationGuideRoute:
     NewsroomDeepfakeVerificationGuideRoute,
+  NewsroomDetectionIsNotPreventionRoute: NewsroomDetectionIsNotPreventionRoute,
   NewsroomEternaIntroducesImageImmunizationRoute:
     NewsroomEternaIntroducesImageImmunizationRoute,
   NewsroomExecutiveFirstHourPlaybookRoute:

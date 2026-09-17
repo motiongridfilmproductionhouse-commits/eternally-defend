@@ -154,6 +154,11 @@ function TechnicalBlogPage() {
             <h2 className="text-sm font-semibold text-landing-ink">Related reading</h2>
             <ul className="mt-4 space-y-2 text-xs">
               <li>
+                <Link to="/image-immunization" className="landing-link text-landing-ink">
+                  Image Immunization — the complete overview
+                </Link>
+              </li>
+              <li>
                 <Link
                   to="/newsroom/what-is-image-immunization"
                   className="landing-link text-landing-ink"

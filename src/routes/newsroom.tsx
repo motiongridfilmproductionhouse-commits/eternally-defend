@@ -6,6 +6,7 @@ import {
   FileText,
   Layers,
   Megaphone,
+  Radar,
   ScanFace,
   Users,
 } from "lucide-react";
@@ -35,6 +36,22 @@ export const Route = createFileRoute("/newsroom")({
   }),
   component: NewsroomPage,
 });
+
+function schema() {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Newsroom & Insights: Eterna Sentinel",
+    description:
+      "Eterna Sentinel guidance on deepfake verification and impersonation response, written and published by Eterna.",
+    publisher: {
+      "@type": "Organization",
+      name: "Eterna Sentinel",
+      url: "https://protectbyeterna.com/",
+    },
+    mainEntityOfPage: CANONICAL,
+  });
+}
 
 const guides = [
   {
@@ -101,6 +118,15 @@ const guides = [
     image: undefined,
     imageAlt: undefined,
   },
+  {
+    icon: Radar,
+    to: "/newsroom/detection-is-not-prevention" as const,
+    title: "Detection Is Not Prevention",
+    summary:
+      "Monitoring and takedown work after an image has already been misused. Why prevention has to start earlier.",
+    image: undefined,
+    imageAlt: undefined,
+  },
 ] as const;
 
 function NewsroomPage() {
@@ -110,6 +136,8 @@ function NewsroomPage() {
       title="Guidance Eterna publishes, written by Eterna."
       intro="Practical, sourced guidance on verification and incident response. These are Eterna-owned educational guides, not independent journalism or third-party press coverage."
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
+
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <div className="grid gap-px overflow-hidden border border-landing-line bg-landing-line md:grid-cols-3">

@@ -31,6 +31,7 @@ export function EternaLogo({
 const navigation = [
   { label: "Platform", href: "/#platform" },
   { label: "Solutions", href: "/#solutions" },
+  { label: "Image Immunization", to: "/image-immunization" as const },
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Case Studies", to: "/case-studies" as const },
   { label: "Observatory", to: "/identity-response-observatory" as const },
@@ -134,6 +135,7 @@ export function PublicFooter() {
       title: "Platform",
       links: [
         { label: "Protection", href: "/#solutions" },
+        { label: "Image Immunization (EIP)", to: "/image-immunization" as const },
         { label: "How It Works", href: "/#how-it-works" },
         { label: "Case Studies", to: "/case-studies" as const },
         { label: "Identity Response Observatory", to: "/identity-response-observatory" as const },
@@ -143,6 +145,10 @@ export function PublicFooter() {
       title: "Newsroom",
       links: [
         { label: "All guides", to: "/newsroom" as const },
+        {
+          label: "Eterna Introduces Image Immunization",
+          to: "/newsroom/eterna-introduces-image-immunization" as const,
+        },
         {
           label: "Deepfake Verification Guide",
           to: "/newsroom/deepfake-verification-guide" as const,

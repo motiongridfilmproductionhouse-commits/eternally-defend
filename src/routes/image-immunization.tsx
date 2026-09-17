@@ -328,6 +328,14 @@ function ImageImmunizationPage() {
                   How Eterna Validates Image Immunization Responsibly
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/newsroom/detection-is-not-prevention"
+                  className="landing-link text-landing-ink"
+                >
+                  Detection Is Not Prevention
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

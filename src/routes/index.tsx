@@ -349,6 +349,14 @@ function LandingPage() {
                 From ordinary image exposure to pre-publication protection.
               </p>
               <EipLifecycleVisual />
+              <p className="mt-5 text-sm">
+                <Link
+                  to="/image-immunization"
+                  className="landing-link inline-flex items-center gap-1 font-semibold text-landing-ink"
+                >
+                  Learn how Image Immunization works <ArrowRight className="size-3.5" />
+                </Link>
+              </p>
             </div>
 
             <div data-landing-reveal className="landing-stagger mt-16 grid gap-6 md:grid-cols-3">
