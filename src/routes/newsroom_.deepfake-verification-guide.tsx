@@ -49,8 +49,8 @@ function GuidePage() {
       title="The Deepfake Verification Guide"
       intro="What actually counts as a verified deepfake — and the standard Eterna applies before calling one confirmed."
       image={{
-        src: "/images/newsroom/deepfake-verification-guide.png",
-        alt: "Abstract visual representing deepfake verification",
+        src: "/images/newsroom/executive-first-hour-response-playbook.png",
+        alt: "Layered faces with biometric analysis and synthetic media signals",
       }}
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />

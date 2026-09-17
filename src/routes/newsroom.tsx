@@ -34,8 +34,8 @@ const guides = [
     title: "The Deepfake Verification Guide",
     summary:
       "What actually counts as a verified deepfake, and the four-part test behind that call.",
-    image: "/images/newsroom/deepfake-verification-guide.png",
-    imageAlt: "Abstract visual representing deepfake verification",
+    image: "/images/newsroom/executive-first-hour-response-playbook.png",
+    imageAlt: "Layered faces with biometric analysis and synthetic media signals",
   },
   {
     icon: Users,
@@ -43,7 +43,7 @@ const guides = [
     title: "The Impersonation Response Guide",
     summary: "What to do, in order, right after discovering impersonation or synthetic media.",
     image: "/images/newsroom/impersonation-response-guide.png",
-    imageAlt: "Abstract visual representing impersonation response",
+    imageAlt: "Identity cards protected by a blue shield",
   },
   {
     icon: FileText,
@@ -51,8 +51,8 @@ const guides = [
     title: "The Executive First Hour Response Playbook",
     summary:
       "A condensed playbook for executives and comms teams for the first hour after an incident surfaces.",
-    image: "/images/newsroom/executive-first-hour-response-playbook.png",
-    imageAlt: "Abstract visual representing executive incident response",
+    image: "/images/newsroom/deepfake-verification-guide.png",
+    imageAlt: "Desk with a checklist, clock, documents, and response workspace",
   },
 ] as const;
 
