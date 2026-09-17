@@ -229,11 +229,13 @@ export function PublicPage({
   eyebrow,
   title,
   intro,
+  image,
   children,
 }: {
   eyebrow: string;
   title: string;
   intro: string;
+  image?: { src: string; alt: string };
   children: ReactNode;
 }) {
   return (
@@ -249,6 +251,22 @@ export function PublicPage({
             <p className="mt-7 max-w-2xl text-base leading-7 text-landing-muted">{intro}</p>
           </div>
         </section>
+        {image && (
+          <section className="border-b border-landing-line bg-landing-soft">
+            <div className="mx-auto max-w-3xl px-6 py-10 md:py-12">
+              <div className="aspect-video w-full overflow-hidden rounded-sm border border-landing-line bg-landing">
+                <img
+                  src={image.src}
+                  alt={image.alt}
+                  width={1344}
+                  height={752}
+                  loading="eager"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+          </section>
+        )}
         {children}
       </main>
       <PublicFooter />

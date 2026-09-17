@@ -34,12 +34,16 @@ const guides = [
     title: "The Deepfake Verification Guide",
     summary:
       "What actually counts as a verified deepfake, and the four-part test behind that call.",
+    image: "/images/newsroom/deepfake-verification-guide.png",
+    imageAlt: "Abstract visual representing deepfake verification",
   },
   {
     icon: Users,
     to: "/newsroom/impersonation-response-guide" as const,
     title: "The Impersonation Response Guide",
     summary: "What to do, in order, right after discovering impersonation or synthetic media.",
+    image: "/images/newsroom/impersonation-response-guide.png",
+    imageAlt: "Abstract visual representing impersonation response",
   },
   {
     icon: FileText,
@@ -47,6 +51,8 @@ const guides = [
     title: "The Executive First Hour Response Playbook",
     summary:
       "A condensed playbook for executives and comms teams for the first hour after an incident surfaces.",
+    image: "/images/newsroom/executive-first-hour-response-playbook.png",
+    imageAlt: "Abstract visual representing executive incident response",
   },
 ] as const;
 
@@ -60,18 +66,30 @@ function NewsroomPage() {
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <div className="grid gap-px overflow-hidden border border-landing-line bg-landing-line md:grid-cols-3">
-            {guides.map(({ icon: Icon, to, title, summary }) => (
+            {guides.map(({ icon: Icon, to, title, summary, image, imageAlt }) => (
               <Link
                 key={to}
                 to={to}
-                className="landing-feature-card group bg-landing p-8 transition-colors hover:bg-landing-soft"
+                className="landing-feature-card group flex flex-col bg-landing transition-colors hover:bg-landing-soft"
               >
-                <Icon className="size-5 text-landing-accent" />
-                <h2 className="mt-14 text-lg font-semibold">{title}</h2>
-                <p className="mt-3 text-sm leading-6 text-landing-muted">{summary}</p>
-                <span className="mt-6 inline-flex items-center gap-1 text-xs font-semibold text-landing-ink">
-                  Read the guide <ArrowRight className="size-3.5" />
-                </span>
+                <div className="aspect-video w-full overflow-hidden border-b border-landing-line bg-landing-soft">
+                  <img
+                    src={image}
+                    alt={imageAlt}
+                    width={1344}
+                    height={752}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                </div>
+                <div className="flex flex-1 flex-col p-8">
+                  <Icon className="size-5 text-landing-accent" />
+                  <h2 className="mt-14 text-lg font-semibold">{title}</h2>
+                  <p className="mt-3 text-sm leading-6 text-landing-muted">{summary}</p>
+                  <span className="mt-6 inline-flex items-center gap-1 text-xs font-semibold text-landing-ink">
+                    Read the guide <ArrowRight className="size-3.5" />
+                  </span>
+                </div>
               </Link>
             ))}
           </div>
