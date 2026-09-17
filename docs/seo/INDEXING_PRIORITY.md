@@ -1,7 +1,7 @@
 # Indexing Priority Manifest
 
-Date: 2026-09-17
-Author: SEO/growth execution session (Sprint 2, Phase 4)
+Date: 2026-09-17 (updated after Phases 5-8 completed the same session)
+Author: SEO/growth execution session (Sprint 2, Phase 4; updated Phase 8)
 
 Tiering follows the user's explicit structure: Tier 1 is the pages that
 should anchor brand and category search; Tier 2 is trust/authority
@@ -24,8 +24,8 @@ crawling every route, which is out of scope for this manifest.
 | `/` | `https://protectbyeterna.com/` | Yes (priority 1.0, weekly) | Yes — no robots block | Linked from every page (logo/home link) | `#platform`, `#solutions`, `#how-it-works`, `/case-studies`, `/identity-response-observatory`, `/newsroom`, `/about`, `/security`, `/auth`, `/waitinglist`, `/methodology`, `/contact` | Repo has `organizationSchema`; not confirmed live via WebFetch (see tool-limitation note in verification matrix) | Brand ("Eterna Sentinel", "Eterna AI") | Highest | **Live**, but serving pre-redesign hero (PR #121 not deployed — see deployment audit) |
 | `/image-immunization` | `https://protectbyeterna.com/image-immunization` | Yes (priority 0.9, weekly) | Yes | Sitewide nav (as of Sprint 1, unpushed) + footer Platform group (unpushed) + homepage CTA (unpushed) + 4 Newsroom guide "related reading" links (unpushed) + newsroom card | `/contact`, 4 EIP Newsroom articles | None on this specific route (not part of Sprint 1's schema additions — candidate for a future `WebPage`/`Product` schema pass) | Category: "deepfake protection," "image protection," EIP brand term | Highest | **Live** (PR #120 deployed); internal-linking upgrades from Sprint 1 not yet deployed |
 | `/about` | `https://protectbyeterna.com/about` | Yes (priority 0.8, monthly) | Yes | Sitewide nav + footer Company group + homepage body link | `#platform`, `#solutions`, `#how-it-works`, `/case-studies`, `/identity-response-observatory`, `/newsroom`, `/waitinglist` ×2 | `AboutPage` schema added Sprint 1 — unpushed | Brand / company research ("who is Eterna Sentinel") | High | Live, schema not yet deployed |
-| `/deepfake-protection` (planned, Phase 5) | `https://protectbyeterna.com/deepfake-protection` | **Not yet in sitemap — add on deploy** | N/A — not yet built | Will need nav/footer/homepage placement once built | TBD | TBD — plan `WebPage` or `Article`-style schema | Category pillar: "deepfake protection," "how to protect against deepfakes" | Highest (not yet built) | **Not started** — Phase 5 of this sprint |
-| `/online-reputation-protection` (planned, Phase 6; exact route TBD) | TBD | **Not yet in sitemap** | N/A | TBD | TBD | TBD | Category pillar: "online reputation protection," "reputation defense" | Highest (not yet built) | **Not started** — Phase 6 of this sprint |
+| `/deepfake-protection` | `https://protectbyeterna.com/deepfake-protection` | Yes (priority 0.9, weekly) | Yes — no robots block | Footer Platform group + `/newsroom/someone-made-a-deepfake-of-me` + `/ai-impersonation` related reading (all unpushed) | `/image-immunization`, `/newsroom/detection-is-not-prevention`, `/methodology`, `/security`, `/newsroom/someone-made-a-deepfake-of-me`, `/newsroom/impersonation-response-guide`, `/newsroom/deepfake-verification-guide`, `/contact` | `WebPage` schema | Category pillar: "deepfake protection," "how to protect against deepfakes" | Highest | **Built, committed on `feature/seo-growth-sprint-2` — not yet deployed** |
+| `/online-reputation-protection` | `https://protectbyeterna.com/online-reputation-protection` | Yes (priority 0.9, weekly) | Yes | Footer Platform group + `/deepfake-protection`-adjacent cross-links + `/ai-impersonation` related reading (all unpushed) | `/methodology`, `/deepfake-protection`, `/image-immunization`, `/newsroom/impersonation-response-guide`, `/case-studies`, `/identity-response-observatory`, `/contact` | `WebPage` schema | Category pillar: "online reputation protection," "reputation defense" | Highest | **Built, committed — not yet deployed** |
 
 ## Tier 2 — Trust & authority infrastructure
 
@@ -35,8 +35,8 @@ crawling every route, which is out of scope for this manifest.
 | `/security` | `https://protectbyeterna.com/security` | Yes (0.7, monthly) | Yes | Sitewide nav + footer Legal/Company group | `/waitinglist?source=security-enquiry` | `WebPage` schema added Sprint 1 — unpushed | Trust/EEAT: security posture, responsible disclosure | Medium-High | Live, schema not yet deployed |
 | `/identity-response-observatory` | `https://protectbyeterna.com/identity-response-observatory` | Yes (0.9, weekly) | Yes | Sitewide nav + footer + `/about` and `/methodology` body links | `/methodology`, `/contact` | `WebPage` schema added Sprint 1 — unpushed | Research/EEAT: incident transparency, "has Eterna handled X" | High (weekly changefreq signals this is meant to be a living page) | Live, schema not yet deployed |
 | `/newsroom` | `https://protectbyeterna.com/newsroom` | Yes (0.8, weekly) | Yes | Sitewide nav + footer Newsroom group | 7 guide cards (8th, Sprint 1's, unpushed) | `CollectionPage` schema added Sprint 1 — unpushed | Hub: "Eterna Sentinel articles/guidance," discovery for all article-level search intent | High (hub page) | Live, schema and 8th article not yet deployed |
-| `/newsroom/someone-made-a-deepfake-of-me` (planned, Phase 7) | TBD | **Not yet in sitemap** | N/A | Will need `/newsroom` card + nav-adjacent placement + likely a link from `/deepfake-protection` once both exist | TBD | Plan `Article` schema, consistent with other Newsroom articles | Emergency/high-intent: "someone made a deepfake of me," "deepfake of me what do I do" | High (not yet built) | **Not started** — Phase 7 |
-| `/ai-impersonation` (planned, Phase 8; exact route TBD) | TBD | **Not yet in sitemap** | N/A | TBD | TBD | TBD | Category: "AI impersonation," "fake endorsement scam," "cloned voice scam" | Medium-High (not yet built) | **Not started** — Phase 8 |
+| `/newsroom/someone-made-a-deepfake-of-me` | `https://protectbyeterna.com/newsroom/someone-made-a-deepfake-of-me` | Yes (priority 0.8, monthly) | Yes | `/newsroom` guide card + `/deepfake-protection` (intro + related reading) + `/ai-impersonation` related reading (all unpushed) | `/image-immunization`, `/deepfake-protection`, `/newsroom` | `Article` schema | Emergency/high-intent: "someone made a deepfake of me," "deepfake of me what do I do" | High | **Built, committed — not yet deployed** |
+| `/ai-impersonation` | `https://protectbyeterna.com/ai-impersonation` | Yes (priority 0.8, weekly) | Yes | Footer Platform group (unpushed) | `/newsroom/someone-made-a-deepfake-of-me`, `/image-immunization`, `/deepfake-protection`, `/newsroom/executive-first-hour-playbook`, `/newsroom/impersonation-response-guide`, `/online-reputation-protection`, `/contact` | `WebPage` schema | Category: "AI impersonation," "fake endorsement scam," "cloned voice scam" | Medium-High | **Built, committed — not yet deployed** |
 
 ## Tier 3 — Supporting articles & long-tail
 
@@ -66,7 +66,14 @@ crawling every route, which is out of scope for this manifest.
 
 ## Next update to this manifest
 
-This manifest should be revised once: (a) the deploy gap in
-`PRODUCTION_DEPLOYMENT_AUDIT.md` is resolved and Sprint 1/2 go live, and
-(b) Phases 5–8's new pages exist and have real URLs, internal link counts
-and schema to record.
+Phases 5-8 are now built and committed on `feature/seo-growth-sprint-2`
+(layered on top of `feature/seo-growth-sprint-1`), with real routes,
+schema and internal linking as recorded above. None of it is deployed —
+this branch has not been pushed (push access is blocked for this
+session; see the deployment audit) or merged. This manifest should be
+revised again once: (a) the deploy gap in `PRODUCTION_DEPLOYMENT_AUDIT.md`
+is resolved so PR #121 goes live, and (b) `feature/seo-growth-sprint-1`
+and `feature/seo-growth-sprint-2` are merged and deployed, at which point
+every row above marked "not yet deployed" should be re-verified against
+production the same way `PRODUCTION_ROUTE_VERIFICATION.md` did for the
+existing routes.
