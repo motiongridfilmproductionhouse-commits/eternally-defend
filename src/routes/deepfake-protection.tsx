@@ -239,7 +239,14 @@ function DeepfakeProtectionPage() {
             impersonation or other manipulated media, here's a general framework for the first
             steps. This is general guidance, not legal advice, and it isn't a substitute for
             qualified help in a specific situation, see the note on getting specialist support
-            below.
+            below. If this is happening to you right now, the more detailed walkthrough in{" "}
+            <Link
+              to="/newsroom/someone-made-a-deepfake-of-me"
+              className="landing-link text-landing-ink"
+            >
+              Someone Made a Deepfake of Me — What Should I Do?
+            </Link>{" "}
+            may be more useful than this overview.
           </p>
           <ol className="mt-10 space-y-8">
             {responseSteps.map((item) => (
@@ -387,6 +394,14 @@ function DeepfakeProtectionPage() {
           <div className="mt-12 border-t border-landing-line pt-8 text-left">
             <h2 className="text-xs font-semibold uppercase text-landing-ink">Related reading</h2>
             <ul className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
+              <li>
+                <Link
+                  to="/newsroom/someone-made-a-deepfake-of-me"
+                  className="landing-link text-landing-ink"
+                >
+                  Someone Made a Deepfake of Me — What Should I Do?
+                </Link>
+              </li>
               <li>
                 <Link to="/image-immunization" className="landing-link text-landing-ink">
                   Eterna Image Immunization

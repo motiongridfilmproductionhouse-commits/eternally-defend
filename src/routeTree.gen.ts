@@ -36,6 +36,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
 import { Route as NewsroomWhatIsImageImmunizationRouteImport } from './routes/newsroom_.what-is-image-immunization'
+import { Route as NewsroomSomeoneMadeADeepfakeOfMeRouteImport } from './routes/newsroom_.someone-made-a-deepfake-of-me'
 import { Route as NewsroomInsideEternaImageImmunizationRouteImport } from './routes/newsroom_.inside-eterna-image-immunization'
 import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes/newsroom_.impersonation-response-guide'
 import { Route as NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport } from './routes/newsroom_.how-eterna-validates-image-immunization-responsibly'
@@ -247,6 +248,12 @@ const NewsroomWhatIsImageImmunizationRoute =
   NewsroomWhatIsImageImmunizationRouteImport.update({
     id: '/newsroom_/what-is-image-immunization',
     path: '/newsroom/what-is-image-immunization',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomSomeoneMadeADeepfakeOfMeRoute =
+  NewsroomSomeoneMadeADeepfakeOfMeRouteImport.update({
+    id: '/newsroom_/someone-made-a-deepfake-of-me',
+    path: '/newsroom/someone-made-a-deepfake-of-me',
     getParentRoute: () => rootRouteImport,
   } as any)
 const NewsroomInsideEternaImageImmunizationRoute =
@@ -723,6 +730,7 @@ export interface FileRoutesByFullPath {
   '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/newsroom/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
+  '/newsroom/someone-made-a-deepfake-of-me': typeof NewsroomSomeoneMadeADeepfakeOfMeRoute
   '/newsroom/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
@@ -825,6 +833,7 @@ export interface FileRoutesByTo {
   '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/newsroom/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
+  '/newsroom/someone-made-a-deepfake-of-me': typeof NewsroomSomeoneMadeADeepfakeOfMeRoute
   '/newsroom/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
@@ -931,6 +940,7 @@ export interface FileRoutesById {
   '/newsroom_/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
   '/newsroom_/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/newsroom_/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
+  '/newsroom_/someone-made-a-deepfake-of-me': typeof NewsroomSomeoneMadeADeepfakeOfMeRoute
   '/newsroom_/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
   '/verify/$slug': typeof VerifySlugRoute
   '/_app/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
@@ -1036,6 +1046,7 @@ export interface FileRouteTypes {
     | '/newsroom/how-eterna-validates-image-immunization-responsibly'
     | '/newsroom/impersonation-response-guide'
     | '/newsroom/inside-eterna-image-immunization'
+    | '/newsroom/someone-made-a-deepfake-of-me'
     | '/newsroom/what-is-image-immunization'
     | '/verify/$slug'
     | '/admin/approved-sources-review'
@@ -1138,6 +1149,7 @@ export interface FileRouteTypes {
     | '/newsroom/how-eterna-validates-image-immunization-responsibly'
     | '/newsroom/impersonation-response-guide'
     | '/newsroom/inside-eterna-image-immunization'
+    | '/newsroom/someone-made-a-deepfake-of-me'
     | '/newsroom/what-is-image-immunization'
     | '/verify/$slug'
     | '/admin/approved-sources-review'
@@ -1243,6 +1255,7 @@ export interface FileRouteTypes {
     | '/newsroom_/how-eterna-validates-image-immunization-responsibly'
     | '/newsroom_/impersonation-response-guide'
     | '/newsroom_/inside-eterna-image-immunization'
+    | '/newsroom_/someone-made-a-deepfake-of-me'
     | '/newsroom_/what-is-image-immunization'
     | '/verify/$slug'
     | '/_app/admin/approved-sources-review'
@@ -1327,6 +1340,7 @@ export interface RootRouteChildren {
   NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
   NewsroomImpersonationResponseGuideRoute: typeof NewsroomImpersonationResponseGuideRoute
   NewsroomInsideEternaImageImmunizationRoute: typeof NewsroomInsideEternaImageImmunizationRoute
+  NewsroomSomeoneMadeADeepfakeOfMeRoute: typeof NewsroomSomeoneMadeADeepfakeOfMeRoute
   NewsroomWhatIsImageImmunizationRoute: typeof NewsroomWhatIsImageImmunizationRoute
   VerifySlugRoute: typeof VerifySlugRoute
   ApiMediaPreviewRoute: typeof ApiMediaPreviewRoute
@@ -1542,6 +1556,13 @@ declare module '@tanstack/react-router' {
       path: '/newsroom/what-is-image-immunization'
       fullPath: '/newsroom/what-is-image-immunization'
       preLoaderRoute: typeof NewsroomWhatIsImageImmunizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/someone-made-a-deepfake-of-me': {
+      id: '/newsroom_/someone-made-a-deepfake-of-me'
+      path: '/newsroom/someone-made-a-deepfake-of-me'
+      fullPath: '/newsroom/someone-made-a-deepfake-of-me'
+      preLoaderRoute: typeof NewsroomSomeoneMadeADeepfakeOfMeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/newsroom_/inside-eterna-image-immunization': {
@@ -2249,6 +2270,7 @@ const rootRouteChildren: RootRouteChildren = {
     NewsroomImpersonationResponseGuideRoute,
   NewsroomInsideEternaImageImmunizationRoute:
     NewsroomInsideEternaImageImmunizationRoute,
+  NewsroomSomeoneMadeADeepfakeOfMeRoute: NewsroomSomeoneMadeADeepfakeOfMeRoute,
   NewsroomWhatIsImageImmunizationRoute: NewsroomWhatIsImageImmunizationRoute,
   VerifySlugRoute: VerifySlugRoute,
   ApiMediaPreviewRoute: ApiMediaPreviewRoute,
