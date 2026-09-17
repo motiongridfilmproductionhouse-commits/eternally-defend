@@ -1373,15 +1373,16 @@
   background:
     linear-gradient(
       180deg,
-      color-mix(in oklab, var(--landing-ink) 12%, transparent),
-      transparent 26%
+      color-mix(in oklab, var(--landing-ink) 30%, transparent),
+      transparent 30%
     ),
     linear-gradient(
       0deg,
-      color-mix(in oklab, var(--landing-ink) 62%, transparent),
-      transparent 50%
+      color-mix(in oklab, var(--landing-ink) 82%, transparent) 12%,
+      color-mix(in oklab, var(--landing-ink) 45%, transparent) 46%,
+      transparent 72%
     ),
-    color-mix(in oklab, var(--landing-ink) 4%, transparent);
+    color-mix(in oklab, var(--landing-ink) 12%, transparent);
 }
 
 .landing-hero {
@@ -1418,6 +1419,7 @@
 
 .landing-hero-content {
   animation: landing-content-arrive 900ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both;
+  text-shadow: 0 1px 24px color-mix(in oklab, var(--landing-ink) 55%, transparent);
 }
 
 .landing-hero-status {
